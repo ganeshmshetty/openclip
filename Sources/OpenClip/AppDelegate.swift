@@ -1,11 +1,14 @@
 import AppKit
 @preconcurrency import ApplicationServices
 import SwiftUI
+import Core
 
 /// Manages the application lifecycle and permissions.
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
+    private var selectionMonitor: (any SelectionMonitoring)?
+    private var popupController: PopupWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Request accessibility permissions
@@ -13,6 +16,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Initialize the status bar controller
         statusBarController = StatusBarController()
+        
+        // Setup popup controller
+        popupController = PopupWindowController()
+        
+        // Setup selection monitor
+        let retriever = MacTextRetriever()
+        var monitor = MacSelectionMonitor(retriever: retriever)
+        monitor.onSelection = { [weak self] context in
+            self?.popupController?.show(for: context)
+        }
+        selectionMonitor = monitor
+        selectionMonitor?.start()
     }
     
     /// Requests Accessibility permissions on first launch.

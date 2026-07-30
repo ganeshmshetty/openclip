@@ -3,6 +3,8 @@ import Core
 
 @MainActor
 internal final class MacSelectionMonitor: SelectionMonitoring {
+    internal var onSelection: ((SelectionContext) -> Void)?
+    
     private var monitor: Any?
     private var debounceTask: Task<Void, Never>?
     private let retriever: any TextRetrieving
@@ -53,7 +55,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                         cursorPosition: cursor,
                         timestamp: Date()
                     )
-                    print("SelectionContext:", context)
+                    self.onSelection?(context)
                 }
             }
         }
