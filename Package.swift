@@ -7,7 +7,8 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "OpenClip", targets: ["OpenClip"])
+        .executable(name: "OpenClip", targets: ["OpenClip"]),
+        .library(name: "Core", targets: ["Core"])
     ],
     dependencies: [
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
@@ -18,11 +19,20 @@ let package = Package(
         .executableTarget(
             name: "OpenClip",
             dependencies: [
+                "Core",
                 "KeyboardShortcuts",
                 "Defaults",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/OpenClip",
+            swiftSettings: [
+                .enableExperimentalFeature("StrictConcurrency")
+            ]
+        ),
+        .target(
+            name: "Core",
+            dependencies: [],
+            path: "Sources/Core",
             swiftSettings: [
                 .enableExperimentalFeature("StrictConcurrency")
             ]

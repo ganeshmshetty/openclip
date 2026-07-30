@@ -8,9 +8,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Set the app as an accessory to hide the dock icon (equivalent to LSUIElement)
-        NSApp.setActivationPolicy(.accessory)
-        
         // Request accessibility permissions
         requestAccessibilityPermissions()
         
@@ -20,12 +17,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     /// Requests Accessibility permissions on first launch.
     private func requestAccessibilityPermissions() {
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false]
         let isTrusted = AXIsProcessTrustedWithOptions(options)
         
         if !isTrusted {
-            print("Accessibility permission is missing. Please grant it in System Settings.")
-            // Graceful degradation: The app won't crash, but won't be able to read global shortcuts properly without it.
+            let alert = NSAlert()
+            alert.messageText = "Accessibility Permissions Required"
+            alert.informativeText = "OpenClip requires Accessibility permissions to read global keyboard shortcuts. Please grant this permission in System Settings when prompted."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Continue")
+            alert.addButton(withTitle: "Quit")
+            
+            // NSAlert must be presented so it becomes visible even if app is LSUIElement
+            NSApp.activate(ignoringOtherApps: true)
+            let response = alert.runModal()
+            
+            if response == .alertFirstButtonReturn {
+                let promptOptions: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+                AXIsProcessTrustedWithOptions(promptOptions)
+            } else {
+                NSApplication.shared.terminate(nil)
+            }
         }
     }
 }

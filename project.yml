@@ -1,0 +1,45 @@
+name: OpenClip
+options:
+  bundleIdPrefix: com.openclip
+targets:
+  Core:
+    type: framework
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources: [Sources/Core]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+  OpenClip:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources: [Sources/OpenClip]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        LSUIElement: true
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        ENABLE_HARDENED_RUNTIME: true
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+    dependencies:
+      - target: Core
+      - package: KeyboardShortcuts
+      - package: Defaults
+      - package: Sparkle
+packages:
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: 2.0.0
+  Defaults:
+    url: https://github.com/sindresorhus/Defaults
+    from: 8.0.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.0.0
