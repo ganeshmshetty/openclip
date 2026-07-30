@@ -11,9 +11,13 @@ public final class SelectionMonitor {
     }
     
     public func start() {
-        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] _ in
+        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
+            guard let app = NSWorkspace.shared.frontmostApplication else { return }
+            let cursor = event.locationInWindow
+            let capturedApp = app
+            
             Task { @MainActor in
-                self?.handleMouseUp()
+                self?.handleMouseUp(app: capturedApp, cursor: cursor)
             }
         }
     }
@@ -25,7 +29,7 @@ public final class SelectionMonitor {
         }
     }
     
-    private func handleMouseUp() {
+    private func handleMouseUp(app: NSRunningApplication, cursor: CGPoint) {
         debounceTask?.cancel()
         
         debounceTask = Task { @MainActor in
@@ -35,12 +39,9 @@ public final class SelectionMonitor {
                 return
             }
             
-            guard let app = NSWorkspace.shared.frontmostApplication else { return }
             if let bundleID = app.bundleIdentifier, AppFilter.isExcluded(bundleID: bundleID) {
                 return
             }
-            
-            let cursor = NSEvent.mouseLocation
             
             // The retriever runs its own logic (which could be non-isolated) 
             if let text = await self.retriever.retrieveText(for: app) {

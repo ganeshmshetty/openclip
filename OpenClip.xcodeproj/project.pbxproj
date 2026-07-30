@@ -7,18 +7,32 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		136B3DB226AA8B7A486BBB33 /* TextRetriever.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59A41264E205F087E9C453FC /* TextRetriever.swift */; };
 		1A92B6897F7D9221305370A4 /* Core.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 38D9A91D8E78B77B35D10754 /* Core.framework */; };
 		2D5A6C0BC066105BCD180A11 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5424DA244495CA3CE48F83B1 /* Sparkle */; };
 		37606174465EF5FF5CE918E3 /* Core.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 38D9A91D8E78B77B35D10754 /* Core.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		3ADAC5B0CEFD0FE7B6F67E80 /* SelectionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = C75903901F509F94C7723227 /* SelectionContext.swift */; };
 		4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */; };
 		525E21DA64B3EB439A493E1C /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 03869142675321ABACC573BA /* Defaults */; };
 		5DA0AEF4E0DB181460C32C7E /* Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C75D3BF228023DEA93C5D3D /* Core.swift */; };
+		7865199CFD58C265CFE123D5 /* SelectionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03B0D40442DD079F472E8E7A /* SelectionMonitor.swift */; };
 		84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */; };
+		9495A826AD2E0BB4ED448280 /* TextRetrieverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49648502F040834635BBD8ED /* TextRetrieverTests.swift */; };
+		94F6165DD10ED76B25170C1C /* AppFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF5D851B09CA25A4A497F0C7 /* AppFilterTests.swift */; };
+		B51A9B74EB38C612102AEE87 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3000FD2E729631F9E03BAA99 /* Constants.swift */; };
 		C54EA6972708DC6B6083AF66 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 69201994E9CE6C7F2CDED2F0 /* KeyboardShortcuts */; };
 		E08C252C9ADA79A930825C1E /* OpenClipApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 871B6048B7968E61FCB53537 /* OpenClipApp.swift */; };
+		F63F283AF4BE855D6F525EBB /* AppFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00AF268DEA704B20B3BDF262 /* AppFilter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		08799C0A2A45C6AE34AD5936 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A9F1087A35C227BA15E169FF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C4AE70D9CEE6CD32E06BBA3A;
+			remoteInfo = OpenClip;
+		};
 		30CF9143C3AF6CFF58E3B509 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A9F1087A35C227BA15E169FF /* Project object */;
@@ -43,11 +57,19 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		00AF268DEA704B20B3BDF262 /* AppFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFilter.swift; sourceTree = "<group>"; };
+		0320149D41E8A7C2D2A9DED8 /* OpenClipTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenClipTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		03B0D40442DD079F472E8E7A /* SelectionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionMonitor.swift; sourceTree = "<group>"; };
 		0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		3000FD2E729631F9E03BAA99 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		38D9A91D8E78B77B35D10754 /* Core.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Core.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		49648502F040834635BBD8ED /* TextRetrieverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRetrieverTests.swift; sourceTree = "<group>"; };
 		4C75D3BF228023DEA93C5D3D /* Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core.swift; sourceTree = "<group>"; };
+		59A41264E205F087E9C453FC /* TextRetriever.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRetriever.swift; sourceTree = "<group>"; };
 		871B6048B7968E61FCB53537 /* OpenClipApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipApp.swift; sourceTree = "<group>"; };
+		AF5D851B09CA25A4A497F0C7 /* AppFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFilterTests.swift; sourceTree = "<group>"; };
+		C75903901F509F94C7723227 /* SelectionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionContext.swift; sourceTree = "<group>"; };
 		E97352E36DEEAE5F6A6AE6F5 /* OpenClip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenClip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -70,8 +92,13 @@
 			isa = PBXGroup;
 			children = (
 				287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */,
+				00AF268DEA704B20B3BDF262 /* AppFilter.swift */,
+				3000FD2E729631F9E03BAA99 /* Constants.swift */,
 				871B6048B7968E61FCB53537 /* OpenClipApp.swift */,
+				C75903901F509F94C7723227 /* SelectionContext.swift */,
+				03B0D40442DD079F472E8E7A /* SelectionMonitor.swift */,
 				0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */,
+				59A41264E205F087E9C453FC /* TextRetriever.swift */,
 			);
 			name = OpenClip;
 			path = Sources/OpenClip;
@@ -82,6 +109,7 @@
 			children = (
 				D1C60AD211354ED2FF2C562D /* Core */,
 				3BFB332B47278C5BC2AE4229 /* OpenClip */,
+				E5550E18E26D2F31A7B43491 /* OpenClipTests */,
 				C7914DC6A469A7C9C9E3D4F9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -91,6 +119,7 @@
 			children = (
 				38D9A91D8E78B77B35D10754 /* Core.framework */,
 				E97352E36DEEAE5F6A6AE6F5 /* OpenClip.app */,
+				0320149D41E8A7C2D2A9DED8 /* OpenClipTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -104,9 +133,37 @@
 			path = Sources/Core;
 			sourceTree = "<group>";
 		};
+		E5550E18E26D2F31A7B43491 /* OpenClipTests */ = {
+			isa = PBXGroup;
+			children = (
+				AF5D851B09CA25A4A497F0C7 /* AppFilterTests.swift */,
+				49648502F040834635BBD8ED /* TextRetrieverTests.swift */,
+			);
+			name = OpenClipTests;
+			path = Tests/OpenClipTests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		24C19FDB2283D131CACAAF4E /* OpenClipTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E46C891EC045DB79E7ED8C7E /* Build configuration list for PBXNativeTarget "OpenClipTests" */;
+			buildPhases = (
+				37525424A1E25E4AB33596AA /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6F3051FC6629598FE9BD277A /* PBXTargetDependency */,
+			);
+			name = OpenClipTests;
+			packageProductDependencies = (
+			);
+			productName = OpenClipTests;
+			productReference = 0320149D41E8A7C2D2A9DED8 /* OpenClipTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		84F393CB9794CD10A5608637 /* Core */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EFF49EF063732A5444612E9D /* Build configuration list for PBXNativeTarget "Core" */;
@@ -183,11 +240,21 @@
 			targets = (
 				84F393CB9794CD10A5608637 /* Core */,
 				C4AE70D9CEE6CD32E06BBA3A /* OpenClip */,
+				24C19FDB2283D131CACAAF4E /* OpenClipTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		37525424A1E25E4AB33596AA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94F6165DD10ED76B25170C1C /* AppFilterTests.swift in Sources */,
+				9495A826AD2E0BB4ED448280 /* TextRetrieverTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		69577EA3C80D821A82B2B7C0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -201,8 +268,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */,
+				F63F283AF4BE855D6F525EBB /* AppFilter.swift in Sources */,
+				B51A9B74EB38C612102AEE87 /* Constants.swift in Sources */,
 				E08C252C9ADA79A930825C1E /* OpenClipApp.swift in Sources */,
+				3ADAC5B0CEFD0FE7B6F67E80 /* SelectionContext.swift in Sources */,
+				7865199CFD58C265CFE123D5 /* SelectionMonitor.swift in Sources */,
 				4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */,
+				136B3DB226AA8B7A486BBB33 /* TextRetriever.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -213,6 +285,11 @@
 			isa = PBXTargetDependency;
 			target = 84F393CB9794CD10A5608637 /* Core */;
 			targetProxy = 30CF9143C3AF6CFF58E3B509 /* PBXContainerItemProxy */;
+		};
+		6F3051FC6629598FE9BD277A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C4AE70D9CEE6CD32E06BBA3A /* OpenClip */;
+			targetProxy = 08799C0A2A45C6AE34AD5936 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -432,6 +509,46 @@
 			};
 			name = Debug;
 		};
+		B55255D54005654C35D598F9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openclip.OpenClipTests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenClip.app/Contents/MacOS/OpenClip";
+			};
+			name = Release;
+		};
+		EE4AA1B7D31F397E1E7B32E4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openclip.OpenClipTests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenClip.app/Contents/MacOS/OpenClip";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -449,6 +566,15 @@
 			buildConfigurations = (
 				9FB84E2E9F1FD7237FE9BA98 /* Debug */,
 				86D9D75FE01E0AE4933C8C2E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E46C891EC045DB79E7ED8C7E /* Build configuration list for PBXNativeTarget "OpenClipTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EE4AA1B7D31F397E1E7B32E4 /* Debug */,
+				B55255D54005654C35D598F9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

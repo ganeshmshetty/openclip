@@ -1,14 +1,17 @@
 import AppKit
 import ApplicationServices
 import Foundation
+import os
 
 public protocol TextRetrieving: Sendable {
     func retrieveText(for app: NSRunningApplication) async -> String?
 }
 
-public final class TextRetriever: TextRetrieving, Sendable {
-    public init() {}
-    public func retrieveText(for app: NSRunningApplication) async -> String? {
+internal final class TextRetriever: TextRetrieving, Sendable {
+    private let logger = Logger(subsystem: "com.openclip", category: "TextRetriever")
+    
+    internal init() {}
+    internal func retrieveText(for app: NSRunningApplication) async -> String? {
         if let text = await extractViaAccessibility() { return text }
         if let text = await extractViaPasteboard() { return text }
         if let text = await extractViaAppleScript(for: app) { return text }
@@ -19,10 +22,20 @@ public final class TextRetriever: TextRetrieving, Sendable {
         let systemWide = AXUIElementCreateSystemWide()
         var focusedElement: CFTypeRef?
         let focusedError = AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement)
-        guard focusedError == .success, let element = focusedElement else { return nil }
+        
+        guard focusedError == .success, let element = focusedElement else {
+            logger.error("Failed to get focused UI element: \(focusedError.rawValue)")
+            return nil
+        }
+        
         var selectedText: CFTypeRef?
         let textError = AXUIElementCopyAttributeValue(element as! AXUIElement, kAXSelectedTextAttribute as CFString, &selectedText)
-        guard textError == .success, let text = selectedText as? String else { return nil }
+        
+        guard textError == .success, let text = selectedText as? String else {
+            logger.error("Failed to get selected text attribute: \(textError.rawValue)")
+            return nil
+        }
+        
         return text.isEmpty ? nil : text
     }
     
@@ -38,25 +51,24 @@ public final class TextRetriever: TextRetrieving, Sendable {
         
         let initialChangeCount = pasteboard.changeCount
         let src = CGEventSource(stateID: .hidSystemState)
-        let cmddown = CGEvent(keyboardEventSource: src, virtualKey: 0x08, keyDown: true)
+        let cmddown = CGEvent(keyboardEventSource: src, virtualKey: Constants.cmdVirtualKey, keyDown: true)
         cmddown?.flags = .maskCommand
-        let cmdup = CGEvent(keyboardEventSource: src, virtualKey: 0x08, keyDown: false)
+        let cmdup = CGEvent(keyboardEventSource: src, virtualKey: Constants.cmdVirtualKey, keyDown: false)
         cmdup?.flags = .maskCommand
         cmddown?.post(tap: .cghidEventTap)
         cmdup?.post(tap: .cghidEventTap)
         
         var waitTime = 0.0
-        while pasteboard.changeCount == initialChangeCount && waitTime < 0.5 {
-            try? await Task.sleep(nanoseconds: 50_000_000)
-            waitTime += 0.05
+        while pasteboard.changeCount == initialChangeCount && waitTime < Constants.pasteboardWaitTimeout {
+            try? await Task.sleep(nanoseconds: Constants.pasteboardWaitSleep)
+            waitTime += Constants.pasteboardWaitInterval
         }
         
         if pasteboard.changeCount == initialChangeCount { return nil }
         let text = pasteboard.string(forType: .string)
         
-        let delay: TimeInterval = 0.8
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: UInt64(Constants.pasteboardRestoreDelay * 1_000_000_000))
             if let savedItems = savedItems {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.writeObjects(savedItems)

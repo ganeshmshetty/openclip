@@ -33,6 +33,18 @@ targets:
       - package: KeyboardShortcuts
       - package: Defaults
       - package: Sparkle
+  OpenClipTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources: [Tests/OpenClipTests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+    dependencies:
+      - target: OpenClip
 packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts

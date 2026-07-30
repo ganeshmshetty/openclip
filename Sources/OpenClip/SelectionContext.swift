@@ -1,6 +1,6 @@
 import AppKit
 
-struct SelectionContext: Sendable {
+struct SelectionContext: @unchecked Sendable {
     let text: String
     let sourceApp: NSRunningApplication
     let cursorPosition: CGPoint
