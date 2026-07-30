@@ -1,3 +1,5 @@
+// `import AppKit` is necessary here for macOS-specific core selection logic,
+// such as interacting with NSRunningApplication, NSPasteboard, and Accessibility APIs.
 import AppKit
 import ApplicationServices
 import Foundation
@@ -28,8 +30,13 @@ internal final class TextRetriever: TextRetrieving, Sendable {
             return nil
         }
         
+        guard CFGetTypeID(element) == AXUIElementGetTypeID() else {
+            logger.error("Failed to cast focused element to AXUIElement")
+            return nil
+        }
+        let axElement = element as! AXUIElement
         var selectedText: CFTypeRef?
-        let textError = AXUIElementCopyAttributeValue(element as! AXUIElement, kAXSelectedTextAttribute as CFString, &selectedText)
+        let textError = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedText)
         
         guard textError == .success, let text = selectedText as? String else {
             logger.error("Failed to get selected text attribute: \(textError.rawValue)")
@@ -67,18 +74,22 @@ internal final class TextRetriever: TextRetrieving, Sendable {
         if pasteboard.changeCount == initialChangeCount { return nil }
         let text = pasteboard.string(forType: .string)
         
+        let changeCountAfterCopy = pasteboard.changeCount
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(Constants.pasteboardRestoreDelay * 1_000_000_000))
-            if let savedItems = savedItems {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.writeObjects(savedItems)
+            if NSPasteboard.general.changeCount == changeCountAfterCopy {
+                if let savedItems = savedItems {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.writeObjects(savedItems)
+                }
             }
         }
         return text
     }
     
     private func extractViaAppleScript(for app: NSRunningApplication) async -> String? {
-        guard let bundleName = app.localizedName else { return nil }
+        guard let localizedName = app.localizedName else { return nil }
+        let bundleName = localizedName.replacingOccurrences(of: "\"", with: "\\\"")
         let scriptSource = """
         tell application "\(bundleName)"
             try

@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenClip
+@testable import Core
 
 final class AppFilterTests: XCTestCase {
     func testExcludedApps() {
