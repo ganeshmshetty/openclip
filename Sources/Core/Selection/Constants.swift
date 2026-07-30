@@ -10,4 +10,7 @@ public enum Constants {
     public static let pasteboardWaitInterval: TimeInterval = 0.05
     public static let pasteboardWaitTimeout: TimeInterval = 0.5
     public static let pasteboardWaitSleep: UInt64 = 50_000_000
+    public static let popupOffset: CGFloat = 16.0
+    public static let popupPadding: CGFloat = 8.0
+    public static let popupDismissalDistance: CGFloat = 40.0
 }

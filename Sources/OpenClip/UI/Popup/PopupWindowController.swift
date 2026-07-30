@@ -8,14 +8,12 @@ public class PopupWindowController {
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var currentContext: SelectionContext?
-    private var initialCursorPosition: CGPoint?
     
     public init() { }
     
     public func show(for context: SelectionContext) {
         // If the context is different, or it's a new selection, we show it
         currentContext = context
-        initialCursorPosition = NSEvent.mouseLocation
         
         let panel = self.panel ?? PopupPanel()
         self.panel = panel
@@ -43,7 +41,6 @@ public class PopupWindowController {
         panel?.orderOut(nil)
         removeMonitors()
         currentContext = nil
-        initialCursorPosition = nil
     }
     
     private func setupMonitors() {
@@ -76,10 +73,13 @@ public class PopupWindowController {
     private func handleEvent(_ event: NSEvent) {
         switch event.type {
         case .mouseMoved:
-            if let initial = initialCursorPosition {
+            if let panel = panel {
                 let currentCursor = NSEvent.mouseLocation
-                let distance = hypot(currentCursor.x - initial.x, currentCursor.y - initial.y)
-                if distance > 40 {
+                let frame = panel.frame
+                let dx = max(0, max(frame.minX - currentCursor.x, currentCursor.x - frame.maxX))
+                let dy = max(0, max(frame.minY - currentCursor.y, currentCursor.y - frame.maxY))
+                let distance = hypot(dx, dy)
+                if distance > Constants.popupDismissalDistance {
                     hide()
                 }
             }
@@ -91,7 +91,9 @@ public class PopupWindowController {
                 }
             }
         case .keyDown:
-            hide()
+            if event.keyCode == 53 { // Escape
+                hide()
+            }
         default:
             break
         }

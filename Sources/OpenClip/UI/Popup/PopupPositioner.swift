@@ -1,11 +1,12 @@
 import Foundation
 import CoreGraphics
+import Core
 import AppKit
 
 public struct PopupPositioner: Sendable {
     public static func calculateFrame(for cursorPosition: CGPoint, popupSize: CGSize, in screenBounds: CGRect) -> CGRect {
-        let offset: CGFloat = 16.0
-        let padding: CGFloat = 8.0 // padding from screen edge
+        let offset = Constants.popupOffset
+        let padding = Constants.popupPadding // padding from screen edge
         
         var x = cursorPosition.x + offset
         var y = cursorPosition.y + offset

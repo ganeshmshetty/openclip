@@ -13,6 +13,5 @@ public class PopupPanel: NSPanel {
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.backgroundColor = .clear
         self.isOpaque = false
-        self.hasShadow = true
     }
 }
