@@ -17,40 +17,60 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     
     private func extractViaAccessibility() async -> String? {
         let timeout = Constants.elementTimeout
-        let fetchTask = Task.detached { () -> String? in
-            let systemWide = AXUIElementCreateSystemWide()
-            var focusedElement: CFTypeRef?
-            let focusedError = AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement)
-            
-            guard focusedError == .success, let element = focusedElement else {
-                return nil
+        let logger = self.logger
+        
+        actor RaceManager {
+            private var isCompleted = false
+            func complete(with result: String?, continuation: CheckedContinuation<String?, Never>) {
+                if !isCompleted {
+                    isCompleted = true
+                    continuation.resume(returning: result)
+                }
             }
-            
-            guard CFGetTypeID(element) == AXUIElementGetTypeID() else {
-                return nil
-            }
-            let axElement = element as! AXUIElement
-            var selectedText: CFTypeRef?
-            let textError = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedText)
-            
-            guard textError == .success, let text = selectedText as? String else {
-                return nil
-            }
-            
-            return text.isEmpty ? nil : text
         }
         
-        return await withTaskGroup(of: String?.self) { group in
-            group.addTask { await fetchTask.value }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                fetchTask.cancel()
-                return nil as String?
+        let manager = RaceManager()
+        
+        return await withCheckedContinuation { continuation in
+            let fetchTask = Task.detached { () -> String? in
+                let systemWide = AXUIElementCreateSystemWide()
+                var focusedElement: CFTypeRef?
+                let focusedError = AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement)
+                
+                guard focusedError == .success, let element = focusedElement else {
+                    if focusedError != .success {
+                        logger.error("AXUIElementCopyAttributeValue focusedElement error: \(focusedError.rawValue)")
+                    }
+                    await manager.complete(with: nil, continuation: continuation)
+                    return nil
+                }
+                
+                guard CFGetTypeID(element) == AXUIElementGetTypeID() else {
+                    await manager.complete(with: nil, continuation: continuation)
+                    return nil
+                }
+                let axElement = element as! AXUIElement
+                var selectedText: CFTypeRef?
+                let textError = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedText)
+                
+                guard textError == .success, let text = selectedText as? String else {
+                    if textError != .success {
+                        logger.error("AXUIElementCopyAttributeValue selectedText error: \(textError.rawValue)")
+                    }
+                    await manager.complete(with: nil, continuation: continuation)
+                    return nil
+                }
+                
+                let result = text.isEmpty ? nil : text
+                await manager.complete(with: result, continuation: continuation)
+                return result
             }
             
-            let result = await group.next()!
-            group.cancelAll()
-            return result
+            Task.detached {
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                fetchTask.cancel()
+                await manager.complete(with: nil, continuation: continuation)
+            }
         }
     }
     
@@ -75,6 +95,7 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         
         var waitTime = 0.0
         while pasteboard.changeCount == initialChangeCount && waitTime < Constants.pasteboardWaitTimeout {
+            if Task.isCancelled { break }
             try? await Task.sleep(nanoseconds: Constants.pasteboardWaitSleep)
             waitTime += Constants.pasteboardWaitInterval
         }
@@ -107,14 +128,18 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
             end try
         end tell
         """
-        var error: NSDictionary?
-        if let script = NSAppleScript(source: scriptSource) {
-            let output = script.executeAndReturnError(&error)
-            if error == nil {
-                let text = output.stringValue
-                return text?.isEmpty == false ? text : nil
+        
+        let task = Task.detached {
+            var error: NSDictionary?
+            if let script = NSAppleScript(source: scriptSource) {
+                let output = script.executeAndReturnError(&error)
+                if error == nil {
+                    let text = output.stringValue
+                    return text?.isEmpty == false ? text : nil
+                }
             }
+            return nil
         }
-        return nil
+        return await task.value
     }
 }

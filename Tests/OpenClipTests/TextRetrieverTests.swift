@@ -12,7 +12,7 @@ final class TextRetrieverTests: XCTestCase {
         
         // Simulate a Cmd+C successfully changing the pasteboard shortly after retrieval starts
         Task {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+            try? await Task.sleep(nanoseconds: UInt64((Constants.elementTimeout + 0.1) * 1_000_000_000))
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString("MockedSelection", forType: .string)
         }
