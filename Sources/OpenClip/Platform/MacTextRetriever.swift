@@ -1,49 +1,57 @@
-// `import AppKit` is necessary here for macOS-specific core selection logic,
-// such as interacting with NSRunningApplication, NSPasteboard, and Accessibility APIs.
 import AppKit
 import ApplicationServices
 import Foundation
+import Core
 import os
 
-public protocol TextRetrieving: Sendable {
-    func retrieveText(for app: NSRunningApplication) async -> String?
-}
-
-internal final class TextRetriever: TextRetrieving, Sendable {
-    private let logger = Logger(subsystem: "com.openclip", category: "TextRetriever")
+internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
+    private let logger = Logger(subsystem: "com.openclip", category: "MacTextRetriever")
     
     internal init() {}
-    internal func retrieveText(for app: NSRunningApplication) async -> String? {
+    internal func retrieveText(for app: any AppIdentifying) async -> String? {
         if let text = await extractViaAccessibility() { return text }
         if let text = await extractViaPasteboard() { return text }
-        if let text = await extractViaAppleScript(for: app) { return text }
+        if let nsApp = app as? NSRunningApplication, let text = await extractViaAppleScript(for: nsApp) { return text }
         return nil
     }
     
     private func extractViaAccessibility() async -> String? {
-        let systemWide = AXUIElementCreateSystemWide()
-        var focusedElement: CFTypeRef?
-        let focusedError = AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement)
-        
-        guard focusedError == .success, let element = focusedElement else {
-            logger.error("Failed to get focused UI element: \(focusedError.rawValue)")
-            return nil
+        let timeout = Constants.elementTimeout
+        let fetchTask = Task.detached { () -> String? in
+            let systemWide = AXUIElementCreateSystemWide()
+            var focusedElement: CFTypeRef?
+            let focusedError = AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement)
+            
+            guard focusedError == .success, let element = focusedElement else {
+                return nil
+            }
+            
+            guard CFGetTypeID(element) == AXUIElementGetTypeID() else {
+                return nil
+            }
+            let axElement = element as! AXUIElement
+            var selectedText: CFTypeRef?
+            let textError = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedText)
+            
+            guard textError == .success, let text = selectedText as? String else {
+                return nil
+            }
+            
+            return text.isEmpty ? nil : text
         }
         
-        guard CFGetTypeID(element) == AXUIElementGetTypeID() else {
-            logger.error("Failed to cast focused element to AXUIElement")
-            return nil
+        return await withTaskGroup(of: String?.self) { group in
+            group.addTask { await fetchTask.value }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                fetchTask.cancel()
+                return nil as String?
+            }
+            
+            let result = await group.next()!
+            group.cancelAll()
+            return result
         }
-        let axElement = element as! AXUIElement
-        var selectedText: CFTypeRef?
-        let textError = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedText)
-        
-        guard textError == .success, let text = selectedText as? String else {
-            logger.error("Failed to get selected text attribute: \(textError.rawValue)")
-            return nil
-        }
-        
-        return text.isEmpty ? nil : text
     }
     
     private func extractViaPasteboard() async -> String? {
@@ -58,9 +66,9 @@ internal final class TextRetriever: TextRetrieving, Sendable {
         
         let initialChangeCount = pasteboard.changeCount
         let src = CGEventSource(stateID: .hidSystemState)
-        let cmddown = CGEvent(keyboardEventSource: src, virtualKey: Constants.cmdVirtualKey, keyDown: true)
+        let cmddown = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: true)
         cmddown?.flags = .maskCommand
-        let cmdup = CGEvent(keyboardEventSource: src, virtualKey: Constants.cmdVirtualKey, keyDown: false)
+        let cmdup = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: false)
         cmdup?.flags = .maskCommand
         cmddown?.post(tap: .cghidEventTap)
         cmdup?.post(tap: .cghidEventTap)

@@ -1,10 +1,16 @@
-// `import AppKit` is necessary here for macOS-specific core selection logic,
-// such as interacting with NSRunningApplication, NSPasteboard, and Accessibility APIs.
-import AppKit
+import Foundation
+import CoreGraphics
 
-struct SelectionContext: @unchecked Sendable {
-    let text: String
-    let sourceApp: NSRunningApplication
-    let cursorPosition: CGPoint
-    let timestamp: Date
+public struct SelectionContext: Sendable {
+    public let text: String
+    public let sourceApp: any AppIdentifying
+    public let cursorPosition: CGPoint
+    public let timestamp: Date
+    
+    public init(text: String, sourceApp: any AppIdentifying, cursorPosition: CGPoint, timestamp: Date) {
+        self.text = text
+        self.sourceApp = sourceApp
+        self.cursorPosition = cursorPosition
+        self.timestamp = timestamp
+    }
 }

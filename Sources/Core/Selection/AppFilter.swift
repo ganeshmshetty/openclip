@@ -1,7 +1,7 @@
 import Foundation
 
-struct AppFilter: Sendable {
-    static let excludedBundleIDPatterns: [String] = [
+public struct AppFilter: Sendable {
+    public static let excludedBundleIDPatterns: [String] = [
         "com.adobe.*",
         "com.adobe.aerendercore",
         "com.amazon.Kindle",
@@ -27,7 +27,7 @@ struct AppFilter: Sendable {
         "com.jetbrains.*"
     ]
     
-    static func isExcluded(bundleID: String) -> Bool {
+    public static func isExcluded(bundleID: String) -> Bool {
         for pattern in excludedBundleIDPatterns {
             if pattern.hasSuffix(".*") {
                 let prefix = String(pattern.dropLast(2))

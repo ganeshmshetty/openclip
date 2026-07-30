@@ -1,18 +1,17 @@
-// `import AppKit` is necessary here for macOS-specific core selection logic,
-// such as interacting with NSRunningApplication, NSPasteboard, and Accessibility APIs.
 import AppKit
+import Core
 
 @MainActor
-public final class SelectionMonitor {
+internal final class MacSelectionMonitor: SelectionMonitoring {
     private var monitor: Any?
     private var debounceTask: Task<Void, Never>?
     private let retriever: any TextRetrieving
     
-    public init(retriever: any TextRetrieving) {
+    internal init(retriever: any TextRetrieving) {
         self.retriever = retriever
     }
     
-    public func start() {
+    internal func start() {
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
             guard let app = NSWorkspace.shared.frontmostApplication else { return }
             let cursor = event.locationInWindow
@@ -24,7 +23,7 @@ public final class SelectionMonitor {
         }
     }
     
-    public func stop() {
+    internal func stop() {
         if let monitor = monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
