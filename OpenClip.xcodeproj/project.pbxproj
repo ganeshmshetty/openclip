@@ -21,6 +21,9 @@
 		37606174465EF5FF5CE918E3 /* Core.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 38D9A91D8E78B77B35D10754 /* Core.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		386E98180E02243B9DE6B5CA /* ScriptAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9C20B7C7D633121BA39CDA /* ScriptAction.swift */; };
 		8899AA00BB11CC22DD33EE44 /* URLTemplateAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8899AA00BB11CC22DD33EE45 /* URLTemplateAction.swift */; };
+		8899AA00BB11CC22DD33EE50 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8899AA00BB11CC22DD33EE51 /* PermissionManager.swift */; };
+		8899AA00BB11CC22DD33EE52 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8899AA00BB11CC22DD33EE53 /* OnboardingView.swift */; };
+		8899AA00BB11CC22DD33EE54 /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8899AA00BB11CC22DD33EE55 /* OnboardingWindowController.swift */; };
 		43881285B124F36378C59E74 /* PasteAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10D1A3077D5453084F547E86 /* PasteAction.swift */; };
 		4737578EA3290C078B92A318 /* ScriptActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA90E8C3C3CA2051D777A8E /* ScriptActionTests.swift */; };
 		4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */; };
@@ -104,6 +107,9 @@
 		287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		2F9C20B7C7D633121BA39CDA /* ScriptAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptAction.swift; sourceTree = "<group>"; };
 		8899AA00BB11CC22DD33EE45 /* URLTemplateAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLTemplateAction.swift; sourceTree = "<group>"; };
+		8899AA00BB11CC22DD33EE51 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
+		8899AA00BB11CC22DD33EE53 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		8899AA00BB11CC22DD33EE55 /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
 		336067B05C52B87CD8C9DA9F /* ExtensionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionManager.swift; sourceTree = "<group>"; };
 		38D9A91D8E78B77B35D10754 /* Core.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Core.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		49648502F040834635BBD8ED /* TextRetrieverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRetrieverTests.swift; sourceTree = "<group>"; };
@@ -155,8 +161,18 @@
 			children = (
 				39D73E7BD52BCD72219A6F81 /* Popup */,
 				9DA9E12BE0F361EEDE0E34B7 /* Preferences */,
+				8899AA00BB11CC22DD33EE60 /* Onboarding */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		8899AA00BB11CC22DD33EE60 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				8899AA00BB11CC22DD33EE53 /* OnboardingView.swift */,
+				8899AA00BB11CC22DD33EE55 /* OnboardingWindowController.swift */,
+			);
+			path = Onboarding;
 			sourceTree = "<group>";
 		};
 		307D28809D1A3464A7225CFC /* Platform */ = {
@@ -165,6 +181,7 @@
 				BCD2E8E311CD870FA0E955A9 /* AppIdentifying+NSRunningApplication.swift */,
 				6129D3E6F351430FA57265B6 /* MacSelectionMonitor.swift */,
 				1B1ED5E66BD010DECBA31B69 /* MacTextRetriever.swift */,
+				8899AA00BB11CC22DD33EE51 /* PermissionManager.swift */,
 				78620BB3753CCE3EB7427378 /* BuiltinActions */,
 			);
 			path = Platform;
@@ -455,6 +472,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */,
+				8899AA00BB11CC22DD33EE50 /* PermissionManager.swift in Sources */,
+				8899AA00BB11CC22DD33EE52 /* OnboardingView.swift in Sources */,
+				8899AA00BB11CC22DD33EE54 /* OnboardingWindowController.swift in Sources */,
 				0AC19FB1B891B14A5D9D2ABD /* AppIdentifying+NSRunningApplication.swift in Sources */,
 				AEED9FFA7F37289E7370BAE2 /* CopyAction.swift in Sources */,
 				14E505797521DAC3BA557D4F /* CutAction.swift in Sources */,

@@ -14,28 +14,26 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         self.retriever = retriever
     }
     
+    private var mouseDownMonitor: Any?
+    private var mouseDownLocation: CGPoint?
+    
     internal func start() {
-        let trusted = AXIsProcessTrusted()
-        NSLog("[OpenClip] starting monitor, AX trusted: %d", trusted ? 1 : 0)
-        if !trusted {
-            showAccessibilityAlert()
-        }
-        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
-            guard let app = NSWorkspace.shared.frontmostApplication else {
-                NSLog("[OpenClip] mouseUp: no frontmost app")
-                return
-            }
-            let cursor = NSEvent.mouseLocation
-            NSLog("[OpenClip] mouseUp at (%.1f, %.1f) in %@", cursor.x, cursor.y, app.bundleIdentifier ?? "unknown")
-            let capturedApp = app
+        guard monitor == nil else { return }
+        
+        mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
+            let point = NSEvent.mouseLocation
             Task { @MainActor in
-                self?.handleMouseUp(app: capturedApp, cursor: cursor)
+                self?.mouseDownLocation = point
             }
         }
-        if monitor == nil {
-            NSLog("[OpenClip] ERROR: global event monitor failed to register (AX denied?)")
-        } else {
-            NSLog("[OpenClip] global event monitor registered OK")
+        
+        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
+            guard let app = NSWorkspace.shared.frontmostApplication else { return }
+            let cursor = NSEvent.mouseLocation
+            let clickCount = event.clickCount
+            Task { @MainActor in
+                self?.handleMouseUp(app: app, cursor: cursor, clickCount: clickCount)
+            }
         }
     }
     
@@ -44,34 +42,39 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
         }
+        if let mouseDownMonitor = mouseDownMonitor {
+            NSEvent.removeMonitor(mouseDownMonitor)
+            self.mouseDownMonitor = nil
+        }
     }
     
-    private func handleMouseUp(app: NSRunningApplication, cursor: CGPoint) {
+    private func handleMouseUp(app: NSRunningApplication, cursor: CGPoint, clickCount: Int) {
+        let downPoint = mouseDownLocation
+        mouseDownLocation = nil
+        
         debounceTask?.cancel()
         
         debounceTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: UInt64(Constants.filterDelay * 1_000_000_000))
-            } catch {
-                return
-            }
-            
             if let bundleID = app.bundleIdentifier, AppFilter.isExcluded(bundleID: bundleID) {
-                NSLog("[OpenClip] filtered out %@", bundleID)
                 return
             }
             
             let policy = RuleEngine.shared.resolvePolicies(for: app.bundleIdentifier ?? "")
             if policy.denyProbe || policy.denyPreprobe {
-                NSLog("[OpenClip] denyProbe for %@", app.bundleIdentifier ?? "")
                 return
             }
             
-            NSLog("[OpenClip] retrieving text for %@", app.bundleIdentifier ?? "")
-            // The retriever runs its own logic (which could be non-isolated) 
+            // Measure drag distance for click filtering
+            var isDragOrMultiClick = clickCount >= 2
+            if !isDragOrMultiClick, let downPoint {
+                let dx = cursor.x - downPoint.x
+                let dy = cursor.y - downPoint.y
+                isDragOrMultiClick = (dx * dx + dy * dy) > 9.0 // > 3px movement
+            }
+            
+            // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
             if let result = await self.retriever.retrieveTextResult(for: app, policy: policy) {
                 let text = result.text
-                NSLog("[OpenClip] got text len=%d, bounds=%@, firing onSelection", text.count, result.bounds?.debugDescription ?? "none")
                 if text.utf8.count <= Constants.maxTextLength {
                     let context = SelectionContext(
                         text: text,
@@ -83,24 +86,6 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                     )
                     self.onSelection?(context)
                 }
-            } else {
-                NSLog("[OpenClip] no text retrieved")
-            }
-        }
-    }
-
-    private func showAccessibilityAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Accessibility Permission Required"
-        alert.informativeText = "OpenClip needs Accessibility access to detect text selections. Please enable it in System Settings → Privacy & Security → Accessibility, then restart OpenClip."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Later")
-        NSApp.activate(ignoringOtherApps: true)
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                NSWorkspace.shared.open(url)
             }
         }
     }

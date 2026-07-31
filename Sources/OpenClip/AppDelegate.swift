@@ -10,10 +10,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var selectionMonitor: (any SelectionMonitoring)?
     private var popupController: PopupWindowController?
 
+    private var onboardingWindowController: OnboardingWindowController?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Request accessibility permissions
-        requestAccessibilityPermissions()
-        
         // Initialize the status bar controller
         statusBarController = StatusBarController()
         
@@ -44,32 +43,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.popupController?.show(for: context)
         }
         selectionMonitor = monitor
-        selectionMonitor?.start()
+        
+        let isGranted = PermissionManager.shared.isAccessibilityGranted
+        let completedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+        
+        if !isGranted || !completedOnboarding {
+            showOnboarding()
+        } else {
+            selectionMonitor?.start()
+        }
     }
     
-    /// Requests Accessibility permissions on first launch.
-    private func requestAccessibilityPermissions() {
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false]
-        let isTrusted = AXIsProcessTrustedWithOptions(options)
-        
-        if !isTrusted {
-            let alert = NSAlert()
-            alert.messageText = "Accessibility Permissions Required"
-            alert.informativeText = "OpenClip requires Accessibility permissions to read global keyboard shortcuts. Please grant this permission in System Settings when prompted."
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "Continue")
-            alert.addButton(withTitle: "Quit")
-            
-            // NSAlert must be presented so it becomes visible even if app is LSUIElement
-            NSApp.activate(ignoringOtherApps: true)
-            let response = alert.runModal()
-            
-            if response == .alertFirstButtonReturn {
-                let promptOptions: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-                AXIsProcessTrustedWithOptions(promptOptions)
-            } else {
-                NSApplication.shared.terminate(nil)
-            }
+    private func showOnboarding() {
+        onboardingWindowController = OnboardingWindowController { [weak self] in
+            self?.selectionMonitor?.start()
         }
+        onboardingWindowController?.showWindow(nil)
     }
 }
