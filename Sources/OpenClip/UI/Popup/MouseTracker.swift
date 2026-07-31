@@ -4,7 +4,7 @@ import AppKit
 /// An invisible overlay view that reports continuous mouse position via an NSTrackingArea
 /// with .activeAlways — bypassing SwiftUI's onContinuousHover which uses .activeInKeyWindow
 /// and silently fails in non-activating NSPanels.
-struct MouseTracker: NSViewRepresentable {
+internal struct MouseTracker: NSViewRepresentable {
     var onMove: (CGPoint?) -> Void  // nil = mouse exited
 
     func makeNSView(context: Context) -> TrackerView {
