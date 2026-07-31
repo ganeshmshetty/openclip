@@ -55,25 +55,21 @@ public struct PopupView: View {
 
     @available(macOS 26, *)
     private var liquidGlassBar: some View {
-        // GlassEffectContainer lets adjacent .glassEffect() capsules merge and morphing
-        // into each other fluidly as the hovered button changes — Apple recommended pattern
-        GlassEffectContainer {
-            HStack(spacing: 0) {
-                if hasLeftChevron {
-                    liquidChevronButton(systemImage: "chevron.left") { currentPage -= 1 }
-                }
-                ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
-                    liquidActionButton(action: action, index: index)
-                }
-                if hasRightChevron {
-                    liquidChevronButton(systemImage: "chevron.right") { currentPage += 1 }
-                }
+        HStack(spacing: 0) {
+            if hasLeftChevron {
+                liquidChevronButton(systemImage: "chevron.left") { currentPage -= 1 }
+            }
+            ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
+                liquidActionButton(action: action, index: index)
+            }
+            if hasRightChevron {
+                liquidChevronButton(systemImage: "chevron.right") { currentPage += 1 }
             }
         }
         .fixedSize()
-        .onContinuousHover { phase in
-            updateHover(phase: phase)
-        }
+        .onContinuousHover { phase in updateHover(phase: phase) }
+        // Single glass effect on the whole bar → one unified pill, not per-button bubbles
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .padding(18)
     }
 
@@ -94,12 +90,16 @@ public struct PopupView: View {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
                 .frame(width: buttonWidth, height: 32)
+                // Tinted highlight capsule inside the unified glass pill on hover
+                .background(
+                    Capsule()
+                        .fill(isHovered ? Color.accentColor.opacity(0.25) : Color.clear)
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 4)
+                )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // Each button gets its own glass capsule; GlassEffectContainer merges adjacent ones
-        // .regular = solid glass highlight when hovered, .clear = invisible otherwise
-        .glassEffect(isHovered ? .regular.interactive() : .clear, in: .capsule)
         .help(action.title)
     }
 
@@ -113,8 +113,8 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular, in: .capsule)
     }
+
 
     // MARK: - Legacy glass bar (glass theme, macOS < 26)
 
