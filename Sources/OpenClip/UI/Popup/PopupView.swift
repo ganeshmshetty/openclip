@@ -8,13 +8,20 @@ import Core
 public struct ActionButton: View {
     public let action: any Action
     public let context: ActionContext
+    public let showDivider: Bool
     public let onResult: @MainActor (ActionResult) -> Void
 
     @State private var isHovered = false
 
-    public init(action: any Action, context: ActionContext, onResult: @escaping @MainActor (ActionResult) -> Void) {
+    public init(
+        action: any Action,
+        context: ActionContext,
+        showDivider: Bool = false,
+        onResult: @escaping @MainActor (ActionResult) -> Void
+    ) {
         self.action = action
         self.context = context
+        self.showDivider = showDivider
         self.onResult = onResult
     }
 
@@ -37,6 +44,16 @@ public struct ActionButton: View {
                     isHovered
                         ? Color.accentColor
                         : Color.clear
+                )
+                .overlay(
+                    Group {
+                        if showDivider && !isHovered {
+                            Rectangle()
+                                .fill(Color.primary.opacity(0.13))
+                                .frame(width: 0.6, height: 32)
+                        }
+                    },
+                    alignment: .trailing
                 )
                 .contentShape(Rectangle())
         }
@@ -65,16 +82,6 @@ public struct ActionButton: View {
                 Image(systemName: "doc")
             }
         }
-    }
-}
-
-// MARK: - Thin divider between buttons
-
-private struct ButtonDivider: View {
-    var body: some View {
-        Rectangle()
-            .fill(Color.primary.opacity(0.13))
-            .frame(width: 0.6, height: 32)
     }
 }
 
@@ -115,20 +122,24 @@ public struct PopupView: View {
                 chevronButton(systemImage: "chevron.left") {
                     currentPage -= 1
                 }
-                ButtonDivider()
             }
 
-            // Action buttons with thin dividers between them
+            // Action buttons touching continuously with zero gap
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
-                if index > 0 {
-                    ButtonDivider()
-                }
-                ActionButton(action: action, context: context, onResult: onResult)
+                let isLast = index == pagedActions.count - 1
+                let hasRightChevron = totalPages > 1 && currentPage < totalPages - 1
+                let showDivider = !isLast || hasRightChevron
+                
+                ActionButton(
+                    action: action,
+                    context: context,
+                    showDivider: showDivider,
+                    onResult: onResult
+                )
             }
 
             // Right chevron
             if totalPages > 1 && currentPage < totalPages - 1 {
-                ButtonDivider()
                 chevronButton(systemImage: "chevron.right") {
                     currentPage += 1
                 }
