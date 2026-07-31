@@ -68,6 +68,7 @@ public struct PopupView: View {
         }
         .fixedSize()
         .onContinuousHover { phase in updateHover(phase: phase) }
+        .background(ActiveTrackingAreaView { phase in updateHover(phase: phase) })
         // Single glass effect on the whole bar → one unified pill, not per-button bubbles
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .padding(18)
@@ -171,6 +172,7 @@ public struct PopupView: View {
         .onContinuousHover { phase in
             updateHover(phase: phase)
         }
+        .background(ActiveTrackingAreaView { phase in updateHover(phase: phase) })
     }
 
     // MARK: - Shared hover logic
