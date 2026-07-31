@@ -31,13 +31,11 @@ public struct ActionButton: View {
         } label: {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
-                // White when cell is highlighted, accent-blue otherwise on hover, normal at rest
                 .foregroundColor(isHovered ? .white : .primary.opacity(0.80))
                 .frame(width: 36, height: 32)
-                // Full-cell accent glow background on hover
                 .background(
                     isHovered
-                        ? Color.accentColor.opacity(0.85)
+                        ? Color.accentColor
                         : Color.clear
                 )
                 .contentShape(Rectangle())
@@ -45,7 +43,6 @@ public struct ActionButton: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .help(action.title)
-        .animation(.easeInOut(duration: 0.10), value: isHovered)
     }
 
     @ViewBuilder
@@ -77,8 +74,7 @@ private struct ButtonDivider: View {
     var body: some View {
         Rectangle()
             .fill(Color.primary.opacity(0.13))
-            .frame(width: 0.6)
-            .padding(.vertical, 7)
+            .frame(width: 0.6, height: 32)
     }
 }
 
@@ -138,8 +134,6 @@ public struct PopupView: View {
                 }
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 0)
         .fixedSize()
         .background(themeBackground)
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
