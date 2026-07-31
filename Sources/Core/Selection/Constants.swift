@@ -13,4 +13,5 @@ public enum Constants {
     public static let popupOffset: CGFloat = 16.0
     public static let popupPadding: CGFloat = 8.0
     public static let popupDismissalDistance: CGFloat = 40.0
+    public static let searchURLTemplate: String = "https://www.google.com/search?q=%@"
 }

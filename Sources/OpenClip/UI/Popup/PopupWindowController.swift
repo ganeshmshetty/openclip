@@ -15,10 +15,15 @@ public class PopupWindowController {
         // If the context is different, or it's a new selection, we show it
         currentContext = context
         
+        let actionContext = ActionContext(selection: context, modifiers: [], isEditable: true)
+        let availableActions = ActionRegistry.shared.availableActions(for: actionContext)
+        
         let panel = self.panel ?? PopupPanel()
         self.panel = panel
         
-        let rootView = PopupView()
+        let rootView = PopupView(actions: availableActions, context: actionContext) { [weak self] in
+            self?.hide()
+        }
         panel.contentView = NSHostingView(rootView: rootView)
         
         let size = panel.contentView?.fittingSize ?? CGSize(width: 150, height: 50)
