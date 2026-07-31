@@ -19,4 +19,14 @@ public enum Constants {
     public static let maxURLScanLength: Int = 2000
     public static let actionErrorDomain: String = "OpenClip.ActionError"
     public static let actionErrorCode: Int = 1
+    
+    // Extension System Constants
+    public static let extensionsDirectory: String = "~/.openclip/extensions"
+    public static let manifestFileName: String = "manifest.json"
+    public static let extKeyIdentifier: String = "Identifier"
+    public static let extKeyName: String = "Name"
+    public static let extKeyActions: String = "Actions"
+    public static let extKeyTitle: String = "Title"
+    public static let extKeyIcon: String = "Icon"
+    public static let extKeyScript: String = "Script"
 }

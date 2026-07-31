@@ -29,6 +29,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ServicesAction()
         ])
         
+        Task {
+            await ExtensionManager.shared.loadExtensions()
+            for action in ExtensionManager.shared.loadedActions {
+                ActionRegistry.shared.register(action: action)
+            }
+        }
+        
         // Setup selection monitor
         let retriever = MacTextRetriever()
         let monitor = MacSelectionMonitor(retriever: retriever)
