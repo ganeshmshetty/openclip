@@ -7,18 +7,10 @@ public final class ActionRegistry: Sendable {
     public private(set) var actions: [any Action] = []
     
     private init() {
-        registerBuiltInActions()
     }
     
-    private func registerBuiltInActions() {
-        actions = [
-            CopyAction(),
-            CutAction(),
-            PasteAction(),
-            SearchAction(),
-            OpenURLAction(),
-            ServicesAction()
-        ]
+    public func register(builtIns: [any Action]) {
+        actions.append(contentsOf: builtIns)
     }
     
     public func register(action: any Action) {

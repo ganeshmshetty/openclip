@@ -7,6 +7,8 @@ public enum Constants {
     public static let maxTextLength: Int = 10_485_760
     public static let pasteboardRestoreDelay: TimeInterval = 0.8
     public static let cVirtualKey: CGKeyCode = 0x08
+    public static let deleteVirtualKey: CGKeyCode = 0x33
+    public static let vVirtualKey: CGKeyCode = 0x09
     public static let pasteboardWaitInterval: TimeInterval = 0.05
     public static let pasteboardWaitTimeout: TimeInterval = 0.5
     public static let pasteboardWaitSleep: UInt64 = 50_000_000

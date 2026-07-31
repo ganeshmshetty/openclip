@@ -20,6 +20,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Setup popup controller
         popupController = PopupWindowController()
         
+        ActionRegistry.shared.register(builtIns: [
+            CopyAction(),
+            CutAction(),
+            PasteAction(),
+            SearchAction(),
+            OpenURLAction(),
+            ServicesAction()
+        ])
+        
         // Setup selection monitor
         let retriever = MacTextRetriever()
         var monitor = MacSelectionMonitor(retriever: retriever)

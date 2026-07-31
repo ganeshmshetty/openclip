@@ -2,6 +2,7 @@ import Foundation
 #if canImport(AppKit)
 import AppKit
 #endif
+import Core
 
 public struct SearchAction: Action {
     public let id = "builtin.search"

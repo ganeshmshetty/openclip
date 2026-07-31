@@ -3,6 +3,7 @@ import Foundation
 import AppKit
 import CoreGraphics
 #endif
+import Core
 
 public struct PasteAction: Action {
     public let id = "builtin.paste"
@@ -15,9 +16,9 @@ public struct PasteAction: Action {
     public func isEnabled(for context: ActionContext) -> Bool {
         #if canImport(AppKit)
         let hasString = NSPasteboard.general.canReadItem(withDataConformingToTypes: [NSPasteboard.PasteboardType.string.rawValue])
-        return context.isEditable && hasString
+        return hasString
         #else
-        return context.isEditable
+        return true
         #endif
     }
     
@@ -27,7 +28,7 @@ public struct PasteAction: Action {
         let pastedText = NSPasteboard.general.string(forType: .string) ?? ""
         
         let src = CGEventSource(stateID: .hidSystemState)
-        let vKey: CGKeyCode = 0x09
+        let vKey: CGKeyCode = Constants.vVirtualKey
         if let keydown = CGEvent(keyboardEventSource: src, virtualKey: vKey, keyDown: true),
            let keyup = CGEvent(keyboardEventSource: src, virtualKey: vKey, keyDown: false) {
             keydown.flags = .maskCommand

@@ -3,6 +3,7 @@ import Foundation
 import AppKit
 import CoreGraphics
 #endif
+import Core
 
 public struct CutAction: Action {
     public let id = "builtin.cut"
@@ -13,7 +14,7 @@ public struct CutAction: Action {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        return context.isEditable && !context.selection.text.isEmpty
+        return !context.selection.text.isEmpty
     }
     
     @MainActor
@@ -24,7 +25,7 @@ public struct CutAction: Action {
         pasteboard.setString(context.selection.text, forType: .string)
         
         let src = CGEventSource(stateID: .hidSystemState)
-        let deleteKey: CGKeyCode = 0x33
+        let deleteKey: CGKeyCode = Constants.deleteVirtualKey
         if let keydown = CGEvent(keyboardEventSource: src, virtualKey: deleteKey, keyDown: true),
            let keyup = CGEvent(keyboardEventSource: src, virtualKey: deleteKey, keyDown: false) {
             keydown.post(tap: .cghidEventTap)

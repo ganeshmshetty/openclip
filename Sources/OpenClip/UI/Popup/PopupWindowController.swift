@@ -15,7 +15,7 @@ public class PopupWindowController {
         // If the context is different, or it's a new selection, we show it
         currentContext = context
         
-        let actionContext = ActionContext(selection: context, modifiers: [], isEditable: true)
+        let actionContext = ActionContext(selection: context, modifiers: [])
         let availableActions = ActionRegistry.shared.availableActions(for: actionContext)
         
         let panel = self.panel ?? PopupPanel()

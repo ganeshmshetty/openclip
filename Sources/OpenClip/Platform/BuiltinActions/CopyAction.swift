@@ -2,6 +2,7 @@ import Foundation
 #if canImport(AppKit)
 import AppKit
 #endif
+import Core
 
 public struct CopyAction: Action {
     public let id = "builtin.copy"
