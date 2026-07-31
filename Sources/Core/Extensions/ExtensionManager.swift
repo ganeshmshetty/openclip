@@ -36,11 +36,17 @@ public final class ExtensionManager: Sendable {
         let nsExtensionsDir = (Constants.extensionsDirectory as NSString).expandingTildeInPath
         let extensionsURL = URL(fileURLWithPath: nsExtensionsDir)
         
+        self.loadedActions = await Task.detached {
+            return await Self.scanDirectory(extensionsURL)
+        }.value
+    }
+    
+    private static func scanDirectory(_ extensionsURL: URL) async -> [any Action] {
         var newActions: [any Action] = []
-        
         let fileManager = FileManager.default
+        
         guard let items = try? fileManager.contentsOfDirectory(at: extensionsURL, includingPropertiesForKeys: [.isDirectoryKey]) else {
-            return
+            return []
         }
         
         for itemURL in items {
@@ -53,6 +59,18 @@ public final class ExtensionManager: Sendable {
                     if fileManager.fileExists(atPath: manifestURL.path) {
                         let actions = await loadManifestExtension(manifestURL: manifestURL, directoryURL: itemURL)
                         newActions.append(contentsOf: actions)
+                    } else {
+                        // Try to find standalone executable scripts in the directory
+                        if let dirItems = try? fileManager.contentsOfDirectory(at: itemURL, includingPropertiesForKeys: [.isDirectoryKey]) {
+                            for childURL in dirItems {
+                                let childResource = try? childURL.resourceValues(forKeys: [.isDirectoryKey])
+                                if childResource?.isDirectory != true {
+                                    if let action = await loadStandaloneScriptExtension(scriptURL: childURL) {
+                                        newActions.append(action)
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else {
                     // Try to parse standalone script
@@ -65,10 +83,10 @@ public final class ExtensionManager: Sendable {
             }
         }
         
-        self.loadedActions = newActions
+        return newActions
     }
     
-    private func loadManifestExtension(manifestURL: URL, directoryURL: URL) async -> [any Action] {
+    private static func loadManifestExtension(manifestURL: URL, directoryURL: URL) async -> [any Action] {
         guard let data = try? Data(contentsOf: manifestURL) else { return [] }
         guard let manifest = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) else { return [] }
         
@@ -87,9 +105,11 @@ public final class ExtensionManager: Sendable {
         return actions
     }
     
-    private func loadStandaloneScriptExtension(scriptURL: URL) async -> (any Action)? {
+    private static func loadStandaloneScriptExtension(scriptURL: URL) async -> (any Action)? {
+        guard FileManager.default.isExecutableFile(atPath: scriptURL.path) else { return nil }
+        
         let content = (try? String(contentsOf: scriptURL, encoding: .utf8)) ?? ""
-        let lines = content.components(separatedBy: .newlines).prefix(50)
+        let lines = content.components(separatedBy: .newlines).prefix(Constants.maxHeaderLinesToScan)
         
         var title: String?
         var iconStr: String?
@@ -98,15 +118,15 @@ public final class ExtensionManager: Sendable {
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("# Title:") || trimmed.hasPrefix("// Title:") {
-                title = String(trimmed.dropFirst(8)).trimmingCharacters(in: .whitespaces)
+                title = String(trimmed.split(separator: ":", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
             } else if trimmed.hasPrefix("# Icon:") || trimmed.hasPrefix("// Icon:") {
-                iconStr = String(trimmed.dropFirst(7)).trimmingCharacters(in: .whitespaces)
+                iconStr = String(trimmed.split(separator: ":", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
             } else if trimmed.hasPrefix("# Identifier:") || trimmed.hasPrefix("// Identifier:") {
-                identifier = String(trimmed.dropFirst(13)).trimmingCharacters(in: .whitespaces)
+                identifier = String(trimmed.split(separator: ":", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
             }
         }
         
-        guard let parsedTitle = title else { return nil } // Title is required
+        guard let parsedTitle = title, !parsedTitle.isEmpty else { return nil } // Title is required
         
         let actionId = identifier ?? "com.custom.\(scriptURL.lastPathComponent)"
         let icon = parseIcon(iconStr)
@@ -114,8 +134,8 @@ public final class ExtensionManager: Sendable {
         return ScriptAction(id: actionId, title: parsedTitle, icon: icon, scriptURL: scriptURL)
     }
     
-    private func parseIcon(_ iconStr: String?) -> ActionIcon {
-        guard let iconStr = iconStr else {
+    private static func parseIcon(_ iconStr: String?) -> ActionIcon {
+        guard let iconStr = iconStr, !iconStr.isEmpty else {
             return .symbol("wand.and.stars")
         }
         if iconStr.hasPrefix("symbol(") && iconStr.hasSuffix(")") {

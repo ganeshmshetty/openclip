@@ -28,18 +28,14 @@ public struct ScriptAction: Action {
         return try await Task.detached {
             let process = Process()
             
-            // Determine if the script is executable directly or if we need to run via bash
-            // We'll just run it directly if it's executable, otherwise bash
             let isExecutable = FileManager.default.isExecutableFile(atPath: scriptPath)
-            if isExecutable {
-                process.executableURL = URL(fileURLWithPath: scriptPath)
-            } else {
-                process.executableURL = URL(fileURLWithPath: "/bin/bash")
-                process.arguments = [scriptPath]
+            guard isExecutable else {
+                throw NSError(domain: Constants.actionErrorDomain, code: Constants.actionErrorCode, userInfo: [NSLocalizedDescriptionKey: "Script is not executable: \(scriptPath)"])
             }
+            process.executableURL = URL(fileURLWithPath: scriptPath)
             
             var env = ProcessInfo.processInfo.environment
-            env["POPCLIP_TEXT"] = text
+            env[Constants.envVarText] = text
             process.environment = env
             
             let stdOutPipe = Pipe()
@@ -51,16 +47,31 @@ public struct ScriptAction: Action {
             let stdInPipe = Pipe()
             process.standardInput = stdInPipe
             
-            if let textData = text.data(using: .utf8) {
-                try stdInPipe.fileHandleForWriting.write(contentsOf: textData)
+            try process.run()
+            
+            let writeTask = Task.detached {
+                if let textData = text.data(using: .utf8) {
+                    try stdInPipe.fileHandleForWriting.write(contentsOf: textData)
+                }
                 try stdInPipe.fileHandleForWriting.close()
             }
             
-            try process.run()
+            let readOutTask = Task.detached {
+                try stdOutPipe.fileHandleForReading.readToEnd()
+            }
+            
+            let readErrTask = Task.detached {
+                try stdErrPipe.fileHandleForReading.readToEnd()
+            }
+            
+            let outDataOpt = try await readOutTask.value
+            let errDataOpt = try await readErrTask.value
+            _ = try await writeTask.value
+            
             process.waitUntilExit()
             
-            let outData = try stdOutPipe.fileHandleForReading.readToEnd() ?? Data()
-            let errData = try stdErrPipe.fileHandleForReading.readToEnd() ?? Data()
+            let outData = outDataOpt ?? Data()
+            let errData = errDataOpt ?? Data()
             
             if process.terminationStatus != 0 {
                 let errMsg = String(data: errData, encoding: .utf8) ?? "Unknown script error"

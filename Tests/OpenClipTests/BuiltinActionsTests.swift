@@ -2,7 +2,7 @@ import XCTest
 @testable import Core
 @testable import OpenClip
 
-struct MockApp: AppIdentifying {
+fileprivate struct MockApp: AppIdentifying {
     let bundleIdentifier: String?
     let localizedName: String?
 }
