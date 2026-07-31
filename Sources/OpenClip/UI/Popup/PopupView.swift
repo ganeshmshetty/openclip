@@ -11,7 +11,6 @@ public struct ActionButton: View {
     public let onResult: @MainActor (ActionResult) -> Void
 
     @State private var isHovered = false
-    @State private var isPressed = false
 
     public init(action: any Action, context: ActionContext, onResult: @escaping @MainActor (ActionResult) -> Void) {
         self.action = action
@@ -21,7 +20,6 @@ public struct ActionButton: View {
 
     public var body: some View {
         Button {
-            isPressed = true
             Task {
                 do {
                     let result = try await action.perform(context)
@@ -32,20 +30,18 @@ public struct ActionButton: View {
             }
         } label: {
             iconView(for: action.icon)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(isHovered ? .white : .primary.opacity(0.88))
-                .frame(width: 28, height: 28)
-                .background(
-                    Circle()
-                        .fill(isHovered ? Color.accentColor : Color.primary.opacity(0.07))
-                )
-                .scaleEffect(isHovered ? 1.10 : (isPressed ? 0.88 : 1.0))
-                .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isHovered)
-                .animation(.spring(response: 0.12, dampingFraction: 0.5), value: isPressed)
+                .font(.system(size: 14, weight: .medium))
+                // Turn blue on hover, normal tint at rest
+                .foregroundColor(isHovered ? .accentColor : .primary.opacity(0.80))
+                .frame(width: 36, height: 32)
+                // No circle/capsule — just a plain rectangular hit area
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { hovering in isHovered = hovering }
+        .onHover { isHovered = $0 }
         .help(action.title)
+        // Very subtle fade — no scale bounce
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
     }
 
     @ViewBuilder
@@ -68,6 +64,17 @@ public struct ActionButton: View {
                 Image(systemName: "doc")
             }
         }
+    }
+}
+
+// MARK: - Thin divider between buttons
+
+private struct ButtonDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(0.13))
+            .frame(width: 0.6)
+            .padding(.vertical, 7)
     }
 }
 
@@ -102,36 +109,42 @@ public struct PopupView: View {
     }
 
     public var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 0) {
             // Left chevron
             if totalPages > 1 && currentPage > 0 {
                 chevronButton(systemImage: "chevron.left") {
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) { currentPage -= 1 }
+                    currentPage -= 1
                 }
+                ButtonDivider()
             }
 
-            // Action buttons
-            ForEach(pagedActions, id: \.id) { action in
+            // Action buttons with thin dividers between them
+            ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
+                if index > 0 {
+                    ButtonDivider()
+                }
                 ActionButton(action: action, context: context, onResult: onResult)
             }
 
             // Right chevron
             if totalPages > 1 && currentPage < totalPages - 1 {
+                ButtonDivider()
                 chevronButton(systemImage: "chevron.right") {
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) { currentPage += 1 }
+                    currentPage += 1
                 }
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 0)
+        .fixedSize()
         .background(themeBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .stroke(themeBorder, lineWidth: 0.6)
         )
-        .shadow(color: .black.opacity(0.28), radius: 14, x: 0, y: 5)
-        .padding(10)  // gives the shadow room inside the panel
+        .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 4)
+        .padding(10)
     }
 
     // MARK: - Theming
@@ -140,16 +153,13 @@ public struct PopupView: View {
     private var themeBackground: some View {
         switch selectedTheme {
         case "dark":
-            // True OLED-dark background with heavy material tint
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(nsColor: NSColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.96)))
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color(nsColor: NSColor(red: 0.10, green: 0.10, blue: 0.10, alpha: 0.96)))
         case "light":
-            // Crisp white with very subtle blur
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(.regularMaterial)
         default: // "glass"
-            // Ultra-thin vibrancy — picks up the wallpaper colour underneath
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(.ultraThinMaterial)
         }
     }
@@ -166,9 +176,10 @@ public struct PopupView: View {
     private func chevronButton(systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
-                .frame(width: 20, height: 28)
+                .frame(width: 26, height: 32)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
