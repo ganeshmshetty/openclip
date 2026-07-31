@@ -37,6 +37,11 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         if let result = await strategyAXDirect() {
             return result
         }
+        
+        // Strategy 1.5: Safari JS direct selection read
+        if let safariText = await strategySafariJS(for: app), !safariText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return TextResult(text: safariText, bounds: nil)
+        }
 
         // Strategy 2: Menu-action Copy
         if let text = await strategyMenuActionCopy() {
@@ -49,6 +54,19 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         }
 
         return nil
+    }
+    
+    private func strategySafariJS(for app: any AppIdentifying) async -> String? {
+        guard app.bundleIdentifier == "com.apple.Safari" else { return nil }
+        let script = """
+        tell application "Safari"
+            if (count of documents) > 0 then
+                do JavaScript "window.getSelection().toString()" in front document
+            end if
+        end tell
+        """
+        let text = await runAppleScript(script)
+        return text?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Strategy 1: AX Direct
