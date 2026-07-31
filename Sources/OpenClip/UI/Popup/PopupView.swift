@@ -104,16 +104,16 @@ public struct PopupView: View {
     public var body: some View {
         HStack(spacing: 10) {
             if totalPages > 1 && currentPage > 0 {
-                Button {
+                Button(action: {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
                         currentPage -= 1
                     }
-                } label: {
+                }, label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.secondary)
                         .frame(width: 24, height: 34)
-                }
+                })
                 .buttonStyle(.plain)
             }
             
@@ -122,16 +122,16 @@ public struct PopupView: View {
             }
             
             if totalPages > 1 && currentPage < totalPages - 1 {
-                Button {
+                Button(action: {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
                         currentPage += 1
                     }
-                } label: {
+                }, label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.secondary)
                         .frame(width: 24, height: 34)
-                }
+                })
                 .buttonStyle(.plain)
             }
         }
