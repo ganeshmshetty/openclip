@@ -151,13 +151,16 @@ public class PopupWindowController {
     }
     
     private func simulateKeyShortcut(keyCode: CGKeyCode, modifier: CGEventFlags) {
-        let src = CGEventSource(stateID: .hidSystemState)
+        let src = CGEventSource(stateID: .combinedSessionState)
+        src?.setLocalEventsFilterDuringSuppressionState([.permitLocalMouseEvents, .permitSystemDefinedEvents], state: .eventSuppressionStateSuppressionInterval)
+        
+        let flags = CGEventFlags(rawValue: modifier.rawValue | 0x000008)
         if let keydown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true),
            let keyup = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false) {
-            keydown.flags = modifier
-            keyup.flags = modifier
-            keydown.post(tap: .cghidEventTap)
-            keyup.post(tap: .cghidEventTap)
+            keydown.flags = flags
+            keyup.flags = flags
+            keydown.post(tap: .cgSessionEventTap)
+            keyup.post(tap: .cgSessionEventTap)
         }
     }
 }

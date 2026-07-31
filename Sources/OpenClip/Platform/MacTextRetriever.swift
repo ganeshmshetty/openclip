@@ -222,13 +222,15 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         return await fetchPasteboardText(timeout: 0.5) {
             Task {
                 await self.withMutedAlertVolume {
-                    let src = CGEventSource(stateID: .hidSystemState)
+                    let src = CGEventSource(stateID: .combinedSessionState)
+                    src?.setLocalEventsFilterDuringSuppressionState([.permitLocalMouseEvents, .permitSystemDefinedEvents], state: .eventSuppressionStateSuppressionInterval)
+                    let flags = CGEventFlags(rawValue: CGEventFlags.maskCommand.rawValue | 0x000008)
                     let keyDown = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: true)
-                    keyDown?.flags = .maskCommand
                     let keyUp = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: false)
-                    keyUp?.flags = .maskCommand
-                    keyDown?.post(tap: .cghidEventTap)
-                    keyUp?.post(tap: .cghidEventTap)
+                    keyDown?.flags = flags
+                    keyUp?.flags = flags
+                    keyDown?.post(tap: .cgSessionEventTap)
+                    keyUp?.post(tap: .cgSessionEventTap)
                 }
             }
         }
