@@ -10,7 +10,7 @@ struct OpenClipApp: App {
         // We do not want a main window for an agent app.
         // In SwiftUI, Settings{} creates a settings window if needed.
         Settings {
-            EmptyView()
+            PreferencesView()
         }
     }
 }
