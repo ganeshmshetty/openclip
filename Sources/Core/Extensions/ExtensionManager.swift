@@ -13,14 +13,18 @@ public struct ExtensionMetadata: Sendable, Codable {
 }
 
 public struct ExtensionActionMetadata: Sendable, Codable {
-    public let title: String
+    public let title: String?
     public let icon: String?
     public let script: String?
+    public let url: String?
+    public let regex: String?
     
     enum CodingKeys: String, CodingKey {
         case title = "Title"
         case icon = "Icon"
         case script = "Script"
+        case url = "URL"
+        case regex = "Regular Expression"
     }
 }
 
@@ -52,12 +56,22 @@ public final class ExtensionManager: Sendable {
                 let isDirectory = resourceValues.isDirectory ?? false
                 
                 if isDirectory {
+                    // Check for Config.plist, Config.json, or manifest.json
+                    let plistURL = itemURL.appendingPathComponent("Config.plist")
+                    let jsonConfigURL = itemURL.appendingPathComponent("Config.json")
                     let manifestURL = itemURL.appendingPathComponent(Constants.manifestFileName)
-                    if fileManager.fileExists(atPath: manifestURL.path) {
+                    
+                    if fileManager.fileExists(atPath: plistURL.path) {
+                        let actions = await loadPlistExtension(plistURL: plistURL, directoryURL: itemURL)
+                        newActions.append(contentsOf: actions)
+                    } else if fileManager.fileExists(atPath: jsonConfigURL.path) {
+                        let actions = await loadManifestExtension(manifestURL: jsonConfigURL, directoryURL: itemURL)
+                        newActions.append(contentsOf: actions)
+                    } else if fileManager.fileExists(atPath: manifestURL.path) {
                         let actions = await loadManifestExtension(manifestURL: manifestURL, directoryURL: itemURL)
                         newActions.append(contentsOf: actions)
                     } else {
-                        // Try to find standalone executable scripts in the directory
+                        // Scan directory for standalone scripts or Config.ts/Config.js
                         if let dirItems = try? fileManager.contentsOfDirectory(at: itemURL, includingPropertiesForKeys: [.isDirectoryKey]) {
                             for childURL in dirItems {
                                 let childResource = try? childURL.resourceValues(forKeys: [.isDirectoryKey])
@@ -83,52 +97,107 @@ public final class ExtensionManager: Sendable {
         return newActions
     }
     
+    nonisolated private static func loadPlistExtension(plistURL: URL, directoryURL: URL) async -> [any Action] {
+        guard let data = try? Data(contentsOf: plistURL),
+              let dict = (try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) as? [String: Any] else {
+            return []
+        }
+        
+        let identifier = dict["Extension Identifier"] as? String ?? directoryURL.lastPathComponent
+        let extName = dict["Extension Name"] as? String ?? directoryURL.deletingPathExtension().lastPathComponent
+        
+        var actions: [any Action] = []
+        if let actionsArray = dict["Actions"] as? [[String: Any]] {
+            for (index, actionDict) in actionsArray.enumerated() {
+                let actionId = "\(identifier).action.\(index)"
+                let title = actionDict["Title"] as? String ?? extName
+                let iconStr = (actionDict["Image File"] as? String) ?? (actionDict["Icon"] as? String)
+                let icon = parseIcon(iconStr, directoryURL: directoryURL)
+                let regex = actionDict["Regular Expression"] as? String
+                
+                if let urlTemplate = actionDict["URL"] as? String {
+                    let action = URLTemplateAction(id: actionId, title: title, icon: icon, urlTemplate: urlTemplate, regexPattern: regex)
+                    actions.append(action)
+                } else if let scriptName = actionDict["Script"] as? String {
+                    let scriptURL = directoryURL.appendingPathComponent(scriptName)
+                    let action = ScriptAction(id: actionId, title: title, icon: icon, scriptURL: scriptURL)
+                    actions.append(action)
+                }
+            }
+        }
+        
+        return actions
+    }
+    
     nonisolated private static func loadManifestExtension(manifestURL: URL, directoryURL: URL) async -> [any Action] {
         guard let data = try? Data(contentsOf: manifestURL) else { return [] }
         guard let manifest = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) else { return [] }
         
         var actions: [any Action] = []
         for (index, actionMeta) in manifest.actions.enumerated() {
-            let scriptName = actionMeta.script ?? Constants.defaultScriptName
-            let scriptURL = directoryURL.appendingPathComponent(scriptName)
-            
             let actionId = "\(manifest.identifier).action.\(index)"
+            let title = actionMeta.title ?? manifest.name
             let icon = parseIcon(actionMeta.icon, directoryURL: directoryURL)
+            let regex = actionMeta.regex
             
-            let action = ScriptAction(id: actionId, title: actionMeta.title, icon: icon, scriptURL: scriptURL)
-            actions.append(action)
+            if let urlTemplate = actionMeta.url {
+                let action = URLTemplateAction(id: actionId, title: title, icon: icon, urlTemplate: urlTemplate, regexPattern: regex)
+                actions.append(action)
+            } else {
+                let scriptName = actionMeta.script ?? Constants.defaultScriptName
+                let scriptURL = directoryURL.appendingPathComponent(scriptName)
+                let action = ScriptAction(id: actionId, title: title, icon: icon, scriptURL: scriptURL)
+                actions.append(action)
+            }
         }
         
         return actions
     }
     
     nonisolated private static func loadStandaloneScriptExtension(scriptURL: URL) async -> (any Action)? {
-        guard FileManager.default.isExecutableFile(atPath: scriptURL.path) else { return nil }
-        
         let content = (try? String(contentsOf: scriptURL, encoding: .utf8)) ?? ""
         let lines = content.components(separatedBy: .newlines).prefix(Constants.maxHeaderLinesToScan)
         
         var title: String?
         var iconStr: String?
         var identifier: String?
+        var urlTemplate: String?
+        var regexPattern: String?
         
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix(Constants.titlePrefixHash) || trimmed.hasPrefix(Constants.titlePrefixSlash) {
-                title = String(trimmed.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
-            } else if trimmed.hasPrefix(Constants.iconPrefixHash) || trimmed.hasPrefix(Constants.iconPrefixSlash) {
-                iconStr = String(trimmed.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
-            } else if trimmed.hasPrefix(Constants.identifierPrefixHash) || trimmed.hasPrefix(Constants.identifierPrefixSlash) {
-                identifier = String(trimmed.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix(Constants.titlePrefixHash) || trimmed.hasPrefix(Constants.titlePrefixSlash) || trimmed.hasPrefix("// name:") {
+                title = extractHeaderValue(trimmed)
+            } else if trimmed.hasPrefix(Constants.iconPrefixHash) || trimmed.hasPrefix(Constants.iconPrefixSlash) || trimmed.hasPrefix("// icon:") {
+                iconStr = extractHeaderValue(trimmed)
+            } else if trimmed.hasPrefix(Constants.identifierPrefixHash) || trimmed.hasPrefix(Constants.identifierPrefixSlash) || trimmed.hasPrefix("// identifier:") {
+                identifier = extractHeaderValue(trimmed)
+            } else if trimmed.hasPrefix("// url:") || trimmed.hasPrefix("# url:") {
+                urlTemplate = extractHeaderValue(trimmed)
+            } else if trimmed.hasPrefix("// regex:") || trimmed.hasPrefix("# regex:") {
+                regexPattern = extractHeaderValue(trimmed)
             }
         }
         
-        guard let parsedTitle = title, !parsedTitle.isEmpty else { return nil } // Title is required
+        guard let parsedTitle = title, !parsedTitle.isEmpty else { return nil }
         
         let actionId = identifier ?? "\(Constants.customIdentifierPrefix)\(scriptURL.lastPathComponent)"
         let icon = parseIcon(iconStr, directoryURL: scriptURL.deletingLastPathComponent())
         
-        return ScriptAction(id: actionId, title: parsedTitle, icon: icon, scriptURL: scriptURL)
+        if let template = urlTemplate, !template.isEmpty {
+            return URLTemplateAction(id: actionId, title: parsedTitle, icon: icon, urlTemplate: template, regexPattern: regexPattern)
+        }
+        
+        // For script action, must be executable or a script
+        if FileManager.default.isExecutableFile(atPath: scriptURL.path) || scriptURL.pathExtension == "sh" || scriptURL.pathExtension == "py" || scriptURL.pathExtension == "js" {
+            return ScriptAction(id: actionId, title: parsedTitle, icon: icon, scriptURL: scriptURL)
+        }
+        
+        return nil
+    }
+    
+    nonisolated private static func extractHeaderValue(_ line: String) -> String {
+        return String(line.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
     }
     
     nonisolated private static func parseIcon(_ iconStr: String?, directoryURL: URL) -> ActionIcon {
