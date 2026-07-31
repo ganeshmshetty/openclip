@@ -17,7 +17,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusBarController = StatusBarController()
         
         // Setup popup controller
-        popupController = PopupWindowController()
+        let controller = PopupWindowController()
+        popupController = controller
+        
+        // Setup global shortcut hotkey manager
+        HotkeyManager.shared.setup(popupController: controller)
         
         ActionRegistry.shared.register(builtIns: [
             CopyAction(),

@@ -1,5 +1,6 @@
 import SwiftUI
 import Core
+import KeyboardShortcuts
 
 @MainActor
 public struct PreferencesView: View {
@@ -39,7 +40,7 @@ public struct PreferencesView: View {
                 }
                 .tag(3)
         }
-        .frame(width: 540, height: 420)
+        .frame(width: 540, height: 440)
         .padding(12)
         .onAppear {
             loadDisabledActionIDs()
@@ -66,7 +67,37 @@ struct GeneralTab: View {
     @State private var isAXTrusted: Bool = AXIsProcessTrustedWithOptions(nil)
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Global Hotkey Activation Card
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Global Activation Shortcut")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Trigger OpenClip Popup")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("Press this hotkey anywhere to trigger the popup on selected text.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    KeyboardShortcuts.Recorder(for: .togglePopup)
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+            )
+            
             // Startup Card
             VStack(alignment: .leading, spacing: 14) {
                 Text("Startup & Launch")
