@@ -63,53 +63,105 @@ public struct PreferencesView: View {
 @MainActor
 struct GeneralTab: View {
     @Binding var startAtLogin: Bool
-    @State private var isAXTrusted: Bool = AXIsProcessTrusted()
+    @State private var isAXTrusted: Bool = AXIsProcessTrustedWithOptions(nil)
     
     var body: some View {
-        Form {
-            Section(header: Text("Startup & Menu Bar").font(.headline)) {
-                Toggle("Start OpenClip at Login", isOn: $startAtLogin)
-                    .help("Automatically launch OpenClip when you log into your Mac.")
-            }
-            
-            Divider().padding(.vertical, 8)
-            
-            Section(header: Text("System Permissions").font(.headline)) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Accessibility Access")
-                            .font(.body).bold()
-                        Text(isAXTrusted ? "OpenClip has permission to detect text selection." : "OpenClip needs Accessibility access to work.")
+        VStack(alignment: .leading, spacing: 20) {
+            // Startup Card
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Startup & Launch")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                
+                Toggle(isOn: $startAtLogin) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Start OpenClip at Login")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("Automatically launch OpenClip when you log into your Mac.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                }
+                .toggleStyle(.checkbox)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+            )
+            
+            // System Permissions Card
+            VStack(alignment: .leading, spacing: 14) {
+                Text("System Permissions")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "hand.tap")
+                                .foregroundColor(.blue)
+                            Text("Accessibility Access")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        
+                        Text(isAXTrusted
+                             ? "OpenClip has active permission to detect text selection."
+                             : "OpenClip requires Accessibility access to detect text selection.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
                     Spacer()
                     
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(isAXTrusted ? Color.green : Color.orange)
-                            .frame(width: 10, height: 10)
-                        Text(isAXTrusted ? "Granted" : "Required")
-                            .font(.subheadline)
-                            .foregroundColor(isAXTrusted ? .green : .orange)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.06)))
-                    
-                    Button(action: {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                            NSWorkspace.shared.open(url)
+                    HStack(spacing: 12) {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(isAXTrusted ? Color.green : Color.orange)
+                                .frame(width: 8, height: 8)
+                            Text(isAXTrusted ? "Granted" : "Required")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(isAXTrusted ? .green : .orange)
                         }
-                    }) {
-                        Text("Open Settings")
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(isAXTrusted ? Color.green.opacity(0.1) : Color.orange.opacity(0.1)))
+                        
+                        Button(action: {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }) {
+                            Text("Open Settings")
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                        .buttonStyle(.bordered)
                     }
                 }
             }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+            )
+            
+            Spacer()
         }
-        .padding(20)
+        .padding(24)
         .onAppear {
-            isAXTrusted = AXIsProcessTrusted()
+            isAXTrusted = AXIsProcessTrustedWithOptions(nil)
         }
     }
 }
