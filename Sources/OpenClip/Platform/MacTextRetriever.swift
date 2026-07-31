@@ -4,147 +4,340 @@ import Foundation
 import Core
 import os
 
+// MARK: - MacTextRetriever
+
+/// Retrieves selected text from macOS applications using a three-strategy chain:
+/// 1. Accessibility (AX) direct attribute read – fastest, no side effects.
+/// 2. Menu-action Copy – presses the "Copy" item in the frontmost app's Edit menu,
+///    then polls the pasteboard; saves and restores original pasteboard contents.
+/// 3. Keyboard shortcut Cmd+C – fallback; mutes system beep, polls pasteboard;
+///    saves and restores original pasteboard contents.
 internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
+
     private let logger = Logger(subsystem: "com.openclip", category: "MacTextRetriever")
-    
+
     internal init() {}
+
+    // MARK: - TextRetrieving
+
     internal func retrieveText(for app: any AppIdentifying, policy: AppPolicyContext) async -> String? {
+        // `grabPasteboard` means the caller wants us to go straight to Cmd+C.
         if policy.grabPasteboard {
-            if let text = await extractViaPasteboard() { return text }
+            return await strategyKeyboardShortcut()
+        }
+
+        // Strategy 1: Accessibility direct read
+        if let text = await strategyAXDirect() {
+            return text
+        }
+
+        // Strategy 2: Menu-action Copy
+        if let text = await strategyMenuActionCopy() {
+            return text
+        }
+
+        // Strategy 3: Keyboard shortcut Cmd+C
+        return await strategyKeyboardShortcut()
+    }
+
+    // MARK: - Strategy 1: AX Direct
+
+    /// Read `kAXSelectedTextAttribute` from the focused UI element.
+    /// Returns `nil` if the element is unavailable, the attribute is missing, or the text is empty.
+    private func strategyAXDirect() async -> String? {
+        return await withCheckedContinuation { continuation in
+            // Run on a detached task so we don't block the caller's executor.
+            Task.detached { [logger] in
+                let systemWide = AXUIElementCreateSystemWide()
+                var focusedRef: CFTypeRef?
+                guard AXUIElementCopyAttributeValue(
+                    systemWide,
+                    kAXFocusedUIElementAttribute as CFString,
+                    &focusedRef
+                ) == .success, let focusedRef else {
+                    logger.debug("AX strategy: could not obtain focused element")
+                    continuation.resume(returning: nil)
+                    return
+                }
+                guard CFGetTypeID(focusedRef) == AXUIElementGetTypeID() else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let element = focusedRef as! AXUIElement
+                var textRef: CFTypeRef?
+                guard AXUIElementCopyAttributeValue(
+                    element,
+                    kAXSelectedTextAttribute as CFString,
+                    &textRef
+                ) == .success, let text = textRef as? String else {
+                    logger.debug("AX strategy: kAXSelectedTextAttribute unavailable")
+                    continuation.resume(returning: nil)
+                    return
+                }
+                guard !text.isEmpty else {
+                    logger.debug("AX strategy: selected text is empty, falling through")
+                    continuation.resume(returning: nil)
+                    return
+                }
+                logger.debug("AX strategy: success (\(text.count) chars)")
+                continuation.resume(returning: text)
+            }
+        }
+    }
+
+    // MARK: - Strategy 2: Menu-Action Copy
+
+    /// Locate the enabled "Copy" item in the frontmost application's AX menu bar,
+    /// press it, then poll the pasteboard for a change.
+    /// Saves and restores all pasteboard items around the operation.
+    @MainActor
+    private func strategyMenuActionCopy() async -> String? {
+        guard let copyItem = findEnabledCopyMenuItem() else {
+            logger.debug("Menu strategy: no enabled Copy menu item found")
             return nil
         }
-        
-        if let text = await extractViaAccessibility() { return text }
-        if let text = await extractViaPasteboard() { return text }
-        if let nsApp = app as? NSRunningApplication, let text = await extractViaAppleScript(for: nsApp) { return text }
+        logger.debug("Menu strategy: found enabled Copy menu item, pressing it")
+        return await fetchPasteboardText(timeout: 0.3) {
+            AXUIElementPerformAction(copyItem, kAXPressAction as CFString)
+        }
+    }
+
+    /// Walk the frontmost application's AX menu bar looking for an enabled "Copy" item.
+    /// Mirrors `AXManager.findEnabledMenuItem(.copy)` from SelectedTextKit.
+    @MainActor
+    private func findEnabledCopyMenuItem() -> AXUIElement? {
+        guard let frontApp = NSWorkspace.shared.frontmostApplication else { return nil }
+        let pid = frontApp.processIdentifier
+        let appElement = AXUIElementCreateApplication(pid)
+
+        // Get the menu bar
+        var menuBarRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            appElement,
+            kAXMenuBarAttribute as CFString,
+            &menuBarRef
+        ) == .success, let menuBarRef else { return nil }
+        let menuBar = menuBarRef as! AXUIElement
+
+        // Iterate top-level menus (File, Edit, View, …)
+        var childrenRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            menuBar,
+            kAXChildrenAttribute as CFString,
+            &childrenRef
+        ) == .success, let childrenRef else { return nil }
+
+        let topMenus = childrenRef as! [AXUIElement]
+        for menu in topMenus {
+            if let copyItem = searchForCopyItem(in: menu) {
+                return copyItem
+            }
+        }
         return nil
     }
-    
-    private func extractViaAccessibility() async -> String? {
-        let timeout = Constants.elementTimeout
-        let logger = self.logger
-        
-        actor RaceManager {
-            private var isCompleted = false
-            func complete(with result: String?, continuation: CheckedContinuation<String?, Never>) {
-                if !isCompleted {
-                    isCompleted = true
-                    continuation.resume(returning: result)
+
+    /// Recursively search an AX menu element for an enabled item whose title is "Copy".
+    private func searchForCopyItem(in element: AXUIElement) -> AXUIElement? {
+        // Check if this element itself is the Copy item
+        if isCopyItem(element), isEnabled(element) {
+            return element
+        }
+
+        // Descend into children
+        var childrenRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            kAXChildrenAttribute as CFString,
+            &childrenRef
+        ) == .success, let childrenRef else { return nil }
+
+        for child in (childrenRef as! [AXUIElement]) {
+            if let found = searchForCopyItem(in: child) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func isCopyItem(_ element: AXUIElement) -> Bool {
+        var titleRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            kAXTitleAttribute as CFString,
+            &titleRef
+        ) == .success, let title = titleRef as? String else { return false }
+        return title == "Copy"
+    }
+
+    private func isEnabled(_ element: AXUIElement) -> Bool {
+        var enabledRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            kAXEnabledAttribute as CFString,
+            &enabledRef
+        ) == .success, let enabled = enabledRef as? Bool else { return false }
+        return enabled
+    }
+
+    // MARK: - Strategy 3: Keyboard Shortcut (Cmd+C)
+
+    /// Post a synthetic Cmd+C keystroke, then poll the pasteboard for a change.
+    /// Mutes the system beep so an empty-selection Copy is silent.
+    /// Saves and restores all pasteboard items around the operation.
+    private func strategyKeyboardShortcut() async -> String? {
+        logger.debug("Keyboard strategy: sending Cmd+C")
+        return await fetchPasteboardText(timeout: 0.5) {
+            Task {
+                await self.withMutedAlertVolume {
+                    let src = CGEventSource(stateID: .hidSystemState)
+                    let keyDown = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: true)
+                    keyDown?.flags = .maskCommand
+                    let keyUp = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: false)
+                    keyUp?.flags = .maskCommand
+                    keyDown?.post(tap: .cghidEventTap)
+                    keyUp?.post(tap: .cghidEventTap)
                 }
             }
         }
+    }
+
+    // MARK: - Shared Pasteboard Polling
+
+    /// Save the current pasteboard, perform `action`, poll every 5 ms up to `timeout`
+    /// seconds for the change count to advance, read the new string, then restore the
+    /// original contents after 50 ms.
+    ///
+    /// - Parameters:
+    ///   - timeout: Maximum seconds to wait for the pasteboard change count to advance.
+    ///   - action: Closure that triggers a copy operation (menu press or key event).
+    /// - Returns: The new string on the pasteboard, or `nil` on timeout / non-string content.
+    @MainActor
+    private func fetchPasteboardText(
+        timeout: TimeInterval,
+        action: @escaping () -> Void
+    ) async -> String? {
+        let pasteboard = NSPasteboard.general
+        let savedItems = backupPasteboard(pasteboard)
+        let initialChangeCount = pasteboard.changeCount
+
+        action()
+
+        // Poll every 5 ms
+        let pollInterval: TimeInterval = 0.005
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if pasteboard.changeCount != initialChangeCount { break }
+            try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+        }
+
+        guard pasteboard.changeCount != initialChangeCount else {
+            logger.debug("Pasteboard strategy: timed out waiting for change")
+            // Restore immediately since we never changed anything meaningful
+            restorePasteboard(pasteboard, items: savedItems)
+            return nil
+        }
+
+        let text = pasteboard.string(forType: .string)
+        let changeCountAfterCopy = pasteboard.changeCount
+
+        // Restore original contents after a short delay so the paste operation
+        // (if any downstream code uses the pasteboard) can complete first.
+        Task { @MainActor [logger] in
+            try? await Task.sleep(nanoseconds: 50_000_000) // 50 ms
+            if NSPasteboard.general.changeCount == changeCountAfterCopy {
+                self.restorePasteboard(NSPasteboard.general, items: savedItems)
+                logger.debug("Pasteboard strategy: original contents restored")
+            }
+        }
+
+        return text?.isEmpty == false ? text : nil
+    }
+
+    // MARK: - Pasteboard Save / Restore Helpers
+
+    private func backupPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem] {
+        guard let items = pasteboard.pasteboardItems else { return [] }
+        return items.compactMap { item -> NSPasteboardItem? in
+            let copy = NSPasteboardItem()
+            let types = item.types // snapshot before clearing
+            for type in types {
+                if let data = item.data(forType: type) {
+                    copy.setData(data, forType: type)
+                }
+            }
+            return copy
+        }
+    }
+
+    private func restorePasteboard(_ pasteboard: NSPasteboard, items: [NSPasteboardItem]) {
+        guard !items.isEmpty else { return }
+        pasteboard.clearContents()
+        pasteboard.writeObjects(items)
+    }
+
+    // MARK: - Beep Suppression
+
+    /// Run `operation` with the system alert volume muted, restoring it asynchronously afterwards.
+    private func withMutedAlertVolume<T>(_ operation: () async -> T) async -> T {
+        var originalVolume: Int? = nil
         
-        let manager = RaceManager()
+        // Single combined AppleScript call to get and mute in one roundtrip
+        let muteScript = """
+        tell application "System Events"
+            set originalVolume to alert volume of (get volume settings)
+            set volume alert volume 0
+            return originalVolume
+        end tell
+        """
         
+        if let result = await runAppleScript(muteScript), let vol = Int(result) {
+            originalVolume = vol
+            logger.debug("Beep suppression: muted alert volume (was \(vol))")
+        }
+        
+        let result = await operation()
+        
+        // Restore volume asynchronously without blocking the return
+        if let vol = originalVolume, vol > 0 {
+            Task.detached { [logger] in
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0s delay
+                let restoreScript = """
+                tell application "System Events"
+                    set volume alert volume \(vol)
+                end tell
+                """
+                _ = await self.runAppleScript(restoreScript)
+                logger.debug("Beep suppression: restored alert volume to \(vol)")
+            }
+        }
+        
+        return result
+    }
+
+    /// Run an AppleScript on a background thread with a timeout and return its string output.
+    private func runAppleScript(_ source: String, timeout: TimeInterval = 0.2) async -> String? {
         return await withCheckedContinuation { continuation in
-            let fetchTask = Task.detached { () -> String? in
-                let systemWide = AXUIElementCreateSystemWide()
-                var focusedElement: CFTypeRef?
-                let focusedError = AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement)
-                
-                guard focusedError == .success, let element = focusedElement else {
-                    if focusedError != .success {
-                        logger.error("AXUIElementCopyAttributeValue focusedElement error: \(focusedError.rawValue)")
-                    }
-                    await manager.complete(with: nil, continuation: continuation)
+            let task = Task.detached { () -> String? in
+                var error: NSDictionary?
+                guard let script = NSAppleScript(source: source) else {
                     return nil
                 }
-                
-                guard CFGetTypeID(element) == AXUIElementGetTypeID() else {
-                    await manager.complete(with: nil, continuation: continuation)
+                let result = script.executeAndReturnError(&error)
+                if error != nil {
                     return nil
                 }
-                let axElement = element as! AXUIElement
-                var selectedText: CFTypeRef?
-                let textError = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedText)
-                
-                guard textError == .success, let text = selectedText as? String else {
-                    if textError != .success {
-                        logger.error("AXUIElementCopyAttributeValue selectedText error: \(textError.rawValue)")
-                    }
-                    await manager.complete(with: nil, continuation: continuation)
-                    return nil
-                }
-                
-                let result = text.isEmpty ? nil : text
-                await manager.complete(with: result, continuation: continuation)
-                return result
+                return result.stringValue
             }
             
             Task.detached {
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                fetchTask.cancel()
-                await manager.complete(with: nil, continuation: continuation)
+                task.cancel()
+            }
+            
+            Task.detached {
+                let val = await task.value
+                continuation.resume(returning: val)
             }
         }
-    }
-    
-    private func extractViaPasteboard() async -> String? {
-        let pasteboard = NSPasteboard.general
-        let savedItems = pasteboard.pasteboardItems?.compactMap { item -> NSPasteboardItem? in
-            let copy = NSPasteboardItem()
-            for type in item.types {
-                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
-            }
-            return copy
-        }
-        
-        let initialChangeCount = pasteboard.changeCount
-        let src = CGEventSource(stateID: .hidSystemState)
-        let cmddown = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: true)
-        cmddown?.flags = .maskCommand
-        let cmdup = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: false)
-        cmdup?.flags = .maskCommand
-        cmddown?.post(tap: .cghidEventTap)
-        cmdup?.post(tap: .cghidEventTap)
-        
-        var waitTime = 0.0
-        while pasteboard.changeCount == initialChangeCount && waitTime < Constants.pasteboardWaitTimeout {
-            if Task.isCancelled { break }
-            try? await Task.sleep(nanoseconds: Constants.pasteboardWaitSleep)
-            waitTime += Constants.pasteboardWaitInterval
-        }
-        
-        if pasteboard.changeCount == initialChangeCount { return nil }
-        let text = pasteboard.string(forType: .string)
-        
-        let changeCountAfterCopy = pasteboard.changeCount
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(Constants.pasteboardRestoreDelay * 1_000_000_000))
-            if NSPasteboard.general.changeCount == changeCountAfterCopy {
-                if let savedItems = savedItems {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.writeObjects(savedItems)
-                }
-            }
-        }
-        return text
-    }
-    
-    private func extractViaAppleScript(for app: NSRunningApplication) async -> String? {
-        guard let localizedName = app.localizedName else { return nil }
-        let bundleName = localizedName.replacingOccurrences(of: "\"", with: "\\\"")
-        let scriptSource = """
-        tell application "\(bundleName)"
-            try
-                return the selection as text
-            on error
-                return ""
-            end try
-        end tell
-        """
-        
-        let task = Task.detached {
-            var error: NSDictionary?
-            if let script = NSAppleScript(source: scriptSource) {
-                let output = script.executeAndReturnError(&error)
-                if error == nil {
-                    let text = output.stringValue
-                    return text?.isEmpty == false ? text : nil
-                }
-            }
-            return nil
-        }
-        return await task.value
     }
 }

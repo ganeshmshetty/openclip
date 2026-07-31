@@ -76,11 +76,15 @@ public struct PopupView: View {
                 ActionButton(action: action, context: context, onResult: onResult)
             }
         }
-        .padding(12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        // Clip the content to the pill shape first, then apply shadow outside
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.95))
-                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+        .padding(14) // give shadow room so it isn't clipped by the window edge
     }
 }

@@ -13,5 +13,6 @@ public class PopupPanel: NSPanel {
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.backgroundColor = .clear
         self.isOpaque = false
+        self.hasShadow = false   // SwiftUI draws its own shadow; panel shadow causes double artifacts
     }
 }
