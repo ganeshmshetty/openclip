@@ -14,6 +14,7 @@ public struct PasteAction: Action {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
+        if context.selection.appPolicy.assumePaste { return true }
         #if canImport(AppKit)
         return (NSPasteboard.general.pasteboardItems?.count ?? 0) > 0
         #else

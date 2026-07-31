@@ -8,7 +8,12 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     private let logger = Logger(subsystem: "com.openclip", category: "MacTextRetriever")
     
     internal init() {}
-    internal func retrieveText(for app: any AppIdentifying) async -> String? {
+    internal func retrieveText(for app: any AppIdentifying, policy: AppPolicyContext) async -> String? {
+        if policy.grabPasteboard {
+            if let text = await extractViaPasteboard() { return text }
+            return nil
+        }
+        
         if let text = await extractViaAccessibility() { return text }
         if let text = await extractViaPasteboard() { return text }
         if let nsApp = app as? NSRunningApplication, let text = await extractViaAppleScript(for: nsApp) { return text }

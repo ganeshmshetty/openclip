@@ -18,6 +18,11 @@ public final class ActionRegistry: Sendable {
     }
     
     public func availableActions(for context: ActionContext) -> [any Action] {
-        return actions.filter { $0.isEnabled(for: context) }
+        return actions.filter { action in
+            if context.selection.appPolicy.denyFormatting && action.isFormatting {
+                return false
+            }
+            return action.isEnabled(for: context)
+        }
     }
 }

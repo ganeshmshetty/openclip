@@ -46,14 +46,20 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                 return
             }
             
+            let policy = RuleEngine.shared.resolvePolicies(for: app.bundleIdentifier ?? "")
+            if policy.denyProbe || policy.denyPreprobe {
+                return
+            }
+            
             // The retriever runs its own logic (which could be non-isolated) 
-            if let text = await self.retriever.retrieveText(for: app) {
+            if let text = await self.retriever.retrieveText(for: app, policy: policy) {
                 if text.utf8.count <= Constants.maxTextLength {
                     let context = SelectionContext(
                         text: text,
                         sourceApp: app,
                         cursorPosition: cursor,
-                        timestamp: Date()
+                        timestamp: Date(),
+                        appPolicy: policy
                     )
                     self.onSelection?(context)
                 }

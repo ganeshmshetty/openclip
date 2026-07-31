@@ -4,3 +4,4 @@ reference/
 .build/
 .DS_Store
 xcuserdata/
+build/
