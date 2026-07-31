@@ -21,7 +21,7 @@ public struct OpenURLAction: Action {
         if let url = extractURL(from: context.selection.text) {
             return .openURL(url)
         }
-        return .failure(NSError(domain: "OpenURLAction", code: 1, userInfo: nil))
+        return .failure(NSError(domain: Constants.actionErrorDomain, code: Constants.actionErrorCode, userInfo: nil))
     }
     
     private func extractURL(from text: String) -> URL? {

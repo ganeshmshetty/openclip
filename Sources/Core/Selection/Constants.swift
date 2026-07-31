@@ -17,4 +17,6 @@ public enum Constants {
     public static let popupDismissalDistance: CGFloat = 40.0
     public static let searchURLTemplate: String = "https://www.google.com/search?q=%@"
     public static let maxURLScanLength: Int = 2000
+    public static let actionErrorDomain: String = "OpenClip.ActionError"
+    public static let actionErrorCode: Int = 1
 }

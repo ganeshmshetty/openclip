@@ -28,7 +28,8 @@ public class PopupWindowController {
         let panel = self.panel ?? PopupPanel()
         self.panel = panel
         
-        let rootView = PopupView(actions: availableActions, context: actionContext) { [weak self] in
+        let rootView = PopupView(actions: availableActions, context: actionContext) { [weak self] result in
+            self?.handleResult(result)
             self?.hide()
         }
         panel.contentView = NSHostingView(rootView: rootView)
@@ -113,5 +114,41 @@ public class PopupWindowController {
     
     @objc private func appDidDeactivate() {
         hide()
+    }
+    
+    private func handleResult(_ result: ActionResult) {
+        switch result {
+        case .simulatePaste:
+            simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
+        case .showServices(let text):
+            let picker = NSSharingServicePicker(items: [text])
+            if let window = NSApp.keyWindow ?? NSApp.windows.first, let view = window.contentView {
+                picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
+            }
+        case .cut(let text):
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            simulateKeyShortcut(keyCode: Constants.deleteVirtualKey, modifier: []) // Delete
+        case .openURL(let url):
+            NSWorkspace.shared.open(url)
+        case .copy(let text):
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+        case .success, .failure, .none:
+            break
+        }
+    }
+    
+    private func simulateKeyShortcut(keyCode: CGKeyCode, modifier: CGEventFlags) {
+        let src = CGEventSource(stateID: .hidSystemState)
+        if let keydown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true),
+           let keyup = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false) {
+            keydown.flags = modifier
+            keyup.flags = modifier
+            keydown.post(tap: .cghidEventTap)
+            keyup.post(tap: .cghidEventTap)
+        }
     }
 }

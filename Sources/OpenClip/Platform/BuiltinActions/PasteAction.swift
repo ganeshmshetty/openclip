@@ -15,8 +15,7 @@ public struct PasteAction: Action {
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
         #if canImport(AppKit)
-        let hasString = NSPasteboard.general.canReadItem(withDataConformingToTypes: [NSPasteboard.PasteboardType.string.rawValue])
-        return hasString
+        return (NSPasteboard.general.pasteboardItems?.count ?? 0) > 0
         #else
         return true
         #endif

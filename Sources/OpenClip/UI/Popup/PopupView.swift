@@ -6,12 +6,12 @@ import Core
 public struct ActionButton: View {
     public let action: any Action
     public let context: ActionContext
-    public let onPerform: () -> Void
+    public let onResult: (ActionResult) -> Void
     
-    public init(action: any Action, context: ActionContext, onPerform: @escaping () -> Void) {
+    public init(action: any Action, context: ActionContext, onResult: @escaping (ActionResult) -> Void) {
         self.action = action
         self.context = context
-        self.onPerform = onPerform
+        self.onResult = onResult
     }
     
     public var body: some View {
@@ -19,11 +19,10 @@ public struct ActionButton: View {
             Task {
                 do {
                     let result = try await action.perform(context)
-                    handleResult(result)
+                    onResult(result)
                 } catch {
                     print("Action failed: \(error)")
                 }
-                onPerform()
             }
         } label: {
             iconView(for: action.icon)
@@ -35,43 +34,6 @@ public struct ActionButton: View {
         .buttonStyle(.plain)
         .help(action.title)
     }
-    
-    private func handleResult(_ result: ActionResult) {
-        switch result {
-        case .simulatePaste:
-            simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
-        case .showServices(let text):
-            let picker = NSSharingServicePicker(items: [text])
-            if let window = NSApp.keyWindow ?? NSApp.windows.first, let view = window.contentView {
-                picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
-            }
-        case .cut(let text):
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
-            simulateKeyShortcut(keyCode: Constants.deleteVirtualKey, modifier: []) // Delete
-        case .openURL(let url):
-            NSWorkspace.shared.open(url)
-        case .copy(let text):
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
-        case .success, .failure, .none:
-            break
-        }
-    }
-    
-    private func simulateKeyShortcut(keyCode: CGKeyCode, modifier: CGEventFlags) {
-        let src = CGEventSource(stateID: .hidSystemState)
-        if let keydown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true),
-           let keyup = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false) {
-            keydown.flags = modifier
-            keyup.flags = modifier
-            keydown.post(tap: .cghidEventTap)
-            keyup.post(tap: .cghidEventTap)
-        }
-    }
-    
     @ViewBuilder
     private func iconView(for icon: ActionIcon) -> some View {
         switch icon {
@@ -100,18 +62,18 @@ public struct ActionButton: View {
 public struct PopupView: View {
     public let actions: [any Action]
     public let context: ActionContext
-    public let onDismiss: () -> Void
+    public let onResult: (ActionResult) -> Void
     
-    public init(actions: [any Action], context: ActionContext, onDismiss: @escaping () -> Void) {
+    public init(actions: [any Action], context: ActionContext, onResult: @escaping (ActionResult) -> Void) {
         self.actions = actions
         self.context = context
-        self.onDismiss = onDismiss
+        self.onResult = onResult
     }
     
     public var body: some View {
         HStack(spacing: 12) {
             ForEach(actions, id: \.id) { action in
-                ActionButton(action: action, context: context, onPerform: onDismiss)
+                ActionButton(action: action, context: context, onResult: onResult)
             }
         }
         .padding(12)
