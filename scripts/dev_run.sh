@@ -13,12 +13,12 @@ xcodebuild -scheme OpenClip -configuration Debug -destination 'platform=macOS,ar
 APP_PATH="$(find /Users/ganesh/Library/Developer/Xcode/DerivedData/OpenClip-*/Build/Products/Debug -name "OpenClip.app" | head -n 1)"
 
 if [ -z "$APP_PATH" ]; then
-  echo "❌ Error: Could not find built OpenClip.app in DerivedData"
+  echo "Error: Could not find built OpenClip.app in DerivedData"
   exit 1
 fi
 
-echo "🚀 Terminating old instances & launching from DerivedData..."
+echo "Terminating old instances & launching from DerivedData..."
 pkill -f OpenClip || true
 "$APP_PATH/Contents/MacOS/OpenClip" > /tmp/openclip.log 2>&1 &
 
-echo "✅ Running directly from: $APP_PATH (logs at /tmp/openclip.log)"
+echo "Running directly from: $APP_PATH (logs at /tmp/openclip.log)"
