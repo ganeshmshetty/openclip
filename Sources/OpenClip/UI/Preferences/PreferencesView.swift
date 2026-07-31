@@ -120,61 +120,65 @@ struct AppearanceTab: View {
     @Binding var theme: String
     @Binding var popupSize: String
     
+    private var mockContext: ActionContext {
+        let app = NSRunningApplication.current
+        let context = SelectionContext(
+            text: "OpenClip Preview",
+            sourceApp: app,
+            cursorPosition: .zero,
+            selectionBounds: nil,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        return ActionContext(selection: context, modifiers: [])
+    }
+    
+    private var mockActions: [any Action] {
+        [
+            CopyAction(),
+            CutAction(),
+            PasteAction(),
+            SearchAction(),
+            ServicesAction()
+        ]
+    }
+    
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             // Live Preview Card
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 Text("Live Popup Preview")
                     .font(.caption)
+                    .fontWeight(.medium)
                     .foregroundColor(.secondary)
                 
-                HStack(spacing: 12) {
-                    Image(systemName: "doc.on.doc").font(.system(size: 16))
-                    Image(systemName: "scissors").font(.system(size: 16))
-                    Image(systemName: "doc.on.clipboard").font(.system(size: 16))
-                    Image(systemName: "magnifyingglass").font(.system(size: 16))
-                    Image(systemName: "globe").font(.system(size: 16))
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(previewBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.primary.opacity(0.12), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 4)
+                PopupView(actions: mockActions, context: mockContext) { _ in }
+                    .scaleEffect(1.1)
+                    .padding(.vertical, 8)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.04)))
+            .frame(maxWidth: .infinity, minHeight: 140)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
             
             Form {
                 Picker("Theme Style", selection: $theme) {
-                    Text("Modern Glass (.ultraThinMaterial)").tag("glass")
-                    Text("OLED Dark").tag("dark")
-                    Text("Translucent Light").tag("light")
+                    Text("Glass").tag("glass")
+                    Text("Dark").tag("dark")
+                    Text("Light").tag("light")
                 }
                 .pickerStyle(.segmented)
-                
-                Picker("Popup Size", selection: $popupSize) {
-                    Text("Compact").tag("small")
-                    Text("Standard").tag("medium")
-                    Text("Large").tag("large")
-                }
             }
             .padding(.horizontal, 10)
+            
+            Spacer()
         }
-        .padding(20)
-    }
-    
-    @ViewBuilder
-    private var previewBackground: some View {
-        switch theme {
-        case "dark":
-            Color(nsColor: .windowBackgroundColor).opacity(0.92)
-        case "light":
-            Color.white.opacity(0.95)
-        default:
-            RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.ultraThinMaterial)
-        }
+        .padding(24)
     }
 }
 
