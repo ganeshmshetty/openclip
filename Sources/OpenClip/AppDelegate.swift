@@ -66,4 +66,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         onboardingWindowController?.showWindow(nil)
     }
+
+    func application(_ sender: NSApplication, openFiles filenames: [String]) {
+        for filename in filenames {
+            let url = URL(fileURLWithPath: filename)
+            Task {
+                do {
+                    _ = try await ExtensionManager.shared.installExtension(from: url)
+                    await MainActor.run {
+                        self.statusBarController?.showPreferences()
+                    }
+                } catch {
+                    print("Failed to install extension from Finder: \(error)")
+                }
+            }
+        }
+    }
 }

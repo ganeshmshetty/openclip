@@ -269,7 +269,6 @@ struct AppearanceTab: View {
 struct ActionsTab: View {
     @Binding var disabledActionIDs: Set<String>
     @State private var showingAddActionSheet = false
-    // Observing ActionRegistry so the list re-renders instantly when actions are added/removed
     @ObservedObject private var registry = ActionRegistry.shared
     
     var body: some View {
@@ -283,12 +282,19 @@ struct ActionsTab: View {
             }
             .listStyle(.inset)
             
-            HStack {
+            HStack(spacing: 12) {
                 Button(action: {
                     showingAddActionSheet = true
                 }, label: {
                     Label("Add Custom Action", systemImage: "plus.circle")
                 })
+                
+                Button(action: {
+                    openInstallExtensionPanel()
+                }, label: {
+                    Label("Install Extension…", systemImage: "square.and.arrow.down")
+                })
+                
                 Spacer()
             }
             .padding(.horizontal, 10)
@@ -296,6 +302,27 @@ struct ActionsTab: View {
         .padding(12)
         .sheet(isPresented: $showingAddActionSheet) {
             AddCustomActionSheet()
+        }
+    }
+    
+    private func openInstallExtensionPanel() {
+        let panel = NSOpenPanel()
+        panel.title = "Select Extension to Install"
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.folder, .zip, .shellScript, .pythonScript, .plainText]
+        
+        panel.begin { response in
+            if response == .OK, let selectedURL = panel.url {
+                Task {
+                    do {
+                        _ = try await ExtensionManager.shared.installExtension(from: selectedURL)
+                    } catch {
+                        print("Failed to install extension: \(error)")
+                    }
+                }
+            }
         }
     }
 }
@@ -360,6 +387,18 @@ struct ActionRowView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.red)
+                .help("Delete Custom Action")
+            } else if action is ScriptAction || action is URLTemplateAction {
+                Button(action: {
+                    Task {
+                        try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                    }
+                }) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.red)
+                .help("Uninstall Extension")
             }
         }
     }

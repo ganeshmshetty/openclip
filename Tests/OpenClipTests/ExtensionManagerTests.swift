@@ -4,14 +4,19 @@ import XCTest
 
 final class ExtensionManagerTests: XCTestCase {
     var tempDir: URL!
+    var sourceDir: URL!
+    
     override func setUp() {
         super.setUp()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        sourceDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
     }
     
     override func tearDown() {
         try? FileManager.default.removeItem(at: tempDir)
+        try? FileManager.default.removeItem(at: sourceDir)
         super.tearDown()
     }
     
@@ -27,7 +32,6 @@ final class ExtensionManagerTests: XCTestCase {
         """
         try scriptContent.write(to: scriptPath, atomically: true, encoding: .utf8)
         
-        // Make executable
         var attrs = try FileManager.default.attributesOfItem(atPath: scriptPath.path)
         attrs[.posixPermissions] = 0o755
         try FileManager.default.setAttributes(attrs, ofItemAtPath: scriptPath.path)
@@ -44,7 +48,7 @@ final class ExtensionManagerTests: XCTestCase {
     
     @MainActor
     func testLoadManifestExtension() async throws {
-        let extDir = tempDir.appendingPathComponent("manifest_ext")
+        let extDir = tempDir.appendingPathComponent("manifest_ext.openclipext")
         try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
         
         let manifestPath = extDir.appendingPathComponent("manifest.json")
@@ -70,7 +74,6 @@ final class ExtensionManagerTests: XCTestCase {
         """
         try scriptContent.write(to: scriptPath, atomically: true, encoding: .utf8)
         
-        // Make executable
         var attrs = try FileManager.default.attributesOfItem(atPath: scriptPath.path)
         attrs[.posixPermissions] = 0o755
         try FileManager.default.setAttributes(attrs, ofItemAtPath: scriptPath.path)
@@ -85,43 +88,36 @@ final class ExtensionManagerTests: XCTestCase {
     }
     
     @MainActor
-    func testLoadPlistPopClipExtension() async throws {
-        let extDir = tempDir.appendingPathComponent("Wikipedia.popclipext")
+    func testInstallAndUninstallExtension() async throws {
+        let extDir = sourceDir.appendingPathComponent("Installable.openclipext")
         try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
         
-        let plistPath = extDir.appendingPathComponent("Config.plist")
-        let plistDict: [String: Any] = [
-            "Extension Identifier": "com.pilotmoon.popclip.extension.wikipedia",
-            "Extension Name": "Wikipedia",
+        let manifestPath = extDir.appendingPathComponent("manifest.json")
+        let manifestContent = """
+        {
+            "Identifier": "com.test.installable",
+            "Name": "Installable Extension",
             "Actions": [
-                [
-                    "Title": "Wikipedia",
-                    "Image File": "w.png",
-                    "URL": "https://en.wikipedia.org/w/index.php?search={popclip text}",
-                    "Regular Expression": "(?s)^.{1,200}$"
-                ]
+                {
+                    "Title": "Installed Action",
+                    "URL": "https://google.com/search?q={text}"
+                }
             ]
-        ]
-        let plistData = try PropertyListSerialization.data(fromPropertyList: plistDict, format: .xml, options: 0)
-        try plistData.write(to: plistPath)
+        }
+        """
+        try manifestContent.write(to: manifestPath, atomically: true, encoding: .utf8)
         
         let manager = ExtensionManager.shared
-        await manager.loadExtensions(from: tempDir)
+        let installed = try await manager.installExtension(from: extDir, targetDir: tempDir)
         
-        XCTAssertEqual(manager.loadedActions.count, 1)
-        let action = manager.loadedActions.first as? URLTemplateAction
-        XCTAssertNotNil(action)
-        XCTAssertEqual(action?.title, "Wikipedia")
+        XCTAssertTrue(installed.contains(where: { $0.id == "com.test.installable.action.0" }))
         
-        let dummyApp = NSRunningApplication.current
-        let context = ActionContext(selection: SelectionContext(text: "Swift", sourceApp: dummyApp, cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
+        // Verify file was copied to targetDir
+        let expectedTarget = tempDir.appendingPathComponent("Installable.openclipext")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: expectedTarget.path))
         
-        XCTAssertTrue(action?.isEnabled(for: context) == true)
-        let result = try await action?.perform(context)
-        if case .openURL(let url)? = result {
-            XCTAssertEqual(url.absoluteString, "https://en.wikipedia.org/w/index.php?search=Swift")
-        } else {
-            XCTFail("Expected openURL result")
-        }
+        // Test uninstall
+        try await manager.uninstallExtension(actionID: "com.test.installable.action.0", targetDir: tempDir)
+        XCTAssertFalse(manager.loadedActions.contains(where: { $0.id == "com.test.installable.action.0" }))
     }
 }
