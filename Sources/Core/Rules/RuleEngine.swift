@@ -1,25 +1,33 @@
 import Foundation
+import Combine
 import os
 
 public struct RuleEngineConfig: Codable, Sendable {
     public let rules: [AppRule]
+    
+    public init(rules: [AppRule]) {
+        self.rules = rules
+    }
 }
 
 @MainActor
-public final class RuleEngine: Sendable {
+public final class RuleEngine: ObservableObject, Sendable {
     public static let shared = RuleEngine()
     
-    private var rules: [AppRule] = []
+    @Published public private(set) var userRules: [AppRule] = []
+    private var allExpandedRules: [AppRule] = []
     private let logger = Logger(subsystem: "com.openclip", category: "RuleEngine")
     
     private init() {
-        self.rules = RuleEngine.expandRules(Self.defaultRules)
+        self.userRules = Self.defaultRules
+        self.allExpandedRules = RuleEngine.expandRules(Self.defaultRules)
     }
     
-    public func loadRules(from url: URL) async {
+    public func loadRules(from url: URL = Constants.rulesFileURL) async {
         let logger = self.logger
         let loadedRules = await Task.detached { () -> [AppRule]? in
             do {
+                guard FileManager.default.fileExists(atPath: url.path) else { return nil }
                 let data = try Data(contentsOf: url)
                 let decoder = JSONDecoder()
                 let config = try decoder.decode(RuleEngineConfig.self, from: data)
@@ -31,8 +39,53 @@ public final class RuleEngine: Sendable {
             }
         }.value
         
-        if let loadedRules = loadedRules {
-            self.rules = RuleEngine.expandRules(loadedRules)
+        if let loadedRules = loadedRules, !loadedRules.isEmpty {
+            self.userRules = loadedRules
+            self.allExpandedRules = RuleEngine.expandRules(loadedRules)
+        } else {
+            self.userRules = Self.defaultRules
+            self.allExpandedRules = RuleEngine.expandRules(Self.defaultRules)
+        }
+    }
+    
+    public func addRule(_ rule: AppRule, saveTo url: URL = Constants.rulesFileURL) {
+        userRules.append(rule)
+        allExpandedRules = RuleEngine.expandRules(userRules)
+        saveRules(to: url)
+    }
+    
+    public func deleteRule(id: String, saveTo url: URL = Constants.rulesFileURL) {
+        userRules.removeAll(where: { $0.bundleIdentifiers.contains(id) })
+        allExpandedRules = RuleEngine.expandRules(userRules)
+        saveRules(to: url)
+    }
+    
+    public func deleteRule(at indexSet: IndexSet, saveTo url: URL = Constants.rulesFileURL) {
+        for index in indexSet.sorted().reversed() {
+            if index >= 0 && index < userRules.count {
+                userRules.remove(at: index)
+            }
+        }
+        allExpandedRules = RuleEngine.expandRules(userRules)
+        saveRules(to: url)
+    }
+    
+    public func saveRules(to url: URL = Constants.rulesFileURL) {
+        let rulesToSave = userRules
+        Task.detached {
+            do {
+                let parentDir = url.deletingLastPathComponent()
+                if !FileManager.default.fileExists(atPath: parentDir.path) {
+                    try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
+                }
+                let config = RuleEngineConfig(rules: rulesToSave)
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = .prettyPrinted
+                let data = try encoder.encode(config)
+                try data.write(to: url)
+            } catch {
+                print("Failed to save rules: \(error)")
+            }
         }
     }
     
@@ -69,7 +122,7 @@ public final class RuleEngine: Sendable {
     public func resolvePolicies(for bundleIdentifier: String) -> AppPolicyContext {
         var context = AppPolicyContext.default
         
-        for rule in rules {
+        for rule in allExpandedRules {
             if rule.bundleIdentifiers.contains(where: { matchPattern($0, with: bundleIdentifier) }) {
                 context = AppPolicyContext(
                     denyFormatting: rule.denyFormatting ?? context.denyFormatting,

@@ -36,6 +36,7 @@
 		6BDAAEBA357BE286266250A6 /* ExtensionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 336067B05C52B87CD8C9DA9F /* ExtensionManager.swift */; };
 		76E559C066D1B00D899DB613 /* TextRetrieving.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4569F410A617490B0538051 /* TextRetrieving.swift */; };
 		78C232BA793CCE5C409BA389 /* ActionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 940F1D0FB3BA50C10CCEBCDF /* ActionContext.swift */; };
+		7D7D39FC7C7D3AAFC9A44CDD /* AddRuleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 682CB01E27CA88652F8BE041 /* AddRuleSheet.swift */; };
 		7E44D09AC94810898D6E5D1D /* PopupWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB70FC227E05CD8269458C89 /* PopupWindowController.swift */; };
 		84A19D69965D8FE1825442E5 /* MacTextRetriever.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B1ED5E66BD010DECBA31B69 /* MacTextRetriever.swift */; };
 		84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */; };
@@ -127,6 +128,7 @@
 		57E8EC4414979D75CE50BA12 /* RuleEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleEngine.swift; sourceTree = "<group>"; };
 		5BFF66BC8C0CB6DBE2EEC671 /* PopupPositionerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPositionerTests.swift; sourceTree = "<group>"; };
 		6129D3E6F351430FA57265B6 /* MacSelectionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSelectionMonitor.swift; sourceTree = "<group>"; };
+		682CB01E27CA88652F8BE041 /* AddRuleSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRuleSheet.swift; sourceTree = "<group>"; };
 		738CD300B1AEB0E382F8435B /* ServicesAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesAction.swift; sourceTree = "<group>"; };
 		750ADA88A976EEF10B2481E2 /* AppFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFilter.swift; sourceTree = "<group>"; };
 		871B6048B7968E61FCB53537 /* OpenClipApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipApp.swift; sourceTree = "<group>"; };
@@ -294,6 +296,7 @@
 			isa = PBXGroup;
 			children = (
 				F092B5E7205F765F5BBB69A4 /* AddCustomActionSheet.swift */,
+				682CB01E27CA88652F8BE041 /* AddRuleSheet.swift */,
 				F660BE562891C148ECA1E083 /* PreferencesView.swift */,
 			);
 			path = Preferences;
@@ -508,6 +511,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				482FF0F2EAC56B62831A0106 /* AddCustomActionSheet.swift in Sources */,
+				7D7D39FC7C7D3AAFC9A44CDD /* AddRuleSheet.swift in Sources */,
 				84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */,
 				0AC19FB1B891B14A5D9D2ABD /* AppIdentifying+NSRunningApplication.swift in Sources */,
 				5FDEF7DDE6A488817486D354 /* CalculateAction.swift in Sources */,

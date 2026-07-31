@@ -34,13 +34,19 @@ public struct PreferencesView: View {
                 }
                 .tag(2)
             
+            RulesTab()
+                .tabItem {
+                    Label("App Rules", systemImage: "app.badge")
+                }
+                .tag(3)
+            
             AboutTab()
                 .tabItem {
                     Label("About", systemImage: "info.circle")
                 }
-                .tag(3)
+                .tag(4)
         }
-        .frame(width: 540, height: 440)
+        .frame(width: 560, height: 460)
         .padding(12)
         .onAppear {
             loadDisabledActionIDs()
@@ -421,6 +427,96 @@ struct CustomActionBadge: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Capsule().fill(color.opacity(0.15)))
+            .foregroundColor(color)
+    }
+}
+
+@MainActor
+struct RulesTab: View {
+    @ObservedObject private var ruleEngine = RuleEngine.shared
+    @State private var showingAddRuleSheet = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            List {
+                Section(header: Text("Per-App Behavior Rules").font(.subheadline).bold()) {
+                    ForEach(Array(ruleEngine.userRules.enumerated()), id: \.offset) { index, rule in
+                        RuleRowView(rule: rule, onDelete: {
+                            ruleEngine.deleteRule(at: IndexSet(integer: index))
+                        })
+                    }
+                }
+            }
+            .listStyle(.inset)
+
+            HStack {
+                Button(action: {
+                    showingAddRuleSheet = true
+                }, label: {
+                    Label("Add App Rule…", systemImage: "plus.app")
+                })
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+        }
+        .padding(12)
+        .sheet(isPresented: $showingAddRuleSheet) {
+            AddRuleSheet()
+        }
+    }
+}
+
+@MainActor
+struct RuleRowView: View {
+    let rule: AppRule
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(rule.bundleIdentifiers.joined(separator: ", "))
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+
+                HStack(spacing: 6) {
+                    if rule.denyProbe == true {
+                        BadgePill(text: "🛑 Disabled", color: .red)
+                    }
+                    if rule.denyFormatting == true {
+                        BadgePill(text: "📝 No Formatting", color: .orange)
+                    }
+                    if rule.grabPasteboard == true {
+                        BadgePill(text: "📋 Clipboard Mode", color: .blue)
+                    }
+                    if rule.assumePaste == true {
+                        BadgePill(text: "📌 Force Paste", color: .purple)
+                    }
+                }
+            }
+
+            Spacer()
+
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.red)
+            .help("Delete Rule")
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct BadgePill: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.caption2)
+            .fontWeight(.medium)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(color.opacity(0.12)))
             .foregroundColor(color)
     }
 }
