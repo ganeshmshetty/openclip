@@ -52,4 +52,11 @@ public enum Constants {
     
     public static let envVarText: String = "POPCLIP_TEXT"
     public static let maxHeaderLinesToScan: Int = 50
+    
+    // Preferences Keys
+    public static let disabledActionIDsKey: String = "disabledActionIDs"
+    public static let startAtLoginKey: String = "startAtLogin"
+    public static let popupStyleKey: String = "popupStyle"
+    public static let themeKey: String = "theme"
+    public static let popupSizeKey: String = "popupSize"
 }

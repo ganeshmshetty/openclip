@@ -18,7 +18,7 @@ public final class ActionRegistry: Sendable {
     }
     
     public func availableActions(for context: ActionContext) -> [any Action] {
-        let disabledIDs = UserDefaults.standard.stringArray(forKey: "disabledActionIDs") ?? []
+        let disabledIDs = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) ?? []
         return actions.filter { action in
             if disabledIDs.contains(action.id) {
                 return false

@@ -3,10 +3,10 @@ import Core
 
 @MainActor
 public struct PreferencesView: View {
-    @AppStorage("startAtLogin") private var startAtLogin: Bool = false
-    @AppStorage("popupStyle") private var popupStyle: String = "modern"
-    @AppStorage("theme") private var theme: String = "system"
-    @AppStorage("popupSize") private var popupSize: String = "medium"
+    @AppStorage(Constants.startAtLoginKey) private var startAtLogin: Bool = false
+    @AppStorage(Constants.popupStyleKey) private var popupStyle: String = "modern"
+    @AppStorage(Constants.themeKey) private var theme: String = "system"
+    @AppStorage(Constants.popupSizeKey) private var popupSize: String = "medium"
     
     @State private var disabledActionIDs: Set<String> = []
 
@@ -33,19 +33,19 @@ public struct PreferencesView: View {
         .onAppear {
             loadDisabledActionIDs()
         }
-        .onChange(of: disabledActionIDs) { _ in
+        .onChange(of: disabledActionIDs) { _, _ in
             saveDisabledActionIDs()
         }
     }
     
     private func loadDisabledActionIDs() {
-        if let array = UserDefaults.standard.stringArray(forKey: "disabledActionIDs") {
+        if let array = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) {
             disabledActionIDs = Set(array)
         }
     }
     
     private func saveDisabledActionIDs() {
-        UserDefaults.standard.set(Array(disabledActionIDs), forKey: "disabledActionIDs")
+        UserDefaults.standard.set(Array(disabledActionIDs), forKey: Constants.disabledActionIDsKey)
     }
 }
 

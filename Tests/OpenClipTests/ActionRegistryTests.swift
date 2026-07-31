@@ -84,4 +84,28 @@ final class ActionRegistryTests: XCTestCase {
         let availableWithAllow = registry.availableActions(for: allowContext)
         XCTAssertTrue(availableWithAllow.contains(where: { $0.id == "mock.formatting" }), "Formatting action should be included when denyFormatting is false")
     }
+    
+    @MainActor
+    func testDisabledActionsAreFiltered() {
+        let registry = ActionRegistry.shared
+        
+        let action = MockAction(id: "mock.disabled.test", shouldBeEnabled: true)
+        registry.register(action: action)
+        
+        let oldDisabled = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey)
+        UserDefaults.standard.set(["mock.disabled.test"], forKey: Constants.disabledActionIDsKey)
+        defer {
+            if let oldDisabled {
+                UserDefaults.standard.set(oldDisabled, forKey: Constants.disabledActionIDsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Constants.disabledActionIDsKey)
+            }
+        }
+        
+        let selection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection, modifiers: [])
+        let available = registry.availableActions(for: context)
+        
+        XCTAssertFalse(available.contains(where: { $0.id == "mock.disabled.test" }))
+    }
 }
