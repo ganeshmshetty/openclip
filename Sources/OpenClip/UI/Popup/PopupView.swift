@@ -163,10 +163,22 @@ public struct PopupView: View {
             }
         }
         .fixedSize()
-        .onContinuousHover { phase in
-            updateHover(phase: phase)
-        }
+        // MouseTracker uses NSTrackingArea with .activeAlways, unlike SwiftUI's
+        // onContinuousHover which uses .activeInKeyWindow and silently fails in
+        // non-activating NSPanel windows.
+        .overlay(
+            MouseTracker { point in
+                if let point {
+                    let xOffset = point.x - (hasLeftChevron ? chevronWidth : 0)
+                    let idx = Int(xOffset / buttonWidth)
+                    hoveredIndex = (xOffset >= 0 && idx >= 0 && idx < pagedActions.count) ? idx : nil
+                } else {
+                    hoveredIndex = nil
+                }
+            }
+        )
     }
+
 
     // MARK: - Shared hover logic
 
