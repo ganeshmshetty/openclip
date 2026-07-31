@@ -28,8 +28,9 @@ public struct OpenURLAction: Action {
     }
     
     private func extractURL(from text: String) -> URL? {
+        let textToScan = String(text.prefix(2000))
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-        let matches = detector?.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
+        let matches = detector?.matches(in: textToScan, options: [], range: NSRange(location: 0, length: textToScan.utf16.count))
         return matches?.first?.url
     }
 }

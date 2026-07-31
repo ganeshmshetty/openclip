@@ -16,7 +16,8 @@ public struct ActionButton: View {
         Button {
             Task {
                 do {
-                    _ = try await action.perform(context)
+                    let result = try await action.perform(context)
+                    handleResult(result)
                 } catch {
                     print("Action failed: \(error)")
                 }
@@ -33,13 +34,56 @@ public struct ActionButton: View {
         .help(action.title)
     }
     
+    private func handleResult(_ result: ActionResult) {
+        switch result {
+        case .paste(let text):
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            simulateKeyShortcut(keyCode: 9, modifier: .maskCommand) // Cmd+V (9 is V)
+        case .openURL(let url):
+            NSWorkspace.shared.open(url)
+        case .copy(let text):
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+        case .success, .failure, .none:
+            break
+        }
+    }
+    
+    private func simulateKeyShortcut(keyCode: CGKeyCode, modifier: CGEventFlags) {
+        let src = CGEventSource(stateID: .hidSystemState)
+        if let keydown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true),
+           let keyup = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false) {
+            keydown.flags = modifier
+            keyup.flags = modifier
+            keydown.post(tap: .cghidEventTap)
+            keyup.post(tap: .cghidEventTap)
+        }
+    }
+    
     @ViewBuilder
     private func iconView(for icon: ActionIcon) -> some View {
         switch icon {
         case .symbol(let name):
             Image(systemName: name)
-        case .url(_), .local(_):
-            Image(systemName: "square.fill")
+        case .url(let url):
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } else if phase.error != nil {
+                    Image(systemName: "exclamationmark.triangle")
+                } else {
+                    ProgressView().scaleEffect(0.5)
+                }
+            }
+        case .local(let url):
+            if let nsImage = NSImage(contentsOf: url) {
+                Image(nsImage: nsImage).resizable().aspectRatio(contentMode: .fit)
+            } else {
+                Image(systemName: "doc")
+            }
         }
     }
 }

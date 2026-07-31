@@ -15,7 +15,14 @@ public class PopupWindowController {
         // If the context is different, or it's a new selection, we show it
         currentContext = context
         
-        let actionContext = ActionContext(selection: context, modifiers: [])
+        var modifiers: ModifierFlags = []
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.shift) { modifiers.insert(.shift) }
+        if flags.contains(.control) { modifiers.insert(.control) }
+        if flags.contains(.option) { modifiers.insert(.option) }
+        if flags.contains(.command) { modifiers.insert(.command) }
+        
+        let actionContext = ActionContext(selection: context, modifiers: modifiers)
         let availableActions = ActionRegistry.shared.availableActions(for: actionContext)
         
         let panel = self.panel ?? PopupPanel()
