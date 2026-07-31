@@ -16,7 +16,7 @@ public struct PreferencesView: View {
 
     public var body: some View {
         TabView(selection: $selectedTab) {
-            GeneralTab(startAtLogin: $startAtLogin)
+            GeneralTab()
                 .tabItem {
                     Label("General", systemImage: "gearshape")
                 }
@@ -63,7 +63,7 @@ public struct PreferencesView: View {
 
 @MainActor
 struct GeneralTab: View {
-    @Binding var startAtLogin: Bool
+    @ObservedObject private var launchManager = LaunchAtLoginManager.shared
     @State private var isAXTrusted: Bool = AXIsProcessTrustedWithOptions(nil)
     
     var body: some View {
@@ -105,7 +105,7 @@ struct GeneralTab: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
                 
-                Toggle(isOn: $startAtLogin) {
+                Toggle(isOn: $launchManager.isEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Start OpenClip at Login")
                             .font(.system(size: 14, weight: .medium))
