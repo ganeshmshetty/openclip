@@ -8,7 +8,7 @@ final class RuleEngineTests: XCTestCase {
         {
             "rules": [
                 {
-                    "bundleIdentifiers": ["com.test.app"],
+                    "bundle-identifiers": ["com.test.app"],
                     "deny-formatting": true,
                     "grab-pb": true,
                     "grab-kb": false,
@@ -44,20 +44,28 @@ final class RuleEngineTests: XCTestCase {
         {
             "rules": [
                 {
-                    "bundleIdentifiers": ["com.jetbrains.*"],
+                    "bundle-identifiers": ["com.jetbrains.*"],
                     "deny-formatting": true
                 },
                 {
-                    "bundleIdentifiers": ["*"],
+                    "bundle-identifiers": ["*"],
                     "assume-paste": true
                 },
                 {
-                    "bundleIdentifiers": ["com.jetbrainsfoo"],
+                    "bundle-identifiers": ["com.jetbrainsfoo"],
                     "deny-formatting": false
                 },
                 {
-                    "bundleIdentifiers": [":safari-group:"],
+                    "bundle-identifiers": [":safari-group:"],
                     "grab-pb": true
+                },
+                {
+                    "bundle-identifiers": [":firefox-group:"],
+                    "deny-probe": true
+                },
+                {
+                    "bundle-identifiers": [":arc-group:"],
+                    "lenient-select": true
                 }
             ]
         }
@@ -88,6 +96,12 @@ final class RuleEngineTests: XCTestCase {
         
         let safariTpContext = RuleEngine.shared.resolvePolicies(for: "com.apple.SafariTechnologyPreview")
         XCTAssertEqual(safariTpContext.grabPasteboard, true)
+        
+        let firefoxContext = RuleEngine.shared.resolvePolicies(for: "org.mozilla.firefox")
+        XCTAssertEqual(firefoxContext.denyProbe, true)
+        
+        let arcContext = RuleEngine.shared.resolvePolicies(for: "company.thebrowser.Browser")
+        XCTAssertEqual(arcContext.lenientSelect, true)
         
         try FileManager.default.removeItem(at: tempURL)
     }

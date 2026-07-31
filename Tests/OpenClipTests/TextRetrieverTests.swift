@@ -26,4 +26,27 @@ final class TextRetrieverTests: XCTestCase {
         // Wait for pasteboard restoration to prevent test pollution
         try? await Task.sleep(nanoseconds: UInt64((Constants.pasteboardRestoreDelay + 0.1) * 1_000_000_000))
     }
+    
+    @MainActor
+    func testGrabPasteboardPolicySkipsAccessibility() async throws {
+        let retriever = MacTextRetriever()
+        let currentApp = NSRunningApplication.current
+        
+        Task {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString("FastMockedSelection", forType: .string)
+        }
+        
+        let policy = AppPolicyContext(denyFormatting: false, denyProbe: false, denyPreprobe: false, grabPasteboard: true, grabKeyboard: false, browserAddressBar: false, assumePaste: false, lenientSelect: false)
+        
+        let startTime = Date()
+        let text = await retriever.retrieveText(for: currentApp, policy: policy)
+        let duration = Date().timeIntervalSince(startTime)
+        
+        XCTAssertEqual(text, "FastMockedSelection", "MacTextRetriever should retrieve the selected text from the pasteboard directly")
+        XCTAssertLessThan(duration, Constants.elementTimeout, "Should bypass accessibility wait time when grabPasteboard is true")
+        
+        try? await Task.sleep(nanoseconds: UInt64((Constants.pasteboardRestoreDelay + 0.1) * 1_000_000_000))
+    }
 }

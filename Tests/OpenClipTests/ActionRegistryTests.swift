@@ -51,4 +51,37 @@ final class ActionRegistryTests: XCTestCase {
         XCTAssertEqual(context.selection.text, "hello")
         XCTAssertEqual(context.modifiers, .shift)
     }
+    
+    @MainActor
+    func testDenyFormattingPolicyFiltersFormattingActions() {
+        let registry = ActionRegistry.shared
+        
+        struct MockFormattingAction: Action {
+            let id = "mock.formatting"
+            let title = "Format"
+            let icon = ActionIcon.symbol("star")
+            var isFormatting: Bool { true }
+            
+            @MainActor
+            func isEnabled(for context: ActionContext) -> Bool { return true }
+            @MainActor
+            func perform(_ context: ActionContext) async throws -> ActionResult { return .success }
+        }
+        
+        let formatAction = MockFormattingAction()
+        registry.register(action: formatAction)
+        
+        let denyPolicy = AppPolicyContext(denyFormatting: true, denyProbe: false, denyPreprobe: false, grabPasteboard: false, grabKeyboard: false, browserAddressBar: false, assumePaste: false, lenientSelect: false)
+        let denySelection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: denyPolicy)
+        let denyContext = ActionContext(selection: denySelection, modifiers: [])
+        
+        let availableWithDeny = registry.availableActions(for: denyContext)
+        XCTAssertFalse(availableWithDeny.contains(where: { $0.id == "mock.formatting" }), "Formatting action should be filtered out when denyFormatting is true")
+        
+        let allowSelection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let allowContext = ActionContext(selection: allowSelection, modifiers: [])
+        
+        let availableWithAllow = registry.availableActions(for: allowContext)
+        XCTAssertTrue(availableWithAllow.contains(where: { $0.id == "mock.formatting" }), "Formatting action should be included when denyFormatting is false")
+    }
 }

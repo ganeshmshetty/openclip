@@ -56,7 +56,7 @@ public struct AppRule: Codable, Sendable {
     }
     
     public enum CodingKeys: String, CodingKey {
-        case bundleIdentifiers
+        case bundleIdentifiers = "bundle-identifiers"
         case denyFormatting = "deny-formatting"
         case denyProbe = "deny-probe"
         case denyPreprobe = "deny-preprobe"

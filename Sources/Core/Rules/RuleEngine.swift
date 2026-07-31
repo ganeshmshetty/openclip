@@ -13,7 +13,7 @@ public final class RuleEngine: Sendable {
     private let logger = Logger(subsystem: "com.openclip", category: "RuleEngine")
     
     private init() {
-        self.rules = Self.defaultRules
+        self.rules = RuleEngine.expandRules(Self.defaultRules)
     }
     
     public func loadRules(from url: URL) async {
@@ -32,7 +32,37 @@ public final class RuleEngine: Sendable {
         }.value
         
         if let loadedRules = loadedRules {
-            self.rules = loadedRules
+            self.rules = RuleEngine.expandRules(loadedRules)
+        }
+    }
+    
+    private static func expandRules(_ rules: [AppRule]) -> [AppRule] {
+        return rules.map { rule in
+            var expandedIdentifiers: [String] = []
+            for id in rule.bundleIdentifiers {
+                if id == ":safari-group:" {
+                    expandedIdentifiers.append(contentsOf: ["com.apple.Safari", "com.apple.SafariTechnologyPreview"])
+                } else if id == ":chromium-group:" {
+                    expandedIdentifiers.append(contentsOf: ["com.google.Chrome", "com.brave.Browser", "com.microsoft.edgemac"])
+                } else if id == ":firefox-group:" {
+                    expandedIdentifiers.append("org.mozilla.firefox")
+                } else if id == ":arc-group:" {
+                    expandedIdentifiers.append("company.thebrowser.Browser")
+                } else {
+                    expandedIdentifiers.append(id)
+                }
+            }
+            return AppRule(
+                bundleIdentifiers: expandedIdentifiers,
+                denyFormatting: rule.denyFormatting,
+                denyProbe: rule.denyProbe,
+                denyPreprobe: rule.denyPreprobe,
+                grabPasteboard: rule.grabPasteboard,
+                grabKeyboard: rule.grabKeyboard,
+                browserAddressBar: rule.browserAddressBar,
+                assumePaste: rule.assumePaste,
+                lenientSelect: rule.lenientSelect
+            )
         }
     }
     
@@ -40,18 +70,7 @@ public final class RuleEngine: Sendable {
         var context = AppPolicyContext.default
         
         for rule in rules {
-            var expandedIdentifiers: [String] = []
-            for id in rule.bundleIdentifiers {
-                if id == ":safari-group:" {
-                    expandedIdentifiers.append(contentsOf: ["com.apple.Safari", "com.apple.SafariTechnologyPreview"])
-                } else if id == ":chromium-group:" {
-                    expandedIdentifiers.append(contentsOf: ["com.google.Chrome", "com.brave.Browser", "com.microsoft.edgemac"])
-                } else {
-                    expandedIdentifiers.append(id)
-                }
-            }
-            
-            if expandedIdentifiers.contains(where: { matchPattern($0, with: bundleIdentifier) }) {
+            if rule.bundleIdentifiers.contains(where: { matchPattern($0, with: bundleIdentifier) }) {
                 context = AppPolicyContext(
                     denyFormatting: rule.denyFormatting ?? context.denyFormatting,
                     denyProbe: rule.denyProbe ?? context.denyProbe,
