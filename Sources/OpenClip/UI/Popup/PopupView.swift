@@ -31,17 +31,21 @@ public struct ActionButton: View {
         } label: {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
-                // Turn blue on hover, normal tint at rest
-                .foregroundColor(isHovered ? .accentColor : .primary.opacity(0.80))
+                // White when cell is highlighted, accent-blue otherwise on hover, normal at rest
+                .foregroundColor(isHovered ? .white : .primary.opacity(0.80))
                 .frame(width: 36, height: 32)
-                // No circle/capsule — just a plain rectangular hit area
+                // Full-cell accent glow background on hover
+                .background(
+                    isHovered
+                        ? Color.accentColor.opacity(0.85)
+                        : Color.clear
+                )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .help(action.title)
-        // Very subtle fade — no scale bounce
-        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .animation(.easeInOut(duration: 0.10), value: isHovered)
     }
 
     @ViewBuilder
