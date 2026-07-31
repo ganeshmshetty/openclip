@@ -13,7 +13,9 @@ public struct OpenURLAction: Action {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        return extractURL(from: context.selection.text) != nil
+        let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasURLPrefix = text.hasPrefix("http://") || text.hasPrefix("https://") || text.hasPrefix("www.")
+        return hasURLPrefix && extractURL(from: text) != nil
     }
     
     @MainActor

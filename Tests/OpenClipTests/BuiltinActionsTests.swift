@@ -74,7 +74,7 @@ final class BuiltinActionsTests: XCTestCase {
         let action = OpenURLAction()
         
         // Test valid URL
-        let validContext = createMockContext(with: "Check out https://apple.com for more info")
+        let validContext = createMockContext(with: "https://apple.com")
         XCTAssertTrue(action.isEnabled(for: validContext))
         
         let validResult = try await action.perform(validContext)
