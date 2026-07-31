@@ -5,6 +5,7 @@ public struct SelectionContext: Sendable {
     public let text: String
     public let sourceApp: any AppIdentifying
     public let cursorPosition: CGPoint
+    public let mouseDownLocation: CGPoint?
     public let selectionBounds: CGRect?
     public let timestamp: Date
     public let appPolicy: AppPolicyContext
@@ -13,6 +14,7 @@ public struct SelectionContext: Sendable {
         text: String,
         sourceApp: any AppIdentifying,
         cursorPosition: CGPoint,
+        mouseDownLocation: CGPoint? = nil,
         selectionBounds: CGRect? = nil,
         timestamp: Date,
         appPolicy: AppPolicyContext
@@ -20,6 +22,7 @@ public struct SelectionContext: Sendable {
         self.text = text
         self.sourceApp = sourceApp
         self.cursorPosition = cursorPosition
+        self.mouseDownLocation = mouseDownLocation
         self.selectionBounds = selectionBounds
         self.timestamp = timestamp
         self.appPolicy = appPolicy

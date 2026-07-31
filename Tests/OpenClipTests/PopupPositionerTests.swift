@@ -5,7 +5,7 @@ final class PopupPositionerTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 800, height: 600)
     private let size = CGSize(width: 50, height: 50)
 
-    // Popup should appear above the release point (centered X, gapped Y above)
+    // Popup should appear above release point for normal/upward drag
     func testNormalPositioning() {
         let release = CGPoint(x: 400, y: 200)
         let frame = PopupPositioner.placeNearReleasePoint(
@@ -15,6 +15,17 @@ final class PopupPositionerTests: XCTestCase {
         XCTAssertEqual(frame.origin.x, 375)
         // Y: above release → 200 + 12 (gap) = 212
         XCTAssertEqual(frame.origin.y, 212)
+    }
+
+    // Top-to-Bottom drag: mouse released below start point -> place popup BELOW cursor to avoid covering text
+    func testDragDownPositioning() {
+        let start = CGPoint(x: 400, y: 350)
+        let release = CGPoint(x: 400, y: 200)
+        let frame = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release, mouseDownPoint: start, popupSize: size, screenBounds: screen
+        )
+        // Y: below release → 200 - 50 (height) - 12 (gap) = 138
+        XCTAssertEqual(frame.origin.y, 138)
     }
 
     // Near right edge: popup should be pushed left

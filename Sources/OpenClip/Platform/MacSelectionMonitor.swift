@@ -85,6 +85,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                         text: text,
                         sourceApp: app,
                         cursorPosition: cursor,
+                        mouseDownLocation: downPoint,
                         selectionBounds: result.bounds,
                         timestamp: Date(),
                         appPolicy: policy
