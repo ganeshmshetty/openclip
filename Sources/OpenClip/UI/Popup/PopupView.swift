@@ -178,8 +178,8 @@ public struct PopupView: View {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .stroke(themeBorder, lineWidth: 0.8)
         )
-        .shadow(color: .black.opacity(selectedTheme == "light" ? 0.15 : 0.28), radius: 10, x: 0, y: 4)
-        .padding(10)
+        .shadow(color: .black.opacity(selectedTheme == "light" ? 0.16 : 0.32), radius: 10, x: 0, y: 4)
+        .padding(18)
     }
 
     // MARK: - Theming
