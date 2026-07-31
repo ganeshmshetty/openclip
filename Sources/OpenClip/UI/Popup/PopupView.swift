@@ -40,100 +40,114 @@ public struct PopupView: View {
     private var hasRightChevron: Bool { totalPages > 1 && currentPage < totalPages - 1 }
 
     public var body: some View {
-        if #available(macOS 26.0, *) {
-            liquidGlassBody
+        if selectedTheme == "glass" {
+            if #available(macOS 26, *) {
+                liquidGlassBar
+            } else {
+                legacyGlassBar
+            }
         } else {
-            legacyBody
+            legacyPopupBar
         }
     }
 
-    // MARK: - Liquid Glass (macOS 26+)
+    // MARK: - Native Liquid Glass bar (glass theme, macOS 26+)
 
-    @available(macOS 26.0, *)
-    private var liquidGlassBody: some View {
-        // GlassEffectContainer lets all child glass shapes morph into each other — fluid hover transitions.
+    @available(macOS 26, *)
+    private var liquidGlassBar: some View {
+        // GlassEffectContainer lets adjacent .glassEffect() capsules merge and morphing
+        // into each other fluidly as the hovered button changes — Apple recommended pattern
         GlassEffectContainer {
             HStack(spacing: 0) {
                 if hasLeftChevron {
-                    chevronButtonGlass(systemImage: "chevron.left") { currentPage -= 1 }
-                    Divider().frame(height: 18).opacity(0.4)
+                    liquidChevronButton(systemImage: "chevron.left") { currentPage -= 1 }
                 }
-
                 ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
-                    let isHovered = hoveredIndex == index
-                    let isLast = index == pagedActions.count - 1
-                    let showDivider = (!isLast || hasRightChevron) && !isHovered
-                    actionButtonGlass(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
+                    liquidActionButton(action: action, index: index)
                 }
-
                 if hasRightChevron {
-                    Divider().frame(height: 18).opacity(0.4)
-                    chevronButtonGlass(systemImage: "chevron.right") { currentPage += 1 }
+                    liquidChevronButton(systemImage: "chevron.right") { currentPage += 1 }
                 }
             }
-            .fixedSize()
         }
+        .fixedSize()
         .onContinuousHover { phase in
-            switch phase {
-            case .active(let location):
-                let xOffset = location.x - (hasLeftChevron ? chevronWidth + 1 : 0)
-                let idx = Int(xOffset / buttonWidth)
-                hoveredIndex = (xOffset >= 0 && idx >= 0 && idx < pagedActions.count) ? idx : nil
-            case .ended:
-                hoveredIndex = nil
-            }
+            updateHover(phase: phase)
         }
-        // Native Liquid Glass pill — handles blur, refraction, adaptivity automatically
-        .glassEffect(.regular.interactive(), in: .capsule)
-        .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 5)
         .padding(18)
     }
 
-    @available(macOS 26.0, *)
+    @available(macOS 26, *)
     @ViewBuilder
-    private func actionButtonGlass(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
-        let btn = Button {
+    private func liquidActionButton(action: any Action, index: Int) -> some View {
+        let isHovered = hoveredIndex == index
+        Button {
             Task {
-                do { let result = try await action.perform(context); onResult(result) }
-                catch { print("Action failed: \(error)") }
+                do {
+                    let result = try await action.perform(context)
+                    onResult(result)
+                } catch {
+                    print("Action failed: \(error)")
+                }
             }
         } label: {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
                 .frame(width: buttonWidth, height: 32)
                 .contentShape(Rectangle())
-                .overlay(alignment: .trailing) {
-                    if showDivider {
-                        Rectangle()
-                            .fill(.primary.opacity(0.12))
-                            .frame(width: 0.6, height: 20)
-                    }
-                }
         }
-        // glassProminent = filled accent glass on hover; glass = subtle rest state
-        // Must be separate branches since two ButtonStyle types can't be inferred from ternary
-        if isHovered {
-            btn.buttonStyle(.glassProminent).help(action.title)
-        } else {
-            btn.buttonStyle(.glass).help(action.title)
-        }
+        .buttonStyle(.plain)
+        // Each button gets its own glass capsule; GlassEffectContainer merges adjacent ones
+        // .regular = solid glass highlight when hovered, .clear = invisible otherwise
+        .glassEffect(isHovered ? .regular.interactive() : .clear, in: .capsule)
+        .help(action.title)
     }
 
-    @available(macOS 26.0, *)
+    @available(macOS 26, *)
     @ViewBuilder
-    private func chevronButtonGlass(systemImage: String, action: @escaping () -> Void) -> some View {
+    private func liquidChevronButton(systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
                 .frame(width: chevronWidth, height: 32)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.plain)
+        .glassEffect(.regular, in: .capsule)
     }
 
-    // MARK: - Legacy fallback (macOS 14–25)
+    // MARK: - Legacy glass bar (glass theme, macOS < 26)
 
-    private var legacyBody: some View {
+    private var legacyGlassBar: some View {
+        legacyHStack
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
+            )
+            .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
+            .padding(18)
+    }
+
+    // MARK: - Legacy dark/light bar
+
+    private var legacyPopupBar: some View {
+        legacyHStack
+            .background(legacyBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(legacyBorder, lineWidth: 0.8)
+            )
+            .shadow(color: .black.opacity(selectedTheme == "light" ? 0.16 : 0.32), radius: 10, x: 0, y: 4)
+            .padding(18)
+    }
+
+    private var legacyHStack: some View {
         HStack(spacing: 0) {
             if hasLeftChevron {
                 legacyChevronButton(systemImage: "chevron.left") { currentPage -= 1 }
@@ -150,40 +164,50 @@ public struct PopupView: View {
         }
         .fixedSize()
         .onContinuousHover { phase in
-            switch phase {
-            case .active(let location):
-                let xOffset = location.x - (hasLeftChevron ? chevronWidth + 1 : 0)
-                let idx = Int(xOffset / buttonWidth)
-                hoveredIndex = (xOffset >= 0 && idx >= 0 && idx < pagedActions.count) ? idx : nil
-            case .ended:
-                hoveredIndex = nil
-            }
+            updateHover(phase: phase)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous).fill(.ultraThinMaterial)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Color.white.opacity(0.25), lineWidth: 0.8))
-        .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
-        .padding(18)
     }
+
+    // MARK: - Shared hover logic
+
+    private func updateHover(phase: HoverPhase) {
+        switch phase {
+        case .active(let location):
+            let xOffset = location.x - (hasLeftChevron ? chevronWidth : 0)
+            let idx = Int(xOffset / buttonWidth)
+            hoveredIndex = (xOffset >= 0 && idx >= 0 && idx < pagedActions.count) ? idx : nil
+        case .ended:
+            hoveredIndex = nil
+        }
+    }
+
+    // MARK: - Legacy action button
 
     @ViewBuilder
     private func legacyActionButton(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
+        let restForeground: Color = selectedTheme == "light" ? .black.opacity(0.85) : .white.opacity(0.90)
+        let dividerColor: Color = selectedTheme == "light" ? .black.opacity(0.12) : .white.opacity(0.14)
+
         Button {
             Task {
-                do { let result = try await action.perform(context); onResult(result) }
-                catch { print("Action failed: \(error)") }
+                do {
+                    let result = try await action.perform(context)
+                    onResult(result)
+                } catch {
+                    print("Action failed: \(error)")
+                }
             }
         } label: {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(isHovered ? .white : .primary.opacity(0.85))
+                .foregroundColor(isHovered ? .white : restForeground)
                 .frame(width: buttonWidth, height: 32)
                 .background(isHovered ? Color.accentColor : Color.clear)
                 .overlay(alignment: .trailing) {
                     if showDivider && !isHovered {
-                        Rectangle().fill(.primary.opacity(0.15)).frame(width: 0.6, height: 32)
+                        Rectangle()
+                            .fill(dividerColor)
+                            .frame(width: 0.6, height: 32)
                     }
                 }
                 .contentShape(Rectangle())
@@ -204,7 +228,25 @@ public struct PopupView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Shared helpers
+    // MARK: - Legacy theming
+
+    @ViewBuilder
+    private var legacyBackground: some View {
+        switch selectedTheme {
+        case "dark":
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color(red: 0.08, green: 0.08, blue: 0.10))
+        default:
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color(red: 0.98, green: 0.98, blue: 0.99))
+        }
+    }
+
+    private var legacyBorder: Color {
+        selectedTheme == "light" ? Color.black.opacity(0.12) : Color.white.opacity(0.14)
+    }
+
+    // MARK: - Icon helper
 
     @ViewBuilder
     private func iconView(for icon: ActionIcon) -> some View {
