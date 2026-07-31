@@ -19,6 +19,6 @@ fi
 
 echo "🚀 Terminating old instances & launching from DerivedData..."
 pkill -f OpenClip || true
-open "$APP_PATH"
+"$APP_PATH/Contents/MacOS/OpenClip" > /tmp/openclip.log 2>&1 &
 
-echo "✅ Running directly from: $APP_PATH"
+echo "✅ Running directly from: $APP_PATH (logs at /tmp/openclip.log)"
