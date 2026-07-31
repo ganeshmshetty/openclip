@@ -9,6 +9,7 @@ public struct ActionButton: View {
     public let action: any Action
     public let context: ActionContext
     public let showDivider: Bool
+    public let theme: String
     public let onResult: @MainActor (ActionResult) -> Void
 
     @State private var isHovered = false
@@ -17,12 +18,36 @@ public struct ActionButton: View {
         action: any Action,
         context: ActionContext,
         showDivider: Bool = false,
+        theme: String = "glass",
         onResult: @escaping @MainActor (ActionResult) -> Void
     ) {
         self.action = action
         self.context = context
         self.showDivider = showDivider
+        self.theme = theme
         self.onResult = onResult
+    }
+
+    private var restForegroundColor: Color {
+        switch theme {
+        case "light":
+            return Color.black.opacity(0.85)
+        case "dark":
+            return Color.white.opacity(0.90)
+        default:
+            return Color.primary.opacity(0.85)
+        }
+    }
+
+    private var dividerColor: Color {
+        switch theme {
+        case "light":
+            return Color.black.opacity(0.12)
+        case "dark":
+            return Color.white.opacity(0.14)
+        default:
+            return Color.primary.opacity(0.15)
+        }
     }
 
     public var body: some View {
@@ -38,7 +63,7 @@ public struct ActionButton: View {
         } label: {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(isHovered ? .white : .primary.opacity(0.80))
+                .foregroundColor(isHovered ? .white : restForegroundColor)
                 .frame(width: 36, height: 32)
                 .background(
                     isHovered
@@ -49,7 +74,7 @@ public struct ActionButton: View {
                     Group {
                         if showDivider && !isHovered {
                             Rectangle()
-                                .fill(Color.primary.opacity(0.13))
+                                .fill(dividerColor)
                                 .frame(width: 0.6, height: 32)
                         }
                     },
@@ -134,6 +159,7 @@ public struct PopupView: View {
                     action: action,
                     context: context,
                     showDivider: showDivider,
+                    theme: selectedTheme,
                     onResult: onResult
                 )
             }
@@ -150,9 +176,9 @@ public struct PopupView: View {
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .stroke(themeBorder, lineWidth: 0.6)
+                .stroke(themeBorder, lineWidth: 0.8)
         )
-        .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 4)
+        .shadow(color: .black.opacity(selectedTheme == "light" ? 0.15 : 0.28), radius: 10, x: 0, y: 4)
         .padding(10)
     }
 
@@ -162,12 +188,15 @@ public struct PopupView: View {
     private var themeBackground: some View {
         switch selectedTheme {
         case "dark":
+            // OLED Matte Black Pill
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Color(nsColor: NSColor(red: 0.10, green: 0.10, blue: 0.10, alpha: 0.96)))
+                .fill(Color(red: 0.08, green: 0.08, blue: 0.10))
         case "light":
+            // Pure Crisp White Pill
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(.regularMaterial)
+                .fill(Color(red: 0.98, green: 0.98, blue: 0.99))
         default: // "glass"
+            // Translucent Frosted Glassmorphism
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(.ultraThinMaterial)
         }
@@ -175,9 +204,9 @@ public struct PopupView: View {
 
     private var themeBorder: Color {
         switch selectedTheme {
-        case "dark":  return Color.white.opacity(0.12)
-        case "light": return Color.black.opacity(0.10)
-        default:      return Color.primary.opacity(0.10)
+        case "dark":  return Color.white.opacity(0.14)
+        case "light": return Color.black.opacity(0.12)
+        default:      return Color.white.opacity(0.25)
         }
     }
 
