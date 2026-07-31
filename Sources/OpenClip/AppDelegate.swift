@@ -23,6 +23,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             CopyAction(),
             CutAction(),
             PasteAction(),
+            CalculateAction(),
             SearchAction(),
             OpenURLAction(),
             ServicesAction()
