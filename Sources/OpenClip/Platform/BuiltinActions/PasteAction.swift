@@ -26,16 +26,6 @@ public struct PasteAction: Action {
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         #if canImport(AppKit)
         let pastedText = NSPasteboard.general.string(forType: .string) ?? ""
-        
-        let src = CGEventSource(stateID: .hidSystemState)
-        let vKey: CGKeyCode = Constants.vVirtualKey
-        if let keydown = CGEvent(keyboardEventSource: src, virtualKey: vKey, keyDown: true),
-           let keyup = CGEvent(keyboardEventSource: src, virtualKey: vKey, keyDown: false) {
-            keydown.flags = .maskCommand
-            keyup.flags = .maskCommand
-            keydown.post(tap: .cghidEventTap)
-            keyup.post(tap: .cghidEventTap)
-        }
         return .paste(pastedText)
         #else
         return .paste("")

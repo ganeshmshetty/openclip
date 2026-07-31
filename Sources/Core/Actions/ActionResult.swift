@@ -6,5 +6,6 @@ public enum ActionResult: Sendable {
     case paste(String)
     case openURL(URL)
     case copy(String)
+    case cut(String)
     case none
 }

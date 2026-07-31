@@ -1,7 +1,4 @@
 import Foundation
-#if canImport(AppKit)
-import AppKit
-#endif
 import Core
 
 public struct CopyAction: Action {
@@ -18,11 +15,6 @@ public struct CopyAction: Action {
     
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        #if canImport(AppKit)
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(context.selection.text, forType: .string)
-        #endif
         return .copy(context.selection.text)
     }
 }

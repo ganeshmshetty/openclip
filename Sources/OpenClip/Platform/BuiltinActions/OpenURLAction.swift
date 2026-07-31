@@ -19,16 +19,13 @@ public struct OpenURLAction: Action {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         if let url = extractURL(from: context.selection.text) {
-            #if canImport(AppKit)
-            NSWorkspace.shared.open(url)
-            #endif
             return .openURL(url)
         }
         return .failure(NSError(domain: "OpenURLAction", code: 1, userInfo: nil))
     }
     
     private func extractURL(from text: String) -> URL? {
-        let textToScan = String(text.prefix(2000))
+        let textToScan = String(text.prefix(Constants.maxURLScanLength))
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         let matches = detector?.matches(in: textToScan, options: [], range: NSRange(location: 0, length: textToScan.utf16.count))
         return matches?.first?.url

@@ -1,4 +1,6 @@
 import SwiftUI
+import AppKit
+import CoreGraphics
 import Core
 
 public struct ActionButton: View {
@@ -40,7 +42,12 @@ public struct ActionButton: View {
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setString(text, forType: .string)
-            simulateKeyShortcut(keyCode: 9, modifier: .maskCommand) // Cmd+V (9 is V)
+            simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
+        case .cut(let text):
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            simulateKeyShortcut(keyCode: Constants.deleteVirtualKey, modifier: []) // Delete
         case .openURL(let url):
             NSWorkspace.shared.open(url)
         case .copy(let text):

@@ -1,8 +1,4 @@
 import Foundation
-#if canImport(AppKit)
-import AppKit
-import CoreGraphics
-#endif
 import Core
 
 public struct CutAction: Action {
@@ -19,19 +15,6 @@ public struct CutAction: Action {
     
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        #if canImport(AppKit)
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(context.selection.text, forType: .string)
-        
-        let src = CGEventSource(stateID: .hidSystemState)
-        let deleteKey: CGKeyCode = Constants.deleteVirtualKey
-        if let keydown = CGEvent(keyboardEventSource: src, virtualKey: deleteKey, keyDown: true),
-           let keyup = CGEvent(keyboardEventSource: src, virtualKey: deleteKey, keyDown: false) {
-            keydown.post(tap: .cghidEventTap)
-            keyup.post(tap: .cghidEventTap)
-        }
-        #endif
-        return .copy(context.selection.text)
+        return .cut(context.selection.text)
     }
 }

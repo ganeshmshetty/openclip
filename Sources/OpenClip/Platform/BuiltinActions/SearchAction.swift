@@ -21,9 +21,6 @@ public struct SearchAction: Action {
         let query = context.selection.text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlString = String(format: Constants.searchURLTemplate, query)
         if let url = URL(string: urlString) {
-            #if canImport(AppKit)
-            NSWorkspace.shared.open(url)
-            #endif
             return .openURL(url)
         }
         return .failure(NSError(domain: "SearchAction", code: 1, userInfo: nil))
