@@ -42,8 +42,7 @@ public final class CustomActionManager: Sendable {
     
     public func delete(customActionID: String) {
         customActions.removeAll(where: { $0.id == customActionID })
-        // Note: ActionRegistry currently only supports adding actions.
-        // In a real app we'd need a way to unregister them from ActionRegistry.shared.
+        ActionRegistry.shared.unregister(actionID: customActionID)
         save()
     }
     

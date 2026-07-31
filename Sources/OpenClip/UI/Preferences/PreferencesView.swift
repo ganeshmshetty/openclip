@@ -269,12 +269,14 @@ struct AppearanceTab: View {
 struct ActionsTab: View {
     @Binding var disabledActionIDs: Set<String>
     @State private var showingAddActionSheet = false
+    // Observing ActionRegistry so the list re-renders instantly when actions are added/removed
+    @ObservedObject private var registry = ActionRegistry.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             List {
                 Section(header: Text("Built-in & Registered Actions").font(.subheadline).bold()) {
-                    ForEach(ActionRegistry.shared.actions, id: \.id) { action in
+                    ForEach(registry.actions, id: \.id) { action in
                         ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
                     }
                 }

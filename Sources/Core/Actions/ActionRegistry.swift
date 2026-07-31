@@ -1,10 +1,11 @@
 import Foundation
+import Combine
 
 @MainActor
-public final class ActionRegistry: Sendable {
+public final class ActionRegistry: ObservableObject, Sendable {
     public static let shared = ActionRegistry()
     
-    public private(set) var actions: [any Action] = []
+    @Published public private(set) var actions: [any Action] = []
     
     private init() {
     }
@@ -14,7 +15,16 @@ public final class ActionRegistry: Sendable {
     }
     
     public func register(action: any Action) {
-        actions.append(action)
+        // Replace if ID already exists, otherwise append
+        if let idx = actions.firstIndex(where: { $0.id == action.id }) {
+            actions[idx] = action
+        } else {
+            actions.append(action)
+        }
+    }
+    
+    public func unregister(actionID: String) {
+        actions.removeAll(where: { $0.id == actionID })
     }
     
     public func availableActions(for context: ActionContext) -> [any Action] {
