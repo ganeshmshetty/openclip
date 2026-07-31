@@ -54,4 +54,19 @@ final class PopupPositionerTests: XCTestCase {
         
         XCTAssertEqual(frame.origin.y, 8) // 0 + 8
     }
+    
+    func testSelectionBoundsPositioning() {
+        let selectionBounds = CGRect(x: 200, y: 200, width: 100, height: 20)
+        let popupSize = CGSize(width: 80, height: 40)
+        let screenBounds = CGRect(x: 0, y: 0, width: 800, height: 600)
+        
+        let frame = PopupPositioner.calculateFrame(forSelectionBounds: selectionBounds, popupSize: popupSize, in: screenBounds)
+        
+        // MidX = 250, popup width = 80 => X = 250 - 40 = 210
+        XCTAssertEqual(frame.origin.x, 210)
+        // maxY = 220, offset = 16 => Y = 236
+        XCTAssertEqual(frame.origin.y, 236)
+        XCTAssertEqual(frame.width, 80)
+        XCTAssertEqual(frame.height, 40)
+    }
 }

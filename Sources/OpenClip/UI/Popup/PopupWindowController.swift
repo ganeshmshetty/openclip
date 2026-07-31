@@ -43,7 +43,7 @@ public class PopupWindowController {
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         
         let frame = PopupPositioner.calculateFrame(
-            for: context.cursorPosition,
+            for: context,
             popupSize: size,
             in: screenBounds
         )

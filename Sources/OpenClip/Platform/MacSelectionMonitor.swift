@@ -69,13 +69,15 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             
             NSLog("[OpenClip] retrieving text for %@", app.bundleIdentifier ?? "")
             // The retriever runs its own logic (which could be non-isolated) 
-            if let text = await self.retriever.retrieveText(for: app, policy: policy) {
-                NSLog("[OpenClip] got text len=%d, firing onSelection", text.count)
+            if let result = await self.retriever.retrieveTextResult(for: app, policy: policy) {
+                let text = result.text
+                NSLog("[OpenClip] got text len=%d, bounds=%@, firing onSelection", text.count, result.bounds?.debugDescription ?? "none")
                 if text.utf8.count <= Constants.maxTextLength {
                     let context = SelectionContext(
                         text: text,
                         sourceApp: app,
                         cursorPosition: cursor,
+                        selectionBounds: result.bounds,
                         timestamp: Date(),
                         appPolicy: policy
                     )

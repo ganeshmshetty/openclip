@@ -21,30 +21,40 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     // MARK: - TextRetrieving
 
     internal func retrieveText(for app: any AppIdentifying, policy: AppPolicyContext) async -> String? {
+        await retrieveTextResult(for: app, policy: policy)?.text
+    }
+
+    internal func retrieveTextResult(for app: any AppIdentifying, policy: AppPolicyContext) async -> TextResult? {
         // `grabPasteboard` means the caller wants us to go straight to Cmd+C.
         if policy.grabPasteboard {
-            return await strategyKeyboardShortcut()
+            if let text = await strategyKeyboardShortcut() {
+                return TextResult(text: text, bounds: nil)
+            }
+            return nil
         }
 
         // Strategy 1: Accessibility direct read
-        if let text = await strategyAXDirect() {
-            return text
+        if let result = await strategyAXDirect() {
+            return result
         }
 
         // Strategy 2: Menu-action Copy
         if let text = await strategyMenuActionCopy() {
-            return text
+            return TextResult(text: text, bounds: nil)
         }
 
         // Strategy 3: Keyboard shortcut Cmd+C
-        return await strategyKeyboardShortcut()
+        if let text = await strategyKeyboardShortcut() {
+            return TextResult(text: text, bounds: nil)
+        }
+
+        return nil
     }
 
     // MARK: - Strategy 1: AX Direct
 
-    /// Read `kAXSelectedTextAttribute` from the focused UI element.
-    /// Returns `nil` if the element is unavailable, the attribute is missing, or the text is empty.
-    private func strategyAXDirect() async -> String? {
+    /// Read `kAXSelectedTextAttribute` and optional `kAXBoundsForRangeParameterizedAttribute` from the focused UI element.
+    private func strategyAXDirect() async -> TextResult? {
         return await withCheckedContinuation { continuation in
             // Run on a detached task so we don't block the caller's executor.
             Task.detached { [logger] in
@@ -79,8 +89,31 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                     continuation.resume(returning: nil)
                     return
                 }
-                logger.debug("AX strategy: success (\(text.count) chars)")
-                continuation.resume(returning: text)
+
+                // Query text bounds via kAXSelectedTextRangeAttribute & kAXBoundsForRangeParameterizedAttribute
+                var bounds: CGRect? = nil
+                var rangeRef: CFTypeRef?
+                if AXUIElementCopyAttributeValue(
+                    element,
+                    kAXSelectedTextRangeAttribute as CFString,
+                    &rangeRef
+                ) == .success, let rangeRef {
+                    var boundsRef: CFTypeRef?
+                    if AXUIElementCopyParameterizedAttributeValue(
+                        element,
+                        kAXBoundsForRangeParameterizedAttribute as CFString,
+                        rangeRef,
+                        &boundsRef
+                    ) == .success, let boundsRef {
+                        var rect = CGRect.zero
+                        if AXValueGetValue(boundsRef as! AXValue, .cgRect, &rect) {
+                            bounds = rect
+                        }
+                    }
+                }
+
+                logger.debug("AX strategy: success (\(text.count) chars, bounds: \(bounds?.debugDescription ?? "none"))")
+                continuation.resume(returning: TextResult(text: text, bounds: bounds))
             }
         }
     }
