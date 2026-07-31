@@ -16,7 +16,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     internal func start() {
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
             guard let app = NSWorkspace.shared.frontmostApplication else { return }
-            let cursor = event.locationInWindow
+            // NSEvent.mouseLocation gives the cursor in screen coordinates;
+            // event.locationInWindow is always zero for global monitors (no window).
+            let cursor = NSEvent.mouseLocation
             let capturedApp = app
             
             Task { @MainActor in

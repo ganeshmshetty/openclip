@@ -34,7 +34,11 @@ public class PopupWindowController {
         }
         panel.contentView = NSHostingView(rootView: rootView)
         
-        let size = panel.contentView?.fittingSize ?? CGSize(width: 150, height: 50)
+        // Force a layout pass so fittingSize reflects actual content
+        panel.contentView?.layoutSubtreeIfNeeded()
+        var size = panel.contentView?.fittingSize ?? CGSize(width: 300, height: 54)
+        if size.width < 100 { size.width = 300 }
+        if size.height < 30 { size.height = 54 }
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         

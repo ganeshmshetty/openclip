@@ -12,6 +12,7 @@ public struct AppFilter: Sendable {
         "com.blizzard.*",
         "com.codeweavers.*",
         "com.collectorz.*",
+        "com.openclip.*",      // Never trigger on ourselves
         "com.oracle.SQLDeveloper",
         "com.parallels.*",
         "com.pilotmoon.popclip",
@@ -31,7 +32,8 @@ public struct AppFilter: Sendable {
         for pattern in excludedBundleIDPatterns {
             if pattern.hasSuffix(".*") {
                 let prefix = String(pattern.dropLast(2))
-                if bundleID.hasPrefix(prefix) { return true }
+                // Exact match OR subdomain match — prevents "com.foo" matching "com.foobar"
+                if bundleID == prefix || bundleID.hasPrefix(prefix + ".") { return true }
             } else {
                 if bundleID == pattern { return true }
             }

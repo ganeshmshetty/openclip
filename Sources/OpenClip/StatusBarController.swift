@@ -1,9 +1,11 @@
 import AppKit
+import SwiftUI
 
 /// Manages the menu bar status icon for OpenClip.
 @MainActor
 class StatusBarController {
     private var statusItem: NSStatusItem
+    private var preferencesWindow: NSWindow?
     
     /// Initializes a new status bar controller.
     init() {
@@ -34,11 +36,19 @@ class StatusBarController {
     }
     
     @objc private func showPreferences() {
-        if #available(macOS 13.0, *) {
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        } else {
-            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        if let window = preferencesWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
         }
+        let controller = NSHostingController(rootView: PreferencesView())
+        let window = NSWindow(contentViewController: controller)
+        window.title = "OpenClip Preferences"
+        window.setContentSize(NSSize(width: 500, height: 400))
+        window.styleMask = [.titled, .closable, .resizable]
+        window.center()
+        self.preferencesWindow = window
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 }
