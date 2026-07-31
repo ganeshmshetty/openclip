@@ -68,7 +68,6 @@ public struct PopupView: View {
         }
         .fixedSize()
         .onContinuousHover { phase in updateHover(phase: phase) }
-        .background(ActiveTrackingAreaView { phase in updateHover(phase: phase) })
         // Single glass effect on the whole bar → one unified pill, not per-button bubbles
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .padding(18)
@@ -91,6 +90,7 @@ public struct PopupView: View {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
                 .frame(width: buttonWidth, height: 32)
+                // Tinted highlight capsule inside the unified glass pill on hover
                 .background(
                     Capsule()
                         .fill(isHovered ? Color.accentColor.opacity(0.25) : Color.clear)
@@ -100,13 +100,6 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { entered in
-            if entered {
-                hoveredIndex = index
-            } else if hoveredIndex == index {
-                hoveredIndex = nil
-            }
-        }
         .help(action.title)
     }
 
@@ -121,6 +114,7 @@ public struct PopupView: View {
         }
         .buttonStyle(.plain)
     }
+
 
     // MARK: - Legacy glass bar (glass theme, macOS < 26)
 
@@ -172,7 +166,6 @@ public struct PopupView: View {
         .onContinuousHover { phase in
             updateHover(phase: phase)
         }
-        .background(ActiveTrackingAreaView { phase in updateHover(phase: phase) })
     }
 
     // MARK: - Shared hover logic
@@ -194,7 +187,6 @@ public struct PopupView: View {
     private func legacyActionButton(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
         let restForeground: Color = selectedTheme == "light" ? .black.opacity(0.85) : .white.opacity(0.90)
         let dividerColor: Color = selectedTheme == "light" ? .black.opacity(0.12) : .white.opacity(0.14)
-        let hoverBackground: Color = selectedTheme == "light" ? Color.accentColor : Color.accentColor
 
         Button {
             Task {
@@ -210,12 +202,7 @@ public struct PopupView: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(isHovered ? .white : restForeground)
                 .frame(width: buttonWidth, height: 32)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(isHovered ? hoverBackground : Color.clear)
-                        .padding(.horizontal, 2)
-                        .padding(.vertical, 2)
-                )
+                .background(isHovered ? Color.accentColor : Color.clear)
                 .overlay(alignment: .trailing) {
                     if showDivider && !isHovered {
                         Rectangle()
@@ -226,13 +213,6 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { entered in
-            if entered {
-                hoveredIndex = index
-            } else if hoveredIndex == index {
-                hoveredIndex = nil
-            }
-        }
         .help(action.title)
     }
 
