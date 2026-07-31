@@ -25,7 +25,8 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     }
 
     internal func retrieveTextResult(for app: any AppIdentifying, policy: AppPolicyContext) async -> TextResult? {
-        // `grabPasteboard` means the caller wants us to go straight to Cmd+C.
+        // `grabPasteboard` is an explicit per-app policy that opts into Cmd+C behaviour.
+        // Never send Cmd+C by default — OpenClip should work like PopClip (AX only, no side-effects).
         if policy.grabPasteboard {
             if let text = await strategyKeyboardShortcut() {
                 return TextResult(text: text, bounds: nil)
@@ -33,25 +34,20 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
             return nil
         }
 
-        // Strategy 1: Accessibility direct read
+        // Strategy 1: Accessibility direct read — instant, zero side-effects.
         if let result = await strategyAXDirect() {
             return result
         }
-        
-        // Strategy 1.5: Safari JS direct selection read
-        if let safariText = await strategySafariJS(for: app), !safariText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+
+        // Strategy 1.5: Safari JS selection read (Safari AX can be delayed).
+        if let safariText = await strategySafariJS(for: app),
+           !safariText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return TextResult(text: safariText, bounds: nil)
         }
 
-        // Strategy 2: Menu-action Copy
-        if let text = await strategyMenuActionCopy() {
-            return TextResult(text: text, bounds: nil)
-        }
-
-        // Strategy 3: Keyboard shortcut Cmd+C
-        if let text = await strategyKeyboardShortcut() {
-            return TextResult(text: text, bounds: nil)
-        }
+        // Strategy 2 (menu copy) and Strategy 3 (Cmd+C) removed:
+        // They silently copy text to the clipboard, which is unexpected behaviour.
+        // Only apps explicitly opted-in via grabPasteboard policy use Cmd+C.
 
         return nil
     }
