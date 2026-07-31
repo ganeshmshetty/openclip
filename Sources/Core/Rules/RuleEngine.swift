@@ -40,7 +40,18 @@ public final class RuleEngine: Sendable {
         var context = AppPolicyContext.default
         
         for rule in rules {
-            if rule.bundleIdentifiers.contains(where: { matchPattern($0, with: bundleIdentifier) }) {
+            var expandedIdentifiers: [String] = []
+            for id in rule.bundleIdentifiers {
+                if id == ":safari-group:" {
+                    expandedIdentifiers.append(contentsOf: ["com.apple.Safari", "com.apple.SafariTechnologyPreview"])
+                } else if id == ":chromium-group:" {
+                    expandedIdentifiers.append(contentsOf: ["com.google.Chrome", "com.brave.Browser", "com.microsoft.edgemac"])
+                } else {
+                    expandedIdentifiers.append(id)
+                }
+            }
+            
+            if expandedIdentifiers.contains(where: { matchPattern($0, with: bundleIdentifier) }) {
                 context = AppPolicyContext(
                     denyFormatting: rule.denyFormatting ?? context.denyFormatting,
                     denyProbe: rule.denyProbe ?? context.denyProbe,
@@ -58,10 +69,11 @@ public final class RuleEngine: Sendable {
     }
     
     private func matchPattern(_ pattern: String, with bundleId: String) -> Bool {
+        if pattern == "*" { return true }
         if pattern == bundleId { return true }
         if pattern.hasSuffix(".*") {
             let prefix = String(pattern.dropLast(2))
-            return bundleId.hasPrefix(prefix)
+            return bundleId == prefix || bundleId.hasPrefix(prefix + ".")
         }
         return false
     }

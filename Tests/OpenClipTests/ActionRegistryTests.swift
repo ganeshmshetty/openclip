@@ -36,7 +36,7 @@ final class ActionRegistryTests: XCTestCase {
         
         XCTAssertEqual(registry.actions.count, initialCount + 2)
         
-        let selection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date())
+        let selection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
         let context = ActionContext(selection: selection, modifiers: [])
         let available = registry.availableActions(for: context)
         
@@ -45,10 +45,10 @@ final class ActionRegistryTests: XCTestCase {
     }
     
     func testActionContext() {
-        let selection = SelectionContext(text: "hello", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date())
-        let context = ActionContext(selection: selection, modifiers: [.shift])
+        let selection = SelectionContext(text: "hello", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection, modifiers: .shift)
         
         XCTAssertEqual(context.selection.text, "hello")
-        XCTAssertEqual(context.modifiers, [.shift])
+        XCTAssertEqual(context.modifiers, .shift)
     }
 }

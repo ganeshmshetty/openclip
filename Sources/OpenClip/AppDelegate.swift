@@ -30,6 +30,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ])
         
         Task {
+            await RuleEngine.shared.loadRules(from: Constants.rulesFileURL)
             await ExtensionManager.shared.loadExtensions()
             for action in ExtensionManager.shared.loadedActions {
                 ActionRegistry.shared.register(action: action)

@@ -10,7 +10,7 @@ fileprivate struct MockApp: AppIdentifying {
 final class BuiltinActionsTests: XCTestCase {
     
     func createMockContext(with text: String) -> ActionContext {
-        let selection = SelectionContext(text: text, sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date())
+        let selection = SelectionContext(text: text, sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
         return ActionContext(selection: selection, modifiers: [])
     }
     

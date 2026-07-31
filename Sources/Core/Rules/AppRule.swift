@@ -54,4 +54,16 @@ public struct AppRule: Codable, Sendable {
         self.assumePaste = assumePaste
         self.lenientSelect = lenientSelect
     }
+    
+    public enum CodingKeys: String, CodingKey {
+        case bundleIdentifiers
+        case denyFormatting = "deny-formatting"
+        case denyProbe = "deny-probe"
+        case denyPreprobe = "deny-preprobe"
+        case grabPasteboard = "grab-pb"
+        case grabKeyboard = "grab-kb"
+        case browserAddressBar = "browser-address-bar"
+        case assumePaste = "assume-paste"
+        case lenientSelect = "lenient-select"
+    }
 }

@@ -19,7 +19,7 @@ final class TextRetrieverTests: XCTestCase {
         
         // Let MacTextRetriever do its thing. Accessibility will fail, it will fall back to pasteboard,
         // post Cmd+C, and wait. The background task above will increment changeCount, causing it to succeed.
-        let text = await retriever.retrieveText(for: currentApp)
+        let text = await retriever.retrieveText(for: currentApp, policy: .default)
         
         XCTAssertEqual(text, "MockedSelection", "MacTextRetriever should retrieve the selected text from the pasteboard when changeCount increments")
         
