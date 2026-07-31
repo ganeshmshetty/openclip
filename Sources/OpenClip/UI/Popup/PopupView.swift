@@ -12,9 +12,10 @@ public struct PopupView: View {
 
     @AppStorage("popupTheme") private var selectedTheme: String = "glass"
     @State private var currentPage = 0
-    /// Single shared hover index — switching buttons is one atomic write, no gap/flicker.
     @State private var hoveredIndex: Int? = nil
 
+    private let buttonWidth: CGFloat = 36
+    private let chevronWidth: CGFloat = 26
     private let pageSize = 8
 
     public init(actions: [any Action], context: ActionContext, onResult: @escaping @MainActor (ActionResult) -> Void) {
@@ -35,25 +36,44 @@ public struct PopupView: View {
         max(1, Int(ceil(Double(actions.count) / Double(pageSize))))
     }
 
+    private var hasLeftChevron: Bool { totalPages > 1 && currentPage > 0 }
+    private var hasRightChevron: Bool { totalPages > 1 && currentPage < totalPages - 1 }
+
     public var body: some View {
         HStack(spacing: 0) {
-            if totalPages > 1 && currentPage > 0 {
+            if hasLeftChevron {
                 chevronButton(systemImage: "chevron.left") { currentPage -= 1 }
             }
 
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
                 let isLast = index == pagedActions.count - 1
-                let hasRightChevron = totalPages > 1 && currentPage < totalPages - 1
                 let showDivider = !isLast || hasRightChevron
+                let isHovered = hoveredIndex == index
 
-                actionButton(action: action, index: index, showDivider: showDivider)
+                actionButton(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
             }
 
-            if totalPages > 1 && currentPage < totalPages - 1 {
+            if hasRightChevron {
                 chevronButton(systemImage: "chevron.right") { currentPage += 1 }
             }
         }
         .fixedSize()
+        // Single continuous tracker on the whole bar — no per-button events, no gap between buttons
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location):
+                // Calculate which button index the cursor is over from its X position
+                let xOffset = location.x - (hasLeftChevron ? chevronWidth : 0)
+                let idx = Int(xOffset / buttonWidth)
+                if xOffset >= 0 && idx >= 0 && idx < pagedActions.count {
+                    hoveredIndex = idx
+                } else {
+                    hoveredIndex = nil
+                }
+            case .ended:
+                hoveredIndex = nil
+            }
+        }
         .background(themeBackground)
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay(
@@ -64,12 +84,10 @@ public struct PopupView: View {
         .padding(18)
     }
 
-    // MARK: - Action button with shared hover state
+    // MARK: - Action button
 
     @ViewBuilder
-    private func actionButton(action: any Action, index: Int, showDivider: Bool) -> some View {
-        let isHovered = hoveredIndex == index
-
+    private func actionButton(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
         let restForeground: Color = selectedTheme == "light"
             ? .black.opacity(0.85)
             : selectedTheme == "dark" ? .white.opacity(0.90) : .primary.opacity(0.85)
@@ -91,12 +109,9 @@ public struct PopupView: View {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(isHovered ? .white : restForeground)
-                .frame(width: 36, height: 32)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(isHovered ? Color.accentColor : Color.clear)
-                        .padding(.horizontal, 2)
-                )
+                .frame(width: buttonWidth, height: 32)
+                // Plain full-frame fill — same as before, no rounded corners or padding
+                .background(isHovered ? Color.accentColor : Color.clear)
                 .overlay(alignment: .trailing) {
                     if showDivider && !isHovered {
                         Rectangle()
@@ -107,16 +122,6 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { entered in
-            // Atomically update shared index — entering a new button immediately
-            // sets the index before the old button's onHover(false) fires,
-            // so there is zero frame where no button is highlighted.
-            if entered {
-                hoveredIndex = index
-            } else if hoveredIndex == index {
-                hoveredIndex = nil
-            }
-        }
         .help(action.title)
     }
 
@@ -173,7 +178,7 @@ public struct PopupView: View {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
-                .frame(width: 26, height: 32)
+                .frame(width: chevronWidth, height: 32)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
