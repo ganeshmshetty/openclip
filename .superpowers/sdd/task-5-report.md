@@ -33,3 +33,12 @@ DONE
 6. Removed hardcoded numbers/strings (e.g. `50`, `"POPCLIP_TEXT"`) and replaced them with `Constants` in `Constants.swift`.
 7. Created `ExtensionManagerTests.swift` and `ScriptActionTests.swift` inside `Tests/OpenClipTests` with tests for logic parsing and script execution. Mocked `Constants.extensionsDirectory` using `nonisolated(unsafe)` for testing.
 8. Recompiled and ran all 19 unit tests with `xcodebuild test -scheme OpenClip -destination 'platform=macOS,arch=arm64'`. All tests passed successfully.
+
+## Fix Report 2
+1. Marked static helper methods in `ExtensionManager.swift` (`scanDirectory`, `loadManifestExtension`, `loadStandaloneScriptExtension`, `parseIcon`) as `nonisolated` so they don't jump back to `@MainActor`.
+2. Extracted magic strings (like `"script.sh"`, `"paste"`, `"wand.and.stars"`, etc.) into `Constants.swift` and used them across `ExtensionManager.swift` and `ScriptAction.swift`.
+3. Updated `parseIcon` in `ExtensionManager.swift` to handle `.local(URL)` icons if the string contains a `.` (e.g. `icon.png`), resolving relative to the extension directory.
+4. Changed `Constants.extensionsDirectory` from a `nonisolated(unsafe) var` string to a constant `URL`. Modified `ExtensionManager.loadExtensions` to accept a URL parameter defaulting to `Constants.extensionsDirectory`. Updated tests to pass a temporary directory URL directly instead of modifying global state.
+5. Added a `defer { try? stdInPipe.fileHandleForWriting.close() }` block in `ScriptAction.swift` to ensure the pipe closes safely even if writing fails.
+6. Added a `testScriptFailure` unit test in `ScriptActionTests.swift` to verify non-zero exit code handling.
+7. Successfully ran `xcodebuild test -scheme OpenClip -destination 'platform=macOS,arch=arm64'`. Output confirms 20 tests executed and all 20 passed.

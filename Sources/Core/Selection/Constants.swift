@@ -21,7 +21,7 @@ public enum Constants {
     public static let actionErrorCode: Int = 1
     
     // Extension System Constants
-    nonisolated(unsafe) public static var extensionsDirectory: String = "~/.openclip/extensions"
+    public static let extensionsDirectory: URL = URL(fileURLWithPath: ("~/.openclip/extensions" as NSString).expandingTildeInPath)
     public static let manifestFileName: String = "manifest.json"
     public static let extKeyIdentifier: String = "Identifier"
     public static let extKeyName: String = "Name"
@@ -29,6 +29,20 @@ public enum Constants {
     public static let extKeyTitle: String = "Title"
     public static let extKeyIcon: String = "Icon"
     public static let extKeyScript: String = "Script"
+    
+    public static let defaultScriptName: String = "script.sh"
+    public static let defaultIconSymbol: String = "wand.and.stars"
+    public static let customIdentifierPrefix: String = "com.custom."
+    public static let titlePrefixHash: String = "# Title:"
+    public static let titlePrefixSlash: String = "// Title:"
+    public static let iconPrefixHash: String = "# Icon:"
+    public static let iconPrefixSlash: String = "// Icon:"
+    public static let identifierPrefixHash: String = "# Identifier:"
+    public static let identifierPrefixSlash: String = "// Identifier:"
+    
+    public static let actionTypePaste: String = "paste"
+    public static let actionTypeCopy: String = "copy"
+    public static let actionTypeOpenURL: String = "openURL"
     
     public static let envVarText: String = "POPCLIP_TEXT"
     public static let maxHeaderLinesToScan: Int = 50

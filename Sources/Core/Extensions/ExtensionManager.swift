@@ -32,16 +32,13 @@ public final class ExtensionManager: Sendable {
     
     private init() {}
     
-    public func loadExtensions() async {
-        let nsExtensionsDir = (Constants.extensionsDirectory as NSString).expandingTildeInPath
-        let extensionsURL = URL(fileURLWithPath: nsExtensionsDir)
-        
+    public func loadExtensions(from url: URL = Constants.extensionsDirectory) async {
         self.loadedActions = await Task.detached {
-            return await Self.scanDirectory(extensionsURL)
+            return await Self.scanDirectory(url)
         }.value
     }
     
-    private static func scanDirectory(_ extensionsURL: URL) async -> [any Action] {
+    nonisolated private static func scanDirectory(_ extensionsURL: URL) async -> [any Action] {
         var newActions: [any Action] = []
         let fileManager = FileManager.default
         
@@ -86,17 +83,17 @@ public final class ExtensionManager: Sendable {
         return newActions
     }
     
-    private static func loadManifestExtension(manifestURL: URL, directoryURL: URL) async -> [any Action] {
+    nonisolated private static func loadManifestExtension(manifestURL: URL, directoryURL: URL) async -> [any Action] {
         guard let data = try? Data(contentsOf: manifestURL) else { return [] }
         guard let manifest = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) else { return [] }
         
         var actions: [any Action] = []
         for (index, actionMeta) in manifest.actions.enumerated() {
-            let scriptName = actionMeta.script ?? "script.sh"
+            let scriptName = actionMeta.script ?? Constants.defaultScriptName
             let scriptURL = directoryURL.appendingPathComponent(scriptName)
             
             let actionId = "\(manifest.identifier).action.\(index)"
-            let icon = parseIcon(actionMeta.icon)
+            let icon = parseIcon(actionMeta.icon, directoryURL: directoryURL)
             
             let action = ScriptAction(id: actionId, title: actionMeta.title, icon: icon, scriptURL: scriptURL)
             actions.append(action)
@@ -105,7 +102,7 @@ public final class ExtensionManager: Sendable {
         return actions
     }
     
-    private static func loadStandaloneScriptExtension(scriptURL: URL) async -> (any Action)? {
+    nonisolated private static func loadStandaloneScriptExtension(scriptURL: URL) async -> (any Action)? {
         guard FileManager.default.isExecutableFile(atPath: scriptURL.path) else { return nil }
         
         let content = (try? String(contentsOf: scriptURL, encoding: .utf8)) ?? ""
@@ -117,30 +114,33 @@ public final class ExtensionManager: Sendable {
         
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("# Title:") || trimmed.hasPrefix("// Title:") {
+            if trimmed.hasPrefix(Constants.titlePrefixHash) || trimmed.hasPrefix(Constants.titlePrefixSlash) {
                 title = String(trimmed.split(separator: ":", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
-            } else if trimmed.hasPrefix("# Icon:") || trimmed.hasPrefix("// Icon:") {
+            } else if trimmed.hasPrefix(Constants.iconPrefixHash) || trimmed.hasPrefix(Constants.iconPrefixSlash) {
                 iconStr = String(trimmed.split(separator: ":", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
-            } else if trimmed.hasPrefix("# Identifier:") || trimmed.hasPrefix("// Identifier:") {
+            } else if trimmed.hasPrefix(Constants.identifierPrefixHash) || trimmed.hasPrefix(Constants.identifierPrefixSlash) {
                 identifier = String(trimmed.split(separator: ":", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
             }
         }
         
         guard let parsedTitle = title, !parsedTitle.isEmpty else { return nil } // Title is required
         
-        let actionId = identifier ?? "com.custom.\(scriptURL.lastPathComponent)"
-        let icon = parseIcon(iconStr)
+        let actionId = identifier ?? "\(Constants.customIdentifierPrefix)\(scriptURL.lastPathComponent)"
+        let icon = parseIcon(iconStr, directoryURL: scriptURL.deletingLastPathComponent())
         
         return ScriptAction(id: actionId, title: parsedTitle, icon: icon, scriptURL: scriptURL)
     }
     
-    private static func parseIcon(_ iconStr: String?) -> ActionIcon {
+    nonisolated private static func parseIcon(_ iconStr: String?, directoryURL: URL) -> ActionIcon {
         guard let iconStr = iconStr, !iconStr.isEmpty else {
-            return .symbol("wand.and.stars")
+            return .symbol(Constants.defaultIconSymbol)
         }
         if iconStr.hasPrefix("symbol(") && iconStr.hasSuffix(")") {
             let symbolName = String(iconStr.dropFirst(7).dropLast())
             return .symbol(symbolName)
+        }
+        if iconStr.contains(".") {
+            return .local(directoryURL.appendingPathComponent(iconStr))
         }
         return .symbol(iconStr)
     }

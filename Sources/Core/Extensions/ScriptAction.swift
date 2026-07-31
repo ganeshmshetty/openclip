@@ -50,10 +50,10 @@ public struct ScriptAction: Action {
             try process.run()
             
             let writeTask = Task.detached {
+                defer { try? stdInPipe.fileHandleForWriting.close() }
                 if let textData = text.data(using: .utf8) {
                     try stdInPipe.fileHandleForWriting.write(contentsOf: textData)
                 }
-                try stdInPipe.fileHandleForWriting.close()
             }
             
             let readOutTask = Task.detached {
@@ -92,15 +92,15 @@ public struct ScriptAction: Action {
             do {
                 let decoded = try JSONDecoder().decode(ScriptOutput.self, from: outData)
                 switch decoded.type {
-                case "paste":
+                case Constants.actionTypePaste:
                     if let value = decoded.value {
                         return .paste(value)
                     }
-                case "copy":
+                case Constants.actionTypeCopy:
                     if let value = decoded.value {
                         return .copy(value)
                     }
-                case "openURL":
+                case Constants.actionTypeOpenURL:
                     if let value = decoded.value, let url = URL(string: value) {
                         return .openURL(url)
                     }

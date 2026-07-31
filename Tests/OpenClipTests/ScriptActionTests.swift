@@ -82,4 +82,32 @@ final class ScriptActionTests: XCTestCase {
             XCTFail("Expected copy action")
         }
     }
+    @MainActor
+    func testScriptFailure() async throws {
+        let scriptPath = tempDir.appendingPathComponent("fail_script.sh")
+        let scriptContent = """
+        #!/bin/bash
+        echo "Some error" >&2
+        exit 1
+        """
+        try scriptContent.write(to: scriptPath, atomically: true, encoding: .utf8)
+        
+        // Make executable
+        var attrs = try FileManager.default.attributesOfItem(atPath: scriptPath.path)
+        attrs[.posixPermissions] = 0o755
+        try FileManager.default.setAttributes(attrs, ofItemAtPath: scriptPath.path)
+        
+        let action = ScriptAction(id: "testFail", title: "TestFail", icon: .symbol("test"), scriptURL: scriptPath)
+        
+        let context = ActionContext(selection: SelectionContext(text: "hello", sourceApp: MockApp(bundleIdentifier: "test", localizedName: "test"), cursorPosition: .zero, timestamp: Date()))
+        
+        do {
+            _ = try await action.perform(context)
+            XCTFail("Expected script to throw an error due to non-zero exit code")
+        } catch {
+            let nsError = error as NSError
+            XCTAssertEqual(nsError.domain, Constants.actionErrorDomain)
+            XCTAssertEqual(nsError.code, 1) // exit code 1
+        }
+    }
 }

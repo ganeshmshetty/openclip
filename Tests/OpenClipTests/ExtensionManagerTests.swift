@@ -4,20 +4,14 @@ import XCTest
 
 final class ExtensionManagerTests: XCTestCase {
     var tempDir: URL!
-    var originalDir: String!
-    
     override func setUp() {
         super.setUp()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        
-        originalDir = Constants.extensionsDirectory
-        Constants.extensionsDirectory = tempDir.path
     }
     
     override func tearDown() {
         try? FileManager.default.removeItem(at: tempDir)
-        Constants.extensionsDirectory = originalDir
         super.tearDown()
     }
     
@@ -39,7 +33,7 @@ final class ExtensionManagerTests: XCTestCase {
         try FileManager.default.setAttributes(attrs, ofItemAtPath: scriptPath.path)
         
         let manager = ExtensionManager.shared
-        await manager.loadExtensions()
+        await manager.loadExtensions(from: tempDir)
         
         XCTAssertEqual(manager.loadedActions.count, 1)
         let action = manager.loadedActions.first as? ScriptAction
@@ -82,7 +76,7 @@ final class ExtensionManagerTests: XCTestCase {
         try FileManager.default.setAttributes(attrs, ofItemAtPath: scriptPath.path)
         
         let manager = ExtensionManager.shared
-        await manager.loadExtensions()
+        await manager.loadExtensions(from: tempDir)
         
         XCTAssertEqual(manager.loadedActions.count, 1)
         let action = manager.loadedActions.first as? ScriptAction
