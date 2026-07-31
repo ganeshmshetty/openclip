@@ -62,6 +62,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showOnboarding() {
         onboardingWindowController = OnboardingWindowController { [weak self] in
             self?.selectionMonitor?.start()
+            self?.statusBarController?.showPreferences()
         }
         onboardingWindowController?.showWindow(nil)
     }
