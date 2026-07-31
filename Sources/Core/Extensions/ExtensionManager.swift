@@ -115,11 +115,11 @@ public final class ExtensionManager: Sendable {
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix(Constants.titlePrefixHash) || trimmed.hasPrefix(Constants.titlePrefixSlash) {
-                title = String(trimmed.split(separator: ":", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
+                title = String(trimmed.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
             } else if trimmed.hasPrefix(Constants.iconPrefixHash) || trimmed.hasPrefix(Constants.iconPrefixSlash) {
-                iconStr = String(trimmed.split(separator: ":", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
+                iconStr = String(trimmed.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
             } else if trimmed.hasPrefix(Constants.identifierPrefixHash) || trimmed.hasPrefix(Constants.identifierPrefixSlash) {
-                identifier = String(trimmed.split(separator: ":", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
+                identifier = String(trimmed.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
             }
         }
         
@@ -135,11 +135,12 @@ public final class ExtensionManager: Sendable {
         guard let iconStr = iconStr, !iconStr.isEmpty else {
             return .symbol(Constants.defaultIconSymbol)
         }
-        if iconStr.hasPrefix("symbol(") && iconStr.hasSuffix(")") {
-            let symbolName = String(iconStr.dropFirst(7).dropLast())
+        if iconStr.hasPrefix(Constants.symbolPrefix) && iconStr.hasSuffix(Constants.symbolSuffix) {
+            let symbolName = String(iconStr.dropFirst(Constants.symbolPrefix.count).dropLast(Constants.symbolSuffix.count))
             return .symbol(symbolName)
         }
-        if iconStr.contains(".") {
+        let lower = iconStr.lowercased()
+        if Constants.imageExtensions.contains(where: { lower.hasSuffix($0) }) {
             return .local(directoryURL.appendingPathComponent(iconStr))
         }
         return .symbol(iconStr)

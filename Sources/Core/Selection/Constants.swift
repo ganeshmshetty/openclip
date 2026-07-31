@@ -20,6 +20,10 @@ public enum Constants {
     public static let actionErrorDomain: String = "OpenClip.ActionError"
     public static let actionErrorCode: Int = 1
     
+    public static let symbolPrefix: String = "symbol("
+    public static let symbolSuffix: String = ")"
+    public static let imageExtensions: [String] = [".png", ".jpg", ".jpeg", ".icns", ".gif", ".svg"]
+    
     // Extension System Constants
     public static let extensionsDirectory: URL = URL(fileURLWithPath: ("~/.openclip/extensions" as NSString).expandingTildeInPath)
     public static let manifestFileName: String = "manifest.json"

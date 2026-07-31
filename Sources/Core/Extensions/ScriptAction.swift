@@ -52,7 +52,15 @@ public struct ScriptAction: Action {
             let writeTask = Task.detached {
                 defer { try? stdInPipe.fileHandleForWriting.close() }
                 if let textData = text.data(using: .utf8) {
-                    try stdInPipe.fileHandleForWriting.write(contentsOf: textData)
+                    do {
+                        try stdInPipe.fileHandleForWriting.write(contentsOf: textData)
+                    } catch {
+                        let nsErr = error as NSError
+                        if nsErr.domain == NSPOSIXErrorDomain && nsErr.code == Int(EPIPE) {
+                            return
+                        }
+                        throw error
+                    }
                 }
             }
             
