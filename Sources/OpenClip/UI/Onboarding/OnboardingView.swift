@@ -90,16 +90,16 @@ public struct OnboardingView: View {
                             .controlSize(.small)
 
                             Button {
-                                permissionManager.relaunchApp()
+                                permissionManager.resetTCCAndRelaunch()
                             } label: {
-                                Label("Relaunch App", systemImage: "power")
+                                Label("Reset & Relaunch", systemImage: "arrow.triangle.2.circlepath")
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
 
                             Spacer()
 
-                            Text("Grant in Settings, then Re-check or Relaunch.")
+                            Text("If already checked in Settings, click Reset & Relaunch.")
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                         }

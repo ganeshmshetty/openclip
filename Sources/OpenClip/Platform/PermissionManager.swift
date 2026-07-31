@@ -43,23 +43,32 @@ public final class PermissionManager: ObservableObject {
         }
     }
 
-    /// Open System Settings → Accessibility and start polling.
+    /// Open System Settings → Accessibility and prompt macOS TCC to evaluate the running binary.
     public func requestAccessibilityPermission() {
-        // Passing nil avoids the deprecated kAXTrustedCheckOptionPrompt global var
-        // and lets us open System Settings ourselves with the correct deep link.
-        _ = AXIsProcessTrustedWithOptions(nil)
+        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
+        
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
         startMonitoring()
     }
 
+    /// Reset TCC permission database entry for OpenClip if macOS TCC is caching a stale signature.
+    public func resetTCCAndRelaunch() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        process.arguments = ["reset", "Accessibility", "com.openclip.OpenClip"]
+        try? process.run()
+        process.waitUntilExit()
+        
+        relaunchApp()
+    }
+
     /// Relaunch the app so macOS TCC registers the new permission for the running process.
     public func relaunchApp() {
         let url = Bundle.main.bundleURL
         let config = NSWorkspace.OpenConfiguration()
-        // NSWorkspace.OpenConfiguration has no `createsNewApplicationInstance` on all SDK versions;
-        // use the Process-based relaunch approach instead.
         NSWorkspace.shared.openApplication(at: url, configuration: config) { _, _ in
             DispatchQueue.main.async { NSApp.terminate(nil) }
         }
