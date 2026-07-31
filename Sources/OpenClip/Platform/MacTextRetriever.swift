@@ -247,8 +247,13 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                     let keyUp = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: false)
                     keyDown?.flags = flags
                     keyUp?.flags = flags
-                    keyDown?.post(tap: .cgSessionEventTap)
-                    keyUp?.post(tap: .cgSessionEventTap)
+                    if let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier {
+                        keyDown?.postToPid(pid)
+                        keyUp?.postToPid(pid)
+                    } else {
+                        keyDown?.post(tap: .cgSessionEventTap)
+                        keyUp?.post(tap: .cgSessionEventTap)
+                    }
                 }
             }
         }
