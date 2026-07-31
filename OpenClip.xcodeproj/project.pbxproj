@@ -25,6 +25,7 @@
 		3CFA6606D2D7ADE239AC70D8 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEF62694D77470DE4E2262E6 /* OnboardingView.swift */; };
 		43881285B124F36378C59E74 /* PasteAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10D1A3077D5453084F547E86 /* PasteAction.swift */; };
 		4737578EA3290C078B92A318 /* ScriptActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA90E8C3C3CA2051D777A8E /* ScriptActionTests.swift */; };
+		482FF0F2EAC56B62831A0106 /* AddCustomActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F092B5E7205F765F5BBB69A4 /* AddCustomActionSheet.swift */; };
 		4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */; };
 		525E21DA64B3EB439A493E1C /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 03869142675321ABACC573BA /* Defaults */; };
 		5DA0AEF4E0DB181460C32C7E /* Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C75D3BF228023DEA93C5D3D /* Core.swift */; };
@@ -143,6 +144,7 @@
 		E97352E36DEEAE5F6A6AE6F5 /* OpenClip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenClip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EEF62694D77470DE4E2262E6 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		EFA90E8C3C3CA2051D777A8E /* ScriptActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptActionTests.swift; sourceTree = "<group>"; };
+		F092B5E7205F765F5BBB69A4 /* AddCustomActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCustomActionSheet.swift; sourceTree = "<group>"; };
 		F2CB1948C425181EE3DCFAAA /* URLTemplateAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLTemplateAction.swift; sourceTree = "<group>"; };
 		F42C959E23FBB018FD815BBD /* PopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupView.swift; sourceTree = "<group>"; };
 		F660BE562891C148ECA1E083 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
@@ -278,6 +280,7 @@
 		9DA9E12BE0F361EEDE0E34B7 /* Preferences */ = {
 			isa = PBXGroup;
 			children = (
+				F092B5E7205F765F5BBB69A4 /* AddCustomActionSheet.swift */,
 				F660BE562891C148ECA1E083 /* PreferencesView.swift */,
 			);
 			path = Preferences;
@@ -487,6 +490,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				482FF0F2EAC56B62831A0106 /* AddCustomActionSheet.swift in Sources */,
 				84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */,
 				0AC19FB1B891B14A5D9D2ABD /* AppIdentifying+NSRunningApplication.swift in Sources */,
 				AEED9FFA7F37289E7370BAE2 /* CopyAction.swift in Sources */,

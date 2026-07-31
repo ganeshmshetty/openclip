@@ -237,9 +237,7 @@ struct AppearanceTab: View {
 @MainActor
 struct ActionsTab: View {
     @Binding var disabledActionIDs: Set<String>
-    @State private var showingCustomURLAlert = false
-    @State private var customTitle = ""
-    @State private var customURL = ""
+    @State private var showingAddActionSheet = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -257,34 +255,65 @@ struct ActionsTab: View {
                             }
                         )
                         
-                        Toggle(isOn: isEnabled) {
-                            HStack(spacing: 10) {
-                                switch action.icon {
-                                case .symbol(let name):
-                                    Image(systemName: name)
-                                        .frame(width: 20)
-                                case .url, .local:
-                                    Image(systemName: "sparkles")
-                                        .frame(width: 20)
+                        HStack(spacing: 10) {
+                            Toggle(isOn: isEnabled) {
+                                HStack(spacing: 10) {
+                                    switch action.icon {
+                                    case .symbol(let name):
+                                        Image(systemName: name)
+                                            .frame(width: 20)
+                                    case .url, .local:
+                                        Image(systemName: "sparkles")
+                                            .frame(width: 20)
+                                    }
+                                    Text(action.title)
+                                        .font(.body)
+                                    Spacer()
+                                    if action is ScriptAction {
+                                        Text("Script")
+                                            .font(.caption2)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(Color.blue.opacity(0.15)))
+                                            .foregroundColor(.blue)
+                                    } else if action is URLTemplateAction {
+                                        Text("URL Template")
+                                            .font(.caption2)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(Color.purple.opacity(0.15)))
+                                            .foregroundColor(.purple)
+                                    } else if let customAction = action as? CustomAction {
+                                        let badgeText: String
+                                        let badgeColor: Color
+                                        switch customAction.type {
+                                        case .webSearch:
+                                            badgeText = "Web Search"
+                                            badgeColor = .purple
+                                        case .textSnippet:
+                                            badgeText = "Snippet"
+                                            badgeColor = .green
+                                        case .shellScript:
+                                            badgeText = "Script"
+                                            badgeColor = .blue
+                                        }
+                                        Text(badgeText)
+                                            .font(.caption2)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(badgeColor.opacity(0.15)))
+                                            .foregroundColor(badgeColor)
+                                    }
                                 }
-                                Text(action.title)
-                                    .font(.body)
-                                Spacer()
-                                if action is ScriptAction {
-                                    Text("Script")
-                                        .font(.caption2)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Capsule().fill(Color.blue.opacity(0.15)))
-                                        .foregroundColor(.blue)
-                                } else if action is URLTemplateAction {
-                                    Text("URL Template")
-                                        .font(.caption2)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Capsule().fill(Color.purple.opacity(0.15)))
-                                        .foregroundColor(.purple)
+                            }
+                            if let _ = action as? CustomAction {
+                                Button(action: {
+                                    CustomActionManager.shared.delete(customActionID: action.id)
+                                }) {
+                                    Image(systemName: "trash")
                                 }
+                                .buttonStyle(.plain)
+                                .foregroundColor(.red)
                             }
                         }
                     }
@@ -294,48 +323,17 @@ struct ActionsTab: View {
             
             HStack {
                 Button(action: {
-                    showingCustomURLAlert = true
+                    showingAddActionSheet = true
                 }, label: {
-                    Label("Add Custom URL Search Action", systemImage: "plus.circle")
+                    Label("Add Custom Action", systemImage: "plus.circle")
                 })
                 Spacer()
             }
             .padding(.horizontal, 10)
         }
         .padding(12)
-        .sheet(isPresented: $showingCustomURLAlert) {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Add Custom Search Action").font(.headline)
-                
-                TextField("Title (e.g. DuckDuckGo)", text: $customTitle)
-                TextField("URL Template (use {text} for query)", text: $customURL)
-                
-                HStack {
-                    Spacer()
-                    Button(action: { showingCustomURLAlert = false }) {
-                        Text("Cancel")
-                    }
-                    Button(action: {
-                        if !customTitle.isEmpty && !customURL.isEmpty {
-                            let newAction = URLTemplateAction(
-                                id: "com.custom.search.\(UUID().uuidString.prefix(6))",
-                                title: customTitle,
-                                icon: .symbol("magnifyingglass"),
-                                urlTemplate: customURL
-                            )
-                            ActionRegistry.shared.register(action: newAction)
-                            customTitle = ""
-                            customURL = ""
-                            showingCustomURLAlert = false
-                        }
-                    }) {
-                        Text("Add Action")
-                    }
-                    .keyboardShortcut(.defaultAction)
-                }
-            }
-            .padding(20)
-            .frame(width: 400)
+        .sheet(isPresented: $showingAddActionSheet) {
+            AddCustomActionSheet()
         }
     }
 }
