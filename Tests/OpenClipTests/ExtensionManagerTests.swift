@@ -83,4 +83,45 @@ final class ExtensionManagerTests: XCTestCase {
         XCTAssertNotNil(action)
         XCTAssertEqual(action?.title, "Action 1")
     }
+    
+    @MainActor
+    func testLoadPlistPopClipExtension() async throws {
+        let extDir = tempDir.appendingPathComponent("Wikipedia.popclipext")
+        try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
+        
+        let plistPath = extDir.appendingPathComponent("Config.plist")
+        let plistDict: [String: Any] = [
+            "Extension Identifier": "com.pilotmoon.popclip.extension.wikipedia",
+            "Extension Name": "Wikipedia",
+            "Actions": [
+                [
+                    "Title": "Wikipedia",
+                    "Image File": "w.png",
+                    "URL": "https://en.wikipedia.org/w/index.php?search={popclip text}",
+                    "Regular Expression": "(?s)^.{1,200}$"
+                ]
+            ]
+        ]
+        let plistData = try PropertyListSerialization.data(fromPropertyList: plistDict, format: .xml, options: 0)
+        try plistData.write(to: plistPath)
+        
+        let manager = ExtensionManager.shared
+        await manager.loadExtensions(from: tempDir)
+        
+        XCTAssertEqual(manager.loadedActions.count, 1)
+        let action = manager.loadedActions.first as? URLTemplateAction
+        XCTAssertNotNil(action)
+        XCTAssertEqual(action?.title, "Wikipedia")
+        
+        let dummyApp = NSRunningApplication.current
+        let context = ActionContext(selection: SelectionContext(text: "Swift", sourceApp: dummyApp, cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
+        
+        XCTAssertTrue(action?.isEnabled(for: context) == true)
+        let result = try await action?.perform(context)
+        if case .openURL(let url)? = result {
+            XCTAssertEqual(url.absoluteString, "https://en.wikipedia.org/w/index.php?search=Swift")
+        } else {
+            XCTFail("Expected openURL result")
+        }
+    }
 }

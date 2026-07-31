@@ -13,7 +13,12 @@ public struct SearchAction: Action {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        return !context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasURLPrefix = text.hasPrefix("http://") || text.hasPrefix("https://") || text.hasPrefix("www.")
+        if hasURLPrefix {
+            return false
+        }
+        return !text.isEmpty
     }
     
     @MainActor

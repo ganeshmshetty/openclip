@@ -21,30 +21,54 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     // MARK: - TextRetrieving
 
     internal func retrieveText(for app: any AppIdentifying, policy: AppPolicyContext) async -> String? {
-        // `grabPasteboard` means the caller wants us to go straight to Cmd+C.
+        await retrieveTextResult(for: app, policy: policy)?.text
+    }
+
+    internal func retrieveTextResult(for app: any AppIdentifying, policy: AppPolicyContext) async -> TextResult? {
+        // `grabPasteboard` is an explicit per-app policy that opts into Cmd+C behaviour.
+        // Never send Cmd+C by default — OpenClip should work like PopClip (AX only, no side-effects).
         if policy.grabPasteboard {
-            return await strategyKeyboardShortcut()
+            if let text = await strategyKeyboardShortcut() {
+                return TextResult(text: text, bounds: nil)
+            }
+            return nil
         }
 
-        // Strategy 1: Accessibility direct read
-        if let text = await strategyAXDirect() {
-            return text
+        // Strategy 1: Accessibility direct read — instant, zero side-effects.
+        if let result = await strategyAXDirect() {
+            return result
         }
 
-        // Strategy 2: Menu-action Copy
-        if let text = await strategyMenuActionCopy() {
-            return text
+        // Strategy 1.5: Safari JS selection read (Safari AX can be delayed).
+        if let safariText = await strategySafariJS(for: app),
+           !safariText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return TextResult(text: safariText, bounds: nil)
         }
 
-        // Strategy 3: Keyboard shortcut Cmd+C
-        return await strategyKeyboardShortcut()
+        // Strategy 2 (menu copy) and Strategy 3 (Cmd+C) removed:
+        // They silently copy text to the clipboard, which is unexpected behaviour.
+        // Only apps explicitly opted-in via grabPasteboard policy use Cmd+C.
+
+        return nil
+    }
+    
+    private func strategySafariJS(for app: any AppIdentifying) async -> String? {
+        guard app.bundleIdentifier == "com.apple.Safari" else { return nil }
+        let script = """
+        tell application "Safari"
+            if (count of documents) > 0 then
+                do JavaScript "window.getSelection().toString()" in front document
+            end if
+        end tell
+        """
+        let text = await runAppleScript(script)
+        return text?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Strategy 1: AX Direct
 
-    /// Read `kAXSelectedTextAttribute` from the focused UI element.
-    /// Returns `nil` if the element is unavailable, the attribute is missing, or the text is empty.
-    private func strategyAXDirect() async -> String? {
+    /// Read `kAXSelectedTextAttribute` and optional `kAXBoundsForRangeParameterizedAttribute` from the focused UI element.
+    private func strategyAXDirect() async -> TextResult? {
         return await withCheckedContinuation { continuation in
             // Run on a detached task so we don't block the caller's executor.
             Task.detached { [logger] in
@@ -79,8 +103,31 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                     continuation.resume(returning: nil)
                     return
                 }
-                logger.debug("AX strategy: success (\(text.count) chars)")
-                continuation.resume(returning: text)
+
+                // Query text bounds via kAXSelectedTextRangeAttribute & kAXBoundsForRangeParameterizedAttribute
+                var bounds: CGRect? = nil
+                var rangeRef: CFTypeRef?
+                if AXUIElementCopyAttributeValue(
+                    element,
+                    kAXSelectedTextRangeAttribute as CFString,
+                    &rangeRef
+                ) == .success, let rangeRef {
+                    var boundsRef: CFTypeRef?
+                    if AXUIElementCopyParameterizedAttributeValue(
+                        element,
+                        kAXBoundsForRangeParameterizedAttribute as CFString,
+                        rangeRef,
+                        &boundsRef
+                    ) == .success, let boundsRef {
+                        var rect = CGRect.zero
+                        if AXValueGetValue(boundsRef as! AXValue, .cgRect, &rect) {
+                            bounds = rect
+                        }
+                    }
+                }
+
+                logger.debug("AX strategy: success (\(text.count) chars, bounds: \(bounds?.debugDescription ?? "none"))")
+                continuation.resume(returning: TextResult(text: text, bounds: bounds))
             }
         }
     }
@@ -189,13 +236,20 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         return await fetchPasteboardText(timeout: 0.5) {
             Task {
                 await self.withMutedAlertVolume {
-                    let src = CGEventSource(stateID: .hidSystemState)
+                    let src = CGEventSource(stateID: .combinedSessionState)
+                    src?.setLocalEventsFilterDuringSuppressionState([.permitLocalMouseEvents, .permitSystemDefinedEvents], state: .eventSuppressionStateSuppressionInterval)
+                    let flags = CGEventFlags(rawValue: CGEventFlags.maskCommand.rawValue | 0x000008)
                     let keyDown = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: true)
-                    keyDown?.flags = .maskCommand
                     let keyUp = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: false)
-                    keyUp?.flags = .maskCommand
-                    keyDown?.post(tap: .cghidEventTap)
-                    keyUp?.post(tap: .cghidEventTap)
+                    keyDown?.flags = flags
+                    keyUp?.flags = flags
+                    if let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier {
+                        keyDown?.postToPid(pid)
+                        keyUp?.postToPid(pid)
+                    } else {
+                        keyDown?.post(tap: .cgSessionEventTap)
+                        keyUp?.post(tap: .cgSessionEventTap)
+                    }
                 }
             }
         }

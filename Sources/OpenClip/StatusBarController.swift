@@ -35,7 +35,7 @@ class StatusBarController {
         statusItem.menu = menu
     }
     
-    @objc private func showPreferences() {
+    @objc public func showPreferences() {
         if let window = preferencesWindow, window.isVisible {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
