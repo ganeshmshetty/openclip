@@ -72,6 +72,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                 isDragOrMultiClick = (dx * dx + dy * dy) > 9.0 // > 3px movement
             }
             
+            print("📍 Selection Event | Mouse Down: \(String(describing: downPoint)) -> Mouse Up: \(cursor)")
+            
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
             if let result = await self.retriever.retrieveTextResult(for: app, policy: policy) {
                 let text = result.text
