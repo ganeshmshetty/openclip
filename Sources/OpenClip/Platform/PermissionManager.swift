@@ -11,7 +11,12 @@ public final class PermissionManager: ObservableObject {
     private var checkTimer: Timer?
     
     private init() {
-        self.isAccessibilityGranted = AXIsProcessTrusted()
+        self.isAccessibilityGranted = checkAccessibilityTrusted()
+    }
+    
+    /// Checks accessibility status via AXIsProcessTrustedWithOptions(nil) to query TCC directly.
+    public func checkAccessibilityTrusted() -> Bool {
+        return AXIsProcessTrustedWithOptions(nil)
     }
     
     /// Starts periodic checking of accessibility status.
@@ -33,7 +38,7 @@ public final class PermissionManager: ObservableObject {
     
     /// Re-evaluates accessibility trust status.
     public func checkStatus() {
-        let current = AXIsProcessTrusted()
+        let current = checkAccessibilityTrusted()
         if isAccessibilityGranted != current {
             isAccessibilityGranted = current
         }
@@ -46,6 +51,18 @@ public final class PermissionManager: ObservableObject {
         
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
+        }
+    }
+    
+    /// Relaunches the app to ensure macOS TCC registers newly granted permissions.
+    public func relaunchApp() {
+        let bundleURL = Bundle.main.bundleURL
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: bundleURL, configuration: configuration) { _, _ in
+            Task { @MainActor in
+                NSApp.terminate(nil)
+            }
         }
     }
 }

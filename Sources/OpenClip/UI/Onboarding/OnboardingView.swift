@@ -82,18 +82,44 @@ public struct OnboardingView: View {
                 }
                 
                 if !permissionManager.isAccessibilityGranted {
-                    Button(action: {
-                        permissionManager.requestAccessibilityPermission()
-                    }, label: {
-                        HStack {
-                            Image(systemName: "hand.tap.fill")
-                            Text("Grant Accessibility Permission")
+                    VStack(spacing: 8) {
+                        Button(action: {
+                            permissionManager.requestAccessibilityPermission()
+                        }, label: {
+                            HStack {
+                                Image(systemName: "hand.tap.fill")
+                                Text("Grant Accessibility Permission")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                        })
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        
+                        HStack(spacing: 10) {
+                            Button(action: {
+                                permissionManager.checkStatus()
+                            }, label: {
+                                HStack {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text("Re-check Status")
+                                }
+                            })
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            
+                            Button(action: {
+                                permissionManager.relaunchApp()
+                            }, label: {
+                                HStack {
+                                    Image(systemName: "power")
+                                    Text("Relaunch OpenClip")
+                                }
+                            })
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                    })
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    }
                 }
             }
             .padding(16)
