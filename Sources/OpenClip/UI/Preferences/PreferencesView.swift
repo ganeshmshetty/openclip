@@ -244,78 +244,7 @@ struct ActionsTab: View {
             List {
                 Section(header: Text("Built-in & Registered Actions").font(.subheadline).bold()) {
                     ForEach(ActionRegistry.shared.actions, id: \.id) { action in
-                        let isEnabled = Binding<Bool>(
-                            get: { !disabledActionIDs.contains(action.id) },
-                            set: { enabled in
-                                if enabled {
-                                    disabledActionIDs.remove(action.id)
-                                } else {
-                                    disabledActionIDs.insert(action.id)
-                                }
-                            }
-                        )
-                        
-                        HStack(spacing: 10) {
-                            Toggle(isOn: isEnabled) {
-                                HStack(spacing: 10) {
-                                    switch action.icon {
-                                    case .symbol(let name):
-                                        Image(systemName: name)
-                                            .frame(width: 20)
-                                    case .url, .local:
-                                        Image(systemName: "sparkles")
-                                            .frame(width: 20)
-                                    }
-                                    Text(action.title)
-                                        .font(.body)
-                                    Spacer()
-                                    if action is ScriptAction {
-                                        Text("Script")
-                                            .font(.caption2)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.blue.opacity(0.15)))
-                                            .foregroundColor(.blue)
-                                    } else if action is URLTemplateAction {
-                                        Text("URL Template")
-                                            .font(.caption2)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.purple.opacity(0.15)))
-                                            .foregroundColor(.purple)
-                                    } else if let customAction = action as? CustomAction {
-                                        let badgeText: String
-                                        let badgeColor: Color
-                                        switch customAction.type {
-                                        case .webSearch:
-                                            badgeText = "Web Search"
-                                            badgeColor = .purple
-                                        case .textSnippet:
-                                            badgeText = "Snippet"
-                                            badgeColor = .green
-                                        case .shellScript:
-                                            badgeText = "Script"
-                                            badgeColor = .blue
-                                        }
-                                        Text(badgeText)
-                                            .font(.caption2)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(badgeColor.opacity(0.15)))
-                                            .foregroundColor(badgeColor)
-                                    }
-                                }
-                            }
-                            if let _ = action as? CustomAction {
-                                Button(action: {
-                                    CustomActionManager.shared.delete(customActionID: action.id)
-                                }) {
-                                    Image(systemName: "trash")
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.red)
-                            }
-                        }
+                        ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
                     }
                 }
             }
@@ -335,6 +264,92 @@ struct ActionsTab: View {
         .sheet(isPresented: $showingAddActionSheet) {
             AddCustomActionSheet()
         }
+    }
+}
+
+@MainActor
+struct ActionRowView: View {
+    let action: any Action
+    @Binding var disabledActionIDs: Set<String>
+    
+    var isEnabled: Binding<Bool> {
+        Binding<Bool>(
+            get: { !disabledActionIDs.contains(action.id) },
+            set: { enabled in
+                if enabled {
+                    disabledActionIDs.remove(action.id)
+                } else {
+                    disabledActionIDs.insert(action.id)
+                }
+            }
+        )
+    }
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Toggle(isOn: isEnabled) {
+                HStack(spacing: 10) {
+                    switch action.icon {
+                    case .symbol(let name):
+                        Image(systemName: name)
+                            .frame(width: 20)
+                    case .url, .local:
+                        Image(systemName: "sparkles")
+                            .frame(width: 20)
+                    }
+                    Text(action.title)
+                        .font(.body)
+                    Spacer()
+                    if action is ScriptAction {
+                        Text("Script")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.blue.opacity(0.15)))
+                            .foregroundColor(.blue)
+                    } else if action is URLTemplateAction {
+                        Text("URL Template")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.purple.opacity(0.15)))
+                            .foregroundColor(.purple)
+                    } else if let customAction = action as? CustomAction {
+                        CustomActionBadge(type: customAction.type)
+                    }
+                }
+            }
+            if let customAction = action as? CustomAction {
+                Button(action: {
+                    CustomActionManager.shared.delete(customActionID: customAction.id)
+                }) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.red)
+            }
+        }
+    }
+}
+
+struct CustomActionBadge: View {
+    let type: CustomActionType
+    
+    var body: some View {
+        let (text, color): (String, Color) = {
+            switch type {
+            case .webSearch: return ("Web Search", .purple)
+            case .textSnippet: return ("Snippet", .green)
+            case .shellScript: return ("Script", .blue)
+            }
+        }()
+        
+        Text(text)
+            .font(.caption2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(color.opacity(0.15)))
+            .foregroundColor(color)
     }
 }
 
