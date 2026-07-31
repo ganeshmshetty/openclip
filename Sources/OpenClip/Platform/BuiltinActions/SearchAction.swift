@@ -18,9 +18,15 @@ public struct SearchAction: Action {
     
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        let query = context.selection.text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = String(format: Constants.searchURLTemplate, query)
-        if let url = URL(string: urlString) {
+        let query = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "www.google.com"
+        components.path = "/search"
+        components.queryItems = [URLQueryItem(name: "q", value: query)]
+        
+        if let url = components.url {
             return .openURL(url)
         }
         return .failure(NSError(domain: "SearchAction", code: 1, userInfo: nil))

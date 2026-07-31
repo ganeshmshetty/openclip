@@ -3,9 +3,10 @@ import Foundation
 public enum ActionResult: Sendable {
     case success
     case failure(Error)
-    case paste(String)
+    case simulatePaste
     case openURL(URL)
     case copy(String)
     case cut(String)
+    case showServices(String)
     case none
 }

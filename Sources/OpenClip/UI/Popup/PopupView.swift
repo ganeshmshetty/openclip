@@ -38,11 +38,13 @@ public struct ActionButton: View {
     
     private func handleResult(_ result: ActionResult) {
         switch result {
-        case .paste(let text):
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
+        case .simulatePaste:
             simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
+        case .showServices(let text):
+            let picker = NSSharingServicePicker(items: [text])
+            if let window = NSApp.keyWindow ?? NSApp.windows.first, let view = window.contentView {
+                picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
+            }
         case .cut(let text):
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()

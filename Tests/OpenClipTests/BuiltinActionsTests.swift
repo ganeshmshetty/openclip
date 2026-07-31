@@ -37,11 +37,10 @@ final class BuiltinActionsTests: XCTestCase {
         // PasteAction isEnabled checks if there's a string on the pasteboard.
         // We just test perform logic here.
         let result = try await action.perform(context)
-        if case .paste(let text) = result {
-            // It will read whatever is currently on the pasteboard
-            XCTAssertNotNil(text)
+        if case .simulatePaste = result {
+            // Success
         } else {
-            XCTFail("Expected .paste result")
+            XCTFail("Expected .simulatePaste result")
         }
     }
     
@@ -99,6 +98,21 @@ final class BuiltinActionsTests: XCTestCase {
             XCTAssertEqual(text, "test cut")
         } else {
             XCTFail("Expected .cut result")
+        }
+    }
+    
+    @MainActor
+    func testServicesAction() async throws {
+        let action = ServicesAction()
+        let context = createMockContext(with: "test services")
+        
+        XCTAssertTrue(action.isEnabled(for: context))
+        
+        let result = try await action.perform(context)
+        if case .showServices(let text) = result {
+            XCTAssertEqual(text, "test services")
+        } else {
+            XCTFail("Expected .showServices result")
         }
     }
 }

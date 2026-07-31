@@ -24,11 +24,6 @@ public struct PasteAction: Action {
     
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        #if canImport(AppKit)
-        let pastedText = NSPasteboard.general.string(forType: .string) ?? ""
-        return .paste(pastedText)
-        #else
-        return .paste("")
-        #endif
+        return .simulatePaste
     }
 }
