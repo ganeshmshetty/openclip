@@ -1,4 +1,4 @@
 import AppKit
 import Core
 
-extension NSRunningApplication: AppIdentifying {}
+extension NSRunningApplication: @retroactive AppIdentifying {}

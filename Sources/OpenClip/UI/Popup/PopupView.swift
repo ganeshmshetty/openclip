@@ -6,9 +6,9 @@ import Core
 public struct ActionButton: View {
     public let action: any Action
     public let context: ActionContext
-    public let onResult: (ActionResult) -> Void
+    public let onResult: @MainActor (ActionResult) -> Void
     
-    public init(action: any Action, context: ActionContext, onResult: @escaping (ActionResult) -> Void) {
+    public init(action: any Action, context: ActionContext, onResult: @escaping @MainActor (ActionResult) -> Void) {
         self.action = action
         self.context = context
         self.onResult = onResult
@@ -62,9 +62,9 @@ public struct ActionButton: View {
 public struct PopupView: View {
     public let actions: [any Action]
     public let context: ActionContext
-    public let onResult: (ActionResult) -> Void
+    public let onResult: @MainActor (ActionResult) -> Void
     
-    public init(actions: [any Action], context: ActionContext, onResult: @escaping (ActionResult) -> Void) {
+    public init(actions: [any Action], context: ActionContext, onResult: @escaping @MainActor (ActionResult) -> Void) {
         self.actions = actions
         self.context = context
         self.onResult = onResult

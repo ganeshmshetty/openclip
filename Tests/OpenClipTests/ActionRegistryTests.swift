@@ -12,10 +12,12 @@ struct MockAction: Action {
     let icon = ActionIcon.symbol("star")
     let shouldBeEnabled: Bool
     
+    @MainActor
     func isEnabled(for context: ActionContext) -> Bool {
         return shouldBeEnabled
     }
     
+    @MainActor
     func perform(_ context: ActionContext) async throws -> ActionResult {
         return .success
     }

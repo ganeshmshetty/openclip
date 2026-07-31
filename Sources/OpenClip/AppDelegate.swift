@@ -31,7 +31,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Setup selection monitor
         let retriever = MacTextRetriever()
-        var monitor = MacSelectionMonitor(retriever: retriever)
+        let monitor = MacSelectionMonitor(retriever: retriever)
         monitor.onSelection = { [weak self] context in
             self?.popupController?.show(for: context)
         }
