@@ -39,17 +39,21 @@ public struct PopupView: View {
         actions.compactMap { ($0 as? TransformSubAction)?.transformCase }
     }
 
+    private var displayActions: [any Action] {
+        actions.filter { $0.id != "builtin.completion" && !$0.id.hasPrefix("builtin.transform.") }
+    }
+
     private var pagedActions: [any Action] {
-        let filtered = actions.filter { $0.id != "builtin.completion" && !$0.id.hasPrefix("builtin.transform.") }
-        guard filtered.count > pageSize else { return filtered }
+        let list = displayActions
+        guard list.count > pageSize else { return list }
         let start = currentPage * pageSize
-        let end = min(start + pageSize, filtered.count)
-        guard start < filtered.count else { return Array(filtered.prefix(pageSize)) }
-        return Array(filtered[start..<end])
+        let end = min(start + pageSize, list.count)
+        guard start < list.count else { return Array(list.prefix(pageSize)) }
+        return Array(list[start..<end])
     }
 
     private var totalPages: Int {
-        max(1, Int(ceil(Double(actions.count) / Double(pageSize))))
+        max(1, Int(ceil(Double(displayActions.count) / Double(pageSize))))
     }
 
     private var hasLeftChevron: Bool { totalPages > 1 && currentPage > 0 }
