@@ -117,14 +117,21 @@ private struct AppRuleRowView: View {
     @State private var isExpanded = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                    .frame(width: 14)
+        DisclosureGroup(isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("Enable OpenClip in this app", isOn: enableOpenClip)
+                    .help("If disabled, OpenClip will ignore all text selections in this app.")
                 
+                Toggle("Show Formatting Actions", isOn: allowFormatting)
+                    .help("If disabled, actions like Bold or Markdown formatting are hidden. Useful for code editors.")
+                
+                Toggle("Force Clipboard Copy (Cmd+C)", isOn: forceClipboard)
+                    .help("Enable this for non-native apps (like Electron or Java) that do not support standard text accessibility.")
+            }
+            .padding(.leading, 24)
+            .padding(.vertical, 6)
+        } label: {
+            HStack(spacing: 8) {
                 if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
                     Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
                         .resizable()
@@ -158,28 +165,7 @@ private struct AppRuleRowView: View {
                 .buttonStyle(.plain)
                 .help("Remove Rule")
             }
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isExpanded.toggle()
-                }
-            }
-            
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 6) {
-                    Toggle("Enable OpenClip in this app", isOn: enableOpenClip)
-                        .help("If disabled, OpenClip will ignore all text selections in this app.")
-                    
-                    Toggle("Show Formatting Actions", isOn: allowFormatting)
-                        .help("If disabled, actions like Bold or Markdown formatting are hidden. Useful for code editors.")
-                    
-                    Toggle("Force Clipboard Copy (Cmd+C)", isOn: forceClipboard)
-                        .help("Enable this for non-native apps (like Electron or Java) that do not support standard text accessibility.")
-                }
-                .padding(.leading, 42)
-                .padding(.bottom, 8)
-            }
+            .padding(.vertical, 4)
         }
     }
 }
