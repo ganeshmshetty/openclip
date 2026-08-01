@@ -27,11 +27,9 @@ public struct PopupView: View {
     }
 
     private var availableCompletions: [String] {
-        let isCompletionEnabled = actions.contains { $0.id == "builtin.completion" }
-        guard isCompletionEnabled else { return [] }
-        let action = CompletionAction()
-        guard action.isEnabled(for: context) else { return [] }
-        return action.fetchCompletions(for: context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard let provider = actions.first(where: { $0 is any WordCompletionProviding }) as? any WordCompletionProviding,
+              provider.isEnabled(for: context) else { return [] }
+        return provider.fetchCompletions(for: context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     private var hasCompletions: Bool { !availableCompletions.isEmpty }
