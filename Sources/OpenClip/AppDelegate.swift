@@ -68,7 +68,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         onboardingWindowController?.showWindow(nil)
     }
 
-    public static func parseDeepLinkURL(_ url: URL) -> [String: String]? {
+    public nonisolated static func parseDeepLinkURL(_ url: URL) -> [String: String]? {
         guard url.scheme?.lowercased() == "openclip", url.host == "install" else { return nil }
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems else { return nil }
