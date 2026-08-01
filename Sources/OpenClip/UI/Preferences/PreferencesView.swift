@@ -14,7 +14,7 @@ enum PreferenceTab: String, CaseIterable, Hashable {
         case .general: return "gearshape"
         case .appearance: return "paintpalette"
         case .actions: return "bolt.fill"
-        case .appRules: return "macwindow.badge.gearshape"
+        case .appRules: return "shield"
         case .about: return "info.circle"
         }
     }

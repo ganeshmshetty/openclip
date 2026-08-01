@@ -47,6 +47,7 @@ class StatusBarController {
         window.setContentSize(NSSize(width: 700, height: 500))
         window.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
         window.center()
         self.preferencesWindow = window
         window.makeKeyAndOrderFront(nil)
