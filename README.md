@@ -22,7 +22,7 @@ A lightweight, native macOS clipboard action engine. Highlight any text in any a
 ## Getting Started
 
 ```bash
-git clone https://github.com/openclip-app/openclip.git
+git clone https://github.com/ganeshmshetty/openclip.git
 cd openclip
 xcodegen generate
 open OpenClip.xcodeproj
