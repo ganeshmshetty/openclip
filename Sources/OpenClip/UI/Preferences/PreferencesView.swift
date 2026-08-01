@@ -171,7 +171,7 @@ struct GeneralTab: View {
     
     var body: some View {
         Form {
-            Section("Status") {
+            Section {
                 Toggle(isOn: $isAppEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Enable OpenClip")
@@ -185,23 +185,17 @@ struct GeneralTab: View {
                 .onChange(of: isAppEnabled) { _, newValue in
                     NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
                 }
-            }
-            
-            Section("Shortcut") {
+                
                 HStack {
-                    Text("Trigger Popup")
+                    Text("Trigger Popup Shortcut")
                         .font(.body)
                     Spacer()
                     KeyboardShortcuts.Recorder(for: .togglePopup)
                 }
-            }
-            
-            Section("Startup") {
+                
                 Toggle("Start OpenClip at Login", isOn: $launchManager.isEnabled)
                     .toggleStyle(.checkbox)
-            }
-            
-            Section("Permissions") {
+                
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Accessibility Access")
