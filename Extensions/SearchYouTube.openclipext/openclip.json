@@ -1,0 +1,9 @@
+{
+  "identifier": "com.openclip.youtube",
+  "name": "Search YouTube",
+  "action": {
+    "title": "Search YouTube",
+    "icon": "play.circle",
+    "url": "https://www.youtube.com/results?search_query={text}"
+  }
+}

@@ -18,8 +18,28 @@ export interface ExtensionsPageResponse {
   totalCount: number;
 }
 
-// Extensions registry (empty until real extensions are published or submitted)
-const EXTENSIONS_REGISTRY: ExtensionItem[] = [];
+const EXTENSIONS_REGISTRY: ExtensionItem[] = [
+  {
+    id: "com.openclip.youtube",
+    name: "Search YouTube",
+    description: "Search YouTube instantly for your highlighted text in your browser.",
+    author: "OpenClip Team",
+    icon: "play.circle",
+    category: "productivity",
+    downloadCount: 1420,
+    downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/SearchYouTube.openclipext/openclip.json"
+  },
+  {
+    id: "com.openclip.applemusic",
+    name: "Search Apple Music",
+    description: "Search and play tracks directly in Apple Music using native AppleScript integration.",
+    author: "OpenClip Team",
+    icon: "music.note",
+    category: "productivity",
+    downloadCount: 980,
+    downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/AppleMusic.openclipext/openclip.json"
+  }
+];
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
