@@ -32,9 +32,10 @@ public class PopupWindowController {
         self.panel = panel
         
         let rootView = PopupView(actions: availableActions, context: actionContext) { [weak self] result in
-            if case .showServices = result {
+            switch result {
+            case .showServices, .airdrop:
                 self?.handleResult(result)
-            } else {
+            default:
                 self?.handleResult(result)
                 self?.hide()
             }
@@ -66,6 +67,7 @@ public class PopupWindowController {
         removeMonitors()
         currentContext = nil
         isMenuTracking = false
+        PopupHoverState.shared.location = nil
     }
     
     private func setupMonitors() {
@@ -110,6 +112,7 @@ public class PopupWindowController {
         
         switch event.type {
         case .mouseMoved:
+            updatePopupHover(at: NSEvent.mouseLocation)
             if let panel = panel {
                 let currentCursor = NSEvent.mouseLocation
                 let frame = panel.frame
@@ -137,6 +140,23 @@ public class PopupWindowController {
             break
         }
     }
+
+    private func updatePopupHover(at screenLocation: CGPoint) {
+        guard let panel, panel.isVisible, let contentView = panel.contentView else {
+            PopupHoverState.shared.location = nil
+            return
+        }
+
+        let windowPoint = panel.convertPoint(fromScreen: screenLocation)
+        let contentPoint = contentView.convert(windowPoint, from: nil)
+        guard contentView.bounds.contains(contentPoint) else {
+            PopupHoverState.shared.location = nil
+            return
+        }
+
+        let y = contentView.isFlipped ? contentPoint.y : contentView.bounds.height - contentPoint.y
+        PopupHoverState.shared.location = CGPoint(x: contentPoint.x, y: y)
+    }
     
     @objc private func appDidDeactivate() {
         if !isMenuTracking {
@@ -152,6 +172,15 @@ public class PopupWindowController {
             let picker = NSSharingServicePicker(items: [text])
             if let panel = panel, let view = panel.contentView {
                 picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            }
+        case .airdrop(let text):
+            if let service = NSSharingService(named: .sendViaAirDrop), service.canPerform(withItems: [text]) {
+                service.perform(withItems: [text])
+            } else {
+                let picker = NSSharingServicePicker(items: [text])
+                if let panel = panel, let view = panel.contentView {
+                    picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+                }
             }
         case .cut(let text):
             let pasteboard = NSPasteboard.general
