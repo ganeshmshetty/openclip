@@ -9,9 +9,12 @@ public class PopupWindowController {
     private var localEventMonitor: Any?
     private var currentContext: SelectionContext?
     
+    private var isMenuTracking = false
+    
     public init() { }
     
     public func show(for context: SelectionContext) {
+        isMenuTracking = false
         // If the context is different, or it's a new selection, we show it
         currentContext = context
         
@@ -58,21 +61,32 @@ public class PopupWindowController {
         panel?.orderOut(nil)
         removeMonitors()
         currentContext = nil
+        isMenuTracking = false
     }
     
     private func setupMonitors() {
         removeMonitors()
         
-        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .mouseMoved, .keyDown]) { [weak self] event in
+        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
             self?.handleEvent(event)
         }
         
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .mouseMoved, .keyDown]) { [weak self] event in
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
             self?.handleEvent(event)
             return event
         }
         
+        NotificationCenter.default.addObserver(self, selector: #selector(menuDidBeginTracking), name: NSMenu.didBeginTrackingNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(menuDidEndTracking), name: NSMenu.didEndTrackingNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(appDidDeactivate), name: NSApplication.didResignActiveNotification, object: nil)
+    }
+    
+    @objc private func menuDidBeginTracking() {
+        isMenuTracking = true
+    }
+    
+    @objc private func menuDidEndTracking() {
+        isMenuTracking = false
     }
     
     private func removeMonitors() {
@@ -88,6 +102,8 @@ public class PopupWindowController {
     }
     
     private func handleEvent(_ event: NSEvent) {
+        if isMenuTracking { return }
+        
         switch event.type {
         case .mouseMoved:
             if let panel = panel {
@@ -107,6 +123,8 @@ public class PopupWindowController {
                     hide()
                 }
             }
+        case .scrollWheel:
+            hide()
         case .keyDown:
             if event.keyCode == 53 { // Escape
                 hide()
@@ -117,7 +135,9 @@ public class PopupWindowController {
     }
     
     @objc private func appDidDeactivate() {
-        hide()
+        if !isMenuTracking {
+            hide()
+        }
     }
     
     private func handleResult(_ result: ActionResult) {
