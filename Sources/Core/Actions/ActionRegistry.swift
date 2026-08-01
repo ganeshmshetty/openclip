@@ -68,7 +68,10 @@ public final class ActionRegistry: ObservableObject, Sendable {
         let defaultDisabledSubActions = ["builtin.airdrop"] + TransformCase.allCases
             .filter { !defaultEnabledTransformCases.contains($0) }
             .map { "builtin.transform.\($0.rawValue)" }
-        let disabledIDs = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) ?? defaultDisabledSubActions
+        var disabledIDs = Set(UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) ?? defaultDisabledSubActions)
+        if !UserDefaults.standard.bool(forKey: "action.airdrop.enabled") {
+            disabledIDs.insert("builtin.airdrop")
+        }
         return actions.filter { action in
             if disabledIDs.contains(action.id) {
                 return false

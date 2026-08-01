@@ -38,7 +38,7 @@ public struct PreferencesView: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Top spacing below window traffic light buttons (close/minimize/expand)
                 Spacer()
-                    .frame(height: 48)
+                    .frame(height: 14)
                 
                 ForEach(PreferenceTab.allCases, id: \.self) { tab in
                     Button(action: {
@@ -60,6 +60,7 @@ public struct PreferencesView: View {
                             Color.accentColor : Color.clear
                         )
                         .cornerRadius(8)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -109,7 +110,7 @@ public struct PreferencesView: View {
                 HStack {
                     Text(selectedTab.rawValue)
                         .font(.system(size: 20, weight: .bold))
-                        .padding(.top, 40)
+                        .padding(.top, 0)
                         .padding(.horizontal, 24)
                         .padding(.bottom, 16)
                     Spacer()
@@ -133,7 +134,7 @@ public struct PreferencesView: View {
                 .padding(.bottom, 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(Color(white: 0.14))
         }
         .frame(minWidth: 680, minHeight: 480)
         .onAppear { loadDisabledActionIDs() }
@@ -142,12 +143,23 @@ public struct PreferencesView: View {
     
     private func loadDisabledActionIDs() {
         if let array = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) {
-            disabledActionIDs = Set(array)
+            var set = Set(array)
+            if !UserDefaults.standard.bool(forKey: "action.airdrop.enabled") {
+                set.insert("builtin.airdrop")
+            }
+            disabledActionIDs = set
+        } else {
+            disabledActionIDs = ["builtin.airdrop"]
         }
     }
     
     private func saveDisabledActionIDs() {
         UserDefaults.standard.set(Array(disabledActionIDs), forKey: Constants.disabledActionIDsKey)
+        if !disabledActionIDs.contains("builtin.airdrop") {
+            UserDefaults.standard.set(true, forKey: "action.airdrop.enabled")
+        } else {
+            UserDefaults.standard.set(false, forKey: "action.airdrop.enabled")
+        }
     }
 }
 
@@ -204,6 +216,7 @@ struct GeneralTab: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .padding(12)
         .onAppear {
             isAXTrusted = AXIsProcessTrustedWithOptions(nil)
@@ -300,6 +313,7 @@ struct ActionsTab: View {
                 }
             }
             .listStyle(.inset)
+            .scrollContentBackground(.hidden)
             
             HStack(spacing: 12) {
                 Button(action: {

@@ -7,7 +7,7 @@ import Core
 public struct AirDropAction: Action {
     public let id = "builtin.airdrop"
     public let title = "AirDrop"
-    public let icon = ActionIcon.symbol("airdrop")
+    public let icon = ActionIcon.symbol("paperplane")
     
     public init() {}
     
