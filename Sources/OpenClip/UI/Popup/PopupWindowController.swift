@@ -32,8 +32,12 @@ public class PopupWindowController {
         self.panel = panel
         
         let rootView = PopupView(actions: availableActions, context: actionContext) { [weak self] result in
-            self?.handleResult(result)
-            self?.hide()
+            if case .showServices = result {
+                self?.handleResult(result)
+            } else {
+                self?.handleResult(result)
+                self?.hide()
+            }
         }
         panel.contentView = NSHostingView(rootView: rootView)
         
@@ -146,8 +150,8 @@ public class PopupWindowController {
             simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
         case .showServices(let text):
             let picker = NSSharingServicePicker(items: [text])
-            if let window = NSApp.keyWindow ?? NSApp.windows.first, let view = window.contentView {
-                picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
+            if let panel = panel, let view = panel.contentView {
+                picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
             }
         case .cut(let text):
             let pasteboard = NSPasteboard.general
