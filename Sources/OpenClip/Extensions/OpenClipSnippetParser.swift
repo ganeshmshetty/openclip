@@ -25,18 +25,22 @@ public struct OpenClipSnippetParser {
         let id = dict["identifier"] ?? "snippet.\(UUID().uuidString)"
         let iconSymbol = dict["icon"] ?? "sparkles"
         
+        // 1. Open URL Actions
         if let urlTemplate = dict["url"] {
             return URLTemplateAction(id: id, title: title, icon: .symbol(iconSymbol), urlTemplate: urlTemplate)
         }
         
+        // 2. JavaScript Actions
         if let jsCode = dict["javascript"] ?? dict["js"] {
             return JavaScriptAction(id: id, title: title, iconSymbol: iconSymbol, scriptCode: jsCode)
         }
         
+        // 3. AppleScript Actions
         if let appleScript = dict["applescript"] {
             return AppleScriptAction(id: id, title: title, iconSymbol: iconSymbol, appleScriptCode: appleScript)
         }
         
+        // 4. Shell Script Actions
         if let shellScript = dict["shell script"] ?? dict["sh"] {
             return CustomAction(
                 id: id,
@@ -44,6 +48,21 @@ public struct OpenClipSnippetParser {
                 iconName: iconSymbol,
                 type: .shellScript(script: shellScript, replaceSelection: true)
             )
+        }
+        
+        // 5. Shortcut Actions
+        if let shortcutName = dict["shortcut name"] ?? dict["shortcut"] {
+            return ShortcutAction(id: id, title: title, iconSymbol: iconSymbol, shortcutName: shortcutName)
+        }
+        
+        // 6. Service Actions
+        if let serviceName = dict["service name"] ?? dict["service"] {
+            return ServiceAction(id: id, title: title, iconSymbol: iconSymbol, serviceName: serviceName)
+        }
+        
+        // 7. KeyCombo Actions
+        if let _ = dict["key combo"] ?? dict["key code"] {
+            return KeyComboAction(id: id, title: title, iconSymbol: iconSymbol, keyCode: 0x08, modifiers: [.maskCommand])
         }
         
         return nil
