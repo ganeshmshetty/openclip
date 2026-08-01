@@ -2,6 +2,24 @@ import SwiftUI
 import Core
 import KeyboardShortcuts
 
+enum PreferenceTab: String, CaseIterable, Hashable {
+    case general = "General"
+    case appearance = "Appearance"
+    case actions = "Actions"
+    case appRules = "App Rules"
+    case about = "About"
+    
+    var icon: String {
+        switch self {
+        case .general: return "gearshape"
+        case .appearance: return "paintpalette"
+        case .actions: return "bolt.fill"
+        case .appRules: return "macwindow.badge.gearshape"
+        case .about: return "info.circle"
+        }
+    }
+}
+
 @MainActor
 public struct PreferencesView: View {
     @AppStorage(Constants.startAtLoginKey) private var startAtLogin: Bool = false
@@ -10,59 +28,73 @@ public struct PreferencesView: View {
     @AppStorage(Constants.popupSizeKey) private var popupSize: String = "medium"
     
     @State private var disabledActionIDs: Set<String> = []
-    @State private var selectedTab = 0
+    @State private var selectedTab: PreferenceTab? = .general
 
     public init() {}
 
     public var body: some View {
-        HStack(spacing: 0) {
-            PreferencesSidebar(selectedTab: $selectedTab)
-            
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 0) {
-                // Header Title
-                Text(tabTitle(for: selectedTab))
-                    .font(.system(size: 18, weight: .bold))
-                    .padding(.horizontal, 24)
-                    .padding(.top, 20)
-                    .padding(.bottom, 14)
-                
-                Divider()
-                
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        switch selectedTab {
-                        case 0: GeneralTab()
-                        case 1: AppearanceTab(popupStyle: $popupStyle, theme: $theme, popupSize: $popupSize)
-                        case 2: ActionsTab(disabledActionIDs: $disabledActionIDs)
-                        case 3: AppRulesTab()
-                        case 4: AboutTab()
-                        default: EmptyView()
-                        }
+        NavigationSplitView {
+            List(selection: $selectedTab) {
+                ForEach(PreferenceTab.allCases, id: \.self) { tab in
+                    NavigationLink(value: tab) {
+                        Label(tab.rawValue, systemImage: tab.icon)
                     }
-                    .padding(24)
                 }
             }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 250)
+            .safeAreaInset(edge: .bottom) {
+                HStack(spacing: 16) {
+                    Button(action: {
+                        if let url = URL(string: "https://openclip.app/help") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 16))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Help Center")
+                    
+                    Button(action: {
+                        if let url = URL(string: "https://github.com/openclip-app/openclip") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        // GitHub doesn't have an SF Symbol, but curlybraces.square is a good developer alternative, or we can use curlybraces
+                        Image(systemName: "curlybraces.square")
+                            .font(.system(size: 16))
+                    }
+                    .buttonStyle(.plain)
+                    .help("GitHub Repository")
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+        } detail: {
+            Group {
+                switch selectedTab {
+                case .general: 
+                    GeneralTab()
+                case .appearance: 
+                    AppearanceTab(popupStyle: $popupStyle, theme: $theme, popupSize: $popupSize)
+                case .actions: 
+                    ActionsTab(disabledActionIDs: $disabledActionIDs)
+                case .appRules: 
+                    AppRulesTab()
+                case .about: 
+                    AboutTab()
+                case .none: 
+                    Text("Select a setting")
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
-        .frame(width: 740, height: 520)
-        .onAppear {
-            loadDisabledActionIDs()
-        }
-        .onChange(of: disabledActionIDs) { _, _ in
-            saveDisabledActionIDs()
-        }
-    }
-    
-    private func tabTitle(for tab: Int) -> String {
-        switch tab {
-        case 0: return "General"
-        case 1: return "Appearance"
-        case 2: return "Actions"
-        case 3: return "App Rules"
-        case 4: return "About OpenClip"
-        default: return "Settings"
-        }
+        .frame(minWidth: 600, minHeight: 400)
+        .onAppear { loadDisabledActionIDs() }
+        .onChange(of: disabledActionIDs) { _, _ in saveDisabledActionIDs() }
     }
     
     private func loadDisabledActionIDs() {
@@ -73,120 +105,6 @@ public struct PreferencesView: View {
     
     private func saveDisabledActionIDs() {
         UserDefaults.standard.set(Array(disabledActionIDs), forKey: Constants.disabledActionIDsKey)
-    }
-}
-
-// MARK: - Sidebar & Group Utilities
-
-@MainActor
-struct PreferencesSidebar: View {
-    @Binding var selectedTab: Int
-    
-    private let tabs: [(id: Int, title: String, icon: String)] = [
-        (0, "General", "gearshape"),
-        (1, "Appearance", "paintpalette"),
-        (2, "Actions", "bolt.fill"),
-        (3, "App Rules", "macwindow.badge.gearshape"),
-        (4, "About", "info.circle")
-    ]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(tabs, id: \.id) { tab in
-                Button {
-                    selectedTab = tab.id
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 14, weight: .medium))
-                            .frame(width: 20)
-                        Text(tab.title)
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer()
-                    }
-                    .foregroundColor(selectedTab == tab.id ? .white : .primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(selectedTab == tab.id ? Color.accentColor : Color.clear)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-            
-            Spacer()
-            
-            Divider()
-                .padding(.vertical, 6)
-            
-            // Icon-only Footer: Help (?) and GitHub
-            HStack(spacing: 14) {
-                Button {
-                    if let url = URL(string: "https://github.com/ganesh/openclip#readme") {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Image(systemName: "questionmark.circle")
-                        .font(.system(size: 16))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Help & Documentation")
-                
-                Button {
-                    if let url = URL(string: "https://github.com/ganesh/openclip") {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Image(systemName: "code")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Open GitHub Repository")
-            }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 6)
-        }
-        .padding(12)
-        .frame(width: 200)
-        .background(Color(nsColor: .windowBackgroundColor).opacity(0.5))
-    }
-}
-
-@MainActor
-struct SettingsGroupCard<Content: View>: View {
-    let title: String?
-    let content: Content
-    
-    init(title: String? = nil, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let title {
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .padding(.leading, 2)
-            }
-            
-            VStack(alignment: .leading, spacing: 0) {
-                content
-            }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-            )
-        }
     }
 }
 
@@ -278,31 +196,41 @@ struct AppearanceTab: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            SettingsGroupCard(title: "Live Popup Preview") {
-                VStack {
-                    PopupView(actions: mockActions, context: mockContext) { _ in }
-                        .scaleEffect(1.05)
-                        .padding(.vertical, 12)
-                }
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 24) {
+            // Live Preview Card
+            VStack(spacing: 12) {
+                Text("Live Popup Preview")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                PopupView(actions: mockActions, context: mockContext) { _ in }
+                    .scaleEffect(1.1)
+                    .padding(.vertical, 8)
             }
+            .frame(maxWidth: .infinity, minHeight: 140)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
             
-            SettingsGroupCard(title: "Theme & Aesthetics") {
-                HStack {
-                    Text("Popup Theme")
-                        .font(.body)
-                    Spacer()
-                    Picker("", selection: $theme) {
-                        Text("Glass").tag("glass")
-                        Text("Dark").tag("dark")
-                        Text("Light").tag("light")
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 220)
+            Form {
+                Picker("Theme Style", selection: $theme) {
+                    Text("Glass").tag("glass")
+                    Text("Dark").tag("dark")
+                    Text("Light").tag("light")
                 }
+                .pickerStyle(.segmented)
             }
+            .padding(.horizontal, 10)
+            
+            Spacer()
         }
+        .padding(24)
     }
 }
 
@@ -579,30 +507,28 @@ struct CustomActionBadge: View {
 @MainActor
 struct AboutTab: View {
     var body: some View {
-        VStack(spacing: 20) {
-            SettingsGroupCard {
-                VStack(spacing: 14) {
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable()
-                        .frame(width: 72, height: 72)
-                    
-                    VStack(spacing: 4) {
-                        Text("OpenClip")
-                            .font(.title2).bold()
-                        Text("Version 1.0.0 (Native)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Text("The open-source text selection action tool for macOS.")
-                        .font(.subheadline)
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 20)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+        VStack(spacing: 16) {
+            Spacer()
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 80, height: 80)
+            
+            VStack(spacing: 4) {
+                Text("OpenClip")
+                    .font(.title).bold()
+                Text("Version 1.0.0")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
             }
+            
+            Text("The open-source text selection action tool for macOS.")
+                .font(.body)
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 40)
+            
+            Spacer()
         }
+        .padding(20)
     }
 }
