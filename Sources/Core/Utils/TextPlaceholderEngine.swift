@@ -5,7 +5,7 @@ public struct TextPlaceholderEngine {
         let encodedText = urlEncode ? (text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text) : text
         var result = template
         
-        let placeholders = ["{text}", "{query}", "{popclip text}", "{openclip text}", "***", "%@"]
+        let placeholders = ["{text}", "{query}", "{popclip text}", "{openclip text}", "%@"]
         for placeholder in placeholders {
             result = result.replacingOccurrences(of: placeholder, with: encodedText)
         }
