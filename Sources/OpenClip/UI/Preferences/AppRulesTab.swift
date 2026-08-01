@@ -5,21 +5,47 @@ import Core
 @MainActor
 public struct AppRulesTab: View {
     @ObservedObject private var ruleEngine = RuleEngine.shared
-    @State private var showingAddAppPopover = false
+    @State private var showingAppPicker = false
     
     public init() {}
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Customize how OpenClip behaves in specific applications.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Application Rules")
+                        .font(.headline)
+                    Text("Disable OpenClip or tweak behavior for specific applications.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                
+                Button(action: {
+                    showingAppPicker = true
+                }) {
+                    Label("Add Application", systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
             
             List {
                 if ruleEngine.userRules.isEmpty {
-                    Text("No custom app rules. Click '+' to add one.")
-                        .foregroundColor(.secondary)
-                        .padding()
+                    VStack(spacing: 8) {
+                        Image(systemName: "app.badge.checkmark")
+                            .font(.system(size: 32))
+                            .foregroundColor(.secondary)
+                        Text("No App Rules Configured")
+                            .font(.headline)
+                        Text("OpenClip works in all applications by default. Click 'Add Application' to blacklist or tweak rules.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 30)
+                    .listRowBackground(Color.clear)
                 } else {
                     ForEach(ruleEngine.userRules) { rule in
                         AppRuleRowView(rule: rule) { updatedRule in
@@ -31,36 +57,16 @@ public struct AppRulesTab: View {
                 }
             }
             .listStyle(.inset)
-            .frame(minHeight: 250)
-            
-            HStack {
-                Button(action: {
-                    showingAddAppPopover = true
-                }, label: {
-                    Label("Add App", systemImage: "plus.circle")
-                })
-                .popover(isPresented: $showingAddAppPopover, arrowEdge: .bottom) {
-                    RunningAppsPicker { app in
-                        let newRule = AppRule(bundleIdentifiers: [app.bundleIdentifier ?? ""])
-                        RuleEngine.shared.addOrUpdateRule(newRule)
-                        showingAddAppPopover = false
-                    }
-                }
-                
-                Spacer()
-                
-                Button(action: {
-                    Task {
-                        await RuleEngine.shared.loadRules(from: Constants.rulesFileURL)
-                    }
-                }, label: {
-                    Label("Reload", systemImage: "arrow.clockwise")
-                })
-                .help("Reload rules from ~/.openclip/rules.json")
-            }
-            .padding(.horizontal, 10)
+            .scrollContentBackground(.hidden)
+            .frame(minHeight: 280)
         }
-        .padding(12)
+        .padding(14)
+        .sheet(isPresented: $showingAppPicker) {
+            AppPickerSheet { bundleID in
+                let newRule = AppRule(bundleIdentifiers: [bundleID])
+                RuleEngine.shared.addOrUpdateRule(newRule)
+            }
+        }
     }
 }
 
@@ -74,167 +80,181 @@ private struct AppRuleRowView: View {
         rule.bundleIdentifiers.first ?? "Unknown App"
     }
     
-    // Derived bindings for toggles
-    private var enableOpenClip: Binding<Bool> {
-        Binding(
-            get: { !(rule.denyProbe == true) },
-            set: { onUpdate(updateRule(denyProbe: !$0)) }
-        )
+    private var isAppDisabled: Bool {
+        rule.denyProbe == true
     }
     
-    private var allowFormatting: Binding<Bool> {
-        Binding(
-            get: { !(rule.denyFormatting == true) },
-            set: { onUpdate(updateRule(denyFormatting: !$0)) }
-        )
+    private var isFormattingDisabled: Bool {
+        rule.denyFormatting == true
     }
     
-    private var forceClipboard: Binding<Bool> {
-        Binding(
-            get: { rule.grabPasteboard == true },
-            set: { onUpdate(updateRule(grabPasteboard: $0)) }
-        )
+    private var isClipboardForced: Bool {
+        rule.grabPasteboard == true
     }
-    
-    private func updateRule(denyProbe: Bool? = nil, denyFormatting: Bool? = nil, grabPasteboard: Bool? = nil) -> AppRule {
-        let copy = rule
-        if let val = denyProbe { 
-            // If we deny probe, we also deny preprobe for complete disablement
-            let newRule = AppRule(bundleIdentifiers: rule.bundleIdentifiers, denyFormatting: rule.denyFormatting, denyProbe: val ? true : nil, denyPreprobe: val ? true : nil, grabPasteboard: rule.grabPasteboard, grabKeyboard: rule.grabKeyboard, browserAddressBar: rule.browserAddressBar, assumePaste: rule.assumePaste, lenientSelect: rule.lenientSelect)
-            return newRule
-        }
-        if let val = denyFormatting {
-            let newRule = AppRule(bundleIdentifiers: rule.bundleIdentifiers, denyFormatting: val ? true : nil, denyProbe: rule.denyProbe, denyPreprobe: rule.denyPreprobe, grabPasteboard: rule.grabPasteboard, grabKeyboard: rule.grabKeyboard, browserAddressBar: rule.browserAddressBar, assumePaste: rule.assumePaste, lenientSelect: rule.lenientSelect)
-            return newRule
-        }
-        if let val = grabPasteboard {
-            let newRule = AppRule(bundleIdentifiers: rule.bundleIdentifiers, denyFormatting: rule.denyFormatting, denyProbe: rule.denyProbe, denyPreprobe: rule.denyPreprobe, grabPasteboard: val ? true : nil, grabKeyboard: rule.grabKeyboard, browserAddressBar: rule.browserAddressBar, assumePaste: rule.assumePaste, lenientSelect: rule.lenientSelect)
-            return newRule
-        }
-        return copy
-    }
-    
-    @State private var isExpanded = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: 8) {
-                Button(action: {
-                    isExpanded.toggle()
-                }) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .medium))
+        HStack(alignment: .center, spacing: 10) {
+            // App Icon
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
+                    .resizable()
+                    .frame(width: 28, height: 28)
+            } else {
+                Image(systemName: bundleID.contains("*") ? "asterisk.circle" : "app.dashed")
+                    .font(.system(size: 24))
+                    .foregroundColor(.secondary)
+            }
+            
+            // App Title & Bundle ID
+            VStack(alignment: .leading, spacing: 1) {
+                if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
+                   let bundle = Bundle(url: appURL),
+                   let appName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String {
+                    Text(appName)
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(bundleID)
+                        .font(.system(size: 10))
                         .foregroundColor(.secondary)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .frame(width: 14, height: 14)
-                }
-                .buttonStyle(.plain)
-                
-                if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
-                        .resizable()
-                        .frame(width: 22, height: 22)
                 } else {
-                    Image(systemName: "app.dashed")
-                        .font(.system(size: 20))
+                    Text(bundleID)
+                        .font(.system(size: 13, weight: .semibold))
                 }
-                
-                VStack(alignment: .leading, spacing: 1) {
-                    if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
-                       let bundle = Bundle(url: appURL),
-                       let appName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String {
-                        Text(appName)
-                            .font(.system(size: 13, weight: .semibold))
-                        Text(bundleID)
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text(bundleID)
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                }
-                
-                Spacer()
-                
-                Button(action: onDelete) {
-                    Image(systemName: "trash")
+            }
+            
+            Spacer()
+            
+            // Status Badges
+            HStack(spacing: 4) {
+                if isAppDisabled {
+                    Text("Disabled")
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.red.opacity(0.15))
                         .foregroundColor(.red)
-                }
-                .buttonStyle(.plain)
-                .help("Remove Rule")
-            }
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                isExpanded.toggle()
-            }
-            
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Enable OpenClip in this app", isOn: enableOpenClip)
-                        .help("If disabled, OpenClip will ignore all text selections in this app.")
-                    
-                    Toggle("Show Formatting Actions", isOn: allowFormatting)
-                        .help("If disabled, actions like Bold or Markdown formatting are hidden. Useful for code editors.")
-                    
-                    Toggle("Force Clipboard Copy (Cmd+C)", isOn: forceClipboard)
-                        .help("Enable this for non-native apps (like Electron or Java) that do not support standard text accessibility.")
-                }
-                .padding(.leading, 44)
-                .padding(.top, 4)
-                .padding(.bottom, 8)
-                .transition(.identity)
-            }
-        }
-    }
-}
-
-@MainActor
-private struct RunningAppsPicker: View {
-    let onSelect: (NSRunningApplication) -> Void
-    @State private var searchText = ""
-    
-    var runningApps: [NSRunningApplication] {
-        NSWorkspace.shared.runningApplications
-            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil && $0.bundleIdentifier != "com.openclip.OpenClip" }
-            .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
-    }
-    
-    var filteredApps: [NSRunningApplication] {
-        if searchText.isEmpty { return runningApps }
-        return runningApps.filter { ($0.localizedName ?? "").localizedCaseInsensitiveContains(searchText) }
-    }
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Image(systemName: "magnifyingglass").foregroundColor(.secondary)
-                TextField("Search running apps...", text: $searchText)
-                    .textFieldStyle(.plain)
-            }
-            .padding(10)
-            
-            Divider()
-            
-            List(filteredApps, id: \.bundleIdentifier) { app in
-                Button {
-                    onSelect(app)
-                } label: {
-                    HStack {
-                        if let icon = app.icon {
-                            Image(nsImage: icon)
-                                .resizable()
-                                .frame(width: 20, height: 20)
-                        }
-                        Text(app.localizedName ?? app.bundleIdentifier ?? "Unknown")
-                        Spacer()
+                        .cornerRadius(4)
+                } else {
+                    if isFormattingDisabled {
+                        Text("No Formatting")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.15))
+                            .foregroundColor(.orange)
+                            .cornerRadius(4)
                     }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
+                    if isClipboardForced {
+                        Text("Cmd+C Mode")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.15))
+                            .foregroundColor(.blue)
+                            .cornerRadius(4)
+                    }
                 }
-                .buttonStyle(.plain)
             }
+            
+            // Quick Enable/Disable Toggle
+            Toggle("", isOn: Binding(
+                get: { !isAppDisabled },
+                set: { enabled in
+                    let newRule = AppRule(
+                        bundleIdentifiers: rule.bundleIdentifiers,
+                        denyFormatting: rule.denyFormatting,
+                        denyProbe: enabled ? nil : true,
+                        denyPreprobe: enabled ? nil : true,
+                        grabPasteboard: rule.grabPasteboard,
+                        grabKeyboard: rule.grabKeyboard,
+                        browserAddressBar: rule.browserAddressBar,
+                        assumePaste: rule.assumePaste,
+                        lenientSelect: rule.lenientSelect
+                    )
+                    onUpdate(newRule)
+                }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .help(isAppDisabled ? "Enable OpenClip in this app" : "Disable OpenClip in this app")
+            
+            // Three-Dots (...) Actions Menu
+            Menu {
+                Button {
+                    let newDisableState = !isAppDisabled
+                    let updated = AppRule(
+                        bundleIdentifiers: rule.bundleIdentifiers,
+                        denyFormatting: rule.denyFormatting,
+                        denyProbe: newDisableState ? true : nil,
+                        denyPreprobe: newDisableState ? true : nil,
+                        grabPasteboard: rule.grabPasteboard,
+                        grabKeyboard: rule.grabKeyboard,
+                        browserAddressBar: rule.browserAddressBar,
+                        assumePaste: rule.assumePaste,
+                        lenientSelect: rule.lenientSelect
+                    )
+                    onUpdate(updated)
+                } label: {
+                    Label(
+                        isAppDisabled ? "Enable OpenClip" : "Disable OpenClip",
+                        systemImage: isAppDisabled ? "checkmark.circle" : "slash.circle"
+                    )
+                }
+                
+                Button {
+                    let updated = AppRule(
+                        bundleIdentifiers: rule.bundleIdentifiers,
+                        denyFormatting: isFormattingDisabled ? nil : true,
+                        denyProbe: rule.denyProbe,
+                        denyPreprobe: rule.denyPreprobe,
+                        grabPasteboard: rule.grabPasteboard,
+                        grabKeyboard: rule.grabKeyboard,
+                        browserAddressBar: rule.browserAddressBar,
+                        assumePaste: rule.assumePaste,
+                        lenientSelect: rule.lenientSelect
+                    )
+                    onUpdate(updated)
+                } label: {
+                    Label(
+                        isFormattingDisabled ? "Enable Formatting Actions" : "Hide Formatting Actions",
+                        systemImage: "textformat"
+                    )
+                }
+                
+                Button {
+                    let updated = AppRule(
+                        bundleIdentifiers: rule.bundleIdentifiers,
+                        denyFormatting: rule.denyFormatting,
+                        denyProbe: rule.denyProbe,
+                        denyPreprobe: rule.denyPreprobe,
+                        grabPasteboard: isClipboardForced ? nil : true,
+                        grabKeyboard: rule.grabKeyboard,
+                        browserAddressBar: rule.browserAddressBar,
+                        assumePaste: rule.assumePaste,
+                        lenientSelect: rule.lenientSelect
+                    )
+                    onUpdate(updated)
+                } label: {
+                    Label(
+                        isClipboardForced ? "Use Accessibility Reading" : "Force Clipboard Copy (Cmd+C)",
+                        systemImage: "doc.on.clipboard"
+                    )
+                }
+                
+                Divider()
+                
+                Button(role: .destructive, action: onDelete) {
+                    Label("Remove Rule", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 15))
+                    .foregroundColor(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .frame(width: 20, height: 20)
+            .help("More Actions")
         }
-        .frame(width: 300, height: 350)
+        .padding(.vertical, 6)
     }
 }
