@@ -21,6 +21,8 @@ struct ActionConfigSheet: View {
                 PasteConfigView()
             } else if actionID == "builtin.calculate" {
                 CalculateConfigView()
+            } else if actionID == "builtin.define" {
+                DefineConfigView()
             } else {
                 Text("No configuration available for this action.")
                     .foregroundColor(.secondary)
@@ -115,6 +117,20 @@ private struct CalculateConfigView: View {
             Toggle("Use text label (=) instead of icon", isOn: $useText)
                 .font(.subheadline)
             Text("When enabled, the popup will show '=' instead of the equal circle icon.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+private struct DefineConfigView: View {
+    @AppStorage("action.define.useText") private var useText: Bool = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("Use text label ('Define') instead of icon", isOn: $useText)
+                .font(.subheadline)
+            Text("When enabled, the popup will show 'Define' instead of the book icon.")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }

@@ -41,7 +41,7 @@ public struct PopupView: View {
 
     public var body: some View {
         barContent
-            .padding(18)
+            .padding(12)
     }
 
     // MARK: - Unified Bar Container
@@ -129,19 +129,19 @@ public struct PopupView: View {
             }
         } label: {
             iconView(for: action.icon)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(isHovered ? .white : restForeground)
                 .padding(.horizontal, {
-                    if case .text = action.icon { return 8.0 }
+                    if case .text = action.icon { return 7.0 }
                     return 0.0
                 }())
-                .frame(minWidth: buttonWidth, minHeight: 32)
+                .frame(minWidth: buttonWidth, minHeight: 28)
                 .background(isHovered ? Color.accentColor : Color.clear)
                 .overlay(alignment: .trailing) {
                     if showDivider && !isHovered {
                         Rectangle()
                             .fill(dividerColor)
-                            .frame(width: 0.6, height: 32)
+                            .frame(width: 0.6, height: 28)
                     }
                 }
                 .contentShape(Rectangle())
@@ -163,7 +163,7 @@ public struct PopupView: View {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
-                .frame(width: chevronWidth, height: 32)
+                .frame(width: chevronWidth, height: 28)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

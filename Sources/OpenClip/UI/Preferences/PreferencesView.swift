@@ -355,7 +355,7 @@ struct ActionRowView: View {
     @State private var showingConfigSheet = false
     
     var isConfigurable: Bool {
-        ["builtin.search", "builtin.copy", "builtin.cut", "builtin.paste", "builtin.calculate"].contains(action.id)
+        ["builtin.search", "builtin.define", "builtin.copy", "builtin.cut", "builtin.paste", "builtin.calculate"].contains(action.id)
     }
     
     private var displayIcon: ActionIcon {
@@ -364,6 +364,7 @@ struct ActionRowView: View {
         case "builtin.cut": return .symbol("scissors")
         case "builtin.paste": return .symbol("clipboard")
         case "builtin.calculate": return .symbol("equal.circle")
+        case "builtin.define": return .symbol("book")
         default: return action.icon
         }
     }

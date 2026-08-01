@@ -31,6 +31,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         ActionRegistry.shared.register(builtIns: [
             SearchAction(),
+            DefineAction(),
             CopyAction(),
             CutAction(),
             PasteAction(),
