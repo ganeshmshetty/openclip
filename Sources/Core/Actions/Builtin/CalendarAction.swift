@@ -7,6 +7,18 @@ public struct CalendarAction: ConfigurableAction {
     public let configurationViewID = "builtin.calendar"
     public let preferenceIconName = "calendar.badge.plus"
 
+    public var actionOptions: [ExtensionOption] {
+        [
+            ExtensionOption(
+                identifier: "provider",
+                label: "Calendar Destination",
+                type: .multiple,
+                defaultValue: "native",
+                options: ["native", "google"]
+            )
+        ]
+    }
+
     public init() {}
 
     @MainActor

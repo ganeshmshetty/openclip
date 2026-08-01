@@ -18,10 +18,13 @@ public protocol Action: Sendable {
     
     @MainActor
     func perform(_ context: ActionContext) async throws -> ActionResult
+    
+    var actionOptions: [ExtensionOption] { get }
 }
 
 public extension Action {
     var isFormatting: Bool { false }
+    var actionOptions: [ExtensionOption] { [] }
     
     @MainActor
     var displayTitle: String {

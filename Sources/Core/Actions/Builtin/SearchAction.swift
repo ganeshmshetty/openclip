@@ -7,6 +7,17 @@ public struct SearchAction: ConfigurableAction {
     public let configurationViewID = "builtin.search"
     public let preferenceIconName = "magnifyingglass"
     
+    public var actionOptions: [ExtensionOption] {
+        [
+            ExtensionOption(
+                identifier: "url",
+                label: "Search Engine URL Template",
+                type: .string,
+                defaultValue: "https://www.google.com/search?q={query}"
+            )
+        ]
+    }
+    
     public init() {}
     
     @MainActor
