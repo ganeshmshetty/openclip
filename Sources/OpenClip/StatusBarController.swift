@@ -44,8 +44,9 @@ class StatusBarController {
         let controller = NSHostingController(rootView: PreferencesView())
         let window = NSWindow(contentViewController: controller)
         window.title = "OpenClip Preferences"
-        window.setContentSize(NSSize(width: 500, height: 400))
-        window.styleMask = [.titled, .closable, .resizable]
+        window.setContentSize(NSSize(width: 700, height: 500))
+        window.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
         window.center()
         self.preferencesWindow = window
         window.makeKeyAndOrderFront(nil)
