@@ -64,7 +64,8 @@ public final class ActionRegistry: ObservableObject, Sendable {
     }
     
     public func availableActions(for context: ActionContext) -> [any Action] {
-        let disabledIDs = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) ?? []
+        let defaultDisabled: [String] = ["builtin.transform"] + TransformCase.allCases.map { "builtin.transform.\($0.rawValue)" }
+        let disabledIDs = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) ?? defaultDisabled
         return actions.filter { action in
             if disabledIDs.contains(action.id) {
                 return false
