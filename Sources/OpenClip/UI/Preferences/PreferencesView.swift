@@ -594,7 +594,7 @@ struct ActionRowView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.red)
                 .help("Delete Custom Action")
-            } else if action is ScriptAction || action is URLTemplateAction {
+            } else if ExtensionManager.shared.loadedActions.contains(where: { $0.id == action.id }) {
                 Button(action: {
                     Task {
                         try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
