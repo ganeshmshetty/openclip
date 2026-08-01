@@ -13,21 +13,25 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     private let extensionManager = ExtensionManager.shared
     private var cancellables = Set<AnyCancellable>()
     
-    private init() {
+    public init() {
         registry.$actions
             .assign(to: &$actions)
     }
     
     public func loadInitialState() async {
+        // 1. Core builtins
         let coreBuiltins = BuiltinRegistry.makeCoreBuiltins()
         registry.register(builtIns: coreBuiltins)
         
+        // 2. Custom actions saved by user
+        CustomActionManager.shared.load()
+        for customAction in CustomActionManager.shared.customActions {
+            registry.register(action: customAction)
+        }
+        
+        // 3. Disk extensions & app rules
         await ruleEngine.loadRules(from: Constants.rulesFileURL)
         await extensionManager.loadExtensions()
-        
-        for action in extensionManager.loadedActions {
-            registry.register(action: action)
-        }
     }
     
     public func resolveActions(for context: ActionContext) -> [any Action] {
