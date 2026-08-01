@@ -196,15 +196,13 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(
-            HoverTrackingView { isHovering in
-                if isHovering {
-                    hoveredCompletionIndex = index
-                } else if hoveredCompletionIndex == index {
-                    hoveredCompletionIndex = nil
-                }
+        .onHover { isHovering in
+            if isHovering {
+                hoveredCompletionIndex = index
+            } else if hoveredCompletionIndex == index {
+                hoveredCompletionIndex = nil
             }
-        )
+        }
     }
 
     // MARK: - Unified Action Button
@@ -359,7 +357,8 @@ public struct PopupView: View {
     }
 }
 
-// MARK: - AppKit Native Hover Tracker for Non-Activating Window
+// MARK: - Native AppKit Hover Tracking View
+
 struct HoverTrackingView: NSViewRepresentable {
     let onHover: (Bool) -> Void
 
