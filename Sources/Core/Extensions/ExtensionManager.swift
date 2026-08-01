@@ -15,10 +15,15 @@ public struct ExtensionOptionMetadata: Sendable, Codable {
     
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.identifier = try container.decode(String.self, forKey: .identifier)
-        self.label = try container.decode(String.self, forKey: .label)
-        self.type = try container.decode(String.self, forKey: .type)
+        self.identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
+            ?? container.decodeIfPresent(String.self, forKey: .id)
+            ?? container.decode(String.self, forKey: .legacyIdentifier)
+        self.label = try container.decodeIfPresent(String.self, forKey: .label)
+            ?? container.decode(String.self, forKey: .legacyLabel)
+        self.type = try container.decodeIfPresent(String.self, forKey: .type)
+            ?? container.decode(String.self, forKey: .legacyType)
         self.defaultValue = try container.decodeIfPresent(String.self, forKey: .defaultValue)
+            ?? container.decodeIfPresent(String.self, forKey: .legacyDefaultValue)
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -31,9 +36,14 @@ public struct ExtensionOptionMetadata: Sendable, Codable {
     
     enum CodingKeys: String, CodingKey {
         case identifier = "identifier"
+        case id = "id"
+        case legacyIdentifier = "Identifier"
         case label = "label"
+        case legacyLabel = "Label"
         case type = "type"
+        case legacyType = "Type"
         case defaultValue = "default"
+        case legacyDefaultValue = "Default"
     }
 }
 
@@ -53,12 +63,14 @@ public struct ExtensionMetadata: Sendable, Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
+            ?? container.decodeIfPresent(String.self, forKey: .id)
             ?? container.decode(String.self, forKey: .legacyIdentifier)
         self.name = try container.decodeIfPresent(String.self, forKey: .name)
             ?? container.decode(String.self, forKey: .legacyName)
         self.actions = try container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .actions)
             ?? container.decode([ExtensionActionMetadata].self, forKey: .legacyActions)
         self.options = try container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .options)
+            ?? container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .legacyOptions)
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -70,13 +82,15 @@ public struct ExtensionMetadata: Sendable, Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case identifier = "id"
+        case identifier = "identifier"
+        case id = "id"
         case legacyIdentifier = "Identifier"
         case name = "name"
         case legacyName = "Name"
         case actions = "actions"
         case legacyActions = "Actions"
         case options = "options"
+        case legacyOptions = "Options"
     }
 }
 
