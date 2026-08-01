@@ -5,3 +5,6 @@ reference/
 .DS_Store
 xcuserdata/
 build/
+*.profraw
+*.log
+DerivedData/
