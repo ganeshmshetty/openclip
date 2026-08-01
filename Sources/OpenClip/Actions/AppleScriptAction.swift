@@ -52,7 +52,6 @@ public struct AppleScriptAction: ConfigurableAction {
         let fullScript = """
         set OPENCLIP_TEXT to "\(text)"
         set openclip_text to "\(text)"
-        set POPCLIP_TEXT to "\(text)"
         \(appleScriptCode)
         """
         

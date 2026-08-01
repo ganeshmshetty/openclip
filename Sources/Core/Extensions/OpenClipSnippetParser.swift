@@ -6,7 +6,7 @@ public struct OpenClipSnippetParser: Sendable {
         let lines = snippet.components(separatedBy: .newlines)
         let isHeaderPresent = lines.contains(where: { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces).lowercased()
-            return trimmed.hasPrefix("#openclip") || trimmed.hasPrefix("//openclip") || trimmed.hasPrefix("#popclip")
+            return trimmed.hasPrefix("#openclip") || trimmed.hasPrefix("//openclip")
         })
         guard isHeaderPresent else { return nil }
         

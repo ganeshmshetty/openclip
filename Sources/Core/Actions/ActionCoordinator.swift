@@ -25,9 +25,6 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         
         // 2. Custom actions saved by user
         CustomActionManager.shared.load()
-        for customAction in CustomActionManager.shared.customActions {
-            registry.register(action: customAction)
-        }
         
         // 3. Disk extensions & app rules
         await ruleEngine.loadRules(from: Constants.rulesFileURL)

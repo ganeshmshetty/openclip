@@ -47,7 +47,7 @@ final class ScriptActionExecutionTests: XCTestCase {
         let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("env_test_\(UUID().uuidString).sh")
         let scriptContent = """
         #!/bin/bash
-        if [ "$OPENCLIP_TEXT" = "SampleInput" ] && [ "$POPCLIP_TEXT" = "SampleInput" ]; then
+        if [ "$OPENCLIP_TEXT" = "SampleInput" ]; then
             echo "PASS_ENV"
         fi
         """

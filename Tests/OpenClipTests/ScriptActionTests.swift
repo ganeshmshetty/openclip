@@ -59,7 +59,7 @@ final class ScriptActionTests: XCTestCase {
         let scriptPath = tempDir.appendingPathComponent("env_script.sh")
         let scriptContent = """
         #!/bin/bash
-        if [ "$POPCLIP_TEXT" == "environment" ]; then
+        if [ "$OPENCLIP_TEXT" == "environment" ]; then
             echo '{"type":"copy","value":"success"}'
         fi
         """

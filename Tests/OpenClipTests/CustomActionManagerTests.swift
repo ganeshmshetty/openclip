@@ -67,7 +67,7 @@ final class CustomActionManagerTests: XCTestCase {
             id: "test_shell",
             title: "Shell",
             iconName: "terminal",
-            type: .shellScript(script: "echo -n \"$POPCLIP_TEXT received\"", replaceSelection: false)
+            type: .shellScript(script: "echo -n \"$OPENCLIP_TEXT received\"", replaceSelection: false)
         )
         
         let context = ActionContext(selection: SelectionContext(text: "Data", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default))

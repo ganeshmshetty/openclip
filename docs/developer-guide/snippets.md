@@ -28,7 +28,7 @@ identifier: com.example.quickaction
 | `url` | URL template (for URL actions) | `url: https://google.com/search?q={text}` |
 | `javascript` (or `js`) | Inline JavaScript code string | `javascript: selection.toUpperCase()` |
 | `applescript` | Inline AppleScript command | `applescript: display dialog selection` |
-| `shell script` (or `sh`) | Inline Shell script code | `sh: echo "$POPCLIP_TEXT" | tr '[:lower:]' '[:upper:]'` |
+| `shell script` (or `sh`) | Inline Shell script code | `sh: echo "$OPENCLIP_TEXT" | tr '[:lower:]' '[:upper:]'` |
 
 ---
 
@@ -60,7 +60,7 @@ identifier: com.example.quickaction
 #openclip
 # title: MD Code Block
 # icon: curlybraces
-# sh: printf "```\n%s\n```" "$POPCLIP_TEXT"
+# sh: printf "```\n%s\n```" "$OPENCLIP_TEXT"
 ```
 
 ### Example 4: URL Template Snippet (`.txt`)
@@ -78,7 +78,7 @@ url: https://github.com/search?q={text}
 
 The `OpenClipSnippetParser` inspects the top lines of any imported file:
 
-1. Looks for `#openclip`, `//openclip`, or `#popclip` magic headers.
+1. Looks for `#openclip` or `//openclip` magic headers.
 2. Extracts key-value pairs (`title:`, `icon:`, `url:`, `js:`, `applescript:`, `sh:`).
 3. Instantiates the corresponding Swift action object (`CustomAction`, `ScriptAction`, or `URLTemplateAction`).
 4. Registers the action instantly into `ActionRegistry`.

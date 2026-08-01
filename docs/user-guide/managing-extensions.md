@@ -8,7 +8,7 @@ OpenClip provides a flexible extension architecture allowing users to install, c
 
 OpenClip supports 3 extension distribution formats:
 
-1. **`.openclipext` Folders (or `.popclipext`):** A standard directory package containing a manifest (`openclip.json` or `Config.json`) and source files (`main.js`, `script.sh`, `main.applescript`).
+1. **`.openclipext` Folders:** A standard directory package containing a manifest (`openclip.json`) and source files (`main.js`, `script.sh`, `main.applescript`).
 2. **`.zip` Archives:** Compressed extension packages. OpenClip automatically unpacks and installs these into `~/.openclip/extensions`.
 3. **Standalone Script Snippets:** Single-file scripts (`.sh`, `.py`, `.js`, `.applescript`) containing `#openclip` or `//openclip` header metadata.
 
