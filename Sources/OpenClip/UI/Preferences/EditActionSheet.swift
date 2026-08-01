@@ -20,6 +20,7 @@ public struct EditActionSheet: View {
     @State private var customSnippetTemplate: String = "{text}"
     @State private var customShellScript: String = "echo $POPCLIP_TEXT"
     @State private var replaceSelection: Bool = true
+    @AppStorage("completionCopyToClipboard") private var completionCopyToClipboard: Bool = false
     
     private let popularSymbols = [
         "magnifyingglass", "doc.on.doc", "scissors", "folder",
@@ -133,6 +134,22 @@ public struct EditActionSheet: View {
                                 Text("Search Engine Configuration")
                                     .font(.headline)
                                 BuiltinSearchConfigView()
+                            }
+                        } else if action.id == "builtin.calendar" {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Calendar Destination Settings")
+                                    .font(.headline)
+                                BuiltinCalendarConfigView()
+                            }
+                        } else if action.id == "builtin.completion" {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Word Completion Settings")
+                                    .font(.headline)
+                                Toggle("Copy selected completions to clipboard", isOn: $completionCopyToClipboard)
+                                    .toggleStyle(.switch)
+                                Text("When enabled, selecting a completion word also saves it to your system clipboard.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
                         } else if let customAction = action as? CustomAction {
                             VStack(alignment: .leading, spacing: 12) {
@@ -339,6 +356,26 @@ private struct BuiltinSearchConfigView: View {
             } else {
                 selectedEngine = "Custom..."
             }
+        }
+    }
+}
+
+struct BuiltinCalendarConfigView: View {
+    @AppStorage("action.calendar.provider") private var calendarProvider: String = "native"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("Target Calendar", selection: $calendarProvider) {
+                Text("Native macOS Calendar App").tag("native")
+                Text("Google Calendar (Web Browser)").tag("google")
+            }
+            .pickerStyle(.menu)
+
+            Text(calendarProvider == "google"
+                 ? "Opens prefilled event creation in Google Calendar in your web browser."
+                 : "Opens native macOS Calendar app event creation dialog directly on your Mac.")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
 }

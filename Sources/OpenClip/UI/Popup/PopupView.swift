@@ -9,6 +9,13 @@ public struct PopupView: View {
     public let actions: [any Action]
     public let context: ActionContext
     public let onResult: @MainActor (ActionResult) -> Void
+    public let onContentSizeChange: (@MainActor (CGSize) -> Void)?
+    /// active=true when AI is running or showing result; cardAboveBar=true when the card should render above the bar
+    public let onAIStateChange: (@MainActor (Bool, Bool) -> Void)?
+    /// Called with (resultText, isError) when the AI result is ready to show in a separate overlay panel
+    public let onAIResult: (@MainActor (String, Bool) -> Void)?
+    /// Called when the AI overlay should be dismissed
+    public let onAIDismiss: (@MainActor () -> Void)?
 
     @AppStorage("popupTheme") private var selectedTheme: String = "system"
     @Environment(\.colorScheme) private var colorScheme
@@ -20,22 +27,44 @@ public struct PopupView: View {
         return selectedTheme
     }
     
+    @AppStorage("completionCopyToClipboard") private var completionCopyToClipboard: Bool = false
+    
     @State private var currentPage = 0
     @ObservedObject private var hoverState = PopupHoverState.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
     @State private var isShowingCompletions: Bool = true
     @State private var isShowingAIMode: Bool = false
-    @State private var aiResultText: String? = nil
+    @State private var aiOverlay: AIOverlayState? = nil
+    @State private var isProcessingAI: Bool = false
+    @State private var aiTask: Task<Void, Never>? = nil
+    /// Captured once when the popup appears — never re-read from mouse location to avoid jitter.
+    @State private var aiCardAboveBar: Bool = false
+    @State private var glowOffset: CGFloat = -1.0
 
     private let buttonWidth: CGFloat = 36
     private let chevronWidth: CGFloat = 26
     private let pageSize = 8
 
-    public init(actions: [any Action], context: ActionContext, onResult: @escaping @MainActor (ActionResult) -> Void) {
+
+    public init(
+        actions: [any Action],
+        context: ActionContext,
+        initialAICardAboveBar: Bool = false,
+        onResult: @escaping @MainActor (ActionResult) -> Void,
+        onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
+        onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
+        onAIResult: (@MainActor (String, Bool) -> Void)? = nil,
+        onAIDismiss: (@MainActor () -> Void)? = nil
+    ) {
         self.actions = actions
         self.context = context
         self.onResult = onResult
+        self.onContentSizeChange = onContentSizeChange
+        self.onAIStateChange = onAIStateChange
+        self.onAIResult = onAIResult
+        self.onAIDismiss = onAIDismiss
+        self._aiCardAboveBar = State(initialValue: initialAICardAboveBar)
     }
 
     private var availableCompletions: [String] {
@@ -80,12 +109,28 @@ public struct PopupView: View {
         barContent
             .padding(12)
             .coordinateSpace(name: "popupHoverSpace")
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .preference(key: PopupContentSizePreferenceKey.self, value: proxy.size)
+                }
+            )
             .onPreferenceChange(PopupHoverFramePreferenceKey.self) { frames in
                 hoverFrames = frames
                 updateHoveredTarget(for: hoverState.location)
             }
+            .onPreferenceChange(PopupContentSizePreferenceKey.self) { size in
+                guard size.width > 0, size.height > 0 else { return }
+                onContentSizeChange?(size)
+            }
             .onReceive(hoverState.$location) { location in
                 updateHoveredTarget(for: location)
+            }
+            .onChange(of: aiOverlay != nil || isProcessingAI) { active in
+                onAIStateChange?(active, aiCardAboveBar)
+            }
+            .onDisappear {
+                cancelAITask()
             }
     }
 
@@ -93,11 +138,25 @@ public struct PopupView: View {
 
     @ViewBuilder
     private var barContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Bar only — AI overlay lives in its own separate NSPanel managed by PopupWindowController
+        mainBarStyled
+    }
+
+
+    @ViewBuilder
+    private var mainBarStyled: some View {
+        let baseView = Group {
             if effectiveTheme == "glass" {
+                let glassBorderColor: Color = colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
+                
                 if #available(macOS 26, *) {
                     unifiedHStack
                         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(glassBorderColor, lineWidth: 1.0)
+                        )
+                        .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
                 } else {
                     unifiedHStack
                         .background(
@@ -107,7 +166,7 @@ public struct PopupView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
+                                .stroke(glassBorderColor, lineWidth: 1.0)
                         )
                         .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
                 }
@@ -121,24 +180,85 @@ public struct PopupView: View {
                     )
                     .shadow(color: .black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 10, x: 0, y: 4)
             }
-            
-            if let result = aiResultText {
-                AIResultOverlayView(
-                    resultText: result,
-                    onReplace: {
-                        onResult(.paste(result))
-                        aiResultText = nil
-                    },
-                    onCopy: {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(result, forType: .string)
-                        aiResultText = nil
-                    },
-                    onClose: {
-                        aiResultText = nil
-                    }
+        }
+
+        baseView.overlay(processingGlowBorder)
+    }
+
+    @ViewBuilder
+    private var processingGlowBorder: some View {
+        if isProcessingAI {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.clear,
+                            Color.blue.opacity(0.3),
+                            Color.blue,
+                            Color.cyan,
+                            Color.blue,
+                            Color.blue.opacity(0.3),
+                            Color.clear
+                        ],
+                        startPoint: UnitPoint(x: glowOffset, y: 0.5),
+                        endPoint: UnitPoint(x: glowOffset + 1.2, y: 0.5)
+                    ),
+                    lineWidth: 2.0
                 )
+                .shadow(color: Color.blue.opacity(0.8), radius: 6, x: 0, y: 0)
+                .onAppear {
+                    glowOffset = -1.0
+                    withAnimation(.linear(duration: 1.3).repeatForever(autoreverses: false)) {
+                        glowOffset = 1.0
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var aiSubCard: some View {
+        if isProcessingAI {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Working…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer(minLength: 0)
+                Button("Cancel") {
+                    cancelAITask()
+                }
+                .buttonStyle(.borderless)
+                .font(.caption)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(minWidth: 200)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+            )
+        } else if let overlay = aiOverlay {
+            AIResultOverlayView(
+                resultText: overlay.text,
+                isError: overlay.isError,
+                onReplace: {
+                    onResult(.paste(overlay.text))
+                    clearAIOverlay()
+                },
+                onCopy: {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(overlay.text, forType: .string)
+                    clearAIOverlay()
+                },
+                onClose: {
+                    clearAIOverlay()
+                }
+            )
         }
     }
 
@@ -160,42 +280,48 @@ public struct PopupView: View {
     private var aiHStack: some View {
         HStack(spacing: 0) {
             chevronButton(systemImage: "chevron.left") {
-                isShowingAIMode = false
+                exitAIMode()
             }
             
             let aiPresets = [
-                ("Fix", "Proofread and fix grammar"),
-                ("Summarize", "Summarize text"),
-                ("Translate", "Translate text to English"),
-                ("Explain", "Explain concept or code")
+                ("Proofread", "Fix spelling and grammar errors"),
+                ("Rewrite", "Rephrase and polish text"),
+                ("Summarize", "Summarize text into key points")
             ]
             
             ForEach(Array(aiPresets.enumerated()), id: \.offset) { index, preset in
                 let (title, prompt) = preset
                 let isLast = index == aiPresets.count - 1
+                let isHovered = hoveredTarget == .aiPreset(index)
+                
+                let restForeground: Color = {
+                    switch effectiveTheme {
+                    case "light": return .black.opacity(0.85)
+                    case "dark": return .white.opacity(0.90)
+                    default: return .primary
+                    }
+                }()
                 
                 Button(action: {
-                    Task {
-                        do {
-                            let provider = AIServiceManager.shared.currentProvider
-                            let response = try await provider.process(prompt: prompt, text: context.selection.text)
-                            if provider.type != .browser {
-                                aiResultText = response
-                            }
-                        } catch {
-                            aiResultText = "AI Error: \(error.localizedDescription)"
-                        }
-                    }
+                    runAIPreset(prompt: prompt)
                 }) {
                     Text(title)
                         .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(isHovered ? .white : restForeground)
                         .padding(.horizontal, 10)
                         .frame(minHeight: 28)
+                        .background(isHovered ? Color.accentColor : Color.clear)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .disabled(isProcessingAI)
+                .help(prompt)
+                .popupHoverTarget(.aiPreset(index))
+                .onHover { isHovering in
+                    useLocalHoverFallback(for: .aiPreset(index), isHovering: isHovering)
+                }
                 .overlay(alignment: .trailing) {
-                    if !isLast {
+                    if !isLast && !isHovered {
                         Rectangle()
                             .fill(Color.primary.opacity(0.12))
                             .frame(width: 0.6, height: 28)
@@ -205,6 +331,60 @@ public struct PopupView: View {
         }
         .fixedSize()
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .opacity(isProcessingAI ? 0.7 : 1.0)
+    }
+
+    // MARK: - AI Helpers
+
+    private func runAIPreset(prompt: String) {
+        cancelAITask()
+        onAIDismiss?()
+
+        let selectionText = context.selection.text
+        aiTask = Task { @MainActor in
+            isProcessingAI = true
+            defer {
+                if !Task.isCancelled {
+                    isProcessingAI = false
+                }
+            }
+
+            do {
+                let provider = AIServiceManager.shared.currentProvider
+                let response = try await provider.process(prompt: prompt, text: selectionText)
+                guard !Task.isCancelled else { return }
+
+                if provider.type == .browser || response.isEmpty {
+                    if response.isEmpty { onResult(.success) }
+                } else {
+                    onAIResult?(response, false)
+                }
+            } catch is CancellationError {
+                // no-op
+            } catch let error as AIError where error == .cancelled {
+                // no-op
+            } catch {
+                guard !Task.isCancelled else { return }
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                onAIResult?(message, true)
+            }
+        }
+    }
+
+    private func exitAIMode() {
+        cancelAITask()
+        isShowingAIMode = false
+        onAIDismiss?()
+    }
+
+    private func cancelAITask() {
+        aiTask?.cancel()
+        aiTask = nil
+        isProcessingAI = false
+    }
+
+    private func clearAIOverlay() {
+        onAIDismiss?()
     }
 
     // MARK: - Completion Mode Bar Layout
@@ -250,17 +430,23 @@ public struct PopupView: View {
 
             // Sparkles AI Button (if enabled)
             if AIServiceManager.shared.isAIEnabled {
+                let isHovered = hoveredTarget == .sparkles
                 Button(action: {
                     isShowingAIMode = true
                 }) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(isHovered ? .white : .accentColor)
                         .frame(width: buttonWidth, height: 28)
+                        .background(isHovered ? Color.accentColor : Color.clear)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Open AI Tools")
+                .popupHoverTarget(.sparkles)
+                .onHover { isHovering in
+                    useLocalHoverFallback(for: .sparkles, isHovering: isHovering)
+                }
             }
 
             if !hasCompletions && hasRightChevron {
@@ -513,6 +699,13 @@ private enum PopupHoverTarget: Hashable {
     case action(Int)
     case completion(Int)
     case chevron
+    case sparkles
+    case aiPreset(Int)
+}
+
+private struct AIOverlayState: Equatable {
+    let text: String
+    let isError: Bool
 }
 
 private struct PopupHoverFramePreferenceKey: PreferenceKey {
@@ -520,6 +713,14 @@ private struct PopupHoverFramePreferenceKey: PreferenceKey {
 
     static func reduce(value: inout [PopupHoverTarget: CGRect], nextValue: () -> [PopupHoverTarget: CGRect]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private struct PopupContentSizePreferenceKey: PreferenceKey {
+    static let defaultValue: CGSize = .zero
+
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
     }
 }
 

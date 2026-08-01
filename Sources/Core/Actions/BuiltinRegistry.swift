@@ -7,6 +7,7 @@ public enum BuiltinRegistry {
         var actions: [any Action] = [
             SearchAction(),
             DefineAction(),
+            CalendarAction(),
             CopyAction(),
             CutAction(),
             PasteAction(),

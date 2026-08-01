@@ -5,6 +5,7 @@ import Core
 @MainActor
 public class PopupWindowController {
     private var panel: PopupPanel?
+    private var aiPanel: PopupPanel?
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var currentContext: SelectionContext?
@@ -15,7 +16,6 @@ public class PopupWindowController {
     
     public func show(for context: SelectionContext) {
         isMenuTracking = false
-        // If the context is different, or it's a new selection, we show it
         currentContext = context
         
         var modifiers: ModifierFlags = []
@@ -30,38 +30,142 @@ public class PopupWindowController {
         
         let panel = self.panel ?? PopupPanel()
         self.panel = panel
-        
-        let rootView = PopupView(actions: availableActions, context: actionContext) { [weak self] result in
-            if case .showServices = result {
-                self?.handleResult(result)
-            } else {
-                self?.handleResult(result)
-                self?.hide()
-            }
-        }
-        panel.contentView = NSHostingView(rootView: rootView)
-        
-        // Force a layout pass so fittingSize reflects actual content
-        panel.contentView?.layoutSubtreeIfNeeded()
-        var size = panel.contentView?.fittingSize ?? CGSize(width: 300, height: 54)
-        if size.width < 100 { size.width = 300 }
-        if size.height < 30 { size.height = 54 }
+
+        // Pre-compute card direction from real screen position
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+        let tempFrame = PopupPositioner.calculateFrame(
+            for: context, popupSize: CGSize(width: 320, height: 54), in: screenBounds)
+        let cardAbove = tempFrame.minY < screenBounds.minY + 280
+
+        let rootView = PopupView(
+            actions: availableActions,
+            context: actionContext,
+            initialAICardAboveBar: cardAbove,
+            onResult: { [weak self] result in
+                if case .showServices = result {
+                    self?.handleResult(result)
+                } else {
+                    self?.handleResult(result)
+                    self?.hide()
+                }
+            },
+            onContentSizeChange: { [weak self] size in
+                self?.resizePanel(to: size)
+            },
+            onAIStateChange: { [weak self] active, _ in
+                self?.isAIOverlayActive = active
+                // AI panel is dismissed only by explicit user actions (close/copy/replace) or hide()
+            },
+            onAIResult: { [weak self] text, isError in
+                self?.showAIPanel(text: text, isError: isError, cardAbove: cardAbove)
+            },
+            onAIDismiss: { [weak self] in
+                self?.hideAIPanel()
+            }
+        )
+        panel.contentView = NSHostingView(rootView: rootView)
         
+        panel.contentView?.layoutSubtreeIfNeeded()
+        let size = sanitizedPopupSize(panel.contentView?.fittingSize)
+        positionPanel(panel, size: size, for: context)
+        panel.makeKeyAndOrderFront(nil)
+        
+        setupMonitors()
+    }
+
+    // MARK: - AI Overlay Panel
+
+    private func showAIPanel(text: String, isError: Bool, cardAbove: Bool) {
+        guard let panel else { return }
+
+        hideAIPanel()
+        let ap = PopupPanel()
+        self.aiPanel = ap
+
+        let aiView = AIResultOverlayView(
+            resultText: text,
+            isError: isError,
+            onReplace: { [weak self] in
+                self?.handleResult(.paste(text))
+                self?.hide()
+            },
+            onCopy: { [weak self] in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                self?.hideAIPanel()
+            },
+            onClose: { [weak self] in
+                self?.hideAIPanel()
+            }
+        )
+        ap.contentView = NSHostingView(rootView: aiView)
+        ap.contentView?.layoutSubtreeIfNeeded()
+
+        let aiSize = sanitizedAISize(ap.contentView?.fittingSize)
+        let gap: CGFloat = 8
+        let barFrame = panel.frame
+
+        let x = barFrame.origin.x
+        let y: CGFloat
+        if cardAbove {
+            // Place card ABOVE bar — position its bottom edge just above bar's top
+            y = barFrame.maxY + gap
+        } else {
+            // Place card BELOW bar — position its top edge just below bar's bottom
+            y = barFrame.minY - aiSize.height - gap
+        }
+
+        ap.setFrame(CGRect(x: x, y: y, width: max(aiSize.width, barFrame.width), height: aiSize.height), display: true)
+        ap.makeKeyAndOrderFront(nil)
+    }
+
+    private func hideAIPanel() {
+        aiPanel?.orderOut(nil)
+        aiPanel = nil
+    }
+
+    private func sanitizedAISize(_ raw: CGSize?) -> CGSize {
+        var s = raw ?? CGSize(width: 320, height: 150)
+        if s.width < 200 { s.width = 320 }
+        if s.height < 60 { s.height = 150 }
+        return s
+    }
+
+
+    /// Resize the bar-only panel, keeping the bar's top (maxY) fixed so it doesn't jump.
+    private func resizePanel(to proposedSize: CGSize) {
+        guard let panel, panel.isVisible else { return }
+        let size = sanitizedPopupSize(proposedSize)
+        let current = panel.frame.size
+        if abs(current.width - size.width) < 1, abs(current.height - size.height) < 1 { return }
+        // Bar-only panel: keep maxY fixed, resize downward (though height rarely changes now)
+        let newOriginY = panel.frame.maxY - size.height
+        panel.setFrame(CGRect(x: panel.frame.origin.x, y: newOriginY,
+                              width: size.width, height: size.height), display: true)
+    }
+
+    private func sanitizedPopupSize(_ raw: CGSize?) -> CGSize {
+        var size = raw ?? CGSize(width: 300, height: 54)
+        if size.width < 100 { size.width = 300 }
+        if size.height < 30 { size.height = 54 }
+        return size
+    }
+
+    private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext) {
+        let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
+        let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let frame = PopupPositioner.calculateFrame(
             for: context,
             popupSize: size,
             in: screenBounds
         )
-        
         panel.setFrame(frame, display: true)
-        panel.makeKeyAndOrderFront(nil)
-        
-        setupMonitors()
     }
     
     public func hide() {
+        isAIOverlayActive = false
+        hideAIPanel()
         panel?.orderOut(nil)
         removeMonitors()
         currentContext = nil
@@ -112,31 +216,36 @@ public class PopupWindowController {
         NotificationCenter.default.removeObserver(self)
     }
     
+    private var isAIOverlayActive: Bool = false
+    private var aiCardAboveBar: Bool = false
+
     private func handleEvent(_ event: NSEvent) {
         if isMenuTracking { return }
         
         switch event.type {
         case .mouseMoved:
             updatePopupHover(at: NSEvent.mouseLocation)
-            if let panel = panel {
-                let currentCursor = NSEvent.mouseLocation
+            let cursorLoc = NSEvent.mouseLocation
+            // Only auto-dismiss by distance if AI overlay is not showing
+            if aiPanel == nil, let panel = panel {
                 let frame = panel.frame
-                let dx = max(0, max(frame.minX - currentCursor.x, currentCursor.x - frame.maxX))
-                let dy = max(0, max(frame.minY - currentCursor.y, currentCursor.y - frame.maxY))
-                let distance = hypot(dx, dy)
-                if distance > Constants.popupDismissalDistance {
+                let dx = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
+                let dy = max(0, max(frame.minY - cursorLoc.y, cursorLoc.y - frame.maxY))
+                if hypot(dx, dy) > Constants.popupDismissalDistance {
                     hide()
                 }
             }
         case .leftMouseDown:
-            if let panel = panel {
-                let clickLocation = NSEvent.mouseLocation
-                if !panel.frame.contains(clickLocation) {
-                    hide()
-                }
+            let clickLoc = NSEvent.mouseLocation
+            let inBar = panel?.frame.contains(clickLoc) ?? false
+            let inAI = aiPanel?.frame.contains(clickLoc) ?? false
+            if !inBar && !inAI {
+                hide()
             }
         case .scrollWheel:
-            hide()
+            if aiPanel == nil {
+                hide()
+            }
         case .keyDown:
             if event.keyCode == 53 { // Escape
                 hide()
@@ -192,12 +301,45 @@ public class PopupWindowController {
             pasteboard.setString(text, forType: .string)
         case .paste(let text):
             let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
-            simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
+            let copyToClipboard = UserDefaults.standard.bool(forKey: "completionCopyToClipboard")
+            
+            if copyToClipboard {
+                pasteboard.clearContents()
+                pasteboard.setString(text, forType: .string)
+                simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
+            } else {
+                let savedItems = backupPasteboard(pasteboard)
+                pasteboard.clearContents()
+                pasteboard.setString(text, forType: .string)
+                simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
+                
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 100 ms delay for target app to read paste
+                    self.restorePasteboard(pasteboard, items: savedItems)
+                }
+            }
         case .success, .failure, .none:
             break
         }
+    }
+    
+    private func backupPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem] {
+        guard let items = pasteboard.pasteboardItems else { return [] }
+        return items.compactMap { item -> NSPasteboardItem? in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) {
+                    copy.setData(data, forType: type)
+                }
+            }
+            return copy.types.isEmpty ? nil : copy
+        }
+    }
+
+    private func restorePasteboard(_ pasteboard: NSPasteboard, items: [NSPasteboardItem]) {
+        pasteboard.clearContents()
+        guard !items.isEmpty else { return }
+        pasteboard.writeObjects(items)
     }
     
     private func simulateKeyShortcut(keyCode: CGKeyCode, modifier: CGEventFlags) {
