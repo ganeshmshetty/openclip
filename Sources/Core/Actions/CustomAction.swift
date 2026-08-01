@@ -33,14 +33,14 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
         let text = context.selection.text
         switch type {
         case .webSearch(let urlTemplate):
-            if let encodedText = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-               let url = URL(string: urlTemplate.replacingOccurrences(of: "{text}", with: encodedText)) {
+            let urlString = TextPlaceholderEngine.replacePlaceholders(in: urlTemplate, with: text, urlEncode: true)
+            if let url = URL(string: urlString) {
                 return .openURL(url)
             }
             return .none
             
         case .textSnippet(let template):
-            let formatted = template.replacingOccurrences(of: "{text}", with: text)
+            let formatted = TextPlaceholderEngine.replacePlaceholders(in: template, with: text, urlEncode: false)
             return .paste(formatted) // mapped from replaceSelection(formatted)
             
         case .shellScript(let script, let replaceSelection):
