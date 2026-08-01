@@ -18,8 +18,8 @@ export interface ExtensionsPageResponse {
   totalCount: number;
 }
 
-const REPO = 'openclip-app/openclip';
-const BRANCH = 'master';
+const REPO = 'ganeshmshetty/openclip';
+const BRANCH = 'main';
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/Extensions`;
 const API_TREE_URL = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
 
