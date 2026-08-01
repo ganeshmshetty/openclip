@@ -18,9 +18,9 @@ public struct DefineAction: Action {
         // Length check: 1 to 40 characters
         guard !text.isEmpty && text.count <= 40 else { return false }
         
-        // Word count check: max 3 words
+        // Word count check: strictly 1 word
         let words = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
-        guard !words.isEmpty && words.count <= 3 else { return false }
+        guard words.count == 1 else { return false }
         
         // Must contain letters
         guard text.rangeOfCharacter(from: .letters) != nil else { return false }

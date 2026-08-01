@@ -16,12 +16,12 @@ final class DefineActionTests: XCTestCase {
         )
         XCTAssertTrue(action.isEnabled(for: wordContext), "DefineAction should be enabled for single words")
         
-        // Short phrase (2 words) -> Enabled
+        // Multi-word phrase -> Disabled
         let phraseContext = ActionContext(
             selection: SelectionContext(text: "quantum physics", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
             modifiers: []
         )
-        XCTAssertTrue(action.isEnabled(for: phraseContext), "DefineAction should be enabled for short phrases")
+        XCTAssertFalse(action.isEnabled(for: phraseContext), "DefineAction should be disabled for multi-word phrases")
         
         // Math formula -> Disabled
         let mathContext = ActionContext(
