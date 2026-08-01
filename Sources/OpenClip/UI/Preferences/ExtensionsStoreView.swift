@@ -105,11 +105,13 @@ public struct ExtensionsStoreView: View {
 struct ExtensionCardView: View {
     let item: ExtensionItem
     @State private var isInstalling = false
-    
+    @State private var installError: String? = nil
+    @State private var showSuccess = false
+
     var isInstalled: Bool {
         ActionRegistry.shared.actions.contains { $0.id.contains(item.id) }
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -125,25 +127,44 @@ struct ExtensionCardView: View {
                 .font(.caption)
                 .lineLimit(2)
                 .foregroundColor(.secondary)
-            
+
+            if let err = installError {
+                Text("⚠︎ \(err)")
+                    .font(.caption2)
+                    .foregroundColor(.red)
+                    .lineLimit(2)
+            }
+
             HStack {
-                Text("⬇ \(item.downloadCount)")
+                Text(item.downloadCount > 0 ? "⬇ \(item.downloadCount)" : "New")
                     .font(.caption2)
                     .foregroundColor(.secondary)
                 Spacer()
-                
-                if isInstalled {
+
+                if showSuccess {
+                    Text("Installed ✓")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                } else if isInstalled {
                     Text("Installed ✓")
                         .font(.caption)
                         .foregroundColor(.green)
                 } else {
                     Button(isInstalling ? "Installing..." : "Install") {
-                        if let url = URL(string: item.downloadURL) {
-                            isInstalling = true
-                            Task {
-                                _ = try? await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
-                                isInstalling = false
+                        guard let url = URL(string: item.downloadURL) else {
+                            installError = "Invalid download URL."
+                            return
+                        }
+                        isInstalling = true
+                        installError = nil
+                        Task {
+                            do {
+                                _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
+                                showSuccess = true
+                            } catch {
+                                installError = error.localizedDescription
                             }
+                            isInstalling = false
                         }
                     }
                     .buttonStyle(.borderedProminent)
