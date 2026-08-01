@@ -47,8 +47,8 @@ public struct JavaScriptAction: ConfigurableAction {
         var openURLResult: URL?
         var pasteTextResult: String?
         
-        // Expose popclip JS bridge object
-        let popclipBridge: @convention(block) () -> [String: Any] = {
+        // Expose native openclip JS bridge object
+        let openclipBridge: @convention(block) () -> [String: Any] = {
             return [
                 "input": ["text": text],
                 "options": optionsDict
@@ -65,17 +65,18 @@ public struct JavaScriptAction: ConfigurableAction {
             pasteTextResult = textString
         }
         
-        jsContext.setObject(popclipBridge(), forKeyedSubscript: "popclip" as NSString)
-        jsContext.evaluateScript("popclip.openUrl = function(u) { _openUrl(u); };")
-        jsContext.evaluateScript("popclip.pasteText = function(t) { _pasteText(t); };")
+        jsContext.setObject(openclipBridge(), forKeyedSubscript: "openclip" as NSString)
+        jsContext.evaluateScript("openclip.openUrl = function(u) { _openUrl(u); };")
+        jsContext.evaluateScript("openclip.openURL = function(u) { _openUrl(u); };")
+        jsContext.evaluateScript("openclip.pasteText = function(t) { _pasteText(t); };")
         jsContext.setObject(openUrlBlock, forKeyedSubscript: "_openUrl" as NSString)
         jsContext.setObject(pasteTextBlock, forKeyedSubscript: "_pasteText" as NSString)
         
         // Execute JS script
         let wrappedScript = """
         (function() {
-            var selection = popclip.input.text;
-            var options = popclip.options;
+            var selection = openclip.input.text;
+            var options = openclip.options;
             \(scriptCode)
             if (typeof action === 'function') {
                 return action(selection, options);
