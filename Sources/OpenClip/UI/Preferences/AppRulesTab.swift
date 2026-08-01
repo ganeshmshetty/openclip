@@ -220,7 +220,8 @@ private struct AppRuleRowView: View {
                     .foregroundColor(.secondary)
             }
             .menuStyle(.borderlessButton)
-            .frame(width: 20, height: 20)
+            .menuIndicator(.hidden)
+            .fixedSize()
             .help("More Actions")
         }
         .padding(.vertical, 6)
