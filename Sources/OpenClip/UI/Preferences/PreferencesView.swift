@@ -437,13 +437,19 @@ struct ActionsTab: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
         panel.canChooseFiles = true
-        panel.allowedContentTypes = [.folder, .zip, .shellScript, .pythonScript, .plainText]
+        panel.treatsFilePackagesAsDirectories = false
         
         panel.begin { response in
             if response == .OK, let selectedURL = panel.url {
                 Task {
                     do {
                         _ = try await ExtensionManager.shared.installExtension(from: selectedURL)
+                        // Trigger UI update
+                        await MainActor.run {
+                            if let firstAction = ActionRegistry.shared.actions.first {
+                                ActionRegistry.shared.register(action: firstAction)
+                            }
+                        }
                     } catch {
                         print("Failed to install extension: \(error)")
                     }
