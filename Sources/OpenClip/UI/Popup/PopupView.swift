@@ -38,11 +38,12 @@ public struct PopupView: View {
     private var inCompletionMode: Bool { hasCompletions && isShowingCompletions }
 
     private var pagedActions: [any Action] {
-        guard actions.count > pageSize else { return actions }
+        let filtered = actions.filter { $0.id != "builtin.completion" }
+        guard filtered.count > pageSize else { return filtered }
         let start = currentPage * pageSize
-        let end = min(start + pageSize, actions.count)
-        guard start < actions.count else { return Array(actions.prefix(pageSize)) }
-        return Array(actions[start..<end])
+        let end = min(start + pageSize, filtered.count)
+        guard start < filtered.count else { return Array(filtered.prefix(pageSize)) }
+        return Array(filtered[start..<end])
     }
 
     private var totalPages: Int {
