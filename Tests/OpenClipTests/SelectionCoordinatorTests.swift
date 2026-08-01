@@ -49,4 +49,22 @@ final class SelectionCoordinatorTests: XCTestCase {
         mockMonitor.onSelection?(sampleContext)
         XCTAssertEqual(receivedContext?.text, "Selected text")
     }
+    
+    func testSelectionCoordinatorHandlesNilCallbacksGracefully() {
+        let mockMonitor = MockMonitor()
+        let coordinator = SelectionCoordinator(monitor: mockMonitor)
+        coordinator.start()
+        
+        let app = MockApp(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")
+        let sampleContext = SelectionContext(
+            text: "Sample",
+            sourceApp: app,
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        
+        mockMonitor.onSelection?(sampleContext)
+        XCTAssertEqual(coordinator.currentSelection?.text, "Sample")
+    }
 }

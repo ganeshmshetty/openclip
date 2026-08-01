@@ -7,7 +7,7 @@ import Core
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
-    private var selectionMonitor: (any SelectionMonitoring)?
+    private var selectionCoordinator: SelectionCoordinator?
     private var popupController: PopupWindowController?
 
     private var onboardingWindowController: OnboardingWindowController?
@@ -36,13 +36,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ActionCoordinator.shared.register(action: ServicesAction())
         }
         
-        // Setup selection monitor
+        // Setup selection coordinator
         let retriever = MacTextRetriever()
-        let monitor = MacSelectionMonitor(retriever: retriever)
-        monitor.onSelection = { [weak self] context in
+        let macMonitor = MacSelectionMonitor(retriever: retriever)
+        let coordinator = SelectionCoordinator(monitor: macMonitor)
+        coordinator.onSelection = { [weak self] context in
             self?.popupController?.show(for: context)
         }
-        selectionMonitor = monitor
+        selectionCoordinator = coordinator
         
         let isGranted = PermissionManager.shared.isAccessibilityGranted
         let completedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
@@ -50,13 +51,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !isGranted || !completedOnboarding {
             showOnboarding()
         } else {
-            selectionMonitor?.start()
+            selectionCoordinator?.start()
         }
     }
     
     private func showOnboarding() {
         onboardingWindowController = OnboardingWindowController { [weak self] in
-            self?.selectionMonitor?.start()
+            self?.selectionCoordinator?.start()
             self?.statusBarController?.showPreferences()
         }
         onboardingWindowController?.showWindow(nil)
