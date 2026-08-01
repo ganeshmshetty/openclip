@@ -1,6 +1,0 @@
-{
-  "id": "com.openclip.extension.applemusic",
-  "name": "Play in Music App",
-  "icon": "play.circle.fill",
-  "script": "main.applescript"
-}
