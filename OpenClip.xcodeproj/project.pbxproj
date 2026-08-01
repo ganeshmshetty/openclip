@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		108641559FD445AB95835188 /* RemoteExtensionInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF3CBD71154649068A4E4B4B /* RemoteExtensionInstallerTests.swift */; };
+		B25A3896477A4A6C8AC5006E /* RemoteExtensionInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16384BD97AD3479D95A53122 /* RemoteExtensionInstaller.swift */; };
 		988D1826DA0C4D6BBC9F9D4B /* ExtensionsAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CFC722AD65E4BD3ADE70987 /* ExtensionsAPITests.swift */; };
 		D5FA0BDFD93945B08EAF0ADD /* ExtensionsAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DC97A0BF14E435785CC891E /* ExtensionsAPIClient.swift */; };
 		53D301C78B92461BA2650EDA /* ExtensionsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C42C2537CB55449AB2AAC72E /* ExtensionsModels.swift */; };
@@ -159,6 +161,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AF3CBD71154649068A4E4B4B /* RemoteExtensionInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteExtensionInstallerTests.swift; sourceTree = "<group>"; };
+		16384BD97AD3479D95A53122 /* RemoteExtensionInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteExtensionInstaller.swift; sourceTree = "<group>"; };
 		9CFC722AD65E4BD3ADE70987 /* ExtensionsAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsAPITests.swift; sourceTree = "<group>"; };
 		2DC97A0BF14E435785CC891E /* ExtensionsAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsAPIClient.swift; sourceTree = "<group>"; };
 		C42C2537CB55449AB2AAC72E /* ExtensionsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsModels.swift; sourceTree = "<group>"; };
@@ -306,6 +310,7 @@
 		0A2AE4010C5A2D86AD53D563 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				16384BD97AD3479D95A53122 /* RemoteExtensionInstaller.swift */,
 				2DC97A0BF14E435785CC891E /* ExtensionsAPIClient.swift */,
 				C42C2537CB55449AB2AAC72E /* ExtensionsModels.swift */,
 				144C3E1D049146AFA7AD09AE /* MarketplaceAPIClient.swift */,
@@ -540,6 +545,7 @@
 		E5550E18E26D2F31A7B43491 /* OpenClipTests */ = {
 			isa = PBXGroup;
 			children = (
+				AF3CBD71154649068A4E4B4B /* RemoteExtensionInstallerTests.swift */,
 				9CFC722AD65E4BD3ADE70987 /* ExtensionsAPITests.swift */,
 				8860217C3C0E493A9D012AA0 /* MarketplaceAPITests.swift */,
 				15F2DA7AE2DE334E1A769A2E /* ActionCoordinatorStartupTests.swift */,
@@ -692,6 +698,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				108641559FD445AB95835188 /* RemoteExtensionInstallerTests.swift in Sources */,
+				B25A3896477A4A6C8AC5006E /* RemoteExtensionInstaller.swift in Sources */,
 				988D1826DA0C4D6BBC9F9D4B /* ExtensionsAPITests.swift in Sources */,
 				D5FA0BDFD93945B08EAF0ADD /* ExtensionsAPIClient.swift in Sources */,
 				53D301C78B92461BA2650EDA /* ExtensionsModels.swift in Sources */,
