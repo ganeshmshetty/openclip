@@ -13,6 +13,8 @@ public struct PopupView: View {
     @AppStorage("popupTheme") private var selectedTheme: String = "glass"
     @State private var currentPage = 0
     @State private var hoveredIndex: Int? = nil
+    @State private var hoveredCompletionIndex: Int? = nil
+    @State private var isShowingCompletions: Bool = true
 
     private let buttonWidth: CGFloat = 36
     private let chevronWidth: CGFloat = 26
@@ -23,6 +25,17 @@ public struct PopupView: View {
         self.context = context
         self.onResult = onResult
     }
+
+    private var availableCompletions: [String] {
+        let isCompletionEnabled = actions.contains { $0.id == "builtin.completion" }
+        guard isCompletionEnabled else { return [] }
+        let action = CompletionAction()
+        guard action.isEnabled(for: context) else { return [] }
+        return action.fetchCompletions(for: context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private var hasCompletions: Bool { !availableCompletions.isEmpty }
+    private var inCompletionMode: Bool { hasCompletions && isShowingCompletions }
 
     private var pagedActions: [any Action] {
         guard actions.count > pageSize else { return actions }
@@ -79,23 +92,110 @@ public struct PopupView: View {
 
     // MARK: - Unified HStack Layout
 
+    @ViewBuilder
     private var unifiedHStack: some View {
+        if inCompletionMode {
+            completionHStack
+        } else {
+            actionsHStack
+        }
+    }
+
+    // MARK: - Completion Mode Bar Layout
+
+    private var completionHStack: some View {
         HStack(spacing: 0) {
-            if hasLeftChevron {
+            // Far Left: Up Arrow button toggles to normal actions mode
+            chevronButton(systemImage: "chevron.up") {
+                isShowingCompletions = false
+            }
+            
+            // Horizontal Completion Word Items
+            let list = availableCompletions
+            ForEach(Array(list.enumerated()), id: \.offset) { index, word in
+                let isLast = index == list.count - 1
+                let isHovered = hoveredCompletionIndex == index
+                completionButton(word: word, index: index, isHovered: isHovered, showDivider: !isLast)
+            }
+        }
+        .fixedSize()
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    // MARK: - Normal Actions Bar Layout
+
+    private var actionsHStack: some View {
+        HStack(spacing: 0) {
+            // If completions exist but user toggled to normal actions, show Down Arrow button on left
+            if hasCompletions {
+                chevronButton(systemImage: "chevron.down") {
+                    isShowingCompletions = true
+                }
+            } else if hasLeftChevron {
                 chevronButton(systemImage: "chevron.left") { currentPage -= 1 }
             }
+
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
                 let isLast = index == pagedActions.count - 1
                 let showDivider = !isLast || hasRightChevron
                 let isHovered = hoveredIndex == index
                 actionButton(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
             }
-            if hasRightChevron {
+
+            if !hasCompletions && hasRightChevron {
                 chevronButton(systemImage: "chevron.right") { currentPage += 1 }
             }
         }
         .fixedSize()
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    // MARK: - Completion Button
+
+    @ViewBuilder
+    private func completionButton(word: String, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
+        let restForeground: Color = {
+            switch selectedTheme {
+            case "light": return .black.opacity(0.85)
+            case "dark": return .white.opacity(0.90)
+            default: return .primary
+            }
+        }()
+
+        let dividerColor: Color = {
+            switch selectedTheme {
+            case "light": return .black.opacity(0.12)
+            case "dark": return .white.opacity(0.14)
+            default: return .white.opacity(0.20)
+            }
+        }()
+
+        Button {
+            onResult(.paste(word))
+        } label: {
+            Text(word)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(isHovered ? .white : restForeground)
+                .padding(.horizontal, 10)
+                .frame(minWidth: buttonWidth, minHeight: 28)
+                .background(isHovered ? Color.accentColor : Color.clear)
+                .overlay(alignment: .trailing) {
+                    if showDivider && !isHovered {
+                        Rectangle()
+                            .fill(dividerColor)
+                            .frame(width: 0.6, height: 28)
+                    }
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering in
+            if isHovering {
+                hoveredCompletionIndex = index
+            } else if hoveredCompletionIndex == index {
+                hoveredCompletionIndex = nil
+            }
+        }
     }
 
     // MARK: - Unified Action Button

@@ -365,6 +365,7 @@ struct ActionRowView: View {
         case "builtin.paste": return .symbol("clipboard")
         case "builtin.calculate": return .symbol("equal.circle")
         case "builtin.define": return .symbol("book")
+        case "builtin.completion": return .symbol("text.badge.plus")
         default: return action.icon
         }
     }

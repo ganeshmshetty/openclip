@@ -30,6 +30,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.setup(popupController: controller)
         
         ActionRegistry.shared.register(builtIns: [
+            CompletionAction(),
             SearchAction(),
             DefineAction(),
             CopyAction(),
