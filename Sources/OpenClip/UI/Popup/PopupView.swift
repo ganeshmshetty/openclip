@@ -244,34 +244,20 @@ public struct PopupView: View {
             .contentShape(Rectangle())
 
         if action.id == "builtin.transform" {
-            Menu {
-                ForEach(TransformCategory.allCases, id: \.rawValue) { category in
-                    let catCases = enabledTransformCases.filter { $0.category == category }
-                    if !catCases.isEmpty {
-                        Section(category.rawValue) {
-                            ForEach(catCases) { tCase in
-                                Button(tCase.displayName) {
-                                    let res = tCase.transform(context.selection.text)
-                                    onResult(.paste(res))
-                                }
-                            }
-                        }
-                    }
-                }
+            Button {
+                showTransformMenu(selectionText: context.selection.text)
             } label: {
                 labelView
-                    .onHover { isHovering in
-                        if isHovering {
-                            hoveredIndex = index
-                        } else if hoveredIndex == index {
-                            hoveredIndex = nil
-                        }
-                    }
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
             .buttonStyle(.plain)
             .help(action.title)
+            .onHover { isHovering in
+                if isHovering {
+                    hoveredIndex = index
+                } else if hoveredIndex == index {
+                    hoveredIndex = nil
+                }
+            }
         } else {
             Button {
                 Task {
@@ -352,5 +338,50 @@ public struct PopupView: View {
             Text(text)
                 .font(.system(size: 13, weight: .medium))
         }
+    }
+
+    private func showTransformMenu(selectionText: String) {
+        let menu = NSMenu(title: "Text Transformations")
+        
+        for category in TransformCategory.allCases {
+            let catCases = enabledTransformCases.filter { $0.category == category }
+            if !catCases.isEmpty {
+                let header = NSMenuItem(title: category.rawValue, action: nil, keyEquivalent: "")
+                header.isEnabled = false
+                menu.addItem(header)
+                
+                for tCase in catCases {
+                    let item = NSMenuItem(title: "  \(tCase.displayName)", action: #selector(MenuItemTarget.trigger), keyEquivalent: "")
+                    let target = MenuItemTarget {
+                        let res = tCase.transform(selectionText)
+                        self.onResult(.paste(res))
+                    }
+                    item.target = target
+                    objc_setAssociatedObject(item, &MenuItemTarget.assocKey, target, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                    menu.addItem(item)
+                }
+                menu.addItem(NSMenuItem.separator())
+            }
+        }
+        
+        if menu.items.last?.isSeparatorItem == true {
+            menu.items.removeLast()
+        }
+        
+        let mouseLoc = NSEvent.mouseLocation
+        menu.popUp(positioning: nil, at: mouseLoc, in: nil)
+    }
+}
+
+private class MenuItemTarget: NSObject {
+    nonisolated(unsafe) static var assocKey: UInt8 = 0
+    let handler: () -> Void
+    
+    init(handler: @escaping () -> Void) {
+        self.handler = handler
+    }
+    
+    @objc func trigger() {
+        handler()
     }
 }
