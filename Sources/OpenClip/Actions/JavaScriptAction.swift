@@ -1,5 +1,6 @@
 import Foundation
 import JavaScriptCore
+import Core
 
 @MainActor
 public struct JavaScriptAction: ConfigurableAction {

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A2E109F18274B012C1234567 /* OpenClipSnippetParser+DefaultFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E109F18274B012C1234567 /* OpenClipSnippetParser+DefaultFactory.swift */; };
 		016ACDECE2BC05DB5A380F65 /* CustomAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8DAACCC7C82CE7BB96D5F0D /* CustomAction.swift */; };
 		02AF81963047538ADE0363F5 /* RuleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E8EC4414979D75CE50BA12 /* RuleEngine.swift */; };
 		0532F7FF8BA7A439A30D8EA9 /* ActionRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E86D685379782075566534F /* ActionRegistryTests.swift */; };
@@ -151,6 +152,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B2E109F18274B012C1234567 /* OpenClipSnippetParser+DefaultFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClipSnippetParser+DefaultFactory.swift"; sourceTree = "<group>"; };
 		00D644F2046169A3D911104F /* ActionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCoordinator.swift; sourceTree = "<group>"; };
 		0235D3D283F8890DEEE2A915 /* CloudAPIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudAPIProvider.swift; sourceTree = "<group>"; };
 		0320149D41E8A7C2D2A9DED8 /* OpenClipTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenClipTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -290,6 +292,7 @@
 		0A2AE4010C5A2D86AD53D563 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				B2E109F18274B012C1234567 /* OpenClipSnippetParser+DefaultFactory.swift */,
 				E74EC58C6E636CC1388565D9 /* DefaultActionFactory.swift */,
 			);
 			path = Extensions;
@@ -369,9 +372,19 @@
 			path = Popup;
 			sourceTree = "<group>";
 		};
+				C2E109F18274B012C1234567 /* Actions */ = {
+			isa = PBXGroup;
+			children = (
+				F4033628C2C4FCF01811C663 /* AppleScriptAction.swift */,
+				4DCBD14E50330B126BEA4266 /* JavaScriptAction.swift */,
+			);
+			path = Actions;
+			sourceTree = "<group>";
+		};
 		3BFB332B47278C5BC2AE4229 /* OpenClip */ = {
 			isa = PBXGroup;
 			children = (
+				C2E109F18274B012C1234567 /* Actions */,
 				287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */,
 				871B6048B7968E61FCB53537 /* OpenClipApp.swift */,
 				0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */,
@@ -439,13 +452,11 @@
 				7683646692AA6067DA5AA86D /* ActionCustomizationManager.swift */,
 				1AF0F3CA2EF364269DB523FD /* ActionRegistry.swift */,
 				E54AEEA54ADE3106E777F448 /* ActionResult.swift */,
-				F4033628C2C4FCF01811C663 /* AppleScriptAction.swift */,
 				5B31769AC6C38931924A68F4 /* BuiltinRegistry.swift */,
 				58A3A4C1ECD9EF519BE8134B /* ConfigurableAction.swift */,
 				A8DAACCC7C82CE7BB96D5F0D /* CustomAction.swift */,
 				DCA945F176CA85C590C8CCF4 /* CustomActionManager.swift */,
 				B7534A2D6FD5368B237CB5C5 /* ExtensionOption.swift */,
-				4DCBD14E50330B126BEA4266 /* JavaScriptAction.swift */,
 				0F4DAB73B13C780B669746CE /* ModifierFlags.swift */,
 				F2CB1948C425181EE3DCFAAA /* URLTemplateAction.swift */,
 				FB8E693598E421C204E409DD /* WordCompletionProviding.swift */,
@@ -706,7 +717,6 @@
 				E27BC38183CE54F6073EC02F /* AppFilter.swift in Sources */,
 				8DFC838BDE16FA27F0C19FBB /* AppIdentifying.swift in Sources */,
 				B776223E716B18F4F53A4D3F /* AppRule.swift in Sources */,
-				E684F569050B674ECF625902 /* AppleScriptAction.swift in Sources */,
 				EBBDD5144B39E9622CA4F910 /* BuiltinRegistry.swift in Sources */,
 				589E69527B1AD912FFEF303B /* CalculateAction.swift in Sources */,
 				998C035B69CC6C290A1403CE /* CalendarAction.swift in Sources */,
@@ -720,7 +730,6 @@
 				6EC03FC169D6016DF45D4632 /* DefineAction.swift in Sources */,
 				6BDAAEBA357BE286266250A6 /* ExtensionManager.swift in Sources */,
 				4F04EDDEE2B8E5135E1E9B5B /* ExtensionOption.swift in Sources */,
-				120E33A041E88F16E212768B /* JavaScriptAction.swift in Sources */,
 				DEEE0BCFD9DB9C3754D01774 /* ModifierFlags.swift in Sources */,
 				9A5AB557F078A06A470B696F /* OpenClipSnippetParser.swift in Sources */,
 				49C06EBA5B3FD035E51BA83A /* PasteAction.swift in Sources */,
@@ -742,6 +751,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A2E109F18274B012C1234567 /* OpenClipSnippetParser+DefaultFactory.swift in Sources */,
+				E684F569050B674ECF625902 /* AppleScriptAction.swift in Sources */,
+				120E33A041E88F16E212768B /* JavaScriptAction.swift in Sources */,
 				C25FB276103A8CB85C7D2AE7 /* AIProvider.swift in Sources */,
 				172EA9C4710FA618D5679485 /* AIResultOverlayView.swift in Sources */,
 				05A18C707EEB8A5776CC438E /* AIServiceManager.swift in Sources */,
