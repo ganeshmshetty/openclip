@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9C71E5BBDDFA4E1EACF122DF /* ExtensionsStoreViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D96A7AAE7AA547909FB2F7E0 /* ExtensionsStoreViewTests.swift */; };
+		97215118B54B4063B0E20F21 /* ExtensionsStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30BF07B61FC40FB9DC8D04D /* ExtensionsStoreView.swift */; };
 		695701A1B035445697102646 /* DeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9940F1E510B342FA95B15F99 /* DeepLinkHandlerTests.swift */; };
 		108641559FD445AB95835188 /* RemoteExtensionInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF3CBD71154649068A4E4B4B /* RemoteExtensionInstallerTests.swift */; };
 		B25A3896477A4A6C8AC5006E /* RemoteExtensionInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16384BD97AD3479D95A53122 /* RemoteExtensionInstaller.swift */; };
@@ -162,6 +164,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D96A7AAE7AA547909FB2F7E0 /* ExtensionsStoreViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsStoreViewTests.swift; sourceTree = "<group>"; };
+		A30BF07B61FC40FB9DC8D04D /* ExtensionsStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsStoreView.swift; sourceTree = "<group>"; };
 		9940F1E510B342FA95B15F99 /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		AF3CBD71154649068A4E4B4B /* RemoteExtensionInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteExtensionInstallerTests.swift; sourceTree = "<group>"; };
 		16384BD97AD3479D95A53122 /* RemoteExtensionInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteExtensionInstaller.swift; sourceTree = "<group>"; };
@@ -312,6 +316,7 @@
 		0A2AE4010C5A2D86AD53D563 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				A30BF07B61FC40FB9DC8D04D /* ExtensionsStoreView.swift */,
 				16384BD97AD3479D95A53122 /* RemoteExtensionInstaller.swift */,
 				2DC97A0BF14E435785CC891E /* ExtensionsAPIClient.swift */,
 				C42C2537CB55449AB2AAC72E /* ExtensionsModels.swift */,
@@ -547,6 +552,7 @@
 		E5550E18E26D2F31A7B43491 /* OpenClipTests */ = {
 			isa = PBXGroup;
 			children = (
+				D96A7AAE7AA547909FB2F7E0 /* ExtensionsStoreViewTests.swift */,
 				9940F1E510B342FA95B15F99 /* DeepLinkHandlerTests.swift */,
 				AF3CBD71154649068A4E4B4B /* RemoteExtensionInstallerTests.swift */,
 				9CFC722AD65E4BD3ADE70987 /* ExtensionsAPITests.swift */,
@@ -701,6 +707,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9C71E5BBDDFA4E1EACF122DF /* ExtensionsStoreViewTests.swift in Sources */,
+				97215118B54B4063B0E20F21 /* ExtensionsStoreView.swift in Sources */,
 				695701A1B035445697102646 /* DeepLinkHandlerTests.swift in Sources */,
 				108641559FD445AB95835188 /* RemoteExtensionInstallerTests.swift in Sources */,
 				B25A3896477A4A6C8AC5006E /* RemoteExtensionInstaller.swift in Sources */,
