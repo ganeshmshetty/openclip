@@ -10,12 +10,23 @@ public struct PopupView: View {
     public let context: ActionContext
     public let onResult: @MainActor (ActionResult) -> Void
 
-    @AppStorage("popupTheme") private var selectedTheme: String = "glass"
+    @AppStorage("popupTheme") private var selectedTheme: String = "system"
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var effectiveTheme: String {
+        if selectedTheme == "system" {
+            return colorScheme == .dark ? "dark" : "light"
+        }
+        return selectedTheme
+    }
+    
     @State private var currentPage = 0
     @ObservedObject private var hoverState = PopupHoverState.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
     @State private var isShowingCompletions: Bool = true
+    @State private var isShowingAIMode: Bool = false
+    @State private var aiResultText: String? = nil
 
     private let buttonWidth: CGFloat = 36
     private let chevronWidth: CGFloat = 26
@@ -33,8 +44,13 @@ public struct PopupView: View {
         return provider.fetchCompletions(for: context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    private var hasCompletions: Bool { !availableCompletions.isEmpty }
-    private var inCompletionMode: Bool { hasCompletions && isShowingCompletions }
+    private var hasCompletions: Bool {
+        return !availableCompletions.isEmpty
+    }
+
+    private var inCompletionMode: Bool {
+        return hasCompletions && isShowingCompletions
+    }
 
     private var enabledTransformCases: [TransformCase] {
         actions.compactMap { ($0 as? TransformSubAction)?.transformCase }
@@ -44,21 +60,21 @@ public struct PopupView: View {
         actions.filter { $0.id != "builtin.completion" && !$0.id.hasPrefix("builtin.transform.") }
     }
 
+    private var totalPages: Int {
+        guard !displayActions.isEmpty else { return 1 }
+        return Int(ceil(Double(displayActions.count) / Double(pageSize)))
+    }
+
     private var pagedActions: [any Action] {
         let list = displayActions
-        guard list.count > pageSize else { return list }
-        let start = currentPage * pageSize
-        let end = min(start + pageSize, list.count)
-        guard start < list.count else { return Array(list.prefix(pageSize)) }
-        return Array(list[start..<end])
+        let startIndex = currentPage * pageSize
+        guard startIndex < list.count else { return [] }
+        let endIndex = min(startIndex + pageSize, list.count)
+        return Array(list[startIndex..<endIndex])
     }
 
-    private var totalPages: Int {
-        max(1, Int(ceil(Double(displayActions.count) / Double(pageSize))))
-    }
-
-    private var hasLeftChevron: Bool { totalPages > 1 && currentPage > 0 }
-    private var hasRightChevron: Bool { totalPages > 1 && currentPage < totalPages - 1 }
+    private var hasLeftChevron: Bool { currentPage > 0 }
+    private var hasRightChevron: Bool { currentPage < totalPages - 1 }
 
     public var body: some View {
         barContent
@@ -77,32 +93,52 @@ public struct PopupView: View {
 
     @ViewBuilder
     private var barContent: some View {
-        if selectedTheme == "glass" {
-            if #available(macOS 26, *) {
-                unifiedHStack
-                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        VStack(alignment: .leading, spacing: 8) {
+            if effectiveTheme == "glass" {
+                if #available(macOS 26, *) {
+                    unifiedHStack
+                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                } else {
+                    unifiedHStack
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
+                        )
+                        .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
+                }
             } else {
                 unifiedHStack
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
+                    .background(opaqueBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
+                            .stroke(opaqueBorder, lineWidth: 1.0)
                     )
-                    .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
+                    .shadow(color: .black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 10, x: 0, y: 4)
             }
-        } else {
-            unifiedHStack
-                .background(opaqueBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(opaqueBorder, lineWidth: 0.8)
+            
+            if let result = aiResultText {
+                AIResultOverlayView(
+                    resultText: result,
+                    onReplace: {
+                        onResult(.paste(result))
+                        aiResultText = nil
+                    },
+                    onCopy: {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(result, forType: .string)
+                        aiResultText = nil
+                    },
+                    onClose: {
+                        aiResultText = nil
+                    }
                 )
-                .shadow(color: .black.opacity(selectedTheme == "light" ? 0.16 : 0.32), radius: 10, x: 0, y: 4)
+            }
         }
     }
 
@@ -110,11 +146,65 @@ public struct PopupView: View {
 
     @ViewBuilder
     private var unifiedHStack: some View {
-        if inCompletionMode {
+        if isShowingAIMode {
+            aiHStack
+        } else if inCompletionMode {
             completionHStack
         } else {
             actionsHStack
         }
+    }
+
+    // MARK: - AI Mode Bar Layout
+
+    private var aiHStack: some View {
+        HStack(spacing: 0) {
+            chevronButton(systemImage: "chevron.left") {
+                isShowingAIMode = false
+            }
+            
+            let aiPresets = [
+                ("Fix", "Proofread and fix grammar"),
+                ("Summarize", "Summarize text"),
+                ("Translate", "Translate text to English"),
+                ("Explain", "Explain concept or code")
+            ]
+            
+            ForEach(Array(aiPresets.enumerated()), id: \.offset) { index, preset in
+                let (title, prompt) = preset
+                let isLast = index == aiPresets.count - 1
+                
+                Button(action: {
+                    Task {
+                        do {
+                            let provider = AIServiceManager.shared.currentProvider
+                            let response = try await provider.process(prompt: prompt, text: context.selection.text)
+                            if provider.type != .browser {
+                                aiResultText = response
+                            }
+                        } catch {
+                            aiResultText = "AI Error: \(error.localizedDescription)"
+                        }
+                    }
+                }) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .frame(minHeight: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .overlay(alignment: .trailing) {
+                    if !isLast {
+                        Rectangle()
+                            .fill(Color.primary.opacity(0.12))
+                            .frame(width: 0.6, height: 28)
+                    }
+                }
+            }
+        }
+        .fixedSize()
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     // MARK: - Completion Mode Bar Layout
@@ -153,9 +243,24 @@ public struct PopupView: View {
 
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
                 let isLast = index == pagedActions.count - 1
-                let showDivider = !isLast || hasRightChevron
+                let showDivider = true
                 let isHovered = hoveredTarget == .action(index)
                 actionButton(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
+            }
+
+            // Sparkles AI Button (if enabled)
+            if AIServiceManager.shared.isAIEnabled {
+                Button(action: {
+                    isShowingAIMode = true
+                }) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.accentColor)
+                        .frame(width: buttonWidth, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Open AI Tools")
             }
 
             if !hasCompletions && hasRightChevron {
@@ -171,7 +276,7 @@ public struct PopupView: View {
     @ViewBuilder
     private func completionButton(word: String, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
         let restForeground: Color = {
-            switch selectedTheme {
+            switch effectiveTheme {
             case "light": return .black.opacity(0.85)
             case "dark": return .white.opacity(0.90)
             default: return .primary
@@ -179,7 +284,7 @@ public struct PopupView: View {
         }()
 
         let dividerColor: Color = {
-            switch selectedTheme {
+            switch effectiveTheme {
             case "light": return .black.opacity(0.12)
             case "dark": return .white.opacity(0.14)
             default: return .white.opacity(0.20)
@@ -216,7 +321,7 @@ public struct PopupView: View {
     @ViewBuilder
     private func actionButton(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
         let restForeground: Color = {
-            switch selectedTheme {
+            switch effectiveTheme {
             case "light": return .black.opacity(0.85)
             case "dark": return .white.opacity(0.90)
             default: return .primary
@@ -224,7 +329,7 @@ public struct PopupView: View {
         }()
         
         let dividerColor: Color = {
-            switch selectedTheme {
+            switch effectiveTheme {
             case "light": return .black.opacity(0.12)
             case "dark": return .white.opacity(0.14)
             default: return .white.opacity(0.20)
@@ -303,10 +408,10 @@ public struct PopupView: View {
 
     @ViewBuilder
     private var opaqueBackground: some View {
-        switch selectedTheme {
+        switch effectiveTheme {
         case "dark":
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(red: 0.08, green: 0.08, blue: 0.10))
+                .fill(Color(red: 0.20, green: 0.20, blue: 0.22))
         default:
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(red: 0.98, green: 0.98, blue: 0.99))
@@ -314,7 +419,7 @@ public struct PopupView: View {
     }
 
     private var opaqueBorder: Color {
-        selectedTheme == "light" ? Color.black.opacity(0.12) : Color.white.opacity(0.14)
+        effectiveTheme == "light" ? Color.black.opacity(0.20) : Color.white.opacity(0.22)
     }
 
     private func updateHoveredTarget(for location: CGPoint?) {
