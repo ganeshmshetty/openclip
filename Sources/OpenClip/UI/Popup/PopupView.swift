@@ -12,8 +12,9 @@ public struct PopupView: View {
 
     @AppStorage("popupTheme") private var selectedTheme: String = "glass"
     @State private var currentPage = 0
-    @State private var hoveredIndex: Int? = nil
-    @State private var hoveredCompletionIndex: Int? = nil
+    @ObservedObject private var hoverState = PopupHoverState.shared
+    @State private var hoveredTarget: PopupHoverTarget?
+    @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
     @State private var isShowingCompletions: Bool = true
 
     private let buttonWidth: CGFloat = 36
@@ -62,6 +63,14 @@ public struct PopupView: View {
     public var body: some View {
         barContent
             .padding(12)
+            .coordinateSpace(name: "popupHoverSpace")
+            .onPreferenceChange(PopupHoverFramePreferenceKey.self) { frames in
+                hoverFrames = frames
+                updateHoveredTarget(for: hoverState.location)
+            }
+            .onReceive(hoverState.$location) { location in
+                updateHoveredTarget(for: location)
+            }
     }
 
     // MARK: - Unified Bar Container
@@ -121,7 +130,7 @@ public struct PopupView: View {
             let list = availableCompletions
             ForEach(Array(list.enumerated()), id: \.offset) { index, word in
                 let isLast = index == list.count - 1
-                let isHovered = hoveredCompletionIndex == index
+                let isHovered = hoveredTarget == .completion(index)
                 completionButton(word: word, index: index, isHovered: isHovered, showDivider: !isLast)
             }
         }
@@ -145,7 +154,7 @@ public struct PopupView: View {
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
                 let isLast = index == pagedActions.count - 1
                 let showDivider = !isLast || hasRightChevron
-                let isHovered = hoveredIndex == index
+                let isHovered = hoveredTarget == .action(index)
                 actionButton(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
             }
 
@@ -196,12 +205,9 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .popupHoverTarget(.completion(index))
         .onHover { isHovering in
-            if isHovering {
-                hoveredCompletionIndex = index
-            } else if hoveredCompletionIndex == index {
-                hoveredCompletionIndex = nil
-            }
+            useLocalHoverFallback(for: .completion(index), isHovering: isHovering)
         }
     }
 
@@ -225,11 +231,11 @@ public struct PopupView: View {
             }
         }()
 
-        let labelView = iconView(for: action.icon)
+        let labelView = iconView(for: action.displayIcon)
             .font(.system(size: 13, weight: .medium))
             .foregroundColor(isHovered ? .white : restForeground)
             .padding(.horizontal, {
-                if case .text = action.icon { return 7.0 }
+                if case .text = action.displayIcon { return 7.0 }
                 return 0.0
             }())
             .frame(minWidth: buttonWidth, minHeight: 28)
@@ -250,13 +256,10 @@ public struct PopupView: View {
                 labelView
             }
             .buttonStyle(.plain)
-            .help(action.title)
+            .help(action.displayTitle)
+            .popupHoverTarget(.action(index))
             .onHover { isHovering in
-                if isHovering {
-                    hoveredIndex = index
-                } else if hoveredIndex == index {
-                    hoveredIndex = nil
-                }
+                useLocalHoverFallback(for: .action(index), isHovering: isHovering)
             }
         } else {
             Button {
@@ -273,12 +276,9 @@ public struct PopupView: View {
             }
             .buttonStyle(.plain)
             .help(action.title)
+            .popupHoverTarget(.action(index))
             .onHover { isHovering in
-                if isHovering {
-                    hoveredIndex = index
-                } else if hoveredIndex == index {
-                    hoveredIndex = nil
-                }
+                useLocalHoverFallback(for: .action(index), isHovering: isHovering)
             }
         }
     }
@@ -293,6 +293,10 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .popupHoverTarget(.chevron)
+        .onHover { isHovering in
+            useLocalHoverFallback(for: .chevron, isHovering: isHovering)
+        }
     }
 
     // MARK: - Opaque Background Helpers
@@ -311,6 +315,23 @@ public struct PopupView: View {
 
     private var opaqueBorder: Color {
         selectedTheme == "light" ? Color.black.opacity(0.12) : Color.white.opacity(0.14)
+    }
+
+    private func updateHoveredTarget(for location: CGPoint?) {
+        let target = location.flatMap { point in
+            hoverFrames.first(where: { $0.value.contains(point) })?.key
+        }
+        guard target != hoveredTarget else { return }
+        hoveredTarget = target
+    }
+
+    private func useLocalHoverFallback(for target: PopupHoverTarget, isHovering: Bool) {
+        guard !hoverState.usesGlobalMouseMonitoring else { return }
+        if isHovering {
+            hoveredTarget = target
+        } else if hoveredTarget == target {
+            hoveredTarget = nil
+        }
     }
 
     // MARK: - Icon Helper
@@ -370,6 +391,43 @@ public struct PopupView: View {
         
         let mouseLoc = NSEvent.mouseLocation
         menu.popUp(positioning: nil, at: mouseLoc, in: nil)
+    }
+}
+
+@MainActor
+final class PopupHoverState: ObservableObject {
+    static let shared = PopupHoverState()
+
+    @Published var location: CGPoint?
+    @Published var usesGlobalMouseMonitoring = false
+
+    private init() {}
+}
+
+private enum PopupHoverTarget: Hashable {
+    case action(Int)
+    case completion(Int)
+    case chevron
+}
+
+private struct PopupHoverFramePreferenceKey: PreferenceKey {
+    static let defaultValue: [PopupHoverTarget: CGRect] = [:]
+
+    static func reduce(value: inout [PopupHoverTarget: CGRect], nextValue: () -> [PopupHoverTarget: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private extension View {
+    func popupHoverTarget(_ target: PopupHoverTarget) -> some View {
+        background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: PopupHoverFramePreferenceKey.self,
+                    value: [target: proxy.frame(in: .named("popupHoverSpace"))]
+                )
+            }
+        }
     }
 }
 

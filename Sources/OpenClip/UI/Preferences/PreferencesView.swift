@@ -425,10 +425,7 @@ struct ActionRowView: View {
     }
     
     private var displayIcon: ActionIcon {
-        if let configurable = configurableAction {
-            return .symbol(configurable.preferenceIconName)
-        }
-        return action.icon
+        action.displayIcon
     }
 
     var body: some View {
@@ -447,7 +444,7 @@ struct ActionRowView: View {
                             .font(.system(size: 11, weight: .semibold))
                             .frame(width: 20)
                     }
-                    Text(action.title)
+                    Text(action.displayTitle)
                         .font(.body)
                     Spacer()
                     if action is ScriptAction {
@@ -470,18 +467,16 @@ struct ActionRowView: View {
                 }
             }
             
-            if let configurable = configurableAction {
-                Button(action: {
-                    showingConfigSheet = true
-                }) {
-                    Image(systemName: "gearshape")
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.secondary)
-                .help("Configure Action")
-                .sheet(isPresented: $showingConfigSheet) {
-                    ActionConfigSheet(configurationViewID: configurable.configurationViewID)
-                }
+            Button(action: {
+                showingConfigSheet = true
+            }) {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
+            .help("Configure Action")
+            .sheet(isPresented: $showingConfigSheet) {
+                EditActionSheet(action: action)
             }
             
             if let customAction = action as? CustomAction {

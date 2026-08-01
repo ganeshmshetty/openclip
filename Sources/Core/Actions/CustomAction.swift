@@ -1,6 +1,6 @@
 import Foundation
 
-public enum CustomActionType: Codable, Sendable, Equatable {
+public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
     case webSearch(urlTemplate: String)
     case textSnippet(template: String)
     case shellScript(script: String, replaceSelection: Bool)
