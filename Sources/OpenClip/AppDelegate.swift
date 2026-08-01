@@ -68,18 +68,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         onboardingWindowController?.showWindow(nil)
     }
 
-    func application(_ sender: NSApplication, openFiles filenames: [String]) {
-        for filename in filenames {
-            let url = URL(fileURLWithPath: filename)
-            Task {
-                do {
-                    _ = try await ExtensionManager.shared.installExtension(from: url)
-                    await MainActor.run {
-                        self.statusBarController?.showPreferences()
-                    }
-                } catch {
-                    print("Failed to install extension from Finder: \(error)")
-                }
+    public static func parseDeepLinkURL(_ url: URL) -> [String: String]? {
+        guard url.scheme?.lowercased() == "openclip", url.host == "install" else { return nil }
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let queryItems = components.queryItems else { return nil }
+        
+        var dict: [String: String] = [:]
+        for item in queryItems {
+            if let val = item.value {
+                dict[item.name] = val
+            }
+        }
+        return dict
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            guard let params = Self.parseDeepLinkURL(url),
+                  let downloadStr = params["url"],
+                  let downloadURL = URL(string: downloadStr),
+                  let extID = params["id"] else { continue }
+            
+            Task { @MainActor in
+                _ = try? await RemoteExtensionInstaller.shared.installFromRemoteURL(downloadURL, extensionID: extID)
             }
         }
     }
