@@ -1,14 +1,82 @@
 import Foundation
 
+public struct ExtensionOptionMetadata: Sendable, Codable {
+    public let identifier: String
+    public let label: String
+    public let type: String
+    public let defaultValue: String?
+    
+    public init(identifier: String, label: String, type: String, defaultValue: String? = nil) {
+        self.identifier = identifier
+        self.label = label
+        self.type = type
+        self.defaultValue = defaultValue
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.identifier = try container.decode(String.self, forKey: .identifier)
+        self.label = try container.decode(String.self, forKey: .label)
+        self.type = try container.decode(String.self, forKey: .type)
+        self.defaultValue = try container.decodeIfPresent(String.self, forKey: .defaultValue)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(identifier, forKey: .identifier)
+        try container.encode(label, forKey: .label)
+        try container.encode(type, forKey: .type)
+        try container.encodeIfPresent(defaultValue, forKey: .defaultValue)
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case identifier = "identifier"
+        case label = "label"
+        case type = "type"
+        case defaultValue = "default"
+    }
+}
+
 public struct ExtensionMetadata: Sendable, Codable {
     public let identifier: String
     public let name: String
     public let actions: [ExtensionActionMetadata]
+    public let options: [ExtensionOptionMetadata]?
+    
+    public init(identifier: String, name: String, actions: [ExtensionActionMetadata], options: [ExtensionOptionMetadata]? = nil) {
+        self.identifier = identifier
+        self.name = name
+        self.actions = actions
+        self.options = options
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
+            ?? container.decode(String.self, forKey: .legacyIdentifier)
+        self.name = try container.decodeIfPresent(String.self, forKey: .name)
+            ?? container.decode(String.self, forKey: .legacyName)
+        self.actions = try container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .actions)
+            ?? container.decode([ExtensionActionMetadata].self, forKey: .legacyActions)
+        self.options = try container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .options)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(identifier, forKey: .identifier)
+        try container.encode(name, forKey: .name)
+        try container.encode(actions, forKey: .actions)
+        try container.encodeIfPresent(options, forKey: .options)
+    }
     
     enum CodingKeys: String, CodingKey {
-        case identifier = "Identifier"
-        case name = "Name"
-        case actions = "Actions"
+        case identifier = "id"
+        case legacyIdentifier = "Identifier"
+        case name = "name"
+        case legacyName = "Name"
+        case actions = "actions"
+        case legacyActions = "Actions"
+        case options = "options"
     }
 }
 
@@ -19,12 +87,48 @@ public struct ExtensionActionMetadata: Sendable, Codable {
     public let url: String?
     public let regex: String?
     
+    public init(title: String? = nil, icon: String? = nil, script: String? = nil, url: String? = nil, regex: String? = nil) {
+        self.title = title
+        self.icon = icon
+        self.script = script
+        self.url = url
+        self.regex = regex
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.title = try container.decodeIfPresent(String.self, forKey: .title)
+            ?? container.decodeIfPresent(String.self, forKey: .legacyTitle)
+        self.icon = try container.decodeIfPresent(String.self, forKey: .icon)
+            ?? container.decodeIfPresent(String.self, forKey: .legacyIcon)
+        self.script = try container.decodeIfPresent(String.self, forKey: .script)
+            ?? container.decodeIfPresent(String.self, forKey: .legacyScript)
+        self.url = try container.decodeIfPresent(String.self, forKey: .url)
+            ?? container.decodeIfPresent(String.self, forKey: .legacyURL)
+        self.regex = try container.decodeIfPresent(String.self, forKey: .regex)
+            ?? container.decodeIfPresent(String.self, forKey: .legacyRegex)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(title, forKey: .title)
+        try container.encodeIfPresent(icon, forKey: .icon)
+        try container.encodeIfPresent(script, forKey: .script)
+        try container.encodeIfPresent(url, forKey: .url)
+        try container.encodeIfPresent(regex, forKey: .regex)
+    }
+    
     enum CodingKeys: String, CodingKey {
-        case title = "Title"
-        case icon = "Icon"
-        case script = "Script"
-        case url = "URL"
-        case regex = "Regular Expression"
+        case title = "title"
+        case legacyTitle = "Title"
+        case icon = "icon"
+        case legacyIcon = "Icon"
+        case script = "script"
+        case legacyScript = "Script"
+        case url = "url"
+        case legacyURL = "URL"
+        case regex = "regex"
+        case legacyRegex = "Regular Expression"
     }
 }
 
