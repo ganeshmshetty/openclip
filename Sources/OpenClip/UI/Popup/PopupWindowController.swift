@@ -23,7 +23,7 @@ public class PopupWindowController {
         if flags.contains(.command) { modifiers.insert(.command) }
         
         let actionContext = ActionContext(selection: context, modifiers: modifiers)
-        let availableActions = ActionRegistry.shared.availableActions(for: actionContext)
+        let availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
         
         let panel = self.panel ?? PopupPanel()
         self.panel = panel

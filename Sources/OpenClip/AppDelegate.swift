@@ -29,18 +29,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Setup global shortcut hotkey manager
         HotkeyManager.shared.setup(popupController: controller)
         
-        var builtins = BuiltinRegistry.makeCoreBuiltins()
-        builtins.insert(CompletionAction(), at: 0)
-        builtins.append(OpenURLAction())
-        builtins.append(ServicesAction())
-        ActionRegistry.shared.register(builtIns: builtins)
-        
         Task {
-            await RuleEngine.shared.loadRules(from: Constants.rulesFileURL)
-            await ExtensionManager.shared.loadExtensions()
-            for action in ExtensionManager.shared.loadedActions {
-                ActionRegistry.shared.register(action: action)
-            }
+            await ActionCoordinator.shared.loadInitialState()
+            ActionCoordinator.shared.register(action: CompletionAction())
+            ActionCoordinator.shared.register(action: OpenURLAction())
+            ActionCoordinator.shared.register(action: ServicesAction())
         }
         
         // Setup selection monitor

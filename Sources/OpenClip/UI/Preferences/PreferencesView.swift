@@ -222,10 +222,10 @@ struct AppearanceTab: View {
         return ActionContext(selection: context, modifiers: [])
     }
     
-    @ObservedObject private var registry = ActionRegistry.shared
+    @ObservedObject private var coordinator = ActionCoordinator.shared
     
     private var mockActions: [any Action] {
-        let available = registry.availableActions(for: mockContext)
+        let available = coordinator.resolveActions(for: mockContext)
         // Show up to 5 actions in the preview to look clean
         return Array(available.prefix(5))
     }
@@ -273,17 +273,17 @@ struct AppearanceTab: View {
 struct ActionsTab: View {
     @Binding var disabledActionIDs: Set<String>
     @State private var showingAddActionSheet = false
-    @ObservedObject private var registry = ActionRegistry.shared
+    @ObservedObject private var coordinator = ActionCoordinator.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             List {
                 Section(header: Text("Built-in & Registered Actions").font(.subheadline).bold()) {
-                    ForEach(registry.actions, id: \.id) { action in
+                    ForEach(coordinator.actions, id: \.id) { action in
                         ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
                     }
                     .onMove { source, destination in
-                        registry.moveActions(from: source, to: destination)
+                        coordinator.moveActions(from: source, to: destination)
                     }
                 }
             }

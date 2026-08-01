@@ -15,7 +15,6 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     
     private init() {
         registry.$actions
-            .receive(on: RunLoop.main)
             .assign(to: &$actions)
     }
     
@@ -56,5 +55,9 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     
     public func unregister(actionID: String) {
         registry.unregister(actionID: actionID)
+    }
+    
+    public func moveActions(from source: IndexSet, to destination: Int) {
+        registry.moveActions(from: source, to: destination)
     }
 }

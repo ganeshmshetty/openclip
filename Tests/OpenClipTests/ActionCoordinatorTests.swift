@@ -25,4 +25,18 @@ final class ActionCoordinatorTests: XCTestCase {
         let resolved = coordinator.resolveActions(for: context)
         XCTAssertFalse(resolved.isEmpty, "ActionCoordinator should resolve active actions for context")
     }
+    
+    func testRegisteringCustomActionUpdatesActionsList() async {
+        let coordinator = ActionCoordinator.shared
+        struct MockAction: Action {
+            let id = "test.mock"
+            let title = "Mock"
+            let icon = ActionIcon.symbol("star")
+            func isEnabled(for context: ActionContext) -> Bool { true }
+            func perform(_ context: ActionContext) async throws -> ActionResult { .none }
+        }
+        
+        coordinator.register(action: MockAction())
+        XCTAssertTrue(coordinator.actions.contains(where: { $0.id == "test.mock" }))
+    }
 }
