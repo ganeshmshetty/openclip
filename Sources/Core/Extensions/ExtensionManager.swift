@@ -151,12 +151,14 @@ public final class ExtensionManager: Sendable {
     public static let shared = ExtensionManager()
     
     public private(set) var loadedActions: [any Action] = []
+    public var actionFactory: (any ActionFactory)?
     
     private init() {}
     
     public func loadExtensions(from url: URL = Constants.extensionsDirectory) async {
+        let factory = self.actionFactory
         let actions = await Task.detached {
-            return await Self.scanDirectory(url)
+            return await Self.scanDirectory(url, factory: factory)
         }.value
         for oldAction in self.loadedActions {
             ActionRegistry.shared.unregister(actionID: oldAction.id)
@@ -227,9 +229,10 @@ public final class ExtensionManager: Sendable {
         let fm = FileManager.default
         guard let items = try? fm.contentsOfDirectory(at: targetDir, includingPropertiesForKeys: nil) else { return }
         
+        let factory = self.actionFactory
         for itemURL in items {
             // Check if this item produced the target actionID
-            let actions = await Self.scanDirectory(itemURL.deletingLastPathComponent())
+            let actions = await Self.scanDirectory(itemURL.deletingLastPathComponent(), factory: factory)
             if actions.contains(where: { $0.id == actionID }) {
                 try? fm.removeItem(at: itemURL)
                 break
@@ -238,7 +241,7 @@ public final class ExtensionManager: Sendable {
         await loadExtensions(from: targetDir)
     }
     
-    nonisolated private static func scanDirectory(_ extensionsURL: URL) async -> [any Action] {
+    nonisolated private static func scanDirectory(_ extensionsURL: URL, factory: (any ActionFactory)? = nil) async -> [any Action] {
         var newActions: [any Action] = []
         let fileManager = FileManager.default
         
@@ -258,13 +261,13 @@ public final class ExtensionManager: Sendable {
                     let jsonConfigURL = itemURL.appendingPathComponent("Config.json")
                     
                     if fileManager.fileExists(atPath: openclipManifest.path) {
-                        let actions = await loadManifestExtension(manifestURL: openclipManifest, directoryURL: itemURL)
+                        let actions = await loadManifestExtension(manifestURL: openclipManifest, directoryURL: itemURL, factory: factory)
                         newActions.append(contentsOf: actions)
                     } else if fileManager.fileExists(atPath: legacyManifest.path) {
-                        let actions = await loadManifestExtension(manifestURL: legacyManifest, directoryURL: itemURL)
+                        let actions = await loadManifestExtension(manifestURL: legacyManifest, directoryURL: itemURL, factory: factory)
                         newActions.append(contentsOf: actions)
                     } else if fileManager.fileExists(atPath: jsonConfigURL.path) {
-                        let actions = await loadManifestExtension(manifestURL: jsonConfigURL, directoryURL: itemURL)
+                        let actions = await loadManifestExtension(manifestURL: jsonConfigURL, directoryURL: itemURL, factory: factory)
                         newActions.append(contentsOf: actions)
                     } else {
                         // Scan directory for standalone executable scripts
@@ -293,25 +296,29 @@ public final class ExtensionManager: Sendable {
         return newActions
     }
     
-    nonisolated private static func loadManifestExtension(manifestURL: URL, directoryURL: URL) async -> [any Action] {
+    nonisolated private static func loadManifestExtension(manifestURL: URL, directoryURL: URL, factory: (any ActionFactory)? = nil) async -> [any Action] {
         guard let data = try? Data(contentsOf: manifestURL) else { return [] }
         guard let manifest = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) else { return [] }
         
         var actions: [any Action] = []
         for (index, actionMeta) in manifest.actions.enumerated() {
-            let actionId = "\(manifest.identifier).action.\(index)"
-            let title = actionMeta.title ?? manifest.name
-            let icon = parseIcon(actionMeta.icon, directoryURL: directoryURL)
-            let regex = actionMeta.regex
-            
-            if let urlTemplate = actionMeta.url {
-                let action = URLTemplateAction(id: actionId, title: title, icon: icon, urlTemplate: urlTemplate, regexPattern: regex)
+            if let factory = factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL) {
                 actions.append(action)
             } else {
-                let scriptName = actionMeta.script ?? Constants.defaultScriptName
-                let scriptURL = directoryURL.appendingPathComponent(scriptName)
-                let action = ScriptAction(id: actionId, title: title, icon: icon, scriptURL: scriptURL)
-                actions.append(action)
+                let actionId = "\(manifest.identifier).action.\(index)"
+                let title = actionMeta.title ?? manifest.name
+                let icon = parseIcon(actionMeta.icon, directoryURL: directoryURL)
+                let regex = actionMeta.regex
+                
+                if let urlTemplate = actionMeta.url {
+                    let action = URLTemplateAction(id: actionId, title: title, icon: icon, urlTemplate: urlTemplate, regexPattern: regex)
+                    actions.append(action)
+                } else {
+                    let scriptName = actionMeta.script ?? Constants.defaultScriptName
+                    let scriptURL = directoryURL.appendingPathComponent(scriptName)
+                    let action = ScriptAction(id: actionId, title: title, icon: icon, scriptURL: scriptURL)
+                    actions.append(action)
+                }
             }
         }
         
@@ -368,7 +375,7 @@ public final class ExtensionManager: Sendable {
         return String(line.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
     }
     
-    nonisolated private static func parseIcon(_ iconStr: String?, directoryURL: URL) -> ActionIcon {
+    nonisolated public static func parseIcon(_ iconStr: String?, directoryURL: URL) -> ActionIcon {
         guard let iconStr = iconStr, !iconStr.isEmpty else {
             return .symbol(Constants.defaultIconSymbol)
         }

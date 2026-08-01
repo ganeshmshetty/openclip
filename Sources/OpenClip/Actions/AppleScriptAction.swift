@@ -11,20 +11,35 @@ public struct AppleScriptAction: ConfigurableAction {
     public let appleScriptCode: String
     public let actionOptions: [ExtensionOption]
 
-    public init(
+    nonisolated public init(
         id: String,
         title: String,
-        iconSymbol: String = "applescript",
+        icon: ActionIcon = .symbol("applescript"),
         appleScriptCode: String,
         options: [ExtensionOption] = []
     ) {
         self.id = id
         self.title = title
-        self.icon = .symbol(iconSymbol)
+        self.icon = icon
         self.configurationViewID = id
-        self.preferenceIconName = iconSymbol
+        self.preferenceIconName = switch icon {
+        case .symbol(let name): name
+        case .local(let url): url.lastPathComponent
+        case .url(let url): url.absoluteString
+        case .text(let txt): txt
+        }
         self.appleScriptCode = appleScriptCode
         self.actionOptions = options
+    }
+
+    nonisolated public init(
+        id: String,
+        title: String,
+        iconSymbol: String,
+        appleScriptCode: String,
+        options: [ExtensionOption] = []
+    ) {
+        self.init(id: id, title: title, icon: .symbol(iconSymbol), appleScriptCode: appleScriptCode, options: options)
     }
 
     public func isEnabled(for context: ActionContext) -> Bool {
