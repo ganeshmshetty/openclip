@@ -12,8 +12,6 @@ public struct PopupView: View {
 
     @AppStorage("popupTheme") private var selectedTheme: String = "glass"
     @State private var currentPage = 0
-    @State private var hoveredIndex: Int? = nil
-    @State private var hoveredCompletionIndex: Int? = nil
     @State private var isShowingCompletions: Bool = true
 
     private let buttonWidth: CGFloat = 36
@@ -113,7 +111,7 @@ public struct PopupView: View {
     private var completionHStack: some View {
         HStack(spacing: 0) {
             // Far Left: Up Arrow button toggles to normal actions mode
-            chevronButton(systemImage: "chevron.up") {
+            ChevronButtonView(systemImage: "chevron.up", width: chevronWidth) {
                 isShowingCompletions = false
             }
             
@@ -121,8 +119,7 @@ public struct PopupView: View {
             let list = availableCompletions
             ForEach(Array(list.enumerated()), id: \.offset) { index, word in
                 let isLast = index == list.count - 1
-                let isHovered = hoveredCompletionIndex == index
-                completionButton(word: word, index: index, isHovered: isHovered, showDivider: !isLast)
+                CompletionButtonView(word: word, selectedTheme: selectedTheme, buttonWidth: buttonWidth, showDivider: !isLast, onResult: onResult)
             }
         }
         .fixedSize()
@@ -135,32 +132,66 @@ public struct PopupView: View {
         HStack(spacing: 0) {
             // If completions exist but user toggled to normal actions, show Down Arrow button on left
             if hasCompletions {
-                chevronButton(systemImage: "chevron.down") {
+                ChevronButtonView(systemImage: "chevron.down", width: chevronWidth) {
                     isShowingCompletions = true
                 }
             } else if hasLeftChevron {
-                chevronButton(systemImage: "chevron.left") { currentPage -= 1 }
+                ChevronButtonView(systemImage: "chevron.left", width: chevronWidth) { currentPage -= 1 }
             }
 
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
                 let isLast = index == pagedActions.count - 1
                 let showDivider = !isLast || hasRightChevron
-                let isHovered = hoveredIndex == index
-                actionButton(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
+                ActionButtonView(
+                    action: action,
+                    context: context,
+                    selectedTheme: selectedTheme,
+                    buttonWidth: buttonWidth,
+                    showDivider: showDivider,
+                    enabledTransformCases: enabledTransformCases,
+                    onResult: onResult
+                )
             }
 
             if !hasCompletions && hasRightChevron {
-                chevronButton(systemImage: "chevron.right") { currentPage += 1 }
+                ChevronButtonView(systemImage: "chevron.right", width: chevronWidth) { currentPage += 1 }
             }
         }
         .fixedSize()
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    // MARK: - Completion Button
+    // MARK: - Opaque Background Helpers
 
     @ViewBuilder
-    private func completionButton(word: String, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
+    private var opaqueBackground: some View {
+        switch selectedTheme {
+        case "dark":
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(red: 0.08, green: 0.08, blue: 0.10))
+        default:
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(red: 0.98, green: 0.98, blue: 0.99))
+        }
+    }
+
+    private var opaqueBorder: Color {
+        selectedTheme == "light" ? Color.black.opacity(0.12) : Color.white.opacity(0.14)
+    }
+}
+
+// MARK: - Subviews
+
+struct CompletionButtonView: View {
+    let word: String
+    let selectedTheme: String
+    let buttonWidth: CGFloat
+    let showDivider: Bool
+    let onResult: (ActionResult) -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
         let restForeground: Color = {
             switch selectedTheme {
             case "light": return .black.opacity(0.85)
@@ -196,19 +227,26 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovering in
-            if isHovering {
-                hoveredCompletionIndex = index
-            } else if hoveredCompletionIndex == index {
-                hoveredCompletionIndex = nil
+        .background(
+            HoverTrackingView { hover in
+                isHovered = hover
             }
-        }
+        )
     }
+}
 
-    // MARK: - Unified Action Button
-
-    @ViewBuilder
-    private func actionButton(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
+struct ActionButtonView: View {
+    let action: any Action
+    let context: ActionContext
+    let selectedTheme: String
+    let buttonWidth: CGFloat
+    let showDivider: Bool
+    let enabledTransformCases: [TransformCase]
+    let onResult: (ActionResult) -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
         let restForeground: Color = {
             switch selectedTheme {
             case "light": return .black.opacity(0.85)
@@ -225,7 +263,7 @@ public struct PopupView: View {
             }
         }()
 
-        let labelView = iconView(for: action.icon)
+        let labelView = PopupIconView(icon: action.icon)
             .font(.system(size: 13, weight: .medium))
             .foregroundColor(isHovered ? .white : restForeground)
             .padding(.horizontal, {
@@ -264,12 +302,8 @@ public struct PopupView: View {
             .menuStyle(.borderlessButton)
             .help(action.title)
             .background(
-                HoverTrackingView { isHovering in
-                    if isHovering {
-                        hoveredIndex = index
-                    } else if hoveredIndex == index {
-                        hoveredIndex = nil
-                    }
+                HoverTrackingView { hover in
+                    isHovered = hover
                 }
             )
         } else {
@@ -288,51 +322,45 @@ public struct PopupView: View {
             .buttonStyle(.plain)
             .help(action.title)
             .background(
-                HoverTrackingView { isHovering in
-                    if isHovering {
-                        hoveredIndex = index
-                    } else if hoveredIndex == index {
-                        hoveredIndex = nil
-                    }
+                HoverTrackingView { hover in
+                    isHovered = hover
                 }
             )
         }
     }
+}
 
-    @ViewBuilder
-    private func chevronButton(systemImage: String, action: @escaping () -> Void) -> some View {
+struct ChevronButtonView: View {
+    let systemImage: String
+    let width: CGFloat
+    let action: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
-                .frame(width: chevronWidth, height: 28)
+                .foregroundColor(isHovered ? .white : .secondary)
+                .frame(width: width, height: 28)
+                .background(isHovered ? Color.accentColor : Color.clear)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .background(
+            HoverTrackingView { hover in
+                isHovered = hover
+            }
+        )
     }
+}
 
-    // MARK: - Opaque Background Helpers
+// MARK: - Icon Helper
 
-    @ViewBuilder
-    private var opaqueBackground: some View {
-        switch selectedTheme {
-        case "dark":
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(red: 0.08, green: 0.08, blue: 0.10))
-        default:
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(red: 0.98, green: 0.98, blue: 0.99))
-        }
-    }
-
-    private var opaqueBorder: Color {
-        selectedTheme == "light" ? Color.black.opacity(0.12) : Color.white.opacity(0.14)
-    }
-
-    // MARK: - Icon Helper
-
-    @ViewBuilder
-    private func iconView(for icon: ActionIcon) -> some View {
+struct PopupIconView: View {
+    let icon: ActionIcon
+    
+    var body: some View {
         switch icon {
         case .symbol(let name):
             Image(systemName: name)
@@ -352,7 +380,6 @@ public struct PopupView: View {
             }
         case .text(let text):
             Text(text)
-                .font(.system(size: 13, weight: .medium))
         }
     }
 }
