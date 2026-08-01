@@ -7,10 +7,12 @@ public struct EditActionSheet: View {
     let action: any Action
     @Environment(\.dismiss) private var dismiss
     
+    @State private var activeTab: Int = 0 // 0 = Appearance, 1 = General
     @State private var customTitle: String = ""
     @State private var iconType: Int = 0 // 0 = SF Symbol, 1 = Emoji / Text
     @State private var iconSymbol: String = ""
     @State private var iconText: String = ""
+    @State private var showingIconPicker: Bool = false
     
     // Custom Action State
     @State private var customType: CustomActionType = .textSnippet(template: "{text}")
@@ -47,114 +49,138 @@ public struct EditActionSheet: View {
             .padding(.top, 14)
             .padding(.bottom, 10)
             
+            Picker("", selection: $activeTab) {
+                Label("Appearance", systemImage: "paintpalette").tag(0)
+                Label("General", systemImage: "gearshape").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 10)
+            
             Divider()
             
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    // Appearance Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Appearance")
-                            .font(.headline)
-                        
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Action Name")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            TextField("Display Name", text: $customTitle)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Action Icon")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            Picker("", selection: $iconType) {
-                                Text("SF Symbol").tag(0)
-                                Text("Emoji / Text").tag(1)
-                            }
-                            .pickerStyle(.segmented)
-                            
-                            if iconType == 0 {
-                                TextField("Symbol Name (e.g. magnifyingglass)", text: $iconSymbol)
-                                    .textFieldStyle(.roundedBorder)
+                    if activeTab == 0 {
+                        // Appearance Tab
+                        VStack(alignment: .leading, spacing: 14) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Action Name / Text")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
                                 
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 6), spacing: 6) {
-                                    ForEach(popularSymbols, id: \.self) { sym in
-                                        Button {
-                                            iconSymbol = sym
-                                        } label: {
-                                            Image(systemName: sym)
-                                                .font(.system(size: 14))
-                                                .frame(width: 32, height: 32)
-                                                .background(iconSymbol == sym ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
-                                                .cornerRadius(6)
+                                HStack(spacing: 10) {
+                                    TextField("Display Name or Emoji", text: $customTitle)
+                                        .textFieldStyle(.roundedBorder)
+
+                                    Button {
+                                        showingIconPicker.toggle()
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: iconSymbol.isEmpty ? "star" : iconSymbol)
+                                                .font(.system(size: 16))
+                                                .frame(width: 22, height: 22)
+                                            Image(systemName: "chevron.down")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
                                         }
-                                        .buttonStyle(.plain)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                                .fill(Color.primary.opacity(0.06))
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("Choose icon")
+                                    .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
+                                        IconPickerPopover(selectedIcon: $iconSymbol)
                                     }
                                 }
-                                .padding(.top, 4)
-                            } else {
-                                TextField("Emoji or Text (e.g. Aa, 🔍, ⚡️)", text: $iconText)
-                                    .textFieldStyle(.roundedBorder)
                             }
-                        }
-                        
-                        Button("Reset Name & Icon to Default") {
-                            ActionCustomizationManager.shared.resetOverride(for: action.id)
-                            loadInitialState()
-                        }
-                        .font(.caption)
-                        .buttonStyle(.link)
-                    }
-                    
-                    Divider()
-                    
-                    // Type-Specific Behavior Section
-                    if action.id == "builtin.search" {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Search Behavior")
-                                .font(.headline)
-                            BuiltinSearchConfigView()
-                        }
-                    } else if let customAction = action as? CustomAction {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Custom Action Logic")
-                                .font(.headline)
                             
-                            Picker("Type", selection: $customType) {
-                                Text("Web Search").tag(CustomActionType.webSearch(urlTemplate: customURLTemplate))
-                                Text("Text Snippet").tag(CustomActionType.textSnippet(template: customSnippetTemplate))
-                                Text("Shell Script").tag(CustomActionType.shellScript(script: customShellScript, replaceSelection: replaceSelection))
+                            Divider()
+                            
+                            // 3. Selection at bottom for display preference
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Display Preference")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Picker("", selection: $iconType) {
+                                    Text("Icon").tag(0)
+                                    Text("Text").tag(1)
+                                }
+                                .pickerStyle(.segmented)
                             }
-                            .pickerStyle(.segmented)
                             
-                            switch customType {
-                            case .webSearch:
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("URL Template").font(.caption).foregroundColor(.secondary)
-                                    TextField("https://example.com/search?q={text}", text: $customURLTemplate)
-                                        .textFieldStyle(.roundedBorder)
+                            Button("Reset Name & Icon to Default") {
+                                ActionCustomizationManager.shared.resetOverride(for: action.id)
+                                loadInitialState()
+                            }
+                            .font(.caption)
+                            .buttonStyle(.link)
+                            .padding(.top, 4)
+                        }
+                    } else {
+                        // General Tab (Behavior & Logic)
+                        if action.id == "builtin.search" {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Search Engine Configuration")
+                                    .font(.headline)
+                                BuiltinSearchConfigView()
+                            }
+                        } else if let customAction = action as? CustomAction {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Action Type & Execution Logic")
+                                    .font(.headline)
+                                
+                                Picker("Type", selection: $customType) {
+                                    Text("Web Search").tag(CustomActionType.webSearch(urlTemplate: customURLTemplate))
+                                    Text("Text Snippet").tag(CustomActionType.textSnippet(template: customSnippetTemplate))
+                                    Text("Shell Script").tag(CustomActionType.shellScript(script: customShellScript, replaceSelection: replaceSelection))
                                 }
-                            case .textSnippet:
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Snippet Template").font(.caption).foregroundColor(.secondary)
-                                    TextEditor(text: $customSnippetTemplate)
-                                        .font(.system(.body, design: .monospaced))
-                                        .frame(height: 70)
-                                        .border(Color.secondary.opacity(0.2))
+                                .pickerStyle(.segmented)
+                                
+                                switch customType {
+                                case .webSearch:
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("URL Template").font(.caption).foregroundColor(.secondary)
+                                        TextField("https://example.com/search?q={text}", text: $customURLTemplate)
+                                            .textFieldStyle(.roundedBorder)
+                                    }
+                                case .textSnippet:
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Snippet Template").font(.caption).foregroundColor(.secondary)
+                                        TextEditor(text: $customSnippetTemplate)
+                                            .font(.system(.body, design: .monospaced))
+                                            .frame(height: 70)
+                                            .border(Color.secondary.opacity(0.2))
+                                    }
+                                case .shellScript:
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Shell Script (Zsh)").font(.caption).foregroundColor(.secondary)
+                                        TextEditor(text: $customShellScript)
+                                            .font(.system(.body, design: .monospaced))
+                                            .frame(height: 90)
+                                            .border(Color.secondary.opacity(0.2))
+                                        
+                                        Toggle("Replace selected text with output", isOn: $replaceSelection)
+                                            .font(.caption)
+                                    }
                                 }
-                            case .shellScript:
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Shell Script (Zsh)").font(.caption).foregroundColor(.secondary)
-                                    TextEditor(text: $customShellScript)
-                                        .font(.system(.body, design: .monospaced))
-                                        .frame(height: 90)
-                                        .border(Color.secondary.opacity(0.2))
-                                    
-                                    Toggle("Replace selected text with output", isOn: $replaceSelection)
-                                        .font(.caption)
-                                }
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("General Action Information")
+                                    .font(.headline)
+                                Text("Standard built-in system action. Execution behavior is managed automatically by macOS and OpenClip.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }
@@ -176,7 +202,7 @@ public struct EditActionSheet: View {
             }
             .padding(12)
         }
-        .frame(width: 400, height: 500)
+        .frame(width: 340, height: 360)
         .onAppear {
             loadInitialState()
         }
@@ -184,27 +210,27 @@ public struct EditActionSheet: View {
     
     private func loadInitialState() {
         let override = ActionCustomizationManager.shared.override(for: action.id)
-        customTitle = override?.customTitle ?? action.title
         
         if let txt = override?.customIconText, !txt.isEmpty {
             iconType = 1
-            iconText = txt
-            iconSymbol = ""
-        } else if let sym = override?.customIconSymbol, !sym.isEmpty {
-            iconType = 0
-            iconSymbol = sym
-            iconText = ""
+            customTitle = txt
         } else {
-            switch action.icon {
-            case .symbol(let sym):
+            customTitle = override?.customTitle ?? action.title
+            if let sym = override?.customIconSymbol, !sym.isEmpty {
                 iconType = 0
                 iconSymbol = sym
-            case .text(let txt):
-                iconType = 1
-                iconText = txt
-            default:
-                iconType = 0
-                iconSymbol = "star"
+            } else {
+                switch action.icon {
+                case .symbol(let sym):
+                    iconType = 0
+                    iconSymbol = sym
+                case .text(let txt):
+                    iconType = 1
+                    customTitle = txt
+                default:
+                    iconType = 0
+                    iconSymbol = "star"
+                }
             }
         }
         
@@ -222,9 +248,21 @@ public struct EditActionSheet: View {
     
     private func saveChanges() {
         // Save appearance overrides
-        let titleOverride = (customTitle == action.title) ? nil : customTitle
-        let symbolOverride = (iconType == 0 && !iconSymbol.isEmpty) ? iconSymbol : nil
-        let textOverride = (iconType == 1 && !iconText.isEmpty) ? iconText : nil
+        let titleOverride: String?
+        let symbolOverride: String?
+        let textOverride: String?
+        
+        if iconType == 1 {
+            // Text / Emoji Display Preference: customTitle is both title and text icon
+            textOverride = customTitle.isEmpty ? nil : customTitle
+            titleOverride = customTitle.isEmpty ? nil : customTitle
+            symbolOverride = nil
+        } else {
+            // SF Symbol Preference: Action Name + SF Symbol
+            titleOverride = (customTitle == action.title) ? nil : customTitle
+            symbolOverride = iconSymbol.isEmpty ? nil : iconSymbol
+            textOverride = nil
+        }
         
         ActionCustomizationManager.shared.setOverride(
             for: action.id,

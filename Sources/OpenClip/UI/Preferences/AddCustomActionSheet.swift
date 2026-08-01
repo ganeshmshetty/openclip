@@ -1,46 +1,6 @@
 import SwiftUI
 import Core
 
-// Curated SF Symbols grouped by category for the icon picker
-private let iconCategories: [(name: String, icons: [String])] = [
-    ("Common", [
-        "doc.on.clipboard", "scissors", "doc.text", "magnifyingglass", "wand.and.stars",
-        "link", "globe", "envelope", "square.and.pencil", "arrow.up.circle",
-        "checkmark.circle", "xmark.circle", "star", "heart", "bookmark",
-        "tag", "paperplane", "tray.and.arrow.up", "tray.and.arrow.down", "archivebox"
-    ]),
-    ("Text & Writing", [
-        "textformat", "bold", "italic", "underline", "strikethrough",
-        "textformat.size", "character.cursor.ibeam", "text.quote", "list.bullet",
-        "list.number", "text.alignleft", "text.aligncenter", "text.alignright",
-        "text.justify", "pencil", "pencil.circle", "pencil.and.outline",
-        "square.and.pencil", "note.text", "doc.plaintext", "doc.richtext"
-    ]),
-    ("Search & Web", [
-        "magnifyingglass", "magnifyingglass.circle", "safari", "globe", "network",
-        "link.circle", "link.badge.plus", "arrow.up.right.square", "externaldrive.connected.to.line.below",
-        "books.vertical", "book", "book.circle", "map", "location", "location.circle"
-    ]),
-    ("Math & Code", [
-        "function", "x.squareroot", "percent", "plusminus", "sum",
-        "chevron.left.forwardslash.chevron.right", "terminal", "curlybraces",
-        "hammer", "gear", "gearshape", "wrench.and.screwdriver", "cpu",
-        "memorychip", "number", "number.circle"
-    ]),
-    ("Media & Sharing", [
-        "square.and.arrow.up", "square.and.arrow.down", "arrow.clockwise",
-        "arrow.counterclockwise", "arrow.right.circle", "arrowshape.turn.up.right",
-        "speaker.wave.2", "mic", "camera", "photo", "video", "play.circle",
-        "pause.circle", "stop.circle", "record.circle"
-    ]),
-    ("Symbols", [
-        "star.circle", "flame", "bolt", "sparkles", "waveform",
-        "cube", "cube.transparent", "shippingbox", "lock", "lock.open",
-        "key", "shield", "shield.checkered", "exclamationmark.circle",
-        "questionmark.circle", "info.circle", "bell", "flag"
-    ])
-]
-
 @MainActor
 public struct AddCustomActionSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -48,6 +8,7 @@ public struct AddCustomActionSheet: View {
     @State private var typeIndex = 0
     @State private var title = ""
     @State private var iconName = "wand.and.stars"
+    @State private var displayPreference = 0 // 0 = Icon, 1 = Text
     @State private var showingIconPicker = false
     
     // Web Search
@@ -78,7 +39,7 @@ public struct AddCustomActionSheet: View {
 
             // Title + Icon row
             HStack(spacing: 10) {
-                TextField("Action Title", text: $title)
+                TextField("Action Title / Text", text: $title)
                     .textFieldStyle(.roundedBorder)
 
                 // Icon preview button — opens picker
@@ -109,6 +70,19 @@ public struct AddCustomActionSheet: View {
                 .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
                     IconPickerPopover(selectedIcon: $iconName)
                 }
+            }
+
+            // Display preference picker
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Display Preference")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Picker("", selection: $displayPreference) {
+                    Text("Icon").tag(0)
+                    Text("Text").tag(1)
+                }
+                .pickerStyle(.segmented)
             }
 
             Divider()
@@ -174,13 +148,24 @@ public struct AddCustomActionSheet: View {
         case 2:  actionType = .shellScript(script: shellScript, replaceSelection: replaceSelection)
         default: return
         }
+        let actionTitle = title.trimmingCharacters(in: .whitespaces)
         let newAction = CustomAction(
             id: "com.custom.\(UUID().uuidString.prefix(8))",
-            title: title.trimmingCharacters(in: .whitespaces),
+            title: actionTitle,
             iconName: iconName.isEmpty ? "wand.and.stars" : iconName,
             type: actionType
         )
         CustomActionManager.shared.register(customAction: newAction)
+        
+        if displayPreference == 1 {
+            ActionCustomizationManager.shared.setOverride(
+                for: newAction.id,
+                title: actionTitle,
+                symbol: nil,
+                text: actionTitle
+            )
+        }
+        
         dismiss()
     }
 }
@@ -188,15 +173,15 @@ public struct AddCustomActionSheet: View {
 // MARK: - Icon Picker Popover
 
 @MainActor
-private struct IconPickerPopover: View {
+struct IconPickerPopover: View {
     @Binding var selectedIcon: String
     @State private var searchText = ""
     @Environment(\.dismiss) private var dismiss
 
     private var filteredCategories: [(name: String, icons: [String])] {
-        if searchText.isEmpty { return iconCategories }
+        if searchText.isEmpty { return IconPickerView.iconCategories }
         let q = searchText.lowercased()
-        return iconCategories.compactMap { cat in
+        return IconPickerView.iconCategories.compactMap { cat in
             let filtered = cat.icons.filter { $0.contains(q) }
             return filtered.isEmpty ? nil : (name: cat.name, icons: filtered)
         }

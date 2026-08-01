@@ -6,6 +6,7 @@ enum PreferenceTab: String, CaseIterable, Hashable {
     case general = "General"
     case appearance = "Appearance"
     case actions = "Actions"
+    case ai = "AI"
     case appRules = "App Rules"
     case about = "About"
     
@@ -14,6 +15,7 @@ enum PreferenceTab: String, CaseIterable, Hashable {
         case .general: return "gearshape"
         case .appearance: return "paintpalette"
         case .actions: return "bolt.fill"
+        case .ai: return "sparkles"
         case .appRules: return "shield"
         case .about: return "info.circle"
         }
@@ -24,7 +26,7 @@ enum PreferenceTab: String, CaseIterable, Hashable {
 public struct PreferencesView: View {
     @AppStorage(Constants.startAtLoginKey) private var startAtLogin: Bool = false
     @AppStorage(Constants.popupStyleKey) private var popupStyle: String = "modern"
-    @AppStorage("popupTheme") private var theme: String = "glass"
+    @AppStorage("popupTheme") private var theme: String = "system"
     @AppStorage(Constants.popupSizeKey) private var popupSize: String = "medium"
     
     @State private var disabledActionIDs: Set<String> = []
@@ -124,6 +126,8 @@ public struct PreferencesView: View {
                         AppearanceTab(popupStyle: $popupStyle, theme: $theme, popupSize: $popupSize)
                     case .actions: 
                         ActionsTab(disabledActionIDs: $disabledActionIDs)
+                    case .ai:
+                        AITab()
                     case .appRules: 
                         AppRulesTab()
                     case .about: 
@@ -316,9 +320,10 @@ struct AppearanceTab: View {
             
             Form {
                 Picker("Theme Style", selection: $theme) {
-                    Text("Glass").tag("glass")
+                    Text("System").tag("system")
                     Text("Dark").tag("dark")
                     Text("Light").tag("light")
+                    Text("Glass").tag("glass")
                 }
                 .pickerStyle(.segmented)
             }
@@ -337,9 +342,9 @@ struct ActionsTab: View {
     @ObservedObject private var coordinator = ActionCoordinator.shared
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             List {
-                Section(header: Text("Built-in & Registered Actions").font(.subheadline).bold()) {
+                Section {
                     ForEach(coordinator.actions.filter { !$0.id.hasPrefix("builtin.transform.") }, id: \.id) { action in
                         if action.id == "builtin.transform" {
                             TransformGroupRowView(groupAction: action, disabledActionIDs: $disabledActionIDs)
@@ -354,6 +359,15 @@ struct ActionsTab: View {
             }
             .listStyle(.inset)
             .scrollContentBackground(.hidden)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(0.03))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             
             HStack(spacing: 12) {
                 Button(action: {
@@ -371,6 +385,7 @@ struct ActionsTab: View {
                 Spacer()
             }
             .padding(.horizontal, 10)
+            .padding(.bottom, 4)
         }
         .padding(12)
         .sheet(isPresented: $showingAddActionSheet) {
@@ -420,57 +435,91 @@ struct ActionRowView: View {
     
     @State private var showingConfigSheet = false
     
-    private var configurableAction: (any ConfigurableAction)? {
-        action as? any ConfigurableAction
-    }
-    
     private var displayIcon: ActionIcon {
-        action.displayIcon
+        if let override = ActionCustomizationManager.shared.override(for: action.id) {
+            if let symbol = override.customIconSymbol, !symbol.isEmpty {
+                return .symbol(symbol)
+            }
+            if let text = override.customIconText, !text.isEmpty {
+                return .text(text)
+            }
+        }
+        if let configurable = action as? any ConfigurableAction {
+            return .symbol(configurable.preferenceIconName)
+        }
+        switch action.id {
+        case "builtin.copy": return .symbol("doc.on.doc")
+        case "builtin.cut": return .symbol("scissors")
+        case "builtin.paste": return .symbol("doc.on.clipboard")
+        case "builtin.define": return .symbol("character.book.closed")
+        default:
+            return action.icon
+        }
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Toggle(isOn: isEnabled) {
-                HStack(spacing: 10) {
-                    switch displayIcon {
-                    case .symbol(let name):
-                        Image(systemName: name)
-                            .frame(width: 20)
-                    case .url, .local:
-                        Image(systemName: "sparkles")
-                            .frame(width: 20)
-                    case .text(let text):
-                        Text(text)
-                            .font(.system(size: 11, weight: .semibold))
-                            .frame(width: 20)
-                    }
-                    Text(action.displayTitle)
-                        .font(.body)
-                    Spacer()
-                    if action is ScriptAction {
-                        Text("Script")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.blue.opacity(0.15)))
-                            .foregroundColor(.blue)
-                    } else if action is URLTemplateAction {
-                        Text("URL Template")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.purple.opacity(0.15)))
-                            .foregroundColor(.purple)
-                    } else if let customAction = action as? CustomAction {
-                        CustomActionBadge(type: customAction.type)
-                    }
+        HStack(spacing: 12) {
+            // Icon Column
+            ZStack {
+                switch displayIcon {
+                case .symbol(let name):
+                    Image(systemName: name)
+                        .font(.system(size: 14))
+                        .foregroundColor(.primary)
+                case .url, .local:
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14))
+                        .foregroundColor(.primary)
+                case .text(let text):
+                    Text(text)
+                        .font(.system(size: text.count > 2 ? 10 : 13, weight: .bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, 4)
+                        .foregroundColor(.primary)
                 }
             }
+            .frame(minWidth: 28, minHeight: 28)
+            .background(Color.primary.opacity(0.06))
+            .cornerRadius(6)
             
+            // Title Column
+            Text(action.displayTitle)
+                .font(.system(size: 13, weight: .medium))
+            
+            Spacer()
+            
+            // Type Badge Column
+            if action is ScriptAction {
+                Text("Script")
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.blue.opacity(0.15)))
+                    .foregroundColor(.blue)
+            } else if action is URLTemplateAction {
+                Text("URL Template")
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.purple.opacity(0.15)))
+                    .foregroundColor(.purple)
+            } else if let customAction = action as? CustomAction {
+                CustomActionBadge(type: customAction.type)
+            }
+            
+            // Enable/Disable Switch
+            Toggle("", isOn: isEnabled)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            
+            // Edit / Configure Button
             Button(action: {
                 showingConfigSheet = true
             }) {
                 Image(systemName: "gearshape")
+                    .font(.system(size: 14))
             }
             .buttonStyle(.plain)
             .foregroundColor(.secondary)
@@ -479,11 +528,13 @@ struct ActionRowView: View {
                 EditActionSheet(action: action)
             }
             
+            // Delete Button (if applicable)
             if let customAction = action as? CustomAction {
                 Button(action: {
                     CustomActionManager.shared.delete(customActionID: customAction.id)
                 }) {
                     Image(systemName: "trash")
+                        .font(.system(size: 14))
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.red)
@@ -495,12 +546,14 @@ struct ActionRowView: View {
                     }
                 }) {
                     Image(systemName: "trash")
+                        .font(.system(size: 14))
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.red)
                 .help("Uninstall Extension")
             }
         }
+        .padding(.vertical, 4)
     }
 }
 
@@ -509,6 +562,7 @@ struct TransformGroupRowView: View {
     let groupAction: any Action
     @Binding var disabledActionIDs: Set<String>
     @State private var isExpanded = false
+    @State private var showingConfigSheet = false
     
     private var isGroupEnabled: Binding<Bool> {
         Binding<Bool>(
@@ -551,8 +605,15 @@ struct TransformGroupRowView: View {
                             .padding(.top, 4)
                         
                         ForEach(catCases) { tCase in
-                            Toggle(tCase.displayName, isOn: isSubActionEnabled(tCase))
-                                .toggleStyle(.checkbox)
+                            HStack {
+                                Text(tCase.displayName)
+                                    .font(.system(size: 12))
+                                Spacer()
+                                Toggle("", isOn: isSubActionEnabled(tCase))
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
+                                    .controlSize(.small)
+                            }
                         }
                     }
                 }
@@ -560,18 +621,54 @@ struct TransformGroupRowView: View {
             .padding(.leading, 24)
             .padding(.vertical, 4)
         } label: {
-            HStack(spacing: 10) {
-                Toggle(isOn: isGroupEnabled) {
-                    HStack(spacing: 10) {
+            HStack(spacing: 12) {
+                // Icon Column
+                ZStack {
+                    if case .symbol(let name) = groupAction.displayIcon {
+                        Image(systemName: name)
+                            .font(.system(size: 14))
+                            .foregroundColor(.primary)
+                    } else if case .text(let txt) = groupAction.displayIcon {
+                        Text(txt)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.primary)
+                    } else {
                         Image(systemName: "textformat")
-                            .frame(width: 20)
-                        Text(groupAction.title)
-                            .font(.body)
-                        Spacer()
+                            .font(.system(size: 14))
+                            .foregroundColor(.primary)
                     }
                 }
-                .toggleStyle(.checkbox)
+                .frame(minWidth: 28, minHeight: 28)
+                .background(Color.primary.opacity(0.06))
+                .cornerRadius(6)
+                
+                // Title Column
+                Text(groupAction.displayTitle)
+                    .font(.system(size: 13, weight: .medium))
+                
+                Spacer()
+                
+                // Enable/Disable Switch
+                Toggle("", isOn: isGroupEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                
+                // Edit / Configure Button
+                Button(action: {
+                    showingConfigSheet = true
+                }) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 14))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .help("Configure Action")
+                .sheet(isPresented: $showingConfigSheet) {
+                    EditActionSheet(action: groupAction)
+                }
             }
+            .padding(.vertical, 4)
         }
     }
 }

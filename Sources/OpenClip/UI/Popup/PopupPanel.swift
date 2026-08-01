@@ -14,6 +14,5 @@ public class PopupPanel: NSPanel {
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = false   // SwiftUI draws its own shadow; panel shadow causes double artifacts
-        self.acceptsMouseMovedEvents = true
     }
 }
