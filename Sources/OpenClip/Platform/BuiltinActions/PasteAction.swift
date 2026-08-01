@@ -8,7 +8,12 @@ import Core
 public struct PasteAction: Action {
     public let id = "builtin.paste"
     public let title = "Paste"
-    public let icon = ActionIcon.symbol("clipboard")
+    public var icon: ActionIcon {
+        if UserDefaults.standard.bool(forKey: "action.paste.useText") {
+            return .text("Paste")
+        }
+        return .symbol("clipboard")
+    }
     
     public init() {}
     

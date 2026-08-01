@@ -3,8 +3,11 @@ import Core
 
 public struct CalculateAction: Action {
     public let id = "builtin.calculate"
-    public let title = "="
-    public let icon = ActionIcon.symbol("equal.circle")
+    public var title: String { "Calculate" }
+    public var icon: ActionIcon {
+        let useText = UserDefaults.standard.bool(forKey: "action.calculate.useText")
+        return useText ? .text("=") : .symbol("equal.circle")
+    }
     
     public init() {}
     
@@ -25,7 +28,18 @@ public struct CalculateAction: Action {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if let result = evaluateExpression(text) {
             let resultString = formatResult(result)
-            return .paste(resultString)
+            let mode = UserDefaults.standard.string(forKey: "action.calculate.mode") ?? "paste"
+            
+            switch mode {
+            case "copy":
+                return .copy(resultString)
+            case "append":
+                return .paste("\(text) = \(resultString)")
+            case "paste":
+                fallthrough
+            default:
+                return .paste(resultString)
+            }
         }
         return .none
     }

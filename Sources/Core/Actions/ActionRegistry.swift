@@ -12,6 +12,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     
     public func register(builtIns: [any Action]) {
         actions.append(contentsOf: builtIns)
+        sortActions()
     }
     
     public func register(action: any Action) {
@@ -21,6 +22,41 @@ public final class ActionRegistry: ObservableObject, Sendable {
         } else {
             actions.append(action)
         }
+        sortActions()
+    }
+    
+    private func sortActions() {
+        let order = UserDefaults.standard.stringArray(forKey: "action.order") ?? []
+        actions.sort { a, b in
+            let idxA = order.firstIndex(of: a.id) ?? Int.max
+            let idxB = order.firstIndex(of: b.id) ?? Int.max
+            // Keep original order if neither is in the order array
+            if idxA == Int.max && idxB == Int.max {
+                return false
+            }
+            return idxA < idxB
+        }
+    }
+    
+    public func moveActions(from source: IndexSet, to destination: Int) {
+        var newActions = actions
+        let movingActions = source.map { newActions[$0] }
+        for index in source.reversed() {
+            newActions.remove(at: index)
+        }
+        
+        var dest = destination
+        for idx in source {
+            if idx < destination {
+                dest -= 1
+            }
+        }
+        
+        newActions.insert(contentsOf: movingActions, at: dest)
+        actions = newActions
+        
+        let newOrder = actions.map { $0.id }
+        UserDefaults.standard.set(newOrder, forKey: "action.order")
     }
     
     public func unregister(actionID: String) {

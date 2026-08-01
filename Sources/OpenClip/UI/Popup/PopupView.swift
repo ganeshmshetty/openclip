@@ -67,7 +67,6 @@ public struct PopupView: View {
             }
         }
         .fixedSize()
-        .onContinuousHover { phase in updateHover(phase: phase) }
         // Single glass effect on the whole bar → one unified pill, not per-button bubbles
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .padding(18)
@@ -89,7 +88,11 @@ public struct PopupView: View {
         } label: {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: buttonWidth, height: 32)
+                .padding(.horizontal, {
+                    if case .text = action.icon { return 8.0 }
+                    return 0.0
+                }())
+                .frame(minWidth: buttonWidth, minHeight: 32)
                 // Tinted highlight capsule inside the unified glass pill on hover
                 .background(
                     Capsule()
@@ -101,6 +104,13 @@ public struct PopupView: View {
         }
         .buttonStyle(.plain)
         .help(action.title)
+        .onHover { isHovering in
+            if isHovering {
+                hoveredIndex = index
+            } else if hoveredIndex == index {
+                hoveredIndex = nil
+            }
+        }
     }
 
     @available(macOS 26, *)
@@ -163,22 +173,6 @@ public struct PopupView: View {
             }
         }
         .fixedSize()
-        .onContinuousHover { phase in
-            updateHover(phase: phase)
-        }
-    }
-
-    // MARK: - Shared hover logic
-
-    private func updateHover(phase: HoverPhase) {
-        switch phase {
-        case .active(let location):
-            let xOffset = location.x - (hasLeftChevron ? chevronWidth : 0)
-            let idx = Int(xOffset / buttonWidth)
-            hoveredIndex = (xOffset >= 0 && idx >= 0 && idx < pagedActions.count) ? idx : nil
-        case .ended:
-            hoveredIndex = nil
-        }
     }
 
     // MARK: - Legacy action button
@@ -201,7 +195,11 @@ public struct PopupView: View {
             iconView(for: action.icon)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(isHovered ? .white : restForeground)
-                .frame(width: buttonWidth, height: 32)
+                .padding(.horizontal, {
+                    if case .text = action.icon { return 8.0 }
+                    return 0.0
+                }())
+                .frame(minWidth: buttonWidth, minHeight: 32)
                 .background(isHovered ? Color.accentColor : Color.clear)
                 .overlay(alignment: .trailing) {
                     if showDivider && !isHovered {
@@ -214,6 +212,13 @@ public struct PopupView: View {
         }
         .buttonStyle(.plain)
         .help(action.title)
+        .onHover { isHovering in
+            if isHovering {
+                hoveredIndex = index
+            } else if hoveredIndex == index {
+                hoveredIndex = nil
+            }
+        }
     }
 
     @ViewBuilder
@@ -265,8 +270,11 @@ public struct PopupView: View {
             if let nsImage = NSImage(contentsOf: url) {
                 Image(nsImage: nsImage).resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
             } else {
-                Image(systemName: "doc")
+                Image(systemName: "exclamationmark.triangle")
             }
+        case .text(let text):
+            Text(text)
+                .font(.system(size: 13, weight: .medium))
         }
     }
 }

@@ -4,6 +4,7 @@ public enum ActionIcon: Sendable, Equatable {
     case symbol(String)
     case url(URL)
     case local(URL)
+    case text(String)
 }
 
 public protocol Action: Sendable {

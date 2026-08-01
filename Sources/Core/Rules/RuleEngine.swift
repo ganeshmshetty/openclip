@@ -1,13 +1,9 @@
 import Foundation
-import Combine
 import os
+import Combine
 
 public struct RuleEngineConfig: Codable, Sendable {
     public let rules: [AppRule]
-    
-    public init(rules: [AppRule]) {
-        self.rules = rules
-    }
 }
 
 @MainActor
@@ -15,19 +11,21 @@ public final class RuleEngine: ObservableObject, Sendable {
     public static let shared = RuleEngine()
     
     @Published public private(set) var userRules: [AppRule] = []
-    private var allExpandedRules: [AppRule] = []
+    
     private let logger = Logger(subsystem: "com.openclip", category: "RuleEngine")
     
-    private init() {
-        self.userRules = Self.defaultRules
-        self.allExpandedRules = RuleEngine.expandRules(Self.defaultRules)
+    // The fully expanded rules list used for evaluation
+    private var effectiveRules: [AppRule] {
+        RuleEngine.expandRules(Self.defaultRules + userRules)
     }
     
-    public func loadRules(from url: URL = Constants.rulesFileURL) async {
+    private init() {
+    }
+    
+    public func loadRules(from url: URL) async {
         let logger = self.logger
         let loadedRules = await Task.detached { () -> [AppRule]? in
             do {
-                guard FileManager.default.fileExists(atPath: url.path) else { return nil }
                 let data = try Data(contentsOf: url)
                 let decoder = JSONDecoder()
                 let config = try decoder.decode(RuleEngineConfig.self, from: data)
@@ -39,54 +37,37 @@ public final class RuleEngine: ObservableObject, Sendable {
             }
         }.value
         
-        if let loadedRules = loadedRules, !loadedRules.isEmpty {
+        if let loadedRules = loadedRules {
             self.userRules = loadedRules
-            self.allExpandedRules = RuleEngine.expandRules(loadedRules)
+        }
+    }
+    
+    public func saveRules(to url: URL) {
+        let config = RuleEngineConfig(rules: userRules)
+        do {
+            let data = try JSONEncoder().encode(config)
+            try data.write(to: url)
+            logger.info("Successfully saved \(self.userRules.count) rules to \(url.path)")
+        } catch {
+            logger.error("Failed to save rules to \(url.path): \(error.localizedDescription)")
+        }
+    }
+    
+    public func addOrUpdateRule(_ rule: AppRule, saveURL: URL = Constants.rulesFileURL) {
+        // If there's already a rule for this exact bundle identifier set, replace it.
+        // Otherwise append. We simplify by matching the first bundle identifier.
+        if let firstID = rule.bundleIdentifiers.first,
+           let index = userRules.firstIndex(where: { $0.bundleIdentifiers.first == firstID }) {
+            userRules[index] = rule
         } else {
-            self.userRules = Self.defaultRules
-            self.allExpandedRules = RuleEngine.expandRules(Self.defaultRules)
+            userRules.append(rule)
         }
+        saveRules(to: saveURL)
     }
     
-    public func addRule(_ rule: AppRule, saveTo url: URL = Constants.rulesFileURL) {
-        userRules.append(rule)
-        allExpandedRules = RuleEngine.expandRules(userRules)
-        saveRules(to: url)
-    }
-    
-    public func deleteRule(id: String, saveTo url: URL = Constants.rulesFileURL) {
-        userRules.removeAll(where: { $0.bundleIdentifiers.contains(id) })
-        allExpandedRules = RuleEngine.expandRules(userRules)
-        saveRules(to: url)
-    }
-    
-    public func deleteRule(at indexSet: IndexSet, saveTo url: URL = Constants.rulesFileURL) {
-        for index in indexSet.sorted().reversed() {
-            if index >= 0 && index < userRules.count {
-                userRules.remove(at: index)
-            }
-        }
-        allExpandedRules = RuleEngine.expandRules(userRules)
-        saveRules(to: url)
-    }
-    
-    public func saveRules(to url: URL = Constants.rulesFileURL) {
-        let rulesToSave = userRules
-        Task.detached {
-            do {
-                let parentDir = url.deletingLastPathComponent()
-                if !FileManager.default.fileExists(atPath: parentDir.path) {
-                    try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
-                }
-                let config = RuleEngineConfig(rules: rulesToSave)
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = .prettyPrinted
-                let data = try encoder.encode(config)
-                try data.write(to: url)
-            } catch {
-                print("Failed to save rules: \(error)")
-            }
-        }
+    public func removeRule(id: String, saveURL: URL = Constants.rulesFileURL) {
+        userRules.removeAll(where: { $0.id == id })
+        saveRules(to: saveURL)
     }
     
     private static func expandRules(_ rules: [AppRule]) -> [AppRule] {
@@ -122,7 +103,7 @@ public final class RuleEngine: ObservableObject, Sendable {
     public func resolvePolicies(for bundleIdentifier: String) -> AppPolicyContext {
         var context = AppPolicyContext.default
         
-        for rule in allExpandedRules {
+        for rule in effectiveRules {
             if rule.bundleIdentifiers.contains(where: { matchPattern($0, with: bundleIdentifier) }) {
                 context = AppPolicyContext(
                     denyFormatting: rule.denyFormatting ?? context.denyFormatting,

@@ -34,9 +34,9 @@ public struct PreferencesView: View {
                 }
                 .tag(2)
             
-            RulesTab()
+            AppRulesTab()
                 .tabItem {
-                    Label("App Rules", systemImage: "app.badge")
+                    Label("App Rules", systemImage: "macwindow.badge.gearshape")
                 }
                 .tag(3)
             
@@ -46,7 +46,7 @@ public struct PreferencesView: View {
                 }
                 .tag(4)
         }
-        .frame(width: 560, height: 460)
+        .frame(width: 580, height: 460)
         .padding(12)
         .onAppear {
             loadDisabledActionIDs()
@@ -222,14 +222,12 @@ struct AppearanceTab: View {
         return ActionContext(selection: context, modifiers: [])
     }
     
+    @ObservedObject private var registry = ActionRegistry.shared
+    
     private var mockActions: [any Action] {
-        [
-            CopyAction(),
-            CutAction(),
-            PasteAction(),
-            SearchAction(),
-            ServicesAction()
-        ]
+        let available = registry.availableActions(for: mockContext)
+        // Show up to 5 actions in the preview to look clean
+        return Array(available.prefix(5))
     }
     
     var body: some View {
@@ -283,6 +281,9 @@ struct ActionsTab: View {
                 Section(header: Text("Built-in & Registered Actions").font(.subheadline).bold()) {
                     ForEach(registry.actions, id: \.id) { action in
                         ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
+                    }
+                    .onMove { source, destination in
+                        registry.moveActions(from: source, to: destination)
                     }
                 }
             }
@@ -351,16 +352,35 @@ struct ActionRowView: View {
         )
     }
     
+    @State private var showingConfigSheet = false
+    
+    var isConfigurable: Bool {
+        ["builtin.search", "builtin.copy", "builtin.cut", "builtin.paste", "builtin.calculate"].contains(action.id)
+    }
+    
+    private var displayIcon: ActionIcon {
+        switch action.id {
+        case "builtin.copy": return .symbol("doc.on.doc")
+        case "builtin.cut": return .symbol("scissors")
+        case "builtin.paste": return .symbol("clipboard")
+        case "builtin.calculate": return .symbol("equal.circle")
+        default: return action.icon
+        }
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Toggle(isOn: isEnabled) {
                 HStack(spacing: 10) {
-                    switch action.icon {
+                    switch displayIcon {
                     case .symbol(let name):
                         Image(systemName: name)
                             .frame(width: 20)
                     case .url, .local:
                         Image(systemName: "sparkles")
+                            .frame(width: 20)
+                    case .text(let text):
+                        Text(String(text.prefix(1))) // Fallback
                             .frame(width: 20)
                     }
                     Text(action.title)
@@ -385,6 +405,21 @@ struct ActionRowView: View {
                     }
                 }
             }
+            
+            if isConfigurable {
+                Button(action: {
+                    showingConfigSheet = true
+                }) {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .help("Configure Action")
+                .sheet(isPresented: $showingConfigSheet) {
+                    ActionConfigSheet(actionID: action.id)
+                }
+            }
+            
             if let customAction = action as? CustomAction {
                 Button(action: {
                     CustomActionManager.shared.delete(customActionID: customAction.id)
@@ -427,96 +462,6 @@ struct CustomActionBadge: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Capsule().fill(color.opacity(0.15)))
-            .foregroundColor(color)
-    }
-}
-
-@MainActor
-struct RulesTab: View {
-    @ObservedObject private var ruleEngine = RuleEngine.shared
-    @State private var showingAddRuleSheet = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            List {
-                Section(header: Text("Per-App Behavior Rules").font(.subheadline).bold()) {
-                    ForEach(Array(ruleEngine.userRules.enumerated()), id: \.offset) { index, rule in
-                        RuleRowView(rule: rule, onDelete: {
-                            ruleEngine.deleteRule(at: IndexSet(integer: index))
-                        })
-                    }
-                }
-            }
-            .listStyle(.inset)
-
-            HStack {
-                Button(action: {
-                    showingAddRuleSheet = true
-                }, label: {
-                    Label("Add App Rule…", systemImage: "plus.app")
-                })
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-        }
-        .padding(12)
-        .sheet(isPresented: $showingAddRuleSheet) {
-            AddRuleSheet()
-        }
-    }
-}
-
-@MainActor
-struct RuleRowView: View {
-    let rule: AppRule
-    let onDelete: () -> Void
-
-    var body: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(rule.bundleIdentifiers.joined(separator: ", "))
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-
-                HStack(spacing: 6) {
-                    if rule.denyProbe == true {
-                        BadgePill(text: "🛑 Disabled", color: .red)
-                    }
-                    if rule.denyFormatting == true {
-                        BadgePill(text: "📝 No Formatting", color: .orange)
-                    }
-                    if rule.grabPasteboard == true {
-                        BadgePill(text: "📋 Clipboard Mode", color: .blue)
-                    }
-                    if rule.assumePaste == true {
-                        BadgePill(text: "📌 Force Paste", color: .purple)
-                    }
-                }
-            }
-
-            Spacer()
-
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-            }
-            .buttonStyle(.plain)
-            .foregroundColor(.red)
-            .help("Delete Rule")
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-private struct BadgePill: View {
-    let text: String
-    let color: Color
-
-    var body: some View {
-        Text(text)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(color.opacity(0.12)))
             .foregroundColor(color)
     }
 }

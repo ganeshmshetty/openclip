@@ -4,7 +4,12 @@ import Core
 public struct CutAction: Action {
     public let id = "builtin.cut"
     public let title = "Cut"
-    public let icon = ActionIcon.symbol("scissors")
+    public var icon: ActionIcon {
+        if UserDefaults.standard.bool(forKey: "action.cut.useText") {
+            return .text("Cut")
+        }
+        return .symbol("scissors")
+    }
     
     public init() {}
     

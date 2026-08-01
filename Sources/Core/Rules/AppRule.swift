@@ -22,7 +22,8 @@ public struct AppPolicyContext: Sendable {
     )
 }
 
-public struct AppRule: Codable, Sendable {
+public struct AppRule: Codable, Sendable, Equatable, Identifiable {
+    public var id: String { bundleIdentifiers.first ?? UUID().uuidString }
     public let bundleIdentifiers: [String]
     public let denyFormatting: Bool?
     public let denyProbe: Bool?

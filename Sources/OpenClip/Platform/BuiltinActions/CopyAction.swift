@@ -4,7 +4,12 @@ import Core
 public struct CopyAction: Action {
     public let id = "builtin.copy"
     public let title = "Copy"
-    public let icon = ActionIcon.symbol("doc.on.doc")
+    public var icon: ActionIcon {
+        if UserDefaults.standard.bool(forKey: "action.copy.useText") {
+            return .text("Copy")
+        }
+        return .symbol("doc.on.doc")
+    }
     
     public init() {}
     

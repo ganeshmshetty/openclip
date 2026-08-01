@@ -13,6 +13,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindowController: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Force accessory (agent) mode immediately.
+        // LSUIElement=true sets this at launch, but SwiftUI's Settings{} scene can
+        // temporarily switch us to .regular. Calling this here ensures we stay
+        // invisible in the Dock and App Switcher at all times.
+        NSApp.setActivationPolicy(.accessory)
+        
         // Initialize the status bar controller
         statusBarController = StatusBarController()
         
@@ -24,11 +30,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.setup(popupController: controller)
         
         ActionRegistry.shared.register(builtIns: [
+            SearchAction(),
             CopyAction(),
             CutAction(),
             PasteAction(),
             CalculateAction(),
-            SearchAction(),
             OpenURLAction(),
             ServicesAction()
         ])

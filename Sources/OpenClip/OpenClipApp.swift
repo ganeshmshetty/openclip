@@ -7,8 +7,10 @@ struct OpenClipApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // We do not want a main window for an agent app.
-        // In SwiftUI, Settings{} creates a settings window if needed.
+        // Settings{} is kept here so SwiftUI's Cmd+, handling and SettingsLink work
+        // correctly. The Dock icon is suppressed by calling
+        // NSApp.setActivationPolicy(.accessory) in AppDelegate.applicationDidFinishLaunching,
+        // which is the Apple-documented approach for agent apps that need a settings window.
         Settings {
             PreferencesView()
         }

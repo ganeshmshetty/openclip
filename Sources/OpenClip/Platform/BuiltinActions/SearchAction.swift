@@ -25,6 +25,14 @@ public struct SearchAction: Action {
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let query = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
         
+        let template = UserDefaults.standard.string(forKey: "action.search.url") ?? ""
+        if !template.isEmpty, template.contains("{query}") {
+            if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+               let url = URL(string: template.replacingOccurrences(of: "{query}", with: encodedQuery)) {
+                return .openURL(url)
+            }
+        }
+        
         var components = URLComponents()
         components.scheme = "https"
         components.host = "www.google.com"
