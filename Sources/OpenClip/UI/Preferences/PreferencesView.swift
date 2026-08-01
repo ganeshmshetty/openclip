@@ -165,11 +165,28 @@ public struct PreferencesView: View {
 
 @MainActor
 struct GeneralTab: View {
+    @AppStorage(Constants.isAppEnabledKey) private var isAppEnabled: Bool = true
     @ObservedObject private var launchManager = LaunchAtLoginManager.shared
     @State private var isAXTrusted: Bool = AXIsProcessTrustedWithOptions(nil)
     
     var body: some View {
         Form {
+            Section("Status") {
+                Toggle(isOn: $isAppEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enable OpenClip")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text(isAppEnabled ? "OpenClip is active and monitoring text selection" : "OpenClip is paused")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .onChange(of: isAppEnabled) { _, newValue in
+                    NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
+                }
+            }
+            
             Section("Shortcut") {
                 HStack {
                     Text("Trigger Popup")
