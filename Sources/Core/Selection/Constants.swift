@@ -14,7 +14,8 @@ public enum Constants {
     public static let pasteboardWaitSleep: UInt64 = 50_000_000
     public static let popupOffset: CGFloat = 16.0
     public static let popupPadding: CGFloat = 8.0
-    public static let popupDismissalDistance: CGFloat = 120.0
+    public static let popupDismissalDistance: CGFloat = 280.0
+    public static let isAppEnabledKey: String = "isAppEnabled"
     public static let searchURLTemplate: String = "https://www.google.com/search?q=%@"
     public static let maxURLScanLength: Int = 2000
     public static let actionErrorDomain: String = "OpenClip.ActionError"

@@ -41,7 +41,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let macMonitor = MacSelectionMonitor(retriever: retriever)
         let coordinator = SelectionCoordinator(monitor: macMonitor)
         coordinator.onSelection = { [weak self] context in
-            self?.popupController?.show(for: context)
+            let isEnabled = UserDefaults.standard.object(forKey: Constants.isAppEnabledKey) as? Bool ?? true
+            if isEnabled {
+                self?.popupController?.show(for: context)
+            }
         }
         selectionCoordinator = coordinator
         
