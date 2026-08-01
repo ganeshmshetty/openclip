@@ -196,13 +196,15 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovering in
-            if isHovering {
-                hoveredCompletionIndex = index
-            } else if hoveredCompletionIndex == index {
-                hoveredCompletionIndex = nil
+        .background(
+            HoverTrackingView { isHovering in
+                if isHovering {
+                    hoveredCompletionIndex = index
+                } else if hoveredCompletionIndex == index {
+                    hoveredCompletionIndex = nil
+                }
             }
-        }
+        )
     }
 
     // MARK: - Unified Action Button
@@ -263,13 +265,15 @@ public struct PopupView: View {
             }
             .menuStyle(.borderlessButton)
             .help(action.title)
-            .onHover { isHovering in
-                if isHovering {
-                    hoveredIndex = index
-                } else if hoveredIndex == index {
-                    hoveredIndex = nil
+            .background(
+                HoverTrackingView { isHovering in
+                    if isHovering {
+                        hoveredIndex = index
+                    } else if hoveredIndex == index {
+                        hoveredIndex = nil
+                    }
                 }
-            }
+            )
         } else {
             Button {
                 Task {
@@ -285,13 +289,15 @@ public struct PopupView: View {
             }
             .buttonStyle(.plain)
             .help(action.title)
-            .onHover { isHovering in
-                if isHovering {
-                    hoveredIndex = index
-                } else if hoveredIndex == index {
-                    hoveredIndex = nil
+            .background(
+                HoverTrackingView { isHovering in
+                    if isHovering {
+                        hoveredIndex = index
+                    } else if hoveredIndex == index {
+                        hoveredIndex = nil
+                    }
                 }
-            }
+            )
         }
     }
 
@@ -349,6 +355,45 @@ public struct PopupView: View {
         case .text(let text):
             Text(text)
                 .font(.system(size: 13, weight: .medium))
+        }
+    }
+}
+
+// MARK: - AppKit Native Hover Tracker for Non-Activating Window
+struct HoverTrackingView: NSViewRepresentable {
+    let onHover: (Bool) -> Void
+
+    func makeNSView(context: Context) -> TrackingNSView {
+        let view = TrackingNSView()
+        view.onHover = onHover
+        return view
+    }
+
+    func updateNSView(_ nsView: TrackingNSView, context: Context) {
+        nsView.onHover = onHover
+    }
+
+    class TrackingNSView: NSView {
+        var onHover: ((Bool) -> Void)?
+        private var trackingArea: NSTrackingArea?
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let existing = trackingArea {
+                removeTrackingArea(existing)
+            }
+            let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
+            let newArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+            addTrackingArea(newArea)
+            self.trackingArea = newArea
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            onHover?(true)
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            onHover?(false)
         }
     }
 }
