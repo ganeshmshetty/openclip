@@ -199,6 +199,10 @@ public final class ExtensionManager: Sendable {
     
     nonisolated private static func loadStandaloneScriptExtension(scriptURL: URL) async -> (any Action)? {
         let content = (try? String(contentsOf: scriptURL, encoding: .utf8)) ?? ""
+        if let parsedAction = await OpenClipSnippetParser.parse(snippet: content) {
+            return parsedAction
+        }
+        
         let lines = content.components(separatedBy: .newlines).prefix(Constants.maxHeaderLinesToScan)
         
         var title: String?
