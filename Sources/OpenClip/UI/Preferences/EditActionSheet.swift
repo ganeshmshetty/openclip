@@ -129,27 +129,11 @@ public struct EditActionSheet: View {
                         }
                     } else {
                         // General Tab (Behavior & Logic)
-                        if action.id == "builtin.search" {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Search Engine Configuration")
-                                    .font(.headline)
-                                BuiltinSearchConfigView()
-                            }
-                        } else if action.id == "builtin.calendar" {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Calendar Destination Settings")
-                                    .font(.headline)
-                                BuiltinCalendarConfigView()
-                            }
-                        } else if action.id == "builtin.completion" {
+                        if !action.actionOptions.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Word Completion Settings")
+                                Text("Action Options")
                                     .font(.headline)
-                                Toggle("Copy selected completions to clipboard", isOn: $completionCopyToClipboard)
-                                    .toggleStyle(.switch)
-                                Text("When enabled, selecting a completion word also saves it to your system clipboard.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                DynamicActionConfigView(actionID: action.id, options: action.actionOptions)
                             }
                         } else if let customAction = action as? CustomAction {
                             VStack(alignment: .leading, spacing: 12) {
@@ -195,7 +179,7 @@ public struct EditActionSheet: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("General Action Information")
                                     .font(.headline)
-                                Text("Standard built-in system action. Execution behavior is managed automatically by macOS and OpenClip.")
+                                Text("Standard action. Execution behavior and options are managed automatically by OpenClip.")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
