@@ -269,6 +269,8 @@ public struct PopupView: View {
                     }
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .buttonStyle(.plain)
             .help(action.title)
         } else {
             Button {
