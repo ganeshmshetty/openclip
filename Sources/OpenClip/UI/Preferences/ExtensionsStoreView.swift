@@ -57,10 +57,12 @@ public struct ExtensionsStoreView: View {
                     Task { await viewModel.resetAndFetch() }
                 }
                 
-                Button("🌐 Open Web Store") {
-                    if let url = URL(string: "https://openclip.app/extensions") {
+                Button(action: {
+                    if let url = URL(string: "https://getopenclip.vercel.app/extensions") {
                         NSWorkspace.shared.open(url)
                     }
+                }) {
+                    Label("Open Web Store", systemImage: "globe")
                 }
                 .buttonStyle(.bordered)
             }
