@@ -123,38 +123,6 @@ private struct AppRuleRowView: View {
             
             Spacer()
             
-            // Status Badges
-            HStack(spacing: 4) {
-                if isAppDisabled {
-                    Text("Disabled")
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.red.opacity(0.15))
-                        .foregroundColor(.red)
-                        .cornerRadius(4)
-                } else {
-                    if isFormattingDisabled {
-                        Text("No Formatting")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.15))
-                            .foregroundColor(.orange)
-                            .cornerRadius(4)
-                    }
-                    if isClipboardForced {
-                        Text("Cmd+C Mode")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.15))
-                            .foregroundColor(.blue)
-                            .cornerRadius(4)
-                    }
-                }
-            }
-            
             // Quick Enable/Disable Toggle
             Toggle("", isOn: Binding(
                 get: { !isAppDisabled },
