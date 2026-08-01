@@ -1,0 +1,9 @@
+{
+  "identifier": "com.openclip.applemusic",
+  "name": "Apple Music",
+  "action": {
+    "title": "Apple Music",
+    "icon": "music.note",
+    "script": "main.applescript"
+  }
+}
