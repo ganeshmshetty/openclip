@@ -4,7 +4,8 @@ import XCTest
 @MainActor
 final class BuiltinRegistryTests: XCTestCase {
     func testMakeCoreBuiltinsReturnsExpectedCount() {
-        XCTAssertEqual(BuiltinRegistry.makeCoreBuiltins().count, 6)
+        let expectedCount = 6 + 1 + TransformCase.allCases.count
+        XCTAssertEqual(BuiltinRegistry.makeCoreBuiltins().count, expectedCount)
     }
 
     func testAllCoreBuiltinIdsAreUnique() {
@@ -20,5 +21,7 @@ final class BuiltinRegistryTests: XCTestCase {
         XCTAssertTrue(ids.contains("builtin.cut"))
         XCTAssertTrue(ids.contains("builtin.paste"))
         XCTAssertTrue(ids.contains("builtin.calculate"))
+        XCTAssertTrue(ids.contains("builtin.transform"))
+        XCTAssertTrue(ids.contains("builtin.transform.uppercase"))
     }
 }
