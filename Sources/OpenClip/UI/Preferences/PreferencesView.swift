@@ -438,24 +438,31 @@ struct ActionsTab: View {
     private func openInstallExtensionPanel() {
         let panel = NSOpenPanel()
         panel.title = "Select Extension to Install"
+        panel.message = "Choose a .openclipext folder, .zip archive, or script file"
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
         panel.canChooseFiles = true
-        panel.treatsFilePackagesAsDirectories = false
-        
+        // Treat .openclipext packages as directories so they can be read
+        panel.treatsFilePackagesAsDirectories = true
+        panel.allowedContentTypes = []
+
         panel.begin { response in
-            if response == .OK, let selectedURL = panel.url {
-                Task {
-                    do {
-                        _ = try await ExtensionManager.shared.installExtension(from: selectedURL)
-                        // Trigger UI update
-                        await MainActor.run {
-                            if let firstAction = ActionRegistry.shared.actions.first {
-                                ActionRegistry.shared.register(action: firstAction)
-                            }
-                        }
-                    } catch {
-                        print("Failed to install extension: \(error)")
+            guard response == .OK, let selectedURL = panel.url else { return }
+            Task {
+                do {
+                    _ = try await ExtensionManager.shared.installExtension(from: selectedURL)
+                    await MainActor.run {
+                        // Post notification so any listening view refreshes its action list
+                        NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+                    }
+                } catch {
+                    await MainActor.run {
+                        let alert = NSAlert()
+                        alert.messageText = "Extension Install Failed"
+                        alert.informativeText = error.localizedDescription
+                        alert.alertStyle = .warning
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
                     }
                 }
             }

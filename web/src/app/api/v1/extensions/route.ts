@@ -75,7 +75,7 @@ async function loadExtensionsFromGitHub(): Promise<ExtensionItem[]> {
           icon: action.icon || data.icon || 'puzzlepiece',
           category: data.category || 'productivity',
           downloadCount: 0,
-          downloadURL: `${RAW_BASE}/${dirName}/openclip.json`,
+          downloadURL: `${RAW_BASE}/${dirName}.zip`,
         } as ExtensionItem;
       })
     );
