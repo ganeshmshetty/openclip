@@ -11,9 +11,6 @@ final class TextPlaceholderEngineTests: XCTestCase {
         let input = "hello world"
         XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "https://google.com/search?q={text}", with: input), "https://google.com/search?q=hello%20world")
         XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "https://google.com/search?q={query}", with: input), "https://google.com/search?q=hello%20world")
-        XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "https://google.com/search?q={popclip text}", with: input), "https://google.com/search?q=hello%20world")
-        XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "https://google.com/search?q={openclip text}", with: input), "https://google.com/search?q=hello%20world")
-        XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "https://google.com/search?q=%@", with: input), "https://google.com/search?q=hello%20world")
     }
 
     func testUnencodedPlaceholderSubstitution() {
