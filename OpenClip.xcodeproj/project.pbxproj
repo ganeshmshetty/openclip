@@ -231,6 +231,7 @@
 		86C9A6B8F1602DED59E0237E /* InstalledAppsScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledAppsScanner.swift; sourceTree = "<group>"; };
 		871B6048B7968E61FCB53537 /* OpenClipApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipApp.swift; sourceTree = "<group>"; };
 		8980C8AD7397B5E27CC86D63 /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
+		8B521F6AE4BA6FD8516E8A1B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8F741E6F7B6D8F5B61A13F0F /* SelectionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionContext.swift; sourceTree = "<group>"; };
 		905AC1128EFCA584DF52AD70 /* CalculateAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculateAction.swift; sourceTree = "<group>"; };
 		90B84517D03AB3D9A5BB0D1D /* AIServiceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIServiceManager.swift; sourceTree = "<group>"; };
@@ -397,6 +398,7 @@
 			isa = PBXGroup;
 			children = (
 				287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */,
+				8B521F6AE4BA6FD8516E8A1B /* Info.plist */,
 				871B6048B7968E61FCB53537 /* OpenClipApp.swift */,
 				0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */,
 				5B849E463A26F4F508BADECC /* Actions */,
@@ -886,12 +888,11 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"openclip\"], \"CFBundleURLName\": \"com.openclip.url\"]]";
+				INFOPLIST_FILE = Sources/OpenClip/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LSUIElement = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openclip.OpenClip;
 				SDKROOT = macosx;
@@ -910,12 +911,11 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"openclip\"], \"CFBundleURLName\": \"com.openclip.url\"]]";
+				INFOPLIST_FILE = Sources/OpenClip/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LSUIElement = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openclip.OpenClip;
 				SDKROOT = macosx;

@@ -17,14 +17,17 @@ targets:
     platform: macOS
     deploymentTarget: "14.0"
     sources: [Sources/OpenClip]
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleURLTypes:
+    info:
+      path: Sources/OpenClip/Info.plist
+      properties:
+        CFBundleURLTypes:
           - CFBundleURLName: com.openclip.url
             CFBundleURLSchemes:
               - openclip
         LSUIElement: true
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Automatic
