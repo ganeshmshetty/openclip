@@ -172,7 +172,8 @@ struct GeneralTab: View {
     var body: some View {
         Form {
             Section {
-                Toggle(isOn: $isAppEnabled) {
+                // Row 1: Enable OpenClip
+                HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Enable OpenClip")
                             .font(.body)
@@ -181,25 +182,52 @@ struct GeneralTab: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                    Spacer()
+                    Toggle("", isOn: $isAppEnabled)
+                        .labelsHidden()
+                        .onChange(of: isAppEnabled) { _, newValue in
+                            NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
+                        }
                 }
-                .onChange(of: isAppEnabled) { _, newValue in
-                    NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
-                }
+                .padding(.vertical, 4)
                 
+                // Row 2: Trigger Shortcut
                 HStack {
-                    Text("Trigger Popup Shortcut")
-                        .font(.body)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Trigger Popup Shortcut")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text("Global hotkey to manually show OpenClip HUD")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
                     KeyboardShortcuts.Recorder(for: .togglePopup)
                 }
+                .padding(.vertical, 4)
                 
-                Toggle("Start OpenClip at Login", isOn: $launchManager.isEnabled)
-                    .toggleStyle(.checkbox)
+                // Row 3: Start at Login
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Start at Login")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text("Launch OpenClip automatically when you log in")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $launchManager.isEnabled)
+                        .labelsHidden()
+                }
+                .padding(.vertical, 4)
                 
+                // Row 4: Accessibility Access
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Accessibility Access")
                             .font(.body)
+                            .fontWeight(.medium)
                         Text(isAXTrusted ? "Active permission for text selection" : "Required to detect text selection")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -224,6 +252,7 @@ struct GeneralTab: View {
                         .controlSize(.small)
                     }
                 }
+                .padding(.vertical, 4)
             }
         }
         .formStyle(.grouped)
