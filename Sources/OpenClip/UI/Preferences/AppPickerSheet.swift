@@ -45,12 +45,30 @@ public struct AppPickerSheet: View {
     
     public var body: some View {
         VStack(spacing: 0) {
+            // Header Bar with Close Button
+            HStack {
+                Text("Add Application Rule")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Close")
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
+            
             Picker("", selection: $selectedTab) {
                 Text("Applications").tag(0)
                 Text("Custom").tag(1)
             }
             .pickerStyle(.segmented)
-            .padding(12)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
             
             Divider()
             
@@ -139,8 +157,17 @@ public struct AppPickerSheet: View {
                         _ = await scanner.scanInstalledApps()
                     }
                 }
+                
+                Divider()
+                
+                HStack {
+                    Spacer()
+                    Button("Cancel") { dismiss() }
+                        .controlSize(.small)
+                }
+                .padding(8)
             }
         }
-        .frame(width: 380, height: 380)
+        .frame(width: 380, height: 410)
     }
 }

@@ -30,37 +30,37 @@ public struct AppRulesTab: View {
                 .controlSize(.small)
             }
             
-            List {
-                if ruleEngine.userRules.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "app.badge.checkmark")
-                            .font(.system(size: 32))
-                            .foregroundColor(.secondary)
-                        Text("No App Rules Configured")
-                            .font(.headline)
-                        Text("OpenClip works in all applications by default. Click 'Add Application' to blacklist or tweak rules.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 30)
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(ruleEngine.userRules) { rule in
-                        AppRuleRowView(rule: rule) { updatedRule in
-                            RuleEngine.shared.addOrUpdateRule(updatedRule)
-                        } onDelete: {
-                            RuleEngine.shared.removeRule(id: rule.id)
+            Form {
+                Section {
+                    if ruleEngine.userRules.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "app.badge.checkmark")
+                                .font(.system(size: 32))
+                                .foregroundColor(.secondary)
+                            Text("No App Rules Configured")
+                                .font(.headline)
+                            Text("OpenClip works in all applications by default. Click 'Add Application' to blacklist or tweak rules.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 30)
+                    } else {
+                        ForEach(ruleEngine.userRules) { rule in
+                            AppRuleRowView(rule: rule) { updatedRule in
+                                RuleEngine.shared.addOrUpdateRule(updatedRule)
+                            } onDelete: {
+                                RuleEngine.shared.removeRule(id: rule.id)
+                            }
                         }
                     }
                 }
             }
-            .listStyle(.inset)
+            .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-            .frame(minHeight: 280)
         }
-        .padding(14)
+        .padding(12)
         .sheet(isPresented: $showingAppPicker) {
             AppPickerSheet { bundleID in
                 let newRule = AppRule(bundleIdentifiers: [bundleID])
