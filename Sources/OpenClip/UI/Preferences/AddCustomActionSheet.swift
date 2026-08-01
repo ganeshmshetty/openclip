@@ -18,7 +18,7 @@ public struct AddCustomActionSheet: View {
     @State private var snippetTemplate = "**{text}**"
     
     // Shell Script
-    @State private var shellScript = "echo \"$POPCLIP_TEXT\" | tr '[:lower:]' '[:upper:]'"
+    @State private var shellScript = "echo \"$OPENCLIP_TEXT\" | tr '[:lower:]' '[:upper:]'"
     @State private var replaceSelection = false
     
     public init() {}
@@ -118,7 +118,7 @@ public struct AddCustomActionSheet: View {
                                     .fill(Color.primary.opacity(0.04))
                                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.12)))
                             )
-                        Text("Use **$POPCLIP_TEXT** for the selected text.")
+                        Text("Use **$OPENCLIP_TEXT** for the selected text.")
                             .font(.caption).foregroundColor(.secondary)
                         Toggle("Replace selection with output", isOn: $replaceSelection)
                     }

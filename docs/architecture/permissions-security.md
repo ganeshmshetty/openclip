@@ -34,6 +34,6 @@ JavaScript extensions run inside isolated, lightweight `JSContext` instances. JS
 
 ### Subprocess Environment Sanitization
 When executing shell scripts (`/bin/zsh`) or Python scripts (`python3`):
-- Process environment variables are explicitly scoped (`POPCLIP_TEXT`, `OPENCLIP_TEXT`, option flags).
+- Process environment variables are explicitly scoped (`OPENCLIP_TEXT`, option flags).
 - Standard input and output streams are captured via `Pipe` objects without spawning shell host wrappers.
 - Execution timeouts prevent runaway scripts from blocking background threads.

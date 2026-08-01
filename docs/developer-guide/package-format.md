@@ -1,6 +1,6 @@
 # Extension Package Format
 
-An OpenClip extension package is a directory ending with `.openclipext` (or `.popclipext`) containing a JSON manifest file and any associated script or asset files.
+An OpenClip extension package is a directory ending with `.openclipext` containing a JSON manifest file and any associated script or asset files.
 
 ---
 

@@ -18,7 +18,7 @@ public struct EditActionSheet: View {
     @State private var customType: CustomActionType = .textSnippet(template: "{text}")
     @State private var customURLTemplate: String = "https://www.google.com/search?q={text}"
     @State private var customSnippetTemplate: String = "{text}"
-    @State private var customShellScript: String = "echo $POPCLIP_TEXT"
+    @State private var customShellScript: String = "echo $OPENCLIP_TEXT"
     @State private var replaceSelection: Bool = true
     @AppStorage("completionCopyToClipboard") private var completionCopyToClipboard: Bool = false
     

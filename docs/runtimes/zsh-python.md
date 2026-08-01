@@ -8,7 +8,7 @@ OpenClip supports local Unix subprocess scripts (`ScriptAction.swift` & `CustomA
 
 When executing shell or Python scripts, OpenClip passes the selected text in 2 ways:
 
-1. **Environment Variables:** `POPCLIP_TEXT` and `OPENCLIP_TEXT` are injected into `ProcessInfo.environment`.
+1. **Environment Variables:** `OPENCLIP_TEXT` is injected into `ProcessInfo.environment`.
 2. **Standard Input (`stdin`):** The text selection is streamed directly into the process `stdin`.
 
 ---
@@ -63,7 +63,7 @@ import os
 
 text = sys.stdin.read().strip()
 if not text:
-    text = os.environ.get("POPCLIP_TEXT", "")
+    text = os.environ.get("OPENCLIP_TEXT", "")
 
 lines = [line.strip() for line in text.splitlines() if line.strip()]
 if not lines:
@@ -115,7 +115,7 @@ Encodes or decodes text using standard Unix `base64`.
 #!/bin/zsh
 # encode.sh
 # Read from env var or stdin
-INPUT="${POPCLIP_TEXT}"
+INPUT="${OPENCLIP_TEXT}"
 if [ -z "$INPUT" ]; then
     INPUT=$(cat -)
 fi

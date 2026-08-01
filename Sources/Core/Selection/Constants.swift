@@ -52,7 +52,7 @@ public enum Constants {
     public static let actionTypeCopy: String = "copy"
     public static let actionTypeOpenURL: String = "openURL"
     
-    public static let envVarText: String = "POPCLIP_TEXT"
+    public static let envVarText: String = "OPENCLIP_TEXT"
     public static let maxHeaderLinesToScan: Int = 50
     
     // Preferences Keys

@@ -26,7 +26,7 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
     internal func retrieveTextResult(for app: any AppIdentifying, policy: AppPolicyContext) async -> TextResult? {
         // `grabPasteboard` is an explicit per-app policy that opts into Cmd+C behaviour.
-        // Never send Cmd+C by default — OpenClip should work like PopClip (AX only, no side-effects).
+        // Never send Cmd+C by default — OpenClip uses AX selection only, with no clipboard side-effects.
         if policy.grabPasteboard {
             if let text = await strategyKeyboardShortcut() {
                 return TextResult(text: text, bounds: nil)

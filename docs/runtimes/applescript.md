@@ -11,7 +11,6 @@ Before executing your AppleScript code, OpenClip populates the script scope with
 ```applescript
 set OPENCLIP_TEXT to "<highlighted_text>"
 set openclip_text to "<highlighted_text>"
-set POPCLIP_TEXT to "<highlighted_text>"
 ```
 
 You can reference `OPENCLIP_TEXT` anywhere in your AppleScript.

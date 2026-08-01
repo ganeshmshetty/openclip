@@ -50,7 +50,7 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
                 process.arguments = ["-c", script]
                 
                 var env = ProcessInfo.processInfo.environment
-                env["POPCLIP_TEXT"] = text
+                env["OPENCLIP_TEXT"] = text
                 process.environment = env
                 
                 let pipe = Pipe()
