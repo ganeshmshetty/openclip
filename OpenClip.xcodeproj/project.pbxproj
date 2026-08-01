@@ -64,11 +64,13 @@
 		852D201010BC7079F239A3E2 /* CloudAPIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0235D3D283F8890DEEE2A915 /* CloudAPIProvider.swift */; };
 		89ABDC81AD62266F49E096C4 /* Action.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14E8C5B2AC7501048B10F0D1 /* Action.swift */; };
 		8A479517E13803DE07593C74 /* ServicesAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738CD300B1AEB0E382F8435B /* ServicesAction.swift */; };
+		8AA40165FA1BF2E026ED4C1A /* AIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FF20DB76BDB47222A26CBAC /* AIProviderTests.swift */; };
 		8DFC838BDE16FA27F0C19FBB /* AppIdentifying.swift in Sources */ = {isa = PBXBuildFile; fileRef = 556EAA8E99BA35061EE49D9F /* AppIdentifying.swift */; };
 		9495A826AD2E0BB4ED448280 /* TextRetrieverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49648502F040834635BBD8ED /* TextRetrieverTests.swift */; };
 		94F6165DD10ED76B25170C1C /* AppFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF5D851B09CA25A4A497F0C7 /* AppFilterTests.swift */; };
 		95F5993F59A6F0FED10CD268 /* AppPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30E9B1A09FFEE44BC1A5793 /* AppPickerSheet.swift */; };
 		998433DC4517993AD4624ECF /* ActionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D644F2046169A3D911104F /* ActionCoordinator.swift */; };
+		998C035B69CC6C290A1403CE /* CalendarAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D770B00EA584CD6DC259086 /* CalendarAction.swift */; };
 		A4AA5D75C5B376BBCE5B9463 /* CustomActionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA945F176CA85C590C8CCF4 /* CustomActionManager.swift */; };
 		AA4C8F95DCFD439591C9FA05 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E803385A2D8E9D1D257F00 /* Constants.swift */; };
 		AEB67702CE089BAFFFB8DCB7 /* ActionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = E54AEEA54ADE3106E777F448 /* ActionResult.swift */; };
@@ -142,6 +144,7 @@
 		087F3A6593D8726BD84CF1F1 /* PopupPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPanel.swift; sourceTree = "<group>"; };
 		0AC7C388035A937859369C48 /* IconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPickerView.swift; sourceTree = "<group>"; };
 		0CF97DDF5B196383416AB162 /* CompletionActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionActionTests.swift; sourceTree = "<group>"; };
+		0D770B00EA584CD6DC259086 /* CalendarAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarAction.swift; sourceTree = "<group>"; };
 		0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		0F4DAB73B13C780B669746CE /* ModifierFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModifierFlags.swift; sourceTree = "<group>"; };
 		14E8C5B2AC7501048B10F0D1 /* Action.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Action.swift; sourceTree = "<group>"; };
@@ -181,6 +184,7 @@
 		7BA7925A98746EBC6AD57A32 /* ProtocolConformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolConformanceTests.swift; sourceTree = "<group>"; };
 		7BBCBD7E4F5F0D1015061E8D /* ActionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCoordinatorTests.swift; sourceTree = "<group>"; };
 		7E394DE9DE12EEEB992A5771 /* TransformTextActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformTextActionTests.swift; sourceTree = "<group>"; };
+		7FF20DB76BDB47222A26CBAC /* AIProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProviderTests.swift; sourceTree = "<group>"; };
 		82321CCDFB4EDE96ABB905F7 /* CompletionAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionAction.swift; sourceTree = "<group>"; };
 		85CB0D7F545A74562723950E /* RevealInFinderAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevealInFinderAction.swift; sourceTree = "<group>"; };
 		86C9A6B8F1602DED59E0237E /* InstalledAppsScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledAppsScanner.swift; sourceTree = "<group>"; };
@@ -338,6 +342,7 @@
 			isa = PBXGroup;
 			children = (
 				905AC1128EFCA584DF52AD70 /* CalculateAction.swift */,
+				0D770B00EA584CD6DC259086 /* CalendarAction.swift */,
 				C0B0960E3A7EF80331F08063 /* CopyAction.swift */,
 				56934780251D06C70C9D3172 /* CutAction.swift */,
 				CB70EAE4A67E1C59A1977A8D /* DefineAction.swift */,
@@ -457,6 +462,7 @@
 				7BBCBD7E4F5F0D1015061E8D /* ActionCoordinatorTests.swift */,
 				91FEA7E1D95D4DC5416B66A5 /* ActionCustomizationTests.swift */,
 				1E86D685379782075566534F /* ActionRegistryTests.swift */,
+				7FF20DB76BDB47222A26CBAC /* AIProviderTests.swift */,
 				AF5D851B09CA25A4A497F0C7 /* AppFilterTests.swift */,
 				A4F2434073F85AB2FC61E746 /* BuiltinActionsTests.swift */,
 				3E47D4C3D096CE979274DCDA /* BuiltinRegistryTests.swift */,
@@ -596,6 +602,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8AA40165FA1BF2E026ED4C1A /* AIProviderTests.swift in Sources */,
 				505BCF709F1851C81A35DD64 /* ActionCoordinatorTests.swift in Sources */,
 				3A295F64CCDCBD5C36941B49 /* ActionCustomizationTests.swift in Sources */,
 				0532F7FF8BA7A439A30D8EA9 /* ActionRegistryTests.swift in Sources */,
@@ -636,6 +643,7 @@
 				B776223E716B18F4F53A4D3F /* AppRule.swift in Sources */,
 				EBBDD5144B39E9622CA4F910 /* BuiltinRegistry.swift in Sources */,
 				589E69527B1AD912FFEF303B /* CalculateAction.swift in Sources */,
+				998C035B69CC6C290A1403CE /* CalendarAction.swift in Sources */,
 				F771AE634BA65CAA36353E65 /* ConfigurableAction.swift in Sources */,
 				AA4C8F95DCFD439591C9FA05 /* Constants.swift in Sources */,
 				3D24BB72EB42ACBAB7B26FC9 /* CopyAction.swift in Sources */,

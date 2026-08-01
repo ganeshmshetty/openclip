@@ -12,12 +12,12 @@ enum PreferenceTab: String, CaseIterable, Hashable {
     
     var icon: String {
         switch self {
-        case .general: return "gearshape"
-        case .appearance: return "paintpalette"
-        case .actions: return "bolt.fill"
+        case .general: return "gearshape.fill"
+        case .appearance: return "paintbrush.fill"
+        case .actions: return "bolt.horizontal.fill"
         case .ai: return "sparkles"
-        case .appRules: return "shield"
-        case .about: return "info.circle"
+        case .appRules: return "shield.checkerboard"
+        case .about: return "info.circle.fill"
         }
     }
 }
@@ -175,16 +175,23 @@ struct GeneralTab: View {
     
     var body: some View {
         Form {
-            Section {
+            Section(header: Text("General Controls")) {
                 // Row 1: Enable OpenClip
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable OpenClip")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text(isAppEnabled ? "OpenClip is active and monitoring text selection" : "OpenClip is paused")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    HStack(spacing: 12) {
+                        Image(systemName: "power")
+                            .font(.system(size: 16))
+                            .foregroundColor(isAppEnabled ? .accentColor : .secondary)
+                            .frame(width: 22, alignment: .center)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Enable OpenClip")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Text(isAppEnabled ? "Active & monitoring text selection" : "OpenClip is paused")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     Spacer()
                     Toggle("", isOn: $isAppEnabled)
@@ -197,13 +204,20 @@ struct GeneralTab: View {
                 
                 // Row 2: Trigger Shortcut
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Trigger Popup Shortcut")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("Global hotkey to manually show OpenClip HUD")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    HStack(spacing: 12) {
+                        Image(systemName: "keyboard")
+                            .font(.system(size: 16))
+                            .foregroundColor(.accentColor)
+                            .frame(width: 22, alignment: .center)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Trigger Popup Shortcut")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Text("Global hotkey to manually trigger OpenClip HUD")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     Spacer()
                     KeyboardShortcuts.Recorder(for: .togglePopup)
@@ -212,40 +226,64 @@ struct GeneralTab: View {
                 
                 // Row 3: Start at Login
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Start at Login")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("Launch OpenClip automatically when you log in")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.clockwise.circle")
+                            .font(.system(size: 16))
+                            .foregroundColor(.accentColor)
+                            .frame(width: 22, alignment: .center)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Start at Login")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Text("Launch OpenClip automatically when logging in")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     Spacer()
                     Toggle("", isOn: $launchManager.isEnabled)
                         .labelsHidden()
                 }
                 .padding(.vertical, 4)
-                
+            }
+
+            Section(header: Text("System Permissions")) {
                 // Row 4: Accessibility Access
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Accessibility Access")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text(isAXTrusted ? "Active permission for text selection" : "Required to detect text selection")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    HStack(spacing: 12) {
+                        Image(systemName: "lock.shield")
+                            .font(.system(size: 16))
+                            .foregroundColor(isAXTrusted ? .green : .orange)
+                            .frame(width: 22, alignment: .center)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Accessibility Access")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Text(isAXTrusted ? "Active permission for text detection" : "Required to detect selected text in apps")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     
                     Spacer()
                     
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(isAXTrusted ? Color.green : Color.orange)
-                            .frame(width: 8, height: 8)
-                        Text(isAXTrusted ? "Granted" : "Required")
-                            .font(.caption)
-                            .foregroundColor(isAXTrusted ? .green : .orange)
+                    HStack(spacing: 10) {
+                        HStack(spacing: 5) {
+                            Image(systemName: isAXTrusted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                .font(.caption)
+                            Text(isAXTrusted ? "Granted" : "Required")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(isAXTrusted ? .green : .orange)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill((isAXTrusted ? Color.green : Color.orange).opacity(0.15))
+                        )
                         
                         Button("Open Settings") {
                             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {

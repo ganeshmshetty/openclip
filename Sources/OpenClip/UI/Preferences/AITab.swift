@@ -3,6 +3,9 @@ import SwiftUI
 @MainActor
 public struct AITab: View {
     @ObservedObject private var aiManager = AIServiceManager.shared
+    @State private var fetchedModels: [String] = []
+    @State private var isFetchingModels: Bool = false
+    @State private var fetchError: String? = nil
     
     public init() {}
     
@@ -54,21 +57,47 @@ public struct AITab: View {
                     }
                     .padding(.vertical, 4)
                 } else if aiManager.activeProviderType == .cloud {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("OpenAI / Claude API Key")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        SecureField("sk-...", text: $aiManager.cloudAPIKey)
-                            .textFieldStyle(.roundedBorder)
-                        
-                        Picker("Model", selection: $aiManager.cloudModel) {
-                            Text("gpt-4o-mini").tag("gpt-4o-mini")
-                            Text("gpt-4o").tag("gpt-4o")
-                            Text("claude-3-5-sonnet").tag("claude-3-5-sonnet")
-                            Text("gemini-1.5-flash").tag("gemini-1.5-flash")
+                    Picker("Service Provider", selection: $aiManager.cloudServiceProvider) {
+                        ForEach(CloudServiceProvider.allCases) { provider in
+                            Text(provider.displayName).tag(provider)
                         }
                     }
-                    .padding(.vertical, 4)
+
+                    if aiManager.cloudServiceProvider == .custom {
+                        TextField("Base Endpoint URL", text: $aiManager.cloudCustomURL)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    SecureField("API Key", text: $aiManager.cloudAPIKey)
+                        .textFieldStyle(.roundedBorder)
+
+                    HStack(spacing: 8) {
+                        let defaultModels = aiManager.cloudServiceProvider.defaultModels
+                        let combinedModels = Array(Set(defaultModels + fetchedModels + [aiManager.cloudModel])).sorted()
+
+                        Picker("Model", selection: $aiManager.cloudModel) {
+                            ForEach(combinedModels, id: \.self) { m in
+                                Text(m).tag(m)
+                            }
+                        }
+
+                        Button(action: fetchModels) {
+                            if isFetchingModels {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Fetch available models live from API")
+                        .disabled(aiManager.cloudAPIKey.isEmpty || isFetchingModels)
+                    }
+
+                    if let fetchError {
+                        Text("Query failed: \(fetchError)")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                 } else if aiManager.activeProviderType == .ollama {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Ollama Server Endpoint")
@@ -117,5 +146,31 @@ public struct AITab: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .padding(12)
+    }
+
+    private func fetchModels() {
+        isFetchingModels = true
+        fetchError = nil
+        Task {
+            do {
+                let models = try await CloudAPIProvider.fetchAvailableModels(
+                    apiKey: aiManager.cloudAPIKey,
+                    provider: aiManager.cloudServiceProvider,
+                    customBaseURL: aiManager.cloudCustomURL
+                )
+                await MainActor.run {
+                    self.fetchedModels = models
+                    self.isFetchingModels = false
+                    if let first = models.first, !models.contains(aiManager.cloudModel) {
+                        aiManager.cloudModel = first
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.fetchError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    self.isFetchingModels = false
+                }
+            }
+        }
     }
 }

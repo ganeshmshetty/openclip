@@ -4,22 +4,46 @@ import AppKit
 @MainActor
 public final class BrowserRedirectProvider: AIProvider {
     public var type: AIProviderType { .browser }
-    
+
     public let template: String
-    
+
+    /// Soft upper bound for query URLs; longer values often fail in browsers.
+    private static let maxURLLength = 8000
+
     public init(template: String) {
-        self.template = template.isEmpty ? "https://chatgpt.com/?q={text}" : template
+        let trimmed = template.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.template = trimmed.isEmpty ? "https://chatgpt.com/?q={text}" : trimmed
     }
-    
+
     public func process(prompt: String, text: String) async throws -> String {
-        let fullQuery = "\(prompt): \(text)"
-        let encodedQuery = fullQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
-        let urlString = template.replacingOccurrences(of: "{text}", with: encodedQuery)
-        
-        if let url = URL(string: urlString) {
-            NSWorkspace.shared.open(url)
-            return "Opening browser..."
+        let input = try AIRequestSupport.requireNonEmptyText(text)
+        let instruction = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fullQuery = instruction.isEmpty ? input : "\(instruction): \(input)"
+
+        guard let encodedQuery = fullQuery.addingPercentEncoding(withAllowedCharacters: AIRequestSupport.queryValueAllowed) else {
+            throw AIError.invalidURL(fullQuery)
         }
-        return text
+
+        let urlString: String
+        if template.contains("{text}") {
+            urlString = template.replacingOccurrences(of: "{text}", with: encodedQuery)
+        } else {
+            // Preserve usability for templates without a placeholder.
+            let separator = template.contains("?") ? "&" : "?"
+            urlString = "\(template)\(separator)q=\(encodedQuery)"
+        }
+
+        guard urlString.count <= Self.maxURLLength else {
+            throw AIError.requestTooLarge
+        }
+        guard let url = URL(string: urlString) else {
+            throw AIError.invalidURL(urlString)
+        }
+
+        let opened = NSWorkspace.shared.open(url)
+        guard opened else {
+            throw AIError.invalidURL(url.absoluteString)
+        }
+        return "Opened in browser"
     }
 }
