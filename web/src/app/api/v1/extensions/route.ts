@@ -18,38 +18,8 @@ export interface ExtensionsPageResponse {
   totalCount: number;
 }
 
-const REAL_EXTENSIONS: ExtensionItem[] = [
-  {
-    id: "com.openclip.youtube",
-    name: "Search YouTube",
-    description: "Search YouTube instantly for selected text in your browser.",
-    author: "OpenClip Team",
-    icon: "play.circle",
-    category: "productivity",
-    downloadCount: 3420,
-    downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/SearchAppleMusic.openclipext"
-  },
-  {
-    id: "com.openclip.uppercase",
-    name: "Uppercase Converter",
-    description: "Convert selected text to UPPERCASE using high-speed JavaScript engine.",
-    author: "OpenClip Team",
-    icon: "textformat.size",
-    category: "text tools",
-    downloadCount: 2890,
-    downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/SearchAppleMusic.openclipext"
-  },
-  {
-    id: "com.openclip.applemusic",
-    name: "Apple Music Controller",
-    description: "Search and play tracks in Apple Music via AppleScript.",
-    author: "OpenClip Team",
-    icon: "music.note",
-    category: "productivity",
-    downloadCount: 1980,
-    downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/AppleMusicApp.openclipext"
-  }
-];
+// Extensions registry (empty until real extensions are published or submitted)
+const EXTENSIONS_REGISTRY: ExtensionItem[] = [];
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -58,7 +28,7 @@ export async function GET(request: Request) {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '12', 10);
 
-  let filtered = REAL_EXTENSIONS;
+  let filtered = EXTENSIONS_REGISTRY;
 
   if (category !== 'all') {
     filtered = filtered.filter(ext => ext.category.toLowerCase() === category);
