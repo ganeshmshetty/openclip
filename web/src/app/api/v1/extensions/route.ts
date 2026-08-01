@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 export interface ExtensionItem {
   id: string;
@@ -18,29 +20,48 @@ export interface ExtensionsPageResponse {
   totalCount: number;
 }
 
-// Extension registry starting with exact 0 download counts for clean metrics
-const EXTENSIONS_REGISTRY: ExtensionItem[] = [
-  {
-    id: "com.openclip.youtube",
-    name: "Search YouTube",
-    description: "Search YouTube instantly for your highlighted text in your browser.",
-    author: "OpenClip Team",
-    icon: "play.circle",
-    category: "productivity",
-    downloadCount: 0,
-    downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/SearchYouTube.openclipext/openclip.json"
-  },
-  {
-    id: "com.openclip.applemusic",
-    name: "Search Apple Music",
-    description: "Search and play tracks directly in Apple Music using native AppleScript integration.",
-    author: "OpenClip Team",
-    icon: "music.note",
-    category: "productivity",
-    downloadCount: 0,
-    downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/AppleMusic.openclipext/openclip.json"
+// Automatically scans the Extensions/ directory on disk/repo to parse openclip.json manifests dynamically!
+function loadExtensionsFromDirectory(): ExtensionItem[] {
+  const items: ExtensionItem[] = [];
+  const extensionsDir = path.join(process.cwd(), '..', 'Extensions');
+
+  if (!fs.existsSync(extensionsDir)) {
+    return items;
   }
-];
+
+  try {
+    const entries = fs.readdirSync(extensionsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name.endsWith('.openclipext')) {
+        const manifestPath = path.join(extensionsDir, entry.name, 'openclip.json');
+        if (fs.existsSync(manifestPath)) {
+          try {
+            const raw = fs.readFileSync(manifestPath, 'utf8');
+            const data = JSON.parse(raw);
+            const action = data.action || data.actions?.[0] || {};
+            
+            items.push({
+              id: data.identifier || data.id || `com.openclip.${entry.name.replace('.openclipext', '').toLowerCase()}`,
+              name: data.name || action.title || entry.name.replace('.openclipext', ''),
+              description: data.description || action.description || `Native ${action.script ? 'script' : 'url'} extension for OpenClip.`,
+              author: data.author || 'Community',
+              icon: action.icon || 'puzzlepiece',
+              category: data.category || 'productivity',
+              downloadCount: 0,
+              downloadURL: `https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/${entry.name}/openclip.json`
+            });
+          } catch (e) {
+            console.error(`Failed to parse manifest at ${manifestPath}`, e);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error reading Extensions directory:', err);
+  }
+
+  return items;
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -49,7 +70,34 @@ export async function GET(request: Request) {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '12', 10);
 
-  let filtered = EXTENSIONS_REGISTRY;
+  // Dynamically loaded from Extensions/ directory
+  let filtered = loadExtensionsFromDirectory();
+
+  // Fallback if running standalone web build without parent repo dir
+  if (filtered.length === 0) {
+    filtered = [
+      {
+        id: "com.openclip.youtube",
+        name: "Search YouTube",
+        description: "Search YouTube instantly for your highlighted text in your browser.",
+        author: "OpenClip Team",
+        icon: "play.circle",
+        category: "productivity",
+        downloadCount: 0,
+        downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/SearchYouTube.openclipext/openclip.json"
+      },
+      {
+        id: "com.openclip.applemusic",
+        name: "Search Apple Music",
+        description: "Search and play tracks directly in Apple Music using native AppleScript integration.",
+        author: "OpenClip Team",
+        icon: "music.note",
+        category: "productivity",
+        downloadCount: 0,
+        downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/AppleMusic.openclipext/openclip.json"
+      }
+    ];
+  }
 
   if (category !== 'all') {
     filtered = filtered.filter(ext => ext.category.toLowerCase() === category);
@@ -82,19 +130,4 @@ export async function GET(request: Request) {
       'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30'
     }
   });
-}
-
-// POST endpoint to increment real download count when user installs an extension
-export async function POST(request: Request) {
-  try {
-    const { id } = await request.json();
-    const target = EXTENSIONS_REGISTRY.find(ext => ext.id === id);
-    if (target) {
-      target.downloadCount += 1;
-      return NextResponse.json({ success: true, downloadCount: target.downloadCount });
-    }
-    return NextResponse.json({ error: 'Extension not found' }, { status: 404 });
-  } catch {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
-  }
 }
