@@ -74,19 +74,6 @@ public struct OnboardingView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.regular)
-
-                        Button("Re-check") {
-                            permissionManager.checkStatus()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.regular)
-
-                        Button("Reset & Relaunch") {
-                            permissionManager.resetTCCAndRelaunch()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.regular)
-                        .help("Use this if you already enabled access but OpenClip doesn't detect it yet.")
                     }
                 }
             }
