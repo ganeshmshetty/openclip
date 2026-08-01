@@ -22,24 +22,19 @@ public struct SearchAction: ConfigurableAction {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let query = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let template = UserDefaults.standard.string(forKey: "action.search.url") ?? "https://www.google.com/search?q={query}"
+        let targetTemplate = template.isEmpty ? "https://www.google.com/search?q={query}" : template
         
-        let template = UserDefaults.standard.string(forKey: "action.search.url") ?? ""
-        if !template.isEmpty, template.contains("{query}") {
-            if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-               let url = URL(string: template.replacingOccurrences(of: "{query}", with: encodedQuery)) {
+        if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            let urlString = targetTemplate.contains("{query}") ?
+                targetTemplate.replacingOccurrences(of: "{query}", with: encodedQuery) :
+                "https://www.google.com/search?q=\(encodedQuery)"
+            
+            if let url = URL(string: urlString) {
                 return .openURL(url)
             }
         }
         
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = "www.google.com"
-        components.path = "/search"
-        components.queryItems = [URLQueryItem(name: "q", value: query)]
-        
-        if let url = components.url {
-            return .openURL(url)
-        }
         return .failure(NSError(domain: Constants.actionErrorDomain, code: Constants.actionErrorCode, userInfo: nil))
     }
 }
