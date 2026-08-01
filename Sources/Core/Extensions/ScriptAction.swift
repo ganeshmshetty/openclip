@@ -36,6 +36,7 @@ public struct ScriptAction: Action {
             
             var env = ProcessInfo.processInfo.environment
             env[Constants.envVarText] = text
+            env["OPENCLIP_TEXT"] = text
             process.environment = env
             
             let stdOutPipe = Pipe()

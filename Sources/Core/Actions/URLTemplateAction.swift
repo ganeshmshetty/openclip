@@ -36,16 +36,7 @@ public struct URLTemplateAction: Action, Sendable {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let encodedText = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            return .none
-        }
-        
-        var urlString = urlTemplate
-            .replacingOccurrences(of: "***", with: encodedText)
-            .replacingOccurrences(of: "%@", with: encodedText)
-            .replacingOccurrences(of: "{popclip text}", with: encodedText)
-            .replacingOccurrences(of: "{openclip text}", with: encodedText)
-            .replacingOccurrences(of: "{text}", with: encodedText)
+        let urlString = TextPlaceholderEngine.replacePlaceholders(in: urlTemplate, with: text, urlEncode: true)
         
         if let url = URL(string: urlString) {
             return .openURL(url)
