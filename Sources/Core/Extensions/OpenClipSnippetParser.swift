@@ -21,7 +21,8 @@ public struct OpenClipSnippetParser: Sendable {
         }
         
         guard let title = dict["title"] ?? dict["name"] else { return nil }
-        let id = dict["identifier"] ?? "snippet.\(UUID().uuidString)"
+        let slug = title.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted).joined(separator: ".")
+        let id = dict["identifier"] ?? "snippet.\(slug)"
         let iconSymbol = dict["icon"] ?? "sparkles"
         
         if let urlTemplate = dict["url"] {

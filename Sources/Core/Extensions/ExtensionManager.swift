@@ -40,6 +40,9 @@ public final class ExtensionManager: Sendable {
         let actions = await Task.detached {
             return await Self.scanDirectory(url)
         }.value
+        for oldAction in self.loadedActions {
+            ActionRegistry.shared.unregister(actionID: oldAction.id)
+        }
         self.loadedActions = actions
         for action in actions {
             ActionRegistry.shared.register(action: action)
