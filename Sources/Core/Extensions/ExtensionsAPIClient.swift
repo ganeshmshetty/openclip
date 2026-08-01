@@ -4,7 +4,7 @@ public final class ExtensionsAPIClient: Sendable {
     public static let shared = ExtensionsAPIClient()
     public let baseURL: URL
     
-    public init(baseURL: URL = URL(string: "https://web-opal-five-90.vercel.app/api/v1/extensions")!) {
+    public init(baseURL: URL = URL(string: "https://openclip-app.vercel.app/api/v1/extensions")!) {
         self.baseURL = baseURL
     }
     
