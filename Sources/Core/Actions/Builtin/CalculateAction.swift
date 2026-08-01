@@ -1,9 +1,10 @@
 import Foundation
-import Core
 
-public struct CalculateAction: Action {
+public struct CalculateAction: ConfigurableAction {
     public let id = "builtin.calculate"
     public var title: String { "Calculate" }
+    public let configurationViewID = "builtin.calculate"
+    public let preferenceIconName = "equal.circle"
     public var icon: ActionIcon {
         let useText = UserDefaults.standard.bool(forKey: "action.calculate.useText")
         return useText ? .text("=") : .symbol("equal.circle")

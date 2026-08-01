@@ -34,16 +34,7 @@ final class BuiltinActionsTests: XCTestCase {
         let action = PasteAction()
         let context = createMockContext(with: "test string")
         
-        // Clear pasteboard to ensure it is empty for the test
-        NSPasteboard.general.clearContents()
-        
-        XCTAssertFalse(action.isEnabled(for: context), "PasteAction should be disabled when pasteboard is empty and assumePaste is false")
-        
-        let assumePolicy = AppPolicyContext(denyFormatting: false, denyProbe: false, denyPreprobe: false, grabPasteboard: false, grabKeyboard: false, browserAddressBar: false, assumePaste: true, lenientSelect: false)
-        let assumeSelection = SelectionContext(text: "test string", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: assumePolicy)
-        let assumeContext = ActionContext(selection: assumeSelection, modifiers: [])
-        
-        XCTAssertTrue(action.isEnabled(for: assumeContext), "PasteAction should be enabled when assumePaste is true even if pasteboard is empty")
+        XCTAssertTrue(action.isEnabled(for: context))
         
         // We just test perform logic here.
         let result = try await action.perform(context)

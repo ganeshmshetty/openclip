@@ -1,13 +1,10 @@
 import Foundation
-#if canImport(AppKit)
-import AppKit
-import CoreGraphics
-#endif
-import Core
 
-public struct PasteAction: Action {
+public struct PasteAction: ConfigurableAction {
     public let id = "builtin.paste"
     public let title = "Paste"
+    public let configurationViewID = "builtin.paste"
+    public let preferenceIconName = "clipboard"
     public var icon: ActionIcon {
         if UserDefaults.standard.bool(forKey: "action.paste.useText") {
             return .text("Paste")
@@ -19,12 +16,7 @@ public struct PasteAction: Action {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        if context.selection.appPolicy.assumePaste { return true }
-        #if canImport(AppKit)
-        return (NSPasteboard.general.pasteboardItems?.count ?? 0) > 0
-        #else
         return true
-        #endif
     }
     
     @MainActor

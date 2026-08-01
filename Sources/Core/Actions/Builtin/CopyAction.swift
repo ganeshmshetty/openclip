@@ -1,9 +1,10 @@
 import Foundation
-import Core
 
-public struct CopyAction: Action {
+public struct CopyAction: ConfigurableAction {
     public let id = "builtin.copy"
     public let title = "Copy"
+    public let configurationViewID = "builtin.copy"
+    public let preferenceIconName = "doc.on.doc"
     public var icon: ActionIcon {
         if UserDefaults.standard.bool(forKey: "action.copy.useText") {
             return .text("Copy")

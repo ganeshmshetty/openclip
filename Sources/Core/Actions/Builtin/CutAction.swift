@@ -1,9 +1,10 @@
 import Foundation
-import Core
 
-public struct CutAction: Action {
+public struct CutAction: ConfigurableAction {
     public let id = "builtin.cut"
     public let title = "Cut"
+    public let configurationViewID = "builtin.cut"
+    public let preferenceIconName = "scissors"
     public var icon: ActionIcon {
         if UserDefaults.standard.bool(forKey: "action.cut.useText") {
             return .text("Cut")

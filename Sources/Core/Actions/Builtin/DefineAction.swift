@@ -1,9 +1,10 @@
 import Foundation
-import Core
 
-public struct DefineAction: Action {
+public struct DefineAction: ConfigurableAction {
     public let id = "builtin.define"
     public var title: String { "Define" }
+    public let configurationViewID = "builtin.define"
+    public let preferenceIconName = "book"
     public var icon: ActionIcon {
         let useText = UserDefaults.standard.bool(forKey: "action.define.useText")
         return useText ? .text("Define") : .symbol("book")

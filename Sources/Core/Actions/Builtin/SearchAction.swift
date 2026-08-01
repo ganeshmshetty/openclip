@@ -1,13 +1,11 @@
 import Foundation
-#if canImport(AppKit)
-import AppKit
-#endif
-import Core
 
-public struct SearchAction: Action {
+public struct SearchAction: ConfigurableAction {
     public let id = "builtin.search"
     public let title = "Search"
     public let icon = ActionIcon.symbol("magnifyingglass")
+    public let configurationViewID = "builtin.search"
+    public let preferenceIconName = "magnifyingglass"
     
     public init() {}
     
