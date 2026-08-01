@@ -7,7 +7,7 @@ import Core
 public struct ServicesAction: Action {
     public let id = "builtin.services"
     public let title = "Services"
-    public let icon = ActionIcon.symbol("gearshape.2")
+    public let icon = ActionIcon.symbol("square.and.arrow.up")
     
     public init() {}
     
