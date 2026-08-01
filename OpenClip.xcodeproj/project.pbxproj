@@ -33,6 +33,7 @@
 		3A295F64CCDCBD5C36941B49 /* ActionCustomizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91FEA7E1D95D4DC5416B66A5 /* ActionCustomizationTests.swift */; };
 		3CFA6606D2D7ADE239AC70D8 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEF62694D77470DE4E2262E6 /* OnboardingView.swift */; };
 		3D24BB72EB42ACBAB7B26FC9 /* CopyAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B0960E3A7EF80331F08063 /* CopyAction.swift */; };
+		4515E812499967C26560169C /* ActionFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40BC7280676281FD11450DF2 /* ActionFactory.swift */; };
 		470BB95C626E3041E74CA19D /* RevealInFinderActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92591CBEAFDE51E7D4630274 /* RevealInFinderActionTests.swift */; };
 		4737578EA3290C078B92A318 /* ScriptActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA90E8C3C3CA2051D777A8E /* ScriptActionTests.swift */; };
 		482FF0F2EAC56B62831A0106 /* AddCustomActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F092B5E7205F765F5BBB69A4 /* AddCustomActionSheet.swift */; };
@@ -96,6 +97,7 @@
 		E08C252C9ADA79A930825C1E /* OpenClipApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 871B6048B7968E61FCB53537 /* OpenClipApp.swift */; };
 		E27BC38183CE54F6073EC02F /* AppFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 750ADA88A976EEF10B2481E2 /* AppFilter.swift */; };
 		E349DDD966C6A17A8B49DAAA /* OpenURLAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5D1E29A447351B335A4C2A4 /* OpenURLAction.swift */; };
+		E4E9D257A248FF4238EFC61C /* ExtensionManifestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042DA17A2486356DBB307B2F /* ExtensionManifestTests.swift */; };
 		E61E4C2DC3230E70EA105D27 /* InstalledAppsScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86C9A6B8F1602DED59E0237E /* InstalledAppsScanner.swift */; };
 		E7424D17BE75365173076A09 /* ProtocolConformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BA7925A98746EBC6AD57A32 /* ProtocolConformanceTests.swift */; };
 		E86C2D7468C5053D116BE999 /* ActionCustomizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7683646692AA6067DA5AA86D /* ActionCustomizationManager.swift */; };
@@ -145,6 +147,7 @@
 		00D644F2046169A3D911104F /* ActionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCoordinator.swift; sourceTree = "<group>"; };
 		0235D3D283F8890DEEE2A915 /* CloudAPIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudAPIProvider.swift; sourceTree = "<group>"; };
 		0320149D41E8A7C2D2A9DED8 /* OpenClipTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenClipTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		042DA17A2486356DBB307B2F /* ExtensionManifestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionManifestTests.swift; sourceTree = "<group>"; };
 		0433AD358F1B636910C66094 /* OpenClipSnippetParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipSnippetParser.swift; sourceTree = "<group>"; };
 		06C43223F2E4E777CC9F7673 /* RuleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleEngineTests.swift; sourceTree = "<group>"; };
 		087F3A6593D8726BD84CF1F1 /* PopupPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPanel.swift; sourceTree = "<group>"; };
@@ -168,6 +171,7 @@
 		38E0B09A0FCBBCF4C67A0FFF /* AppleIntelligenceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleIntelligenceProvider.swift; sourceTree = "<group>"; };
 		3CA1668ABEA1DDA04C75B2BC /* EditActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditActionSheet.swift; sourceTree = "<group>"; };
 		3E47D4C3D096CE979274DCDA /* BuiltinRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltinRegistryTests.swift; sourceTree = "<group>"; };
+		40BC7280676281FD11450DF2 /* ActionFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionFactory.swift; sourceTree = "<group>"; };
 		43600D5250056CDB41C7FDF4 /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
 		49648502F040834635BBD8ED /* TextRetrieverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRetrieverTests.swift; sourceTree = "<group>"; };
 		4BB115DCDCB4749A1DDB8222 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
@@ -367,6 +371,7 @@
 		51397ADF2BDA0A76AFEBE25C /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				40BC7280676281FD11450DF2 /* ActionFactory.swift */,
 				336067B05C52B87CD8C9DA9F /* ExtensionManager.swift */,
 				0433AD358F1B636910C66094 /* OpenClipSnippetParser.swift */,
 				2F9C20B7C7D633121BA39CDA /* ScriptAction.swift */,
@@ -495,6 +500,7 @@
 				FFB1D78D56093DFD6C687ED4 /* CustomActionManagerTests.swift */,
 				6BCD81A735F9A377FDE4DB32 /* DefineActionTests.swift */,
 				D33B3004A90DD3BE1E64DD30 /* ExtensionManagerTests.swift */,
+				042DA17A2486356DBB307B2F /* ExtensionManifestTests.swift */,
 				74377A23CADC86774742A0BD /* InstalledAppsScannerTests.swift */,
 				B603C28D161A795066B85A89 /* LaunchAtLoginManagerTests.swift */,
 				5BFF66BC8C0CB6DBE2EEC671 /* PopupPositionerTests.swift */,
@@ -638,6 +644,7 @@
 				B35A409707F64398CD9E9805 /* CustomActionManagerTests.swift in Sources */,
 				EB0DB3A8EC936D90D0D35D98 /* DefineActionTests.swift in Sources */,
 				B4F498590B58B62BA693B72C /* ExtensionManagerTests.swift in Sources */,
+				E4E9D257A248FF4238EFC61C /* ExtensionManifestTests.swift in Sources */,
 				28866ECB981E609DE49A0446 /* InstalledAppsScannerTests.swift in Sources */,
 				1C03F28FAA913021C9CA39D2 /* LaunchAtLoginManagerTests.swift in Sources */,
 				1DAA6E1F5849B540F57EDF56 /* PopupPositionerTests.swift in Sources */,
@@ -659,6 +666,7 @@
 				78C232BA793CCE5C409BA389 /* ActionContext.swift in Sources */,
 				998433DC4517993AD4624ECF /* ActionCoordinator.swift in Sources */,
 				E86C2D7468C5053D116BE999 /* ActionCustomizationManager.swift in Sources */,
+				4515E812499967C26560169C /* ActionFactory.swift in Sources */,
 				1CDF0D30E4B08B90733C53D8 /* ActionRegistry.swift in Sources */,
 				AEB67702CE089BAFFFB8DCB7 /* ActionResult.swift in Sources */,
 				E27BC38183CE54F6073EC02F /* AppFilter.swift in Sources */,
