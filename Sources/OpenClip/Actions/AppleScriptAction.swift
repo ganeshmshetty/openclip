@@ -35,8 +35,9 @@ public struct AppleScriptAction: ConfigurableAction {
         let text = context.selection.text.replacingOccurrences(of: "\"", with: "\\\"")
         
         let fullScript = """
+        set OPENCLIP_TEXT to "\(text)"
+        set openclip_text to "\(text)"
         set POPCLIP_TEXT to "\(text)"
-        set popclip text to "\(text)"
         \(appleScriptCode)
         """
         

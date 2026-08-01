@@ -2,12 +2,14 @@ import Foundation
 import Core
 
 @MainActor
-public struct PopClipSnippetParser {
+public struct OpenClipSnippetParser {
     public static func parse(snippet: String) -> (any Action)? {
         let lines = snippet.components(separatedBy: .newlines)
-        guard lines.contains(where: { $0.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("#popclip") }) else {
-            return nil
-        }
+        let isHeaderPresent = lines.contains(where: { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces).lowercased()
+            return trimmed.hasPrefix("#openclip") || trimmed.hasPrefix("//openclip") || trimmed.hasPrefix("#popclip")
+        })
+        guard isHeaderPresent else { return nil }
         
         var dict: [String: String] = [:]
         for line in lines {
