@@ -1,6 +1,7 @@
 spec/
 reference/
 .superpowers/
+docs/superpowers/
 .build/
 .DS_Store
 xcuserdata/
