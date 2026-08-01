@@ -13,7 +13,7 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     private let extensionManager = ExtensionManager.shared
     private var cancellables = Set<AnyCancellable>()
     
-    public init() {
+    internal init() {
         registry.$actions
             .assign(to: &$actions)
     }
