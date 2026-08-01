@@ -117,31 +117,29 @@ private struct AppRuleRowView: View {
     @State private var isExpanded = false
     
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            VStack(alignment: .leading, spacing: 8) {
-                Toggle("Enable OpenClip in this app", isOn: enableOpenClip)
-                    .help("If disabled, OpenClip will ignore all text selections in this app.")
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 8) {
+                Button(action: {
+                    isExpanded.toggle()
+                }) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .frame(width: 14, height: 14)
+                }
+                .buttonStyle(.plain)
                 
-                Toggle("Show Formatting Actions", isOn: allowFormatting)
-                    .help("If disabled, actions like Bold or Markdown formatting are hidden. Useful for code editors.")
-                
-                Toggle("Force Clipboard Copy (Cmd+C)", isOn: forceClipboard)
-                    .help("Enable this for non-native apps (like Electron or Java) that do not support standard text accessibility.")
-            }
-            .padding(.leading, 24)
-            .padding(.vertical, 6)
-        } label: {
-            HStack(spacing: 8) {
                 if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
                     Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
                         .resizable()
-                        .frame(width: 20, height: 20)
+                        .frame(width: 22, height: 22)
                 } else {
                     Image(systemName: "app.dashed")
                         .font(.system(size: 20))
                 }
                 
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 1) {
                     if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
                        let bundle = Bundle(url: appURL),
                        let appName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String {
@@ -165,7 +163,28 @@ private struct AppRuleRowView: View {
                 .buttonStyle(.plain)
                 .help("Remove Rule")
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isExpanded.toggle()
+            }
+            
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Enable OpenClip in this app", isOn: enableOpenClip)
+                        .help("If disabled, OpenClip will ignore all text selections in this app.")
+                    
+                    Toggle("Show Formatting Actions", isOn: allowFormatting)
+                        .help("If disabled, actions like Bold or Markdown formatting are hidden. Useful for code editors.")
+                    
+                    Toggle("Force Clipboard Copy (Cmd+C)", isOn: forceClipboard)
+                        .help("Enable this for non-native apps (like Electron or Java) that do not support standard text accessibility.")
+                }
+                .padding(.leading, 44)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
+                .transition(.identity)
+            }
         }
     }
 }
