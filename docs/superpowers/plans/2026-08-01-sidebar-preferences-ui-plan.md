@@ -1,240 +1,146 @@
-# Sidebar Preferences UI Implementation Plan
+# Settings UI Sidebar Migration Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Transform `PreferencesView.swift` from a top `TabView` into a Raycast-style split layout with a left navigation sidebar, icon-only footer (`?` and GitHub), and dark grouped setting cards.
+**Goal:** Migrate the current Settings/Preferences window from a standard `TabView` to a modern macOS `NavigationSplitView` sidebar layout, matching premium macOS apps.
 
-**Architecture:** Create `PreferencesSidebar` and `SettingsGroupCard` components in `PreferencesView.swift`. Update `GeneralTab`, `AppearanceTab`, `ActionsTab`, `AppRulesTab`, and `AboutTab` to use `SettingsGroupCard`.
-
-**Tech Stack:** Swift 6 (strict concurrency) · SwiftUI · AppKit
-
-## Global Constraints
-
-- Language: Swift 6 strict concurrency — zero warnings.
-- Footer icons: `questionmark.circle` and `code` (GitHub link) — icon-only, no text labels.
-- Preserves all state bindings (`popupStyle`, `theme`, `popupSize`, `disabledActionIDs`).
-- All unit tests must pass cleanly.
-- Commit after each task.
+## Constraints & Requirements
+- Target UI: Sleek sidebar on the left, detail content on the right.
+- The bottom of the sidebar must contain only two icons: `?` (Help) and the GitHub icon (with **no text**).
+- Update the window chrome in `StatusBarController` to look seamless (`.fullSizeContentView` + `.titlebarAppearsTransparent = true`).
+- Ensure all tests continue to pass cleanly.
 
 ---
 
-## File Structure
-
-- Modify: `Sources/OpenClip/UI/Preferences/PreferencesView.swift`
-- Modify: `Sources/OpenClip/UI/Preferences/AppRulesTab.swift`
-
----
-
-## Task 1: Create `PreferencesSidebar` & `SettingsGroupCard` in `PreferencesView.swift`
+## Task 1: Update NSWindow Styling for Modern Sidebar
 
 **Files:**
-- Modify: `Sources/OpenClip/UI/Preferences/PreferencesView.swift`
+- Modify: `Sources/OpenClip/StatusBarController.swift`
 
-- [ ] **Step 1: Implement `PreferencesSidebar` with icon-only footer (`?` & GitHub)**
-
+- [ ] **Step 1: Modify `showPreferences()` in `StatusBarController.swift`**
+Update the window creation logic to support a seamless titlebar and larger default size.
 ```swift
-struct PreferencesSidebar: View {
-    @Binding var selectedTab: Int
-    
-    private let tabs: [(id: Int, title: String, icon: String)] = [
-        (0, "General", "gearshape"),
-        (1, "Appearance", "paintpalette"),
-        (2, "Actions", "bolt.fill"),
-        (3, "App Rules", "macwindow.badge.gearshape"),
-        (4, "About", "info.circle")
-    ]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(tabs, id: \.id) { tab in
-                Button {
-                    selectedTab = tab.id
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 14, weight: .medium))
-                            .frame(width: 20)
-                        Text(tab.title)
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer()
-                    }
-                    .foregroundColor(selectedTab == tab.id ? .white : .primary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(selectedTab == tab.id ? Color.accentColor : Color.clear)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-            
-            Spacer()
-            
-            Divider()
-                .padding(.vertical, 4)
-            
-            // Icon-only Footer: Help (?) and GitHub
-            HStack(spacing: 12) {
-                Button {
-                    if let url = URL(string: "https://github.com/ganesh/openclip#readme") {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Image(systemName: "questionmark.circle")
-                        .font(.system(size: 15))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Help & Documentation")
-                
-                Button {
-                    if let url = URL(string: "https://github.com/ganesh/openclip") {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Image(systemName: "code")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Open GitHub Repository")
-            }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 6)
-        }
-        .padding(12)
-        .frame(width: 200)
-        .background(Color(nsColor: .windowBackgroundColor).opacity(0.6))
-    }
-}
+        let controller = NSHostingController(rootView: PreferencesView())
+        let window = NSWindow(contentViewController: controller)
+        window.title = "OpenClip Preferences"
+        window.setContentSize(NSSize(width: 700, height: 500))
+        window.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.center()
+        self.preferencesWindow = window
 ```
 
-- [ ] **Step 2: Implement `SettingsGroupCard` container view**
-
-```swift
-struct SettingsGroupCard<Content: View>: View {
-    let title: String?
-    let content: Content
-    
-    init(title: String? = nil, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let title {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-                    .padding(.leading, 2)
-            }
-            
-            VStack(alignment: .leading, spacing: 0) {
-                content
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-            )
-        }
-    }
-}
-```
-
-- [ ] **Step 3: Update `PreferencesView.body` to render split layout**
-
-```swift
-    public var body: some View {
-        HStack(spacing: 0) {
-            PreferencesSidebar(selectedTab: $selectedTab)
-            
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 0) {
-                // Header
-                Text(tabTitle(for: selectedTab))
-                    .font(.title2)
-                    .bold()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 12)
-                
-                Divider()
-                
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        switch selectedTab {
-                        case 0: GeneralTab()
-                        case 1: AppearanceTab(popupStyle: $popupStyle, theme: $theme, popupSize: $popupSize)
-                        case 2: ActionsTab(disabledActionIDs: $disabledActionIDs)
-                        case 3: AppRulesTab()
-                        case 4: AboutTab()
-                        default: EmptyView()
-                        }
-                    }
-                    .padding(20)
-                }
-            }
-        }
-        .frame(width: 720, height: 500)
-        .onAppear {
-            loadDisabledActionIDs()
-        }
-        .onChange(of: disabledActionIDs) { _, _ in
-            saveDisabledActionIDs()
-        }
-    }
-```
-
-- [ ] **Step 4: Run unit tests to verify zero regressions**
-
-Run: `xcodebuild test -scheme OpenClip -destination 'platform=macOS,arch=arm64'`
-Expected: PASS.
-
-- [ ] **Step 5: Commit Task 1**
-
+- [ ] **Step 2: Commit Task 1**
 ```bash
-git add Sources/OpenClip/UI/Preferences/PreferencesView.swift docs/superpowers/specs/2026-08-01-sidebar-preferences-ui-design.md docs/superpowers/plans/2026-08-01-sidebar-preferences-ui-plan.md
-git commit -m "feat(ui): implement Raycast-style sidebar preferences layout with icon-only footer"
+git add Sources/OpenClip/StatusBarController.swift
+git commit -m "feat(ui): update Preferences window styling for seamless sidebar layout"
 ```
 
 ---
 
-## Task 2: Refactor Settings Tabs & Live Verification
+## Task 2: Refactor `PreferencesView` to `NavigationSplitView`
 
 **Files:**
 - Modify: `Sources/OpenClip/UI/Preferences/PreferencesView.swift`
-- Modify: `Sources/OpenClip/UI/Preferences/AppRulesTab.swift`
 
-- [ ] **Step 1: Refactor `GeneralTab` to use `SettingsGroupCard`**
+- [ ] **Step 1: Define `PreferenceTab` Enum**
+Create an enum to drive the selection in the sidebar.
+```swift
+enum PreferenceTab: String, CaseIterable, Hashable {
+    case general = "General"
+    case appearance = "Appearance"
+    case actions = "Actions"
+    case appRules = "App Rules"
+    case about = "About"
+    
+    var icon: String {
+        switch self {
+        case .general: return "gearshape"
+        case .appearance: return "paintpalette"
+        case .actions: return "bolt.fill"
+        case .appRules: return "macwindow.badge.gearshape"
+        case .about: return "info.circle"
+        }
+    }
+}
+```
 
-Update `GeneralTab` to wrap Shortcut, Startup, and Permissions in `SettingsGroupCard`s with smooth inset rows.
+- [ ] **Step 2: Rewrite `PreferencesView` Body**
+Replace `TabView` with `NavigationSplitView`.
+Add the sidebar items using `List(selection: $selectedTab)` and `.listStyle(.sidebar)`.
+Add the bottom footer with `Spacer()` and the two icon buttons (Help and GitHub) with NO text.
+```swift
+    @State private var selectedTab: PreferenceTab? = .general
+    
+    public var body: some View {
+        NavigationSplitView {
+            List(selection: $selectedTab) {
+                ForEach(PreferenceTab.allCases, id: \.self) { tab in
+                    NavigationLink(value: tab) {
+                        Label(tab.rawValue, systemImage: tab.icon)
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 250)
+            .safeAreaInset(edge: .bottom) {
+                HStack(spacing: 16) {
+                    Button(action: {
+                        if let url = URL(string: "https://openclip.app/help") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 16))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Help Center")
+                    
+                    Button(action: {
+                        if let url = URL(string: "https://github.com/openclip-app/openclip") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        // Assuming you don't have a custom asset, use standard sf symbol or Text
+                        Image(systemName: "curlybraces.square")
+                            .font(.system(size: 16))
+                    }
+                    .buttonStyle(.plain)
+                    .help("GitHub Repository")
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+        } detail: {
+            Group {
+                switch selectedTab {
+                case .general: GeneralTab()
+                case .appearance: AppearanceTab(popupStyle: $popupStyle, theme: $theme, popupSize: $popupSize)
+                case .actions: ActionsTab(disabledActionIDs: $disabledActionIDs)
+                case .appRules: AppRulesTab()
+                case .about: AboutTab()
+                case .none: Text("Select a setting")
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
+        }
+        .frame(minWidth: 600, minHeight: 400)
+        .onAppear { loadDisabledActionIDs() }
+        .onChange(of: disabledActionIDs) { _, _ in saveDisabledActionIDs() }
+    }
+```
+*(Make sure to verify if `github.logo` or something similar exists, otherwise use a placeholder system symbol or let it be handled accurately).*
 
-- [ ] **Step 2: Refactor `AppearanceTab` to use `SettingsGroupCard`**
+- [ ] **Step 3: Verify and run tests**
+Run `xcodebuild test -scheme OpenClip -destination 'platform=macOS,arch=arm64'` to verify everything builds properly.
 
-Wrap Style, Theme, and Size pickers in `SettingsGroupCard`s.
-
-- [ ] **Step 3: Run unit tests to verify build & tests pass**
-
-Run: `xcodebuild test -scheme OpenClip -destination 'platform=macOS,arch=arm64'`
-Expected: PASS (all 52 unit tests passing).
-
-- [ ] **Step 4: Rebuild & launch app via `dev_run.sh`**
-
-Run: `./scripts/dev_run.sh`
-Expected: OpenClip launches cleanly. Preferences window shows the sleek Raycast-style sidebar with icon-only footer and dark card settings.
+- [ ] **Step 4: Launch and observe**
+Run `./scripts/dev_run.sh` to see the new gorgeous sidebar in action.
 
 - [ ] **Step 5: Commit Task 2**
-
 ```bash
-git add Sources/OpenClip/UI/Preferences/PreferencesView.swift Sources/OpenClip/UI/Preferences/AppRulesTab.swift
-git commit -m "style(ui): refactor settings tabs to dark card layout"
+git add Sources/OpenClip/UI/Preferences/PreferencesView.swift
+git commit -m "feat(ui): migrate Preferences window to modern NavigationSplitView sidebar layout"
 ```
