@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 
 export interface ExtensionItem {
   id: string;
@@ -20,47 +18,78 @@ export interface ExtensionsPageResponse {
   totalCount: number;
 }
 
-// Automatically scans the Extensions/ directory on disk/repo to parse openclip.json manifests dynamically!
-function loadExtensionsFromDirectory(): ExtensionItem[] {
-  const items: ExtensionItem[] = [];
-  const extensionsDir = path.join(process.cwd(), '..', 'Extensions');
+const REPO = 'openclip-app/openclip';
+const BRANCH = 'master';
+const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/Extensions`;
+const API_TREE_URL = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
 
-  if (!fs.existsSync(extensionsDir)) {
-    return items;
-  }
-
+async function loadExtensionsFromGitHub(): Promise<ExtensionItem[]> {
   try {
-    const entries = fs.readdirSync(extensionsDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isDirectory() && entry.name.endsWith('.openclipext')) {
-        const manifestPath = path.join(extensionsDir, entry.name, 'openclip.json');
-        if (fs.existsSync(manifestPath)) {
-          try {
-            const raw = fs.readFileSync(manifestPath, 'utf8');
-            const data = JSON.parse(raw);
-            const action = data.action || data.actions?.[0] || {};
-            
-            items.push({
-              id: data.identifier || data.id || `com.openclip.${entry.name.replace('.openclipext', '').toLowerCase()}`,
-              name: data.name || action.title || entry.name.replace('.openclipext', ''),
-              description: data.description || action.description || `Native ${action.script ? 'script' : 'url'} extension for OpenClip.`,
-              author: data.author || 'Community',
-              icon: action.icon || 'puzzlepiece',
-              category: data.category || 'productivity',
-              downloadCount: 0,
-              downloadURL: `https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/${entry.name}/openclip.json`
-            });
-          } catch (e) {
-            console.error(`Failed to parse manifest at ${manifestPath}`, e);
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error reading Extensions directory:', err);
-  }
+    const treeRes = await fetch(API_TREE_URL, {
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'OpenClip-Website',
+      },
+      next: { revalidate: 60 },
+    });
 
-  return items;
+    if (!treeRes.ok) {
+      console.warn('GitHub tree fetch failed:', treeRes.status);
+      return [];
+    }
+
+    const tree: { tree: { path: string; type: string }[] } = await treeRes.json();
+
+    // Find all openclip.json manifest paths inside .openclipext directories
+    const manifests = tree.tree.filter(
+      (node) =>
+        node.type === 'blob' &&
+        node.path.startsWith('Extensions/') &&
+        node.path.endsWith('/openclip.json') &&
+        node.path.includes('.openclipext/')
+    );
+
+    const results = await Promise.allSettled(
+      manifests.map(async (node) => {
+        const rawURL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${node.path}`;
+        const res = await fetch(rawURL, { next: { revalidate: 60 } });
+        if (!res.ok) return null;
+
+        const data = await res.json();
+        const action = data.action || data.actions?.[0] || {};
+        const dirName = node.path.split('/')[1]; // e.g. SearchYouTube.openclipext
+
+        return {
+          id:
+            data.identifier ||
+            data.id ||
+            `com.openclip.${dirName.replace('.openclipext', '').toLowerCase()}`,
+          name: data.name || action.title || dirName.replace('.openclipext', ''),
+          description:
+            data.description ||
+            action.description ||
+            (action.url
+              ? `Opens ${action.url.split('/')[2]} for your selected text.`
+              : 'A native OpenClip extension.'),
+          author: data.author || 'OpenClip Team',
+          icon: action.icon || data.icon || 'puzzlepiece',
+          category: data.category || 'productivity',
+          downloadCount: 0,
+          downloadURL: `${RAW_BASE}/${dirName}/openclip.json`,
+        } as ExtensionItem;
+      })
+    );
+
+    return results
+      .filter(
+        (r): r is PromiseFulfilledResult<ExtensionItem> =>
+          r.status === 'fulfilled' && r.value !== null
+      )
+      .map((r) => r.value);
+  } catch (err) {
+    console.error('Failed to load extensions from GitHub:', err);
+    return [];
+  }
 }
 
 export async function GET(request: Request) {
@@ -70,42 +99,15 @@ export async function GET(request: Request) {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '12', 10);
 
-  // Dynamically loaded from Extensions/ directory
-  let filtered = loadExtensionsFromDirectory();
-
-  // Fallback if running standalone web build without parent repo dir
-  if (filtered.length === 0) {
-    filtered = [
-      {
-        id: "com.openclip.youtube",
-        name: "Search YouTube",
-        description: "Search YouTube instantly for your highlighted text in your browser.",
-        author: "OpenClip Team",
-        icon: "play.circle",
-        category: "productivity",
-        downloadCount: 0,
-        downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/SearchYouTube.openclipext/openclip.json"
-      },
-      {
-        id: "com.openclip.applemusic",
-        name: "Search Apple Music",
-        description: "Search and play tracks directly in Apple Music using native AppleScript integration.",
-        author: "OpenClip Team",
-        icon: "music.note",
-        category: "productivity",
-        downloadCount: 0,
-        downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/AppleMusic.openclipext/openclip.json"
-      }
-    ];
-  }
+  let filtered = await loadExtensionsFromGitHub();
 
   if (category !== 'all') {
-    filtered = filtered.filter(ext => ext.category.toLowerCase() === category);
+    filtered = filtered.filter((ext) => ext.category.toLowerCase() === category);
   }
 
   if (q) {
     filtered = filtered.filter(
-      ext =>
+      (ext) =>
         ext.name.toLowerCase().includes(q) ||
         ext.description.toLowerCase().includes(q) ||
         ext.author.toLowerCase().includes(q)
@@ -117,17 +119,13 @@ export async function GET(request: Request) {
   const startIndex = (page - 1) * limit;
   const paginatedExtensions = filtered.slice(startIndex, startIndex + limit);
 
-  const response: ExtensionsPageResponse = {
-    extensions: paginatedExtensions,
-    page,
-    totalPages,
-    totalCount
-  };
-
-  return NextResponse.json(response, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30'
+  return NextResponse.json(
+    { extensions: paginatedExtensions, page, totalPages, totalCount },
+    {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      },
     }
-  });
+  );
 }

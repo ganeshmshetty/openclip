@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { Search, Download, Check, Layers, Sparkles } from 'lucide-react';
+import { Search, Download, Check, PackageOpen, ExternalLink } from 'lucide-react';
 
 interface ExtensionItem {
   id: string;
@@ -16,6 +16,24 @@ interface ExtensionItem {
   downloadURL: string;
 }
 
+const CATEGORIES = ['all', 'productivity', 'developer', 'utilities', 'text tools'];
+
+function CategoryBadge({ category }: { category: string }) {
+  const colors: Record<string, string> = {
+    productivity: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    developer: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+    utilities: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    'text tools': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  };
+  return (
+    <span
+      className={`inline-block px-2 py-0.5 rounded-md border text-[10.5px] font-medium uppercase tracking-wide ${colors[category] || 'bg-white/5 text-white/40 border-white/10'}`}
+    >
+      {category}
+    </span>
+  );
+}
+
 export default function ExtensionsPage() {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -23,80 +41,72 @@ export default function ExtensionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [installedMap, setInstalledMap] = useState<Record<string, boolean>>({});
 
-  const categories = ['all', 'productivity', 'developer', 'utilities', 'text tools'];
-
-  useEffect(() => {
-    async function fetchExtensions() {
-      setIsLoading(true);
-      try {
-        const queryParams = new URLSearchParams({
-          q: search,
-          category: selectedCategory,
-          limit: '20'
-        });
-        const res = await fetch(`/api/v1/extensions?${queryParams.toString()}`);
-        if (res.ok) {
-          const data = await res.json();
-          setExtensions(data.extensions || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch extensions:', err);
-      } finally {
-        setIsLoading(false);
+  const fetchExtensions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({ q: search, category: selectedCategory, limit: '20' });
+      const res = await fetch(`/api/v1/extensions?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setExtensions(data.extensions || []);
       }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
     }
-
-    const timer = setTimeout(fetchExtensions, 200);
-    return () => clearTimeout(timer);
   }, [search, selectedCategory]);
 
-  const handleOneClickInstall = (ext: ExtensionItem) => {
-    const installURL = `openclip://install?id=${encodeURIComponent(ext.id)}&name=${encodeURIComponent(ext.name)}&url=${encodeURIComponent(ext.downloadURL)}`;
-    window.location.href = installURL;
-    setInstalledMap(prev => ({ ...prev, [ext.id]: true }));
+  useEffect(() => {
+    const t = setTimeout(fetchExtensions, 250);
+    return () => clearTimeout(t);
+  }, [fetchExtensions]);
+
+  const handleInstall = (ext: ExtensionItem) => {
+    const url = `openclip://install?id=${encodeURIComponent(ext.id)}&name=${encodeURIComponent(ext.name)}&url=${encodeURIComponent(ext.downloadURL)}`;
+    window.location.href = url;
+    setInstalledMap((prev) => ({ ...prev, [ext.id]: true }));
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#050A14] text-white flex flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-10 w-full">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Extension Hub</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
+      <main className="flex-1 max-w-6xl mx-auto px-5 sm:px-8 py-12 w-full">
+        {/* Page header */}
+        <div className="mb-10">
+          <h1 className="text-2xl font-bold tracking-[-0.02em] text-white/95">
             Extension Store
           </h1>
-          <p className="mt-1 text-slate-400 text-xs sm:text-sm font-medium">
-            Click <strong>Install in OpenClip</strong> to add extensions directly to your Mac.
+          <p className="mt-1.5 text-[13.5px] text-white/40 max-w-lg">
+            Auto-synced from GitHub. Every{' '}
+            <code className="font-mono text-white/50">.openclipext</code> folder in the repo
+            appears here automatically.
           </p>
         </div>
 
-        {/* Search & Category Filter Bar */}
-        <div className="mb-8 flex flex-col md:flex-row items-center gap-3">
-          <div className="relative w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+        {/* Toolbar */}
+        <div className="mb-8 flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 pointer-events-none" />
             <input
               type="text"
               placeholder="Search extensions..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-blue-900/50 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors text-xs font-medium"
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/8 text-white text-[13.5px] placeholder-white/25 focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.06] transition-all"
             />
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto">
-            {categories.map(cat => (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 sm:pb-0">
+            {CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold capitalize whitespace-nowrap transition-all ${
+                className={`px-3.5 py-2 rounded-xl text-[12.5px] font-medium capitalize whitespace-nowrap transition-all ${
                   selectedCategory === cat
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
-                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-blue-900/40'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                    : 'bg-white/[0.04] hover:bg-white/[0.07] text-white/45 border border-white/6'
                 }`}
               >
                 {cat}
@@ -105,75 +115,83 @@ export default function ExtensionsPage() {
           </div>
         </div>
 
-        {/* Extensions Grid */}
+        {/* Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-40 rounded-2xl bg-slate-900/40 border border-blue-900/30 animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="h-44 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse"
+              />
             ))}
           </div>
         ) : extensions.length === 0 ? (
-          <div className="text-center py-16 bg-slate-900/40 rounded-2xl border border-blue-900/40">
-            <Layers className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-            <h3 className="text-base font-bold text-white">No extensions published yet</h3>
-            <p className="text-xs text-slate-400 mt-1 font-medium">Be the first to create and submit an extension!</p>
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center mb-4">
+              <PackageOpen className="w-6 h-6 text-white/20" />
+            </div>
+            <h3 className="text-[15px] font-semibold text-white/60">No extensions found</h3>
+            <p className="text-[13px] text-white/30 mt-1">
+              {search ? 'Try a different search query.' : 'No extensions published yet.'}
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {extensions.map(ext => {
-              const isTriggered = installedMap[ext.id];
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {extensions.map((ext) => {
+              const triggered = installedMap[ext.id];
               return (
                 <div
                   key={ext.id}
-                  className="flex flex-col justify-between p-5 rounded-2xl bg-slate-900/60 border border-blue-900/40 hover:border-blue-500/50 transition-all hover:-translate-y-0.5 shadow-lg shadow-black/20"
+                  className="group flex flex-col justify-between p-5 rounded-2xl bg-white/[0.025] border border-white/6 hover:border-white/12 hover:bg-white/[0.04] transition-all"
                 >
                   <div>
-                    <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
-                        <h3 className="font-bold text-white text-sm leading-snug">{ext.name}</h3>
-                        <p className="text-[11px] text-slate-400 font-medium">by {ext.author}</p>
+                        <h3 className="text-[14px] font-semibold text-white/90 leading-snug">
+                          {ext.name}
+                        </h3>
+                        <p className="text-[11.5px] text-white/30 mt-0.5">by {ext.author}</p>
                       </div>
-                      <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] uppercase font-bold">
-                        {ext.category}
-                      </span>
+                      <CategoryBadge category={ext.category} />
                     </div>
 
-                    <p className="text-xs text-slate-300 leading-relaxed mb-4 line-clamp-2 font-medium">
+                    <p className="text-[12.5px] text-white/45 leading-relaxed line-clamp-2">
                       {ext.description}
                     </p>
                   </div>
 
-                  <div className="pt-3 border-t border-blue-900/40 flex items-center justify-between gap-2 text-xs">
-                    <span className="text-slate-400 text-[11px] font-semibold">
-                      ⬇ {ext.downloadCount.toLocaleString()}
+                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-white/5">
+                    <span className="text-[11px] text-white/25 tabular-nums">
+                      {ext.downloadCount > 0 ? `↓ ${ext.downloadCount.toLocaleString()}` : 'New'}
                     </span>
 
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => handleOneClickInstall(ext)}
-                        className={`inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          isTriggered
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/25'
+                        onClick={() => handleInstall(ext)}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all ${
+                          triggered
+                            ? 'bg-emerald-600/80 text-white'
+                            : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/15'
                         }`}
                       >
-                        {isTriggered ? (
+                        {triggered ? (
                           <>
                             <Check className="w-3.5 h-3.5" />
-                            <span>Opening...</span>
+                            Opening…
                           </>
                         ) : (
-                          <span>Install in OpenClip</span>
+                          'Install'
                         )}
                       </button>
 
                       <a
                         href={ext.downloadURL}
-                        download
-                        title="Download package file"
-                        className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View on GitHub"
+                        className="p-1.5 rounded-lg bg-white/4 hover:bg-white/8 text-white/30 hover:text-white/60 transition-all border border-white/6"
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     </div>
                   </div>

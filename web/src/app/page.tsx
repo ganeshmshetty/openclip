@@ -1,106 +1,129 @@
 import Link from 'next/link';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import { Download, Layers, Zap, Terminal, Shield, ArrowRight, Smile, Sparkles } from 'lucide-react';
+import { Download, ArrowRight, Zap, Terminal, GitBranch, Shield } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen bg-[#050A14] text-white flex flex-col font-[var(--font-inter)]">
       <Navbar />
 
       <main className="flex-1">
-        {/* Fun Hero Section */}
-        <section className="pt-20 pb-16 border-b border-blue-900/30 relative overflow-hidden">
-          <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold uppercase tracking-widest mb-6">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Fun & Fast Clipboard Power</span>
+        {/* Hero */}
+        <section className="relative pt-24 pb-20 overflow-hidden">
+          {/* Subtle blue radial glow behind hero text */}
+          <div className="pointer-events-none absolute inset-0 flex items-start justify-center">
+            <div className="w-[700px] h-[400px] rounded-full bg-blue-600/10 blur-[120px] mt-10" />
+          </div>
+
+          <div className="relative max-w-3xl mx-auto px-5 sm:px-8 text-center">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/20 bg-blue-500/8 text-blue-400 text-[12px] font-medium tracking-wide mb-7">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+              Open Source · Native macOS · Swift 5
             </div>
 
-            <h1 className="text-4xl sm:text-6xl font-extrabold text-white tracking-tight leading-tight">
-              Supercharge Your Text <br />
-              <span className="bg-gradient-to-r from-blue-400 via-sky-400 to-cyan-300 bg-clip-text text-transparent">
-                With One Click. ⚡
-              </span>
+            <h1 className="text-4xl sm:text-[56px] font-bold tracking-[-0.03em] leading-[1.1] text-white">
+              Clipboard actions,<br />
+              <span className="text-blue-400">without the friction.</span>
             </h1>
 
-            <p className="mt-6 text-base sm:text-xl text-slate-300 max-w-2xl mx-auto font-medium leading-relaxed">
-              Highlight text anywhere on your Mac and pop up instant actions! Run JavaScript, AppleScript, Shell commands, or search web apps seamlessly.
+            <p className="mt-5 text-base sm:text-lg text-white/50 max-w-xl mx-auto leading-relaxed font-normal">
+              Highlight any text on macOS. Run JavaScript, AppleScript, Shell scripts, or URL actions in milliseconds — no setup, no overhead.
             </p>
 
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
                 href="https://github.com/openclip-app/openclip/releases/latest"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white font-extrabold text-base shadow-xl shadow-blue-500/25 transition-all hover:scale-105 active:scale-95"
+                className="group flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all shadow-xl shadow-blue-600/20 hover:shadow-blue-500/30"
               >
-                <Download className="w-5 h-5" />
-                <span>Get OpenClip Free</span>
+                <Download className="w-4 h-4" />
+                Download for macOS
               </a>
-
               <Link
                 href="/extensions"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-blue-900/50 text-slate-200 font-bold text-base transition-all hover:scale-105 active:scale-95"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 text-white/80 text-sm font-medium transition-all"
               >
-                <Layers className="w-5 h-5 text-blue-400" />
-                <span>Explore Store</span>
+                Browse Extensions
+                <ArrowRight className="w-4 h-4 text-white/40" />
               </Link>
             </div>
           </div>
         </section>
 
-        {/* Fun Feature Grid */}
-        <section className="py-16 max-w-5xl mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-blue-900/40 hover:border-blue-500/50 transition-all hover:-translate-y-1">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-lg mb-4">
-                🚀
-              </div>
-              <h3 className="text-lg font-bold text-white">4 Runtimes, Infinite Possibilities</h3>
-              <p className="mt-2 text-xs text-slate-400 leading-relaxed font-medium">
-                Write actions in JavaScript, AppleScript, Shell/Python, or simple URL templates.
-              </p>
-            </div>
+        {/* Divider */}
+        <div className="max-w-6xl mx-auto px-5 sm:px-8">
+          <div className="border-t border-white/5" />
+        </div>
 
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-blue-900/40 hover:border-blue-500/50 transition-all hover:-translate-y-1">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 font-bold text-lg mb-4">
-                📝
-              </div>
-              <h3 className="text-lg font-bold text-white">Super Easy Snippets</h3>
-              <p className="mt-2 text-xs text-slate-400 leading-relaxed font-medium">
-                Just drop a text file with a <code>#openclip</code> header to create your own instant extension!
-              </p>
-            </div>
+        {/* Features */}
+        <section className="py-20 max-w-6xl mx-auto px-5 sm:px-8">
+          <p className="text-xs font-semibold uppercase tracking-widest text-white/25 mb-10">
+            Why OpenClip
+          </p>
 
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-blue-900/40 hover:border-blue-500/50 transition-all hover:-translate-y-1">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold text-lg mb-4">
-                ⚡
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                icon: <Zap className="w-4 h-4" />,
+                title: '4 Native Runtimes',
+                body: 'JavaScript (JSC), AppleScript, Shell/Python, and URL templates — all running natively.',
+              },
+              {
+                icon: <Terminal className="w-4 h-4" />,
+                title: 'One-File Extensions',
+                body: 'Drop a text file with an #openclip header to create a fully functional extension.',
+              },
+              {
+                icon: <Shield className="w-4 h-4" />,
+                title: 'Pure Swift Core',
+                body: 'Built natively in Swift 5. Lightweight, sandboxed, and always feels instant.',
+              },
+              {
+                icon: <GitBranch className="w-4 h-4" />,
+                title: 'Open Source',
+                body: 'Every line is on GitHub. Audit, fork, and contribute at any time.',
+              },
+            ].map(({ icon, title, body }) => (
+              <div
+                key={title}
+                className="p-5 rounded-2xl border border-white/6 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all"
+              >
+                <div className="w-8 h-8 rounded-lg border border-white/8 bg-white/5 flex items-center justify-center text-blue-400 mb-4">
+                  {icon}
+                </div>
+                <h3 className="text-[14px] font-semibold text-white/90 mb-1.5">{title}</h3>
+                <p className="text-[12.5px] text-white/40 leading-relaxed">{body}</p>
               </div>
-              <h3 className="text-lg font-bold text-white">Pure Swift Speed</h3>
-              <p className="mt-2 text-xs text-slate-400 leading-relaxed font-medium">
-                Built natively for macOS in Swift 5. Blazing fast, lightweight, and fun to use every day.
-              </p>
-            </div>
+            ))}
           </div>
         </section>
 
-        {/* Fun Call to Action */}
-        <section className="py-12 border-t border-blue-900/30 bg-slate-900/40 text-center">
-          <div className="max-w-2xl mx-auto px-4">
-            <h2 className="text-2xl font-extrabold text-white">Ready to have fun with your clipboard?</h2>
-            <p className="mt-2 text-sm text-slate-400 font-medium">
-              Browse community extensions and install them into OpenClip with one click.
-            </p>
-            <div className="mt-6">
-              <Link
-                href="/extensions"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all hover:scale-105 shadow-lg shadow-blue-500/25"
-              >
-                <span>Browse Extension Store</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+        {/* Divider */}
+        <div className="max-w-6xl mx-auto px-5 sm:px-8">
+          <div className="border-t border-white/5" />
+        </div>
+
+        {/* CTA Strip */}
+        <section className="py-16 max-w-6xl mx-auto px-5 sm:px-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-white/90">
+                Ready to install your first extension?
+              </h2>
+              <p className="text-[13px] text-white/40 mt-1">
+                Browse the directory and install with one click from your browser.
+              </p>
             </div>
+            <Link
+              href="/extensions"
+              className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/6 hover:bg-white/10 border border-white/8 text-white/80 text-sm font-medium transition-all whitespace-nowrap"
+            >
+              Go to Extensions
+              <ArrowRight className="w-4 h-4 text-white/40" />
+            </Link>
           </div>
         </section>
       </main>
