@@ -34,7 +34,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ActionCoordinator.shared.register(action: CompletionAction())
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: ServicesAction())
-            ActionCoordinator.shared.register(action: AirDropAction())
         }
         
         // Setup selection coordinator
