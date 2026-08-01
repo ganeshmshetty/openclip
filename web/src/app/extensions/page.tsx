@@ -66,6 +66,9 @@ export default function ExtensionsPage() {
     const url = `openclip://install?id=${encodeURIComponent(ext.id)}&name=${encodeURIComponent(ext.name)}&url=${encodeURIComponent(ext.downloadURL)}`;
     window.location.href = url;
     setInstalledMap((prev) => ({ ...prev, [ext.id]: true }));
+    setTimeout(() => {
+      setInstalledMap((prev) => ({ ...prev, [ext.id]: false }));
+    }, 3000);
   };
 
   return (
