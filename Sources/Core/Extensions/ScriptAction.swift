@@ -98,8 +98,7 @@ public struct ScriptAction: Action {
                 let value: String?
             }
             
-            do {
-                let decoded = try JSONDecoder().decode(ScriptOutput.self, from: outData)
+            if let decoded = try? JSONDecoder().decode(ScriptOutput.self, from: outData) {
                 switch decoded.type {
                 case Constants.actionTypePaste:
                     if let value = decoded.value {
@@ -117,9 +116,13 @@ public struct ScriptAction: Action {
                     break
                 }
                 return .success
-            } catch {
-                return .failure(error)
             }
+            
+            if let str = String(data: outData, encoding: .utf8), !str.isEmpty {
+                return .paste(str)
+            }
+            
+            return .success
         }.value
     }
 }
