@@ -67,8 +67,14 @@ public struct ExtensionMetadata: Sendable, Codable {
             ?? container.decode(String.self, forKey: .legacyIdentifier)
         self.name = try container.decodeIfPresent(String.self, forKey: .name)
             ?? container.decode(String.self, forKey: .legacyName)
-        self.actions = try container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .actions)
-            ?? container.decode([ExtensionActionMetadata].self, forKey: .legacyActions)
+        // Support both "actions" (array) and "action" (singular object)
+        if let array = try? container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .actions) ?? container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .legacyActions) {
+            self.actions = array
+        } else if let single = try? container.decodeIfPresent(ExtensionActionMetadata.self, forKey: .action) {
+            self.actions = [single]
+        } else {
+            self.actions = []
+        }
         self.options = try container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .options)
             ?? container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .legacyOptions)
     }
@@ -88,6 +94,7 @@ public struct ExtensionMetadata: Sendable, Codable {
         case name = "name"
         case legacyName = "Name"
         case actions = "actions"
+        case action = "action"     // singular fallback
         case legacyActions = "Actions"
         case options = "options"
         case legacyOptions = "Options"
