@@ -9,7 +9,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         manifest: ExtensionMetadata,
         directoryURL: URL
     ) async -> (any Action)? {
-        let actionId = "\(manifest.identifier).action.\(metadata.title ?? manifest.name)"
+        let actionId = metadata.id ?? (manifest.identifier.hasPrefix("snippet.") ? manifest.identifier : "\(manifest.identifier).action.\(metadata.title ?? manifest.name)")
         let title = metadata.title ?? manifest.name
         let icon = ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL)
         
@@ -31,6 +31,43 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 urlTemplate: urlTemplate,
                 regexPattern: metadata.regex
             )
+        }
+        
+        if let scriptCode = metadata.scriptCode, !scriptCode.isEmpty {
+            let typeStr = (metadata.type ?? "").lowercased()
+            switch typeStr {
+            case "js", "javascript":
+                return JavaScriptAction(
+                    id: actionId,
+                    title: title,
+                    icon: icon,
+                    scriptCode: scriptCode,
+                    options: options
+                )
+            case "applescript", "scpt":
+                return AppleScriptAction(
+                    id: actionId,
+                    title: title,
+                    icon: icon,
+                    appleScriptCode: scriptCode,
+                    options: options
+                )
+            case "sh", "shell", "shell script":
+                let iconSymbol = switch icon {
+                case .symbol(let name): name
+                case .local(let url): url.lastPathComponent
+                case .url(let url): url.absoluteString
+                case .text(let txt): txt
+                }
+                return CustomAction(
+                    id: actionId,
+                    title: title,
+                    iconName: iconSymbol,
+                    type: .shellScript(script: scriptCode, replaceSelection: true)
+                )
+            default:
+                break
+            }
         }
         
         let scriptName = metadata.script ?? Constants.defaultScriptName

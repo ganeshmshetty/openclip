@@ -12,7 +12,7 @@ final class OpenClipSnippetParserTests: XCTestCase {
         return selection.toUpperCase();
         """
         
-        let action = OpenClipSnippetParser.parse(snippet: snippet)
+        let action = await OpenClipSnippetParser.parse(snippet: snippet)
         XCTAssertTrue(action is JavaScriptAction, "Expected JavaScriptAction but got \(String(describing: action))")
         if let jsAction = action as? JavaScriptAction {
             XCTAssertEqual(jsAction.title, "UpperJS")
@@ -28,7 +28,7 @@ final class OpenClipSnippetParserTests: XCTestCase {
         return "hello"
         """
         
-        let action = OpenClipSnippetParser.parse(snippet: snippet)
+        let action = await OpenClipSnippetParser.parse(snippet: snippet)
         XCTAssertTrue(action is AppleScriptAction, "Expected AppleScriptAction but got \(String(describing: action))")
         if let appleAction = action as? AppleScriptAction {
             XCTAssertEqual(appleAction.title, "LowerAppleScript")
@@ -44,7 +44,7 @@ final class OpenClipSnippetParserTests: XCTestCase {
         https://www.google.com/search?q={query}
         """
         
-        let action = OpenClipSnippetParser.parse(snippet: snippet)
+        let action = await OpenClipSnippetParser.parse(snippet: snippet)
         XCTAssertTrue(action is URLTemplateAction, "Expected URLTemplateAction but got \(String(describing: action))")
     }
 
@@ -54,7 +54,26 @@ final class OpenClipSnippetParserTests: XCTestCase {
         This is not a valid snippet header.
         """
         
-        let action = OpenClipSnippetParser.parse(snippet: snippet)
+        let action = await OpenClipSnippetParser.parse(snippet: snippet)
         XCTAssertNil(action)
+    }
+
+    func testParseScriptBodyWithEmbeddedComments() async {
+        let snippet = """
+        # Title: CommentJS
+        # Icon: symbol:terminal
+        js:
+        // icon: custom
+        // title: overridden
+        return selection.toLowerCase();
+        """
+        
+        let action = await OpenClipSnippetParser.parse(snippet: snippet)
+        XCTAssertTrue(action is JavaScriptAction, "Expected JavaScriptAction but got \(String(describing: action))")
+        if let jsAction = action as? JavaScriptAction {
+            XCTAssertEqual(jsAction.title, "CommentJS")
+            XCTAssertTrue(jsAction.scriptCode.contains("// icon: custom"))
+            XCTAssertTrue(jsAction.scriptCode.contains("// title: overridden"))
+        }
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import Core
 
 @MainActor
 public struct AppleScriptAction: ConfigurableAction {
