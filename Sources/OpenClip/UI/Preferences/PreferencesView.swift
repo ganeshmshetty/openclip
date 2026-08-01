@@ -33,25 +33,49 @@ public struct PreferencesView: View {
     public init() {}
 
     public var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedTab) {
+        HStack(spacing: 0) {
+            // Custom Seamless Sidebar
+            VStack(alignment: .leading, spacing: 4) {
+                // Clear top space reserved for macOS traffic lights (close, min, expand buttons)
+                Color.clear
+                    .frame(height: 38)
+                
                 ForEach(PreferenceTab.allCases, id: \.self) { tab in
-                    NavigationLink(value: tab) {
-                        Label(tab.rawValue, systemImage: tab.icon)
+                    let isSelected = selectedTab == tab
+                    Button {
+                        selectedTab = tab
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 13, weight: .medium))
+                                .frame(width: 18)
+                            Text(tab.rawValue)
+                                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                            Spacer()
+                        }
+                        .foregroundColor(isSelected ? .white : Color(nsColor: .secondaryLabelColor))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(isSelected ? Color.accentColor : Color.clear)
+                        )
                     }
+                    .buttonStyle(.plain)
                 }
-            }
-            .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 250)
-            .safeAreaInset(edge: .bottom) {
-                HStack(spacing: 16) {
+                
+                Spacer()
+                
+                // Bottom icons: Help (?) and GitHub, with NO text
+                HStack(spacing: 14) {
                     Button(action: {
                         if let url = URL(string: "https://openclip.app/help") {
                             NSWorkspace.shared.open(url)
                         }
                     }) {
                         Image(systemName: "questionmark.circle")
-                            .font(.system(size: 16))
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(nsColor: .secondaryLabelColor))
                     }
                     .buttonStyle(.plain)
                     .help("Help Center")
@@ -61,38 +85,52 @@ public struct PreferencesView: View {
                             NSWorkspace.shared.open(url)
                         }
                     }) {
-                        // GitHub doesn't have an SF Symbol, but curlybraces.square is a good developer alternative, or we can use curlybraces
                         Image(systemName: "curlybraces.square")
-                            .font(.system(size: 16))
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(nsColor: .secondaryLabelColor))
                     }
                     .buttonStyle(.plain)
                     .help("GitHub Repository")
                     
                     Spacer()
                 }
-                .padding()
+                .padding(.horizontal, 10)
+                .padding(.bottom, 12)
             }
-        } detail: {
-            Group {
-                switch selectedTab {
-                case .general: 
-                    GeneralTab()
-                case .appearance: 
-                    AppearanceTab(popupStyle: $popupStyle, theme: $theme, popupSize: $popupSize)
-                case .actions: 
-                    ActionsTab(disabledActionIDs: $disabledActionIDs)
-                case .appRules: 
-                    AppRulesTab()
-                case .about: 
-                    AboutTab()
-                case .none: 
-                    Text("Select a setting")
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 10)
+            .frame(width: 200)
             .background(Color(nsColor: .windowBackgroundColor))
+            
+            Divider()
+            
+            // Detail Content
+            VStack(alignment: .leading, spacing: 0) {
+                // Clear top space reserved for title bar alignment
+                Color.clear
+                    .frame(height: 38)
+                
+                Group {
+                    switch selectedTab {
+                    case .general:
+                        GeneralTab()
+                    case .appearance:
+                        AppearanceTab(popupStyle: $popupStyle, theme: $theme, popupSize: $popupSize)
+                    case .actions:
+                        ActionsTab(disabledActionIDs: $disabledActionIDs)
+                    case .appRules:
+                        AppRulesTab()
+                    case .about:
+                        AboutTab()
+                    case .none:
+                        Text("Select a setting")
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .background(Color(nsColor: .controlBackgroundColor))
         }
-        .frame(minWidth: 600, minHeight: 400)
+        .ignoresSafeArea()
+        .frame(minWidth: 680, minHeight: 480)
         .onAppear { loadDisabledActionIDs() }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledActionIDs() }
     }
