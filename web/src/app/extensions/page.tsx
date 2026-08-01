@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { Search, Download, Check, Layers } from 'lucide-react';
+import { Search, Download, Check, Layers, Sparkles } from 'lucide-react';
 
 interface ExtensionItem {
   id: string;
@@ -57,30 +57,34 @@ export default function ExtensionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       <Navbar />
 
       <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-10 w-full">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-neutral-100 tracking-tight">
-            Extensions Directory
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Extension Hub</span>
+          </div>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">
+            Extension Store
           </h1>
-          <p className="mt-1 text-neutral-400 text-xs sm:text-sm">
-            Click <strong>Install in OpenClip</strong> to add any extension directly to your Mac.
+          <p className="mt-1 text-slate-400 text-xs sm:text-sm font-medium">
+            Click <strong>Install in OpenClip</strong> to add extensions directly to your Mac.
           </p>
         </div>
 
         {/* Search & Category Filter Bar */}
         <div className="mb-8 flex flex-col md:flex-row items-center gap-3">
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
             <input
               type="text"
               placeholder="Search extensions..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-neutral-600 transition-colors text-xs"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-blue-900/50 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors text-xs font-medium"
             />
           </div>
 
@@ -89,10 +93,10 @@ export default function ExtensionsPage() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize whitespace-nowrap transition-colors ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold capitalize whitespace-nowrap transition-all ${
                   selectedCategory === cat
-                    ? 'bg-neutral-100 text-neutral-950 font-semibold'
-                    : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-blue-900/40'
                 }`}
               >
                 {cat}
@@ -105,14 +109,14 @@ export default function ExtensionsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-40 rounded-md bg-neutral-900/40 border border-neutral-800 animate-pulse" />
+              <div key={i} className="h-40 rounded-2xl bg-slate-900/40 border border-blue-900/30 animate-pulse" />
             ))}
           </div>
         ) : extensions.length === 0 ? (
-          <div className="text-center py-16 bg-neutral-900/30 rounded-md border border-neutral-800">
-            <Layers className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-            <h3 className="text-sm font-semibold text-neutral-200">No extensions found</h3>
-            <p className="text-xs text-neutral-500 mt-1">Try adjusting your search query.</p>
+          <div className="text-center py-16 bg-slate-900/40 rounded-2xl border border-blue-900/40">
+            <Layers className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+            <h3 className="text-base font-bold text-white">No extensions published yet</h3>
+            <p className="text-xs text-slate-400 mt-1 font-medium">Be the first to create and submit an extension!</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -121,41 +125,41 @@ export default function ExtensionsPage() {
               return (
                 <div
                   key={ext.id}
-                  className="flex flex-col justify-between p-5 rounded-md bg-neutral-900/50 border border-neutral-800 hover:border-neutral-700 transition-colors"
+                  className="flex flex-col justify-between p-5 rounded-2xl bg-slate-900/60 border border-blue-900/40 hover:border-blue-500/50 transition-all hover:-translate-y-0.5 shadow-lg shadow-black/20"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
-                        <h3 className="font-semibold text-neutral-100 text-sm leading-snug">{ext.name}</h3>
-                        <p className="text-[11px] text-neutral-500">by {ext.author}</p>
+                        <h3 className="font-bold text-white text-sm leading-snug">{ext.name}</h3>
+                        <p className="text-[11px] text-slate-400 font-medium">by {ext.author}</p>
                       </div>
-                      <span className="px-2 py-0.5 rounded bg-neutral-800 text-neutral-400 text-[10px] uppercase font-medium">
+                      <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] uppercase font-bold">
                         {ext.category}
                       </span>
                     </div>
 
-                    <p className="text-xs text-neutral-400 leading-relaxed mb-4 line-clamp-2">
+                    <p className="text-xs text-slate-300 leading-relaxed mb-4 line-clamp-2 font-medium">
                       {ext.description}
                     </p>
                   </div>
 
-                  <div className="pt-3 border-t border-neutral-800/80 flex items-center justify-between gap-2 text-xs">
-                    <span className="text-neutral-500 text-[11px]">
+                  <div className="pt-3 border-t border-blue-900/40 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-400 text-[11px] font-semibold">
                       ⬇ {ext.downloadCount.toLocaleString()}
                     </span>
 
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleOneClickInstall(ext)}
-                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                        className={`inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                           isTriggered
-                            ? 'bg-emerald-700 text-white'
-                            : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-950'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/25'
                         }`}
                       >
                         {isTriggered ? (
                           <>
-                            <Check className="w-3 h-3" />
+                            <Check className="w-3.5 h-3.5" />
                             <span>Opening...</span>
                           </>
                         ) : (
@@ -167,7 +171,7 @@ export default function ExtensionsPage() {
                         href={ext.downloadURL}
                         download
                         title="Download package file"
-                        className="p-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-neutral-200 transition-colors"
+                        className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
                       >
                         <Download className="w-3.5 h-3.5" />
                       </a>
