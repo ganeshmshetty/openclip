@@ -13,6 +13,8 @@ public struct PopupView: View {
     @AppStorage("popupTheme") private var selectedTheme: String = "glass"
     @State private var currentPage = 0
     @State private var isShowingCompletions: Bool = true
+    @State private var hoveredButtonID: String?
+    @State private var hoverFrames: [String: CGRect] = [:]
 
     private let buttonWidth: CGFloat = 36
     private let chevronWidth: CGFloat = 26
@@ -111,19 +113,21 @@ public struct PopupView: View {
     private var completionHStack: some View {
         HStack(spacing: 0) {
             // Far Left: Up Arrow button toggles to normal actions mode
-            ChevronButtonView(systemImage: "chevron.up", width: chevronWidth) {
+            ChevronButtonView(systemImage: "chevron.up", width: chevronWidth, isHovered: hoveredButtonID == "completion-chevron") {
                 isShowingCompletions = false
             }
+            .popupHoverTarget("completion-chevron")
             
             // Horizontal Completion Word Items
             let list = availableCompletions
             ForEach(Array(list.enumerated()), id: \.offset) { index, word in
                 let isLast = index == list.count - 1
-                CompletionButtonView(word: word, selectedTheme: selectedTheme, buttonWidth: buttonWidth, showDivider: !isLast, onResult: onResult)
+                CompletionButtonView(word: word, selectedTheme: selectedTheme, buttonWidth: buttonWidth, showDivider: !isLast, isHovered: hoveredButtonID == "completion-\(index)", onResult: onResult)
+                    .popupHoverTarget("completion-\(index)")
             }
         }
-        .fixedSize()
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .trackedPopupBar(onMove: updateHoveredButton, onExit: { hoveredButtonID = nil })
+        .onPreferenceChange(PopupHoverFramePreferenceKey.self) { hoverFrames = $0 }
     }
 
     // MARK: - Normal Actions Bar Layout
@@ -132,11 +136,13 @@ public struct PopupView: View {
         HStack(spacing: 0) {
             // If completions exist but user toggled to normal actions, show Down Arrow button on left
             if hasCompletions {
-                ChevronButtonView(systemImage: "chevron.down", width: chevronWidth) {
+                ChevronButtonView(systemImage: "chevron.down", width: chevronWidth, isHovered: hoveredButtonID == "actions-chevron-down") {
                     isShowingCompletions = true
                 }
+                .popupHoverTarget("actions-chevron-down")
             } else if hasLeftChevron {
-                ChevronButtonView(systemImage: "chevron.left", width: chevronWidth) { currentPage -= 1 }
+                ChevronButtonView(systemImage: "chevron.left", width: chevronWidth, isHovered: hoveredButtonID == "actions-chevron-left") { currentPage -= 1 }
+                    .popupHoverTarget("actions-chevron-left")
             }
 
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
@@ -148,17 +154,20 @@ public struct PopupView: View {
                     selectedTheme: selectedTheme,
                     buttonWidth: buttonWidth,
                     showDivider: showDivider,
+                    isHovered: hoveredButtonID == "action-\(index)",
                     enabledTransformCases: enabledTransformCases,
                     onResult: onResult
                 )
+                .popupHoverTarget("action-\(index)")
             }
 
             if !hasCompletions && hasRightChevron {
-                ChevronButtonView(systemImage: "chevron.right", width: chevronWidth) { currentPage += 1 }
+                ChevronButtonView(systemImage: "chevron.right", width: chevronWidth, isHovered: hoveredButtonID == "actions-chevron-right") { currentPage += 1 }
+                    .popupHoverTarget("actions-chevron-right")
             }
         }
-        .fixedSize()
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .trackedPopupBar(onMove: updateHoveredButton, onExit: { hoveredButtonID = nil })
+        .onPreferenceChange(PopupHoverFramePreferenceKey.self) { hoverFrames = $0 }
     }
 
     // MARK: - Opaque Background Helpers
@@ -178,6 +187,45 @@ public struct PopupView: View {
     private var opaqueBorder: Color {
         selectedTheme == "light" ? Color.black.opacity(0.12) : Color.white.opacity(0.14)
     }
+
+    private func updateHoveredButton(at location: CGPoint) {
+        let nextID = hoverFrames.first { $0.value.contains(location) }?.key
+        guard nextID != hoveredButtonID else { return }
+        hoveredButtonID = nextID
+    }
+}
+
+private struct PopupHoverFramePreferenceKey: PreferenceKey {
+    static let defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private extension View {
+    func popupHoverTarget(_ id: String) -> some View {
+        background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: PopupHoverFramePreferenceKey.self,
+                    value: [id: proxy.frame(in: .named("popupHoverBar"))]
+                )
+            }
+        }
+    }
+
+    func trackedPopupBar(onMove: @escaping (CGPoint) -> Void, onExit: @escaping () -> Void) -> some View {
+        coordinateSpace(name: "popupHoverBar")
+            .background(
+                BarHoverTrackingView(
+                    onMove: onMove,
+                    onExit: onExit
+                )
+            )
+            .fixedSize()
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
 }
 
 // MARK: - Subviews
@@ -187,9 +235,8 @@ struct CompletionButtonView: View {
     let selectedTheme: String
     let buttonWidth: CGFloat
     let showDivider: Bool
+    let isHovered: Bool
     let onResult: (ActionResult) -> Void
-    
-    @State private var isHovered = false
     
     var body: some View {
         let restForeground: Color = {
@@ -227,11 +274,6 @@ struct CompletionButtonView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(
-            HoverTrackingView { hover in
-                isHovered = hover
-            }
-        )
     }
 }
 
@@ -241,10 +283,9 @@ struct ActionButtonView: View {
     let selectedTheme: String
     let buttonWidth: CGFloat
     let showDivider: Bool
+    let isHovered: Bool
     let enabledTransformCases: [TransformCase]
     let onResult: (ActionResult) -> Void
-    
-    @State private var isHovered = false
     
     var body: some View {
         let restForeground: Color = {
@@ -301,11 +342,6 @@ struct ActionButtonView: View {
             }
             .menuStyle(.borderlessButton)
             .help(action.title)
-            .background(
-                HoverTrackingView { hover in
-                    isHovered = hover
-                }
-            )
         } else {
             Button {
                 Task {
@@ -321,11 +357,6 @@ struct ActionButtonView: View {
             }
             .buttonStyle(.plain)
             .help(action.title)
-            .background(
-                HoverTrackingView { hover in
-                    isHovered = hover
-                }
-            )
         }
     }
 }
@@ -333,9 +364,8 @@ struct ActionButtonView: View {
 struct ChevronButtonView: View {
     let systemImage: String
     let width: CGFloat
+    let isHovered: Bool
     let action: () -> Void
-    
-    @State private var isHovered = false
     
     var body: some View {
         Button(action: action) {
@@ -347,11 +377,6 @@ struct ChevronButtonView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(
-            HoverTrackingView { hover in
-                isHovered = hover
-            }
-        )
     }
 }
 
@@ -384,23 +409,27 @@ struct PopupIconView: View {
     }
 }
 
-// MARK: - Native AppKit Hover Tracking View
+// MARK: - Native AppKit Bar Hover Tracking
 
-struct HoverTrackingView: NSViewRepresentable {
-    let onHover: (Bool) -> Void
+private struct BarHoverTrackingView: NSViewRepresentable {
+    let onMove: (CGPoint) -> Void
+    let onExit: () -> Void
 
     func makeNSView(context: Context) -> TrackingNSView {
         let view = TrackingNSView()
-        view.onHover = onHover
+        view.onMove = onMove
+        view.onExit = onExit
         return view
     }
 
     func updateNSView(_ nsView: TrackingNSView, context: Context) {
-        nsView.onHover = onHover
+        nsView.onMove = onMove
+        nsView.onExit = onExit
     }
 
-    class TrackingNSView: NSView {
-        var onHover: ((Bool) -> Void)?
+    final class TrackingNSView: NSView {
+        var onMove: ((CGPoint) -> Void)?
+        var onExit: (() -> Void)?
         private var trackingArea: NSTrackingArea?
 
         override func updateTrackingAreas() {
@@ -408,18 +437,26 @@ struct HoverTrackingView: NSViewRepresentable {
             if let existing = trackingArea {
                 removeTrackingArea(existing)
             }
-            let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
+            let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .mouseMoved, .activeAlways]
             let newArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
             addTrackingArea(newArea)
             self.trackingArea = newArea
         }
 
         override func mouseEntered(with event: NSEvent) {
-            onHover?(true)
+            reportLocation(event)
+        }
+
+        override func mouseMoved(with event: NSEvent) {
+            reportLocation(event)
         }
 
         override func mouseExited(with event: NSEvent) {
-            onHover?(false)
+            onExit?()
+        }
+
+        private func reportLocation(_ event: NSEvent) {
+            onMove?(convert(event.locationInWindow, from: nil))
         }
     }
 }
