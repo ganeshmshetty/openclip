@@ -28,45 +28,45 @@ public struct PreferencesView: View {
     @AppStorage(Constants.popupSizeKey) private var popupSize: String = "medium"
     
     @State private var disabledActionIDs: Set<String> = []
-    @State private var selectedTab: PreferenceTab? = .general
+    @State private var selectedTab: PreferenceTab = .general
 
     public init() {}
 
     public var body: some View {
         HStack(spacing: 0) {
-            // Custom Seamless Sidebar
+            // Seamless Sidebar
             VStack(alignment: .leading, spacing: 4) {
-                // Clear top space reserved for macOS traffic lights (close, min, expand buttons)
-                Color.clear
-                    .frame(height: 38)
+                // Top spacing below window traffic light buttons (close/minimize/expand)
+                Spacer()
+                    .frame(height: 48)
                 
                 ForEach(PreferenceTab.allCases, id: \.self) { tab in
-                    let isSelected = selectedTab == tab
-                    Button {
+                    Button(action: {
                         selectedTab = tab
-                    } label: {
+                    }) {
                         HStack(spacing: 10) {
                             Image(systemName: tab.icon)
                                 .font(.system(size: 13, weight: .medium))
                                 .frame(width: 18)
                             Text(tab.rawValue)
-                                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                                .font(.system(size: 13, weight: .medium))
                             Spacer()
                         }
-                        .foregroundColor(isSelected ? .white : Color(nsColor: .secondaryLabelColor))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
+                        .foregroundColor(selectedTab == tab ? .white : .primary)
                         .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(isSelected ? Color.accentColor : Color.clear)
+                            selectedTab == tab ?
+                            Color.accentColor : Color.clear
                         )
+                        .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
                 }
                 
                 Spacer()
                 
-                // Bottom icons: Help (?) and GitHub, with NO text
+                // Bottom footer icons (Help and GitHub - NO TEXT)
                 HStack(spacing: 14) {
                     Button(action: {
                         if let url = URL(string: "https://openclip.app/help") {
@@ -75,7 +75,7 @@ public struct PreferencesView: View {
                     }) {
                         Image(systemName: "questionmark.circle")
                             .font(.system(size: 15))
-                            .foregroundColor(Color(nsColor: .secondaryLabelColor))
+                            .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
                     .help("Help Center")
@@ -87,49 +87,54 @@ public struct PreferencesView: View {
                     }) {
                         Image(systemName: "curlybraces.square")
                             .font(.system(size: 15))
-                            .foregroundColor(Color(nsColor: .secondaryLabelColor))
+                            .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
                     .help("GitHub Repository")
                     
                     Spacer()
                 }
-                .padding(.horizontal, 10)
-                .padding(.bottom, 12)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 16)
             }
             .padding(.horizontal, 10)
             .frame(width: 200)
             .background(Color(nsColor: .windowBackgroundColor))
             
             Divider()
+                .opacity(0.3)
             
-            // Detail Content
+            // Detail Area
             VStack(alignment: .leading, spacing: 0) {
-                // Clear top space reserved for title bar alignment
-                Color.clear
-                    .frame(height: 38)
+                HStack {
+                    Text(selectedTab.rawValue)
+                        .font(.system(size: 20, weight: .bold))
+                        .padding(.top, 40)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 16)
+                    Spacer()
+                }
                 
                 Group {
                     switch selectedTab {
-                    case .general:
+                    case .general: 
                         GeneralTab()
-                    case .appearance:
+                    case .appearance: 
                         AppearanceTab(popupStyle: $popupStyle, theme: $theme, popupSize: $popupSize)
-                    case .actions:
+                    case .actions: 
                         ActionsTab(disabledActionIDs: $disabledActionIDs)
-                    case .appRules:
+                    case .appRules: 
                         AppRulesTab()
-                    case .about:
+                    case .about: 
                         AboutTab()
-                    case .none:
-                        Text("Select a setting")
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .controlBackgroundColor))
         }
-        .ignoresSafeArea()
         .frame(minWidth: 680, minHeight: 480)
         .onAppear { loadDisabledActionIDs() }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledActionIDs() }
