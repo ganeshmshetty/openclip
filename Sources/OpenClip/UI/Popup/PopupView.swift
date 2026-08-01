@@ -35,8 +35,12 @@ public struct PopupView: View {
     private var hasCompletions: Bool { !availableCompletions.isEmpty }
     private var inCompletionMode: Bool { hasCompletions && isShowingCompletions }
 
+    private var enabledTransformCases: [TransformCase] {
+        actions.compactMap { ($0 as? TransformSubAction)?.transformCase }
+    }
+
     private var pagedActions: [any Action] {
-        let filtered = actions.filter { $0.id != "builtin.completion" }
+        let filtered = actions.filter { $0.id != "builtin.completion" && !$0.id.hasPrefix("builtin.transform.") }
         guard filtered.count > pageSize else { return filtered }
         let start = currentPage * pageSize
         let end = min(start + pageSize, filtered.count)
@@ -217,41 +221,72 @@ public struct PopupView: View {
             }
         }()
 
-        Button {
-            Task {
-                do {
-                    let result = try await action.perform(context)
-                    onResult(result)
-                } catch {
-                    print("Action failed: \(error)")
+        let labelView = iconView(for: action.icon)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(isHovered ? .white : restForeground)
+            .padding(.horizontal, {
+                if case .text = action.icon { return 7.0 }
+                return 0.0
+            }())
+            .frame(minWidth: buttonWidth, minHeight: 28)
+            .background(isHovered ? Color.accentColor : Color.clear)
+            .overlay(alignment: .trailing) {
+                if showDivider && !isHovered {
+                    Rectangle()
+                        .fill(dividerColor)
+                        .frame(width: 0.6, height: 28)
                 }
             }
-        } label: {
-            iconView(for: action.icon)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(isHovered ? .white : restForeground)
-                .padding(.horizontal, {
-                    if case .text = action.icon { return 7.0 }
-                    return 0.0
-                }())
-                .frame(minWidth: buttonWidth, minHeight: 28)
-                .background(isHovered ? Color.accentColor : Color.clear)
-                .overlay(alignment: .trailing) {
-                    if showDivider && !isHovered {
-                        Rectangle()
-                            .fill(dividerColor)
-                            .frame(width: 0.6, height: 28)
+            .contentShape(Rectangle())
+
+        if action.id == "builtin.transform" {
+            Menu {
+                ForEach(TransformCategory.allCases, id: \.rawValue) { category in
+                    let catCases = enabledTransformCases.filter { $0.category == category }
+                    if !catCases.isEmpty {
+                        Section(category.rawValue) {
+                            ForEach(catCases) { tCase in
+                                Button(tCase.displayName) {
+                                    let res = tCase.transform(context.selection.text)
+                                    onResult(.paste(res))
+                                }
+                            }
+                        }
                     }
                 }
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(action.title)
-        .onHover { isHovering in
-            if isHovering {
-                hoveredIndex = index
-            } else if hoveredIndex == index {
-                hoveredIndex = nil
+            } label: {
+                labelView
+            }
+            .menuStyle(.borderlessButton)
+            .help(action.title)
+            .onHover { isHovering in
+                if isHovering {
+                    hoveredIndex = index
+                } else if hoveredIndex == index {
+                    hoveredIndex = nil
+                }
+            }
+        } else {
+            Button {
+                Task {
+                    do {
+                        let result = try await action.perform(context)
+                        onResult(result)
+                    } catch {
+                        print("Action failed: \(error)")
+                    }
+                }
+            } label: {
+                labelView
+            }
+            .buttonStyle(.plain)
+            .help(action.title)
+            .onHover { isHovering in
+                if isHovering {
+                    hoveredIndex = index
+                } else if hoveredIndex == index {
+                    hoveredIndex = nil
+                }
             }
         }
     }

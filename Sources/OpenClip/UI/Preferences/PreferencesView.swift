@@ -203,8 +203,12 @@ struct ActionsTab: View {
         VStack(alignment: .leading, spacing: 10) {
             List {
                 Section(header: Text("Built-in & Registered Actions").font(.subheadline).bold()) {
-                    ForEach(coordinator.actions, id: \.id) { action in
-                        ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
+                    ForEach(coordinator.actions.filter { !$0.id.hasPrefix("builtin.transform.") }, id: \.id) { action in
+                        if action.id == "builtin.transform" {
+                            TransformGroupRowView(groupAction: action, disabledActionIDs: $disabledActionIDs)
+                        } else {
+                            ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
+                        }
                     }
                     .onMove { source, destination in
                         coordinator.moveActions(from: source, to: destination)
@@ -361,6 +365,78 @@ struct ActionRowView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.red)
                 .help("Uninstall Extension")
+            }
+        }
+    }
+}
+
+@MainActor
+struct TransformGroupRowView: View {
+    let groupAction: any Action
+    @Binding var disabledActionIDs: Set<String>
+    @State private var isExpanded = false
+    
+    private var isGroupEnabled: Binding<Bool> {
+        Binding<Bool>(
+            get: { !disabledActionIDs.contains(groupAction.id) },
+            set: { enabled in
+                if enabled {
+                    disabledActionIDs.remove(groupAction.id)
+                } else {
+                    disabledActionIDs.insert(groupAction.id)
+                }
+            }
+        )
+    }
+    
+    private func isSubActionEnabled(_ tCase: TransformCase) -> Binding<Bool> {
+        let actionID = "builtin.transform.\(tCase.rawValue)"
+        return Binding<Bool>(
+            get: { !disabledActionIDs.contains(actionID) },
+            set: { enabled in
+                if enabled {
+                    disabledActionIDs.remove(actionID)
+                    disabledActionIDs.remove(groupAction.id)
+                } else {
+                    disabledActionIDs.insert(actionID)
+                }
+            }
+        )
+    }
+    
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(TransformCategory.allCases, id: \.rawValue) { category in
+                    let catCases = TransformCase.allCases.filter { $0.category == category }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(category.rawValue)
+                            .font(.caption)
+                            .bold()
+                            .foregroundColor(.secondary)
+                            .padding(.top, 4)
+                        
+                        ForEach(catCases) { tCase in
+                            Toggle(tCase.displayName, isOn: isSubActionEnabled(tCase))
+                                .toggleStyle(.checkbox)
+                        }
+                    }
+                }
+            }
+            .padding(.leading, 24)
+            .padding(.vertical, 4)
+        } label: {
+            HStack(spacing: 10) {
+                Toggle(isOn: isGroupEnabled) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "textformat")
+                            .frame(width: 20)
+                        Text(groupAction.title)
+                            .font(.body)
+                        Spacer()
+                    }
+                }
+                .toggleStyle(.checkbox)
             }
         }
     }
