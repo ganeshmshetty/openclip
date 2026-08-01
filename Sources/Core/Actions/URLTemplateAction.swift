@@ -41,6 +41,8 @@ public struct URLTemplateAction: Action, Sendable {
         }
         
         var urlString = urlTemplate
+            .replacingOccurrences(of: "***", with: encodedText)
+            .replacingOccurrences(of: "%@", with: encodedText)
             .replacingOccurrences(of: "{popclip text}", with: encodedText)
             .replacingOccurrences(of: "{openclip text}", with: encodedText)
             .replacingOccurrences(of: "{text}", with: encodedText)
