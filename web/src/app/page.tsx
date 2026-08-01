@@ -34,7 +34,7 @@ export default function Home() {
 
             <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
-                href="https://github.com/openclip-app/openclip/releases/latest"
+                href="https://github.com/ganeshmshetty/openclip/releases/latest"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all shadow-xl shadow-blue-600/20 hover:shadow-blue-500/30"

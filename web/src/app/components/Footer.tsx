@@ -3,7 +3,7 @@ import Link from 'next/link';
 const links = [
   { href: '/extensions', label: 'Extensions' },
   { href: '/developers', label: 'Developers' },
-  { href: 'https://github.com/openclip-app/openclip', label: 'GitHub', external: true },
+  { href: 'https://github.com/ganeshmshetty/openclip', label: 'GitHub', external: true },
 ];
 
 export default function Footer() {

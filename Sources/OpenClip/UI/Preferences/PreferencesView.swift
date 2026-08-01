@@ -86,7 +86,7 @@ public struct PreferencesView: View {
                     .help("Help Center")
                     
                     Button(action: {
-                        if let url = URL(string: "https://github.com/openclip-app/openclip") {
+                        if let url = URL(string: "https://github.com/ganeshmshetty/openclip") {
                             NSWorkspace.shared.open(url)
                         }
                     }) {

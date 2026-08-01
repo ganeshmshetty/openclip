@@ -34,7 +34,7 @@ export default function Navbar() {
             </Link>
           ))}
           <a
-            href="https://github.com/openclip-app/openclip"
+            href="https://github.com/ganeshmshetty/openclip"
             target="_blank"
             rel="noopener noreferrer"
             className="px-3.5 py-1.5 rounded-lg text-[13.5px] font-medium text-white/50 hover:text-white/90 hover:bg-white/5 transition-all"
@@ -46,7 +46,7 @@ export default function Navbar() {
         {/* CTA */}
         <div className="flex items-center gap-3">
           <a
-            href="https://github.com/openclip-app/openclip/releases/latest"
+            href="https://github.com/ganeshmshetty/openclip/releases/latest"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold transition-colors shadow-lg shadow-blue-600/20"
@@ -71,7 +71,7 @@ export default function Navbar() {
             { href: '/', label: 'Home' },
             { href: '/extensions', label: 'Extensions' },
             { href: '/developers', label: 'Developers' },
-            { href: 'https://github.com/openclip-app/openclip', label: 'GitHub', external: true },
+            { href: 'https://github.com/ganeshmshetty/openclip', label: 'GitHub', external: true },
           ].map(({ href, label, external }) => (
             <Link
               key={href}
@@ -85,7 +85,7 @@ export default function Navbar() {
             </Link>
           ))}
           <a
-            href="https://github.com/openclip-app/openclip/releases/latest"
+            href="https://github.com/ganeshmshetty/openclip/releases/latest"
             className="mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-[13.5px] font-semibold"
           >
             <Download className="w-4 h-4" />
