@@ -1,0 +1,60 @@
+import Foundation
+import Combine
+
+/// Deep module unifying action discovery, extension scanning, app rule filtering, and user layout ordering.
+@MainActor
+public final class ActionCoordinator: ObservableObject, Sendable {
+    public static let shared = ActionCoordinator()
+    
+    @Published public private(set) var actions: [any Action] = []
+    
+    private let registry = ActionRegistry.shared
+    private let ruleEngine = RuleEngine.shared
+    private let extensionManager = ExtensionManager.shared
+    private var cancellables = Set<AnyCancellable>()
+    
+    private init() {
+        registry.$actions
+            .receive(on: RunLoop.main)
+            .assign(to: &$actions)
+    }
+    
+    public func loadInitialState() async {
+        let coreBuiltins = BuiltinRegistry.makeCoreBuiltins()
+        registry.register(builtIns: coreBuiltins)
+        
+        await ruleEngine.loadRules(from: Constants.rulesFileURL)
+        await extensionManager.loadExtensions()
+        
+        for action in extensionManager.loadedActions {
+            registry.register(action: action)
+        }
+    }
+    
+    public func resolveActions(for context: ActionContext) -> [any Action] {
+        let bundleID = context.selection.sourceApp.bundleIdentifier ?? ""
+        let policy = ruleEngine.resolvePolicies(for: bundleID)
+        var updatedSelection = context.selection
+        if policy.denyFormatting || policy.assumePaste || policy.grabPasteboard {
+            updatedSelection = SelectionContext(
+                text: context.selection.text,
+                sourceApp: context.selection.sourceApp,
+                cursorPosition: context.selection.cursorPosition,
+                mouseDownLocation: context.selection.mouseDownLocation,
+                selectionBounds: context.selection.selectionBounds,
+                timestamp: context.selection.timestamp,
+                appPolicy: policy
+            )
+        }
+        let updatedContext = ActionContext(selection: updatedSelection, modifiers: context.modifiers)
+        return registry.availableActions(for: updatedContext)
+    }
+    
+    public func register(action: any Action) {
+        registry.register(action: action)
+    }
+    
+    public func unregister(actionID: String) {
+        registry.unregister(actionID: actionID)
+    }
+}
