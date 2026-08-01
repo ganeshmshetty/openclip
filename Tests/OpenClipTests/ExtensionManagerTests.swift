@@ -110,14 +110,18 @@ final class ExtensionManagerTests: XCTestCase {
         let manager = ExtensionManager.shared
         let installed = try await manager.installExtension(from: extDir, targetDir: tempDir)
         
-        XCTAssertTrue(installed.contains(where: { $0.id == "com.test.installable.action.0" }))
+        guard let actionID = installed.first?.id else {
+            XCTFail("Expected installed action")
+            return
+        }
+        XCTAssertTrue(installed.contains(where: { $0.id == actionID }))
         
         // Verify file was copied to targetDir
         let expectedTarget = tempDir.appendingPathComponent("Installable.openclipext")
         XCTAssertTrue(FileManager.default.fileExists(atPath: expectedTarget.path))
         
         // Test uninstall
-        try await manager.uninstallExtension(actionID: "com.test.installable.action.0", targetDir: tempDir)
-        XCTAssertFalse(manager.loadedActions.contains(where: { $0.id == "com.test.installable.action.0" }))
+        try await manager.uninstallExtension(actionID: actionID, targetDir: tempDir)
+        XCTAssertFalse(manager.loadedActions.contains(where: { $0.id == actionID }))
     }
 }

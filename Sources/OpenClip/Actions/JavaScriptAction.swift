@@ -12,20 +12,35 @@ public struct JavaScriptAction: ConfigurableAction {
     public let scriptCode: String
     public let actionOptions: [ExtensionOption]
 
-    public init(
+    nonisolated public init(
         id: String,
         title: String,
-        iconSymbol: String = "terminal",
+        icon: ActionIcon = .symbol("terminal"),
         scriptCode: String,
         options: [ExtensionOption] = []
     ) {
         self.id = id
         self.title = title
-        self.icon = .symbol(iconSymbol)
+        self.icon = icon
         self.configurationViewID = id
-        self.preferenceIconName = iconSymbol
+        self.preferenceIconName = switch icon {
+        case .symbol(let name): name
+        case .local(let url): url.lastPathComponent
+        case .url(let url): url.absoluteString
+        case .text(let txt): txt
+        }
         self.scriptCode = scriptCode
         self.actionOptions = options
+    }
+
+    nonisolated public init(
+        id: String,
+        title: String,
+        iconSymbol: String,
+        scriptCode: String,
+        options: [ExtensionOption] = []
+    ) {
+        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options)
     }
 
     public func isEnabled(for context: ActionContext) -> Bool {
