@@ -29,7 +29,8 @@ public enum Constants {
     
     // Extension System Constants
     public static let extensionsDirectory: URL = URL(fileURLWithPath: ("~/.openclip/extensions" as NSString).expandingTildeInPath)
-    public static let manifestFileName: String = "manifest.json"
+    public static let manifestFileName: String = "openclip.json"
+    public static let legacyManifestFileName: String = "manifest.json"
     public static let extKeyIdentifier: String = "Identifier"
     public static let extKeyName: String = "Name"
     public static let extKeyActions: String = "Actions"

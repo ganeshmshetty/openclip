@@ -131,12 +131,16 @@ public final class ExtensionManager: Sendable {
                 let isDirectory = resourceValues.isDirectory ?? false
                 
                 if isDirectory {
-                    // Check for native manifest.json or Config.json inside .openclipext package
-                    let manifestURL = itemURL.appendingPathComponent(Constants.manifestFileName)
+                    // Check for native openclip.json, manifest.json, or Config.json inside .openclipext package
+                    let openclipManifest = itemURL.appendingPathComponent("openclip.json")
+                    let legacyManifest = itemURL.appendingPathComponent("manifest.json")
                     let jsonConfigURL = itemURL.appendingPathComponent("Config.json")
                     
-                    if fileManager.fileExists(atPath: manifestURL.path) {
-                        let actions = await loadManifestExtension(manifestURL: manifestURL, directoryURL: itemURL)
+                    if fileManager.fileExists(atPath: openclipManifest.path) {
+                        let actions = await loadManifestExtension(manifestURL: openclipManifest, directoryURL: itemURL)
+                        newActions.append(contentsOf: actions)
+                    } else if fileManager.fileExists(atPath: legacyManifest.path) {
+                        let actions = await loadManifestExtension(manifestURL: legacyManifest, directoryURL: itemURL)
                         newActions.append(contentsOf: actions)
                     } else if fileManager.fileExists(atPath: jsonConfigURL.path) {
                         let actions = await loadManifestExtension(manifestURL: jsonConfigURL, directoryURL: itemURL)
