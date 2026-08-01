@@ -144,25 +144,17 @@ public struct PreferencesView: View {
     private func loadDisabledActionIDs() {
         if let array = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) {
             var set = Set(array)
-            if !UserDefaults.standard.bool(forKey: "action.airdrop.enabled") {
-                set.insert("builtin.airdrop")
-            }
             if !UserDefaults.standard.bool(forKey: "action.transform.enabled") {
                 set.insert("builtin.transform")
             }
             disabledActionIDs = set
         } else {
-            disabledActionIDs = ["builtin.airdrop", "builtin.transform"]
+            disabledActionIDs = ["builtin.transform"]
         }
     }
     
     private func saveDisabledActionIDs() {
         UserDefaults.standard.set(Array(disabledActionIDs), forKey: Constants.disabledActionIDsKey)
-        if !disabledActionIDs.contains("builtin.airdrop") {
-            UserDefaults.standard.set(true, forKey: "action.airdrop.enabled")
-        } else {
-            UserDefaults.standard.set(false, forKey: "action.airdrop.enabled")
-        }
         if !disabledActionIDs.contains("builtin.transform") {
             UserDefaults.standard.set(true, forKey: "action.transform.enabled")
         } else {
@@ -411,7 +403,8 @@ struct ActionRowView: View {
                         Image(systemName: "sparkles")
                             .frame(width: 20)
                     case .text(let text):
-                        Text(String(text.prefix(1))) // Fallback
+                        Text(text)
+                            .font(.system(size: 11, weight: .semibold))
                             .frame(width: 20)
                     }
                     Text(action.title)

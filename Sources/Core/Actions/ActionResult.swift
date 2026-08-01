@@ -9,6 +9,5 @@ public enum ActionResult: Sendable {
     case cut(String)
     case paste(String)
     case showServices(String)
-    case airdrop(String)
     case none
 }

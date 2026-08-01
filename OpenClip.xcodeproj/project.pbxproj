@@ -34,7 +34,6 @@
 		505BCF709F1851C81A35DD64 /* ActionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BBCBD7E4F5F0D1015061E8D /* ActionCoordinatorTests.swift */; };
 		525E21DA64B3EB439A493E1C /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 03869142675321ABACC573BA /* Defaults */; };
 		589E69527B1AD912FFEF303B /* CalculateAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905AC1128EFCA584DF52AD70 /* CalculateAction.swift */; };
-		593DB1C11CA534EFCC9D9DAF /* AirDropAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA772C0D93A7B7600C8CEB45 /* AirDropAction.swift */; };
 		5B3D22D12FA0D7261EA4F942 /* TransformTextAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9FC029F7281D9A7C1F5C0BD /* TransformTextAction.swift */; };
 		5DA0AEF4E0DB181460C32C7E /* Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C75D3BF228023DEA93C5D3D /* Core.swift */; };
 		611F612CDB50CBDCE4916F4E /* RuleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C43223F2E4E777CC9F7673 /* RuleEngineTests.swift */; };
@@ -172,7 +171,6 @@
 		B603C28D161A795066B85A89 /* LaunchAtLoginManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManagerTests.swift; sourceTree = "<group>"; };
 		B8D913A22565F43A04740AEB /* PopupPositioner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPositioner.swift; sourceTree = "<group>"; };
 		B9FC029F7281D9A7C1F5C0BD /* TransformTextAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformTextAction.swift; sourceTree = "<group>"; };
-		BA772C0D93A7B7600C8CEB45 /* AirDropAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirDropAction.swift; sourceTree = "<group>"; };
 		BB70FC227E05CD8269458C89 /* PopupWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupWindowController.swift; sourceTree = "<group>"; };
 		BCD2E8E311CD870FA0E955A9 /* AppIdentifying+NSRunningApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppIdentifying+NSRunningApplication.swift"; sourceTree = "<group>"; };
 		C0B0960E3A7EF80331F08063 /* CopyAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyAction.swift; sourceTree = "<group>"; };
@@ -314,7 +312,6 @@
 		78620BB3753CCE3EB7427378 /* BuiltinActions */ = {
 			isa = PBXGroup;
 			children = (
-				BA772C0D93A7B7600C8CEB45 /* AirDropAction.swift */,
 				82321CCDFB4EDE96ABB905F7 /* CompletionAction.swift */,
 				C5D1E29A447351B335A4C2A4 /* OpenURLAction.swift */,
 				738CD300B1AEB0E382F8435B /* ServicesAction.swift */,
@@ -590,7 +587,6 @@
 			files = (
 				674832EDE560880B1B283FC7 /* ActionConfigSheet.swift in Sources */,
 				482FF0F2EAC56B62831A0106 /* AddCustomActionSheet.swift in Sources */,
-				593DB1C11CA534EFCC9D9DAF /* AirDropAction.swift in Sources */,
 				84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */,
 				0AC19FB1B891B14A5D9D2ABD /* AppIdentifying+NSRunningApplication.swift in Sources */,
 				7265AF347B73B7E61A597E30 /* AppRulesTab.swift in Sources */,
