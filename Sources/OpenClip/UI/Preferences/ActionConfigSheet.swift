@@ -3,7 +3,7 @@ import Core
 
 @MainActor
 struct ActionConfigSheet: View {
-    let actionID: String
+    let configurationViewID: String
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -11,17 +11,17 @@ struct ActionConfigSheet: View {
             Text("Configure Action")
                 .font(.headline)
             
-            if actionID == "builtin.search" {
+            if configurationViewID == "builtin.search" {
                 SearchConfigView()
-            } else if actionID == "builtin.copy" {
+            } else if configurationViewID == "builtin.copy" {
                 CopyConfigView()
-            } else if actionID == "builtin.cut" {
+            } else if configurationViewID == "builtin.cut" {
                 CutConfigView()
-            } else if actionID == "builtin.paste" {
+            } else if configurationViewID == "builtin.paste" {
                 PasteConfigView()
-            } else if actionID == "builtin.calculate" {
+            } else if configurationViewID == "builtin.calculate" {
                 CalculateConfigView()
-            } else if actionID == "builtin.define" {
+            } else if configurationViewID == "builtin.define" {
                 DefineConfigView()
             } else {
                 Text("No configuration available for this action.")

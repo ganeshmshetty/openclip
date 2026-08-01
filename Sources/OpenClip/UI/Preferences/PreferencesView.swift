@@ -354,20 +354,15 @@ struct ActionRowView: View {
     
     @State private var showingConfigSheet = false
     
-    var isConfigurable: Bool {
-        ["builtin.search", "builtin.define", "builtin.copy", "builtin.cut", "builtin.paste", "builtin.calculate"].contains(action.id)
+    private var configurableAction: (any ConfigurableAction)? {
+        action as? any ConfigurableAction
     }
     
     private var displayIcon: ActionIcon {
-        switch action.id {
-        case "builtin.copy": return .symbol("doc.on.doc")
-        case "builtin.cut": return .symbol("scissors")
-        case "builtin.paste": return .symbol("clipboard")
-        case "builtin.calculate": return .symbol("equal.circle")
-        case "builtin.define": return .symbol("book")
-        case "builtin.completion": return .symbol("text.badge.plus")
-        default: return action.icon
+        if let configurable = configurableAction {
+            return .symbol(configurable.preferenceIconName)
         }
+        return action.icon
     }
 
     var body: some View {
@@ -408,7 +403,7 @@ struct ActionRowView: View {
                 }
             }
             
-            if isConfigurable {
+            if let configurable = configurableAction {
                 Button(action: {
                     showingConfigSheet = true
                 }) {
@@ -418,7 +413,7 @@ struct ActionRowView: View {
                 .foregroundColor(.secondary)
                 .help("Configure Action")
                 .sheet(isPresented: $showingConfigSheet) {
-                    ActionConfigSheet(actionID: action.id)
+                    ActionConfigSheet(configurationViewID: configurable.configurationViewID)
                 }
             }
             
