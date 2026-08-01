@@ -147,9 +147,12 @@ public struct PreferencesView: View {
             if !UserDefaults.standard.bool(forKey: "action.airdrop.enabled") {
                 set.insert("builtin.airdrop")
             }
+            if !UserDefaults.standard.bool(forKey: "action.transform.enabled") {
+                set.insert("builtin.transform")
+            }
             disabledActionIDs = set
         } else {
-            disabledActionIDs = ["builtin.airdrop"]
+            disabledActionIDs = ["builtin.airdrop", "builtin.transform"]
         }
     }
     
@@ -159,6 +162,11 @@ public struct PreferencesView: View {
             UserDefaults.standard.set(true, forKey: "action.airdrop.enabled")
         } else {
             UserDefaults.standard.set(false, forKey: "action.airdrop.enabled")
+        }
+        if !disabledActionIDs.contains("builtin.transform") {
+            UserDefaults.standard.set(true, forKey: "action.transform.enabled")
+        } else {
+            UserDefaults.standard.set(false, forKey: "action.transform.enabled")
         }
     }
 }
