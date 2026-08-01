@@ -18,6 +18,7 @@ export interface ExtensionsPageResponse {
   totalCount: number;
 }
 
+// Extension registry starting with exact 0 download counts for clean metrics
 const EXTENSIONS_REGISTRY: ExtensionItem[] = [
   {
     id: "com.openclip.youtube",
@@ -26,7 +27,7 @@ const EXTENSIONS_REGISTRY: ExtensionItem[] = [
     author: "OpenClip Team",
     icon: "play.circle",
     category: "productivity",
-    downloadCount: 1420,
+    downloadCount: 0,
     downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/SearchYouTube.openclipext/openclip.json"
   },
   {
@@ -36,7 +37,7 @@ const EXTENSIONS_REGISTRY: ExtensionItem[] = [
     author: "OpenClip Team",
     icon: "music.note",
     category: "productivity",
-    downloadCount: 980,
+    downloadCount: 0,
     downloadURL: "https://raw.githubusercontent.com/openclip-app/openclip/main/Extensions/AppleMusic.openclipext/openclip.json"
   }
 ];
@@ -78,7 +79,22 @@ export async function GET(request: Request) {
   return NextResponse.json(response, {
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+      'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30'
     }
   });
+}
+
+// POST endpoint to increment real download count when user installs an extension
+export async function POST(request: Request) {
+  try {
+    const { id } = await request.json();
+    const target = EXTENSIONS_REGISTRY.find(ext => ext.id === id);
+    if (target) {
+      target.downloadCount += 1;
+      return NextResponse.json({ success: true, downloadCount: target.downloadCount });
+    }
+    return NextResponse.json({ error: 'Extension not found' }, { status: 404 });
+  } catch {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
 }
