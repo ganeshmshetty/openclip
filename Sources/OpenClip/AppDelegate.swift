@@ -29,17 +29,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Setup global shortcut hotkey manager
         HotkeyManager.shared.setup(popupController: controller)
         
-        ActionRegistry.shared.register(builtIns: [
-            CompletionAction(),
-            SearchAction(),
-            DefineAction(),
-            CopyAction(),
-            CutAction(),
-            PasteAction(),
-            CalculateAction(),
-            OpenURLAction(),
-            ServicesAction()
-        ])
+        var builtins = BuiltinRegistry.makeCoreBuiltins()
+        builtins.insert(CompletionAction(), at: 0)
+        builtins.append(OpenURLAction())
+        builtins.append(ServicesAction())
+        ActionRegistry.shared.register(builtIns: builtins)
         
         Task {
             await RuleEngine.shared.loadRules(from: Constants.rulesFileURL)
