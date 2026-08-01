@@ -40,147 +40,83 @@ public struct PopupView: View {
     private var hasRightChevron: Bool { totalPages > 1 && currentPage < totalPages - 1 }
 
     public var body: some View {
+        barContent
+            .padding(18)
+    }
+
+    // MARK: - Unified Bar Container
+
+    @ViewBuilder
+    private var barContent: some View {
         if selectedTheme == "glass" {
             if #available(macOS 26, *) {
-                liquidGlassBar
+                unifiedHStack
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             } else {
-                legacyGlassBar
+                unifiedHStack
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
+                    )
+                    .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
             }
         } else {
-            legacyPopupBar
-        }
-    }
-
-    // MARK: - Native Liquid Glass bar (glass theme, macOS 26+)
-
-    @available(macOS 26, *)
-    private var liquidGlassBar: some View {
-        HStack(spacing: 0) {
-            if hasLeftChevron {
-                liquidChevronButton(systemImage: "chevron.left") { currentPage -= 1 }
-            }
-            ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
-                liquidActionButton(action: action, index: index)
-            }
-            if hasRightChevron {
-                liquidChevronButton(systemImage: "chevron.right") { currentPage += 1 }
-            }
-        }
-        .fixedSize()
-        // Single glass effect on the whole bar → one unified pill, not per-button bubbles
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .padding(18)
-    }
-
-    @available(macOS 26, *)
-    @ViewBuilder
-    private func liquidActionButton(action: any Action, index: Int) -> some View {
-        let isHovered = hoveredIndex == index
-        Button {
-            Task {
-                do {
-                    let result = try await action.perform(context)
-                    onResult(result)
-                } catch {
-                    print("Action failed: \(error)")
-                }
-            }
-        } label: {
-            iconView(for: action.icon)
-                .font(.system(size: 14, weight: .medium))
-                .padding(.horizontal, {
-                    if case .text = action.icon { return 8.0 }
-                    return 0.0
-                }())
-                .frame(minWidth: buttonWidth, minHeight: 32)
-                // Tinted highlight capsule inside the unified glass pill on hover
-                .background(
-                    Capsule()
-                        .fill(isHovered ? Color.accentColor.opacity(0.25) : Color.clear)
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 4)
+            unifiedHStack
+                .background(opaqueBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(opaqueBorder, lineWidth: 0.8)
                 )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(action.title)
-        .onHover { isHovering in
-            if isHovering {
-                hoveredIndex = index
-            } else if hoveredIndex == index {
-                hoveredIndex = nil
-            }
+                .shadow(color: .black.opacity(selectedTheme == "light" ? 0.16 : 0.32), radius: 10, x: 0, y: 4)
         }
     }
 
-    @available(macOS 26, *)
-    @ViewBuilder
-    private func liquidChevronButton(systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .semibold))
-                .frame(width: chevronWidth, height: 32)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
+    // MARK: - Unified HStack Layout
 
-
-    // MARK: - Legacy glass bar (glass theme, macOS < 26)
-
-    private var legacyGlassBar: some View {
-        legacyHStack
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(.ultraThinMaterial)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
-            )
-            .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
-            .padding(18)
-    }
-
-    // MARK: - Legacy dark/light bar
-
-    private var legacyPopupBar: some View {
-        legacyHStack
-            .background(legacyBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(legacyBorder, lineWidth: 0.8)
-            )
-            .shadow(color: .black.opacity(selectedTheme == "light" ? 0.16 : 0.32), radius: 10, x: 0, y: 4)
-            .padding(18)
-    }
-
-    private var legacyHStack: some View {
+    private var unifiedHStack: some View {
         HStack(spacing: 0) {
             if hasLeftChevron {
-                legacyChevronButton(systemImage: "chevron.left") { currentPage -= 1 }
+                chevronButton(systemImage: "chevron.left") { currentPage -= 1 }
             }
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
                 let isLast = index == pagedActions.count - 1
                 let showDivider = !isLast || hasRightChevron
                 let isHovered = hoveredIndex == index
-                legacyActionButton(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
+                actionButton(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
             }
             if hasRightChevron {
-                legacyChevronButton(systemImage: "chevron.right") { currentPage += 1 }
+                chevronButton(systemImage: "chevron.right") { currentPage += 1 }
             }
         }
         .fixedSize()
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    // MARK: - Legacy action button
+    // MARK: - Unified Action Button
 
     @ViewBuilder
-    private func legacyActionButton(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
-        let restForeground: Color = selectedTheme == "light" ? .black.opacity(0.85) : .white.opacity(0.90)
-        let dividerColor: Color = selectedTheme == "light" ? .black.opacity(0.12) : .white.opacity(0.14)
+    private func actionButton(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
+        let restForeground: Color = {
+            switch selectedTheme {
+            case "light": return .black.opacity(0.85)
+            case "dark": return .white.opacity(0.90)
+            default: return .primary
+            }
+        }()
+        
+        let dividerColor: Color = {
+            switch selectedTheme {
+            case "light": return .black.opacity(0.12)
+            case "dark": return .white.opacity(0.14)
+            default: return .white.opacity(0.20)
+            }
+        }()
 
         Button {
             Task {
@@ -222,7 +158,7 @@ public struct PopupView: View {
     }
 
     @ViewBuilder
-    private func legacyChevronButton(systemImage: String, action: @escaping () -> Void) -> some View {
+    private func chevronButton(systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
@@ -233,25 +169,25 @@ public struct PopupView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Legacy theming
+    // MARK: - Opaque Background Helpers
 
     @ViewBuilder
-    private var legacyBackground: some View {
+    private var opaqueBackground: some View {
         switch selectedTheme {
         case "dark":
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(red: 0.08, green: 0.08, blue: 0.10))
         default:
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(red: 0.98, green: 0.98, blue: 0.99))
         }
     }
 
-    private var legacyBorder: Color {
+    private var opaqueBorder: Color {
         selectedTheme == "light" ? Color.black.opacity(0.12) : Color.white.opacity(0.14)
     }
 
-    // MARK: - Icon helper
+    // MARK: - Icon Helper
 
     @ViewBuilder
     private func iconView(for icon: ActionIcon) -> some View {

@@ -24,6 +24,7 @@ final class CalculateActionTests: XCTestCase {
     
     @MainActor
     func testCalculateActionExecution() async throws {
+        UserDefaults.standard.removeObject(forKey: "action.calculate.mode")
         let action = CalculateAction()
         let app = NSRunningApplication.current
         let context = ActionContext(
