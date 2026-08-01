@@ -1,0 +1,90 @@
+site_name: OpenClip Documentation
+site_description: Official documentation for OpenClip — the open-source text selection action tool and extension runtime for macOS.
+site_author: OpenClip Team
+site_url: https://openclip.app/docs
+
+repo_name: openclip-app/openclip
+repo_url: https://github.com/openclip-app/openclip
+
+theme:
+  name: material
+  custom_dir: null
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.def_mermaid
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - User Guide:
+      - Installation & Setup: user-guide/installation.md
+      - Preferences & Customization: user-guide/preferences.md
+      - Managing Extensions: user-guide/managing-extensions.md
+      - Application Rules: user-guide/app-rules.md
+      - Keyboard Shortcuts: user-guide/shortcuts.md
+  - Extension Developer Guide:
+      - Overview & Architecture: developer-guide/overview.md
+      - Extension Package Format: developer-guide/package-format.md
+      - Single-File Snippets: developer-guide/snippets.md
+      - Declarative Options UI: developer-guide/options-ui.md
+  - Extension Runtimes:
+      - JavaScript (JSC): runtimes/javascript.md
+      - AppleScript: runtimes/applescript.md
+      - Zsh & Python Executables: runtimes/zsh-python.md
+      - URL Templates: runtimes/url-templates.md
+  - System Architecture:
+      - Architecture Overview: architecture/overview.md
+      - Text Selection Subsystem: architecture/text-selection.md
+      - Action Coordinator & Registry: architecture/action-coordinator.md
+      - Popup Window HUD: architecture/popup-window.md
+      - Permissions & Security: architecture/permissions-security.md
+  - Reference:
+      - Extension Manifest Schema: reference/manifest-schema.md
+      - Built-in Actions Catalog: reference/builtin-actions.md
+      - FAQ & Troubleshooting: reference/faq.md
