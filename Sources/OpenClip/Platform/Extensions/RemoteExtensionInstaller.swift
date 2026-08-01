@@ -7,7 +7,7 @@ public final class RemoteExtensionInstaller: Sendable {
     
     private init() {}
     
-    public static func isPathSafe(destinationURL: URL, baseDirectory: URL) -> Bool {
+    public nonisolated static func isPathSafe(destinationURL: URL, baseDirectory: URL) -> Bool {
         let destPath = (destinationURL.path as NSString).standardizingPath
         let basePath = (baseDirectory.path as NSString).standardizingPath
         return destPath.hasPrefix(basePath)
