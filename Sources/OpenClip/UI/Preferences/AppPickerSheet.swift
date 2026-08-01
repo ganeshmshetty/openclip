@@ -17,45 +17,54 @@ public struct AppPickerSheet: View {
         self.onSelect = onSelect
     }
     
-    private var runningApps: [NSRunningApplication] {
-        NSWorkspace.shared.runningApplications
-            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil && $0.bundleIdentifier != "com.openclip.OpenClip" }
-            .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
+    private var allApps: [InstalledAppInfo] {
+        var map = [String: InstalledAppInfo]()
+        
+        for app in scanner.installedApps {
+            map[app.bundleIdentifier] = app
+        }
+        
+        for app in NSWorkspace.shared.runningApplications {
+            if app.activationPolicy == .regular,
+               let bid = app.bundleIdentifier,
+               bid != "com.openclip.OpenClip",
+               map[bid] == nil {
+                let name = app.localizedName ?? bid
+                let path = app.bundleURL?.path ?? ""
+                map[bid] = InstalledAppInfo(name: name, bundleIdentifier: bid, path: path)
+            }
+        }
+        
+        return Array(map.values).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
     
-    private var filteredRunningApps: [NSRunningApplication] {
-        if searchText.isEmpty { return runningApps }
-        return runningApps.filter { ($0.localizedName ?? "").localizedCaseInsensitiveContains(searchText) || ($0.bundleIdentifier ?? "").localizedCaseInsensitiveContains(searchText) }
-    }
-    
-    private var filteredInstalledApps: [InstalledAppInfo] {
-        if searchText.isEmpty { return scanner.installedApps }
-        return scanner.installedApps.filter { $0.name.localizedCaseInsensitiveContains(searchText) || $0.bundleIdentifier.localizedCaseInsensitiveContains(searchText) }
+    private var filteredApps: [InstalledAppInfo] {
+        if searchText.isEmpty { return allApps }
+        return allApps.filter { $0.name.localizedCaseInsensitiveContains(searchText) || $0.bundleIdentifier.localizedCaseInsensitiveContains(searchText) }
     }
     
     public var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $selectedTab) {
-                Text("Running Apps").tag(0)
-                Text("Installed Apps").tag(1)
-                Text("Custom / Wildcard").tag(2)
+                Text("Applications").tag(0)
+                Text("Custom").tag(1)
             }
             .pickerStyle(.segmented)
             .padding(12)
             
             Divider()
             
-            if selectedTab == 2 {
+            if selectedTab == 1 {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Enter Bundle Identifier or Wildcard Pattern")
+                        Text("Enter Bundle Identifier")
                             .font(.headline)
-                        Text("Examples: com.apple.Terminal, com.jetbrains.*, *.vscode")
+                        Text("Example: com.apple.Terminal")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     
-                    TextField("e.g. com.jetbrains.*", text: $customBundleID)
+                    TextField("e.g. com.apple.Terminal", text: $customBundleID)
                         .textFieldStyle(.roundedBorder)
                     
                     Spacer()
@@ -86,78 +95,48 @@ public struct AppPickerSheet: View {
                 
                 Divider()
                 
-                if selectedTab == 0 {
-                    List(filteredRunningApps, id: \.bundleIdentifier) { app in
-                        Button {
-                            if let bid = app.bundleIdentifier {
-                                onSelect(bid)
+                Group {
+                    if scanner.isLoading && scanner.installedApps.isEmpty {
+                        VStack(spacing: 10) {
+                            ProgressView()
+                            Text("Loading applications...").font(.caption).foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List(filteredApps) { app in
+                            Button {
+                                onSelect(app.bundleIdentifier)
                                 dismiss()
-                            }
-                        } label: {
-                            HStack(spacing: 10) {
-                                if let icon = app.icon {
-                                    Image(nsImage: icon)
-                                        .resizable()
-                                        .frame(width: 24, height: 24)
-                                }
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(app.localizedName ?? app.bundleIdentifier ?? "Unknown")
-                                        .font(.system(size: 13, weight: .medium))
-                                    Text(app.bundleIdentifier ?? "")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.secondary)
-                                }
-                                Spacer()
-                            }
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                } else {
-                    Group {
-                        if scanner.isLoading {
-                            VStack(spacing: 10) {
-                                ProgressView()
-                                Text("Scanning installed applications...").font(.caption).foregroundColor(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            List(filteredInstalledApps) { app in
-                                Button {
-                                    onSelect(app.bundleIdentifier)
-                                    dismiss()
-                                } label: {
-                                    HStack(spacing: 10) {
-                                        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleIdentifier) {
-                                            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                                                .resizable()
-                                                .frame(width: 24, height: 24)
-                                        } else {
-                                            Image(systemName: "app.fill")
-                                                .font(.system(size: 20))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        VStack(alignment: .leading, spacing: 1) {
-                                            Text(app.name)
-                                                .font(.system(size: 13, weight: .medium))
-                                            Text(app.bundleIdentifier)
-                                                .font(.system(size: 10))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Spacer()
+                            } label: {
+                                HStack(spacing: 10) {
+                                    if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleIdentifier) {
+                                        Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                                            .resizable()
+                                            .frame(width: 24, height: 24)
+                                    } else {
+                                        Image(systemName: "app.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.secondary)
                                     }
-                                    .padding(.vertical, 4)
-                                    .contentShape(Rectangle())
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(app.name)
+                                            .font(.system(size: 13, weight: .medium))
+                                        Text(app.bundleIdentifier)
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
                                 }
-                                .buttonStyle(.plain)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .task {
-                        if scanner.installedApps.isEmpty {
-                            _ = await scanner.scanInstalledApps()
-                        }
+                }
+                .task {
+                    if scanner.installedApps.isEmpty {
+                        _ = await scanner.scanInstalledApps()
                     }
                 }
             }
