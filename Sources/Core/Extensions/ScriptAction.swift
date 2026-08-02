@@ -10,15 +10,14 @@ public struct ScriptAction: Action {
     public let icon: ActionIcon
     public let scriptURL: URL
     
-    public init(id: String, title: String, icon: ActionIcon, scriptURL: URL) {
+    public let chrome: ActionChrome
+    
+    public init(id: String, title: String, icon: ActionIcon, scriptURL: URL, chrome: ActionChrome? = nil) {
         self.id = id
         self.title = title
         self.icon = icon
         self.scriptURL = scriptURL
-    }
-    
-    public var chrome: ActionChrome {
-        ActionChrome(badge: .script, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: "script"))
+        self.chrome = chrome ?? ActionChrome(badge: .script, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: id))
     }
 
     

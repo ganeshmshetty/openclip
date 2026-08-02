@@ -27,13 +27,21 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             )
         } ?? []
         
+        let extensionChrome = ActionChrome(
+            badge: .extensionPkg(manifest.name),
+            rowStyle: .standard,
+            popupBehavior: .perform,
+            source: .extensionPkg(packageID: manifest.identifier)
+        )
+        
         if let urlTemplate = metadata.url {
             return URLTemplateAction(
                 id: actionId,
                 title: title,
                 icon: icon,
                 urlTemplate: urlTemplate,
-                regexPattern: metadata.regex
+                regexPattern: metadata.regex,
+                chrome: extensionChrome
             )
         }
         
@@ -46,7 +54,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     title: title,
                     icon: icon,
                     scriptCode: scriptCode,
-                    options: options
+                    options: options,
+                    chrome: extensionChrome
                 )
             case "applescript", "scpt":
                 return AppleScriptAction(
@@ -54,7 +63,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     title: title,
                     icon: icon,
                     appleScriptCode: scriptCode,
-                    options: options
+                    options: options,
+                    chrome: extensionChrome
                 )
             case "sh", "shell", "shell script":
                 let iconSymbol = switch icon {
@@ -86,7 +96,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 title: title,
                 icon: icon,
                 scriptCode: code,
-                options: options
+                options: options,
+                chrome: extensionChrome
             )
         case "applescript", "scpt":
             let code = (try? String(contentsOf: scriptURL, encoding: .utf8)) ?? ""
@@ -95,14 +106,16 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 title: title,
                 icon: icon,
                 appleScriptCode: code,
-                options: options
+                options: options,
+                chrome: extensionChrome
             )
         default:
             return ScriptAction(
                 id: actionId,
                 title: title,
                 icon: icon,
-                scriptURL: scriptURL
+                scriptURL: scriptURL,
+                chrome: extensionChrome
             )
         }
     }

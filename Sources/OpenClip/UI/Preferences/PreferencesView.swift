@@ -543,12 +543,7 @@ struct ActionRowView: View {
             // Type Badge Column
             switch action.chrome.badge {
             case .script:
-                Text("Script")
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.blue.opacity(0.15)))
-                    .foregroundColor(.blue)
+                EmptyView()
             case .url:
                 Text("URL Template")
                     .font(.caption2)
@@ -750,20 +745,24 @@ struct CustomActionBadge: View {
     let type: CustomActionType
     
     var body: some View {
-        let (text, color): (String, Color) = {
-            switch type {
-            case .webSearch: return ("Web Search", .purple)
-            case .textSnippet: return ("Snippet", .green)
-            case .shellScript: return ("Script", .blue)
-            }
-        }()
-        
-        Text(text)
-            .font(.caption2)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(color.opacity(0.15)))
-            .foregroundColor(color)
+        switch type {
+        case .webSearch:
+            Text("Web Search")
+                .font(.caption2)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(Color.purple.opacity(0.15)))
+                .foregroundColor(.purple)
+        case .textSnippet:
+            Text("Snippet")
+                .font(.caption2)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(Color.green.opacity(0.15)))
+                .foregroundColor(.green)
+        case .shellScript:
+            EmptyView()
+        }
     }
 }
 
