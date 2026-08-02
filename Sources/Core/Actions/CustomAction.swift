@@ -23,6 +23,11 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
         return .symbol(iconName)
     }
     
+    public var chrome: ActionChrome {
+        ActionChrome(badge: .custom, rowStyle: .standard, popupBehavior: .perform, source: .custom)
+    }
+
+    
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
         return !context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
