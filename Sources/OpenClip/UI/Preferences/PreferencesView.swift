@@ -150,25 +150,19 @@ public struct PreferencesView: View {
     }
     
     private func loadDisabledActionIDs() {
-        if let array = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) {
-            var set = Set(array)
-            if !UserDefaults.standard.bool(forKey: "action.transform.enabled") {
-                set.insert("builtin.transform")
-            }
-            disabledActionIDs = set
-        } else {
-            disabledActionIDs = ["builtin.transform"]
+        var set = DefaultSettingsStore.shared.get(.disabledActionIDs)
+        if !DefaultSettingsStore.shared.get(.isTransformGroupEnabled) {
+            set.insert("builtin.transform")
         }
+        disabledActionIDs = set
     }
     
     private func saveDisabledActionIDs() {
-        UserDefaults.standard.set(Array(disabledActionIDs), forKey: Constants.disabledActionIDsKey)
-        if !disabledActionIDs.contains("builtin.transform") {
-            UserDefaults.standard.set(true, forKey: "action.transform.enabled")
-        } else {
-            UserDefaults.standard.set(false, forKey: "action.transform.enabled")
-        }
+        DefaultSettingsStore.shared.set(.disabledActionIDs, value: disabledActionIDs)
+        let transformEnabled = !disabledActionIDs.contains("builtin.transform")
+        DefaultSettingsStore.shared.set(.isTransformGroupEnabled, value: transformEnabled)
     }
+
 }
 
 @MainActor
@@ -491,38 +485,24 @@ struct ActionRowView: View {
     
     @State private var showingConfigSheet = false
     
-    private var displayIcon: ActionIcon {
-        ActionCustomizationManager.shared.tableIcon(for: action)
+    private var presentationModel: ActionPresentationModel {
+        ActionPresentation.shared.presented(action, surface: .table)
     }
 
     var body: some View {
         HStack(spacing: 12) {
             // Icon Column
             ZStack {
-                switch displayIcon {
-                case .symbol(let name):
-                    AnyIconView(iconId: name)
-                        .frame(width: 14, height: 14)
-                case .url, .local:
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 14))
-                        .foregroundColor(.primary)
-                case .text(let text):
-                    Text(text)
-                        .font(.system(size: text.count > 2 ? 10 : 13, weight: .bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .padding(.horizontal, 4)
-                        .foregroundColor(.primary)
-                }
+                ActionIconView(icon: presentationModel.icon, size: 14)
             }
             .frame(minWidth: 28, minHeight: 28)
             .background(Color.primary.opacity(0.06))
             .cornerRadius(6)
             
             // Title Column
-            Text(action.displayTitle)
+            Text(presentationModel.title)
                 .font(.system(size: 13, weight: .medium))
+
             
             Spacer()
             
