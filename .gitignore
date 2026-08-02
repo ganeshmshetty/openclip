@@ -11,3 +11,4 @@ build/
 DerivedData/
 *.patch
 *.orig
+.worktrees/
