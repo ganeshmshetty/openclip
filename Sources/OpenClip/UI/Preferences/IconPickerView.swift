@@ -1,17 +1,13 @@
 import SwiftUI
 import Core
 
-public enum IconSelectionMode {
-    case symbol
-    case text
-}
-
 public struct IconPickerView: View {
     @Binding var selectedSymbol: String
     @Binding var selectedText: String
-    @Binding var mode: Int // 0 = SF Symbol, 1 = Text / Emoji
+    @Binding var mode: Int // 0 = Icon Library, 1 = Text / Emoji
 
-    @StateObject private var symbolProvider = DynamicSFSymbolProvider.shared
+    @StateObject private var provider = DynamicSFSymbolProvider.shared
+    @State private var selectedLibrary: IconLibraryType = .sfSymbols
     @State private var searchText = ""
 
     public init(selectedSymbol: Binding<String>, selectedText: Binding<String>, mode: Binding<Int>) {
@@ -21,24 +17,32 @@ public struct IconPickerView: View {
     }
 
     private var displayedIcons: [String] {
-        return symbolProvider.search(query: searchText, limit: 120)
+        return provider.search(library: selectedLibrary, query: searchText, limit: 120)
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Picker("", selection: $mode) {
-                Text("SF Symbol").tag(0)
+                Text("Icon Libraries").tag(0)
                 Text("Emoji / Text").tag(1)
             }
             .pickerStyle(.segmented)
 
             if mode == 0 {
-                // System Dynamic SF Symbol Search Bar
+                // Library selector tabs
+                Picker("Library", selection: $selectedLibrary) {
+                    ForEach(IconLibraryType.allCases) { lib in
+                        Text(lib.rawValue).tag(lib)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                // Search Bar
                 HStack(spacing: 8) {
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
-                        TextField("Search \(symbolProvider.allSymbols.count)+ system symbols...", text: $searchText)
+                        TextField("Search \(selectedLibrary.rawValue)...", text: $searchText)
                             .textFieldStyle(.plain)
                         if !searchText.isEmpty {
                             Button(action: { searchText = "" }) {
@@ -51,15 +55,15 @@ public struct IconPickerView: View {
                     .background(Color.primary.opacity(0.04))
                     .cornerRadius(6)
 
-                    TextField("Symbol name", text: $selectedSymbol)
+                    TextField("Icon code/name", text: $selectedSymbol)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 140)
                 }
 
-                if !symbolProvider.isLoaded {
+                if !provider.isLoaded {
                     HStack {
                         ProgressView().controlSize(.small)
-                        Text("Scanning macOS system symbols…")
+                        Text("Loading icon libraries…")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -71,8 +75,7 @@ public struct IconPickerView: View {
                                 Button {
                                     selectedSymbol = sym
                                 } label: {
-                                    Image(systemName: sym)
-                                        .font(.system(size: 15))
+                                    RenderIconView(iconStr: sym)
                                         .frame(width: 32, height: 32)
                                         .background(selectedSymbol == sym ? Color.accentColor.opacity(0.25) : Color.primary.opacity(0.05))
                                         .overlay(
@@ -98,6 +101,24 @@ public struct IconPickerView: View {
                         .textFieldStyle(.roundedBorder)
                 }
             }
+        }
+    }
+}
+
+/// Renders either SF Symbol or fallback text badge for FA / Lucide / Material codes
+struct RenderIconView: View {
+    let iconStr: String
+
+    var body: some View {
+        if iconStr.contains(":") {
+            let parts = iconStr.components(separatedBy: ":")
+            let prefix = parts.first?.uppercased() ?? "ICO"
+            Text(prefix.prefix(2))
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(.accentColor)
+        } else {
+            Image(systemName: (try? iconStr) ?? "questionmark")
+                .font(.system(size: 15))
         }
     }
 }

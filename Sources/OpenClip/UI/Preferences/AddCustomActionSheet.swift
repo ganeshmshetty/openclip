@@ -173,22 +173,33 @@ public struct AddCustomActionSheet: View {
 // MARK: - Icon Picker Popover@MainActor
 struct IconPickerPopover: View {
     @Binding var selectedIcon: String
-    @StateObject private var symbolProvider = DynamicSFSymbolProvider.shared
+    @StateObject private var provider = DynamicSFSymbolProvider.shared
+    @State private var selectedLibrary: IconLibraryType = .sfSymbols
     @State private var searchText = ""
     @Environment(\.dismiss) private var dismiss
 
     private var displayedIcons: [String] {
-        return symbolProvider.search(query: searchText, limit: 120)
+        return provider.search(library: selectedLibrary, query: searchText, limit: 120)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 8) {
+            // Library Picker
+            Picker("Library", selection: $selectedLibrary) {
+                ForEach(IconLibraryType.allCases) { lib in
+                    Text(lib.rawValue).tag(lib)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 10)
+            .padding(.top, 10)
+
             // Search bar
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
                     .font(.system(size: 13))
-                TextField("Search \(symbolProvider.allSymbols.count)+ system symbols…", text: $searchText)
+                TextField("Search \(selectedLibrary.rawValue)…", text: $searchText)
                     .font(.system(size: 13))
                     .textFieldStyle(.plain)
                 if !searchText.isEmpty {
@@ -200,15 +211,15 @@ struct IconPickerPopover: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(10)
+            .padding(.horizontal, 10)
 
             Divider()
 
-            if !symbolProvider.isLoaded {
+            if !provider.isLoaded {
                 VStack(spacing: 8) {
                     Spacer()
                     ProgressView().controlSize(.small)
-                    Text("Loading system symbols…")
+                    Text("Loading icon libraries…")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()
@@ -221,8 +232,7 @@ struct IconPickerPopover: View {
                                 selectedIcon = icon
                                 dismiss()
                             } label: {
-                                Image(systemName: icon)
-                                    .font(.system(size: 15))
+                                RenderIconView(iconStr: icon)
                                     .frame(width: 34, height: 34)
                                     .background(
                                         RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -238,6 +248,6 @@ struct IconPickerPopover: View {
                 }
             }
         }
-        .frame(width: 340, height: 320)
+        .frame(width: 360, height: 340)
     }
 }
