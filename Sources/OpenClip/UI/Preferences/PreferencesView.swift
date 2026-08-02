@@ -538,8 +538,38 @@ struct ActionRowView: View {
 
             Spacer()
             
-            // Right-aligned controls (Toggle | Gear | Trash slot)
+            // Right-aligned controls (Remove | Toggle | Gear)
             HStack(alignment: .center, spacing: 12) {
+                // Delete / Uninstall Button (if applicable)
+                switch action.chrome.source {
+                case .custom:
+                    Button(action: {
+                        CustomActionManager.shared.delete(customActionID: action.id)
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14))
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 24, height: 24)
+                    .help("Delete Custom Action")
+                case .extensionPkg:
+                    Button(action: {
+                        Task {
+                            try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                        }
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14))
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 24, height: 24)
+                    .help("Uninstall Extension")
+                case .builtin:
+                    EmptyView()
+                }
+
                 // Enable/Disable Switch
                 Toggle("", isOn: isEnabled)
                     .labelsHidden()
@@ -560,37 +590,6 @@ struct ActionRowView: View {
                 .sheet(isPresented: $showingConfigSheet) {
                     EditActionSheet(action: action)
                 }
-                
-                // Delete / Uninstall Button (with fixed 24x24 slot for alignment)
-                Group {
-                    switch action.chrome.source {
-                    case .custom:
-                        Button(action: {
-                            CustomActionManager.shared.delete(customActionID: action.id)
-                        }) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 14))
-                                .foregroundColor(.red)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Delete Custom Action")
-                    case .extensionPkg:
-                        Button(action: {
-                            Task {
-                                try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
-                            }
-                        }) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 14))
-                                .foregroundColor(.red)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Uninstall Extension")
-                    case .builtin:
-                        Color.clear
-                    }
-                }
-                .frame(width: 24, height: 24)
             }
         }
         .padding(.vertical, 4)
@@ -688,7 +687,7 @@ struct TransformGroupRowView: View {
                 
                 Spacer()
                 
-                // Right-aligned controls (Toggle | Gear | Placeholder slot)
+                // Right-aligned controls (Toggle | Gear)
                 HStack(alignment: .center, spacing: 12) {
                     // Enable/Disable Switch
                     Toggle("", isOn: isGroupEnabled)
@@ -710,10 +709,6 @@ struct TransformGroupRowView: View {
                     .sheet(isPresented: $showingConfigSheet) {
                         EditActionSheet(action: groupAction)
                     }
-
-                    // Reserved slot matching Trash button
-                    Color.clear
-                        .frame(width: 24, height: 24)
                 }
             }
             .padding(.vertical, 4)
