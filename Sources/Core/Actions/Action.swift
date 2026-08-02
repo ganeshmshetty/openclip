@@ -12,6 +12,7 @@ public protocol Action: Sendable {
     var title: String { get }
     var icon: ActionIcon { get }
     var isFormatting: Bool { get }
+    var chrome: ActionChrome { get }
     
     @MainActor
     func isEnabled(for context: ActionContext) -> Bool
@@ -25,6 +26,9 @@ public protocol Action: Sendable {
 public extension Action {
     var isFormatting: Bool { false }
     var actionOptions: [ExtensionOption] { [] }
+    var chrome: ActionChrome {
+        ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin)
+    }
     
     @MainActor
     var displayTitle: String {
@@ -36,3 +40,4 @@ public extension Action {
         ActionCustomizationManager.shared.popupIcon(for: self)
     }
 }
+

@@ -59,6 +59,7 @@
 		6715AE5F11FE111A1668090C /* CompletionActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CF97DDF5B196383416AB162 /* CompletionActionTests.swift */; };
 		674832EDE560880B1B283FC7 /* ActionConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962ABA3EFF448F3AB8D26A91 /* ActionConfigSheet.swift */; };
 		6A92D05EC5B07D80B3C833C3 /* ActionIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5403DA3AA5ED80810759AB76 /* ActionIconView.swift */; };
+		6ABBF385FB9DCE47D8CF11E5 /* ActionChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21BC5F36101A0DE0E8903EDD /* ActionChromeTests.swift */; };
 		6B6EB24072E6FDB50051E1F5 /* OpenClipSnippetParser+DefaultFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2880EA47FA384B00CFAD2877 /* OpenClipSnippetParser+DefaultFactory.swift */; };
 		6BDAAEBA357BE286266250A6 /* ExtensionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 336067B05C52B87CD8C9DA9F /* ExtensionManager.swift */; };
 		6EC03FC169D6016DF45D4632 /* DefineAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB70EAE4A67E1C59A1977A8D /* DefineAction.swift */; };
@@ -99,6 +100,7 @@
 		9B2C92B98C80BB5FCC596CC3 /* ExtensionsStoreIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA880751E87F795D5A87C8F /* ExtensionsStoreIntegrationTests.swift */; };
 		A4AA5D75C5B376BBCE5B9463 /* CustomActionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA945F176CA85C590C8CCF4 /* CustomActionManager.swift */; };
 		A4B07F7C0AA32D61F32510D5 /* DynamicActionConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3675FDD7BC06CF3B3CBDA003 /* DynamicActionConfigView.swift */; };
+		A68E3E6C2500AB9707C47DBD /* ActionChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108E36CD124AAFD86FD11118 /* ActionChrome.swift */; };
 		AA4C8F95DCFD439591C9FA05 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E803385A2D8E9D1D257F00 /* Constants.swift */; };
 		AE8C8312A2C5B67FCF938E4E /* SettingKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1830B25888AE1D0532D00813 /* SettingKey.swift */; };
 		AEB67702CE089BAFFFB8DCB7 /* ActionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = E54AEEA54ADE3106E777F448 /* ActionResult.swift */; };
@@ -184,6 +186,7 @@
 		0D770B00EA584CD6DC259086 /* CalendarAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarAction.swift; sourceTree = "<group>"; };
 		0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		0F4DAB73B13C780B669746CE /* ModifierFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModifierFlags.swift; sourceTree = "<group>"; };
+		108E36CD124AAFD86FD11118 /* ActionChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionChrome.swift; sourceTree = "<group>"; };
 		14E8C5B2AC7501048B10F0D1 /* Action.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Action.swift; sourceTree = "<group>"; };
 		15F2DA7AE2DE334E1A769A2E /* ActionCoordinatorStartupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCoordinatorStartupTests.swift; sourceTree = "<group>"; };
 		171CC0405F553E737A32C250 /* ExtensionsStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsStoreView.swift; sourceTree = "<group>"; };
@@ -193,6 +196,7 @@
 		1B1ED5E66BD010DECBA31B69 /* MacTextRetriever.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacTextRetriever.swift; sourceTree = "<group>"; };
 		1E86D685379782075566534F /* ActionRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionRegistryTests.swift; sourceTree = "<group>"; };
 		208E1DDA96B874A04C415CE2 /* ExtensionsAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsAPIClient.swift; sourceTree = "<group>"; };
+		21BC5F36101A0DE0E8903EDD /* ActionChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionChromeTests.swift; sourceTree = "<group>"; };
 		287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		2880EA47FA384B00CFAD2877 /* OpenClipSnippetParser+DefaultFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClipSnippetParser+DefaultFactory.swift"; sourceTree = "<group>"; };
 		2C2E0CE18FC287126307E67B /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
@@ -503,6 +507,7 @@
 			isa = PBXGroup;
 			children = (
 				14E8C5B2AC7501048B10F0D1 /* Action.swift */,
+				108E36CD124AAFD86FD11118 /* ActionChrome.swift */,
 				940F1D0FB3BA50C10CCEBCDF /* ActionContext.swift */,
 				00D644F2046169A3D911104F /* ActionCoordinator.swift */,
 				7683646692AA6067DA5AA86D /* ActionCustomizationManager.swift */,
@@ -590,6 +595,7 @@
 		E5550E18E26D2F31A7B43491 /* OpenClipTests */ = {
 			isa = PBXGroup;
 			children = (
+				21BC5F36101A0DE0E8903EDD /* ActionChromeTests.swift */,
 				15F2DA7AE2DE334E1A769A2E /* ActionCoordinatorStartupTests.swift */,
 				7BBCBD7E4F5F0D1015061E8D /* ActionCoordinatorTests.swift */,
 				91FEA7E1D95D4DC5416B66A5 /* ActionCustomizationTests.swift */,
@@ -752,6 +758,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8AA40165FA1BF2E026ED4C1A /* AIProviderTests.swift in Sources */,
+				6ABBF385FB9DCE47D8CF11E5 /* ActionChromeTests.swift in Sources */,
 				57A9F680F5AF294AAB1B57B9 /* ActionCoordinatorStartupTests.swift in Sources */,
 				505BCF709F1851C81A35DD64 /* ActionCoordinatorTests.swift in Sources */,
 				3A295F64CCDCBD5C36941B49 /* ActionCustomizationTests.swift in Sources */,
@@ -796,6 +803,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				89ABDC81AD62266F49E096C4 /* Action.swift in Sources */,
+				A68E3E6C2500AB9707C47DBD /* ActionChrome.swift in Sources */,
 				78C232BA793CCE5C409BA389 /* ActionContext.swift in Sources */,
 				998433DC4517993AD4624ECF /* ActionCoordinator.swift in Sources */,
 				E86C2D7468C5053D116BE999 /* ActionCustomizationManager.swift in Sources */,
