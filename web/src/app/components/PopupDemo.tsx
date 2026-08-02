@@ -123,45 +123,49 @@ export default function PopupDemo() {
             </div>
           </div>
         </div>
+
+        {/* AI result card — absolutely positioned so it overlays the download buttons without shifting layout */}
+        {phase === 'result' && (
+          <div className="card-chunky absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[320px] max-w-full p-3 text-left z-20">
+            <div className="flex items-center justify-between mb-2">
+              <span className="eyebrow">AI Assistant · Fix grammar</span>
+              <button
+                onClick={() => setPhase('idle')}
+                className="w-6 h-6 rounded-full border-[1.5px] border-ink bg-card hover:bg-tint flex items-center justify-center"
+                aria-label="Close"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+            <p className="text-[13px] leading-relaxed text-ink/80 min-h-[90px]">
+              {typed}
+              <span className="inline-block w-[2px] h-[13px] ml-0.5 bg-accent align-middle animate-pulse" />
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => {
+                  showFlash('REPLACED ✓');
+                  setPhase('idle');
+                }}
+                className="btn-chunky px-3 py-1.5 text-[12px] shadow-chunky-sm"
+              >
+                Replace
+              </button>
+              <button
+                onClick={copyResult}
+                className="btn-chunky-outline px-3 py-1.5 text-[12px] shadow-chunky-sm"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        )}
+        {phase === 'processing' && (
+          <span className="eyebrow absolute top-full left-1/2 -translate-x-1/2 mt-3 z-10 whitespace-nowrap">
+            Working…
+          </span>
+        )}
       </div>
-
-      {phase === 'processing' && <span className="eyebrow mt-3">Working…</span>}
-
-      {phase === 'result' && (
-        <div className="card-chunky mt-2 w-[320px] max-w-full p-3 text-left">
-          <div className="flex items-center justify-between mb-2">
-            <span className="eyebrow">AI Assistant · Fix grammar</span>
-            <button
-              onClick={() => setPhase('idle')}
-              className="w-6 h-6 rounded-full border-[1.5px] border-ink bg-card hover:bg-tint flex items-center justify-center"
-              aria-label="Close"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-          <p className="text-[13px] leading-relaxed text-ink/80 min-h-[90px]">
-            {typed}
-            <span className="inline-block w-[2px] h-[13px] ml-0.5 bg-accent align-middle animate-pulse" />
-          </p>
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => {
-                showFlash('REPLACED ✓');
-                setPhase('idle');
-              }}
-              className="btn-chunky px-3 py-1.5 text-[12px] shadow-chunky-sm"
-            >
-              Replace
-            </button>
-            <button
-              onClick={copyResult}
-              className="btn-chunky-outline px-3 py-1.5 text-[12px] shadow-chunky-sm"
-            >
-              Copy
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
