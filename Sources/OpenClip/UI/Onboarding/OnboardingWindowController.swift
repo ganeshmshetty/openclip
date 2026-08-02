@@ -9,17 +9,18 @@ import SwiftUI
 public final class OnboardingWindowController: NSWindowController {
 
     public convenience init(onComplete: @escaping @MainActor () -> Void) {
-        // Start with a generous rect; the view will shrink/grow via fixedSize
+        // Start with a generous rect; the view drives the window size via fixedSize
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 600),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 600),
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
         window.title = "Welcome to OpenClip"
         window.isMovableByWindowBackground = true
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = true
         window.center()
 
         self.init(window: window)

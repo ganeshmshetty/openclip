@@ -31,7 +31,6 @@ enum PreferenceTab: String, CaseIterable, Hashable {
 @MainActor
 public struct PreferencesView: View {
     @AppStorage(Constants.startAtLoginKey) private var startAtLogin: Bool = false
-    @AppStorage("popupTheme") private var theme: String = "system"
     
     @State private var disabledActionIDs: Set<String> = []
     @State private var selectedTab: PreferenceTab = .general
@@ -52,9 +51,12 @@ public struct PreferencesView: View {
         HStack(spacing: 0) {
             // Seamless Sidebar
             VStack(alignment: .leading, spacing: 4) {
-                // Top spacing below window traffic light buttons (close/minimize/expand)
+                // Top spacing so the window traffic lights (close/minimize/expand)
+                // float seamlessly over the sidebar without covering the first tab item.
+                // 23pt + the 7pt button padding aligns the first tab's text with the
+                // detail header's 30pt top padding while clearing the traffic lights.
                 Spacer()
-                    .frame(height: 14)
+                    .frame(height: 23)
                 
                 ForEach(PreferenceTab.allCases, id: \.self) { tab in
                     Button(action: {
@@ -92,7 +94,7 @@ public struct PreferencesView: View {
                     }) {
                         Image(systemName: "questionmark.circle")
                             .font(.system(size: 15))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.primary)
                     }
                     .buttonStyle(.plain)
                     .help("Help Center")
@@ -103,8 +105,9 @@ public struct PreferencesView: View {
                         }
                     }) {
                         GitHubIconShape()
-                            .fill(Color.secondary)
-                            .frame(width: 15, height: 15)
+                            .fill(Color.primary)
+                            .frame(width: 17, height: 17)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .help("GitHub Repository")
@@ -116,7 +119,7 @@ public struct PreferencesView: View {
             }
             .padding(.horizontal, 10)
             .frame(width: 200)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(Color.primary.opacity(0.02))
             
             Divider()
                 .opacity(0.3)
@@ -147,7 +150,7 @@ public struct PreferencesView: View {
                         .frame(width: 180)
                     }
                 }
-                .padding(.top, 0)
+                .padding(.top, 30)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
                 
@@ -156,7 +159,7 @@ public struct PreferencesView: View {
                     case .general: 
                         GeneralTab()
                     case .appearance: 
-                        AppearanceTab(theme: $theme)
+                        AppearanceTab()
                     case .actions: 
                         ActionsTab(disabledActionIDs: $disabledActionIDs)
                     case .extensions:
@@ -173,9 +176,9 @@ public struct PreferencesView: View {
                 .padding(.bottom, 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .underPageBackgroundColor))
         }
-        .frame(minWidth: 680, minHeight: 480)
+        .glassSurface(.regular, cornerRadius: 0)
+        .frame(minWidth: 760, idealWidth: 860, minHeight: 640, idealHeight: 720)
         .onAppear { loadDisabledActionIDs() }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledActionIDs() }
     }
@@ -337,63 +340,13 @@ struct GeneralTab: View {
 
 @MainActor
 struct AppearanceTab: View {
-    @Binding var theme: String
-    
-    private var mockContext: ActionContext {
-        let app = NSRunningApplication.current
-        let context = SelectionContext(
-            text: "OpenClip Preview",
-            sourceApp: app,
-            cursorPosition: .zero,
-            selectionBounds: nil,
-            timestamp: Date(),
-            appPolicy: .default
-        )
-        return ActionContext(selection: context, modifiers: [])
-    }
-    
-    @ObservedObject private var coordinator = ActionCoordinator.shared
-    
-    private var mockActions: [any Action] {
-        let available = coordinator.resolveActions(for: mockContext)
-        // Show up to 5 actions in the preview to look clean
-        return Array(available.prefix(5))
-    }
-    
     var body: some View {
         VStack(spacing: 24) {
-            // Live Preview Card
-            VStack(spacing: 12) {
-                Text("Live Popup Preview")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
-                PopupView(actions: mockActions, context: mockContext) { _ in }
-                    .scaleEffect(1.1)
-                    .padding(.vertical, 8)
-            }
-            .frame(maxWidth: .infinity, minHeight: 140)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-            )
-            
-            Form {
-                Picker("Theme Style", selection: $theme) {
-                    Text("System").tag("system")
-                    Text("Dark").tag("dark")
-                    Text("Light").tag("light")
-                    Text("Glass").tag("glass")
-                }
-                .pickerStyle(.segmented)
-            }
-            .padding(.horizontal, 10)
-            
+            PopupPreview()
+
+            PopupThemeSelector()
+                .padding(.horizontal, 10)
+
             Spacer()
         }
         .padding(24)
@@ -717,7 +670,7 @@ struct AboutTab: View {
     var body: some View {
         VStack(spacing: 16) {
             Spacer()
-            Image(nsImage: NSApp.applicationIconImage)
+            Image(nsImage: AppIcon.image)
                 .resizable()
                 .frame(width: 80, height: 80)
             
