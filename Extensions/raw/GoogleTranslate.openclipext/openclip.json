@@ -2,6 +2,9 @@
   "identifier": "com.openclip.translate",
   "name": "Google Translate",
   "version": "1.0.0",
+  "author": "OpenClip Team",
+  "description": "Translate the selected text into English with Google Translate.",
+  "category": "translate",
   "action": {
     "title": "Translate",
     "icon": "globe",

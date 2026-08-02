@@ -2,6 +2,9 @@
   "identifier": "com.openclip.wikipedia",
   "name": "Wikipedia Search",
   "version": "1.0.0",
+  "author": "OpenClip Team",
+  "description": "Look up the selected text on Wikipedia.",
+  "category": "reference",
   "action": {
     "title": "Wikipedia",
     "icon": "book",

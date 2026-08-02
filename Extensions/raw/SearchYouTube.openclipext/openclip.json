@@ -2,6 +2,9 @@
   "identifier": "com.openclip.youtube",
   "name": "Search YouTube",
   "version": "1.0.0",
+  "author": "OpenClip Team",
+  "description": "Search YouTube for videos matching the selected text.",
+  "category": "video",
   "action": {
     "title": "Search YouTube",
     "icon": "play.circle",
