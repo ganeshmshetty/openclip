@@ -2,6 +2,8 @@
 // OpenClip
 //
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
+// Also owns the reusable bubble panel (BubbleCardView) that renders hover info, result, and sub-action
+// bubbles, plus the hover-debounce and long-press timers that trigger them per Action.gesturePolicy.
 import AppKit
 import SwiftUI
 import Core
@@ -9,11 +11,20 @@ import Core
 @MainActor
 public class PopupWindowController {
     private var panel: PopupPanel?
-    private var aiPanel: PopupPanel?
+    private var bubblePanel: PopupPanel?
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var currentContext: SelectionContext?
-    
+    private var currentActionContext: ActionContext?
+    private var cardAbove = false
+
+    private var hoverDebounceTask: Task<Void, Never>?
+    private var longPressTask: Task<Void, Never>?
+    private var hoveredAction: (any Action)?
+    private var longPressFired = false
+    /// Set true while a non-dismissable bubble (.result/.menu) is showing.
+    private var bubbleBlocksDismiss = false
+
     private var isMenuTracking = false
     
     public init() { }
@@ -23,6 +34,7 @@ public class PopupWindowController {
         currentContext = context
         
         let actionContext = ActionContext(selection: context, modifiers: [])
+        currentActionContext = actionContext
         let availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
         
         let panel = self.panel ?? PopupPanel()
@@ -33,32 +45,34 @@ public class PopupWindowController {
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let tempFrame = PopupPositioner.calculateFrame(
             for: context, popupSize: CGSize(width: 320, height: 54), in: screenBounds)
-        let cardAbove = tempFrame.minY < screenBounds.minY + 280
+        cardAbove = tempFrame.minY < screenBounds.minY + 280
 
         let rootView = PopupView(
             actions: availableActions,
             context: actionContext,
             initialAICardAboveBar: cardAbove,
             onResult: { [weak self] result in
-                if case .showServices = result {
-                    self?.handleResult(result)
-                } else {
-                    self?.handleResult(result)
-                    self?.hide()
-                }
+                self?.handleResult(result)
+                self?.hide()
             },
             onContentSizeChange: { [weak self] size in
                 self?.resizePanel(to: size)
             },
             onAIStateChange: { [weak self] active, _ in
                 self?.isAIOverlayActive = active
-                // AI panel is dismissed only by explicit user actions (close/copy/replace) or hide()
+                // Bubble panel is dismissed only by explicit user actions or hide()
             },
             onAIResult: { [weak self] text, isError in
-                self?.showAIPanel(text: text, isError: isError, cardAbove: cardAbove)
+                self?.showAIBubble(text: text, isError: isError)
             },
             onAIDismiss: { [weak self] in
-                self?.hideAIPanel()
+                self?.hideBubble()
+            },
+            onHoveredActionChanged: { [weak self] action in
+                self?.updateHoveredAction(action)
+            },
+            onShowBubble: { [weak self] content in
+                self?.showMenuBubble(content: content)
             }
         )
         panel.contentView = NSHostingView(rootView: rootView)
@@ -71,64 +85,207 @@ public class PopupWindowController {
         setupMonitors()
     }
 
-    // MARK: - AI Overlay Panel
+    // MARK: - Bubble Panel
 
-    private func showAIPanel(text: String, isError: Bool, cardAbove: Bool) {
+    private func showBubble(content: BubbleContent, blocksDismiss: Bool, anchorX: CGFloat? = nil, onOutcome: @escaping (BubbleOutcome) -> Void, onClose: (() -> Void)? = nil) {
         guard let panel else { return }
 
-        hideAIPanel()
-        let ap = PopupPanel()
-        self.aiPanel = ap
+        hideBubble()
+        let bp = PopupPanel()
+        self.bubblePanel = bp
+        bubbleBlocksDismiss = blocksDismiss
 
-        let aiView = AIResultOverlayView(
-            resultText: text,
-            isError: isError,
-            onReplace: { [weak self] in
-                self?.handleResult(.paste(text))
-                self?.hide()
+        let bubbleView = BubbleCardView(
+            content: content,
+            onOutcome: { outcome in
+                onOutcome(outcome)
             },
-            onCopy: { [weak self] in
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
-                self?.hideAIPanel()
-            },
-            onClose: { [weak self] in
-                self?.hideAIPanel()
-            }
+            onClose: onClose
         )
-        ap.contentView = NSHostingView(rootView: aiView)
-        ap.contentView?.layoutSubtreeIfNeeded()
+        bp.contentView = NSHostingView(rootView: bubbleView)
+        bp.contentView?.layoutSubtreeIfNeeded()
 
-        let aiSize = sanitizedAISize(ap.contentView?.fittingSize)
+        let bubbleSize = sanitizedBubbleSize(bp.contentView?.fittingSize)
         let gap: CGFloat = 8
         let barFrame = panel.frame
 
-        let x = barFrame.origin.x
-        let y: CGFloat
+        // Horizontal: center on the anchor point (e.g. the pressed/hovered button) clamped to the
+        // screen; fall back to aligning with the bar's left edge.
+        let screen = NSScreen.screens.first { $0.frame.contains(barFrame.origin) } ?? NSScreen.main
+        let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+        let padding: CGFloat = Constants.popupPadding
+        // The panel is as wide as the wider of the bubble and the bar, so clamp by the final width.
+        let finalWidth = max(bubbleSize.width, barFrame.width)
+        var x: CGFloat
+        if let anchorX {
+            x = anchorX - finalWidth / 2
+        } else {
+            x = barFrame.origin.x
+        }
+        x = max(screenBounds.minX + padding, min(x, screenBounds.maxX - finalWidth - padding))
+
+        var y: CGFloat
         if cardAbove {
-            // Place card ABOVE bar — position its bottom edge just above bar's top
+            // Place bubble ABOVE bar — position its bottom edge just above bar's top
             y = barFrame.maxY + gap
         } else {
-            // Place card BELOW bar — position its top edge just below bar's bottom
-            y = barFrame.minY - aiSize.height - gap
+            // Place bubble BELOW bar — position its top edge just below bar's bottom
+            y = barFrame.minY - bubbleSize.height - gap
         }
+        // Clamp the final frame fully inside the screen so a tall menu bubble (no height bound)
+        // never renders off-screen.
+        y = max(screenBounds.minY + padding, min(y, screenBounds.maxY - bubbleSize.height - padding))
 
-        ap.setFrame(CGRect(x: x, y: y, width: max(aiSize.width, barFrame.width), height: aiSize.height), display: true)
-        ap.makeKeyAndOrderFront(nil)
+        bp.setFrame(CGRect(x: x, y: y, width: finalWidth, height: bubbleSize.height), display: true)
+        bp.makeKeyAndOrderFront(nil)
     }
 
-    private func hideAIPanel() {
-        aiPanel?.orderOut(nil)
-        aiPanel = nil
+    /// Replaces the AI overlay with a BubbleCardView `.result` bubble.
+    private func showAIBubble(text: String, isError: Bool) {
+        let content = BubbleContent(
+            title: isError ? "AI Error" : "AI Result",
+            icon: isError ? "exclamationmark.triangle" : "sparkles",
+            rows: [.text(text)],
+            footer: isError ? [] : [
+                BubbleOption(
+                    title: "Replace",
+                    icon: "arrow.triangle.2.circlepath",
+                    outcome: .perform(.paste(text))
+                ),
+                BubbleOption(
+                    title: "Copy",
+                    icon: "doc.on.doc",
+                    outcome: .perform(.copy(text))
+                )
+            ],
+            emphasis: .result
+        )
+
+        showBubble(
+            content: content,
+            blocksDismiss: true,
+            onOutcome: { [weak self] outcome in
+                guard case .perform(let result) = outcome else { return }
+                self?.handleResult(result)
+                if case .paste = result {
+                    self?.hide()
+                } else {
+                    self?.hideBubble()
+                }
+            },
+            onClose: { [weak self] in
+                self?.hideBubble()
+            }
+        )
     }
 
-    private func sanitizedAISize(_ raw: CGSize?) -> CGSize {
-        var s = raw ?? CGSize(width: 320, height: 150)
-        s.width = max(s.width, 200)
-        s.height = max(s.height, 60)
+    /// Shows a sub-action `.menu` bubble (e.g. transform options) anchored near the current mouse position.
+    private func showMenuBubble(content: BubbleContent) {
+        showBubble(
+            content: content,
+            blocksDismiss: true,
+            anchorX: NSEvent.mouseLocation.x,
+            onOutcome: { [weak self] outcome in
+                guard case .perform(let result) = outcome else { return }
+                self?.handleResult(result)
+                self?.hide()
+            },
+            onClose: { [weak self] in
+                self?.hideBubble()
+            }
+        )
+    }
+
+    private func hideBubble() {
+        bubblePanel?.orderOut(nil)
+        bubblePanel = nil
+        bubbleBlocksDismiss = false
+    }
+
+    private func sanitizedBubbleSize(_ raw: CGSize?) -> CGSize {
+        var s = raw ?? CGSize(width: 300, height: 120)
+        s.width = max(s.width, 160)
+        s.height = max(s.height, 48)
         return s
     }
 
+    // MARK: - Hover Info Bubble
+
+    private func updateHoveredAction(_ action: (any Action)?) {
+        // Re-entry with the same action id must not cancel a pending hover bubble for it.
+        guard action?.id != hoveredAction?.id else { return }
+        hoverDebounceTask?.cancel()
+        hoveredAction = action
+
+        guard let action, let actionContext = currentActionContext else {
+            if bubbleBlocksDismiss == false {
+                hideBubble()
+            }
+            return
+        }
+
+        guard action.gesturePolicy.hoverPreview else {
+            // Never tear down a blocking (.result/.menu) bubble just because the pointer
+            // crossed a bar button that has no hover preview.
+            if bubbleBlocksDismiss == false {
+                hideBubble()
+            }
+            return
+        }
+
+        hoverDebounceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Constants.bubbleHoverDelayNanoseconds)
+            guard !Task.isCancelled,
+                  self.hoveredAction?.id == action.id,
+                  // A blocking bubble may have opened while we were debouncing; don't replace it.
+                  self.bubbleBlocksDismiss == false else { return }
+
+            let icon: String? = {
+                if case .symbol(let name) = action.displayIcon { return name }
+                return nil
+            }()
+            let line = await (action as? any PreviewProviding)?.previewLine(for: actionContext)
+
+            let content = BubbleContent(
+                title: action.displayTitle,
+                icon: icon,
+                subtitle: line ?? action.displayTitle,
+                emphasis: .info
+            )
+            self.showBubble(content: content, blocksDismiss: false, anchorX: NSEvent.mouseLocation.x) { _ in }
+        }
+    }
+
+    // MARK: - Long-Press Bubble
+
+    private func beginLongPressIfNeeded(at clickLocation: CGPoint) {
+        longPressTask?.cancel()
+        longPressFired = false
+
+        guard let hoveredAction, hoveredAction.gesturePolicy.longPress != nil,
+              let actionContext = currentActionContext,
+              let panel, panel.frame.contains(clickLocation) else { return }
+
+        let targetAction = hoveredAction
+        longPressTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Constants.bubbleLongPressNanoseconds)
+            guard !Task.isCancelled, self.hoveredAction?.id == targetAction.id else { return }
+            guard let bubble = await (targetAction as? any ResultBubbleProviding)?.makeBubble(for: actionContext) else {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            longPressFired = true
+            self.showBubble(content: bubble, blocksDismiss: true, anchorX: clickLocation.x) { [weak self] outcome in
+                guard case .perform(let result) = outcome else { return }
+                self?.handleResult(result)
+                self?.hide()
+            } onClose: { [weak self] in
+                self?.hideBubble()
+            }
+        }
+    }
+    
+    // MARK: - Panel Resize
 
     /// Resize the bar-only panel, keeping the bar's top (maxY) fixed so it doesn't jump.
     private func resizePanel(to proposedSize: CGSize) {
@@ -162,10 +319,16 @@ public class PopupWindowController {
     
     public func hide() {
         isAIOverlayActive = false
-        hideAIPanel()
+        hideBubble()
+        hoverDebounceTask?.cancel()
+        longPressTask?.cancel()
+        longPressTask = nil
+        longPressFired = false
         panel?.orderOut(nil)
         removeMonitors()
         currentContext = nil
+        currentActionContext = nil
+        hoveredAction = nil
         isMenuTracking = false
         PopupHoverState.shared.location = nil
     }
@@ -183,7 +346,18 @@ public class PopupWindowController {
             print("[Popup] Accessibility permission unavailable; using local hover tracking.")
         }
         
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+            if let self, event.type == .leftMouseUp {
+                // A mouse-up always ends a pending long press: cancel the task so a quick click
+                // doesn't later fire a result bubble, and swallow the trailing mouse-up only when
+                // a long-press bubble was actually shown (so it doesn't also perform the action).
+                self.longPressTask?.cancel()
+                self.longPressTask = nil
+                if self.longPressFired {
+                    self.longPressFired = false
+                    return nil
+                }
+            }
             self?.handleEvent(event)
             return event
         }
@@ -214,7 +388,6 @@ public class PopupWindowController {
     }
     
     private var isAIOverlayActive: Bool = false
-    private var aiCardAboveBar: Bool = false
 
     private func handleEvent(_ event: NSEvent) {
         if isMenuTracking { return }
@@ -223,8 +396,8 @@ public class PopupWindowController {
         case .mouseMoved:
             updatePopupHover(at: NSEvent.mouseLocation)
             let cursorLoc = NSEvent.mouseLocation
-            // Only auto-dismiss by distance if AI overlay is not showing
-            if aiPanel == nil, let panel = panel {
+            // Only auto-dismiss by distance when no dismiss-blocking bubble is showing
+            if !bubbleBlocksDismiss, let panel = panel {
                 let frame = panel.frame
                 let dx = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
                 let dy = max(0, max(frame.minY - cursorLoc.y, cursorLoc.y - frame.maxY))
@@ -235,12 +408,15 @@ public class PopupWindowController {
         case .leftMouseDown:
             let clickLoc = NSEvent.mouseLocation
             let inBar = panel?.frame.contains(clickLoc) ?? false
-            let inAI = aiPanel?.frame.contains(clickLoc) ?? false
-            if !inBar && !inAI {
+            let inBubble = bubblePanel?.frame.contains(clickLoc) ?? false
+            if inBar {
+                beginLongPressIfNeeded(at: clickLoc)
+            }
+            if !inBar && !inBubble {
                 hide()
             }
         case .scrollWheel:
-            if aiPanel == nil {
+            if !bubbleBlocksDismiss {
                 hide()
             }
         case .keyDown:
@@ -284,4 +460,3 @@ public class PopupWindowController {
         }
     }
 }
-

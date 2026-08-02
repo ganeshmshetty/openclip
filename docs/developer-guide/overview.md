@@ -56,6 +56,6 @@ OpenClip automatically scans the following directory for extensions and script f
 ## Architectural Integration Seam
 
 Extending OpenClip does not require modifying Core framework code:
-1. When extensions are placed in `~/.openclip/extensions/`, [`ExtensionManager`](file:///Users/ganesh/dev/openclip/Sources/Core/Extensions/ExtensionManager.swift) automatically parses manifests and snippets.
-2. Extension metadata is passed to [`DefaultActionFactory`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift) (the **Action Factory**).
-3. Derived action instances are registered with [`ActionRegistry`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionRegistry.swift) through [`ActionCoordinator`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionCoordinator.swift).
+1. When extensions are placed in `~/.openclip/extensions/`, [`ExtensionManager`](../../Sources/Core/Extensions/ExtensionManager.swift) automatically parses manifests and snippets.
+2. Extension metadata is passed to [`DefaultActionFactory`](../../Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift) (the **Action Factory**).
+3. Derived action instances are registered with [`ActionRegistry`](../../Sources/Core/Actions/ActionRegistry.swift) through [`ActionCoordinator`](../../Sources/Core/Actions/ActionCoordinator.swift).

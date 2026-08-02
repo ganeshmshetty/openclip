@@ -21,6 +21,10 @@ public struct PopupView: View {
     public let onAIResult: (@MainActor (String, Bool) -> Void)?
     /// Called when the AI overlay should be dismissed
     public let onAIDismiss: (@MainActor () -> Void)?
+    /// Called when the hovered action changes (nil when nothing hovered). Drives the hover info bubble.
+    public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
+    /// Called with a sub-action/menu bubble content to display (e.g. transform options). Drives the bubble panel.
+    public let onShowBubble: (@MainActor (BubbleContent) -> Void)?
 
     @AppStorage("popupTheme") private var selectedTheme: String = "system"
     @Environment(\.colorScheme) private var colorScheme
@@ -59,7 +63,9 @@ public struct PopupView: View {
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
         onAIResult: (@MainActor (String, Bool) -> Void)? = nil,
-        onAIDismiss: (@MainActor () -> Void)? = nil
+        onAIDismiss: (@MainActor () -> Void)? = nil,
+        onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
+        onShowBubble: (@MainActor (BubbleContent) -> Void)? = nil
     ) {
         self.actions = actions
         self.context = context
@@ -68,6 +74,8 @@ public struct PopupView: View {
         self.onAIStateChange = onAIStateChange
         self.onAIResult = onAIResult
         self.onAIDismiss = onAIDismiss
+        self.onHoveredActionChanged = onHoveredActionChanged
+        self.onShowBubble = onShowBubble
         self._aiCardAboveBar = State(initialValue: initialAICardAboveBar)
     }
 
@@ -489,9 +497,10 @@ public struct PopupView: View {
             }
             .contentShape(Rectangle())
 
-        if action.id == "builtin.transform" {
+        switch action.gesturePolicy.singleClick {
+        case .showMenu:
             Button {
-                showTransformMenu(selectionText: context.selection.text)
+                onShowBubble?(transformMenuBubble())
             } label: {
                 labelView
             }
@@ -501,7 +510,7 @@ public struct PopupView: View {
             .onHover { isHovering in
                 useLocalHoverFallback(for: .action(index), isHovering: isHovering)
             }
-        } else {
+        case .showResultBubble, .perform:
             Button {
                 Task {
                     do {
@@ -515,7 +524,7 @@ public struct PopupView: View {
                 labelView
             }
             .buttonStyle(.plain)
-            .help(action.title)
+            .applyBubbleTooltip(for: action, fallback: action.title)
             .popupHoverTarget(.action(index))
             .onHover { isHovering in
                 useLocalHoverFallback(for: .action(index), isHovering: isHovering)
@@ -563,14 +572,27 @@ public struct PopupView: View {
         }
         guard target != hoveredTarget else { return }
         hoveredTarget = target
+        reportHoveredAction()
+    }
+
+    /// Maps the current hoveredTarget to its action (if any) and reports it upward for the info bubble.
+    private func reportHoveredAction() {
+        let action: (any Action)? = {
+            guard case .action(let index) = hoveredTarget, index < pagedActions.count else { return nil }
+            return pagedActions[index]
+        }()
+        onHoveredActionChanged?(action)
     }
 
     private func useLocalHoverFallback(for target: PopupHoverTarget, isHovering: Bool) {
         guard !hoverState.usesGlobalMouseMonitoring else { return }
         if isHovering {
+            guard hoveredTarget != target else { return }
             hoveredTarget = target
+            reportHoveredAction()
         } else if hoveredTarget == target {
             hoveredTarget = nil
+            reportHoveredAction()
         }
     }
 
@@ -607,36 +629,36 @@ public struct PopupView: View {
         }
     }
 
-    private func showTransformMenu(selectionText: String) {
-        let menu = NSMenu(title: "Text Transformations")
-        
+    private func transformMenuBubble() -> BubbleContent {
+        let selectionText = context.selection.text
+        var rows: [BubbleRow] = []
+
         for category in TransformCategory.allCases {
-            let catCases = enabledTransformCases.filter { $0.category == category }
-            if !catCases.isEmpty {
-                let header = NSMenuItem(title: category.rawValue, action: nil, keyEquivalent: "")
-                header.isEnabled = false
-                menu.addItem(header)
-                
-                for tCase in catCases {
-                    let item = NSMenuItem(title: "  \(tCase.displayName)", action: #selector(MenuItemTarget.trigger), keyEquivalent: "")
-                    let target = MenuItemTarget {
-                        let res = tCase.transform(selectionText)
-                        self.onResult(.paste(res))
-                    }
-                    item.target = target
-                    objc_setAssociatedObject(item, &MenuItemTarget.assocKey, target, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-                    menu.addItem(item)
-                }
-                menu.addItem(NSMenuItem.separator())
+            let catCases = enabledTransformCases
+                .filter { $0.category == category && $0.isRelevant(for: selectionText) }
+            if catCases.isEmpty { continue }
+
+            rows.append(.text(category.rawValue))
+
+            for tCase in catCases {
+                let res = tCase.transform(selectionText)
+                rows.append(.option(
+                    BubbleOption(
+                        title: tCase.displayName,
+                        subtitle: res,
+                        icon: "textformat",
+                        outcome: .perform(.paste(res))
+                    )
+                ))
             }
         }
-        
-        if menu.items.last?.isSeparatorItem == true {
-            menu.items.removeLast()
-        }
-        
-        let mouseLoc = NSEvent.mouseLocation
-        menu.popUp(positioning: nil, at: mouseLoc, in: nil)
+
+        return BubbleContent(
+            title: "Transform Text",
+            icon: "textformat",
+            rows: rows,
+            emphasis: .menu
+        )
     }
 }
 
@@ -685,17 +707,15 @@ private extension View {
             }
         }
     }
-}
 
-private class MenuItemTarget: NSObject {
-    nonisolated(unsafe) static var assocKey: UInt8 = 0
-    let handler: () -> Void
-    
-    init(handler: @escaping () -> Void) {
-        self.handler = handler
-    }
-    
-    @objc func trigger() {
-        handler()
+    /// Uses the OS `.help()` tooltip unless the action has hover preview, in which case the
+    /// info bubble replaces it (avoids double tooltips on PreviewProviding actions).
+    @MainActor
+    func applyBubbleTooltip(for action: any Action, fallback: String) -> some View {
+        let usesInfoBubble = action.gesturePolicy.hoverPreview
+        if usesInfoBubble {
+            return AnyView(self.help(""))
+        }
+        return AnyView(self.help(fallback))
     }
 }

@@ -1,6 +1,6 @@
 # Application-Specific Policy Rules (`AppRule`)
 
-OpenClip allows configuring application-specific behavior rules through [`AppRule`](file:///Users/ganesh/dev/openclip/Sources/Core/Rules/AppRule.swift) and [`RuleEngine`](file:///Users/ganesh/dev/openclip/Sources/Core/Rules/RuleEngine.swift). App rules control how OpenClip detects selections, retrieves text, and enables or suppresses formatting actions when specific target macOS applications are active.
+OpenClip allows configuring application-specific behavior rules through [`AppRule`](../../Sources/Core/Rules/AppRule.swift) and [`RuleEngine`](../../Sources/Core/Rules/RuleEngine.swift). App rules control how OpenClip detects selections, retrieves text, and enables or suppresses formatting actions when specific target macOS applications are active.
 
 ---
 

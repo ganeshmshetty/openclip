@@ -18,7 +18,7 @@ my-extension.openclipext/
 
 ## Manifest JSON Schema (`ExtensionMetadata`)
 
-OpenClip decodes extension metadata via [`ExtensionMetadata`](file:///Users/ganesh/dev/openclip/Sources/Core/Extensions/ExtensionManager.swift). To ensure backward compatibility, the decoder supports both modern camelCase keys and legacy capitalized/singular keys.
+OpenClip decodes extension metadata via [`ExtensionMetadata`](../../Sources/Core/Extensions/ExtensionManager.swift). To ensure backward compatibility, the decoder supports both modern camelCase keys and legacy capitalized/singular keys.
 
 ### Complete Example `manifest.json`
 
@@ -92,6 +92,6 @@ Extensions can expose user preferences rendered in the Preferences window under 
 | `default` | String | `Default` | Default value if unspecified by the user. |
 
 ### Option Storage & Retrieval
-- Dynamic action options are saved through [`SettingsStore`](file:///Users/ganesh/dev/openclip/Sources/Core/Settings/SettingsStore.swift) using typed setting key strings:
+- Dynamic action options are saved through [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) using typed setting key strings:
  `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)`
 - Direct `UserDefaults.standard` access is discouraged and should not be added in new code. (Note: `JavaScriptAction` currently reads option values via `UserDefaults.standard.string(forKey:)`; migrating it to `SettingKey` is planned.)

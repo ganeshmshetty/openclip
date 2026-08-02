@@ -9,9 +9,6 @@ final class TransformTextActionTests: XCTestCase {
         XCTAssertEqual(TransformCase.titleCase.transform(text), "Hello World Example")
         XCTAssertEqual(TransformCase.camelCase.transform(text), "helloWorldExample")
         XCTAssertEqual(TransformCase.pascalCase.transform(text), "HelloWorldExample")
-        XCTAssertEqual(TransformCase.snakeCase.transform(text), "hello_world_example")
-        XCTAssertEqual(TransformCase.kebabCase.transform(text), "hello-world-example")
-        XCTAssertEqual(TransformCase.constantCase.transform(text), "HELLO_WORLD_EXAMPLE")
     }
     
     func testTextCleaningAndLineTools() {

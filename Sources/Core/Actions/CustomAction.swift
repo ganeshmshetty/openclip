@@ -67,6 +67,7 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
                 process.standardOutput = pipe
                 
                 let once = OnceGate()
+                let timeoutFlag = TimeoutFlag()
                 let resume: @Sendable (Result<ActionResult, Error>) -> Void = { result in
                     guard once.claim() else { return }
                     switch result {
@@ -76,10 +77,17 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
                 }
                 
                 process.terminationHandler = { p in
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    let data = (try? pipe.fileHandleForReading.readDataToEndOfFile()) ?? Data()
                     let output = String(data: data, encoding: .utf8) ?? ""
                     
-                    if replaceSelection {
+                    if timeoutFlag.isTimedOut {
+                        // A watchdog kill (or an unblocked read after a watchdog close) is a
+                        // failure, not a success: resuming with empty/partial output could erase
+                        // the selection when replaceSelection is true.
+                        resume(.failure(NSError(domain: Constants.actionErrorDomain,
+                                                code: Int(Constants.actionErrorCode) + 1,
+                                                userInfo: [NSLocalizedDescriptionKey: "Script timed out after \(Int(Constants.scriptTimeout)) seconds"])))
+                    } else if replaceSelection {
                         resume(.success(.paste(output)))
                     } else {
                         resume(.success(.copy(output)))
@@ -93,9 +101,15 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
                     return
                 }
                 
-                // Watchdog: kill the script if it exceeds the runtime budget so the popup never spins forever.
+                // Watchdog: kill the script if it exceeds the runtime budget so the popup never
+                // spins forever. Closing the stdout read end sends SIGPIPE to the shell and any
+                // backgrounded children that retained the pipe, unblocking the termination handler
+                // even when a child outlives the shell. A timeout is always treated as a failure.
                 let timeout = Constants.scriptTimeout
                 DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { [weak process] in
+                    guard !timeoutFlag.isTimedOut else { return }
+                    timeoutFlag.markTimedOut()
+                    try? pipe.fileHandleForReading.close()
                     if process?.isRunning == true {
                         process?.terminate()
                     }
@@ -116,5 +130,23 @@ private final class OnceGate: @unchecked Sendable {
         guard !claimed else { return false }
         claimed = true
         return true
+    }
+}
+
+/// Thread-safe flag set by a subprocess watchdog when the execution budget is exceeded.
+final class TimeoutFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var timedOut = false
+
+    func markTimedOut() {
+        lock.lock()
+        defer { lock.unlock() }
+        timedOut = true
+    }
+
+    var isTimedOut: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return timedOut
     }
 }

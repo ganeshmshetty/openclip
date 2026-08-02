@@ -23,7 +23,14 @@ public final class AIServiceManager: ObservableObject {
             if cloudAPIKey.isEmpty {
                 KeychainStore.delete(account: Self.cloudAPIKeyAccount)
             } else {
-                KeychainStore.set(cloudAPIKey, account: Self.cloudAPIKeyAccount)
+                let didStore = KeychainStore.set(cloudAPIKey, account: Self.cloudAPIKeyAccount)
+                if !didStore {
+                    // Keychain writes can fail (e.g. keychain locked, ACL mismatch). Don't leave the
+                    // observable value claiming a key that won't survive restart — revert so the
+                    // caller/UI can see the change was not persisted.
+                    print("[AIServiceManager] Failed to persist cloud API key to Keychain; reverting value.")
+                    cloudAPIKey = oldValue
+                }
             }
         }
     }
@@ -106,9 +113,13 @@ public final class AIServiceManager: ObservableObject {
         if let stored = KeychainStore.get(account: Self.cloudAPIKeyAccount) {
             self.cloudAPIKey = stored
         } else if let legacy = UserDefaults.standard.string(forKey: "aiCloudAPIKey"), !legacy.isEmpty {
+            // Persist to the Keychain before dropping the legacy value. If storage fails, keep the
+            // legacy value in UserDefaults so the credential is not lost and the migration retries
+            // on the next launch. (Property observers don't fire during init, so set explicitly.)
+            if KeychainStore.set(legacy, account: Self.cloudAPIKeyAccount) {
+                UserDefaults.standard.removeObject(forKey: "aiCloudAPIKey")
+            }
             self.cloudAPIKey = legacy
-            KeychainStore.set(legacy, account: Self.cloudAPIKeyAccount)
-            UserDefaults.standard.removeObject(forKey: "aiCloudAPIKey")
         } else {
             self.cloudAPIKey = ""
         }

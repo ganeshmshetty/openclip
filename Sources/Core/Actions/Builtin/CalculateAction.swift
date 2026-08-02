@@ -2,9 +2,11 @@
 // OpenClip
 //
 // Implements the builtin math expression evaluation action, computing mathematical expressions found in selected text.
+// Conforms to ResultBubbleProviding to surface a result bubble (on long-press) with per-click delivery options
+// (paste/copy), superseding the global calculateMode setting for the bubble path.
 import Foundation
 
-public struct CalculateAction: ConfigurableAction {
+public struct CalculateAction: ConfigurableAction, ResultBubbleProviding {
     public let id = "builtin.calculate"
     public var title: String { "Calculate" }
     public let configurationViewID = "builtin.calculate"
@@ -45,6 +47,44 @@ public struct CalculateAction: ConfigurableAction {
             }
         }
         return .none
+    }
+    
+    // MARK: - ResultBubbleProviding
+    
+    @MainActor
+    public func makeBubble(for context: ActionContext) async -> BubbleContent? {
+        let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let result = evaluateExpression(text) else { return nil }
+        let resultString = formatResult(result)
+        let fullLine = "\(text) = \(resultString)"
+        
+        return BubbleContent(
+            title: "Calculate",
+            icon: preferenceIconName,
+            subtitle: fullLine,
+            rows: [.text(resultString)],
+            footer: [
+                BubbleOption(
+                    title: "Paste \(resultString)",
+                    subtitle: "Replace selection with result",
+                    icon: "arrow.triangle.2.circlepath",
+                    outcome: .perform(.paste(resultString))
+                ),
+                BubbleOption(
+                    title: "Copy \(resultString)",
+                    subtitle: "Copy result to clipboard",
+                    icon: "doc.on.doc",
+                    outcome: .perform(.copy(resultString))
+                ),
+                BubbleOption(
+                    title: "Copy \(fullLine)",
+                    subtitle: "Copy expression and result",
+                    icon: "doc.on.doc.fill",
+                    outcome: .perform(.copy(fullLine))
+                )
+            ],
+            emphasis: .result
+        )
     }
     
     private func evaluateExpression(_ text: String) -> Double? {

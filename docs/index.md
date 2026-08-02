@@ -70,9 +70,9 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 ## Core Architectural Principles
 
 OpenClip enforces a strict single-responsibility architecture divided across **Core Architectural Subsystems**:
-1. **Settings Subsystem** — [`SettingsStore`](file:///Users/ganesh/dev/openclip/Sources/Core/Settings/SettingsStore.swift) (Typed `SettingKey` access; a few legacy `UserDefaults.standard` sites remain in the App target).
-2. **Action Presentation** — [`ActionPresentation`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionPresentation.swift) (Surface-tailored icon and title resolution).
-3. **Action Chrome Policy** — [`ActionChrome`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionChrome.swift) (UI policy metadata without type checking).
-4. **Action Factory** — [`DefaultActionFactory`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift) (Action creation from manifests/snippets).
-5. **Action Result Handler** — [`ActionResultHandler`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/Effects/ActionResultHandler.swift) (Platform side-effects, pasteboard, and key events).
-6. **Action Coordinator & Composition** — [`ActionCoordinator`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionCoordinator.swift) (Composition root; managers register with `ActionRegistry` directly today).
+1. **Settings Subsystem** — [`SettingsStore`](../Sources/Core/Settings/SettingsStore.swift) (Typed `SettingKey` access; a few legacy `UserDefaults.standard` sites remain in the App target).
+2. **Action Presentation** — [`ActionPresentation`](../Sources/Core/Actions/ActionPresentation.swift) (Surface-tailored icon and title resolution).
+3. **Action Chrome Policy** — [`ActionChrome`](../Sources/Core/Actions/ActionChrome.swift) (UI policy metadata without type checking).
+4. **Action Factory** — [`DefaultActionFactory`](../Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift) (Action creation from manifests/snippets).
+5. **Action Result Handler** — [`ActionResultHandler`](../Sources/OpenClip/Platform/Effects/ActionResultHandler.swift) (Platform side-effects, pasteboard, and key events).
+6. **Action Coordinator & Composition** — [`ActionCoordinator`](../Sources/Core/Actions/ActionCoordinator.swift) (Composition root; wires managers to the registry via `onRegister`/`onUnregister` callbacks).

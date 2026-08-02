@@ -1,6 +1,6 @@
 # Action Coordinator & Registry Architecture
 
-The [`ActionCoordinator`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionCoordinator.swift) serves as the **Action Coordinator & Composition** of OpenClip. It bridges domain managers (`CustomActionManager`, `ExtensionManager`, `RuleEngine`) with the central [`ActionRegistry`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionRegistry.swift) catalog, resolving available actions based on user configuration, current text selection, and active application policy rules.
+The [`ActionCoordinator`](../../Sources/Core/Actions/ActionCoordinator.swift) serves as the **Action Coordinator & Composition** of OpenClip. It bridges domain managers (`CustomActionManager`, `ExtensionManager`, `RuleEngine`) with the central [`ActionRegistry`](../../Sources/Core/Actions/ActionRegistry.swift) catalog, resolving available actions based on user configuration, current text selection, and active application policy rules.
 
 ---
 
@@ -31,7 +31,7 @@ flowchart TD
 
 ## Action Registration Mechanics
 
-> **Current reality (2026-08):** the callback design described below is aspirational. No `onRegister`/`onUnregister` callbacks exist today. `CustomActionManager` and `ExtensionManager` register/unregister actions by calling `ActionRegistry.shared` directly (`CustomActionManager.swift:34,44,50`; `ExtensionManager.swift:125,129,199`). `ActionCoordinator.loadInitialState()` invokes the managers, which touch the registry themselves. Implementing the callback seam is planned.
+> **Current reality (2026-08):** the `onRegister`/`onUnregister` callback seam described below is implemented. `ActionCoordinator.loadInitialState()` wires `CustomActionManager` and `ExtensionManager` to the registry via those callbacks; neither manager calls `ActionRegistry.shared` directly.
 
 ### Initial Loading Lifecycle
 
@@ -53,15 +53,15 @@ public func loadInitialState() async {
 
 ### Registration & Unregistration
 When custom actions or extension packages are added, updated, or removed:
-- `CustomActionManager.register(customAction:)` inserts the item into `customActions` and registers it with `ActionRegistry`.
-- `ExtensionManager.loadExtensions()` unregisters previous extension actions and registers newly discovered ones.
-- Direct singleton coupling within Core sub-components is currently the norm (see the reality note above); the intended design avoids it via structured registration flows monitored by `ActionCoordinator`.
+- `CustomActionManager.register(customAction:)` inserts the item into `customActions` and reports it via its `onRegister` callback (wired to the registry by `ActionCoordinator.loadInitialState()`).
+- `ExtensionManager.loadExtensions()` unregisters previous extension actions and reports newly discovered ones through the same `onRegister`/`onUnregister` callbacks.
+- Neither Core domain manager touches `ActionRegistry.shared` directly; `ActionCoordinator` is the only type that does.
 
 ---
 
 ## Action Registry & Ordering Policy
 
-The [`ActionRegistry`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionRegistry.swift) is responsible for maintaining the in-memory array of registered actions and enforcing sorting order based on user preferences.
+The [`ActionRegistry`](../../Sources/Core/Actions/ActionRegistry.swift) is responsible for maintaining the in-memory array of registered actions and enforcing sorting order based on user preferences.
 
 ### Dynamic Ordering Math
 
@@ -96,7 +96,7 @@ public func moveActions(from source: IndexSet, to destination: Int) {
 
 ## Action Availability & Context Resolution
 
-When selected text is detected, `ActionCoordinator.resolveActions(for:)` converts the raw [`SelectionContext`](file:///Users/ganesh/dev/openclip/Sources/Core/Selection/SelectionContext.swift) into an evaluated context using `RuleEngine.resolvePolicies(for:)`.
+When selected text is detected, `ActionCoordinator.resolveActions(for:)` converts the raw [`SelectionContext`](../../Sources/Core/Selection/SelectionContext.swift) into an evaluated context using `RuleEngine.resolvePolicies(for:)`.
 
 ### Filtering Pipeline
 
@@ -105,7 +105,7 @@ When selected text is detected, `ActionCoordinator.resolveActions(for:)` convert
 1. **Disabled Actions Check**:
  - Queries `SettingKey.disabledActionIDs` from `SettingsStore`.
  - Evaluates `SettingKey.isTransformGroupEnabled`. If `isTransformGroupEnabled` is `false`, `"builtin.transform"` is added to disabled IDs.
- - Applies the default disabled transform cases, hardcoded in `ActionRegistry.availableActions` as an inverted enabled-set (see below). (`TransformCase.defaultDisabledActionIDs` does not exist yet.)
+ - Applies the default disabled transform cases from `TransformCase.defaultDisabledActionIDs`.
 
 2. **Formatting Policy Check**:
  - If `context.selection.appPolicy.denyFormatting` is `true` (e.g. Terminal, IDEs), actions with `action.isFormatting == true` are filtered out.
@@ -115,10 +115,7 @@ When selected text is detected, `ActionCoordinator.resolveActions(for:)` convert
 
 ```swift
 public func availableActions(for context: ActionContext) -> [any Action] {
- let defaultEnabledTransformCases: Set<TransformCase> = [.uppercase, .lowercase, .titleCase, .camelCase, .trimWhitespace, .formatJSON]
- let defaultDisabledSubActions = ["builtin.transform"] + TransformCase.allCases
- .filter { !defaultEnabledTransformCases.contains($0) }
- .map { "builtin.transform.\($0.rawValue)" }
+ let defaultDisabledSubActions = TransformCase.defaultDisabledActionIDs
 
  let configuredDisabled = settingsStore.get(.disabledActionIDs)
  var disabledIDs = configuredDisabled.isEmpty ? Set(defaultDisabledSubActions) : configuredDisabled

@@ -18,7 +18,7 @@ Preferences > Extension Store
 ### How Remote Installation Works
 1. `ExtensionsAPIClient` fetches the published extensions catalog.
 2. `RemoteExtensionInstaller` downloads the extension archive `.zip` or `.openclipext` bundle.
-3. [`ExtensionManager.installExtension(from:)`](file:///Users/ganesh/dev/openclip/Sources/Core/Extensions/ExtensionManager.swift) extracts and verifies the extension in `~/.openclip/extensions/`.
+3. [`ExtensionManager.installExtension(from:)`](../../Sources/Core/Extensions/ExtensionManager.swift) extracts and verifies the extension in `~/.openclip/extensions/`.
 4. `ExtensionManager` reloads the extensions catalog and registers new actions with `ActionRegistry`.
 
 ---
@@ -50,6 +50,6 @@ You can create custom web search links or inline shell scripts without writing e
 4. Click **Save**.
 
 ### Storage & Persistence
-- Custom actions are managed by [`CustomActionManager`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/CustomActionManager.swift).
+- Custom actions are managed by [`CustomActionManager`](../../Sources/Core/Actions/CustomActionManager.swift).
 - Saved definitions are persisted as JSON in Application Support:
  `~/Library/Application Support/OpenClip/custom_actions.json`

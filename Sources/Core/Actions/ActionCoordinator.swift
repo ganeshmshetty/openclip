@@ -1,9 +1,9 @@
 // ActionCoordinator.swift
 // OpenClip
 //
-// Composition root that connects builtin actions, custom actions, and extensions to the central ActionRegistry.
-// Note: custom actions and extensions register with ActionRegistry.shared directly via the managers;
-// the onRegister/onUnregister callback seam is not yet implemented.
+// Composition root that connects builtin actions, custom actions, and extensions to the central
+// ActionRegistry. Wires the onRegister/onUnregister callbacks that CustomActionManager and
+// ExtensionManager use to report changes, so neither manager touches ActionRegistry directly.
 import Foundation
 import Combine
 
@@ -25,6 +25,21 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     }
     
     public func loadInitialState() async {
+        // Wire the managers to the registry through callbacks — they never touch
+        // ActionRegistry.shared directly.
+        CustomActionManager.shared.onRegister = { [registry] action in
+            registry.register(action: action)
+        }
+        CustomActionManager.shared.onUnregister = { [registry] actionID in
+            registry.unregister(actionID: actionID)
+        }
+        ExtensionManager.shared.onRegister = { [registry] action in
+            registry.register(action: action)
+        }
+        ExtensionManager.shared.onUnregister = { [registry] actionID in
+            registry.unregister(actionID: actionID)
+        }
+
         // 1. Core builtins
         let coreBuiltins = BuiltinRegistry.makeCoreBuiltins()
         registry.register(builtIns: coreBuiltins)

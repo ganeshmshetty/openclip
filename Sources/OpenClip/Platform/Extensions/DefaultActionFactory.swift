@@ -87,14 +87,17 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         let scriptName = metadata.script ?? Constants.defaultScriptName
         let scriptURL = directoryURL.appendingPathComponent(scriptName)
         let ext = scriptURL.pathExtension.lowercased()
-        
+
         // Guard against garbage metadata: with neither url, scriptCode, nor an existing script file,
-        // there is nothing executable to run.
-        guard FileManager.default.fileExists(atPath: scriptURL.path) else { return nil }
-        
+        // there is nothing executable to run. A directory (fileExists is true for directories) or a
+        // script that can't be read must not register as an empty action.
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: scriptURL.path, isDirectory: &isDirectory),
+              !isDirectory.boolValue else { return nil }
+
         switch ext {
         case "js":
-            let code = (try? String(contentsOf: scriptURL, encoding: .utf8)) ?? ""
+            guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else { return nil }
             return JavaScriptAction(
                 id: actionId,
                 title: title,
@@ -104,7 +107,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 chrome: extensionChrome
             )
         case "applescript", "scpt":
-            let code = (try? String(contentsOf: scriptURL, encoding: .utf8)) ?? ""
+            guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else { return nil }
             return AppleScriptAction(
                 id: actionId,
                 title: title,
