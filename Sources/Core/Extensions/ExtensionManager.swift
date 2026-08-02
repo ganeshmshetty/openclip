@@ -257,31 +257,16 @@ public final class ExtensionManager: Sendable {
         guard let manifest = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) else { return [] }
         
         var actions: [any Action] = []
-        for (index, actionMeta) in manifest.actions.enumerated() {
-            if let factory = factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL) {
+        for actionMeta in manifest.actions {
+            if let factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL) {
                 actions.append(action)
-            } else {
-                let actionId = "\(manifest.identifier).action.\(index)"
-                let title = actionMeta.title ?? manifest.name
-                let icon = parseIcon(actionMeta.icon, directoryURL: directoryURL)
-                let regex = actionMeta.regex
-                
-                if let urlTemplate = actionMeta.url {
-                    let action = URLTemplateAction(id: actionId, title: title, icon: icon, urlTemplate: urlTemplate, regexPattern: regex)
-                    actions.append(action)
-                } else {
-                    let scriptName = actionMeta.script ?? Constants.defaultScriptName
-                    let scriptURL = directoryURL.appendingPathComponent(scriptName)
-                    let action = ScriptAction(id: actionId, title: title, icon: icon, scriptURL: scriptURL)
-                    actions.append(action)
-                }
             }
         }
         
         return actions
     }
-    
-    nonisolated private static func loadStandaloneScriptExtension(scriptURL: URL) async -> (any Action)? {
+
+    nonisolated private static func loadStandaloneScriptExtension(scriptURL: URL, factory: (any ActionFactory)? = nil) async -> (any Action)? {
         let content = (try? String(contentsOf: scriptURL, encoding: .utf8)) ?? ""
         if let parsedAction = await OpenClipSnippetParser.parse(snippet: content) {
             return parsedAction
@@ -313,19 +298,20 @@ public final class ExtensionManager: Sendable {
         guard let parsedTitle = title, !parsedTitle.isEmpty else { return nil }
         
         let actionId = identifier ?? "\(Constants.customIdentifierPrefix)\(scriptURL.lastPathComponent)"
-        let icon = parseIcon(iconStr, directoryURL: scriptURL.deletingLastPathComponent())
-        
-        if let template = urlTemplate, !template.isEmpty {
-            return URLTemplateAction(id: actionId, title: parsedTitle, icon: icon, urlTemplate: template, regexPattern: regexPattern)
-        }
-        
-        // For script action, must be executable or a script extension (.sh, .py, .js)
-        if FileManager.default.isExecutableFile(atPath: scriptURL.path) || scriptURL.pathExtension == "sh" || scriptURL.pathExtension == "py" || scriptURL.pathExtension == "js" {
-            return ScriptAction(id: actionId, title: parsedTitle, icon: icon, scriptURL: scriptURL)
-        }
-        
-        return nil
+        let actionMeta = ExtensionActionMetadata(
+            id: actionId,
+            title: parsedTitle,
+            icon: iconStr,
+            script: scriptURL.lastPathComponent,
+            url: urlTemplate,
+            regex: regexPattern,
+            type: urlTemplate != nil ? "url" : "script"
+        )
+        let manifest = ExtensionMetadata(identifier: actionId, name: parsedTitle, actions: [actionMeta])
+        return await factory?.createAction(metadata: actionMeta, manifest: manifest, directoryURL: scriptURL.deletingLastPathComponent())
     }
+
+
     
     nonisolated private static func extractHeaderValue(_ line: String) -> String {
         return String(line.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
