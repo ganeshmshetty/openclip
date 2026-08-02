@@ -225,6 +225,18 @@ public struct AITab: View {
                                 }
                                 .buttonStyle(.plain)
                                 .help("Edit Action Prompt")
+
+                                if isCustomPreset(preset) {
+                                    Button(action: {
+                                        deletePreset(preset)
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.red.opacity(0.8))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("Delete Custom Action")
+                                }
                             }
                             .padding(.vertical, 4)
 
@@ -252,9 +264,16 @@ public struct AITab: View {
         }
         .padding(12)
         .sheet(item: $editingPreset) { preset in
-            EditAIPresetSheet(preset: preset) { updated in
-                aiManager.updatePreset(updated)
-            }
+            EditAIPresetSheet(
+                preset: preset,
+                isCustom: isCustomPreset(preset),
+                onSave: { updated in
+                    aiManager.updatePreset(updated)
+                },
+                onDelete: {
+                    deletePreset(preset)
+                }
+            )
         }
         .sheet(isPresented: $showingAddPresetSheet) {
             VStack(alignment: .leading, spacing: 16) {
@@ -301,6 +320,16 @@ public struct AITab: View {
         }
     }
 
+    private func isCustomPreset(_ preset: AIActionPreset) -> Bool {
+        !AIServiceManager.defaultPresets.contains(where: { $0.id == preset.id })
+    }
+
+    private func deletePreset(_ preset: AIActionPreset) {
+        var list = aiManager.presets
+        list.removeAll(where: { $0.id == preset.id })
+        aiManager.presets = list
+    }
+
     private func fetchModels() {
         isFetchingModels = true
         fetchError = nil
@@ -331,14 +360,18 @@ public struct AITab: View {
 struct EditAIPresetSheet: View {
     @Environment(\.dismiss) private var dismiss
     let preset: AIActionPreset
+    let isCustom: Bool
     let onSave: (AIActionPreset) -> Void
+    let onDelete: () -> Void
 
     @State private var title: String
     @State private var prompt: String
 
-    init(preset: AIActionPreset, onSave: @escaping (AIActionPreset) -> Void) {
+    init(preset: AIActionPreset, isCustom: Bool, onSave: @escaping (AIActionPreset) -> Void, onDelete: @escaping () -> Void) {
         self.preset = preset
+        self.isCustom = isCustom
         self.onSave = onSave
+        self.onDelete = onDelete
         _title = State(initialValue: preset.title)
         _prompt = State(initialValue: preset.prompt)
     }
@@ -370,7 +403,16 @@ struct EditAIPresetSheet: View {
             }
 
             HStack {
+                if isCustom {
+                    Button("Delete Action", role: .destructive) {
+                        onDelete()
+                        dismiss()
+                    }
+                    .foregroundColor(.red)
+                }
+
                 Spacer()
+
                 Button("Cancel") {
                     dismiss()
                 }
