@@ -31,9 +31,7 @@ enum PreferenceTab: String, CaseIterable, Hashable {
 @MainActor
 public struct PreferencesView: View {
     @AppStorage(Constants.startAtLoginKey) private var startAtLogin: Bool = false
-    @AppStorage(Constants.popupStyleKey) private var popupStyle: String = "modern"
     @AppStorage("popupTheme") private var theme: String = "system"
-    @AppStorage(Constants.popupSizeKey) private var popupSize: String = "medium"
     
     @State private var disabledActionIDs: Set<String> = []
     @State private var selectedTab: PreferenceTab = .general
@@ -158,7 +156,7 @@ public struct PreferencesView: View {
                     case .general: 
                         GeneralTab()
                     case .appearance: 
-                        AppearanceTab(popupStyle: $popupStyle, theme: $theme, popupSize: $popupSize)
+                        AppearanceTab(theme: $theme)
                     case .actions: 
                         ActionsTab(disabledActionIDs: $disabledActionIDs)
                     case .extensions:
@@ -175,7 +173,7 @@ public struct PreferencesView: View {
                 .padding(.bottom, 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(white: 0.14))
+            .background(Color(nsColor: .underPageBackgroundColor))
         }
         .frame(minWidth: 680, minHeight: 480)
         .onAppear { loadDisabledActionIDs() }
@@ -339,9 +337,7 @@ struct GeneralTab: View {
 
 @MainActor
 struct AppearanceTab: View {
-    @Binding var popupStyle: String
     @Binding var theme: String
-    @Binding var popupSize: String
     
     private var mockContext: ActionContext {
         let app = NSRunningApplication.current
@@ -716,31 +712,6 @@ struct TransformGroupRowView: View {
     }
 }
 
-struct CustomActionBadge: View {
-    let type: CustomActionType
-    
-    var body: some View {
-        switch type {
-        case .webSearch:
-            Text("Web Search")
-                .font(.caption2)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Capsule().fill(Color.purple.opacity(0.15)))
-                .foregroundColor(.purple)
-        case .textSnippet:
-            Text("Snippet")
-                .font(.caption2)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Capsule().fill(Color.green.opacity(0.15)))
-                .foregroundColor(.green)
-        case .shellScript:
-            EmptyView()
-        }
-    }
-}
-
 @MainActor
 struct AboutTab: View {
     var body: some View {
@@ -753,7 +724,7 @@ struct AboutTab: View {
             VStack(spacing: 4) {
                 Text("OpenClip")
                     .font(.title).bold()
-                Text("Version 1.0.0")
+                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0")")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }

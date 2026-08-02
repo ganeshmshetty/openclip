@@ -14,10 +14,7 @@ private extension ActionContext {
             denyProbe: false,
             denyPreprobe: false,
             grabPasteboard: false,
-            grabKeyboard: false,
-            browserAddressBar: false,
-            assumePaste: false,
-            lenientSelect: false
+            assumePaste: false
         )
         let selection = SelectionContext(
             text: selectedText,

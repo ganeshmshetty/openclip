@@ -11,10 +11,7 @@ final class RuleEngineTests: XCTestCase {
                     "bundle-identifiers": ["com.test.app"],
                     "deny-formatting": true,
                     "grab-pb": true,
-                    "grab-kb": false,
-                    "browser-address-bar": true,
                     "assume-paste": true,
-                    "lenient-select": false,
                     "deny-probe": true,
                     "deny-preprobe": false
                 }
@@ -30,10 +27,7 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(rule.bundleIdentifiers, ["com.test.app"])
         XCTAssertEqual(rule.denyFormatting, true)
         XCTAssertEqual(rule.grabPasteboard, true)
-        XCTAssertEqual(rule.grabKeyboard, false)
-        XCTAssertEqual(rule.browserAddressBar, true)
         XCTAssertEqual(rule.assumePaste, true)
-        XCTAssertEqual(rule.lenientSelect, false)
         XCTAssertEqual(rule.denyProbe, true)
         XCTAssertEqual(rule.denyPreprobe, false)
     }
@@ -65,7 +59,7 @@ final class RuleEngineTests: XCTestCase {
                 },
                 {
                     "bundle-identifiers": [":arc-group:"],
-                    "lenient-select": true
+                    "assume-paste": true
                 }
             ]
         }
@@ -101,7 +95,7 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(firefoxContext.denyProbe, true)
         
         let arcContext = RuleEngine.shared.resolvePolicies(for: "company.thebrowser.Browser")
-        XCTAssertEqual(arcContext.lenientSelect, true)
+        XCTAssertEqual(arcContext.assumePaste, true)
         
         try FileManager.default.removeItem(at: tempURL)
     }

@@ -96,10 +96,7 @@ public final class RuleEngine: ObservableObject, Sendable {
                 denyProbe: rule.denyProbe,
                 denyPreprobe: rule.denyPreprobe,
                 grabPasteboard: rule.grabPasteboard,
-                grabKeyboard: rule.grabKeyboard,
-                browserAddressBar: rule.browserAddressBar,
-                assumePaste: rule.assumePaste,
-                lenientSelect: rule.lenientSelect
+                assumePaste: rule.assumePaste
             )
         }
     }
@@ -114,10 +111,7 @@ public final class RuleEngine: ObservableObject, Sendable {
                     denyProbe: rule.denyProbe ?? context.denyProbe,
                     denyPreprobe: rule.denyPreprobe ?? context.denyPreprobe,
                     grabPasteboard: rule.grabPasteboard ?? context.grabPasteboard,
-                    grabKeyboard: rule.grabKeyboard ?? context.grabKeyboard,
-                    browserAddressBar: rule.browserAddressBar ?? context.browserAddressBar,
-                    assumePaste: rule.assumePaste ?? context.assumePaste,
-                    lenientSelect: rule.lenientSelect ?? context.lenientSelect
+                    assumePaste: rule.assumePaste ?? context.assumePaste
                 )
             }
         }
@@ -138,8 +132,7 @@ public final class RuleEngine: ObservableObject, Sendable {
     public static let defaultRules: [AppRule] = [
         AppRule(
             bundleIdentifiers: ["com.jetbrains.*", "com.apple.Terminal", "com.sublimetext.*"],
-            denyFormatting: true,
-            grabKeyboard: true
+            denyFormatting: true
         ),
         AppRule(
             bundleIdentifiers: ["md.obsidian", "com.skype.skype", "com.evernote.Evernote"],

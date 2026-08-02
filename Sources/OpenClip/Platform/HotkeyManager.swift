@@ -20,6 +20,8 @@ public final class HotkeyManager {
     public func setup(popupController: PopupWindowController) {
         KeyboardShortcuts.onKeyUp(for: .togglePopup) { [weak popupController] in
             Task { @MainActor in
+                guard DefaultSettingsStore.shared.get(.isAppEnabled) else { return }
+                
                 let retriever = MacTextRetriever()
                 let frontApp = NSWorkspace.shared.frontmostApplication ?? NSRunningApplication.current
                 let policy = await RuleEngine.shared.resolvePolicies(for: frontApp.bundleIdentifier ?? "")

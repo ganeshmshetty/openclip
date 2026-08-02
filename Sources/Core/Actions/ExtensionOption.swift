@@ -38,7 +38,7 @@ public struct ExtensionOption: Identifiable, Codable, Sendable {
         case identifier
         case label
         case type
-        case defaultValue = "default value"
+        case defaultValue = "default"
         case options
     }
 }

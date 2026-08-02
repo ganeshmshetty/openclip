@@ -137,10 +137,7 @@ private struct AppRuleRowView: View {
                         denyProbe: enabled ? nil : true,
                         denyPreprobe: enabled ? nil : true,
                         grabPasteboard: rule.grabPasteboard,
-                        grabKeyboard: rule.grabKeyboard,
-                        browserAddressBar: rule.browserAddressBar,
-                        assumePaste: rule.assumePaste,
-                        lenientSelect: rule.lenientSelect
+                        assumePaste: rule.assumePaste
                     )
                     onUpdate(newRule)
                 }
@@ -160,10 +157,7 @@ private struct AppRuleRowView: View {
                         denyProbe: newDisableState ? true : nil,
                         denyPreprobe: newDisableState ? true : nil,
                         grabPasteboard: rule.grabPasteboard,
-                        grabKeyboard: rule.grabKeyboard,
-                        browserAddressBar: rule.browserAddressBar,
-                        assumePaste: rule.assumePaste,
-                        lenientSelect: rule.lenientSelect
+                        assumePaste: rule.assumePaste
                     )
                     onUpdate(updated)
                 } label: {
@@ -180,10 +174,7 @@ private struct AppRuleRowView: View {
                         denyProbe: rule.denyProbe,
                         denyPreprobe: rule.denyPreprobe,
                         grabPasteboard: rule.grabPasteboard,
-                        grabKeyboard: rule.grabKeyboard,
-                        browserAddressBar: rule.browserAddressBar,
-                        assumePaste: rule.assumePaste,
-                        lenientSelect: rule.lenientSelect
+                        assumePaste: rule.assumePaste
                     )
                     onUpdate(updated)
                 } label: {
@@ -200,10 +191,7 @@ private struct AppRuleRowView: View {
                         denyProbe: rule.denyProbe,
                         denyPreprobe: rule.denyPreprobe,
                         grabPasteboard: isClipboardForced ? nil : true,
-                        grabKeyboard: rule.grabKeyboard,
-                        browserAddressBar: rule.browserAddressBar,
-                        assumePaste: rule.assumePaste,
-                        lenientSelect: rule.lenientSelect
+                        assumePaste: rule.assumePaste
                     )
                     onUpdate(updated)
                 } label: {

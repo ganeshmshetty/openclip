@@ -40,8 +40,6 @@ targets:
     dependencies:
       - target: Core
       - package: KeyboardShortcuts
-      - package: Defaults
-      - package: Sparkle
       - package: SDWebImageSwiftUI
       - package: SDWebImageSVGCoder
   OpenClipTests:
@@ -59,12 +57,6 @@ targets:
 packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
-    from: 2.0.0
-  Defaults:
-    url: https://github.com/sindresorhus/Defaults
-    from: 8.0.0
-  Sparkle:
-    url: https://github.com/sparkle-project/Sparkle
     from: 2.0.0
   SDWebImageSwiftUI:
     url: https://github.com/SDWebImage/SDWebImageSwiftUI

@@ -17,8 +17,7 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
  "com.apple.Terminal",
  "com.sublimetext.*"
  ],
- "deny-formatting": true,
- "grab-kb": true
+ "deny-formatting": true
  },
  {
  "bundle-identifiers": [
@@ -32,7 +31,7 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
  "bundle-identifiers": [
  ":chromium-group:"
  ],
- "browser-address-bar": true
+ "assume-paste": true
  }
  ]
 }
@@ -47,10 +46,7 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 | `bundle-identifiers` | `bundleIdentifiers` | Array | Target application bundle ID strings, wildcards, or group aliases. |
 | `deny-formatting` | `denyFormatting` | Bool | When `true`, suppresses text case transformations (e.g. UPPERCASE) in IDEs/Terminals. |
 | `grab-pb` | `grabPasteboard` | Bool | When `true`, opts into using `Cmd+C` pasteboard copy fallback for apps without AX selection support. |
-| `grab-kb` | `grabKeyboard` | Bool | When `true`, listens for keyboard selection events. |
-| `browser-address-bar` | `browserAddressBar` | Bool | Handles selection detection inside web browser address bars. |
 | `assume-paste` | `assumePaste` | Bool | Assumes text replacement should be performed via paste event simulation. |
-| `lenient-select` | `lenientSelect` | Bool | Relaxes selection boundary checks for custom web views. |
 | `deny-probe` | `denyProbe` | Bool | Prevents active AX element probing. |
 | `deny-preprobe` | `denyPreprobe` | Bool | Prevents background AX pre-probing. |
 

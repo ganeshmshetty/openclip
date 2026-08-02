@@ -2,7 +2,8 @@
 // OpenClip
 //
 // Discovers, loads, and manages installed OpenClip extensions from disk.
-// Uses registration callbacks to register and unregister extension actions without direct singleton coupling to ActionRegistry.
+// Note: registers/unregisters actions via ActionRegistry.shared directly (the
+// onRegister/onUnregister callback seam described in docs is not yet implemented).
 import Foundation
 
 public struct ExtensionOptionMetadata: Sendable, Codable {
@@ -169,11 +170,18 @@ public final class ExtensionManager: Sendable {
             let packageURL = stagedItems.first {
                 var d: ObjCBool = false
                 fm.fileExists(atPath: $0.path, isDirectory: &d)
-                return d.boolValue
+                return d.boolValue && Constants.isPathSafe(destinationURL: $0, baseDirectory: stagingDir)
             } ?? stagingDir
+
+            guard Constants.isPathSafe(destinationURL: packageURL, baseDirectory: stagingDir) else {
+                throw NSError(domain: "ExtensionManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Archive contains an unsafe path."])
+            }
 
             let folderName = packageURL.lastPathComponent
             destinationURL = targetDir.appendingPathComponent(folderName)
+            guard Constants.isPathSafe(destinationURL: destinationURL, baseDirectory: targetDir) else {
+                throw NSError(domain: "ExtensionManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Archive destination is unsafe."])
+            }
             if fm.fileExists(atPath: destinationURL.path) {
                 try fm.removeItem(at: destinationURL)
             }
@@ -218,8 +226,11 @@ public final class ExtensionManager: Sendable {
                     let manifestURL = itemURL.appendingPathComponent(fname)
                     if let data = try? Data(contentsOf: manifestURL),
                        let meta = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) {
-                        // actionID starts with manifest identifier
-                        if actionID.hasPrefix(meta.identifier) || meta.identifier == actionID {
+                        // actionID starts with manifest identifier at a component boundary
+                        // (e.g. "com.openclip.applemusic.action.0" vs "com.openclip.applemusic"),
+                        // so com.foo never matches com.foobar.
+                        let actionIDPrefix = meta.identifier + "."
+                        if actionID == meta.identifier || actionID.hasPrefix(actionIDPrefix) {
                             matched = true
                         }
                         break

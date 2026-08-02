@@ -99,6 +99,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                   let downloadURL = URL(string: downloadStr),
                   let extID = params["id"] else { continue }
             
+            guard let host = downloadURL.host?.lowercased(),
+                  RemoteExtensionInstaller.allowedDownloadHosts.contains(host) else {
+                continue
+            }
+            
+            let alert = NSAlert()
+            alert.messageText = "Install Extension?"
+            alert.informativeText = "OpenClip wants to install the extension \"\(extID)\" from \(host). Extensions can run scripts when you select text. Only proceed if you trust this source."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Install")
+            alert.addButton(withTitle: "Cancel")
+            guard alert.runModal() == .alertFirstButtonReturn else { continue }
+            
             Task { @MainActor in
                 _ = try? await RemoteExtensionInstaller.shared.installFromRemoteURL(downloadURL, extensionID: extID)
             }

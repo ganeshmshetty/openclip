@@ -30,7 +30,7 @@ OpenClip Workspace
 ### Core Target Constraints
 - **Zero AppKit / SwiftUI UI dependencies** in `Sources/Core/Actions/` or `Sources/Core/Settings/`.
 - **Pure Swift Types**: Value types, protocols, and decoupled services.
-- **Dependency Injection**: Core components requiring settings accept a `SettingsStore` instance during initialization (defaulting to `DefaultSettingsStore.shared`).
+- **Dependency Injection (target)**: Core components requiring settings should accept a `SettingsStore` instance during initialization (defaulting to `DefaultSettingsStore.shared`). Note: builtin actions (`CalculateAction`, `CalendarAction`, `SearchAction`) currently read `DefaultSettingsStore.shared` directly rather than via an injected store.
 
 ---
 
@@ -51,7 +51,7 @@ graph TD
 ### 1. Settings Subsystem — [`SettingsStore`](file:///Users/ganesh/dev/openclip/Sources/Core/Settings/SettingsStore.swift)
 - **Responsibility**: Centralized persistence and retrieval of application settings.
 - **Mechanism**: Operates via strongly-typed [`SettingKey<T>`](file:///Users/ganesh/dev/openclip/Sources/Core/Settings/SettingKey.swift) instances.
-- **Strict Rule**: Zero direct `UserDefaults.standard` calls anywhere in `Sources/`. All access goes through `SettingsStore` in Core via dependency injection or `DefaultSettingsStore.shared` in the App target.
+- **Strict Rule**: Zero direct `UserDefaults.standard` calls anywhere in `Sources/`. All access goes through `SettingsStore` in Core via dependency injection or `DefaultSettingsStore.shared` in the App target. (Note: ~13 App-target call sites still use `UserDefaults.standard` directly; migrating them is an ongoing effort — do not add new ones.) Secrets (e.g. the cloud AI API key) live in the Keychain via `KeychainStore`, never UserDefaults.
 
 ### 2. Action Presentation — [`ActionPresentation`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionPresentation.swift)
 - **Responsibility**: Resolves display titles and icons for specific UI surfaces (`.popup` or `.table`).
@@ -77,15 +77,15 @@ graph TD
 
 ### 6. Action Coordinator & Composition — [`ActionCoordinator`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionCoordinator.swift)
 - **Responsibility**: Orchestrates initial state loading, registers builtins, and connects custom actions and extensions to the central `ActionRegistry`.
-- **Strict Rule**: `CustomActionManager` and `ExtensionManager` do not couple directly to singletons; they register/unregister actions through `ActionRegistry` via `ActionCoordinator`.
+- **Strict Rule (target)**: `CustomActionManager` and `ExtensionManager` should not couple directly to singletons; they register/unregister actions through `ActionRegistry` via `ActionCoordinator`. (Note: the callback seam is not implemented yet — both managers currently call `ActionRegistry.shared` directly.)
 
 ---
 
 ## Key Design Guidelines
 
-1. **Accept dependencies, don't create them**: Core types accept `SettingsStore` in `init(settingsStore:)` with default fallback.
-2. **No `ActionRegistry.shared` inside domain managers**: Domain managers use explicit callbacks or registration functions invoked by `ActionCoordinator`.
-3. **No `switch action.id` string matching in UI**: Display formatting relies on `ConfigurableAction.preferenceIconName` and `ActionChrome`.
-4. **Transform Policy Centralization**: `TransformCase.defaultDisabledActionIDs` controls default-on and default-off text case transformation actions.
-5. **Pure Snippet Parsing**: `OpenClipSnippetParser` is a pure string parser with no UI or `@MainActor` ties.
+1. **Accept dependencies, don't create them**: Core types accept `SettingsStore` in `init(settingsStore:)` with default fallback. (Current builtin actions read `DefaultSettingsStore.shared` directly — see §1 above.)
+2. **No `ActionRegistry.shared` inside domain managers**: Domain managers use explicit callbacks or registration functions invoked by `ActionCoordinator`. (Note: not implemented yet — `CustomActionManager`/`ExtensionManager` call `ActionRegistry.shared` directly.)
+3. **No `switch action.id` string matching in UI**: Display formatting relies on `ConfigurableAction.preferenceIconName` and `ActionChrome`. (One legacy `switch action.id` block remains in `ActionCustomizationManager.tableIcon`.)
+4. **Transform Policy Centralization**: Default-on/off transform actions should live on `TransformCase`. (Note: `TransformCase.defaultDisabledActionIDs` does not exist yet; the policy is currently hardcoded in `ActionRegistry.availableActions`.)
+5. **Pure Snippet Parsing**: `OpenClipSnippetParser` is a pure string parser with no UI or `@MainActor` ties. (Note: it is currently annotated `@MainActor`.)
 6. **Pure Layout Math**: `PopupPositioner` is a pure static struct for computing panel coordinates and edge clamping.

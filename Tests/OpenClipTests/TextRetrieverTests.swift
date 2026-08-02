@@ -34,7 +34,7 @@ final class TextRetrieverTests: XCTestCase {
             NSPasteboard.general.setString("FastMockedSelection", forType: .string)
         }
         
-        let policy = AppPolicyContext(denyFormatting: false, denyProbe: false, denyPreprobe: false, grabPasteboard: true, grabKeyboard: false, browserAddressBar: false, assumePaste: false, lenientSelect: false)
+        let policy = AppPolicyContext(denyFormatting: false, denyProbe: false, denyPreprobe: false, grabPasteboard: true, assumePaste: false)
         
         let startTime = Date()
         let text = await retriever.retrieveText(for: currentApp, policy: policy)

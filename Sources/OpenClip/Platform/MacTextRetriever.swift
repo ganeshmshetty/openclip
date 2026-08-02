@@ -1,7 +1,7 @@
 // MacTextRetriever.swift
 // OpenClip
 //
-// Retrieves selected text from active macOS applications using AXUIElement accessibility APIs and copy simulation fallbacks.
+// Retrieves selected text from active macOS applications using AXUIElement accessibility APIs and pasteboard fallbacks.
 import AppKit
 import ApplicationServices
 import Foundation
@@ -10,12 +10,10 @@ import os
 
 // MARK: - MacTextRetriever
 
-/// Retrieves selected text from macOS applications using a three-strategy chain:
+/// Retrieves selected text from macOS applications using a two-strategy chain:
 /// 1. Accessibility (AX) direct attribute read – fastest, no side effects.
-/// 2. Menu-action Copy – presses the "Copy" item in the frontmost app's Edit menu,
-///    then polls the pasteboard; saves and restores original pasteboard contents.
-/// 3. Keyboard shortcut Cmd+C – fallback; mutes system beep, polls pasteboard;
-///    saves and restores original pasteboard contents.
+/// 2. Safari JS selection read (Safari AX can be delayed).
+/// Apps explicitly opted-in via `grabPasteboard` policy use a Cmd+C keystroke fallback.
 internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
     private let logger = Logger(subsystem: "com.openclip", category: "MacTextRetriever")
@@ -134,100 +132,6 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                 continuation.resume(returning: TextResult(text: text, bounds: bounds))
             }
         }
-    }
-
-    // MARK: - Strategy 2: Menu-Action Copy
-
-    /// Locate the enabled "Copy" item in the frontmost application's AX menu bar,
-    /// press it, then poll the pasteboard for a change.
-    /// Saves and restores all pasteboard items around the operation.
-    @MainActor
-    private func strategyMenuActionCopy() async -> String? {
-        guard let copyItem = findEnabledCopyMenuItem() else {
-            logger.debug("Menu strategy: no enabled Copy menu item found")
-            return nil
-        }
-        logger.debug("Menu strategy: found enabled Copy menu item, pressing it")
-        return await fetchPasteboardText(timeout: 0.3) {
-            AXUIElementPerformAction(copyItem, kAXPressAction as CFString)
-        }
-    }
-
-    /// Walk the frontmost application's AX menu bar looking for an enabled "Copy" item.
-    /// Mirrors `AXManager.findEnabledMenuItem(.copy)` from SelectedTextKit.
-    @MainActor
-    private func findEnabledCopyMenuItem() -> AXUIElement? {
-        guard let frontApp = NSWorkspace.shared.frontmostApplication else { return nil }
-        let pid = frontApp.processIdentifier
-        let appElement = AXUIElementCreateApplication(pid)
-
-        // Get the menu bar
-        var menuBarRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            appElement,
-            kAXMenuBarAttribute as CFString,
-            &menuBarRef
-        ) == .success, let menuBarRef else { return nil }
-        let menuBar = menuBarRef as! AXUIElement
-
-        // Iterate top-level menus (File, Edit, View, …)
-        var childrenRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            menuBar,
-            kAXChildrenAttribute as CFString,
-            &childrenRef
-        ) == .success, let childrenRef else { return nil }
-
-        let topMenus = childrenRef as! [AXUIElement]
-        for menu in topMenus {
-            if let copyItem = searchForCopyItem(in: menu) {
-                return copyItem
-            }
-        }
-        return nil
-    }
-
-    /// Recursively search an AX menu element for an enabled item whose title is "Copy".
-    private func searchForCopyItem(in element: AXUIElement) -> AXUIElement? {
-        // Check if this element itself is the Copy item
-        if isCopyItem(element), isEnabled(element) {
-            return element
-        }
-
-        // Descend into children
-        var childrenRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            element,
-            kAXChildrenAttribute as CFString,
-            &childrenRef
-        ) == .success, let childrenRef else { return nil }
-
-        for child in (childrenRef as! [AXUIElement]) {
-            if let found = searchForCopyItem(in: child) {
-                return found
-            }
-        }
-        return nil
-    }
-
-    private func isCopyItem(_ element: AXUIElement) -> Bool {
-        var titleRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            element,
-            kAXTitleAttribute as CFString,
-            &titleRef
-        ) == .success, let title = titleRef as? String else { return false }
-        return title == "Copy"
-    }
-
-    private func isEnabled(_ element: AXUIElement) -> Bool {
-        var enabledRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            element,
-            kAXEnabledAttribute as CFString,
-            &enabledRef
-        ) == .success, let enabled = enabledRef as? Bool else { return false }
-        return enabled
     }
 
     // MARK: - Strategy 3: Keyboard Shortcut (Cmd+C)

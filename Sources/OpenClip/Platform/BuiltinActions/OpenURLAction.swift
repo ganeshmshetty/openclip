@@ -30,10 +30,11 @@ public struct OpenURLAction: Action {
         return .failure(NSError(domain: Constants.actionErrorDomain, code: Constants.actionErrorCode, userInfo: nil))
     }
     
+    private static let linkDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    
     private func extractURL(from text: String) -> URL? {
         let textToScan = String(text.prefix(Constants.maxURLScanLength))
-        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-        let matches = detector?.matches(in: textToScan, options: [], range: NSRange(location: 0, length: textToScan.utf16.count))
+        let matches = Self.linkDetector?.matches(in: textToScan, options: [], range: NSRange(location: 0, length: textToScan.utf16.count))
         return matches?.first?.url
     }
 }

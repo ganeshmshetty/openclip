@@ -38,7 +38,7 @@ public struct DefineAction: ConfigurableAction {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+        if let encoded = text.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed),
            let url = URL(string: "dict://\(encoded)") {
             return .openURL(url)
         }

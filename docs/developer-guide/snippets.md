@@ -6,9 +6,9 @@ In addition to `.openclipext` package directories, OpenClip supports **standalon
 
 ## Parser Architecture & Design Constraints
 
-- **Pure Text Parser**: `OpenClipSnippetParser` operates purely on string content and line scanning.
-- **Zero UI Dependencies**: Free of AppKit, SwiftUI, or `@MainActor` main-thread constraints.
-- **Detached Execution**: Executed safely in background threads during directory scanning.
+- **Text Parser**: `OpenClipSnippetParser` operates purely on string content and line scanning.
+- **Zero UI Dependencies**: Free of AppKit and SwiftUI.
+- **Current limitation**: The parser is annotated `@MainActor`, which forces main-actor hops during extension directory scanning. Removing the annotation is planned but not done; treat it as a pure string parser conceptually.
 
 ---
 
@@ -80,5 +80,5 @@ The parser extracts key-value metadata matching the following recognized keys:
 
 1. **Header Line Scanning**: Scans up to `Constants.maxHeaderLinesToScan` lines for header comment prefixes (`//`, `#`, `//openclip`, `#openclip`).
 2. **Key-Value Splitting**: Splits line on the first colon (`:`).
-3. **Multiline Body Mode**: When a runtime key (`url`, `javascript`, `applescript`, `shell script`) is encountered without inline content, subsequent lines are accumulated as the script body string.
+3. **Multiline Body Mode**: When a runtime key (`url`, `javascript`, `applescript`, `shell script`) is encountered without inline content, subsequent lines are accumulated as the script body string. Body mode only ends when a `#`-prefixed recognized header key appears (e.g. a later `# Icon:` line); `//`-prefixed lines and everything else stay part of the body — this preserves JS comments and URLs containing `#` fragments.
 4. **Action Instantiation**: The parsed tuple `(ExtensionMetadata, ExtensionActionMetadata)` is passed to `DefaultActionFactory` to instantiate the runtime action.

@@ -66,23 +66,55 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
                 let pipe = Pipe()
                 process.standardOutput = pipe
                 
+                let once = OnceGate()
+                let resume: @Sendable (Result<ActionResult, Error>) -> Void = { result in
+                    guard once.claim() else { return }
+                    switch result {
+                    case .success(let value): continuation.resume(returning: value)
+                    case .failure(let error): continuation.resume(throwing: error)
+                    }
+                }
+                
                 process.terminationHandler = { p in
                     let data = pipe.fileHandleForReading.readDataToEndOfFile()
                     let output = String(data: data, encoding: .utf8) ?? ""
                     
                     if replaceSelection {
-                        continuation.resume(returning: .paste(output)) // mapped from replaceSelection(output)
+                        resume(.success(.paste(output)))
                     } else {
-                        continuation.resume(returning: .copy(output)) // mapped from copyToClipboard(output)
+                        resume(.success(.copy(output)))
                     }
                 }
                 
                 do {
                     try process.run()
                 } catch {
-                    continuation.resume(throwing: error)
+                    resume(.failure(error))
+                    return
+                }
+                
+                // Watchdog: kill the script if it exceeds the runtime budget so the popup never spins forever.
+                let timeout = Constants.scriptTimeout
+                DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { [weak process] in
+                    if process?.isRunning == true {
+                        process?.terminate()
+                    }
                 }
             }
         }
+    }
+}
+
+/// Thread-safe guard that allows exactly one caller to proceed.
+private final class OnceGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var claimed = false
+
+    func claim() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !claimed else { return false }
+        claimed = true
+        return true
     }
 }

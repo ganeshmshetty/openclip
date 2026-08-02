@@ -25,7 +25,7 @@ public struct ScriptAction: Action {
     public func isEnabled(for context: ActionContext) -> Bool {
         // Scripts usually need some text, but could be general. We'll enable if there is any selection.
         // In a more robust system, we would check the manifest's requirements.
-        return true 
+        return !context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     @MainActor
@@ -44,7 +44,6 @@ public struct ScriptAction: Action {
             
             var env = ProcessInfo.processInfo.environment
             env[Constants.envVarText] = text
-            env["OPENCLIP_TEXT"] = text
             process.environment = env
             
             let stdOutPipe = Pipe()
@@ -57,6 +56,15 @@ public struct ScriptAction: Action {
             process.standardInput = stdInPipe
             
             try process.run()
+            
+            // Watchdog: kill the script if it exceeds the runtime budget so the popup never spins forever.
+            let timeoutTask = Task.detached { [weak process] in
+                try? await Task.sleep(nanoseconds: UInt64(Constants.scriptTimeout * 1_000_000_000))
+                if process?.isRunning == true {
+                    process?.terminate()
+                }
+            }
+            defer { timeoutTask.cancel() }
             
             let writeTask = Task.detached {
                 defer { try? stdInPipe.fileHandleForWriting.close() }

@@ -40,7 +40,6 @@ public struct PopupView: View {
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
     @State private var isShowingCompletions: Bool = true
     @State private var isShowingAIMode: Bool = false
-    @State private var aiOverlay: AIOverlayState? = nil
     @State private var isProcessingAI: Bool = false
     @State private var aiTask: Task<Void, Never>? = nil
     /// Captured once when the popup appears — never re-read from mouse location to avoid jitter.
@@ -131,7 +130,7 @@ public struct PopupView: View {
             .onReceive(hoverState.$location) { location in
                 updateHoveredTarget(for: location)
             }
-            .onChange(of: aiOverlay != nil || isProcessingAI) { active in
+            .onChange(of: isProcessingAI) { active in
                 onAIStateChange?(active, aiCardAboveBar)
             }
             .onDisappear {
@@ -217,53 +216,6 @@ public struct PopupView: View {
                         glowOffset = 1.0
                     }
                 }
-        }
-    }
-
-    @ViewBuilder
-    private var aiSubCard: some View {
-        if isProcessingAI {
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Working…")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer(minLength: 0)
-                Button("Cancel") {
-                    cancelAITask()
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(minWidth: 200)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-            )
-        } else if let overlay = aiOverlay {
-            AIResultOverlayView(
-                resultText: overlay.text,
-                isError: overlay.isError,
-                onReplace: {
-                    onResult(.paste(overlay.text))
-                    clearAIOverlay()
-                },
-                onCopy: {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(overlay.text, forType: .string)
-                    clearAIOverlay()
-                },
-                onClose: {
-                    clearAIOverlay()
-                }
-            )
         }
     }
 
@@ -382,10 +334,6 @@ public struct PopupView: View {
         aiTask?.cancel()
         aiTask = nil
         isProcessingAI = false
-    }
-
-    private func clearAIOverlay() {
-        onAIDismiss?()
     }
 
     // MARK: - Completion Mode Bar Layout
@@ -708,11 +656,6 @@ private enum PopupHoverTarget: Hashable {
     case chevron
     case sparkles
     case aiPreset(Int)
-}
-
-private struct AIOverlayState: Equatable {
-    let text: String
-    let isError: Bool
 }
 
 private struct PopupHoverFramePreferenceKey: PreferenceKey {

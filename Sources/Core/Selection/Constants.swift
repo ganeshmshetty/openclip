@@ -20,10 +20,18 @@ public enum Constants {
     public static let popupPadding: CGFloat = 8.0
     public static let popupDismissalDistance: CGFloat = 280.0
     public static let isAppEnabledKey: String = "isAppEnabled"
-    public static let searchURLTemplate: String = "https://www.google.com/search?q=%@"
     public static let maxURLScanLength: Int = 2000
     public static let actionErrorDomain: String = "OpenClip.ActionError"
     public static let actionErrorCode: Int = 1
+
+    /// Query-value encoding charset that escapes `&`, `=`, `+`, `?`, `#`, etc.
+    /// (stricter than `.urlQueryAllowed`, which leaves those characters unescaped
+    /// and corrupts URLs built from user-selected text).
+    public static var queryValueAllowed: CharacterSet {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: ":#[]@!$&'()*+,;=?")
+        return allowed
+    }
     
     public static let symbolPrefix: String = "symbol("
     public static let symbolSuffix: String = ")"
@@ -58,11 +66,24 @@ public enum Constants {
     
     public static let envVarText: String = "OPENCLIP_TEXT"
     public static let maxHeaderLinesToScan: Int = 50
+
+    /// Maximum wall-clock runtime for shell/AppleScript/JS subprocess actions before they are killed,
+    /// preventing a hanging script from leaving the popup spinning forever.
+    public static let scriptTimeout: TimeInterval = 30
+
+    /// Guards against zip-slip path traversal: true only when `destinationURL`
+    /// resolves to a path equal to or strictly inside `baseDirectory`.
+    public static func isPathSafe(destinationURL: URL, baseDirectory: URL) -> Bool {
+        let destPath = (destinationURL.path as NSString).standardizingPath
+        let basePath = (baseDirectory.path as NSString).standardizingPath
+        guard destPath.hasPrefix(basePath) else { return false }
+        // Ensure the next character is a separator so /foo/bar doesn't accept /foo/bar2
+        let remainder = destPath.dropFirst(basePath.count)
+        if remainder.isEmpty { return true }
+        return remainder.hasPrefix("/")
+    }
     
     // Preferences Keys
     public static let disabledActionIDsKey: String = "disabledActionIDs"
     public static let startAtLoginKey: String = "startAtLogin"
-    public static let popupStyleKey: String = "popupStyle"
-    public static let themeKey: String = "theme"
-    public static let popupSizeKey: String = "popupSize"
 }
