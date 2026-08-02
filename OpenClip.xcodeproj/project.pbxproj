@@ -87,6 +87,7 @@
 		8D96F0F84D1CFC88E268B2AA /* ActionAppearanceFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4284E18DE06D8BB8FF933E15 /* ActionAppearanceFields.swift */; };
 		8DFC838BDE16FA27F0C19FBB /* AppIdentifying.swift in Sources */ = {isa = PBXBuildFile; fileRef = 556EAA8E99BA35061EE49D9F /* AppIdentifying.swift */; };
 		906E3948E1B975EE9BDA5AF3 /* JavaScriptAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58D8C54121CAFC913E8B4110 /* JavaScriptAction.swift */; };
+		926C459D71E49552DDA18213 /* ExtensionActionKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D6647CFD7D6335D40B4D59 /* ExtensionActionKind.swift */; };
 		931C4F5EE750BAEDE698CEA9 /* ExtensionsAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AF4CBDEB80089C9FBCE3836 /* ExtensionsAPITests.swift */; };
 		9495A826AD2E0BB4ED448280 /* TextRetrieverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49648502F040834635BBD8ED /* TextRetrieverTests.swift */; };
 		94B3C1F1B49D3696A9059021 /* UnifiedIconProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD6C339B374DBE3884DA21E9 /* UnifiedIconProvider.swift */; };
@@ -100,6 +101,7 @@
 		9B2C92B98C80BB5FCC596CC3 /* ExtensionsStoreIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA880751E87F795D5A87C8F /* ExtensionsStoreIntegrationTests.swift */; };
 		A4AA5D75C5B376BBCE5B9463 /* CustomActionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA945F176CA85C590C8CCF4 /* CustomActionManager.swift */; };
 		A4B07F7C0AA32D61F32510D5 /* DynamicActionConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3675FDD7BC06CF3B3CBDA003 /* DynamicActionConfigView.swift */; };
+		A571B116559543251679E39F /* ExtensionManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 704D6BE45F2AF94603F2FA07 /* ExtensionManifest.swift */; };
 		A68E3E6C2500AB9707C47DBD /* ActionChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108E36CD124AAFD86FD11118 /* ActionChrome.swift */; };
 		AA4C8F95DCFD439591C9FA05 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E803385A2D8E9D1D257F00 /* Constants.swift */; };
 		AE8C8312A2C5B67FCF938E4E /* SettingKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1830B25888AE1D0532D00813 /* SettingKey.swift */; };
@@ -238,6 +240,7 @@
 		69B38B060F52BA3AAA63B8C8 /* ActionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionPresentation.swift; sourceTree = "<group>"; };
 		6A9596443229B1173DAB2434 /* ExtensionsStoreViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsStoreViewTests.swift; sourceTree = "<group>"; };
 		6BCD81A735F9A377FDE4DB32 /* DefineActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefineActionTests.swift; sourceTree = "<group>"; };
+		704D6BE45F2AF94603F2FA07 /* ExtensionManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionManifest.swift; sourceTree = "<group>"; };
 		738CD300B1AEB0E382F8435B /* ServicesAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesAction.swift; sourceTree = "<group>"; };
 		74377A23CADC86774742A0BD /* InstalledAppsScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledAppsScannerTests.swift; sourceTree = "<group>"; };
 		750ADA88A976EEF10B2481E2 /* AppFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFilter.swift; sourceTree = "<group>"; };
@@ -269,6 +272,7 @@
 		AE8874EAC1123657CDB78D06 /* TextPlaceholderEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextPlaceholderEngine.swift; sourceTree = "<group>"; };
 		AE88AFD0FAB1C8989D5CE6C6 /* SelectionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionCoordinatorTests.swift; sourceTree = "<group>"; };
 		AF5D851B09CA25A4A497F0C7 /* AppFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFilterTests.swift; sourceTree = "<group>"; };
+		B0D6647CFD7D6335D40B4D59 /* ExtensionActionKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionActionKind.swift; sourceTree = "<group>"; };
 		B603C28D161A795066B85A89 /* LaunchAtLoginManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManagerTests.swift; sourceTree = "<group>"; };
 		B704F280421B7F41B35BB7C9 /* ExtensionsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsModels.swift; sourceTree = "<group>"; };
 		B7534A2D6FD5368B237CB5C5 /* ExtensionOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionOption.swift; sourceTree = "<group>"; };
@@ -460,8 +464,18 @@
 				B704F280421B7F41B35BB7C9 /* ExtensionsModels.swift */,
 				0433AD358F1B636910C66094 /* OpenClipSnippetParser.swift */,
 				2F9C20B7C7D633121BA39CDA /* ScriptAction.swift */,
+				53A7A2F504A7BB9CEA874FDD /* Manifest */,
 			);
 			path = Extensions;
+			sourceTree = "<group>";
+		};
+		53A7A2F504A7BB9CEA874FDD /* Manifest */ = {
+			isa = PBXGroup;
+			children = (
+				B0D6647CFD7D6335D40B4D59 /* ExtensionActionKind.swift */,
+				704D6BE45F2AF94603F2FA07 /* ExtensionManifest.swift */,
+			);
+			path = Manifest;
 			sourceTree = "<group>";
 		};
 		57AD04DA94DC729E76272AFE /* Settings */ = {
@@ -825,7 +839,9 @@
 				A4AA5D75C5B376BBCE5B9463 /* CustomActionManager.swift in Sources */,
 				4AB80D47D3E30B72061B9910 /* CutAction.swift in Sources */,
 				6EC03FC169D6016DF45D4632 /* DefineAction.swift in Sources */,
+				926C459D71E49552DDA18213 /* ExtensionActionKind.swift in Sources */,
 				6BDAAEBA357BE286266250A6 /* ExtensionManager.swift in Sources */,
+				A571B116559543251679E39F /* ExtensionManifest.swift in Sources */,
 				4F04EDDEE2B8E5135E1E9B5B /* ExtensionOption.swift in Sources */,
 				714F641630B8C17979890D5C /* ExtensionsAPIClient.swift in Sources */,
 				8A76237BE8A09680AB8B3350 /* ExtensionsModels.swift in Sources */,
