@@ -10,8 +10,8 @@
 **OpenClip** is a lightweight, high-performance macOS floating popup utility written in Swift (macOS 14.0+). It intercepts selected text, presents contextual text manipulation actions (copy, cut, paste, definition lookups, web searches, scripts, extensions), and executes platform side-effects seamlessly.
 
 - **Targets:**
-  - `Core` (Framework / Swift Package): Pure domain models, actions, settings, and extension manifest parsers.
-  - `OpenClip` (macOS App): AppKit floating panels (`PopupPanel`), SwiftUI views, platform side-effect handlers, and composition root.
+  - `Core` (Framework / Swift Package): Pure domain models, actions, rules, selection logic, settings, and extension manifest parsers.
+  - `OpenClip` (macOS App): AppKit floating panels (`PopupPanel`), SwiftUI views, platform side-effect handlers, AI providers, and composition root.
   - `OpenClipTests` (XCTest Suite): Unit and integration tests for Core and OpenClip targets.
 
 ---
@@ -67,43 +67,101 @@ OpenClip enforces a strict single-responsibility architecture. Do NOT layer or b
 
 ---
 
-## 4. Codebase Directory Structure
+## 4. Accurate Codebase Directory Structure
 
 ```text
 Sources/
-├── Core/                                     # Domain Logic (Pure Swift)
+├── Core/                                     # Domain Logic (Pure Swift Target)
 │   ├── Actions/
 │   │   ├── Action.swift                      # Action protocol
-│   │   ├── ActionChrome.swift                # UI metadata policy
+│   │   ├── ActionChrome.swift                # UI metadata policy enum
+│   │   ├── ActionContext.swift               # Action resolution context
+│   │   ├── ActionCoordinator.swift           # Action execution coordinator
+│   │   ├── ActionCustomizationManager.swift  # User action customization & ordering
 │   │   ├── ActionPresentation.swift          # Look & styling generator
-│   │   ├── ActionRegistry.swift              # Action registration & resolution
+│   │   ├── ActionRegistry.swift              # Central action registry
+│   │   ├── ActionResult.swift                # Action result value types
+│   │   ├── Builtin/                          # Core builtin actions (Copy, Cut, Paste, etc.)
+│   │   ├── BuiltinRegistry.swift             # Default builtin actions catalog
+│   │   ├── ConfigurableAction.swift          # Configurable action protocol
 │   │   ├── Custom/                           # Custom action draft & repository
 │   │   │   ├── CustomActionDraft.swift
 │   │   │   └── CustomActionRepository.swift
-│   │   └── Builtin/                          # Builtin actions (Copy, Cut, Paste, etc.)
+│   │   ├── CustomAction.swift                # Custom action domain model
+│   │   ├── CustomActionManager.swift         # Custom action manager
+│   │   ├── ExtensionOption.swift             # Extension option models
+│   │   ├── ModifierFlags.swift               # Keyboard modifier flags
+│   │   ├── URLTemplateAction.swift           # Web search / URL template action
+│   │   └── WordCompletionProviding.swift     # Completion provider protocol
 │   ├── Extensions/
-│   │   ├── ExtensionManager.swift            # Extension loader
-│   │   └── Manifest/                         # Manifest data structures
-│   │       ├── ExtensionManifest.swift
-│   │       └── ExtensionActionKind.swift
-│   └── Settings/                             # Settings subsystem
-│       ├── SettingKey.swift                  # Typed setting keys
-│       └── SettingsStore.swift               # Central SettingsStore
-└── OpenClip/                                 # App Target (macOS / AppKit / SwiftUI)
+│   │   ├── ActionFactory.swift               # Action factory protocol
+│   │   ├── ExtensionManager.swift            # Extension loader & catalog
+│   │   ├── ExtensionsAPIClient.swift         # Remote store API client
+│   │   ├── ExtensionsModels.swift            # Store models & DTOs
+│   │   ├── Manifest/                         # Extension manifest structures
+│   │   │   ├── ExtensionActionKind.swift     # Normalized extension kind enum
+│   │   │   └── ExtensionManifest.swift       # Extension manifest decoder
+│   │   ├── OpenClipSnippetParser.swift       # Standalone snippet header parser
+│   │   └── ScriptAction.swift                # Executable script action
+│   ├── Rules/                                # App-specific policy rules
+│   │   ├── AppRule.swift
+│   │   └── RuleEngine.swift
+│   ├── Selection/                            # Text selection & monitoring models
+│   │   ├── AppFilter.swift
+│   │   ├── AppIdentifying.swift
+│   │   ├── Constants.swift
+│   │   ├── SelectionContext.swift
+│   │   ├── SelectionCoordinator.swift
+│   │   ├── SelectionMonitoring.swift
+│   │   └── TextRetrieving.swift
+│   ├── Settings/                             # Settings subsystem
+│   │   ├── SettingKey.swift                  # Strongly-typed setting keys
+│   │   └── SettingsStore.swift               # Central SettingsStore
+│   └── Utils/
+│       └── TextPlaceholderEngine.swift       # Dynamic text template engine
+└── OpenClip/                                 # App Target (macOS App / AppKit / SwiftUI)
+    ├── AI/                                   # AI Assistant & Providers
+    │   ├── AIProvider.swift
+    │   ├── AIServiceManager.swift
+    │   └── Providers/                        # Apple Intelligence, Cloud, Ollama, etc.
+    ├── Actions/                              # Runtime actions requiring AppKit/JavaScript
+    │   ├── AppleScriptAction.swift
+    │   └── JavaScriptAction.swift
     ├── App/
     │   └── AppServices.swift                 # Composition root
-    ├── Platform/
+    ├── AppDelegate.swift                     # macOS App Delegate
+    ├── OpenClipApp.swift                     # SwiftUI App Entrypoint
+    ├── Platform/                             # macOS Platform Services
+    │   ├── BuiltinActions/                   # AppKit platform actions (Services, Finder)
     │   ├── Effects/
     │   │   └── ActionResultHandler.swift     # Platform side-effects handler
-    │   └── Extensions/
-    │       └── DefaultActionFactory.swift    # Action factory implementation
-    └── UI/
+    │   ├── Extensions/
+    │   │   ├── DefaultActionFactory.swift    # Factory implementation
+    │   │   ├── OpenClipSnippetParser+DefaultFactory.swift
+    │   │   └── RemoteExtensionInstaller.swift
+    │   ├── HotkeyManager.swift               # Global shortcut manager
+    │   ├── InstalledAppsScanner.swift        # App scanner
+    │   ├── LaunchAtLoginManager.swift        # Login item manager
+    │   ├── MacSelectionMonitor.swift         # Global accessibility monitor
+    │   ├── MacTextRetriever.swift            # AX / Pasteboard text retriever
+    │   └── PermissionManager.swift           # Accessibility permission manager
+    └── UI/                                   # User Interface (SwiftUI & AppKit Panels)
+        ├── AI/                               # AI result overlay
         ├── Icons/
         │   └── ActionIconView.swift          # Dynamic icon renderer
-        ├── Popup/
-        │   └── PopupWindowController.swift   # Window lifecycle & position manager
-        └── Preferences/
-            └── PreferencesView.swift         # Settings & preferences views
+        ├── Onboarding/                       # First launch onboarding
+        ├── Popup/                            # Floating popup panel
+        │   ├── PopupPanel.swift              # NSPanel subclass
+        │   ├── PopupPositioner.swift         # Frame math & screen clamping
+        │   ├── PopupView.swift               # SwiftUI popup bar
+        │   └── PopupWindowController.swift   # Window lifecycle manager
+        └── Preferences/                      # Settings & preferences views
+            ├── ActionAppearanceFields.swift
+            ├── AddCustomActionSheet.swift
+            ├── DynamicActionConfigView.swift
+            ├── EditActionSheet.swift
+            ├── ExtensionsStoreView.swift
+            └── PreferencesView.swift
 ```
 
 ---
