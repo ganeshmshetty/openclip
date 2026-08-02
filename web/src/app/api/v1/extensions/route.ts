@@ -23,7 +23,28 @@ const BRANCH = 'main';
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/Extensions`;
 const API_TREE_URL = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
 
+// Cache the verified catalog so repeated searches don't hammer GitHub.
+// Keyed by repo/branch; entries expire after a short TTL.
+const CACHE_TTL_MS = 60_000;
+let cachedCatalog: ExtensionItem[] | null = null;
+let cachedAt = 0;
+
+async function headExists(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: 'HEAD', next: { revalidate: 60 } });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function loadExtensionsFromGitHub(): Promise<ExtensionItem[]> {
+  // Serve from cache unless it has expired.
+  const now = Date.now();
+  if (cachedCatalog && now - cachedAt < CACHE_TTL_MS) {
+    return cachedCatalog;
+  }
+
   try {
     const treeRes = await fetch(API_TREE_URL, {
       headers: {
@@ -35,7 +56,7 @@ async function loadExtensionsFromGitHub(): Promise<ExtensionItem[]> {
 
     if (!treeRes.ok) {
       console.warn('GitHub tree fetch failed:', treeRes.status);
-      return [];
+      return cachedCatalog ?? [];
     }
 
     const tree: { tree: { path: string; type: string }[] } = await treeRes.json();
@@ -57,14 +78,25 @@ async function loadExtensionsFromGitHub(): Promise<ExtensionItem[]> {
 
         const data = await res.json();
         const action = data.action || data.actions?.[0] || {};
-        const dirName = node.path.split('/')[1]; // e.g. SearchYouTube.openclipext
+        // Manifest paths look like "Extensions/raw/AppleMusic.openclipext/openclip.json".
+        // The published zip lives next to the raw dir at "Extensions/AppleMusic.openclipext.zip".
+        const pathParts = node.path.split('/');
+        const pkgDir = pathParts.find((part) => part.endsWith('.openclipext')) ?? pathParts[1];
+
+        // The zip filename is the .openclipext folder name + .zip. Verify it actually
+        // exists before exposing it, so the API never returns a 404 download URL.
+        const downloadURL = `${RAW_BASE}/${pkgDir}.zip`;
+        if (!(await headExists(downloadURL))) {
+          console.warn(`Extension zip not found, skipping: ${downloadURL}`);
+          return null;
+        }
 
         return {
           id:
             data.identifier ||
             data.id ||
-            `com.openclip.${dirName.replace('.openclipext', '').toLowerCase()}`,
-          name: data.name || action.title || dirName.replace('.openclipext', ''),
+            `com.openclip.${pkgDir.replace('.openclipext', '').toLowerCase()}`,
+          name: data.name || action.title || pkgDir.replace('.openclipext', ''),
           description:
             data.description ||
             action.description ||
@@ -75,20 +107,24 @@ async function loadExtensionsFromGitHub(): Promise<ExtensionItem[]> {
           icon: action.icon || data.icon || 'puzzlepiece',
           category: data.category || 'productivity',
           downloadCount: 0,
-          downloadURL: `${RAW_BASE}/${dirName}.zip`,
+          downloadURL,
         } as ExtensionItem;
       })
     );
 
-    return results
+    const nextCatalog = results
       .filter(
         (r): r is PromiseFulfilledResult<ExtensionItem> =>
           r.status === 'fulfilled' && r.value !== null
       )
       .map((r) => r.value);
+
+    cachedCatalog = nextCatalog;
+    cachedAt = Date.now();
+    return nextCatalog;
   } catch (err) {
     console.error('Failed to load extensions from GitHub:', err);
-    return [];
+    return cachedCatalog ?? [];
   }
 }
 
