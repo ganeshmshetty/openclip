@@ -2,6 +2,8 @@ import AppKit
 @preconcurrency import ApplicationServices
 import SwiftUI
 import Core
+import SDWebImage
+import SDWebImageSVGCoder
 
 /// Manages the application lifecycle and permissions.
 @MainActor
@@ -13,6 +15,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindowController: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Register SVG coder
+        let svgCoder = SDImageSVGCoder.shared
+        SDImageCodersManager.shared.addCoder(svgCoder)
+
         // Force accessory (agent) mode immediately.
         // LSUIElement=true sets this at launch, but SwiftUI's Settings{} scene can
         // temporarily switch us to .regular. Calling this here ensures we stay

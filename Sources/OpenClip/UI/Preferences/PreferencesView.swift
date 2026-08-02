@@ -474,6 +474,7 @@ struct ActionsTab: View {
 struct ActionRowView: View {
     let action: any Action
     @Binding var disabledActionIDs: Set<String>
+    @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     
     var isEnabled: Binding<Bool> {
         Binding<Bool>(
@@ -495,9 +496,6 @@ struct ActionRowView: View {
             if let symbol = override.customIconSymbol, !symbol.isEmpty {
                 return .symbol(symbol)
             }
-            if let text = override.customIconText, !text.isEmpty {
-                return .text(text)
-            }
         }
         if let configurable = action as? any ConfigurableAction {
             return .symbol(configurable.preferenceIconName)
@@ -518,9 +516,8 @@ struct ActionRowView: View {
             ZStack {
                 switch displayIcon {
                 case .symbol(let name):
-                    Image(systemName: name)
-                        .font(.system(size: 14))
-                        .foregroundColor(.primary)
+                    AnyIconView(iconId: name)
+                        .frame(width: 14, height: 14)
                 case .url, .local:
                     Image(systemName: "sparkles")
                         .font(.system(size: 14))
@@ -680,9 +677,8 @@ struct TransformGroupRowView: View {
                 // Icon Column
                 ZStack {
                     if case .symbol(let name) = groupAction.displayIcon {
-                        Image(systemName: name)
-                            .font(.system(size: 14))
-                            .foregroundColor(.primary)
+                        AnyIconView(iconId: name)
+                            .frame(width: 14, height: 14)
                     } else if case .text(let txt) = groupAction.displayIcon {
                         Text(txt)
                             .font(.system(size: 13, weight: .bold))

@@ -8,7 +8,6 @@ public struct AddCustomActionSheet: View {
     @State private var typeIndex = 0
     @State private var title = ""
     @State private var iconName = "wand.and.stars"
-    @State private var displayPreference = 0 // 0 = Icon, 1 = Text
     @State private var showingIconPicker = false
     
     // Web Search
@@ -47,8 +46,7 @@ public struct AddCustomActionSheet: View {
                     showingIconPicker.toggle()
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: (try? iconName.isEmpty ? "wand.and.stars" : iconName) ?? "wand.and.stars")
-                            .font(.system(size: 16))
+                        AnyIconView(iconId: iconName.isEmpty ? "wand.and.stars" : iconName)
                             .frame(width: 22, height: 22)
                         Image(systemName: "chevron.down")
                             .font(.caption2)
@@ -72,18 +70,7 @@ public struct AddCustomActionSheet: View {
                 }
             }
 
-            // Display preference picker
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Display Preference")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Picker("", selection: $displayPreference) {
-                    Text("Icon").tag(0)
-                    Text("Text").tag(1)
-                }
-                .pickerStyle(.segmented)
-            }
+
 
             Divider()
 
@@ -156,87 +143,21 @@ public struct AddCustomActionSheet: View {
             type: actionType
         )
         CustomActionManager.shared.register(customAction: newAction)
-        
-        if displayPreference == 1 {
-            ActionCustomizationManager.shared.setOverride(
-                for: newAction.id,
-                title: actionTitle,
-                symbol: nil,
-                text: actionTitle
-            )
-        }
-        
         dismiss()
     }
 }
 
-// MARK: - Icon Picker Popover@MainActor
+// MARK: - Icon Picker Popover
+@MainActor
 struct IconPickerPopover: View {
     @Binding var selectedIcon: String
-    @StateObject private var provider = UnifiedIconProvider.shared
-    @State private var searchText = ""
     @Environment(\.dismiss) private var dismiss
 
-    private var displayedIcons: [IconEntry] {
-        return provider.search(query: searchText, limit: 160)
-    }
-
     var body: some View {
-        VStack(spacing: 8) {
-            // Unified Search bar — searches ALL libraries at once in one place
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 13))
-                TextField("Search \(provider.allIcons.count)+ icons (SF Symbols, FA, Lucide, Material)…", text: $searchText)
-                    .font(.system(size: 13))
-                    .textFieldStyle(.plain)
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 13))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(10)
-
-            Divider()
-
-            if !provider.isLoaded {
-                VStack(spacing: 8) {
-                    Spacer()
-                    ProgressView().controlSize(.small)
-                    Text("Loading all icon libraries…")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 4), count: 8), spacing: 4) {
-                        ForEach(displayedIcons) { item in
-                            Button {
-                                selectedIcon = item.id
-                                dismiss()
-                            } label: {
-                                RenderIconView(iconStr: item.id)
-                                    .frame(width: 34, height: 34)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                            .fill(selectedIcon == item.id ? Color.accentColor : Color.primary.opacity(0.06))
-                                    )
-                                    .foregroundColor(selectedIcon == item.id ? .white : .primary)
-                            }
-                            .buttonStyle(.plain)
-                            .help("\(item.id) (\(item.library))")
-                        }
-                    }
-                    .padding(10)
-                }
-            }
+        IconPickerView(selectedSymbol: $selectedIcon) {
+            dismiss()
         }
-        .frame(width: 360, height: 340)
+        .padding(12)
+        .frame(width: 360, height: 320)
     }
 }
