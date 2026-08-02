@@ -38,6 +38,15 @@ public struct PreferencesView: View {
     @State private var disabledActionIDs: Set<String> = []
     @State private var selectedTab: PreferenceTab = .general
     @State private var aiSubTab: AISubTab = .configure
+    @State private var extensionsSubTab: ExtensionSubTab = .store
+
+    private var installedExtensionCount: Int {
+        ActionCoordinator.shared.actions.filter { action in
+            if case .extensionPkg = action.chrome.badge { return true }
+            if case .extensionPkg = action.chrome.source { return true }
+            return false
+        }.count
+    }
 
     public init() {}
 
@@ -130,6 +139,14 @@ public struct PreferencesView: View {
                         .pickerStyle(.segmented)
                         .labelsHidden()
                         .frame(width: 170)
+                    } else if selectedTab == .extensions {
+                        Picker("", selection: $extensionsSubTab) {
+                            Text("Store").tag(ExtensionSubTab.store)
+                            Text("Installed (\(installedExtensionCount))").tag(ExtensionSubTab.installed)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .frame(width: 180)
                     }
                 }
                 .padding(.top, 0)
@@ -145,7 +162,7 @@ public struct PreferencesView: View {
                     case .actions: 
                         ActionsTab(disabledActionIDs: $disabledActionIDs)
                     case .extensions:
-                        ExtensionsStoreView()
+                        ExtensionsStoreView(selectedSubTab: $extensionsSubTab)
                     case .ai:
                         AITab(selectedSubTab: $aiSubTab)
                     case .appRules: 
