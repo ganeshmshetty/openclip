@@ -1,6 +1,6 @@
 # Standalone Script Snippets (`OpenClipSnippetParser`)
 
-In addition to `.openclipext` package directories, OpenClip supports **standalone single-file script snippets** (`.js`, `.applescript`, `.sh`, `.py`). Standalone scripts declare action metadata in header comment blocks that are extracted by [`OpenClipSnippetParser`](file:///Users/ganesh/dev/openclip/Sources/Core/Extensions/OpenClipSnippetParser.swift).
+In addition to `.openclipext` package directories, OpenClip supports **standalone single-file script snippets** (`.js`, `.applescript`, `.sh`, `.py`). Standalone scripts declare action metadata in header comment blocks that are extracted by [`OpenClipSnippetParser`](../../Sources/Core/Extensions/OpenClipSnippetParser.swift).
 
 ---
 

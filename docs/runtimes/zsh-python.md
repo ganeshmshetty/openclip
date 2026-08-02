@@ -1,6 +1,6 @@
 # Executable Scripts Runtime (Zsh, Python, Bash)
 
-The executable script action runtime ([`ScriptAction`](file:///Users/ganesh/dev/openclip/Sources/Core/Extensions/ScriptAction.swift)) allows OpenClip to execute external standalone script files (`.sh`, `.zsh`, `.py`, `.rb`, `.node`) located within extension packages or `~/.openclip/extensions/`.
+The executable script action runtime ([`ScriptAction`](../../Sources/Core/Extensions/ScriptAction.swift)) allows OpenClip to execute external standalone script files (`.sh`, `.zsh`, `.py`, `.rb`, `.node`) located within extension packages or `~/.openclip/extensions/`.
 
 ---
 

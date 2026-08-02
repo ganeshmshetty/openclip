@@ -39,7 +39,7 @@ let cachedStats: Record<string, number> | null = null;
 let cachedStatsAt = 0;
 const CATALOG_TTL_MS = 5 * 60 * 1000;
 let cachedCatalog: ExtensionItem[] | null = null;
-let cachedCatalogAt = 0;async function loadStats(): Promise<Record<string, number>> {
+let cachedCatalogAt = 0;async function loadStats(): Promise<Record<string, number> | null> {
   const now = Date.now();
   if (cachedStats && now - cachedStatsAt < STATS_TTL_MS) {
     return cachedStats;
@@ -49,13 +49,13 @@ let cachedCatalogAt = 0;async function loadStats(): Promise<Record<string, numbe
       headers: githubHeaders(),
       cache: 'no-store',
     });
-    if (!res.ok) return cachedStats ?? {};
+    if (!res.ok) return cachedStats;
     const data = (await res.json()) as { downloads?: Record<string, number> };
     cachedStats = data.downloads ?? {};
     cachedStatsAt = Date.now();
     return cachedStats;
   } catch {
-    return cachedStats ?? {};
+    return cachedStats;
   }
 }
 
@@ -81,6 +81,12 @@ async function loadCatalog(): Promise<ExtensionItem[]> {
 
     // Merge GitHub Release download counts published nightly to extension-stats.json.
     const stats = await loadStats();
+    if (stats === null) {
+      // Statistics are unavailable and there is no prior valid snapshot: don't cache a
+      // zeroed catalog for five minutes. Fall back to the last valid merged catalog.
+      console.warn('Stats unavailable; serving last valid catalog');
+      return cachedCatalog ?? [];
+    }
 
     const merged = (data.extensions ?? []).map((item) => ({
       ...item,
@@ -99,10 +105,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get('q') || '').toLowerCase().trim();
   const category = (searchParams.get('category') || 'all').toLowerCase().trim();
-  const rawPage = parseInt(searchParams.get('page') || '1', 10);
-  const rawLimit = parseInt(searchParams.get('limit') || '12', 10);
-  const page = Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1;
-  const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 12;
+  // Number() rejects malformed input ("2abc") and non-integers ("1.9") as NaN,
+  // so only well-formed integer values are normalized into the valid range.
+  const rawPage = Number(searchParams.get('page') ?? '1');
+  const rawLimit = Number(searchParams.get('limit') ?? '12');
+  const page = Number.isInteger(rawPage) ? Math.max(1, rawPage) : 1;
+  const limit = Number.isInteger(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 12;
 
   let filtered = await loadCatalog();
 

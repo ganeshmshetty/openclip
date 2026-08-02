@@ -1,6 +1,6 @@
 # URL Templates Engine
 
-The URL templates engine ([`URLTemplateAction`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/URLTemplateAction.swift)) powers instant web search, documentation lookup, and custom URI scheme deep-linking actions.
+The URL templates engine ([`URLTemplateAction`](../../Sources/Core/Actions/URLTemplateAction.swift)) powers instant web search, documentation lookup, and custom URI scheme deep-linking actions.
 
 ---
 
@@ -9,7 +9,7 @@ The URL templates engine ([`URLTemplateAction`](file:///Users/ganesh/dev/opencli
 When a user selects a URL template action:
 
 1. **Text Extraction**: Selected text is trimmed of leading and trailing whitespace.
-2. **Placeholder Substitution**: [`TextPlaceholderEngine`](file:///Users/ganesh/dev/openclip/Sources/Core/Utils/TextPlaceholderEngine.swift) substitutes template tokens with percent-encoded query parameters.
+2. **Placeholder Substitution**: [`TextPlaceholderEngine`](../../Sources/Core/Utils/TextPlaceholderEngine.swift) substitutes template tokens with percent-encoded query parameters.
 3. **URL Resolution**: The resulting string is parsed into a `URL` object and returned as `ActionResult.openURL(url)`.
 4. **Platform Launch**: `DefaultActionResultHandler` opens the URL via `NSWorkspace.shared.open(url)`.
 
@@ -17,7 +17,7 @@ When a user selects a URL template action:
 
 ## Supported Placeholders
 
-[`TextPlaceholderEngine`](file:///Users/ganesh/dev/openclip/Sources/Core/Utils/TextPlaceholderEngine.swift) replaces the following template tokens:
+[`TextPlaceholderEngine`](../../Sources/Core/Utils/TextPlaceholderEngine.swift) replaces the following template tokens:
 
 | Placeholder Token | Replacement Value | Encoding |
 | :--- | :--- | :--- |

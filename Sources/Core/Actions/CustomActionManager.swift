@@ -2,14 +2,18 @@
 // OpenClip
 //
 // Manages the persistence and lifecycle of user-defined custom actions.
-// Note: performs its own file I/O for custom_actions.json and registers/unregisters
-// actions via ActionRegistry.shared directly (the onRegister/onUnregister callback
-// seam described in docs is not yet implemented).
+// Performs its own file I/O for custom_actions.json and reports changes to the
+// ActionRegistry via the onRegister/onUnregister callbacks that
+// ActionCoordinator.loadInitialState() wires. Does not touch ActionRegistry directly.
 import Foundation
 
 @MainActor
 public final class CustomActionManager: Sendable {
     public static let shared = CustomActionManager()
+    
+    /// Wired by `ActionCoordinator.loadInitialState()`; the manager never touches the registry directly.
+    public var onRegister: ((any Action) -> Void)?
+    public var onUnregister: ((String) -> Void)?
     
     public private(set) var customActions: [CustomAction] = []
     
@@ -33,7 +37,7 @@ public final class CustomActionManager: Sendable {
             let actions = try JSONDecoder().decode([CustomAction].self, from: data)
             self.customActions = actions
             for action in actions {
-                ActionRegistry.shared.register(action: action)
+                onRegister?(action)
             }
         } catch {
             print("Failed to load custom actions: \(error)")
@@ -43,13 +47,13 @@ public final class CustomActionManager: Sendable {
     public func register(customAction: CustomAction) {
         customActions.removeAll(where: { $0.id == customAction.id })
         customActions.append(customAction)
-        ActionRegistry.shared.register(action: customAction)
+        onRegister?(customAction)
         save()
     }
     
     public func delete(customActionID: String) {
         customActions.removeAll(where: { $0.id == customActionID })
-        ActionRegistry.shared.unregister(actionID: customActionID)
+        onUnregister?(customActionID)
         save()
     }
     

@@ -1,6 +1,6 @@
 # JavaScript Action Runtime
 
-The JavaScript action runtime ([`JavaScriptAction`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Actions/JavaScriptAction.swift)) executes JavaScript code using macOS `JSContext` (JavaScriptCore framework). It provides an in-memory JS execution environment with access to a bridge object named `openclip`.
+The JavaScript action runtime ([`JavaScriptAction`](../../Sources/OpenClip/Actions/JavaScriptAction.swift)) executes JavaScript code using macOS `JSContext` (JavaScriptCore framework). It provides an in-memory JS execution environment with access to a bridge object named `openclip`.
 
 ---
 
@@ -67,7 +67,7 @@ for opt in actionOptions {
 
 ## Side-Effect Handling & Result Resolution
 
-The runtime resolves the execution outcome into an [`ActionResult`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionResult.swift) based on function calls or return values:
+The runtime resolves the execution outcome into an [`ActionResult`](../../Sources/Core/Actions/ActionResult.swift) based on function calls or return values:
 
 1. **`openclip.openUrl(urlString)`**:
  - If invoked, execution returns `ActionResult.openURL(URL)`.

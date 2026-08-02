@@ -9,6 +9,9 @@ public enum Constants {
     public static let filterDelay: TimeInterval = 0.075
     public static let elementTimeout: TimeInterval = 0.3
     public static let maxTextLength: Int = 10_485_760
+    /// Selections above this size skip the expensive pretty-print diff in the transform
+    /// smart-filter, falling back to a single JSON parse so the menu stays responsive.
+    public static let maxTransformCheckLength: Int = 200_000
     public static let pasteboardRestoreDelay: TimeInterval = 0.8
     public static let cVirtualKey: CGKeyCode = 0x08
     public static let deleteVirtualKey: CGKeyCode = 0x33
@@ -19,6 +22,10 @@ public enum Constants {
     public static let popupOffset: CGFloat = 16.0
     public static let popupPadding: CGFloat = 8.0
     public static let popupDismissalDistance: CGFloat = 280.0
+    /// Delay before the hover info bubble appears (400ms).
+    public static let bubbleHoverDelayNanoseconds: UInt64 = 400_000_000
+    /// Delay before the long-press result bubble fires (600ms).
+    public static let bubbleLongPressNanoseconds: UInt64 = 600_000_000
     public static let isAppEnabledKey: String = "isAppEnabled"
     public static let maxURLScanLength: Int = 2000
     public static let actionErrorDomain: String = "OpenClip.ActionError"
@@ -27,9 +34,14 @@ public enum Constants {
     /// Query-value encoding charset that escapes `&`, `=`, `+`, `?`, `#`, etc.
     /// (stricter than `.urlQueryAllowed`, which leaves those characters unescaped
     /// and corrupts URLs built from user-selected text).
+    ///
+    /// `%` is also excluded: `.urlQueryAllowed` permits it, so an already-escaped
+    /// sequence such as `%2F` in the selection would otherwise pass through as an
+    /// escape sequence and be reinterpreted by the destination URL instead of being
+    /// treated as the literal characters `%2F`.
     public static var queryValueAllowed: CharacterSet {
         var allowed = CharacterSet.urlQueryAllowed
-        allowed.remove(charactersIn: ":#[]@!$&'()*+,;=?")
+        allowed.remove(charactersIn: "%:#[]@!$&'()*+,;=?")
         return allowed
     }
     
@@ -73,9 +85,13 @@ public enum Constants {
 
     /// Guards against zip-slip path traversal: true only when `destinationURL`
     /// resolves to a path equal to or strictly inside `baseDirectory`.
+    ///
+    /// Symlinks are resolved on both paths before comparing: `standardizingPath`
+    /// only normalizes the path text, so a symlink inside `baseDirectory` that
+    /// points outside it would otherwise defeat the lexical containment check.
     public static func isPathSafe(destinationURL: URL, baseDirectory: URL) -> Bool {
-        let destPath = (destinationURL.path as NSString).standardizingPath
-        let basePath = (baseDirectory.path as NSString).standardizingPath
+        let destPath = (destinationURL.resolvingSymlinksInPath().path as NSString).standardizingPath
+        let basePath = (baseDirectory.resolvingSymlinksInPath().path as NSString).standardizingPath
         guard destPath.hasPrefix(basePath) else { return false }
         // Ensure the next character is a separator so /foo/bar doesn't accept /foo/bar2
         let remainder = destPath.dropFirst(basePath.count)

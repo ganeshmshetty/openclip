@@ -18,9 +18,14 @@ public final class ActionRegistry: ObservableObject, Sendable {
     }
     
     public func register(builtIns: [any Action]) {
-        // Dedupe against existing actions so repeated loadInitialState() calls don't duplicate builtins.
-        let existingIDs = Set(actions.map(\.id))
-        actions.append(contentsOf: builtIns.filter { !existingIDs.contains($0.id) })
+        // Dedupe against existing actions and against earlier entries within the same batch,
+        // so repeated loadInitialState() calls or a duplicate entry in the catalog don't append twice.
+        var seenIDs = Set(actions.map(\.id))
+        actions.append(contentsOf: builtIns.filter { action in
+            guard !seenIDs.contains(action.id) else { return false }
+            seenIDs.insert(action.id)
+            return true
+        })
         sortActions()
     }
     
@@ -73,10 +78,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     }
     
     public func availableActions(for context: ActionContext) -> [any Action] {
-        let defaultEnabledTransformCases: Set<TransformCase> = [.uppercase, .lowercase, .titleCase, .camelCase, .trimWhitespace, .formatJSON]
-        let defaultDisabledSubActions = ["builtin.transform"] + TransformCase.allCases
-            .filter { !defaultEnabledTransformCases.contains($0) }
-            .map { "builtin.transform.\($0.rawValue)" }
+        let defaultDisabledSubActions = TransformCase.defaultDisabledActionIDs
         let configuredDisabled = settingsStore.get(.disabledActionIDs)
         var disabledIDs = configuredDisabled.isEmpty ? Set(defaultDisabledSubActions) : configuredDisabled
         if !settingsStore.get(.isTransformGroupEnabled) {

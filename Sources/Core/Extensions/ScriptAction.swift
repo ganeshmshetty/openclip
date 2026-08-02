@@ -58,8 +58,15 @@ public struct ScriptAction: Action {
             try process.run()
             
             // Watchdog: kill the script if it exceeds the runtime budget so the popup never spins forever.
+            // Closing the stdout/stderr read ends sends SIGPIPE to every writer (the script and any
+            // backgrounded children that retained a pipe), unblocking the readers below even when a
+            // child outlives the shell. A watchdog kill is surfaced as a timeout error.
+            let timeoutFlag = TimeoutFlag()
             let timeoutTask = Task.detached { [weak process] in
                 try? await Task.sleep(nanoseconds: UInt64(Constants.scriptTimeout * 1_000_000_000))
+                timeoutFlag.markTimedOut()
+                try? stdOutPipe.fileHandleForReading.close()
+                try? stdErrPipe.fileHandleForReading.close()
                 if process?.isRunning == true {
                     process?.terminate()
                 }
@@ -82,18 +89,24 @@ public struct ScriptAction: Action {
             }
             
             let readOutTask = Task.detached {
-                try stdOutPipe.fileHandleForReading.readToEnd()
+                try? stdOutPipe.fileHandleForReading.readToEnd()
             }
             
             let readErrTask = Task.detached {
-                try stdErrPipe.fileHandleForReading.readToEnd()
+                try? stdErrPipe.fileHandleForReading.readToEnd()
             }
             
-            let outDataOpt = try await readOutTask.value
-            let errDataOpt = try await readErrTask.value
-            _ = try await writeTask.value
+            let outDataOpt = await readOutTask.value
+            let errDataOpt = await readErrTask.value
+            _ = try? await writeTask.value
             
             process.waitUntilExit()
+            
+            if timeoutFlag.isTimedOut {
+                throw NSError(domain: Constants.actionErrorDomain,
+                              code: Int(Constants.actionErrorCode) + 1,
+                              userInfo: [NSLocalizedDescriptionKey: "Script timed out after \(Int(Constants.scriptTimeout)) seconds"])
+            }
             
             let outData = outDataOpt ?? Data()
             let errData = errDataOpt ?? Data()

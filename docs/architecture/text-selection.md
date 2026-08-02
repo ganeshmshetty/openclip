@@ -21,9 +21,9 @@ The subsystem consists of three primary components:
 +------------------------+ +---------------------+
 ```
 
-1. **[`MacSelectionMonitor`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/MacSelectionMonitor.swift)**: Listens for mouse release events (`leftMouseUp`) or keyboard shortcuts.
-2. **[`MacTextRetriever`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/MacTextRetriever.swift)**: Implements [`TextRetrieving`](file:///Users/ganesh/dev/openclip/Sources/Core/Selection/TextRetrieving.swift) to extract selected text from the active frontmost application.
-3. **[`SelectionCoordinator`](file:///Users/ganesh/dev/openclip/Sources/Core/Selection/SelectionCoordinator.swift)**: Receives raw selection context events, applies app rules, and notifies subscriber callbacks (such as `PopupWindowController`).
+1. **[`MacSelectionMonitor`](../../Sources/OpenClip/Platform/MacSelectionMonitor.swift)**: Listens for mouse release events (`leftMouseUp`) or keyboard shortcuts.
+2. **[`MacTextRetriever`](../../Sources/OpenClip/Platform/MacTextRetriever.swift)**: Implements [`TextRetrieving`](../../Sources/Core/Selection/TextRetrieving.swift) to extract selected text from the active frontmost application.
+3. **[`SelectionCoordinator`](../../Sources/Core/Selection/SelectionCoordinator.swift)**: Receives raw selection context events, applies app rules, and notifies subscriber callbacks (such as `PopupWindowController`).
 
 ---
 

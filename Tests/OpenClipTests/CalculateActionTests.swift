@@ -39,4 +39,39 @@ final class CalculateActionTests: XCTestCase {
             XCTFail("Expected paste result for CalculateAction")
         }
     }
+
+    // MARK: - Result Bubble
+
+    @MainActor
+    func testResultBubbleFooterOptions() async {
+        let action = CalculateAction()
+        let app = NSRunningApplication.current
+        let context = ActionContext(
+            selection: SelectionContext(text: "12 * 12", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+            modifiers: []
+        )
+
+        guard let bubble = await action.makeBubble(for: context) else {
+            return XCTFail("Expected a result bubble")
+        }
+        XCTAssertEqual(bubble.title, "Calculate")
+        XCTAssertEqual(bubble.subtitle, "12 * 12 = 144")
+        XCTAssertEqual(
+            bubble.footer.map(\.title),
+            ["Paste 144", "Copy 144", "Copy 12 * 12 = 144"]
+        )
+    }
+
+    @MainActor
+    func testResultBubbleNilForNonMath() async {
+        let action = CalculateAction()
+        let app = NSRunningApplication.current
+        let context = ActionContext(
+            selection: SelectionContext(text: "Hello World", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+            modifiers: []
+        )
+
+        let bubble = await action.makeBubble(for: context)
+        XCTAssertNil(bubble)
+    }
 }

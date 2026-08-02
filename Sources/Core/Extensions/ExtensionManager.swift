@@ -2,8 +2,8 @@
 // OpenClip
 //
 // Discovers, loads, and manages installed OpenClip extensions from disk.
-// Note: registers/unregisters actions via ActionRegistry.shared directly (the
-// onRegister/onUnregister callback seam described in docs is not yet implemented).
+// Reports registration changes to the ActionRegistry via the onRegister/onUnregister
+// callbacks that ActionCoordinator.loadInitialState() wires. Does not touch ActionRegistry directly.
 import Foundation
 
 public struct ExtensionOptionMetadata: Sendable, Codable {
@@ -112,6 +112,10 @@ public struct ExtensionMetadata: Sendable, Codable {
 public final class ExtensionManager: Sendable {
     public static let shared = ExtensionManager()
     
+    /// Wired by `ActionCoordinator.loadInitialState()`; the manager never touches the registry directly.
+    public var onRegister: ((any Action) -> Void)?
+    public var onUnregister: ((String) -> Void)?
+    
     public private(set) var loadedActions: [any Action] = []
     public var actionFactory: (any ActionFactory)?
     
@@ -123,11 +127,11 @@ public final class ExtensionManager: Sendable {
             return await Self.scanDirectory(url, factory: factory)
         }.value
         for oldAction in self.loadedActions {
-            ActionRegistry.shared.unregister(actionID: oldAction.id)
+            onUnregister?(oldAction.id)
         }
         self.loadedActions = actions
         for action in actions {
-            ActionRegistry.shared.register(action: action)
+            onRegister?(action)
         }
     }
     
@@ -204,7 +208,7 @@ public final class ExtensionManager: Sendable {
     /// Uninstalls an extension by removing its directory or file from ~/.openclip/extensions.
     /// Matches the extension folder by reading the manifest identifier, which is the prefix of generated action IDs.
     public func uninstallExtension(actionID: String, targetDir: URL = Constants.extensionsDirectory) async throws {
-        ActionRegistry.shared.unregister(actionID: actionID)
+        onUnregister?(actionID)
         loadedActions.removeAll(where: { $0.id == actionID })
 
         let fm = FileManager.default

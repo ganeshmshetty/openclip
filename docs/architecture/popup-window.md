@@ -18,20 +18,20 @@ The floating popup panel subsystem presents contextual actions near the user's c
 +-----------------------------------------------------------------------------+
 ```
 
-### 1. [`PopupPanel`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/UI/Popup/PopupPanel.swift)
+### 1. [`PopupPanel`](../../Sources/OpenClip/UI/Popup/PopupPanel.swift)
 - **Base Class**: `NSPanel`
 - **Window Style**: `.nonactivatingPanel`, `.borderless`
 - **Window Level**: `.floating` (sits above normal application windows without stealing keyboard focus from the active text editor).
 - **Properties**: `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = true`.
 
-### 2. [`PopupWindowController`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/UI/Popup/PopupWindowController.swift)
+### 2. [`PopupWindowController`](../../Sources/OpenClip/UI/Popup/PopupWindowController.swift)
 - **Responsibility**: Controls window creation, display lifecycle, event monitoring, hover tracking, and AI overlay panel positioning.
 - **Event Handling**: Sets up local and global `NSEvent` monitors (`.leftMouseDown`, `.mouseMoved`, `.scrollWheel`, `.keyDown`).
 - **Dismissal Threshold**: Automatically dismisses the popup if the cursor moves beyond `Constants.popupDismissalDistance` (unless an AI overlay card is active) or when `Escape` is pressed.
 
 ---
 
-## Positioning Math: [`PopupPositioner`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/UI/Popup/PopupPositioner.swift)
+## Positioning Math: [`PopupPositioner`](../../Sources/OpenClip/UI/Popup/PopupPositioner.swift)
 
 `PopupPositioner` is a **pure static struct** with zero state or singletons. It calculates panel coordinates relative to the mouse release point and drag direction, preventing the panel from obscuring selected text.
 

@@ -2,8 +2,7 @@
 // OpenClip
 //
 // Implements text transformation actions such as letter case conversions, line sorting, whitespace trimming, and URL encoding.
-// Note: the default-on/off transform policy currently lives in ActionRegistry.availableActions
-// (TransformCase.defaultDisabledActionIDs does not exist yet).
+// The default-on/off transform policy lives on TransformCase.defaultDisabledActionIDs.
 import Foundation
 
 public enum TransformCategory: String, Sendable, CaseIterable {
@@ -18,9 +17,6 @@ public enum TransformCase: String, CaseIterable, Sendable, Identifiable {
     case titleCase = "titleCase"
     case camelCase = "camelCase"
     case pascalCase = "pascalCase"
-    case snakeCase = "snakeCase"
-    case kebabCase = "kebabCase"
-    case constantCase = "constantCase"
     
     case trimWhitespace = "trimWhitespace"
     case sortLines = "sortLines"
@@ -34,10 +30,25 @@ public enum TransformCase: String, CaseIterable, Sendable, Identifiable {
     case formatJSON = "formatJSON"
     
     public var id: String { rawValue }
+
+    /// Transform sub-actions that are enabled by default. All other transform cases are
+    /// registered but hidden until the user enables them in preferences.
+    public static let defaultEnabledTransformCases: Set<TransformCase> = [
+        .uppercase, .lowercase, .titleCase, .camelCase, .trimWhitespace, .formatJSON
+    ]
+
+    /// IDs of transform actions disabled by default: the transform group plus every
+    /// sub-action not in `defaultEnabledTransformCases`. The registry reads this instead
+    /// of duplicating the default-on/off policy.
+    public static var defaultDisabledActionIDs: [String] {
+        ["builtin.transform"] + allCases
+            .filter { !defaultEnabledTransformCases.contains($0) }
+            .map { "builtin.transform.\($0.rawValue)" }
+    }
     
     public var category: TransformCategory {
         switch self {
-        case .uppercase, .lowercase, .titleCase, .camelCase, .pascalCase, .snakeCase, .kebabCase, .constantCase:
+        case .uppercase, .lowercase, .titleCase, .camelCase, .pascalCase:
             return .caseConversion
         case .trimWhitespace, .sortLines, .removeDuplicates, .reverseText:
             return .textCleaning
@@ -53,9 +64,6 @@ public enum TransformCase: String, CaseIterable, Sendable, Identifiable {
         case .titleCase: return "Title Case"
         case .camelCase: return "camelCase"
         case .pascalCase: return "PascalCase"
-        case .snakeCase: return "snake_case"
-        case .kebabCase: return "kebab-case"
-        case .constantCase: return "CONSTANT_CASE"
         case .trimWhitespace: return "Trim Whitespace"
         case .sortLines: return "Sort Lines (A-Z)"
         case .removeDuplicates: return "Remove Duplicate Lines"
@@ -65,6 +73,72 @@ public enum TransformCase: String, CaseIterable, Sendable, Identifiable {
         case .base64Encode: return "Base64 Encode"
         case .base64Decode: return "Base64 Decode"
         case .formatJSON: return "Format JSON"
+        }
+    }
+    
+    /// Whether this transform is useful for the given selection. Used to smart-filter the
+    /// transform sub-action menu so an overloaded 14-item list becomes ~4-6 relevant items.
+    ///
+    /// Hybrid policy:
+    /// - **Fast**: a cheap structural guard (multiline, non-whitespace words, URL/base64/JSON
+    ///   markers, size cap) short-circuits before any real work runs.
+    /// - **Reliable**: for the survivors, the authoritative `transform(_:)` is run and compared
+    ///   against the input, so an entry that would be a no-op is never shown.
+    /// - **Smart**: encode/decode cases only appear when the selection actually decodes
+    ///   (e.g. `urlDecode` is hidden for `"hello world"`, `base64Decode` for plain prose).
+    public func isRelevant(for text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasWords = text.unicodeScalars.contains { CharacterSet.alphanumerics.contains($0) }
+        let isMultiLine = text.components(separatedBy: .newlines).count > 1
+
+        switch self {
+        case .uppercase, .lowercase, .titleCase, .camelCase, .pascalCase:
+            // No alphanumerics means no word-based conversion can change the text.
+            guard hasWords else { return false }
+            return transform(text) != text
+        case .trimWhitespace:
+            return text != trimmed
+        case .sortLines, .removeDuplicates:
+            // Sorting/deduplicating a single line is a no-op.
+            guard isMultiLine else { return false }
+            return transform(text) != text
+        case .reverseText:
+            // Single characters and palindromes are unchanged by reversal.
+            guard text.count > 1 else { return false }
+            return transform(text) != text
+        case .urlEncode:
+            // Encoding only changes the text when unsafe characters are present.
+            return transform(text) != text
+        case .urlDecode:
+            // "%" or "%ZZ" contain the marker but removingPercentEncoding returns nil.
+            guard text.contains("%"),
+                  let decoded = text.removingPercentEncoding else { return false }
+            return decoded != text
+        case .base64Encode:
+            return !text.isEmpty
+        case .base64Decode:
+            // Only relevant when the selection decodes to valid UTF-8 text, matching
+            // transform(_:). Reject invalid padding ("====") and non-UTF-8 payloads,
+            // which transform(_:) would leave untouched.
+            guard !trimmed.isEmpty,
+                  let data = Data(base64Encoded: trimmed),
+                  let decoded = String(data: data, encoding: .utf8) else { return false }
+            return decoded != text
+        case .formatJSON:
+            // Cheap shape guard: JSON objects/arrays start with { or [.
+            guard trimmed.hasPrefix("{") || trimmed.hasPrefix("[") else { return false }
+            // Very large selections skip the pretty-print diff (two full parses) and only
+            // check that the text parses, so the menu never stalls on multi-MB JSON.
+            guard text.count <= Constants.maxTransformCheckLength else {
+                return (try? JSONSerialization.jsonObject(with: Data(trimmed.utf8))) != nil
+            }
+            // Reliable: hide when pretty-printing would not change the text. The options
+            // must match transform(_:) exactly (prettyPrinted only) or the diff lies.
+            guard let data = text.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data),
+                  let prettyData = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted]),
+                  let pretty = String(data: prettyData, encoding: .utf8) else { return false }
+            return pretty != text
         }
     }
     
@@ -83,12 +157,6 @@ public enum TransformCase: String, CaseIterable, Sendable, Identifiable {
             return ([first] + rest).joined()
         case .pascalCase:
             return words(in: text).map { $0.capitalized }.joined()
-        case .snakeCase:
-            return words(in: text).map { $0.lowercased() }.joined(separator: "_")
-        case .kebabCase:
-            return words(in: text).map { $0.lowercased() }.joined(separator: "-")
-        case .constantCase:
-            return words(in: text).map { $0.uppercased() }.joined(separator: "_")
         case .trimWhitespace:
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         case .sortLines:
@@ -149,6 +217,7 @@ public struct TransformTextGroupAction: Action {
     public let id = "builtin.transform"
     public let title = "Transform Text"
     public let icon = ActionIcon.symbol("textformat")
+    public let chrome = ActionChrome(badge: .none, rowStyle: .transformGroup, popupBehavior: .showTransformMenu, source: .builtin)
     
     public init() {}
     

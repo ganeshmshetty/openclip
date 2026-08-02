@@ -25,7 +25,7 @@ Preferences > Actions
 
 ### How Action Ordering Works
 - Dragging actions changes their relative order in the floating popup bar.
-- Action ordering is saved automatically via [`SettingsStore`](file:///Users/ganesh/dev/openclip/Sources/Core/Settings/SettingsStore.swift) under key `actionOrder`.
+- Action ordering is saved automatically via [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) under key `actionOrder`.
 
 ---
 
@@ -38,7 +38,7 @@ OpenClip allows overriding the display title and icon for any action without edi
 - **Custom SF Symbol**: Enter any valid macOS SF Symbol name (e.g. `sparkles`, `doc.on.doc`, `terminal`).
 - **Custom Text Icon**: Display a 1–2 character text icon instead of a symbol.
 
-All overrides are managed via [`ActionCustomizationManager`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionCustomizationManager.swift) and stored persistently in `SettingsStore`.
+All overrides are managed via [`ActionCustomizationManager`](../../Sources/Core/Actions/ActionCustomizationManager.swift) and stored persistently in `SettingsStore`.
 
 ---
 
