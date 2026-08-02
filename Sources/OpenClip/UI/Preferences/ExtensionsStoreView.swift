@@ -336,7 +336,7 @@ struct ExtensionCardView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle")
                         .font(.caption2)
-                    Text(item.downloadCount > 0 ? "\(item.downloadCount)" : "New")
+                    Text("\(item.downloadCount)")
                         .font(.caption2)
                         .fontWeight(.medium)
                 }
