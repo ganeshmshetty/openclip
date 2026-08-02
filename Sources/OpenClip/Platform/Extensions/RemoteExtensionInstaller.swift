@@ -18,9 +18,12 @@ public final class RemoteExtensionInstaller: Sendable {
     }
     
     public func installFromRemoteURL(_ downloadURL: URL, extensionID: String) async throws -> [any Action] {
+        print("[OpenClip RemoteInstaller] Starting installation for '\(extensionID)'. Initial API URL: \(downloadURL)")
         let finalURL = await resolveDownloadURL(from: downloadURL, extensionID: extensionID)
+        print("[OpenClip RemoteInstaller] Downloading resolved package from: \(finalURL)")
         
         guard finalURL.scheme?.lowercased() == "https" else {
+            print("[OpenClip RemoteInstaller] Unsupported scheme: \(finalURL.scheme ?? "none")")
             throw NSError(domain: "RemoteExtensionInstaller", code: 400, userInfo: [NSLocalizedDescriptionKey: "Only HTTPS URLs are supported"])
         }
         
@@ -36,6 +39,7 @@ public final class RemoteExtensionInstaller: Sendable {
         
         defer { try? FileManager.default.removeItem(at: zipTempURL) }
         let installedActions = try await ExtensionManager.shared.installExtension(from: zipTempURL)
+        print("[OpenClip RemoteInstaller] Successfully installed extension '\(extensionID)'. Total actions added: \(installedActions.count)")
         return installedActions
     }
     
@@ -44,6 +48,7 @@ public final class RemoteExtensionInstaller: Sendable {
         let lastComponent = url.lastPathComponent
         if lastComponent.hasSuffix(".zip") && lastComponent != "raw.zip" && lastComponent != "Extensions.zip" {
             if await checkURLExists(url) {
+                print("[OpenClip RemoteInstaller] Direct ZIP URL is valid: \(url)")
                 return url
             }
         }
@@ -68,6 +73,7 @@ public final class RemoteExtensionInstaller: Sendable {
                 let nameWithoutExt = item.name.replacingOccurrences(of: ".openclipext.zip", with: "").lowercased()
                 if nameWithoutExt == nameKey || nameWithoutExt.contains(nameKey) || nameKey.contains(nameWithoutExt) {
                     if let rawURL = URL(string: item.download_url), await checkURLExists(rawURL) {
+                        print("[OpenClip RemoteInstaller] Resolved via GitHub Contents API: \(rawURL)")
                         return rawURL
                     }
                 }
@@ -84,10 +90,12 @@ public final class RemoteExtensionInstaller: Sendable {
         for candidate in candidates {
             let testURL = baseURL.appendingPathComponent(candidate)
             if await checkURLExists(testURL) {
+                print("[OpenClip RemoteInstaller] Resolved via CDN candidate HEAD check: \(testURL)")
                 return testURL
             }
         }
         
+        print("[OpenClip RemoteInstaller] Resolution fallback to default URL: \(url)")
         return url
     }
 
