@@ -35,7 +35,7 @@ public struct CalendarAction: ConfigurableAction {
             return .failure(NSError(domain: Constants.actionErrorDomain, code: Constants.actionErrorCode, userInfo: nil))
         }
         
-        let provider = UserDefaults.standard.string(forKey: "action.calendar.provider") ?? "native"
+        let provider = DefaultSettingsStore.shared.get(.calendarProvider)
         if provider == "google" {
             return .openURL(makeGoogleCalendarURL(title: text, startDate: date))
         } else {

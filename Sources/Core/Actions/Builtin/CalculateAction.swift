@@ -5,10 +5,7 @@ public struct CalculateAction: ConfigurableAction {
     public var title: String { "Calculate" }
     public let configurationViewID = "builtin.calculate"
     public let preferenceIconName = "equal.circle"
-    public var icon: ActionIcon {
-        let useText = UserDefaults.standard.bool(forKey: "action.calculate.useText")
-        return useText ? .text("=") : .symbol("equal.circle")
-    }
+    public let icon = ActionIcon.symbol("equal.circle")
     
     public init() {}
     
@@ -29,7 +26,8 @@ public struct CalculateAction: ConfigurableAction {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if let result = evaluateExpression(text) {
             let resultString = formatResult(result)
-            let mode = UserDefaults.standard.string(forKey: "action.calculate.mode") ?? "paste"
+            let mode = DefaultSettingsStore.shared.get(.calculateMode)
+
             
             switch mode {
             case "copy":

@@ -33,7 +33,7 @@ public struct SearchAction: ConfigurableAction {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let query = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let template = UserDefaults.standard.string(forKey: "action.search.url") ?? "https://www.google.com/search?q={query}"
+        let template = DefaultSettingsStore.shared.get(.searchURL)
         let targetTemplate = template.isEmpty ? "https://www.google.com/search?q={query}" : template
         
         if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {

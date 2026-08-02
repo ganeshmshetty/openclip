@@ -4,13 +4,11 @@ public struct DefineAction: ConfigurableAction {
     public let id = "builtin.define"
     public var title: String { "Define" }
     public let configurationViewID = "builtin.define"
-    public let preferenceIconName = "book"
-    public var icon: ActionIcon {
-        let useText = UserDefaults.standard.bool(forKey: "action.define.useText")
-        return useText ? .text("Define") : .symbol("book")
-    }
-    
+    public let preferenceIconName = "character.book.closed"
+    public let icon = ActionIcon.symbol("character.book.closed")
+
     public init() {}
+
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
