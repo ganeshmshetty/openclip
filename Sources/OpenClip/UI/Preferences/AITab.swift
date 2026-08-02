@@ -1,49 +1,40 @@
 // AITab.swift
 // OpenClip
 //
-// Renders the unified AI preferences view featuring a segmented control switch between AI Engine Configuration and AI Actions Management.
+// Renders the AI preferences view with top-bar sub-tab switching between AI Engine Configuration and AI Actions Management.
 import SwiftUI
 
-enum AISubTab: String, CaseIterable, Identifiable {
+public enum AISubTab: String, CaseIterable, Identifiable, Sendable {
     case configure = "Configure"
     case actions = "Actions"
-    var id: String { rawValue }
+    public var id: String { rawValue }
 }
 
 @MainActor
 public struct AITab: View {
+    @Binding var selectedSubTab: AISubTab
     @ObservedObject private var aiManager = AIServiceManager.shared
-    @State private var selectedSubTab: AISubTab = .configure
 
     @State private var fetchedModels: [String] = []
     @State private var isFetchingModels: Bool = false
     @State private var fetchError: String? = nil
 
+    @State private var editingPreset: AIActionPreset? = nil
     @State private var showingAddPresetSheet = false
     @State private var newTitle: String = ""
     @State private var newPrompt: String = ""
     
-    public init() {}
+    public init(selectedSubTab: Binding<AISubTab> = .constant(.configure)) {
+        self._selectedSubTab = selectedSubTab
+    }
     
     public var body: some View {
-        VStack(spacing: 12) {
-            // Horizontal Segmented Button Switch (Configure | Actions)
-            Picker("", selection: $selectedSubTab) {
-                Text("Configure").tag(AISubTab.configure)
-                Text("Actions").tag(AISubTab.actions)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal, 12)
-            .padding(.top, 4)
-
-            Group {
-                switch selectedSubTab {
-                case .configure:
-                    configureView
-                case .actions:
-                    actionsView
-                }
+        Group {
+            switch selectedSubTab {
+            case .configure:
+                configureView
+            case .actions:
+                actionsView
             }
         }
     }
@@ -202,13 +193,14 @@ public struct AITab: View {
                     .buttonStyle(.plain)
                     .foregroundColor(.accentColor)
                 }) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Enable or disable AI actions, edit prompt instructions, or add custom actions for the popup bar.")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Enable or disable AI actions for the popup bar, or click the edit icon to customize prompts.")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .padding(.bottom, 4)
 
                         ForEach(aiManager.presets) { preset in
-                            HStack(alignment: .top, spacing: 12) {
+                            HStack(alignment: .center, spacing: 12) {
                                 Toggle("", isOn: Binding(
                                     get: { preset.isEnabled },
                                     set: { newValue in
@@ -219,34 +211,20 @@ public struct AITab: View {
                                 ))
                                 .labelsHidden()
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Text(preset.title)
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                        Spacer()
-                                        Button(action: {
-                                            deletePreset(preset)
-                                        }) {
-                                            Image(systemName: "trash")
-                                                .font(.caption)
-                                                .foregroundColor(.red.opacity(0.8))
-                                        }
-                                        .buttonStyle(.plain)
-                                        .help("Delete Action")
-                                    }
+                                Text(preset.title)
+                                    .font(.system(size: 13, weight: .medium))
 
-                                    TextField("Prompt instruction...", text: Binding(
-                                        get: { preset.prompt },
-                                        set: { newPrompt in
-                                            var updated = preset
-                                            updated.prompt = newPrompt
-                                            aiManager.updatePreset(updated)
-                                        }
-                                    ))
-                                    .textFieldStyle(.roundedBorder)
-                                    .font(.caption)
+                                Spacer()
+
+                                Button(action: {
+                                    editingPreset = preset
+                                }) {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.secondary)
                                 }
+                                .buttonStyle(.plain)
+                                .help("Edit Action Prompt")
                             }
                             .padding(.vertical, 4)
 
@@ -273,6 +251,11 @@ public struct AITab: View {
             .padding(.bottom, 4)
         }
         .padding(12)
+        .sheet(item: $editingPreset) { preset in
+            EditAIPresetSheet(preset: preset) { updated in
+                aiManager.updatePreset(updated)
+            }
+        }
         .sheet(isPresented: $showingAddPresetSheet) {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Add Custom AI Action")
@@ -318,12 +301,6 @@ public struct AITab: View {
         }
     }
 
-    private func deletePreset(_ preset: AIActionPreset) {
-        var list = aiManager.presets
-        list.removeAll(where: { $0.id == preset.id })
-        aiManager.presets = list
-    }
-
     private func fetchModels() {
         isFetchingModels = true
         fetchError = nil
@@ -348,5 +325,67 @@ public struct AITab: View {
                 }
             }
         }
+    }
+}
+
+struct EditAIPresetSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let preset: AIActionPreset
+    let onSave: (AIActionPreset) -> Void
+
+    @State private var title: String
+    @State private var prompt: String
+
+    init(preset: AIActionPreset, onSave: @escaping (AIActionPreset) -> Void) {
+        self.preset = preset
+        self.onSave = onSave
+        _title = State(initialValue: preset.title)
+        _prompt = State(initialValue: preset.prompt)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Edit AI Action")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Action Title")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                TextField("Title", text: $title)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Prompt Instruction")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                TextEditor(text: $prompt)
+                    .font(.body)
+                    .frame(height: 90)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                    )
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    dismiss()
+                }
+                Button("Save") {
+                    var updated = preset
+                    updated.title = title.trimmingCharacters(in: .whitespaces)
+                    updated.prompt = prompt.trimmingCharacters(in: .whitespaces)
+                    onSave(updated)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || prompt.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 440)
     }
 }

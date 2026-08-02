@@ -37,6 +37,7 @@ public struct PreferencesView: View {
     
     @State private var disabledActionIDs: Set<String> = []
     @State private var selectedTab: PreferenceTab = .general
+    @State private var aiSubTab: AISubTab = .configure
 
     public init() {}
 
@@ -115,14 +116,25 @@ public struct PreferencesView: View {
             
             // Detail Area
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
+                HStack(alignment: .center) {
                     Text(selectedTab.rawValue)
                         .font(.system(size: 20, weight: .bold))
-                        .padding(.top, 0)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 16)
+                    
                     Spacer()
+
+                    if selectedTab == .ai {
+                        Picker("", selection: $aiSubTab) {
+                            Text("Configure").tag(AISubTab.configure)
+                            Text("Actions").tag(AISubTab.actions)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .frame(width: 170)
+                    }
                 }
+                .padding(.top, 0)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
                 
                 Group {
                     switch selectedTab {
@@ -135,7 +147,7 @@ public struct PreferencesView: View {
                     case .extensions:
                         ExtensionsStoreView()
                     case .ai:
-                        AITab()
+                        AITab(selectedSubTab: $aiSubTab)
                     case .appRules: 
                         AppRulesTab()
                     case .about: 
