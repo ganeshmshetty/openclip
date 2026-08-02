@@ -257,9 +257,24 @@ public final class ExtensionManager: Sendable {
         guard let manifest = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) else { return [] }
         
         var actions: [any Action] = []
-        for actionMeta in manifest.actions {
+        for (index, actionMeta) in manifest.actions.enumerated() {
             if let factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL) {
                 actions.append(action)
+            } else {
+                let actionId = "\(manifest.identifier).action.\(index)"
+                let title = actionMeta.title ?? manifest.name
+                let icon = parseIcon(actionMeta.icon, directoryURL: directoryURL)
+                let regex = actionMeta.regex
+                
+                if let urlTemplate = actionMeta.url {
+                    let action = URLTemplateAction(id: actionId, title: title, icon: icon, urlTemplate: urlTemplate, regexPattern: regex)
+                    actions.append(action)
+                } else {
+                    let scriptName = actionMeta.script ?? Constants.defaultScriptName
+                    let scriptURL = directoryURL.appendingPathComponent(scriptName)
+                    let action = ScriptAction(id: actionId, title: title, icon: icon, scriptURL: scriptURL)
+                    actions.append(action)
+                }
             }
         }
         
@@ -308,8 +323,22 @@ public final class ExtensionManager: Sendable {
             type: urlTemplate != nil ? "url" : "script"
         )
         let manifest = ExtensionMetadata(identifier: actionId, name: parsedTitle, actions: [actionMeta])
-        return await factory?.createAction(metadata: actionMeta, manifest: manifest, directoryURL: scriptURL.deletingLastPathComponent())
+        if let factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: scriptURL.deletingLastPathComponent()) {
+            return action
+        }
+        
+        let icon = parseIcon(iconStr, directoryURL: scriptURL.deletingLastPathComponent())
+        if let template = urlTemplate, !template.isEmpty {
+            return URLTemplateAction(id: actionId, title: parsedTitle, icon: icon, urlTemplate: template, regexPattern: regexPattern)
+        }
+        
+        if FileManager.default.isExecutableFile(atPath: scriptURL.path) || scriptURL.pathExtension == "sh" || scriptURL.pathExtension == "py" || scriptURL.pathExtension == "js" {
+            return ScriptAction(id: actionId, title: parsedTitle, icon: icon, scriptURL: scriptURL)
+        }
+        
+        return nil
     }
+
 
 
     
