@@ -79,6 +79,7 @@
 		7E44D09AC94810898D6E5D1D /* PopupWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB70FC227E05CD8269458C89 /* PopupWindowController.swift */; };
 		7E73A19CA1EFE95B45FBFCB8 /* ActionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B38B060F52BA3AAA63B8C8 /* ActionPresentation.swift */; };
 		7EDDECF89D21D258E5A00C01 /* AppleIntelligenceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38E0B09A0FCBBCF4C67A0FFF /* AppleIntelligenceProvider.swift */; };
+		7EF70AB85CA5E04B3DFD539D /* AIActionsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8920AB046C8778CE3CE2B3A4 /* AIActionsTab.swift */; };
 		84A19D69965D8FE1825442E5 /* MacTextRetriever.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B1ED5E66BD010DECBA31B69 /* MacTextRetriever.swift */; };
 		84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */; };
 		850F4271977FEE58D8FA55ED /* PopupPositioner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D913A22565F43A04740AEB /* PopupPositioner.swift */; };
@@ -263,6 +264,7 @@
 		85CB0D7F545A74562723950E /* RevealInFinderAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevealInFinderAction.swift; sourceTree = "<group>"; };
 		86C9A6B8F1602DED59E0237E /* InstalledAppsScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledAppsScanner.swift; sourceTree = "<group>"; };
 		871B6048B7968E61FCB53537 /* OpenClipApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipApp.swift; sourceTree = "<group>"; };
+		8920AB046C8778CE3CE2B3A4 /* AIActionsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIActionsTab.swift; sourceTree = "<group>"; };
 		8980C8AD7397B5E27CC86D63 /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
 		8B521F6AE4BA6FD8516E8A1B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8F17F7CFF919FB8A8779E0F9 /* CustomActionDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomActionDraft.swift; sourceTree = "<group>"; };
@@ -581,6 +583,7 @@
 				4284E18DE06D8BB8FF933E15 /* ActionAppearanceFields.swift */,
 				962ABA3EFF448F3AB8D26A91 /* ActionConfigSheet.swift */,
 				F092B5E7205F765F5BBB69A4 /* AddCustomActionSheet.swift */,
+				8920AB046C8778CE3CE2B3A4 /* AIActionsTab.swift */,
 				309A0ED1613CEB1CF46AFBF8 /* AITab.swift */,
 				D30E9B1A09FFEE44BC1A5793 /* AppPickerSheet.swift */,
 				F83E744E54478C7A60BEE112 /* AppRulesTab.swift */,
@@ -777,6 +780,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					84F393CB9794CD10A5608637 = {
+						ProvisioningStyle = Automatic;
+					};
 					C4AE70D9CEE6CD32E06BBA3A = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
@@ -918,6 +924,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7EF70AB85CA5E04B3DFD539D /* AIActionsTab.swift in Sources */,
 				C25FB276103A8CB85C7D2AE7 /* AIProvider.swift in Sources */,
 				172EA9C4710FA618D5679485 /* AIResultOverlayView.swift in Sources */,
 				05A18C707EEB8A5776CC438E /* AIServiceManager.swift in Sources */,
@@ -987,7 +994,8 @@
 		1EDC80E031F2407FC7DB058B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
@@ -1059,7 +1067,8 @@
 		535ADF5904D887C7331C222E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
