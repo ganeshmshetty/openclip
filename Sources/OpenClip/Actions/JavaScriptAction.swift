@@ -15,13 +15,15 @@ public struct JavaScriptAction: ConfigurableAction {
     public let preferenceIconName: String
     public let scriptCode: String
     public let actionOptions: [ExtensionOption]
+    public let chrome: ActionChrome
 
     nonisolated public init(
         id: String,
         title: String,
         icon: ActionIcon = .symbol("terminal"),
         scriptCode: String,
-        options: [ExtensionOption] = []
+        options: [ExtensionOption] = [],
+        chrome: ActionChrome? = nil
     ) {
         self.id = id
         self.title = title
@@ -35,6 +37,7 @@ public struct JavaScriptAction: ConfigurableAction {
         }
         self.scriptCode = scriptCode
         self.actionOptions = options
+        self.chrome = chrome ?? ActionChrome(badge: .script, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: id))
     }
 
     nonisolated public init(
@@ -42,9 +45,10 @@ public struct JavaScriptAction: ConfigurableAction {
         title: String,
         iconSymbol: String,
         scriptCode: String,
-        options: [ExtensionOption] = []
+        options: [ExtensionOption] = [],
+        chrome: ActionChrome? = nil
     ) {
-        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options)
+        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome)
     }
 
     public func isEnabled(for context: ActionContext) -> Bool {

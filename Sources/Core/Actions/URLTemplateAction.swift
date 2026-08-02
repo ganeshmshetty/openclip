@@ -11,16 +11,15 @@ public struct URLTemplateAction: Action, Sendable {
     public let urlTemplate: String
     public let regexPattern: String?
     
-    public init(id: String, title: String, icon: ActionIcon, urlTemplate: String, regexPattern: String? = nil) {
+    public let chrome: ActionChrome
+    
+    public init(id: String, title: String, icon: ActionIcon, urlTemplate: String, regexPattern: String? = nil, chrome: ActionChrome? = nil) {
         self.id = id
         self.title = title
         self.icon = icon
         self.urlTemplate = urlTemplate
         self.regexPattern = regexPattern
-    }
-    
-    public var chrome: ActionChrome {
-        ActionChrome(badge: .url, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: "url"))
+        self.chrome = chrome ?? ActionChrome(badge: .url, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: id))
     }
 
     
