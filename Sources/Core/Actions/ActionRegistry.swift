@@ -6,8 +6,10 @@ public final class ActionRegistry: ObservableObject, Sendable {
     public static let shared = ActionRegistry()
     
     @Published public private(set) var actions: [any Action] = []
+    private let settingsStore: SettingsStore
     
-    private init() {
+    public init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
+        self.settingsStore = settingsStore
     }
     
     public func register(builtIns: [any Action]) {
@@ -26,7 +28,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     }
     
     private func sortActions() {
-        let order = UserDefaults.standard.stringArray(forKey: "action.order") ?? []
+        let order = settingsStore.get(.actionOrder)
         actions.sort { a, b in
             let idxA = order.firstIndex(of: a.id) ?? Int.max
             let idxB = order.firstIndex(of: b.id) ?? Int.max
@@ -56,7 +58,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         actions = newActions
         
         let newOrder = actions.map { $0.id }
-        UserDefaults.standard.set(newOrder, forKey: "action.order")
+        settingsStore.set(.actionOrder, value: newOrder)
     }
     
     public func unregister(actionID: String) {
@@ -68,8 +70,9 @@ public final class ActionRegistry: ObservableObject, Sendable {
         let defaultDisabledSubActions = ["builtin.transform"] + TransformCase.allCases
             .filter { !defaultEnabledTransformCases.contains($0) }
             .map { "builtin.transform.\($0.rawValue)" }
-        var disabledIDs = Set(UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey) ?? defaultDisabledSubActions)
-        if !UserDefaults.standard.bool(forKey: "action.transform.enabled") {
+        let configuredDisabled = settingsStore.get(.disabledActionIDs)
+        var disabledIDs = configuredDisabled.isEmpty ? Set(defaultDisabledSubActions) : configuredDisabled
+        if !settingsStore.get(.isTransformGroupEnabled) {
             disabledIDs.insert("builtin.transform")
         }
         return actions.filter { action in
@@ -83,3 +86,4 @@ public final class ActionRegistry: ObservableObject, Sendable {
         }
     }
 }
+
