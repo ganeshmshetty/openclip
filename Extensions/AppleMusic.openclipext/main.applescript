@@ -1,6 +1,6 @@
 on run
     tell application "Music"
         activate
-        search for OPENCLIP_TEXT
     end tell
+    open location "music://music.apple.com/search?term=" & OPENCLIP_TEXT
 end run
