@@ -88,12 +88,21 @@ public struct JavaScriptAction: ConfigurableAction {
             pasteTextResult = textString
         }
         
+        let showNotificationBlock: @convention(block) (String, String) -> Void = { title, message in
+            let userNotification = NSUserNotification()
+            userNotification.title = title
+            userNotification.informativeText = message
+            NSUserNotificationCenter.default.deliver(userNotification)
+        }
+        
         jsContext.setObject(openclipBridge(), forKeyedSubscript: "openclip" as NSString)
         jsContext.evaluateScript("openclip.openUrl = function(u) { _openUrl(u); };")
         jsContext.evaluateScript("openclip.openURL = function(u) { _openUrl(u); };")
         jsContext.evaluateScript("openclip.pasteText = function(t) { _pasteText(t); };")
+        jsContext.evaluateScript("openclip.showNotification = function(title, msg) { _showNotification(title, msg); };")
         jsContext.setObject(openUrlBlock, forKeyedSubscript: "_openUrl" as NSString)
         jsContext.setObject(pasteTextBlock, forKeyedSubscript: "_pasteText" as NSString)
+        jsContext.setObject(showNotificationBlock, forKeyedSubscript: "_showNotification" as NSString)
         
         // Execute JS script
         let wrappedScript = """
