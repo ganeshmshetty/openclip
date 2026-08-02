@@ -183,15 +183,8 @@ public struct ExtensionsStoreView: View {
                     ForEach(installedExtensionActions, id: \.id) { action in
                         HStack(spacing: 12) {
                             ZStack {
-                                if case .symbol(let name) = action.displayIcon {
-                                    Image(systemName: name)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.accentColor)
-                                } else {
-                                    Image(systemName: "puzzlepiece.extension.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.accentColor)
-                                }
+                                ActionIconView(icon: action.displayIcon, size: 16)
+                                    .foregroundColor(.accentColor)
                             }
                             .frame(width: 36, height: 36)
                             .background(Color.accentColor.opacity(0.12))
@@ -303,8 +296,8 @@ struct ExtensionCardView: View {
             // Header Row: Icon + Name & Author
             HStack(spacing: 12) {
                 ZStack {
-                    Image(systemName: item.icon.hasPrefix("symbol:") ? String(item.icon.dropFirst(7)) : item.icon)
-                        .font(.system(size: 16, weight: .medium))
+                    AnyIconView(iconId: item.icon.hasPrefix("symbol:") ? String(item.icon.dropFirst(7)) : item.icon)
+                        .frame(width: 18, height: 18)
                         .foregroundColor(.accentColor)
                 }
                 .frame(width: 36, height: 36)
