@@ -1,7 +1,7 @@
 {
   "identifier": "com.openclip.applemusic",
   "name": "Apple Music",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "OpenClip Team",
   "description": "Search Apple Music for the selected text.",
   "category": "music",

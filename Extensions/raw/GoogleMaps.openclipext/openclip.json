@@ -1,7 +1,7 @@
 {
   "identifier": "com.openclip.googlemaps",
   "name": "Google Maps",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "OpenClip Team",
   "description": "Open Google Maps with the selected text as a search query.",
   "category": "maps",

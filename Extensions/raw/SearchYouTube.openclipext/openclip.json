@@ -1,7 +1,7 @@
 {
   "identifier": "com.openclip.youtube",
   "name": "Search YouTube",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "OpenClip Team",
   "description": "Search YouTube for videos matching the selected text.",
   "category": "video",
