@@ -11,8 +11,7 @@ enum PreferenceTab: String, CaseIterable, Hashable {
     case appearance = "Appearance"
     case actions = "Actions"
     case extensions = "Extensions"
-    case aiEngine = "AI Engine"
-    case aiActions = "AI Actions"
+    case ai = "AI"
     case appRules = "App Rules"
     case about = "About"
     
@@ -22,8 +21,7 @@ enum PreferenceTab: String, CaseIterable, Hashable {
         case .appearance: return "paintbrush.fill"
         case .actions: return "bolt.horizontal.fill"
         case .extensions: return "puzzlepiece.extension.fill"
-        case .aiEngine: return "cpu"
-        case .aiActions: return "sparkles"
+        case .ai: return "sparkles"
         case .appRules: return "shield.checkerboard"
         case .about: return "info.circle.fill"
         }
@@ -136,10 +134,8 @@ public struct PreferencesView: View {
                         ActionsTab(disabledActionIDs: $disabledActionIDs)
                     case .extensions:
                         ExtensionsStoreView()
-                    case .aiEngine:
+                    case .ai:
                         AITab()
-                    case .aiActions:
-                        AIActionsTab()
                     case .appRules: 
                         AppRulesTab()
                     case .about: 
