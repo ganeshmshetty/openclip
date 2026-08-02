@@ -170,21 +170,15 @@ public struct AddCustomActionSheet: View {
     }
 }
 
-// MARK: - Icon Picker Popover
-
-@MainActor
+// MARK: - Icon Picker Popover@MainActor
 struct IconPickerPopover: View {
     @Binding var selectedIcon: String
+    @StateObject private var symbolProvider = DynamicSFSymbolProvider.shared
     @State private var searchText = ""
     @Environment(\.dismiss) private var dismiss
 
-    private var filteredCategories: [(name: String, icons: [String])] {
-        if searchText.isEmpty { return IconPickerView.iconCategories }
-        let q = searchText.lowercased()
-        return IconPickerView.iconCategories.compactMap { cat in
-            let filtered = cat.icons.filter { $0.contains(q) }
-            return filtered.isEmpty ? nil : (name: cat.name, icons: filtered)
-        }
+    private var displayedIcons: [String] {
+        return symbolProvider.search(query: searchText, limit: 120)
     }
 
     var body: some View {
@@ -194,48 +188,54 @@ struct IconPickerPopover: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
                     .font(.system(size: 13))
-                TextField("Search symbols…", text: $searchText)
+                TextField("Search \(symbolProvider.allSymbols.count)+ system symbols…", text: $searchText)
                     .font(.system(size: 13))
                     .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 13))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(10)
 
             Divider()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(filteredCategories, id: \.name) { category in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(category.name)
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal, 10)
-
-                            LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 4), count: 8), spacing: 4) {
-                                ForEach(category.icons, id: \.self) { icon in
-                                    Button {
-                                        selectedIcon = icon
-                                        dismiss()
-                                    } label: {
-                                        Image(systemName: icon)
-                                            .font(.system(size: 16))
-                                            .frame(width: 34, height: 34)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                                    .fill(selectedIcon == icon ? Color.accentColor : Color.primary.opacity(0.06))
-                                            )
-                                            .foregroundColor(selectedIcon == icon ? .white : .primary)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .help(icon)
-                                }
+            if !symbolProvider.isLoaded {
+                VStack(spacing: 8) {
+                    Spacer()
+                    ProgressView().controlSize(.small)
+                    Text("Loading system symbols…")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 4), count: 8), spacing: 4) {
+                        ForEach(displayedIcons, id: \.self) { icon in
+                            Button {
+                                selectedIcon = icon
+                                dismiss()
+                            } label: {
+                                Image(systemName: icon)
+                                    .font(.system(size: 15))
+                                    .frame(width: 34, height: 34)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                            .fill(selectedIcon == icon ? Color.accentColor : Color.primary.opacity(0.06))
+                                    )
+                                    .foregroundColor(selectedIcon == icon ? .white : .primary)
                             }
-                            .padding(.horizontal, 10)
+                            .buttonStyle(.plain)
+                            .help(icon)
                         }
                     }
+                    .padding(10)
                 }
-                .padding(.vertical, 10)
             }
         }
         .frame(width: 340, height: 320)
