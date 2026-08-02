@@ -17,8 +17,15 @@ public final class AIServiceManager: ObservableObject {
     @AppStorage("aiActiveProvider") public var activeProviderRaw: String = AIProviderType.apple.rawValue {
         willSet { objectWillChange.send() }
     }
-    @AppStorage("aiCloudAPIKey") public var cloudAPIKey: String = "" {
-        willSet { objectWillChange.send() }
+    // API key is stored in the Keychain (not UserDefaults) via KeychainStore.
+    @Published public var cloudAPIKey: String {
+        didSet {
+            if cloudAPIKey.isEmpty {
+                KeychainStore.delete(account: Self.cloudAPIKeyAccount)
+            } else {
+                KeychainStore.set(cloudAPIKey, account: Self.cloudAPIKeyAccount)
+            }
+        }
     }
     @AppStorage("aiCloudService") public var cloudServiceRaw: String = "openai" {
         willSet { objectWillChange.send() }
@@ -92,7 +99,20 @@ public final class AIServiceManager: ObservableObject {
         presets = Self.defaultPresets
     }
 
-    private init() {}
+    private static let cloudAPIKeyAccount = "aiCloudAPIKey"
+
+    private init() {
+        // Load the API key from the Keychain, migrating any legacy UserDefaults value on first launch.
+        if let stored = KeychainStore.get(account: Self.cloudAPIKeyAccount) {
+            self.cloudAPIKey = stored
+        } else if let legacy = UserDefaults.standard.string(forKey: "aiCloudAPIKey"), !legacy.isEmpty {
+            self.cloudAPIKey = legacy
+            KeychainStore.set(legacy, account: Self.cloudAPIKeyAccount)
+            UserDefaults.standard.removeObject(forKey: "aiCloudAPIKey")
+        } else {
+            self.cloudAPIKey = ""
+        }
+    }
 
     public var activeProviderType: AIProviderType {
         get { AIProviderType(rawValue: activeProviderRaw) ?? .apple }

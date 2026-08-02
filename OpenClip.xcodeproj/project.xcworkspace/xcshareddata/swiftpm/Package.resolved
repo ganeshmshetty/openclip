@@ -1,15 +1,6 @@
 {
-  "originHash" : "94bc11aedf4b69ebf9cab503f796a6d620ec453c32cbe7ef83e086c7cd651b92",
+  "originHash" : "e24b04dbd5174460c97166f107041e1f9af26f224917b8c03af7778ddccc1485",
   "pins" : [
-    {
-      "identity" : "defaults",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sindresorhus/Defaults",
-      "state" : {
-        "revision" : "38925e3cfacf3fb89a81a35b1cd44fd5a5b7e0fa",
-        "version" : "8.2.0"
-      }
-    },
     {
       "identity" : "keyboardshortcuts",
       "kind" : "remoteSourceControl",
@@ -44,15 +35,6 @@
       "state" : {
         "revision" : "0e331457ca9af2f0b08bcaa138a91ffb907b004f",
         "version" : "3.1.4"
-      }
-    },
-    {
-      "identity" : "sparkle",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sparkle-project/Sparkle",
-      "state" : {
-        "revision" : "b6496a74a087257ef5e6da1c5b29a447a60f5bd7",
-        "version" : "2.9.4"
       }
     }
   ],

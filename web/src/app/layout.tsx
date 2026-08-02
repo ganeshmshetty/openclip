@@ -9,11 +9,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "OpenClip — macOS Clipboard Action Engine",
+  title: "OpenClip — macOS Text Action Engine",
   description:
     "Highlight text anywhere on macOS and run instant JavaScript, AppleScript, Shell, or URL actions. Open source, native Swift.",
   openGraph: {
-    title: "OpenClip — macOS Clipboard Action Engine",
+    title: "OpenClip — macOS Text Action Engine",
     description:
       "Highlight text anywhere on macOS and run instant actions. Open source, native Swift.",
     type: "website",

@@ -2,6 +2,7 @@
 // OpenClip
 //
 // Parses OpenClip script snippet headers into extension and action metadata structures without UI dependencies.
+// Note: currently annotated @MainActor; making it fully nonisolated is planned.
 import Foundation
 
 @MainActor
@@ -9,25 +10,52 @@ public struct OpenClipSnippetParser: Sendable {
     public static func parseSnippetMetadata(snippet: String) -> (manifest: ExtensionMetadata, actionMetadata: ExtensionActionMetadata)? {
         let lines = snippet.components(separatedBy: .newlines)
         
-        let isHeaderPresent = lines.contains(where: { line in
+        let knownKeys = ["title", "name", "icon", "identifier", "id", "url", "javascript", "js", "applescript", "shell script", "sh", "shell"]
+        
+        // A snippet must actually look like an OpenClip header: either the #openclip/`//openclip`
+        // marker or a recognized key line (e.g. `# Title: Foo`). A bare `#`/`//` comment is not enough.
+        let isHeaderPresent = lines.contains { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces).lowercased()
-            return trimmed.hasPrefix("#openclip") || trimmed.hasPrefix("//openclip") || trimmed.hasPrefix("#") || trimmed.hasPrefix("//")
-        })
+            if trimmed.hasPrefix("#openclip") || trimmed.hasPrefix("//openclip") { return true }
+            var stripped = trimmed
+            if stripped.hasPrefix("//") {
+                stripped = String(stripped.dropFirst(2))
+            } else if stripped.hasPrefix("#") {
+                stripped = String(stripped.dropFirst(1))
+            }
+            stripped = stripped.trimmingCharacters(in: .whitespaces)
+            let key = stripped.split(separator: ":").first.map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
+            return !key.isEmpty && knownKeys.contains(key)
+        }
         guard isHeaderPresent else { return nil }
         
         var dict: [String: String] = [:]
         var bodyDict: [String: [String]] = [:]
         var activeBodyKey: String? = nil
         
-        let knownKeys = ["title", "name", "icon", "identifier", "id", "url", "javascript", "js", "applescript", "shell script", "sh", "shell"]
-        
         for line in lines {
+            var trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // In body mode, only a `#`-prefixed recognized header key closes the body and starts a new
+            // header line; `//`-prefixed lines and everything else stay body content (e.g. JS comments,
+            // URLs with fragments). This lets a later `# Icon:` header survive after a `js:`/`url:` body.
             if let key = activeBodyKey {
-                bodyDict[key, default: []].append(line)
-                continue
+                var closesBody = false
+                if trimmed.hasPrefix("#") {
+                    let stripped = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
+                    let parts = stripped.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+                    let candidateKey = parts.first?.lowercased() ?? ""
+                    if parts.count == 2 && knownKeys.contains(candidateKey) {
+                        closesBody = true
+                    }
+                }
+                if !closesBody {
+                    bodyDict[key, default: []].append(line)
+                    continue
+                }
+                activeBodyKey = nil
             }
             
-            var trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("//") {
                 trimmed = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
             } else if trimmed.hasPrefix("#") {
@@ -60,7 +88,7 @@ public struct OpenClipSnippetParser: Sendable {
         
         guard let title = dict["title"] ?? dict["name"], !title.isEmpty else { return nil }
         
-        let slug = title.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted).joined(separator: ".")
+        let slug = title.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: ".")
         let id = dict["identifier"] ?? dict["id"] ?? "snippet.\(slug)"
         let rawIcon = dict["icon"] ?? "sparkles"
         

@@ -21,8 +21,8 @@ When a user selects a URL template action:
 
 | Placeholder Token | Replacement Value | Encoding |
 | :--- | :--- | :--- |
-| `{query}` | Selected text string | Percent-encoded (`.urlQueryAllowed`) |
-| `{text}` | Selected text string | Percent-encoded (`.urlQueryAllowed`) |
+| `{query}` | Selected text string | Percent-encoded (`Constants.queryValueAllowed` — escapes `&`, `=`, `?`, `+`, etc.) |
+| `{text}` | Selected text string | Percent-encoded (`Constants.queryValueAllowed`) |
 
 ---
 

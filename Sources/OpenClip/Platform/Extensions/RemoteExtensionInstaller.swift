@@ -12,10 +12,17 @@ public final class RemoteExtensionInstaller: Sendable {
     private init() {}
     
     public nonisolated static func isPathSafe(destinationURL: URL, baseDirectory: URL) -> Bool {
-        let destPath = (destinationURL.path as NSString).standardizingPath
-        let basePath = (baseDirectory.path as NSString).standardizingPath
-        return destPath.hasPrefix(basePath)
+        Constants.isPathSafe(destinationURL: destinationURL, baseDirectory: baseDirectory)
     }
+    
+    /// Hosts that are allowed as remote extension download sources. The extension
+    /// store is served from this project's GitHub releases; anything else is
+    /// treated as untrusted and rejected.
+    public static let allowedDownloadHosts: Set<String> = [
+        "github.com",
+        "getopenclip.vercel.app",
+        "openclip.app",
+    ]
     
     public func installFromRemoteURL(_ downloadURL: URL, extensionID: String) async throws -> [any Action] {
         print("[OpenClip RemoteInstaller] Starting installation for '\(extensionID)'. Initial API URL: \(downloadURL)")
@@ -23,6 +30,11 @@ public final class RemoteExtensionInstaller: Sendable {
         guard downloadURL.scheme?.lowercased() == "https" else {
             print("[OpenClip RemoteInstaller] Unsupported scheme: \(downloadURL.scheme ?? "none")")
             throw NSError(domain: "RemoteExtensionInstaller", code: 400, userInfo: [NSLocalizedDescriptionKey: "Only HTTPS URLs are supported"])
+        }
+        
+        guard let host = downloadURL.host?.lowercased(), Self.allowedDownloadHosts.contains(host) else {
+            print("[OpenClip RemoteInstaller] Host not in allowlist: \(downloadURL.host ?? "unknown")")
+            throw NSError(domain: "RemoteExtensionInstaller", code: 400, userInfo: [NSLocalizedDescriptionKey: "Download host is not in the allowed list"])
         }
         
         // The store API guarantees this URL points at a real archive, so a single

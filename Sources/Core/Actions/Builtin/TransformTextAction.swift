@@ -2,7 +2,8 @@
 // OpenClip
 //
 // Implements text transformation actions such as letter case conversions, line sorting, whitespace trimming, and URL encoding.
-// Holds the canonical set of default disabled transform action identifiers on TransformCase.
+// Note: the default-on/off transform policy currently lives in ActionRegistry.availableActions
+// (TransformCase.defaultDisabledActionIDs does not exist yet).
 import Foundation
 
 public enum TransformCategory: String, Sendable, CaseIterable {
@@ -68,26 +69,26 @@ public enum TransformCase: String, CaseIterable, Sendable, Identifiable {
     }
     
     public func transform(_ text: String) -> String {
-        let words = text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
         switch self {
         case .uppercase:
             return text.uppercased()
         case .lowercase:
             return text.lowercased()
         case .titleCase:
-            return words.map { $0.capitalized }.joined(separator: " ")
+            return words(in: text).map { $0.capitalized }.joined(separator: " ")
         case .camelCase:
+            let words = words(in: text)
             guard let first = words.first?.lowercased() else { return text }
             let rest = words.dropFirst().map { $0.capitalized }
             return ([first] + rest).joined()
         case .pascalCase:
-            return words.map { $0.capitalized }.joined()
+            return words(in: text).map { $0.capitalized }.joined()
         case .snakeCase:
-            return words.map { $0.lowercased() }.joined(separator: "_")
+            return words(in: text).map { $0.lowercased() }.joined(separator: "_")
         case .kebabCase:
-            return words.map { $0.lowercased() }.joined(separator: "-")
+            return words(in: text).map { $0.lowercased() }.joined(separator: "-")
         case .constantCase:
-            return words.map { $0.uppercased() }.joined(separator: "_")
+            return words(in: text).map { $0.uppercased() }.joined(separator: "_")
         case .trimWhitespace:
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         case .sortLines:
@@ -98,7 +99,7 @@ public enum TransformCase: String, CaseIterable, Sendable, Identifiable {
         case .reverseText:
             return String(text.reversed())
         case .urlEncode:
-            return text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
+            return text.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed) ?? text
         case .urlDecode:
             return text.removingPercentEncoding ?? text
         case .base64Encode:
@@ -114,6 +115,10 @@ public enum TransformCase: String, CaseIterable, Sendable, Identifiable {
                   let prettyString = String(data: prettyData, encoding: .utf8) else { return text }
             return prettyString
         }
+    }
+    
+    private func words(in text: String) -> [String] {
+        text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
     }
 }
 

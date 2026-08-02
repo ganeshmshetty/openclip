@@ -37,8 +37,9 @@ function githubHeaders(): HeadersInit {
 const STATS_TTL_MS = 60 * 60 * 1000;
 let cachedStats: Record<string, number> | null = null;
 let cachedStatsAt = 0;
-
-async function loadStats(): Promise<Record<string, number>> {
+const CATALOG_TTL_MS = 5 * 60 * 1000;
+let cachedCatalog: ExtensionItem[] | null = null;
+let cachedCatalogAt = 0;async function loadStats(): Promise<Record<string, number>> {
   const now = Date.now();
   if (cachedStats && now - cachedStatsAt < STATS_TTL_MS) {
     return cachedStats;
@@ -59,9 +60,11 @@ async function loadStats(): Promise<Record<string, number>> {
 }
 
 async function loadCatalog(): Promise<ExtensionItem[]> {
-  // Always fetch the catalog fresh so extension changes (categories, new
-  // extensions) appear immediately. raw.githubusercontent.com is a CDN with
-  // no practical rate limit at this scale.
+  const now = Date.now();
+  if (cachedCatalog && now - cachedCatalogAt < CATALOG_TTL_MS) {
+    return cachedCatalog;
+  }
+
   try {
     const res = await fetch(CATALOG_URL, {
       headers: githubHeaders(),
@@ -69,7 +72,7 @@ async function loadCatalog(): Promise<ExtensionItem[]> {
     });
     if (!res.ok) {
       console.warn('Catalog fetch failed:', res.status);
-      return [];
+      return cachedCatalog ?? [];
     }
 
     const data = (await res.json()) as {
@@ -79,13 +82,16 @@ async function loadCatalog(): Promise<ExtensionItem[]> {
     // Merge GitHub Release download counts published nightly to extension-stats.json.
     const stats = await loadStats();
 
-    return (data.extensions ?? []).map((item) => ({
+    const merged = (data.extensions ?? []).map((item) => ({
       ...item,
       downloadCount: stats[item.id] ?? 0,
     }));
+    cachedCatalog = merged;
+    cachedCatalogAt = Date.now();
+    return merged;
   } catch (err) {
     console.error('Failed to load catalog:', err);
-    return [];
+    return cachedCatalog ?? [];
   }
 }
 
@@ -93,8 +99,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get('q') || '').toLowerCase().trim();
   const category = (searchParams.get('category') || 'all').toLowerCase().trim();
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const limit = parseInt(searchParams.get('limit') || '12', 10);
+  const rawPage = parseInt(searchParams.get('page') || '1', 10);
+  const rawLimit = parseInt(searchParams.get('limit') || '12', 10);
+  const page = Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1;
+  const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 12;
 
   let filtered = await loadCatalog();
 

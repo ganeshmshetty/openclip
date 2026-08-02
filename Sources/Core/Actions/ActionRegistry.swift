@@ -18,7 +18,9 @@ public final class ActionRegistry: ObservableObject, Sendable {
     }
     
     public func register(builtIns: [any Action]) {
-        actions.append(contentsOf: builtIns)
+        // Dedupe against existing actions so repeated loadInitialState() calls don't duplicate builtins.
+        let existingIDs = Set(actions.map(\.id))
+        actions.append(contentsOf: builtIns.filter { !existingIDs.contains($0.id) })
         sortActions()
     }
     

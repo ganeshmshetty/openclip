@@ -25,7 +25,8 @@ Selection Context ---> Process Instance ---> Inject Environment & write stdin
  - `OPENCLIP_OPTION_<NAME>`: Configured extension option values.
 3. **Pipes Setup**: Sets up `standardInput`, `standardOutput`, and `standardError` using `Pipe()`.
 4. **Standard Input Delivery**: Selected text is written to `stdin` asynchronously.
-5. **Process Exit Evaluation**: Ensures termination status is `0`. Non-zero exit status throws `NSError` containing `stderr` text.
+5. **Timeout Watchdog**: A detached task terminates the process if it exceeds `Constants.scriptTimeout` (30 s), so a hanging script never leaves the popup spinning. Any new action that spawns a subprocess must implement the same watchdog.
+6. **Process Exit Evaluation**: Ensures termination status is `0`. Non-zero exit status throws `NSError` containing `stderr` text.
 
 ---
 

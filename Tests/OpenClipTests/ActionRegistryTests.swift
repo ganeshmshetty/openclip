@@ -71,7 +71,7 @@ final class ActionRegistryTests: XCTestCase {
         let formatAction = MockFormattingAction()
         registry.register(action: formatAction)
         
-        let denyPolicy = AppPolicyContext(denyFormatting: true, denyProbe: false, denyPreprobe: false, grabPasteboard: false, grabKeyboard: false, browserAddressBar: false, assumePaste: false, lenientSelect: false)
+        let denyPolicy = AppPolicyContext(denyFormatting: true, denyProbe: false, denyPreprobe: false, grabPasteboard: false, assumePaste: false)
         let denySelection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: denyPolicy)
         let denyContext = ActionContext(selection: denySelection, modifiers: [])
         

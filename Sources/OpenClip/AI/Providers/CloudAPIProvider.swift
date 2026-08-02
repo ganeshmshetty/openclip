@@ -201,11 +201,13 @@ public final class CloudAPIProvider: AIProvider {
     }
 
     private static func fetchGeminiModels(apiKey: String) async throws -> [String] {
-        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models?key=\(apiKey)") else {
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models") else {
             throw AIError.invalidURL("https://generativelanguage.googleapis.com/v1beta/models")
         }
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 
-        let (data, response) = try await URLSession.shared.data(for: URLRequest(url: url, timeoutInterval: 10))
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw AIError.invalidResponse
         }
@@ -228,12 +230,13 @@ public final class CloudAPIProvider: AIProvider {
     // MARK: - Google Gemini API
 
     private func processGemini(userContent: String) async throws -> String {
-        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)") else {
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
             throw AIError.invalidURL("https://generativelanguage.googleapis.com/v1beta/models/\(model)")
         }
 
         var request = URLRequest(url: url, timeoutInterval: AIRequestSupport.timeoutInterval)
         request.httpMethod = "POST"
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let body = GeminiChatRequest(

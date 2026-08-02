@@ -6,7 +6,7 @@ import Foundation
 
 public struct TextPlaceholderEngine {
     public static func replacePlaceholders(in template: String, with text: String, urlEncode: Bool = true) -> String {
-        let encodedText = urlEncode ? (text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text) : text
+        let encodedText = urlEncode ? (text.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed) ?? text) : text
         var result = template
         
         let placeholders = ["{text}", "{query}"]

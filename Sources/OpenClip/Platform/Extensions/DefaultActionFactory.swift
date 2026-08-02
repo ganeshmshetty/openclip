@@ -88,6 +88,10 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         let scriptURL = directoryURL.appendingPathComponent(scriptName)
         let ext = scriptURL.pathExtension.lowercased()
         
+        // Guard against garbage metadata: with neither url, scriptCode, nor an existing script file,
+        // there is nothing executable to run.
+        guard FileManager.default.fileExists(atPath: scriptURL.path) else { return nil }
+        
         switch ext {
         case "js":
             let code = (try? String(contentsOf: scriptURL, encoding: .utf8)) ?? ""

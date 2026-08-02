@@ -70,7 +70,14 @@ public struct CalculateAction: ConfigurableAction {
         if value.truncatingRemainder(dividingBy: 1) == 0 {
             return String(format: "%.0f", value)
         } else {
-            return String(format: "%.4f", value).replacingOccurrences(of: "(?<=\\.\\d{2})0+$", with: "", options: .regularExpression)
+            var result = String(format: "%.4f", value)
+            while result.hasSuffix("0") {
+                result.removeLast()
+            }
+            if result.hasSuffix(".") {
+                result.removeLast()
+            }
+            return result
         }
     }
 }

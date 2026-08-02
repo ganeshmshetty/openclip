@@ -31,7 +31,7 @@ flowchart TD
 
 ## Action Registration Mechanics
 
-To prevent tight coupling to singleton instances inside domain submodules, domain managers operate through clean registration patterns coordinated by `ActionCoordinator`.
+> **Current reality (2026-08):** the callback design described below is aspirational. No `onRegister`/`onUnregister` callbacks exist today. `CustomActionManager` and `ExtensionManager` register/unregister actions by calling `ActionRegistry.shared` directly (`CustomActionManager.swift:34,44,50`; `ExtensionManager.swift:125,129,199`). `ActionCoordinator.loadInitialState()` invokes the managers, which touch the registry themselves. Implementing the callback seam is planned.
 
 ### Initial Loading Lifecycle
 
@@ -55,7 +55,7 @@ public func loadInitialState() async {
 When custom actions or extension packages are added, updated, or removed:
 - `CustomActionManager.register(customAction:)` inserts the item into `customActions` and registers it with `ActionRegistry`.
 - `ExtensionManager.loadExtensions()` unregisters previous extension actions and registers newly discovered ones.
-- Direct singleton coupling within Core sub-components is avoided; managers expose structured registration flows monitored by `ActionCoordinator`.
+- Direct singleton coupling within Core sub-components is currently the norm (see the reality note above); the intended design avoids it via structured registration flows monitored by `ActionCoordinator`.
 
 ---
 
@@ -105,7 +105,7 @@ When selected text is detected, `ActionCoordinator.resolveActions(for:)` convert
 1. **Disabled Actions Check**:
  - Queries `SettingKey.disabledActionIDs` from `SettingsStore`.
  - Evaluates `SettingKey.isTransformGroupEnabled`. If `isTransformGroupEnabled` is `false`, `"builtin.transform"` is added to disabled IDs.
- - Evaluates default disabled transform cases (`TransformCase.defaultDisabledActionIDs`).
+ - Applies the default disabled transform cases, hardcoded in `ActionRegistry.availableActions` as an inverted enabled-set (see below). (`TransformCase.defaultDisabledActionIDs` does not exist yet.)
 
 2. **Formatting Policy Check**:
  - If `context.selection.appPolicy.denyFormatting` is `true` (e.g. Terminal, IDEs), actions with `action.isFormatting == true` are filtered out.

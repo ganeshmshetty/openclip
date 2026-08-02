@@ -17,7 +17,7 @@ export default function Footer() {
           </span>
           <div>
             <p className="text-[13px] font-semibold text-ink">OpenClip</p>
-            <p className="text-[12px] text-ink/50">Open source macOS clipboard action engine</p>
+            <p className="text-[12px] text-ink/50">Open source macOS text action engine</p>
           </div>
         </div>
         <nav className="flex items-center gap-5">

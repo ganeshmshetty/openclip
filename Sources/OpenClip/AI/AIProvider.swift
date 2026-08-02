@@ -3,6 +3,7 @@
 //
 // Defines the protocol and model types for integrating AI model providers into OpenClip selection processing.
 import Foundation
+import Core
 
 public enum AIProviderType: String, CaseIterable, Identifiable, Sendable {
     case apple = "apple"
@@ -70,9 +71,7 @@ enum AIRequestSupport {
 
     /// Query-value encoding that escapes `&`, `=`, `?`, etc. (stricter than `.urlQueryAllowed`).
     static var queryValueAllowed: CharacterSet {
-        var allowed = CharacterSet.urlQueryAllowed
-        allowed.remove(charactersIn: ":#[]@!$&'()*+,;=?")
-        return allowed
+        Constants.queryValueAllowed
     }
 
     static func requireNonEmptyText(_ text: String) throws -> String {

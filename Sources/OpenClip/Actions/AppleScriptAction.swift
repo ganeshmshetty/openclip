@@ -56,7 +56,7 @@ public struct AppleScriptAction: ConfigurableAction {
 
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let rawText = context.selection.text
-        let text = rawText.replacingOccurrences(of: "\"", with: "\\\"")
+        let text = rawText.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
         let scriptWithVars = TextPlaceholderEngine.replacePlaceholders(in: appleScriptCode, with: rawText, urlEncode: false)
         
         let fullScript = """

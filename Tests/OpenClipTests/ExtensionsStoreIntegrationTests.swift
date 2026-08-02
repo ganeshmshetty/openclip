@@ -17,6 +17,6 @@ final class ExtensionsStoreIntegrationTests: XCTestCase {
         let client = ExtensionsAPIClient.shared
         let url = client.buildURL(query: "search", category: "Developer", page: 1, limit: 12)
         XCTAssertNotNil(url)
-        XCTAssertTrue(url?.absoluteString.contains("openclip.app") == true)
+        XCTAssertTrue(url?.absoluteString.contains("getopenclip.vercel.app") == true)
     }
 }

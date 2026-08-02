@@ -77,11 +77,6 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             guard isDragOrMultiClick else { return }
             
-            let logMsg = "📍 Selection Event | Mouse Down: \(downPoint.map { "(\($0.x), \($0.y))" } ?? "nil") -> Mouse Up: (\(cursor.x), \(cursor.y))"
-            NSLog("%@", logMsg)
-            print(logMsg)
-            fflush(stdout)
-            
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
             if let result = await self.retriever.retrieveTextResult(for: app, policy: policy) {
                 let text = result.text

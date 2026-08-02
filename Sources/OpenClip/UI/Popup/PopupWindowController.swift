@@ -22,14 +22,7 @@ public class PopupWindowController {
         isMenuTracking = false
         currentContext = context
         
-        var modifiers: ModifierFlags = []
-        let flags = NSEvent.modifierFlags
-        if flags.contains(.shift) { modifiers.insert(.shift) }
-        if flags.contains(.control) { modifiers.insert(.control) }
-        if flags.contains(.option) { modifiers.insert(.option) }
-        if flags.contains(.command) { modifiers.insert(.command) }
-        
-        let actionContext = ActionContext(selection: context, modifiers: modifiers)
+        let actionContext = ActionContext(selection: context, modifiers: [])
         let availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
         
         let panel = self.panel ?? PopupPanel()
@@ -131,8 +124,8 @@ public class PopupWindowController {
 
     private func sanitizedAISize(_ raw: CGSize?) -> CGSize {
         var s = raw ?? CGSize(width: 320, height: 150)
-        if s.width < 200 { s.width = 320 }
-        if s.height < 60 { s.height = 150 }
+        s.width = max(s.width, 200)
+        s.height = max(s.height, 60)
         return s
     }
 
@@ -151,8 +144,8 @@ public class PopupWindowController {
 
     private func sanitizedPopupSize(_ raw: CGSize?) -> CGSize {
         var size = raw ?? CGSize(width: 300, height: 54)
-        if size.width < 100 { size.width = 300 }
-        if size.height < 30 { size.height = 54 }
+        size.width = max(size.width, 100)
+        size.height = max(size.height, 30)
         return size
     }
 

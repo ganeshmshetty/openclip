@@ -27,16 +27,16 @@ interface OpenClipBridge {
 
 ## Options & Preference Integration
 
-Extension options defined in `manifest.json` are loaded dynamically via [`SettingsStore`](file:///Users/ganesh/dev/openclip/Sources/Core/Settings/SettingsStore.swift) using strongly-typed setting keys:
+Extension options defined in `manifest.json` are loaded dynamically using setting keys of the form `action.<id>.option.<identifier>`:
 
 ```swift
 for opt in actionOptions {
  let key = "action.\(id).option.\(opt.identifier)"
- optionsDict[opt.identifier] = settingsStore.get(SettingKey<String>(key, defaultValue: opt.defaultValue ?? ""))
+ optionsDict[opt.identifier] = UserDefaults.standard.string(forKey: key) ?? (opt.defaultValue ?? "")
 }
 ```
 
-- Direct calls to `UserDefaults.standard` are **never** used.
+- Direct calls to `UserDefaults.standard` are discouraged and should not be added in new code; the intended path is `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. (Note: `JavaScriptAction` currently reads option values via `UserDefaults.standard.string(forKey:)`; migrating it is planned.)
 - Options configured by users in the Preferences window are automatically passed into `openclip.options`.
 
 ---

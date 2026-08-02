@@ -50,10 +50,11 @@ public struct CalendarAction: ConfigurableAction {
         }
     }
 
+    private static let dateDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+
     private func detectDate(in text: String) -> Date? {
-        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue) else { return nil }
-        let matches = detector.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
-        return matches.first?.date
+        let matches = Self.dateDetector?.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
+        return matches?.first?.date
     }
 
     private func makeNativeCalendarICSURL(title: String, startDate: Date) -> URL? {

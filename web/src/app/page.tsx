@@ -7,12 +7,12 @@ import { Download, ArrowRight, Zap, Terminal, GitBranch, Shield } from 'lucide-r
 
 const SHOWCASE = [
   {
-    eyebrow: '01 / AI Assistant',
+    eyebrow: '01 / AI Actions',
     title: 'AI, right in the popup.',
     body: 'Fix grammar, summarize, translate — results stream into a card. Replace or copy in one click.',
-    gif: '/gifs/ai-assistant.gif',
-    name: 'ai-assistant.gif',
-    alt: 'OpenClip AI assistant rewriting selected text',
+    gif: '/gifs/ai-actions.gif',
+    name: 'ai-actions.gif',
+    alt: 'OpenClip AI actions rewriting selected text',
   },
   {
     eyebrow: '02 / Calculate',
@@ -54,7 +54,7 @@ const FEATURES = [
   {
     icon: Shield,
     title: 'Pure Swift Core',
-    body: 'Built natively in Swift 5. Lightweight, sandboxed, and always feels instant.',
+    body: 'Built natively in Swift 6. Lightweight, sandboxed, and always feels instant.',
   },
   {
     icon: GitBranch,
@@ -72,10 +72,10 @@ export default function Home() {
         {/* Hero */}
         <section className="pt-16 pb-20">
           <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
-            <span className="chip mb-7">Open Source · Native macOS · Swift 5</span>
+            <span className="chip mb-7">Open Source · Native macOS · Swift 6</span>
 
             <h1 className="text-4xl sm:text-[56px] font-extrabold tracking-[-0.03em] leading-[1.05] text-ink">
-              Clipboard actions,<br />
+              Text actions,<br />
               <span className="text-accent-deep">without the friction.</span>
             </h1>
 

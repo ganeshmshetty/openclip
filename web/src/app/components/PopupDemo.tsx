@@ -48,14 +48,20 @@ export default function PopupDemo() {
 
   const showFlash = (text: string) => {
     setFlash({ text, key: Date.now() });
-    const id = window.setTimeout(() => setFlash(null), 950);
+    const id = window.setTimeout(() => {
+      setFlash(null);
+      timers.current = timers.current.filter((t) => t !== id);
+    }, 950);
     timers.current.push(id);
   };
 
   const runAI = () => {
     if (phase !== 'idle') return;
     setPhase('processing');
-    const id = window.setTimeout(() => setPhase('result'), 1400);
+    const id = window.setTimeout(() => {
+      setPhase('result');
+      timers.current = timers.current.filter((t) => t !== id);
+    }, 1400);
     timers.current.push(id);
   };
 
@@ -106,7 +112,7 @@ export default function PopupDemo() {
                 <button
                   onClick={runAI}
                   className="flex items-center justify-center w-9 h-7 text-accent-deep hover:bg-accent hover:text-white"
-                  aria-label="AI assistant"
+                  aria-label="AI actions"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                 </button>
@@ -128,7 +134,7 @@ export default function PopupDemo() {
         {phase === 'result' && (
           <div className="card-chunky absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[320px] max-w-full p-3 text-left z-20">
             <div className="flex items-center justify-between mb-2">
-              <span className="eyebrow">AI Assistant · Fix grammar</span>
+              <span className="eyebrow">AI Actions · Fix grammar</span>
               <button
                 onClick={() => setPhase('idle')}
                 className="w-6 h-6 rounded-full border-[1.5px] border-ink bg-card hover:bg-tint flex items-center justify-center"

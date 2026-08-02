@@ -40,7 +40,7 @@ public struct SearchAction: ConfigurableAction {
         let template = DefaultSettingsStore.shared.get(.searchURL)
         let targetTemplate = template.isEmpty ? "https://www.google.com/search?q={query}" : template
         
-        if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+        if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed) {
             let urlString = targetTemplate.contains("{query}") ?
                 targetTemplate.replacingOccurrences(of: "{query}", with: encodedQuery) :
                 "https://www.google.com/search?q=\(encodedQuery)"
