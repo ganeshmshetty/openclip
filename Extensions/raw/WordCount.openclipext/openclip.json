@@ -1,0 +1,9 @@
+{
+  "identifier": "com.openclip.wordcount",
+  "name": "Word & Character Count",
+  "action": {
+    "title": "Word Count",
+    "icon": "text.alignleft",
+    "script": "main.applescript"
+  }
+}
