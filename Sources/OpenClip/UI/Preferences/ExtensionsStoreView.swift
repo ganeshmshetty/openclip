@@ -140,7 +140,11 @@ public struct ExtensionsStoreView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 14)], spacing: 14) {
+                    let twoColumns = [
+                        GridItem(.flexible(), spacing: 14),
+                        GridItem(.flexible(), spacing: 14)
+                    ]
+                    LazyVGrid(columns: twoColumns, spacing: 14) {
                         ForEach(viewModel.extensions) { ext in
                             ExtensionCardView(item: ext)
                                 .onAppear {

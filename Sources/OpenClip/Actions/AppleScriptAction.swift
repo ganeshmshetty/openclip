@@ -51,12 +51,15 @@ public struct AppleScriptAction: ConfigurableAction {
     }
 
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        let text = context.selection.text.replacingOccurrences(of: "\"", with: "\\\"")
+        let rawText = context.selection.text
+        let text = rawText.replacingOccurrences(of: "\"", with: "\\\"")
+        let scriptWithVars = TextPlaceholderEngine.replacePlaceholders(in: appleScriptCode, with: rawText, urlEncode: false)
         
         let fullScript = """
+        global OPENCLIP_TEXT, openclip_text
         set OPENCLIP_TEXT to "\(text)"
         set openclip_text to "\(text)"
-        \(appleScriptCode)
+        \(scriptWithVars)
         """
         
         return await Task.detached {
