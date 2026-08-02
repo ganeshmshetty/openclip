@@ -13,6 +13,11 @@ public struct ScriptAction: Action {
         self.scriptURL = scriptURL
     }
     
+    public var chrome: ActionChrome {
+        ActionChrome(badge: .script, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: "script"))
+    }
+
+    
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
         // Scripts usually need some text, but could be general. We'll enable if there is any selection.

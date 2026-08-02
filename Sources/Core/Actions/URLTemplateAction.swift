@@ -15,6 +15,11 @@ public struct URLTemplateAction: Action, Sendable {
         self.regexPattern = regexPattern
     }
     
+    public var chrome: ActionChrome {
+        ActionChrome(badge: .url, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: "url"))
+    }
+
+    
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
