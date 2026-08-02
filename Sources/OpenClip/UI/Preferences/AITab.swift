@@ -393,13 +393,9 @@ struct EditAIPresetSheet: View {
                 Text("Prompt Instruction")
                     .font(.caption)
                     .fontWeight(.medium)
-                TextEditor(text: $prompt)
-                    .font(.body)
-                    .frame(height: 90)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
-                    )
+                TextField("Prompt instruction...", text: $prompt, axis: .vertical)
+                    .lineLimit(3...6)
+                    .textFieldStyle(.roundedBorder)
             }
 
             HStack {
