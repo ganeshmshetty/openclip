@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-02T10:03:10Z",
+  "updatedAt": "2026-08-02T10:17:09Z",
   "extensions": [
     {
       "id": "com.openclip.applemusic",
@@ -8,9 +8,9 @@
       "author": "OpenClip Team",
       "icon": "music.note",
       "category": "music",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "downloadCount": 0,
-      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.applemusic@1.0.0/AppleMusic.openclipext.zip"
+      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.applemusic@1.0.1/AppleMusic.openclipext.zip"
     },
     {
       "id": "com.openclip.googlemaps",
@@ -19,9 +19,9 @@
       "author": "OpenClip Team",
       "icon": "map",
       "category": "maps",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "downloadCount": 0,
-      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.googlemaps@1.0.0/GoogleMaps.openclipext.zip"
+      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.googlemaps@1.0.1/GoogleMaps.openclipext.zip"
     },
     {
       "id": "com.openclip.translate",
@@ -30,9 +30,9 @@
       "author": "OpenClip Team",
       "icon": "globe",
       "category": "translate",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "downloadCount": 0,
-      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.translate@1.0.0/GoogleTranslate.openclipext.zip"
+      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.translate@1.0.1/GoogleTranslate.openclipext.zip"
     },
     {
       "id": "com.openclip.youtube",
@@ -41,9 +41,9 @@
       "author": "OpenClip Team",
       "icon": "play.circle",
       "category": "video",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "downloadCount": 0,
-      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.youtube@1.0.0/SearchYouTube.openclipext.zip"
+      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.youtube@1.0.1/SearchYouTube.openclipext.zip"
     },
     {
       "id": "com.openclip.wikipedia",
@@ -52,9 +52,9 @@
       "author": "OpenClip Team",
       "icon": "book",
       "category": "reference",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "downloadCount": 0,
-      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.wikipedia@1.0.0/WikipediaSearch.openclipext.zip"
+      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.wikipedia@1.0.1/WikipediaSearch.openclipext.zip"
     },
     {
       "id": "com.openclip.wordcount",
@@ -63,9 +63,9 @@
       "author": "OpenClip Team",
       "icon": "text.alignleft",
       "category": "productivity",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "downloadCount": 0,
-      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.wordcount@1.0.0/WordCount.openclipext.zip"
+      "downloadURL": "https://github.com/ganeshmshetty/openclip/releases/download/com.openclip.wordcount@1.0.1/WordCount.openclipext.zip"
     }
   ]
 }
