@@ -29,6 +29,33 @@ const CACHE_TTL_MS = 60_000;
 let cachedCatalog: ExtensionItem[] | null = null;
 let cachedAt = 0;
 
+// Download counts are published nightly to extension-stats.json by the
+// update-stats.yml workflow (Obsidian model). Serve from cache to avoid
+// hammering raw.githubusercontent.com.
+const STATS_TTL_MS = 60 * 60 * 1000;
+let cachedStats: Record<string, number> | null = null;
+let cachedStatsAt = 0;
+
+async function loadStats(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (cachedStats && now - cachedStatsAt < STATS_TTL_MS) {
+    return cachedStats;
+  }
+  try {
+    const res = await fetch(
+      `https://raw.githubusercontent.com/${REPO}/${BRANCH}/extension-stats.json`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return cachedStats ?? {};
+    const data = (await res.json()) as { downloads?: Record<string, number> };
+    cachedStats = data.downloads ?? {};
+    cachedStatsAt = Date.now();
+    return cachedStats;
+  } catch {
+    return cachedStats ?? {};
+  }
+}
+
 async function headExists(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, { method: 'HEAD', next: { revalidate: 60 } });
@@ -119,9 +146,15 @@ async function loadExtensionsFromGitHub(): Promise<ExtensionItem[]> {
       )
       .map((r) => r.value);
 
-    cachedCatalog = nextCatalog;
+    // Merge GitHub Release download counts published nightly to extension-stats.json.
+    const stats = await loadStats();
+
+    cachedCatalog = nextCatalog.map((item) => ({
+      ...item,
+      downloadCount: stats[item.id] ?? 0,
+    }));
     cachedAt = Date.now();
-    return nextCatalog;
+    return cachedCatalog;
   } catch (err) {
     console.error('Failed to load extensions from GitHub:', err);
     return cachedCatalog ?? [];

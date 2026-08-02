@@ -1,6 +1,7 @@
 {
   "identifier": "com.openclip.wordcount",
   "name": "Word & Character Count",
+  "version": "1.0.0",
   "action": {
     "title": "Word Count",
     "icon": "text.alignleft",

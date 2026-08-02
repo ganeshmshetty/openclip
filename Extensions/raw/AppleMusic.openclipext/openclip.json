@@ -1,6 +1,7 @@
 {
   "identifier": "com.openclip.applemusic",
   "name": "Apple Music",
+  "version": "1.0.0",
   "action": {
     "title": "Apple Music",
     "icon": "music.note",
