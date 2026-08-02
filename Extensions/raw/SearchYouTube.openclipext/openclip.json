@@ -1,6 +1,7 @@
 {
   "identifier": "com.openclip.youtube",
   "name": "Search YouTube",
+  "version": "1.0.0",
   "action": {
     "title": "Search YouTube",
     "icon": "play.circle",

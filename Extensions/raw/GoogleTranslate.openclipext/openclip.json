@@ -1,6 +1,7 @@
 {
   "identifier": "com.openclip.translate",
   "name": "Google Translate",
+  "version": "1.0.0",
   "action": {
     "title": "Translate",
     "icon": "globe",

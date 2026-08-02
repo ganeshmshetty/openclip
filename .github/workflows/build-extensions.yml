@@ -1,0 +1,84 @@
+name: Build & Publish Extensions
+
+# Creates versioned GitHub Releases (one per extension version) with the built
+# zip as a release asset, so GitHub tracks download counts for free.
+# Also commits the freshly-built .openclipext.zip files to Extensions/.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Extensions/raw/**'
+      - '.github/workflows/build-extensions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: extensions-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "OpenClip Bot"
+          git config user.email "actions@github.com"
+
+      - name: Build zips and publish releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          ROOT="$(pwd)"
+          RAW_DIR="$ROOT/Extensions/raw"
+          BUILT=""
+          CHANGED_ZIPS=""
+
+          for pkg_dir in "$RAW_DIR"/*.openclipext; do
+            [ -d "$pkg_dir" ] || continue
+            pkg_name="$(basename "$pkg_dir")"                       # e.g. AppleMusic.openclipext
+            manifest="$pkg_dir/openclip.json"
+            [ -f "$manifest" ] || continue
+
+            # Build the distributable zip from source.
+            (cd "$RAW_DIR" && zip -r -X "$ROOT/Extensions/$pkg_name.zip" "$pkg_name" -x '*.DS_Store' -x '._*' >/dev/null)
+
+            version="$(jq -r '.version // "1.0.0"' "$manifest")"
+            identifier="$(jq -r '.identifier // empty' "$manifest")"
+            if [ -z "$identifier" ]; then
+              identifier="com.openclip.${pkg_name%.openclipext}"
+              identifier="$(echo "$identifier" | tr '[:upper:]' '[:lower:]')"
+            fi
+            tag="${identifier}@${version}"
+
+            if gh release view "$tag" --json name >/dev/null 2>&1; then
+              echo "Release $tag already exists; skipping (bump 'version' in $pkg_name/openclip.json to republish)."
+              continue
+            fi
+
+            echo "Creating release $tag for $pkg_name..."
+            gh release create "$tag" \
+              "$ROOT/Extensions/$pkg_name.zip" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$pkg_name v$version" \
+              --notes "Release $pkg_name v$version built automatically from Extensions/raw/$pkg_name."
+            CHANGED_ZIPS="$CHANGED_ZIPS $pkg_name.zip"
+          done
+
+          # Commit rebuilt zips so they stay in sync with the raw source.
+          if [ -n "$CHANGED_ZIPS" ]; then
+            git add $CHANGED_ZIPS
+            if ! git diff --cached --quiet; then
+              git commit -m "build(extensions): rebuild .openclipext zips [skip ci]"
+              git push origin main
+            fi
+          fi

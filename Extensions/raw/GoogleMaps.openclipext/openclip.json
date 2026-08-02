@@ -1,6 +1,7 @@
 {
   "identifier": "com.openclip.googlemaps",
   "name": "Google Maps",
+  "version": "1.0.0",
   "action": {
     "title": "Google Maps",
     "icon": "map",
