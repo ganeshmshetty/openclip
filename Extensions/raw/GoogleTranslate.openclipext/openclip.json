@@ -1,0 +1,9 @@
+{
+  "identifier": "com.openclip.translate",
+  "name": "Google Translate",
+  "action": {
+    "title": "Translate",
+    "icon": "globe",
+    "url": "https://translate.google.com/?sl=auto&tl=en&text={text}"
+  }
+}
