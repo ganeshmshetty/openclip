@@ -492,22 +492,7 @@ struct ActionRowView: View {
     @State private var showingConfigSheet = false
     
     private var displayIcon: ActionIcon {
-        if let override = ActionCustomizationManager.shared.override(for: action.id) {
-            if let symbol = override.customIconSymbol, !symbol.isEmpty {
-                return .symbol(symbol)
-            }
-        }
-        if let configurable = action as? any ConfigurableAction {
-            return .symbol(configurable.preferenceIconName)
-        }
-        switch action.id {
-        case "builtin.copy": return .symbol("doc.on.doc")
-        case "builtin.cut": return .symbol("scissors")
-        case "builtin.paste": return .symbol("doc.on.clipboard")
-        case "builtin.define": return .symbol("character.book.closed")
-        default:
-            return action.icon
-        }
+        ActionCustomizationManager.shared.tableIcon(for: action)
     }
 
     var body: some View {

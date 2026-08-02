@@ -9,3 +9,5 @@ build/
 *.profraw
 *.log
 DerivedData/
+*.patch
+*.orig

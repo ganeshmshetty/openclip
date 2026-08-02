@@ -28,19 +28,11 @@ public extension Action {
     
     @MainActor
     var displayTitle: String {
-        ActionCustomizationManager.shared.override(for: id)?.customTitle ?? title
+        ActionCustomizationManager.shared.displayTitle(for: self)
     }
     
     @MainActor
     var displayIcon: ActionIcon {
-        if let override = ActionCustomizationManager.shared.override(for: id) {
-            if let text = override.customIconText, !text.isEmpty {
-                return .text(text)
-            }
-            if let symbol = override.customIconSymbol, !symbol.isEmpty {
-                return .symbol(symbol)
-            }
-        }
-        return icon
+        ActionCustomizationManager.shared.popupIcon(for: self)
     }
 }
