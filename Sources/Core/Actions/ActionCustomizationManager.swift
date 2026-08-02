@@ -63,6 +63,45 @@ public final class ActionCustomizationManager: ObservableObject, Sendable {
         saveOverrides()
     }
     
+    // MARK: - Centralized Presentation Resolvers
+
+    public func displayTitle(for action: any Action) -> String {
+        let ov = override(for: action.id)
+        if let customTitle = ov?.customTitle, !customTitle.isEmpty {
+            return customTitle
+        }
+        return action.title
+    }
+
+    public func popupIcon(for action: any Action) -> ActionIcon {
+        let ov = override(for: action.id)
+        if let text = ov?.customIconText, !text.isEmpty {
+            return .text(text)
+        }
+        if let symbol = ov?.customIconSymbol, !symbol.isEmpty {
+            return .symbol(symbol)
+        }
+        return action.icon
+    }
+
+    public func tableIcon(for action: any Action) -> ActionIcon {
+        let ov = override(for: action.id)
+        if let symbol = ov?.customIconSymbol, !symbol.isEmpty {
+            return .symbol(symbol)
+        }
+        if let configurable = action as? any ConfigurableAction {
+            return .symbol(configurable.preferenceIconName)
+        }
+        switch action.id {
+        case "builtin.copy": return .symbol("doc.on.doc")
+        case "builtin.cut": return .symbol("scissors")
+        case "builtin.paste": return .symbol("doc.on.clipboard")
+        case "builtin.define": return .symbol("character.book.closed")
+        default:
+            return action.icon
+        }
+    }
+
     private func saveOverrides() {
         if let encoded = try? JSONEncoder().encode(overrides) {
             UserDefaults.standard.set(encoded, forKey: storageKey)
