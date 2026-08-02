@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "author": "OpenClip Team",
   "description": "Search Apple Music for the selected text.",
-  "category": "music",
+  "category": "search",
   "action": {
     "title": "Apple Music",
     "icon": "music.note",

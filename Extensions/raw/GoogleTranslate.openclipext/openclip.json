@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "author": "OpenClip Team",
   "description": "Translate the selected text into English with Google Translate.",
-  "category": "translate",
+  "category": "writing",
   "action": {
     "title": "Translate",
     "icon": "globe",

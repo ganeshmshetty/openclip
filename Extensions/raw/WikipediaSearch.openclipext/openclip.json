@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "author": "OpenClip Team",
   "description": "Look up the selected text on Wikipedia.",
-  "category": "reference",
+  "category": "search",
   "action": {
     "title": "Wikipedia",
     "icon": "book",
