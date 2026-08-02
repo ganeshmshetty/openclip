@@ -71,7 +71,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "$pkg_name v$version" \
               --notes "Release $pkg_name v$version built automatically from Extensions/raw/$pkg_name."
-            CHANGED_ZIPS="$CHANGED_ZIPS $pkg_name.zip"
+            CHANGED_ZIPS="$CHANGED_ZIPS Extensions/$pkg_name.zip"
           done
 
           # Commit rebuilt zips so they stay in sync with the raw source.
