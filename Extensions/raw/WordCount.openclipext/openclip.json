@@ -4,6 +4,6 @@
   "action": {
     "title": "Word Count",
     "icon": "text.alignleft",
-    "script": "main.applescript"
+    "script": "main.js"
   }
 }
