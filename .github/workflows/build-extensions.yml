@@ -82,3 +82,50 @@ jobs:
               git push origin main
             fi
           fi
+
+      - name: Generate and commit catalog.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          ROOT="$(pwd)"
+          RAW_DIR="$ROOT/Extensions/raw"
+
+          # Build catalog.json from the raw extension manifests so the web API
+          # serves metadata from a single file instead of walking the GitHub tree.
+          CATALOG="$ROOT/catalog.json"
+          jq -n '{updatedAt: (now | todateiso8601), extensions: []}' > "$CATALOG"
+
+          for pkg_dir in "$RAW_DIR"/*.openclipext; do
+            [ -d "$pkg_dir" ] || continue
+            pkg_name="$(basename "$pkg_dir")"                       # e.g. AppleMusic.openclipext
+            manifest="$pkg_dir/openclip.json"
+            [ -f "$manifest" ] || continue
+
+            identifier="$(jq -r '.identifier // empty' "$manifest")"
+            if [ -z "$identifier" ]; then
+              identifier="com.openclip.${pkg_name%.openclipext}"
+              identifier="$(echo "$identifier" | tr '[:upper:]' '[:lower:]')"
+            fi
+
+            entry=$(jq -nc \
+              --arg id "$identifier" \
+              --arg name "$(jq -r '.name // (.action.title // .actions[0].title // empty)' "$manifest")" \
+              --arg desc "$(jq -r '.description // empty' "$manifest")" \
+              --arg author "$(jq -r '.author // "OpenClip Team"' "$manifest")" \
+              --arg icon "$(jq -r '(.action.icon // .actions[0].icon // "puzzlepiece")' "$manifest")" \
+              --arg category "$(jq -r '.category // "productivity"' "$manifest")" \
+              --arg version "$(jq -r '.version // "1.0.0"' "$manifest")" \
+              --arg url "https://github.com/$GITHUB_REPOSITORY/releases/download/${identifier}@$(jq -r '.version // "1.0.0"' "$manifest")/$pkg_name.zip" \
+              '{id: $id, name: $name, description: $desc, author: $author, icon: $icon, category: $category, version: $version, downloadCount: 0, downloadURL: $url}')
+
+            jq --argjson entry "$entry" '.extensions += [$entry]' "$CATALOG" > "$CATALOG.tmp"
+            mv "$CATALOG.tmp" "$CATALOG"
+          done
+
+          git add catalog.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(extensions): regenerate catalog.json [skip ci]"
+            git push origin main
+          fi

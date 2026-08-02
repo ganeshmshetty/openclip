@@ -20,14 +20,14 @@ export interface ExtensionsPageResponse {
 
 const REPO = 'ganeshmshetty/openclip';
 const BRANCH = 'main';
-const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/Extensions`;
-const API_TREE_URL = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
+const CATALOG_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/catalog.json`;
+const STATS_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/extension-stats.json`;
 
 // Cache the verified catalog so repeated searches don't hammer GitHub.
 // Keyed by repo/branch; entries expire after a short TTL.
-const CACHE_TTL_MS = 60_000;
+const CATALOG_TTL_MS = 5 * 60 * 1000;
 let cachedCatalog: ExtensionItem[] | null = null;
-let cachedAt = 0;
+let cachedCatalogAt = 0;
 
 // Download counts are published nightly to extension-stats.json by the
 // update-stats.yml workflow (Obsidian model). Serve from cache to avoid
@@ -42,10 +42,7 @@ async function loadStats(): Promise<Record<string, number>> {
     return cachedStats;
   }
   try {
-    const res = await fetch(
-      `https://raw.githubusercontent.com/${REPO}/${BRANCH}/extension-stats.json`,
-      { next: { revalidate: 3600 } }
-    );
+    const res = await fetch(STATS_URL, { next: { revalidate: 3600 } });
     if (!res.ok) return cachedStats ?? {};
     const data = (await res.json()) as { downloads?: Record<string, number> };
     cachedStats = data.downloads ?? {};
@@ -56,107 +53,35 @@ async function loadStats(): Promise<Record<string, number>> {
   }
 }
 
-async function headExists(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, { method: 'HEAD', next: { revalidate: 60 } });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function loadExtensionsFromGitHub(): Promise<ExtensionItem[]> {
+async function loadCatalog(): Promise<ExtensionItem[]> {
   // Serve from cache unless it has expired.
   const now = Date.now();
-  if (cachedCatalog && now - cachedAt < CACHE_TTL_MS) {
+  if (cachedCatalog && now - cachedCatalogAt < CATALOG_TTL_MS) {
     return cachedCatalog;
   }
 
   try {
-    const treeRes = await fetch(API_TREE_URL, {
-      headers: {
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'OpenClip-Website',
-      },
-      next: { revalidate: 60 },
-    });
-
-    if (!treeRes.ok) {
-      console.warn('GitHub tree fetch failed:', treeRes.status);
+    const res = await fetch(CATALOG_URL, { next: { revalidate: 300 } });
+    if (!res.ok) {
+      console.warn('Catalog fetch failed:', res.status);
       return cachedCatalog ?? [];
     }
 
-    const tree: { tree: { path: string; type: string }[] } = await treeRes.json();
-
-    // Find all openclip.json manifest paths inside .openclipext directories
-    const manifests = tree.tree.filter(
-      (node) =>
-        node.type === 'blob' &&
-        node.path.startsWith('Extensions/') &&
-        node.path.endsWith('/openclip.json') &&
-        node.path.includes('.openclipext/')
-    );
-
-    const results = await Promise.allSettled(
-      manifests.map(async (node) => {
-        const rawURL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${node.path}`;
-        const res = await fetch(rawURL, { next: { revalidate: 60 } });
-        if (!res.ok) return null;
-
-        const data = await res.json();
-        const action = data.action || data.actions?.[0] || {};
-        // Manifest paths look like "Extensions/raw/AppleMusic.openclipext/openclip.json".
-        // The published zip lives next to the raw dir at "Extensions/AppleMusic.openclipext.zip".
-        const pathParts = node.path.split('/');
-        const pkgDir = pathParts.find((part) => part.endsWith('.openclipext')) ?? pathParts[1];
-
-        // The zip filename is the .openclipext folder name + .zip. Verify it actually
-        // exists before exposing it, so the API never returns a 404 download URL.
-        const downloadURL = `${RAW_BASE}/${pkgDir}.zip`;
-        if (!(await headExists(downloadURL))) {
-          console.warn(`Extension zip not found, skipping: ${downloadURL}`);
-          return null;
-        }
-
-        return {
-          id:
-            data.identifier ||
-            data.id ||
-            `com.openclip.${pkgDir.replace('.openclipext', '').toLowerCase()}`,
-          name: data.name || action.title || pkgDir.replace('.openclipext', ''),
-          description:
-            data.description ||
-            action.description ||
-            (action.url
-              ? `Opens ${action.url.split('/')[2]} for your selected text.`
-              : 'A native OpenClip extension.'),
-          author: data.author || 'OpenClip Team',
-          icon: action.icon || data.icon || 'puzzlepiece',
-          category: data.category || 'productivity',
-          downloadCount: 0,
-          downloadURL,
-        } as ExtensionItem;
-      })
-    );
-
-    const nextCatalog = results
-      .filter(
-        (r): r is PromiseFulfilledResult<ExtensionItem> =>
-          r.status === 'fulfilled' && r.value !== null
-      )
-      .map((r) => r.value);
+    const data = (await res.json()) as {
+      extensions?: Omit<ExtensionItem, 'downloadCount'>[];
+    };
 
     // Merge GitHub Release download counts published nightly to extension-stats.json.
     const stats = await loadStats();
 
-    cachedCatalog = nextCatalog.map((item) => ({
+    cachedCatalog = (data.extensions ?? []).map((item) => ({
       ...item,
       downloadCount: stats[item.id] ?? 0,
     }));
-    cachedAt = Date.now();
+    cachedCatalogAt = Date.now();
     return cachedCatalog;
   } catch (err) {
-    console.error('Failed to load extensions from GitHub:', err);
+    console.error('Failed to load catalog:', err);
     return cachedCatalog ?? [];
   }
 }
@@ -168,7 +93,7 @@ export async function GET(request: Request) {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '12', 10);
 
-  let filtered = await loadExtensionsFromGitHub();
+  let filtered = await loadCatalog();
 
   if (category !== 'all') {
     filtered = filtered.filter((ext) => ext.category.toLowerCase() === category);

@@ -2,6 +2,9 @@
   "identifier": "com.openclip.wordcount",
   "name": "Word & Character Count",
   "version": "1.0.0",
+  "author": "OpenClip Team",
+  "description": "Count the words and characters in the selected text.",
+  "category": "productivity",
   "action": {
     "title": "Word Count",
     "icon": "text.alignleft",
