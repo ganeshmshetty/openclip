@@ -1,3 +1,7 @@
+// ModifierFlags.swift
+// OpenClip
+//
+// Defines an option set representing keyboard modifier flags (Shift, Control, Option, Command) during action evaluation.
 import Foundation
 
 public struct ModifierFlags: OptionSet, Sendable {

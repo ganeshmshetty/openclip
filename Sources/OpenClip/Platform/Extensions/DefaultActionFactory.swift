@@ -1,3 +1,7 @@
+// DefaultActionFactory.swift
+// OpenClip
+//
+// Serves as the Birth Door implementation, instantiating executable Action instances from extension manifests and snippets.
 import Foundation
 import Core
 

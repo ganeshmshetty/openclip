@@ -1,3 +1,7 @@
+// StatusBarController.swift
+// OpenClip
+//
+// Manages the menu bar status item, dropdown menu actions, and preferences window presentation for OpenClip.
 import AppKit
 import SwiftUI
 import Core

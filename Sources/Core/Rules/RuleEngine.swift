@@ -1,3 +1,7 @@
+// RuleEngine.swift
+// OpenClip
+//
+// Evaluates active selection contexts against application rules to determine if OpenClip actions should be enabled or suppressed.
 import Foundation
 import os
 import Combine

@@ -1,3 +1,7 @@
+// AppRulesTab.swift
+// OpenClip
+//
+// Renders the application rules preferences tab for managing app exclusion rules and application-specific settings.
 import SwiftUI
 import AppKit
 import Core

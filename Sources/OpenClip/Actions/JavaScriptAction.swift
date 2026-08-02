@@ -1,3 +1,7 @@
+// JavaScriptAction.swift
+// OpenClip
+//
+// Implements action execution for JavaScript snippets using JavaScriptCore, reading options via the Settings Door.
 import Foundation
 import JavaScriptCore
 import Core

@@ -1,3 +1,7 @@
+// URLTemplateAction.swift
+// OpenClip
+//
+// Implements web search and URL opening actions using parameterized text template strings and optional regex matching rules.
 import Foundation
 
 public struct URLTemplateAction: Action, Sendable {

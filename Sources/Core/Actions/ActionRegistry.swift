@@ -1,3 +1,8 @@
+// ActionRegistry.swift
+// OpenClip
+//
+// Stores and orders all registered actions, providing a reactive catalog of available text manipulations.
+// Interacts with the Settings Door to respect user sorting preferences and enable dynamic action lookup by identifier.
 import Foundation
 import Combine
 

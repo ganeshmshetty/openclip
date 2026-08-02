@@ -1,3 +1,7 @@
+// SelectionContext.swift
+// OpenClip
+//
+// Represents the full context of a text selection event, including selected text, source application, screen coordinates, and app policy.
 import Foundation
 import CoreGraphics
 

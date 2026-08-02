@@ -1,3 +1,7 @@
+// AppleScriptAction.swift
+// OpenClip
+//
+// Implements action execution for AppleScript snippets and files using macOS NSAppleScript automation.
 import Foundation
 import Core
 

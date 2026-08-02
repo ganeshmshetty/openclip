@@ -1,3 +1,7 @@
+// DynamicActionConfigView.swift
+// OpenClip
+//
+// Dynamically constructs configuration form rows for extension options using SettingKey definitions via the Settings Door.
 import SwiftUI
 import Core
 

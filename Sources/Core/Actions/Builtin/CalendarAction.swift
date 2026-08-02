@@ -1,3 +1,7 @@
+// CalendarAction.swift
+// OpenClip
+//
+// Implements the builtin calendar action for creating events from selected text using configurable calendar providers.
 import Foundation
 
 public struct CalendarAction: ConfigurableAction {

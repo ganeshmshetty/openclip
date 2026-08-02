@@ -1,3 +1,7 @@
+// AppleIntelligenceProvider.swift
+// OpenClip
+//
+// Implements AI processing capabilities using local Apple Intelligence system features.
 import Foundation
 import AppKit
 

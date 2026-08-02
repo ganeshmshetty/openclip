@@ -1,3 +1,7 @@
+// CustomActionDraft.swift
+// OpenClip
+//
+// Represents a mutable draft value object used when creating or editing custom actions in UI forms.
 import Foundation
 
 public struct CustomActionDraft: Sendable, Equatable {

@@ -1,3 +1,7 @@
+// OllamaProvider.swift
+// OpenClip
+//
+// Implements AI text processing by connecting to locally hosted Ollama API instances.
 import Foundation
 
 @MainActor

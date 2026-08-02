@@ -1,3 +1,7 @@
+// AddCustomActionSheet.swift
+// OpenClip
+//
+// Renders the modal sheet interface for creating new custom web search, snippet, or script actions.
 import SwiftUI
 import Core
 

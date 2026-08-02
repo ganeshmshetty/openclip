@@ -1,3 +1,7 @@
+// PopupWindowController.swift
+// OpenClip
+//
+// Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
 import AppKit
 import SwiftUI
 import Core

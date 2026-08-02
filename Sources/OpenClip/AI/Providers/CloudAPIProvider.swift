@@ -1,3 +1,7 @@
+// CloudAPIProvider.swift
+// OpenClip
+//
+// Implements AI processing by querying cloud-based LLM API endpoints (such as OpenAI or Anthropic).
 import Foundation
 
 @MainActor

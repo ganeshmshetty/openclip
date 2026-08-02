@@ -1,3 +1,7 @@
+// AITab.swift
+// OpenClip
+//
+// Renders the AI settings preferences tab for configuring AI provider credentials, model selections, and endpoints.
 import SwiftUI
 
 @MainActor

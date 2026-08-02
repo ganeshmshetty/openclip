@@ -1,3 +1,8 @@
+// ActionCustomizationManager.swift
+// OpenClip
+//
+// Manages user-configured overrides for action titles and icons, persisting customizations via the Settings Door.
+// Provides display title and icon resolution for popup and table surfaces based on user preferences.
 import Foundation
 import Combine
 

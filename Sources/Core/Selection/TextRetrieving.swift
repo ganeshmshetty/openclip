@@ -1,3 +1,7 @@
+// TextRetrieving.swift
+// OpenClip
+//
+// Defines the protocol for extracting text and bounds from active applications using accessibility APIs or pasteboard fallbacks.
 import Foundation
 import CoreGraphics
 

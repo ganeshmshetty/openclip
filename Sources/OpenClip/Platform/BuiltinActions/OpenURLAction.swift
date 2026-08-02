@@ -1,3 +1,7 @@
+// OpenURLAction.swift
+// OpenClip
+//
+// Implements URL opening actions using macOS NSWorkspace workspace services.
 import Foundation
 #if canImport(AppKit)
 import AppKit

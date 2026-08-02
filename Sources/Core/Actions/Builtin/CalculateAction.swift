@@ -1,3 +1,7 @@
+// CalculateAction.swift
+// OpenClip
+//
+// Implements the builtin math expression evaluation action, computing mathematical expressions found in selected text.
 import Foundation
 
 public struct CalculateAction: ConfigurableAction {

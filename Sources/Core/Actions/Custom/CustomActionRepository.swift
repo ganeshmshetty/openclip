@@ -1,3 +1,7 @@
+// CustomActionRepository.swift
+// OpenClip
+//
+// Handles JSON file storage and retrieval for custom actions in the Application Support directory.
 import Foundation
 
 public final class CustomActionRepository: @unchecked Sendable {

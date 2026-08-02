@@ -1,3 +1,7 @@
+// ServicesAction.swift
+// OpenClip
+//
+// Invokes system macOS Services menu operations for selected text content.
 import Foundation
 #if canImport(AppKit)
 import AppKit

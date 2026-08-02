@@ -1,3 +1,7 @@
+// RemoteExtensionInstaller.swift
+// OpenClip
+//
+// Downloads and unpacks remote extension packages from the extension store into the local Application Support directory.
 import Foundation
 import Core
 

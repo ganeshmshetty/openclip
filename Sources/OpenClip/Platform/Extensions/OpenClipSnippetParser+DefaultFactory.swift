@@ -1,3 +1,7 @@
+// OpenClipSnippetParser+DefaultFactory.swift
+// OpenClip
+//
+// Extends OpenClipSnippetParser with convenience factory methods for creating actions directly from snippet files.
 import Foundation
 import Core
 

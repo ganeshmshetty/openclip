@@ -1,3 +1,7 @@
+// AppRule.swift
+// OpenClip
+//
+// Defines application-specific policy rules and match conditions for controlling OpenClip behavior per target application.
 import Foundation
 
 public struct AppPolicyContext: Sendable {

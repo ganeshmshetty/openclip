@@ -1,3 +1,7 @@
+// TextPlaceholderEngine.swift
+// OpenClip
+//
+// Replaces template placeholders such as {text} and {query} in URL strings and snippets with percent-encoded text values.
 import Foundation
 
 public struct TextPlaceholderEngine {

@@ -1,3 +1,7 @@
+// LaunchAtLoginManager.swift
+// OpenClip
+//
+// Manages macOS login item registration using ServiceManagement SMAppService APIs.
 import Foundation
 import ServiceManagement
 import AppKit

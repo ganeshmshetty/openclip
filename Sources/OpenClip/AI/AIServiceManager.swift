@@ -1,3 +1,7 @@
+// AIServiceManager.swift
+// OpenClip
+//
+// Manages AI service provider selection, API credentials, and invocation of AI text processing actions.
 import Foundation
 import SwiftUI
 

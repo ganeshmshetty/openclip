@@ -1,3 +1,7 @@
+// OnboardingWindowController.swift
+// OpenClip
+//
+// Manages the NSWindow controller lifecycle for presenting the first launch onboarding window.
 import AppKit
 import SwiftUI
 

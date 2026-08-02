@@ -1,3 +1,7 @@
+// EditActionSheet.swift
+// OpenClip
+//
+// Renders the modal sheet interface for editing existing action appearances, titles, and parameters.
 import SwiftUI
 import AppKit
 import Core

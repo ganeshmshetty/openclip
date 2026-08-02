@@ -1,3 +1,7 @@
+// ExtensionActionKind.swift
+// OpenClip
+//
+// Defines normalized action kind types supported by extension manifests, such as URL templates, scripts, and JavaScript handlers.
 import Foundation
 
 public enum ExtensionActionKind: String, Codable, Sendable, Equatable {

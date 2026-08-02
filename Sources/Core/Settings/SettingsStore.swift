@@ -1,3 +1,7 @@
+// SettingsStore.swift
+// OpenClip
+//
+// Defines the central SettingsStore protocol and DefaultSettingsStore adapter for typed application configuration management through the Settings Door.
 import Foundation
 import Combine
 

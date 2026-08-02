@@ -1,3 +1,7 @@
+// PreferencesView.swift
+// OpenClip
+//
+// Renders the primary multi-tab preferences window interface for OpenClip.
 import SwiftUI
 import Core
 import KeyboardShortcuts

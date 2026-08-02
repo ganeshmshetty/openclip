@@ -1,3 +1,7 @@
+// PopupView.swift
+// OpenClip
+//
+// Renders the main floating action bar popup view presenting available actions, transform menus, and inline completion buttons.
 import SwiftUI
 import AppKit
 import CoreGraphics

@@ -1,3 +1,7 @@
+// UnifiedIconProvider.swift
+// OpenClip
+//
+// Provides unified icon fetching and caching for SF Symbols, open-source icon sets, and SVG images.
 import Foundation
 import SwiftUI
 

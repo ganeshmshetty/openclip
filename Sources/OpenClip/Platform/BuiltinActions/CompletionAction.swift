@@ -1,3 +1,7 @@
+// CompletionAction.swift
+// OpenClip
+//
+// Implements word completion actions using platform text dictionaries and word completion providers.
 import AppKit
 import Foundation
 import Core

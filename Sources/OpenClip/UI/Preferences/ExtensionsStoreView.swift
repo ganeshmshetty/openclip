@@ -1,3 +1,7 @@
+// ExtensionsStoreView.swift
+// OpenClip
+//
+// Renders the extension store browser and installer interface in preferences.
 import SwiftUI
 import Core
 

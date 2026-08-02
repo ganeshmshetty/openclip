@@ -1,3 +1,7 @@
+// PasteAction.swift
+// OpenClip
+//
+// Implements the standard paste action that triggers clipboard paste simulation.
 import Foundation
 
 public struct PasteAction: ConfigurableAction {

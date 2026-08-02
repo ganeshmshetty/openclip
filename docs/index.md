@@ -1,87 +1,78 @@
-# OpenClip Documentation
+# OpenClip Technical Documentation
 
-Welcome to the official documentation for **OpenClip**, the open-source text selection action tool and extension runtime for macOS.
-
-OpenClip appears dynamically whenever you highlight text in any macOS application, offering contextual actions such as copying, searching, transforming text, running shell commands, executing JavaScript snippets, or triggering AppleScript routines.
+Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweight, high-performance macOS floating popup utility written in Swift (macOS 14.0+). It intercepts selected text across any application, presents contextual text manipulation actions (copy, cut, paste, definition lookups, web searches, custom scripts, and extensions), and executes platform side-effects seamlessly.
 
 ---
 
-## Key Features
+## Quick Start Guide
 
-- ⚡ **Contextual Action Popup:** Appears instantly near your text selection or mouse cursor across native macOS applications, web browsers, and electron apps.
-- 🎨 **Modern Glassmorphic UI:** Designed specifically for macOS with support for native dark mode, custom themes, sizing, and smooth animations.
-- 🔌 **Multi-Runtime Extension System:** Support for 4 extension runtimes:
-  - **JavaScriptCore (JSC):** High-performance inline JavaScript execution with native bridge APIs.
-  - **AppleScript:** Seamless automation of macOS system services and third-party Mac applications.
-  - **Zsh / Python Executables:** Run local shell scripts, command-line tools, and custom binaries.
-  - **URL Templates:** Instant web lookups with dynamic query substitution and regular expression matching.
-- ⚙️ **Declarative Option UIs:** Extensions can define user-configurable options (text fields, switch toggles, choice dropdowns, secure password fields) rendered automatically in the OpenClip Preferences UI.
-- 🛡️ **Per-Application Policy Engine:** Enable, disable, or customize popup behavior per application (e.g. disable in IDEs or Terminal, enable everywhere else).
-- 🔓 **Fully Open Source:** Clean Swift & SwiftUI implementation built on native macOS APIs (`AXUIElement`, `JSContext`, `NSAppleScript`).
+### Prerequisites
+- macOS 14.0 (Sonoma) or later
+- Xcode 15.0+ (for building from source)
+- [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
----
+### Building & Running
 
-## High-Level Architecture
+1. **Clone the Repository:**
+ ```bash
+ git clone https://github.com/openclip/openclip.git
+ cd openclip
+ ```
 
-The diagram below illustrates how OpenClip captures text selections, evaluates application policies, coordinates built-in and extension actions, and renders the action HUD popup:
+2. **Generate Xcode Project:**
+ > **Note:** Run `xcodegen generate` whenever adding or removing `.swift` files.
+ ```bash
+ xcodegen generate
+ ```
 
-```mermaid
-flowchart TD
-    User([User Highlights Text]) --> Input[Accessibility Event Detector]
-    Input --> Selection[Text Selection Subsystem]
-    Selection -->|SelectionContext| Rules[App Rules Engine]
-    Rules -->|Allowed| ActionCoordinator[Action Coordinator]
-    Rules -->|Disabled| Dismiss([Suppress Popup])
-    
-    ActionCoordinator -->|Resolve Active Actions| Registry[Action Registry]
-    Registry -->|Built-in Actions| NativeExec[Native Action Handler]
-    Registry -->|Extensions| ExtManager[Extension Manager]
-    
-    ExtManager -->|JSC Engine| JS[JavaScript Core]
-    ExtManager -->|AppleScript Engine| AS[NSAppleScript Engine]
-    ExtManager -->|Unix Process| Shell[Zsh / Python Subprocess]
-    ExtManager -->|Browser Launcher| URL[URL Template Engine]
+3. **Build the Application:**
+ ```bash
+ xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -destination 'platform=macOS' build | tail -n 10
+ ```
 
-    ActionCoordinator -->|Render HUD| Popup[Popup Window HUD]
-    Popup --> User
-```
+4. **Run Unit Tests:**
+ ```bash
+ xcodebuild -project OpenClip.xcodeproj -scheme OpenClipTests -destination 'platform=macOS' test | grep -E "Test Suite|passed|failed|SUCCEEDED"
+ ```
+
+5. **Grant Accessibility Permissions:**
+ OpenClip relies on macOS Accessibility APIs to detect text selections without modifying system clipboard contents during monitoring. Grant permission in **System Settings > Privacy & Security > Accessibility**.
 
 ---
 
-## Quick Navigation
+## Documentation Table of Contents
 
-<div class="grid cards" markdown>
+### System Architecture
+- [Architecture Overview](architecture/overview.md) — Module target split (`Core` vs `OpenClip` App) and the Core Architectural Subsystems.
+- [Action Coordinator & Registry](architecture/action-coordinator.md) — Central wiring, callback mechanics, and ordering policy.
+- [Text Selection Subsystem](architecture/text-selection.md) — AX monitoring, `MacTextRetriever`, and non-destructive selection handling.
+- [Popup Panel & Positioning Math](architecture/popup-window.md) — `PopupPanel`, static layout math in `PopupPositioner`, and window lifecycle management.
 
--   :material-rocket-launch: **[User Guide](user-guide/installation.md)**
+### Developer Guide
+- [Extending OpenClip Overview](developer-guide/overview.md) — Extension architecture and custom action integration.
+- [Extension Package Format](developer-guide/package-format.md) — `.openclipext` bundle structure, `manifest.json` schema, and options definitions.
+- [Standalone Snippet Parsing](developer-guide/snippets.md) — Pure header parsing via `OpenClipSnippetParser`.
 
-    ---
+### Action Execution Runtimes
+- [AppleScript Runtime](runtimes/applescript.md) — `AppleScriptAction` execution, variable injection, and output handling.
+- [JavaScript Runtime](runtimes/javascript.md) — `JavaScriptAction` under JavaScriptCore, the `openclip` bridge, and option keys via `SettingKey`.
+- [URL Templates Engine](runtimes/url-templates.md) — Parameterized search links using `URLTemplateAction` and `TextPlaceholderEngine`.
+- [Shell & Executable Scripts](runtimes/zsh-python.md) — Process execution, environment variables (`OPENCLIP_TEXT`, `OPENCLIP_OPTION_*`), and JSON/text stdout parsing.
 
-    Learn how to install OpenClip, request system permissions, configure preferences, and manage custom application rules.
-
--   :material-code-brackets: **[Developer Guide](developer-guide/overview.md)**
-
-    ---
-
-    Discover how to create custom extensions using `.openclipext` packages, manifest declarations, and single-file text snippets.
-
--   :material-console: **[Extension Runtimes](runtimes/javascript.md)**
-
-    ---
-
-    Explore detailed guides and copy-pasteable code examples for JavaScript, AppleScript, Zsh/Python, and URL Templates.
-
--   :material-sitemap: **[System Architecture](architecture/overview.md)**
-
-    ---
-
-    Deep dive into OpenClip's internal Swift subsystems: Accessibility text extraction, Action Coordinator, and Floating HUD lifecycle.
-
-</div>
+### User Guide
+- [Installation & Onboarding](user-guide/installation.md) — Installing OpenClip, Accessibility permissions setup, and first-launch workflow.
+- [Preferences & Customization](user-guide/preferences.md) — Customizing action titles, table icons, ordering, and AI provider setup.
+- [Managing Extensions & Custom Actions](user-guide/managing-extensions.md) — Installing remote and local extensions and script snippet actions.
+- [App-Specific Policy Rules](user-guide/app-rules.md) — Configuring application-level overrides via `AppRule` and `rules.json`.
 
 ---
 
-## Getting Started
+## Core Architectural Principles
 
-1. Check out the **[Installation & Setup Guide](user-guide/installation.md)** to install OpenClip and grant the required macOS Accessibility permissions.
-2. Read the **[Extension Developer Guide](developer-guide/overview.md)** to start building your own actions.
-3. Explore the **[Built-in Actions Catalog](reference/builtin-actions.md)** to see everything OpenClip provides out of the box.
+OpenClip enforces a strict single-responsibility architecture divided across **Core Architectural Subsystems**:
+1. **Settings Subsystem** — [`SettingsStore`](file:///Users/ganesh/dev/openclip/Sources/Core/Settings/SettingsStore.swift) (Zero direct `UserDefaults.standard` usage).
+2. **Action Presentation** — [`ActionPresentation`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionPresentation.swift) (Surface-tailored icon and title resolution).
+3. **Action Chrome Policy** — [`ActionChrome`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionChrome.swift) (UI policy metadata without type checking).
+4. **Action Factory** — [`DefaultActionFactory`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift) (Action creation from manifests/snippets).
+5. **Action Result Handler** — [`ActionResultHandler`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/Effects/ActionResultHandler.swift) (Platform side-effects, pasteboard, and key events).
+6. **Action Coordinator & Composition** — [`ActionCoordinator`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionCoordinator.swift) (Decoupled callback registration for extensions and custom actions).

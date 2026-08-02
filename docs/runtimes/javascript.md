@@ -1,163 +1,105 @@
-# JavaScript Extension Runtime (JSC)
+# JavaScript Action Runtime
 
-OpenClip utilizes the native macOS **JavaScriptCore (JSC)** framework (`JavaScriptAction.swift`) to execute JavaScript extensions in a lightweight, isolated execution environment.
+The JavaScript action runtime ([`JavaScriptAction`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Actions/JavaScriptAction.swift)) executes JavaScript code using macOS `JSContext` (JavaScriptCore framework). It provides an in-memory JS execution environment with access to a bridge object named `openclip`.
 
 ---
 
-## Global Bridge Object (`openclip`)
+## The `openclip` JS Bridge Object
 
-OpenClip injects a native bridge object named `openclip` into the global JS context prior to script execution:
+OpenClip injects the `openclip` object into the global execution context before running the script:
+
+```typescript
+interface OpenClipBridge {
+ input: {
+ text: string; // Current selected text
+ };
+ options: Record<string, string>; // Key-value dictionary of extension options
+
+ // Side-effect functions:
+ openUrl(url: string): void;
+ openURL(url: string): void;
+ pasteText(text: string): void;
+}
+```
+
+---
+
+## Options & Preference Integration
+
+Extension options defined in `manifest.json` are loaded dynamically via [`SettingsStore`](file:///Users/ganesh/dev/openclip/Sources/Core/Settings/SettingsStore.swift) using strongly-typed setting keys:
+
+```swift
+for opt in actionOptions {
+ let key = "action.\(id).option.\(opt.identifier)"
+ optionsDict[opt.identifier] = settingsStore.get(SettingKey<String>(key, defaultValue: opt.defaultValue ?? ""))
+}
+```
+
+- Direct calls to `UserDefaults.standard` are **never** used.
+- Options configured by users in the Preferences window are automatically passed into `openclip.options`.
+
+---
+
+## Script Execution Flow & Entry Points
+
+`JavaScriptAction` wraps user code in an IIFE and evaluates standard entry point functions (`action` or `main`):
 
 ```javascript
-// Properties provided by openclip bridge
-openclip.input.text          // Selected text string
-openclip.options             // Dictionary of user-configured extension options
+(function() {
+ var selection = openclip.input.text;
+ var options = openclip.options;
 
-// Helper functions provided by openclip bridge
-openclip.pasteText(string)   // Replaces active text selection with new string
-openclip.copy(string)        // Copies string to macOS Clipboard
-openclip.openUrl(urlString)  // Opens URL in default browser
+ // User script code body
+ // ...
+
+ if (typeof action === 'function') {
+ return action(selection, options);
+ }
+ if (typeof main === 'function') {
+ return main(selection, options);
+ }
+ return null;
+})();
 ```
 
 ---
 
-## Entry Point Functions
+## Side-Effect Handling & Result Resolution
 
-OpenClip automatically detects and executes any of the following entry points in your script:
+The runtime resolves the execution outcome into an [`ActionResult`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionResult.swift) based on function calls or return values:
 
-1. `action(selection, options)`: Recommended entry point function. Return a string to copy to clipboard, or call bridge methods.
-2. `main(selection, options)`: Alternative entry point function.
-3. Top-level expression output: If no `action` or `main` function is defined, OpenClip uses the string evaluation result of the script.
+1. **`openclip.openUrl(urlString)`**:
+ - If invoked, execution returns `ActionResult.openURL(URL)`.
+2. **`openclip.pasteText(textString)`**:
+ - If invoked, execution returns `ActionResult.paste(String)` (replaces selection or pastes into frontmost app).
+3. **Return Value (String)**:
+ - If the function returns a non-null string, execution returns `ActionResult.copy(String)`.
+4. **Void / Undefined Return**:
+ - Execution returns `ActionResult.success`.
 
 ---
 
-## Copy-Pasteable JavaScript Examples
+## Practical Examples
 
-### Example 1: JSON Formatter & Prettifier
-
-Formats raw JSON text with 2-space indentation.
-
-```json
-// openclip.json
-{
-  "Identifier": "com.openclip.jsonprettify",
-  "Name": "JSON Prettifier",
-  "Actions": [
-    {
-      "Title": "Prettify JSON",
-      "Icon": "symbol:curlybraces",
-      "Script": "main.js"
-    }
-  ]
-}
-```
+### Prettify JSON Snippet
 
 ```javascript
-// main.js
-function action(selection, options) {
-    try {
-        const parsed = JSON.parse(selection);
-        const formatted = JSON.stringify(parsed, null, 2);
-        // Replace selection with formatted JSON
-        openclip.pasteText(formatted);
-    } catch (err) {
-        // Output error to clipboard if invalid JSON
-        openclip.copy("Invalid JSON: " + err.message);
-    }
+function action(selection) {
+ try {
+ var obj = JSON.parse(selection);
+ var indent = parseInt(openclip.options.indent_spaces || "2", 10);
+ return JSON.stringify(obj, null, indent);
+ } catch (e) {
+ return "Invalid JSON: " + e.message;
+ }
 }
 ```
 
----
-
-### Example 2: Word Count & Reading Time Estimator
-
-Calculates character count, word count, line count, and estimated reading time.
-
-```json
-// openclip.json
-{
-  "Identifier": "com.openclip.wordcount",
-  "Name": "Word Count Stats",
-  "Actions": [
-    {
-      "Title": "Word Stats",
-      "Icon": "symbol:chart.bar.doc.horizontal",
-      "Script": "main.js"
-    }
-  ]
-}
-```
+### Search Web & Open URL
 
 ```javascript
-// main.js
-function action(selection, options) {
-    const chars = selection.length;
-    const words = selection.trim().split(/\s+/).filter(Boolean).length;
-    const lines = selection.split(/\r\n|\r|\n/).length;
-    const readingTimeMinutes = Math.ceil(words / 200);
-
-    const stats = `📊 Stats:\n- Characters: ${chars}\n- Words: ${words}\n- Lines: ${lines}\n- Est. Read Time: ~${readingTimeMinutes} min`;
-    
-    openclip.copy(stats);
-}
-```
-
----
-
-### Example 3: Text Transformer with Declarative Options
-
-Converts text casing based on a dropdown option selected in OpenClip Preferences.
-
-```json
-// openclip.json
-{
-  "Identifier": "com.openclip.casemodifier",
-  "Name": "Case Modifier",
-  "Actions": [
-    {
-      "Title": "Modify Case",
-      "Icon": "symbol:textformat",
-      "Script": "main.js"
-    }
-  ],
-  "Options": [
-    {
-      "identifier": "target_case",
-      "label": "Target Case Style",
-      "type": "multiple",
-      "default value": "camelCase",
-      "options": ["camelCase", "snake_case", "kebab-case", "UPPERCASE", "lowercase"]
-    }
-  ]
-}
-```
-
-```javascript
-// main.js
-function action(selection, options) {
-    const targetCase = options.target_case || "camelCase";
-    let result = selection;
-
-    const words = selection.trim().split(/[\s_\-]+/).filter(Boolean);
-
-    switch (targetCase) {
-        case "camelCase":
-            result = words.map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
-            break;
-        case "snake_case":
-            result = words.map(w => w.toLowerCase()).join('_');
-            break;
-        case "kebab-case":
-            result = words.map(w => w.toLowerCase()).join('-');
-            break;
-        case "UPPERCASE":
-            result = selection.toUpperCase();
-            break;
-        case "lowercase":
-            result = selection.toLowerCase();
-            break;
-    }
-
-    openclip.pasteText(result);
+function action(selection) {
+ var query = encodeURIComponent(selection.trim());
+ openclip.openUrl("https://duckduckgo.com/?q=" + query);
 }
 ```

@@ -1,3 +1,7 @@
+// AIResultOverlayView.swift
+// OpenClip
+//
+// Renders the overlay panel interface for displaying AI generation results with actions to copy or replace selection text.
 import SwiftUI
 
 @MainActor

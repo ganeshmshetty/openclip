@@ -1,3 +1,7 @@
+// OpenClipApp.swift
+// OpenClip
+//
+// Defines the SwiftUI App entrypoint and main application scene graph for OpenClip.
 import SwiftUI
 import AppKit
 

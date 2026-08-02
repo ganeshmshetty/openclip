@@ -1,3 +1,8 @@
+// ActionPresentation.swift
+// OpenClip
+//
+// Serves as the Look Door for resolving action display titles and icons tailored for specific UI surfaces.
+// Adapts presentation models for popup and preferences table views, taking user overrides into account.
 import Foundation
 import Combine
 

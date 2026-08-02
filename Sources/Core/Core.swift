@@ -1,6 +1,8 @@
-/// Core module for OpenClip
-/// This module contains core business logic and models.
-/// It must not import AppKit or SwiftUI.
+// Core.swift
+// OpenClip
+//
+// Defines the root Core module structure and architectural boundaries.
+// Enforces that the Core target contains pure domain models and logic free of AppKit and SwiftUI dependencies.
 import Foundation
 
 /// A placeholder core type.

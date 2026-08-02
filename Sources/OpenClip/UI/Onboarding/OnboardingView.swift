@@ -1,3 +1,7 @@
+// OnboardingView.swift
+// OpenClip
+//
+// Renders the multi-step first launch onboarding setup view, guiding users through accessibility permissions and basic settings.
 import SwiftUI
 import AppKit
 

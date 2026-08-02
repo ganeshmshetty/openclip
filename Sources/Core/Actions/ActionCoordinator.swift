@@ -1,3 +1,8 @@
+// ActionCoordinator.swift
+// OpenClip
+//
+// Serves as the Wiring Door that connects builtin actions, custom actions, and extensions to the central ActionRegistry.
+// Manages action registration callbacks and coordinates domain service wiring without coupling modules directly to registry singletons.
 import Foundation
 import Combine
 

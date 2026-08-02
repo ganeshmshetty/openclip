@@ -1,3 +1,7 @@
+// ExtensionsModels.swift
+// OpenClip
+//
+// Defines data transfer objects and models for extension store listings, categories, and download responses.
 import Foundation
 
 public struct ExtensionItem: Sendable, Codable, Identifiable {

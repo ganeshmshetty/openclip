@@ -1,3 +1,8 @@
+// TransformTextAction.swift
+// OpenClip
+//
+// Implements text transformation actions such as letter case conversions, line sorting, whitespace trimming, and URL encoding.
+// Holds the canonical set of default disabled transform action identifiers on TransformCase.
 import Foundation
 
 public enum TransformCategory: String, Sendable, CaseIterable {

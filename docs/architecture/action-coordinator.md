@@ -1,56 +1,135 @@
-# Action Coordinator & Registry
+# Action Coordinator & Registry Architecture
 
-The **Action Coordinator** (`ActionCoordinator.swift`) and **Action Registry** (`ActionRegistry.swift`) form the core execution engine of OpenClip.
-
----
-
-## Action Protocols
-
-All actions in OpenClip conform to the `Action` Swift protocol:
-
-```swift
-public protocol Action: Sendable {
-    var id: String { get }
-    var title: String { get }
-    var icon: ActionIcon { get }
-    
-    @MainActor
-    func isEnabled(for context: ActionContext) -> Bool
-    
-    @MainActor
-    func perform(_ context: ActionContext) async throws -> ActionResult
-}
-```
-
-Configurable actions conform to `ConfigurableAction`:
-
-```swift
-public protocol ConfigurableAction: Action {
-    var configurationViewID: String { get }
-    var preferenceIconName: String { get }
-}
-```
+The [`ActionCoordinator`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionCoordinator.swift) serves as the **Action Coordinator & Composition** of OpenClip. It bridges domain managers (`CustomActionManager`, `ExtensionManager`, `RuleEngine`) with the central [`ActionRegistry`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionRegistry.swift) catalog, resolving available actions based on user configuration, current text selection, and active application policy rules.
 
 ---
 
-## Action Resolution Pipeline
-
-When a `SelectionContext` is passed to `ActionCoordinator.resolveActions(for:)`:
+## Architectural Responsibilities
 
 ```mermaid
 flowchart TD
-    Context[SelectionContext Received] --> PolicyCheck{App Policy Allowed?}
-    PolicyCheck -->|No| Empty[Return Empty Action List]
-    PolicyCheck -->|Yes| FetchRegistered[Fetch Registered Actions from ActionRegistry]
-    FetchRegistered --> FilterDisabled[Filter out disabledActionIDs]
-    FilterDisabled --> FilterEnabled[Evaluate action.isEnabled for context]
-    FilterEnabled --> FilterRegex[Evaluate action regular expression patterns]
-    FilterRegex --> OrderActions[Apply user custom action ordering]
-    OrderActions --> Output[Return resolved actions array]
+ AC[ActionCoordinator] -->|1. Load Core Builtins| BR[BuiltinRegistry]
+ AC -->|2. Load User Custom Actions| CAM[CustomActionManager]
+ AC -->|3. Load Disk Extensions| EM[ExtensionManager]
+ AC -->|4. Load Application Rules| RE[RuleEngine]
+
+ CAM -->|Register Actions| AR[ActionRegistry]
+ EM -->|Register Actions| AR
+ BR -->|Register Actions| AR
+
+ Context[ActionContext] --> AC
+ AC -->|Resolve Policy & Filter| AR
+ AR -->|Ordered Available Actions| UI[Popup UI / Floating Panel]
 ```
 
-1. **Policy Verification:** Check if `sourceApp` is disabled in App Rules.
-2. **Disabled IDs Filtering:** Omit any action IDs listed in `UserDefaults.disabledActionIDs`.
-3. **Contextual Evaluation:** Call `action.isEnabled(for: context)`. For example, `CalculateAction` only enables if selection contains mathematical expressions (`2 + 2`).
-4. **Regular Expression Matching:** Check if action defines a regex pattern matching `context.selection.text`.
-5. **Ordering & Presenting:** Sort active actions based on user's custom layout order in Preferences.
+1. **Composition Seam**: Initializes domain registries during `loadInitialState()`.
+2. **Catalog Storage**: Delegates raw action storage and sorting to `ActionRegistry`.
+3. **Policy Context Resolution**: Evaluates context bundle identifiers through `RuleEngine` to produce updated `ActionContext` options (`denyFormatting`, `assumePaste`, `grabPasteboard`).
+4. **Action Reordering**: Exposes reordering primitives (`moveActions(from:to:)`) that mutate user preferences stored via `SettingsStore`.
+
+---
+
+## Action Registration Mechanics
+
+To prevent tight coupling to singleton instances inside domain submodules, domain managers operate through clean registration patterns coordinated by `ActionCoordinator`.
+
+### Initial Loading Lifecycle
+
+```swift
+@MainActor
+public func loadInitialState() async {
+ // 1. Register Core Builtin Actions (Copy, Cut, Paste, Define, Search, Transform)
+ let coreBuiltins = BuiltinRegistry.makeCoreBuiltins()
+ registry.register(builtIns: coreBuiltins)
+
+ // 2. Load custom user actions from disk repository
+ CustomActionManager.shared.load()
+
+ // 3. Load application rules and scan installed extensions
+ await ruleEngine.loadRules(from: Constants.rulesFileURL)
+ await extensionManager.loadExtensions()
+}
+```
+
+### Registration & Unregistration
+When custom actions or extension packages are added, updated, or removed:
+- `CustomActionManager.register(customAction:)` inserts the item into `customActions` and registers it with `ActionRegistry`.
+- `ExtensionManager.loadExtensions()` unregisters previous extension actions and registers newly discovered ones.
+- Direct singleton coupling within Core sub-components is avoided; managers expose structured registration flows monitored by `ActionCoordinator`.
+
+---
+
+## Action Registry & Ordering Policy
+
+The [`ActionRegistry`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionRegistry.swift) is responsible for maintaining the in-memory array of registered actions and enforcing sorting order based on user preferences.
+
+### Dynamic Ordering Math
+
+Actions are stored in an internal `@Published` array. Whenever new actions are registered, `sortActions()` evaluates their index against the user's saved preference array (`SettingKey.actionOrder`):
+
+```swift
+private func sortActions() {
+ let order = settingsStore.get(.actionOrder)
+ actions.sort { a, b in
+ let idxA = order.firstIndex(of: a.id) ?? Int.max
+ let idxB = order.firstIndex(of: b.id) ?? Int.max
+ if idxA == Int.max && idxB == Int.max {
+ return false // Preserve relative insertion order
+ }
+ return idxA < idxB
+ }
+}
+```
+
+When users drag to reorder actions in the Preferences UI, `moveActions(from:to:)` re-arranges the items in memory and immediately persists the updated list of action identifiers to `SettingsStore`:
+
+```swift
+public func moveActions(from source: IndexSet, to destination: Int) {
+ // Reorder in-memory list
+ // ...
+ let newOrder = actions.map { $0.id }
+ settingsStore.set(.actionOrder, value: newOrder)
+}
+```
+
+---
+
+## Action Availability & Context Resolution
+
+When selected text is detected, `ActionCoordinator.resolveActions(for:)` converts the raw [`SelectionContext`](file:///Users/ganesh/dev/openclip/Sources/Core/Selection/SelectionContext.swift) into an evaluated context using `RuleEngine.resolvePolicies(for:)`.
+
+### Filtering Pipeline
+
+`ActionRegistry.availableActions(for:)` applies multiple policy filters before returning actions to the UI:
+
+1. **Disabled Actions Check**:
+ - Queries `SettingKey.disabledActionIDs` from `SettingsStore`.
+ - Evaluates `SettingKey.isTransformGroupEnabled`. If `isTransformGroupEnabled` is `false`, `"builtin.transform"` is added to disabled IDs.
+ - Evaluates default disabled transform cases (`TransformCase.defaultDisabledActionIDs`).
+
+2. **Formatting Policy Check**:
+ - If `context.selection.appPolicy.denyFormatting` is `true` (e.g. Terminal, IDEs), actions with `action.isFormatting == true` are filtered out.
+
+3. **Action Capability Check**:
+ - Evaluates `action.isEnabled(for: context)`. For instance, script actions check for non-empty text, while URL template actions evaluate optional regex pattern matches (`regexPattern`).
+
+```swift
+public func availableActions(for context: ActionContext) -> [any Action] {
+ let defaultEnabledTransformCases: Set<TransformCase> = [.uppercase, .lowercase, .titleCase, .camelCase, .trimWhitespace, .formatJSON]
+ let defaultDisabledSubActions = ["builtin.transform"] + TransformCase.allCases
+ .filter { !defaultEnabledTransformCases.contains($0) }
+ .map { "builtin.transform.\($0.rawValue)" }
+
+ let configuredDisabled = settingsStore.get(.disabledActionIDs)
+ var disabledIDs = configuredDisabled.isEmpty ? Set(defaultDisabledSubActions) : configuredDisabled
+ if !settingsStore.get(.isTransformGroupEnabled) {
+ disabledIDs.insert("builtin.transform")
+ }
+
+ return actions.filter { action in
+ if disabledIDs.contains(action.id) { return false }
+ if context.selection.appPolicy.denyFormatting && action.isFormatting { return false }
+ return action.isEnabled(for: context)
+ }
+}
+```

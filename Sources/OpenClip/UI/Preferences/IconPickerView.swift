@@ -1,3 +1,7 @@
+// IconPickerView.swift
+// OpenClip
+//
+// Renders an icon selection view supporting SF Symbols and open-source vector icon libraries.
 import SwiftUI
 import Core
 import SDWebImage

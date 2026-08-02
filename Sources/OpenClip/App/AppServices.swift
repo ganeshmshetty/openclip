@@ -1,3 +1,7 @@
+// AppServices.swift
+// OpenClip
+//
+// Serves as the UI composition root in the Wiring Door, instantiating and publishing application singletons for SwiftUI views.
 import Foundation
 import Combine
 import Core

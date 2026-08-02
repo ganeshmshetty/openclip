@@ -1,3 +1,8 @@
+// ActionChrome.swift
+// OpenClip
+//
+// Defines UI policy metadata structures through the Chrome Door, including badge types, row styles, popup behaviors, and action sources.
+// Enables data-driven UI views to inspect action presentation rules without runtime type checking or string matching.
 import Foundation
 
 public struct ActionChrome: Sendable, Equatable {

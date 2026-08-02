@@ -1,3 +1,7 @@
+// CopyAction.swift
+// OpenClip
+//
+// Implements the standard copy action that returns a clipboard copy result for selected text.
 import Foundation
 
 public struct CopyAction: ConfigurableAction {

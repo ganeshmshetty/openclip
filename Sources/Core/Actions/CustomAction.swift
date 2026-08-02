@@ -1,3 +1,8 @@
+// CustomAction.swift
+// OpenClip
+//
+// Defines the domain model for user-created custom actions, supporting web searches, text templates, and shell scripts.
+// Implements the Action protocol to allow user-defined operations to be presented and executed seamlessly.
 import Foundation
 
 public enum CustomActionType: Codable, Sendable, Equatable, Hashable {

@@ -1,3 +1,7 @@
+// AppPickerSheet.swift
+// OpenClip
+//
+// Renders an application picker sheet allowing users to select running or installed applications for rule configuration.
 import SwiftUI
 import AppKit
 import Core
