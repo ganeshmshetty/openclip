@@ -23,8 +23,17 @@ public final class RemoteExtensionInstaller: Sendable {
         }
         
         let (tempLocalURL, _) = try await URLSession.shared.download(from: downloadURL)
-        let installedActions = try await ExtensionManager.shared.installExtension(from: tempLocalURL)
-        try? FileManager.default.removeItem(at: tempLocalURL)
+        
+        // URLSession downloads with a .tmp extension and may land inside ~/.openclip/extensions.
+        // Rename to a proper .zip path in the system temp directory so installExtension
+        // correctly recognises it as a zip archive.
+        let zipTempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("openclip_ext_\(extensionID)_\(UUID().uuidString).zip")
+        try? FileManager.default.removeItem(at: zipTempURL)
+        try FileManager.default.moveItem(at: tempLocalURL, to: zipTempURL)
+        
+        defer { try? FileManager.default.removeItem(at: zipTempURL) }
+        let installedActions = try await ExtensionManager.shared.installExtension(from: zipTempURL)
         return installedActions
     }
 }
