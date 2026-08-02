@@ -507,22 +507,42 @@ struct ActionRowView: View {
             Spacer()
             
             // Type Badge Column
-            if action is ScriptAction {
+            // Type Badge Column
+            switch action.chrome.badge {
+            case .script:
                 Text("Script")
                     .font(.caption2)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(Capsule().fill(Color.blue.opacity(0.15)))
                     .foregroundColor(.blue)
-            } else if action is URLTemplateAction {
+            case .url:
                 Text("URL Template")
                     .font(.caption2)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(Capsule().fill(Color.purple.opacity(0.15)))
                     .foregroundColor(.purple)
-            } else if let customAction = action as? CustomAction {
-                CustomActionBadge(type: customAction.type)
+            case .custom:
+                if let customAction = action as? CustomAction {
+                    CustomActionBadge(type: customAction.type)
+                } else {
+                    Text("Custom")
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.orange.opacity(0.15)))
+                        .foregroundColor(.orange)
+                }
+            case .extensionPkg(let name):
+                Text(name)
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.green.opacity(0.15)))
+                    .foregroundColor(.green)
+            case .none:
+                EmptyView()
             }
             
             // Enable/Disable Switch
@@ -546,9 +566,10 @@ struct ActionRowView: View {
             }
             
             // Delete Button (if applicable)
-            if let customAction = action as? CustomAction {
+            switch action.chrome.source {
+            case .custom:
                 Button(action: {
-                    CustomActionManager.shared.delete(customActionID: customAction.id)
+                    CustomActionManager.shared.delete(customActionID: action.id)
                 }) {
                     Image(systemName: "trash")
                         .font(.system(size: 14))
@@ -556,7 +577,7 @@ struct ActionRowView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.red)
                 .help("Delete Custom Action")
-            } else if ExtensionManager.shared.loadedActions.contains(where: { $0.id == action.id }) {
+            case .extensionPkg:
                 Button(action: {
                     Task {
                         try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
@@ -568,11 +589,14 @@ struct ActionRowView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.red)
                 .help("Uninstall Extension")
+            case .builtin:
+                EmptyView()
             }
         }
         .padding(.vertical, 4)
     }
 }
+
 
 @MainActor
 struct TransformGroupRowView: View {
