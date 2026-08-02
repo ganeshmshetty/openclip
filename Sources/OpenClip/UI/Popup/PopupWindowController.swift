@@ -279,80 +279,12 @@ public class PopupWindowController {
         }
     }
     
-    private func handleResult(_ result: ActionResult) {
-        switch result {
-        case .simulatePaste:
-            simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
-        case .showServices(let text):
-            let picker = NSSharingServicePicker(items: [text])
-            if let panel = panel, let view = panel.contentView {
-                picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
-            }
-        case .cut(let text):
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
-            simulateKeyShortcut(keyCode: Constants.deleteVirtualKey, modifier: []) // Delete
-        case .openURL(let url):
-            NSWorkspace.shared.open(url)
-        case .copy(let text):
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
-        case .paste(let text):
-            let pasteboard = NSPasteboard.general
-            let copyToClipboard = UserDefaults.standard.bool(forKey: "completionCopyToClipboard")
-            
-            if copyToClipboard {
-                pasteboard.clearContents()
-                pasteboard.setString(text, forType: .string)
-                simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
-            } else {
-                let savedItems = backupPasteboard(pasteboard)
-                pasteboard.clearContents()
-                pasteboard.setString(text, forType: .string)
-                simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand) // Cmd+V
-                
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 100 ms delay for target app to read paste
-                    self.restorePasteboard(pasteboard, items: savedItems)
-                }
-            }
-        case .success, .failure, .none:
-            break
-        }
-    }
-    
-    private func backupPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem] {
-        guard let items = pasteboard.pasteboardItems else { return [] }
-        return items.compactMap { item -> NSPasteboardItem? in
-            let copy = NSPasteboardItem()
-            for type in item.types {
-                if let data = item.data(forType: type) {
-                    copy.setData(data, forType: type)
-                }
-            }
-            return copy.types.isEmpty ? nil : copy
-        }
-    }
+    private let resultHandler: ActionResultHandler = DefaultActionResultHandler()
 
-    private func restorePasteboard(_ pasteboard: NSPasteboard, items: [NSPasteboardItem]) {
-        pasteboard.clearContents()
-        guard !items.isEmpty else { return }
-        pasteboard.writeObjects(items)
-    }
-    
-    private func simulateKeyShortcut(keyCode: CGKeyCode, modifier: CGEventFlags) {
-        let src = CGEventSource(stateID: .combinedSessionState)
-        src?.setLocalEventsFilterDuringSuppressionState([.permitLocalMouseEvents, .permitSystemDefinedEvents], state: .eventSuppressionStateSuppressionInterval)
-        
-        let flags = CGEventFlags(rawValue: modifier.rawValue | 0x000008)
-        if let keydown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true),
-           let keyup = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false) {
-            keydown.flags = flags
-            keyup.flags = flags
-            keydown.post(tap: .cgSessionEventTap)
-            keyup.post(tap: .cgSessionEventTap)
+    private func handleResult(_ result: ActionResult) {
+        Task { @MainActor in
+            try? await resultHandler.handle(result, in: panel?.contentView)
         }
     }
 }
+
