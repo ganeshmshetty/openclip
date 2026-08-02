@@ -41,6 +41,56 @@ public final class AIServiceManager: ObservableObject {
     @AppStorage("aiBrowserURLTemplate") public var browserURLTemplate: String = "https://chatgpt.com/?q={text}" {
         willSet { objectWillChange.send() }
     }
+    @AppStorage("aiActionPresetsJSON") public var actionPresetsJSON: String = "" {
+        willSet { objectWillChange.send() }
+    }
+
+    public static let defaultPresets: [AIActionPreset] = [
+        AIActionPreset(id: "proofread", title: "Proofread", prompt: "Fix spelling and grammar errors", isEnabled: true),
+        AIActionPreset(id: "rewrite", title: "Rewrite", prompt: "Rephrase and polish text", isEnabled: true),
+        AIActionPreset(id: "summarize", title: "Summarize", prompt: "Summarize text into key points", isEnabled: true),
+        AIActionPreset(id: "explain", title: "Explain", prompt: "Explain this text or concept simply", isEnabled: true),
+        AIActionPreset(id: "translate", title: "Translate", prompt: "Translate text into English", isEnabled: true),
+        AIActionPreset(id: "fix_code", title: "Fix Code", prompt: "Analyze and fix bugs in selected code", isEnabled: false),
+        AIActionPreset(id: "make_shorter", title: "Make Shorter", prompt: "Make text concise and brief", isEnabled: false),
+        AIActionPreset(id: "formal_tone", title: "Formal Tone", prompt: "Rewrite text in a professional and formal tone", isEnabled: false)
+    ]
+
+    public var presets: [AIActionPreset] {
+        get {
+            guard !actionPresetsJSON.isEmpty,
+                  let data = actionPresetsJSON.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([AIActionPreset].self, from: data) else {
+                return Self.defaultPresets
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let str = String(data: data, encoding: .utf8) {
+                actionPresetsJSON = str
+            }
+        }
+    }
+
+    public var enabledPresets: [AIActionPreset] {
+        let list = presets.filter { $0.isEnabled }
+        return list.isEmpty ? [Self.defaultPresets[0]] : list
+    }
+
+    public func updatePreset(_ updated: AIActionPreset) {
+        var current = presets
+        if let idx = current.firstIndex(where: { $0.id == updated.id }) {
+            current[idx] = updated
+        } else {
+            current.append(updated)
+        }
+        presets = current
+    }
+
+    public func resetPresetsToDefault() {
+        presets = Self.defaultPresets
+    }
 
     private init() {}
 
@@ -132,5 +182,19 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         case .openrouter: return "https://openrouter.ai/api/v1"
         case .custom: return ""
         }
+    }
+}
+
+public struct AIActionPreset: Identifiable, Codable, Equatable, Sendable {
+    public var id: String
+    public var title: String
+    public var prompt: String
+    public var isEnabled: Bool
+
+    public init(id: String, title: String, prompt: String, isEnabled: Bool = true) {
+        self.id = id
+        self.title = title
+        self.prompt = prompt
+        self.isEnabled = isEnabled
     }
 }
