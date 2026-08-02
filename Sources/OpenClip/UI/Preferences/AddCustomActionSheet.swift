@@ -173,33 +173,22 @@ public struct AddCustomActionSheet: View {
 // MARK: - Icon Picker Popover@MainActor
 struct IconPickerPopover: View {
     @Binding var selectedIcon: String
-    @StateObject private var provider = DynamicSFSymbolProvider.shared
-    @State private var selectedLibrary: IconLibraryType = .sfSymbols
+    @StateObject private var provider = UnifiedIconProvider.shared
     @State private var searchText = ""
     @Environment(\.dismiss) private var dismiss
 
-    private var displayedIcons: [String] {
-        return provider.search(library: selectedLibrary, query: searchText, limit: 120)
+    private var displayedIcons: [IconEntry] {
+        return provider.search(query: searchText, limit: 160)
     }
 
     var body: some View {
         VStack(spacing: 8) {
-            // Library Picker
-            Picker("Library", selection: $selectedLibrary) {
-                ForEach(IconLibraryType.allCases) { lib in
-                    Text(lib.rawValue).tag(lib)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 10)
-            .padding(.top, 10)
-
-            // Search bar
+            // Unified Search bar — searches ALL libraries at once in one place
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
                     .font(.system(size: 13))
-                TextField("Search \(selectedLibrary.rawValue)…", text: $searchText)
+                TextField("Search \(provider.allIcons.count)+ icons (SF Symbols, FA, Lucide, Material)…", text: $searchText)
                     .font(.system(size: 13))
                     .textFieldStyle(.plain)
                 if !searchText.isEmpty {
@@ -211,7 +200,7 @@ struct IconPickerPopover: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(10)
 
             Divider()
 
@@ -219,7 +208,7 @@ struct IconPickerPopover: View {
                 VStack(spacing: 8) {
                     Spacer()
                     ProgressView().controlSize(.small)
-                    Text("Loading icon libraries…")
+                    Text("Loading all icon libraries…")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()
@@ -227,21 +216,21 @@ struct IconPickerPopover: View {
             } else {
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 4), count: 8), spacing: 4) {
-                        ForEach(displayedIcons, id: \.self) { icon in
+                        ForEach(displayedIcons) { item in
                             Button {
-                                selectedIcon = icon
+                                selectedIcon = item.id
                                 dismiss()
                             } label: {
-                                RenderIconView(iconStr: icon)
+                                RenderIconView(iconStr: item.id)
                                     .frame(width: 34, height: 34)
                                     .background(
                                         RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                            .fill(selectedIcon == icon ? Color.accentColor : Color.primary.opacity(0.06))
+                                            .fill(selectedIcon == item.id ? Color.accentColor : Color.primary.opacity(0.06))
                                     )
-                                    .foregroundColor(selectedIcon == icon ? .white : .primary)
+                                    .foregroundColor(selectedIcon == item.id ? .white : .primary)
                             }
                             .buttonStyle(.plain)
-                            .help(icon)
+                            .help("\(item.id) (\(item.library))")
                         }
                     }
                     .padding(10)

@@ -1,48 +1,55 @@
 import Foundation
 import SwiftUI
 
-public enum IconLibraryType: String, CaseIterable, Identifiable {
-    case sfSymbols = "SF Symbols"
-    case fontAwesome = "Font Awesome & Brands"
-    case lucide = "Lucide Icons"
-    case material = "Material Symbols"
+public struct IconEntry: Identifiable, Sendable, Hashable {
+    public let id: String
+    public let name: String
+    public let library: String // "SF Symbol", "Font Awesome", "Lucide", "Material"
     
-    public var id: String { rawValue }
+    public init(id: String, name: String, library: String) {
+        self.id = id
+        self.name = name
+        self.library = library
+    }
 }
 
 @MainActor
-public final class DynamicSFSymbolProvider: ObservableObject, Sendable {
-    public static let shared = DynamicSFSymbolProvider()
+public final class UnifiedIconProvider: ObservableObject, Sendable {
+    public static let shared = UnifiedIconProvider()
 
-    @Published public private(set) var sfSymbols: [String] = []
-    @Published public private(set) var fontAwesomeIcons: [String] = []
-    @Published public private(set) var lucideIcons: [String] = []
-    @Published public private(set) var materialIcons: [String] = []
+    @Published public private(set) var allIcons: [IconEntry] = []
     @Published public private(set) var isLoaded = false
 
     private init() {
         Task {
-            await loadAllIconLibraries()
+            await loadAllIcons()
         }
     }
 
-    private func loadAllIconLibraries() async {
-        let (sf, fa, lucide, mat) = await Task.detached(priority: .userInitiated) { () -> ([String], [String], [String], [String]) in
-            // 1. Scan 9,000+ native macOS SF Symbols
-            var sfList: [String] = []
+    private func loadAllIcons() async {
+        let entries = await Task.detached(priority: .userInitiated) { () -> [IconEntry] in
+            var results: [IconEntry] = []
+
+            // 1. Scan 9,000+ native macOS SF Symbols dynamically
             let plistURL = URL(fileURLWithPath: "/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources/name_availability.plist")
             if let data = try? Data(contentsOf: plistURL),
                let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
                let symbolsDict = plist["symbols"] as? [String: Any] {
                 let localeSuffixes = [".ar", ".hi", ".zh", ".ja", ".ko", ".ru", ".he", ".th", ".el", ".fa"]
-                sfList = symbolsDict.keys.filter { name in
+                let sfList = symbolsDict.keys.filter { name in
                     !localeSuffixes.contains(where: { name.hasSuffix($0) })
                 }.sorted()
+                for sym in sfList {
+                    results.append(IconEntry(id: sym, name: sym, library: "SF Symbol"))
+                }
             } else {
-                sfList = ["doc.on.clipboard", "scissors", "doc.text", "magnifyingglass", "wand.and.stars", "globe", "play.circle", "gearshape"]
+                let defaultSF = ["doc.on.clipboard", "scissors", "doc.text", "magnifyingglass", "wand.and.stars", "globe", "play.circle", "gearshape"]
+                for sym in defaultSF {
+                    results.append(IconEntry(id: sym, name: sym, library: "SF Symbol"))
+                }
             }
 
-            // 2. Font Awesome Brand & Solid Icons
+            // 2. Font Awesome Brand & Action Icons
             let faList = [
                 "fa:youtube", "fa:github", "fa:spotify", "fa:apple", "fa:google", "fa:twitter",
                 "fa:discord", "fa:slack", "fa:figma", "fa:gitlab", "fa:linkedin", "fa:instagram",
@@ -51,6 +58,9 @@ public final class DynamicSFSymbolProvider: ObservableObject, Sendable {
                 "fa:folder", "fa:file", "fa:copy", "fa:paste", "fa:cut", "fa:trash", "fa:star",
                 "fa:heart", "fa:bookmark", "fa:tag", "fa:envelope", "fa:search", "fa:filter"
             ]
+            for fa in faList {
+                results.append(IconEntry(id: fa, name: fa, library: "Font Awesome"))
+            }
 
             // 3. Lucide Icons
             let lucideList = [
@@ -60,6 +70,9 @@ public final class DynamicSFSymbolProvider: ObservableObject, Sendable {
                 "lucide:check", "lucide:x", "lucide:arrow-right", "lucide:corner-down-left",
                 "lucide:play", "lucide:pause", "lucide:music", "lucide:folder", "lucide:file"
             ]
+            for luc in lucideList {
+                results.append(IconEntry(id: luc, name: luc, library: "Lucide"))
+            }
 
             // 4. Google Material Symbols
             let matList = [
@@ -69,34 +82,27 @@ public final class DynamicSFSymbolProvider: ObservableObject, Sendable {
                 "material:delete", "material:edit", "material:folder", "material:visibility",
                 "material:lock", "material:security", "material:extension", "material:play_arrow"
             ]
+            for mat in matList {
+                results.append(IconEntry(id: mat, name: mat, library: "Material"))
+            }
 
-            return (sfList, faList, lucideList, matList)
+            return results
         }.value
 
-        self.sfSymbols = sf
-        self.fontAwesomeIcons = fa
-        self.lucideIcons = lucide
-        self.materialIcons = mat
+        self.allIcons = entries
         self.isLoaded = true
     }
 
-    public func search(library: IconLibraryType, query: String, limit: Int = 120) -> [String] {
-        let pool: [String]
-        switch library {
-        case .sfSymbols: pool = sfSymbols
-        case .fontAwesome: pool = fontAwesomeIcons
-        case .lucide: pool = lucideIcons
-        case .material: pool = materialIcons
-        }
-
+    /// Unified search across ALL libraries simultaneously in one place
+    public func search(query: String, limit: Int = 160) -> [IconEntry] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if trimmed.isEmpty {
-            return Array(pool.prefix(limit))
+            return Array(allIcons.prefix(limit))
         }
 
         let terms = trimmed.components(separatedBy: " ").filter { !$0.isEmpty }
-        let matches = pool.filter { sym in
-            let lower = sym.lowercased()
+        let matches = allIcons.filter { item in
+            let lower = item.id.lowercased()
             return terms.allSatisfy { lower.contains($0) }
         }
 
