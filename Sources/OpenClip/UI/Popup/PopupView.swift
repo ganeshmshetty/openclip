@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import CoreGraphics
 import Core
+import SDWebImageSwiftUI
 
 // MARK: - Popup View
 
@@ -631,7 +632,13 @@ public struct PopupView: View {
     private func iconView(for icon: ActionIcon) -> some View {
         switch icon {
         case .symbol(let name):
-            Image(systemName: name)
+            if name.contains(":") {
+                // Iconify format "prefix:name" — render via SDWebImage + SVGCoder
+                AnyIconView(iconId: name)
+                    .frame(width: 14, height: 14)
+            } else {
+                Image(systemName: name)
+            }
         case .url(let url):
             AsyncImage(url: url) { phase in
                 if let image = phase.image {

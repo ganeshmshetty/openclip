@@ -2,10 +2,11 @@ import Foundation
 import SwiftUI
 
 public struct IconEntry: Identifiable, Sendable, Hashable {
+    /// Iconify format: "prefix:name" e.g. "lucide:zap", OR a plain SF Symbol name e.g. "star.fill"
     public let id: String
     public let name: String
-    public let library: String // "SF Symbol", "Font Awesome", "Lucide", "Material"
-    
+    public let library: String
+
     public init(id: String, name: String, library: String) {
         self.id = id
         self.name = name
@@ -13,99 +14,104 @@ public struct IconEntry: Identifiable, Sendable, Hashable {
     }
 }
 
+// MARK: - UnifiedIconProvider
+
+/// Searches icons on demand using the Iconify API (same approach as PopClip).
+/// - SF Symbols are loaded locally from the system plist (instant).
+/// - All other icons are searched via `https://api.iconify.design/search`
+///   with `palette=false` to ensure only monochrome/adaptive icons are returned.
 @MainActor
 public final class UnifiedIconProvider: ObservableObject, Sendable {
     public static let shared = UnifiedIconProvider()
 
-    @Published public private(set) var allIcons: [IconEntry] = []
-    @Published public private(set) var isLoaded = false
+    @Published public private(set) var sfSymbols: [IconEntry] = []
+    @Published public private(set) var searchResults: [IconEntry] = []
+    @Published public private(set) var isSearching = false
+    @Published public private(set) var sfLoaded = false
+
+    private var searchTask: Task<Void, Never>?
+    private var lastQuery = ""
 
     private init() {
-        Task {
-            await loadAllIcons()
-        }
+        Task { await loadSFSymbols() }
     }
 
-    private func loadAllIcons() async {
-        let entries = await Task.detached(priority: .userInitiated) { () -> [IconEntry] in
-            var results: [IconEntry] = []
+    // MARK: - SF Symbols (local, instant)
 
-            // 1. Scan 9,000+ native macOS SF Symbols dynamically
+    private func loadSFSymbols() async {
+        let entries = await Task.detached(priority: .utility) { () -> [IconEntry] in
             let plistURL = URL(fileURLWithPath: "/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources/name_availability.plist")
-            if let data = try? Data(contentsOf: plistURL),
-               let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
-               let symbolsDict = plist["symbols"] as? [String: Any] {
-                let localeSuffixes = [".ar", ".hi", ".zh", ".ja", ".ko", ".ru", ".he", ".th", ".el", ".fa"]
-                let sfList = symbolsDict.keys.filter { name in
-                    !localeSuffixes.contains(where: { name.hasSuffix($0) })
-                }.sorted()
-                for sym in sfList {
-                    results.append(IconEntry(id: sym, name: sym, library: "SF Symbol"))
-                }
-            } else {
-                let defaultSF = ["doc.on.clipboard", "scissors", "doc.text", "magnifyingglass", "wand.and.stars", "globe", "play.circle", "gearshape"]
-                for sym in defaultSF {
-                    results.append(IconEntry(id: sym, name: sym, library: "SF Symbol"))
-                }
-            }
+            guard let data = try? Data(contentsOf: plistURL),
+                  let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
+                  let symbolsDict = plist["symbols"] as? [String: Any] else { return [] }
 
-            // 2. Font Awesome Brand & Action Icons
-            let faList = [
-                "fa:youtube", "fa:github", "fa:spotify", "fa:apple", "fa:google", "fa:twitter",
-                "fa:discord", "fa:slack", "fa:figma", "fa:gitlab", "fa:linkedin", "fa:instagram",
-                "fa:reddit", "fa:twitch", "fa:codepen", "fa:medium", "fa:trello", "fa:jira",
-                "fa:code", "fa:terminal", "fa:database", "fa:server", "fa:bug", "fa:cube",
-                "fa:folder", "fa:file", "fa:copy", "fa:paste", "fa:cut", "fa:trash", "fa:star",
-                "fa:heart", "fa:bookmark", "fa:tag", "fa:envelope", "fa:search", "fa:filter"
-            ]
-            for fa in faList {
-                results.append(IconEntry(id: fa, name: fa, library: "Font Awesome"))
-            }
-
-            // 3. Lucide Icons
-            let lucideList = [
-                "lucide:zap", "lucide:search", "lucide:copy", "lucide:cut", "lucide:paste",
-                "lucide:terminal", "lucide:globe", "lucide:cpu", "lucide:code", "lucide:layers",
-                "lucide:sparkles", "lucide:shield", "lucide:external-link", "lucide:download",
-                "lucide:check", "lucide:x", "lucide:arrow-right", "lucide:corner-down-left",
-                "lucide:play", "lucide:pause", "lucide:music", "lucide:folder", "lucide:file"
-            ]
-            for luc in lucideList {
-                results.append(IconEntry(id: luc, name: luc, library: "Lucide"))
-            }
-
-            // 4. Google Material Symbols
-            let matList = [
-                "material:search", "material:settings", "material:favorite", "material:star",
-                "material:home", "material:build", "material:code", "material:terminal",
-                "material:content_copy", "material:content_cut", "material:content_paste",
-                "material:delete", "material:edit", "material:folder", "material:visibility",
-                "material:lock", "material:security", "material:extension", "material:play_arrow"
-            ]
-            for mat in matList {
-                results.append(IconEntry(id: mat, name: mat, library: "Material"))
-            }
-
-            return results
+            let localeSuffixes = [".ar", ".hi", ".zh", ".ja", ".ko", ".ru", ".he", ".th", ".el", ".fa"]
+            return symbolsDict.keys
+                .filter { name in !localeSuffixes.contains(where: { name.hasSuffix($0) }) }
+                .sorted()
+                .map { IconEntry(id: $0, name: $0, library: "SF Symbol") }
         }.value
 
-        self.allIcons = entries
-        self.isLoaded = true
+        self.sfSymbols = entries
+        self.sfLoaded = true
     }
 
-    /// Unified search across ALL libraries simultaneously in one place
-    public func search(query: String, limit: Int = 160) -> [IconEntry] {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    // MARK: - On-demand Iconify search (like PopClip)
+
+    /// Call this whenever the search query changes.
+    /// - Empty query shows first 160 SF Symbols only (no network call).
+    /// - Non-empty query hits the Iconify search API with `palette=false`,
+    ///   then merges matching SF Symbols at the top.
+    public func search(query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != lastQuery else { return }
+        lastQuery = trimmed
+
+        // Cancel any in-flight search
+        searchTask?.cancel()
+
         if trimmed.isEmpty {
-            return Array(allIcons.prefix(limit))
+            searchResults = []
+            isSearching = false
+            return
         }
 
-        let terms = trimmed.components(separatedBy: " ").filter { !$0.isEmpty }
-        let matches = allIcons.filter { item in
-            let lower = item.id.lowercased()
-            return terms.allSatisfy { lower.contains($0) }
-        }
+        isSearching = true
+        searchTask = Task {
+            // Small debounce so we don't fire on every keystroke
+            try? await Task.sleep(nanoseconds: 250_000_000) // 250ms
+            guard !Task.isCancelled else { return }
 
-        return Array(matches.prefix(limit))
+            let lower = trimmed.lowercased()
+
+            // SF Symbol matches (local, instant)
+            let sfMatches = sfSymbols.filter { $0.id.contains(lower) }.prefix(30)
+
+            // Iconify search API — palette=false gives only monochrome icons
+            var iconifyMatches: [IconEntry] = []
+            if let url = URL(string: "https://api.iconify.design/search?query=\(trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? trimmed)&limit=80&palette=false"),
+               let data = try? Data(contentsOf: url),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let icons = json["icons"] as? [String] {
+                // icons are in "prefix:name" format — perfect, use directly
+                iconifyMatches = icons.map { iconId in
+                    let parts = iconId.split(separator: ":", maxSplits: 1)
+                    let label = parts.count == 2 ? String(parts[1]).replacingOccurrences(of: "-", with: " ").capitalized : iconId
+                    return IconEntry(id: iconId, name: label, library: "Iconify")
+                }
+            }
+
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                self.searchResults = Array(sfMatches) + iconifyMatches
+                self.isSearching = false
+            }
+        }
+    }
+
+    /// Default icons shown when search is empty (first 160 SF Symbols)
+    public var defaultIcons: [IconEntry] {
+        Array(sfSymbols.prefix(160))
     }
 }

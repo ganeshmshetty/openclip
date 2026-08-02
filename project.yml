@@ -40,6 +40,8 @@ targets:
       - package: KeyboardShortcuts
       - package: Defaults
       - package: Sparkle
+      - package: SDWebImageSwiftUI
+      - package: SDWebImageSVGCoder
   OpenClipTests:
     type: bundle.unit-test
     platform: macOS
@@ -62,3 +64,9 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.0.0
+  SDWebImageSwiftUI:
+    url: https://github.com/SDWebImage/SDWebImageSwiftUI
+    from: 3.0.0
+  SDWebImageSVGCoder:
+    url: https://github.com/SDWebImage/SDWebImageSVGCoder
+    from: 1.7.0
