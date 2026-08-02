@@ -9,7 +9,7 @@ public struct CutAction: ConfigurableAction {
     public let title = "Cut"
     public let configurationViewID = "builtin.cut"
     public let preferenceIconName = "scissors"
-    public let icon = ActionIcon.symbol("scissors")
+    public let icon = ActionIcon.text("Cut")
     
     public init() {}
     

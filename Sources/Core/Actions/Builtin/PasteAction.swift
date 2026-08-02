@@ -9,7 +9,7 @@ public struct PasteAction: ConfigurableAction {
     public let title = "Paste"
     public let configurationViewID = "builtin.paste"
     public let preferenceIconName = "doc.on.clipboard"
-    public let icon = ActionIcon.symbol("doc.on.clipboard")
+    public let icon = ActionIcon.text("Paste")
     
     public init() {}
     

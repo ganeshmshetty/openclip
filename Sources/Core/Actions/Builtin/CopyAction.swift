@@ -9,7 +9,7 @@ public struct CopyAction: ConfigurableAction {
     public let title = "Copy"
     public let configurationViewID = "builtin.copy"
     public let preferenceIconName = "doc.on.doc"
-    public let icon = ActionIcon.symbol("doc.on.doc")
+    public let icon = ActionIcon.text("Copy")
     
     public init() {}
     
