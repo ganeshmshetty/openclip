@@ -318,29 +318,22 @@ struct ExtensionCardView: View {
                 Spacer()
 
                 if showSuccess || isInstalled {
-                    HStack(spacing: 6) {
-                        Text("Installed ✓")
-                            .font(.caption)
-                            .foregroundColor(.green)
-
-                        Button(role: .destructive, action: {
-                            if let action = matchingInstalledAction {
-                                Task {
-                                    try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
-                                    await MainActor.run {
-                                        showSuccess = false
-                                        NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
-                                    }
+                    Button(role: .destructive, action: {
+                        if let action = matchingInstalledAction {
+                            Task {
+                                try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                                await MainActor.run {
+                                    showSuccess = false
+                                    NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
                                 }
                             }
-                        }) {
-                            Image(systemName: "trash")
-                                .font(.caption)
-                                .foregroundColor(.red.opacity(0.9))
                         }
-                        .buttonStyle(.plain)
-                        .help("Remove Extension")
+                    }) {
+                        Label("Uninstall", systemImage: "trash")
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(.red)
                 } else {
                     Button(isInstalling ? "Installing..." : "Install") {
                         guard let url = URL(string: item.downloadURL) else {
