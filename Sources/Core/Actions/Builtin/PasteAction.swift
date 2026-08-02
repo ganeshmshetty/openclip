@@ -4,13 +4,8 @@ public struct PasteAction: ConfigurableAction {
     public let id = "builtin.paste"
     public let title = "Paste"
     public let configurationViewID = "builtin.paste"
-    public let preferenceIconName = "clipboard"
-    public var icon: ActionIcon {
-        if UserDefaults.standard.bool(forKey: "action.paste.useText") {
-            return .text("Paste")
-        }
-        return .symbol("clipboard")
-    }
+    public let preferenceIconName = "doc.on.clipboard"
+    public let icon = ActionIcon.symbol("doc.on.clipboard")
     
     public init() {}
     
@@ -24,3 +19,4 @@ public struct PasteAction: ConfigurableAction {
         return .simulatePaste
     }
 }
+

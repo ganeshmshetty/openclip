@@ -5,12 +5,7 @@ public struct CopyAction: ConfigurableAction {
     public let title = "Copy"
     public let configurationViewID = "builtin.copy"
     public let preferenceIconName = "doc.on.doc"
-    public var icon: ActionIcon {
-        if UserDefaults.standard.bool(forKey: "action.copy.useText") {
-            return .text("Copy")
-        }
-        return .symbol("doc.on.doc")
-    }
+    public let icon = ActionIcon.symbol("doc.on.doc")
     
     public init() {}
     
@@ -24,3 +19,4 @@ public struct CopyAction: ConfigurableAction {
         return .copy(context.selection.text)
     }
 }
+
