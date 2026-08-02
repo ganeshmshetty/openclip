@@ -18,14 +18,15 @@ public final class ActionCustomizationManager: ObservableObject, Sendable {
     public static let shared = ActionCustomizationManager()
     
     @Published public private(set) var overrides: [String: ActionOverride] = [:]
-    private let storageKey = "action.customizations"
+    private let settingsStore: SettingsStore
     
-    private init() {
+    public init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
+        self.settingsStore = settingsStore
         loadOverrides()
     }
     
     public func loadOverrides() {
-        if let data = UserDefaults.standard.data(forKey: storageKey),
+        if let data = settingsStore.get(.actionCustomizations),
            let decoded = try? JSONDecoder().decode([String: ActionOverride].self, from: data) {
             self.overrides = decoded
         } else {
@@ -104,7 +105,8 @@ public final class ActionCustomizationManager: ObservableObject, Sendable {
 
     private func saveOverrides() {
         if let encoded = try? JSONEncoder().encode(overrides) {
-            UserDefaults.standard.set(encoded, forKey: storageKey)
+            settingsStore.set(.actionCustomizations, value: encoded)
         }
     }
 }
+
