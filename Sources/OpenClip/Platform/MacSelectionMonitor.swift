@@ -75,6 +75,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                 let dy = cursor.y - downPoint.y
                 isDragOrMultiClick = (dx * dx + dy * dy) > 9.0 // > 3px movement
             }
+            guard isDragOrMultiClick else { return }
             
             let logMsg = "📍 Selection Event | Mouse Down: \(downPoint.map { "(\($0.x), \($0.y))" } ?? "nil") -> Mouse Up: (\(cursor.x), \(cursor.y))"
             NSLog("%@", logMsg)

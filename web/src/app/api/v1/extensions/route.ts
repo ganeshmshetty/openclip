@@ -23,15 +23,17 @@ const BRANCH = 'main';
 const CATALOG_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/catalog.json`;
 const STATS_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/extension-stats.json`;
 
-// Cache the verified catalog so repeated searches don't hammer GitHub.
-// Keyed by repo/branch; entries expire after a short TTL.
-const CATALOG_TTL_MS = 5 * 60 * 1000;
-let cachedCatalog: ExtensionItem[] | null = null;
-let cachedCatalogAt = 0;
+// Optional GitHub token (set as GH_TOKEN in the Vercel environment) to raise
+// api.github.com rate limits if raw.githubusercontent ever throttles us.
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+
+function githubHeaders(): HeadersInit {
+  return GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {};
+}
 
 // Download counts are published nightly to extension-stats.json by the
-// update-stats.yml workflow (Obsidian model). Serve from cache to avoid
-// hammering raw.githubusercontent.com.
+// update-stats.yml workflow (Obsidian model). Serve from a short cache to
+// avoid re-fetching on every request; stats only change once a day.
 const STATS_TTL_MS = 60 * 60 * 1000;
 let cachedStats: Record<string, number> | null = null;
 let cachedStatsAt = 0;
@@ -42,7 +44,10 @@ async function loadStats(): Promise<Record<string, number>> {
     return cachedStats;
   }
   try {
-    const res = await fetch(STATS_URL, { next: { revalidate: 3600 } });
+    const res = await fetch(STATS_URL, {
+      headers: githubHeaders(),
+      cache: 'no-store',
+    });
     if (!res.ok) return cachedStats ?? {};
     const data = (await res.json()) as { downloads?: Record<string, number> };
     cachedStats = data.downloads ?? {};
@@ -54,17 +59,17 @@ async function loadStats(): Promise<Record<string, number>> {
 }
 
 async function loadCatalog(): Promise<ExtensionItem[]> {
-  // Serve from cache unless it has expired.
-  const now = Date.now();
-  if (cachedCatalog && now - cachedCatalogAt < CATALOG_TTL_MS) {
-    return cachedCatalog;
-  }
-
+  // Always fetch the catalog fresh so extension changes (categories, new
+  // extensions) appear immediately. raw.githubusercontent.com is a CDN with
+  // no practical rate limit at this scale.
   try {
-    const res = await fetch(CATALOG_URL, { next: { revalidate: 300 } });
+    const res = await fetch(CATALOG_URL, {
+      headers: githubHeaders(),
+      cache: 'no-store',
+    });
     if (!res.ok) {
       console.warn('Catalog fetch failed:', res.status);
-      return cachedCatalog ?? [];
+      return [];
     }
 
     const data = (await res.json()) as {
@@ -74,15 +79,13 @@ async function loadCatalog(): Promise<ExtensionItem[]> {
     // Merge GitHub Release download counts published nightly to extension-stats.json.
     const stats = await loadStats();
 
-    cachedCatalog = (data.extensions ?? []).map((item) => ({
+    return (data.extensions ?? []).map((item) => ({
       ...item,
       downloadCount: stats[item.id] ?? 0,
     }));
-    cachedCatalogAt = Date.now();
-    return cachedCatalog;
   } catch (err) {
     console.error('Failed to load catalog:', err);
-    return cachedCatalog ?? [];
+    return [];
   }
 }
 

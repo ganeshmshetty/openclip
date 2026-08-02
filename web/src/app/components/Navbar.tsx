@@ -4,95 +4,111 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Download, Menu, X } from 'lucide-react';
 
+const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/extensions', label: 'Extensions' },
+  { href: '/developers', label: 'Developers' },
+  { href: 'https://github.com/ganeshmshetty/openclip', label: 'GitHub', external: true },
+];
+
+function LogoCell() {
+  return (
+    <Link href="/" className="flex items-center gap-2 pl-3 pr-3.5 py-2 shrink-0" aria-label="OpenClip home">
+      <img
+        src="/icons/openclip-icon.png"
+        alt="OpenClip"
+        className="w-[26px] h-[26px] rounded-[8px]"
+        width={26}
+        height={26}
+      />
+      <span className="font-semibold text-[15px] tracking-[-0.01em] text-ink">OpenClip</span>
+    </Link>
+  );
+}
+
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/5 bg-[#050A14]/80 backdrop-blur-xl">
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 h-[60px] flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group" aria-label="OpenClip home">
-          <div className="w-7 h-7 rounded-[8px] bg-blue-600 flex items-center justify-center text-white font-bold text-[13px] shadow-lg shadow-blue-600/25 group-hover:scale-105 transition-transform">
-            O
-          </div>
-          <span className="font-semibold text-[15px] tracking-[-0.01em] text-white/90">OpenClip</span>
-        </Link>
+    <header className="sticky top-4 z-50 px-4">
+      <div className="mx-auto w-fit max-w-full">
+        {/* Popup-style segmented pill */}
+        <nav className="flex items-stretch bg-card border-[1.5px] border-ink rounded-[12px] shadow-chunky">
+          <LogoCell />
 
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1">
-          {[
-            { href: '/', label: 'Home' },
-            { href: '/extensions', label: 'Extensions' },
-            { href: '/developers', label: 'Developers' },
-          ].map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="px-3.5 py-1.5 rounded-lg text-[13.5px] font-medium text-white/50 hover:text-white/90 hover:bg-white/5 transition-all"
+          {/* Desktop link cells — hover floods accent, divider hides (mirrors the real popup) */}
+          <div className="hidden md:flex items-stretch">
+            {NAV_LINKS.map(({ href, label, external }) => (
+              <div key={href} className="group flex items-stretch">
+                <span className="hairline group-hover:opacity-0" />
+                <Link
+                  href={href}
+                  target={external ? '_blank' : undefined}
+                  rel={external ? 'noopener noreferrer' : undefined}
+                  className="flex items-center px-3.5 text-[13.5px] font-medium text-ink hover:bg-accent hover:text-white"
+                >
+                  {label}
+                </Link>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA cell */}
+          <div className="hidden sm:flex items-stretch">
+            <span className="hairline" />
+            <div className="flex items-center px-2.5 py-1.5">
+              <a
+                href="https://github.com/ganeshmshetty/openclip/releases/latest"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-chunky px-3 py-1.5 text-[13px] shadow-chunky-sm"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download
+              </a>
+            </div>
+          </div>
+
+          {/* Hamburger cell (mobile) */}
+          <div className="flex md:hidden items-stretch">
+            <span className="hairline" />
+            <button
+              className="flex items-center px-3 text-ink hover:bg-accent hover:text-white"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Toggle menu"
             >
-              {label}
-            </Link>
-          ))}
-          <a
-            href="https://github.com/ganeshmshetty/openclip"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3.5 py-1.5 rounded-lg text-[13.5px] font-medium text-white/50 hover:text-white/90 hover:bg-white/5 transition-all"
-          >
-            GitHub
-          </a>
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </nav>
 
-        {/* CTA */}
-        <div className="flex items-center gap-3">
-          <a
-            href="https://github.com/ganeshmshetty/openclip/releases/latest"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold transition-colors shadow-lg shadow-blue-600/20"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Download
-          </a>
-          <button
-            className="md:hidden p-1.5 text-white/50 hover:text-white"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {mobileOpen && (
-        <div className="md:hidden border-t border-white/5 bg-[#050A14] px-5 py-4 flex flex-col gap-1">
-          {[
-            { href: '/', label: 'Home' },
-            { href: '/extensions', label: 'Extensions' },
-            { href: '/developers', label: 'Developers' },
-            { href: 'https://github.com/ganeshmshetty/openclip', label: 'GitHub', external: true },
-          ].map(({ href, label, external }) => (
-            <Link
-              key={href}
-              href={href}
-              target={external ? '_blank' : undefined}
-              rel={external ? 'noopener noreferrer' : undefined}
-              className="px-3 py-2 rounded-lg text-[14px] text-white/60 hover:text-white hover:bg-white/5 transition-all"
-              onClick={() => setMobileOpen(false)}
+        {/* Mobile dropdown */}
+        {mobileOpen && (
+          <div className="md:hidden card-chunky mt-2 p-2 flex flex-col">
+            {NAV_LINKS.map(({ href, label, external }) => (
+              <Link
+                key={href}
+                href={href}
+                target={external ? '_blank' : undefined}
+                rel={external ? 'noopener noreferrer' : undefined}
+                className="px-3 py-2 rounded-[8px] text-[14px] font-medium text-ink hover:bg-accent hover:text-white"
+                onClick={() => setMobileOpen(false)}
+              >
+                {label}
+              </Link>
+            ))}
+            <a
+              href="https://github.com/ganeshmshetty/openclip/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-chunky mt-2 px-4 py-2.5 text-[13.5px]"
             >
-              {label}
-            </Link>
-          ))}
-          <a
-            href="https://github.com/ganeshmshetty/openclip/releases/latest"
-            className="mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-[13.5px] font-semibold"
-          >
-            <Download className="w-4 h-4" />
-            Download for Mac
-          </a>
-        </div>
-      )}
+              <Download className="w-4 h-4" />
+              Download for Mac
+            </a>
+          </div>
+        )}
+      </div>
     </header>
   );
 }

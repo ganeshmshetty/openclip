@@ -19,15 +19,20 @@ public final class RemoteExtensionInstaller: Sendable {
     
     public func installFromRemoteURL(_ downloadURL: URL, extensionID: String) async throws -> [any Action] {
         print("[OpenClip RemoteInstaller] Starting installation for '\(extensionID)'. Initial API URL: \(downloadURL)")
-        let finalURL = await resolveDownloadURL(from: downloadURL, extensionID: extensionID)
-        print("[OpenClip RemoteInstaller] Downloading resolved package from: \(finalURL)")
         
-        guard finalURL.scheme?.lowercased() == "https" else {
-            print("[OpenClip RemoteInstaller] Unsupported scheme: \(finalURL.scheme ?? "none")")
+        guard downloadURL.scheme?.lowercased() == "https" else {
+            print("[OpenClip RemoteInstaller] Unsupported scheme: \(downloadURL.scheme ?? "none")")
             throw NSError(domain: "RemoteExtensionInstaller", code: 400, userInfo: [NSLocalizedDescriptionKey: "Only HTTPS URLs are supported"])
         }
         
-        let (tempLocalURL, _) = try await URLSession.shared.download(from: finalURL)
+        // The store API guarantees this URL points at a real archive, so a single
+        // HEAD check is enough to fail fast on stale/missing packages.
+        guard await checkURLExists(downloadURL) else {
+            throw NSError(domain: "RemoteExtensionInstaller", code: 404, userInfo: [NSLocalizedDescriptionKey: "Download URL is not reachable: \(downloadURL.absoluteString)"])
+        }
+        print("[OpenClip RemoteInstaller] Downloading verified package from: \(downloadURL)")
+        
+        let (tempLocalURL, _) = try await URLSession.shared.download(from: downloadURL)
         
         // URLSession downloads with a .tmp extension and may land inside ~/.openclip/extensions.
         // Rename to a proper .zip path in the system temp directory so installExtension
@@ -43,62 +48,6 @@ public final class RemoteExtensionInstaller: Sendable {
         return installedActions
     }
     
-    public nonisolated func resolveDownloadURL(from url: URL, extensionID: String) async -> URL {
-        // If the URL is already a specific existing .zip file, verify via HEAD request
-        let lastComponent = url.lastPathComponent
-        if lastComponent.hasSuffix(".zip") && lastComponent != "raw.zip" && lastComponent != "Extensions.zip" {
-            if await checkURLExists(url) {
-                print("[OpenClip RemoteInstaller] Direct ZIP URL is valid: \(url)")
-                return url
-            }
-        }
-        
-        let nameKey = (extensionID.components(separatedBy: ".").last ?? extensionID).lowercased()
-        
-        // Query GitHub contents API dynamically to find exact case-sensitive zip filename
-        let apiURLStr = url.deletingLastPathComponent().absoluteString
-            .replacingOccurrences(of: "https://raw.githubusercontent.com/", with: "https://api.github.com/repos/")
-            .replacingOccurrences(of: "/main/Extensions/", with: "/contents/Extensions")
-            .replacingOccurrences(of: "/master/Extensions/", with: "/contents/Extensions")
-            
-        struct GHContentItem: Decodable {
-            let name: String
-            let download_url: String
-        }
-        
-        if let apiURL = URL(string: apiURLStr),
-           let (data, _) = try? await URLSession.shared.data(from: apiURL),
-           let items = try? JSONDecoder().decode([GHContentItem].self, from: data) {
-            for item in items where item.name.hasSuffix(".zip") {
-                let nameWithoutExt = item.name.replacingOccurrences(of: ".openclipext.zip", with: "").lowercased()
-                if nameWithoutExt == nameKey || nameWithoutExt.contains(nameKey) || nameKey.contains(nameWithoutExt) {
-                    if let rawURL = URL(string: item.download_url), await checkURLExists(rawURL) {
-                        print("[OpenClip RemoteInstaller] Resolved via GitHub Contents API: \(rawURL)")
-                        return rawURL
-                    }
-                }
-            }
-        }
-
-        // Fallback candidate case variations
-        let baseURL = url.deletingLastPathComponent()
-        let pascalKey = nameKey.capitalized
-        let candidates = [
-            "\(pascalKey).openclipext.zip",
-            "\(nameKey).openclipext.zip"
-        ]
-        for candidate in candidates {
-            let testURL = baseURL.appendingPathComponent(candidate)
-            if await checkURLExists(testURL) {
-                print("[OpenClip RemoteInstaller] Resolved via CDN candidate HEAD check: \(testURL)")
-                return testURL
-            }
-        }
-        
-        print("[OpenClip RemoteInstaller] Resolution fallback to default URL: \(url)")
-        return url
-    }
-
     private nonisolated func checkURLExists(_ url: URL) async -> Bool {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"

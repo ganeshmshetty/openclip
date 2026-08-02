@@ -4,7 +4,7 @@ import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { Sparkles, Download, ArrowLeft, Check, Terminal, User, Calendar, Layers } from 'lucide-react';
+import { Package, Download, ArrowLeft, Check, User } from 'lucide-react';
 
 interface ExtensionItem {
   id: string;
@@ -13,6 +13,7 @@ interface ExtensionItem {
   author: string;
   icon: string;
   category: string;
+  version: string;
   downloadCount: number;
   downloadURL: string;
 }
@@ -49,44 +50,43 @@ export default function ExtensionDetailPage({ params }: { params: Promise<{ id: 
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen text-ink flex flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+      <main className="flex-1 max-w-4xl mx-auto px-5 sm:px-8 py-16 w-full">
         <Link
           href="/extensions"
-          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors mb-8"
+          className="inline-flex items-center gap-2 font-mono text-[12px] uppercase tracking-widest text-ink/50 hover:text-accent-deep transition-colors mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Extensions</span>
+          <span>All Extensions</span>
         </Link>
 
         {isLoading ? (
-          <div className="h-64 rounded-2xl bg-slate-900/50 border border-slate-800 animate-pulse" />
+          <div className="h-64 card-chunky bg-tint animate-pulse" />
         ) : !extension ? (
-          <div className="text-center py-20 bg-slate-900/40 rounded-2xl border border-slate-800">
-            <h2 className="text-xl font-bold text-white">Extension not found</h2>
-            <p className="text-sm text-slate-400 mt-2">The requested extension could not be located.</p>
+          <div className="card-chunky text-center py-20">
+            <h2 className="text-xl font-bold text-ink">Extension not found</h2>
+            <p className="text-sm text-ink/50 mt-2">The requested extension could not be located.</p>
           </div>
         ) : (
           <div className="space-y-8">
             {/* Header Card */}
-            <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div className="card-chunky p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               <div className="flex items-center gap-5">
-                <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-3xl font-bold">
-                  ✨
+                <div className="w-16 h-16 rounded-[12px] bg-tint border-[1.5px] border-ink flex items-center justify-center text-accent-deep">
+                  <Package className="w-7 h-7" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-white">{extension.name}</h1>
-                  <div className="flex items-center gap-3 text-sm text-slate-400 mt-1">
-                    <span className="flex items-center gap-1">
-                      <User className="w-3.5 h-3.5 text-slate-500" />
+                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-[-0.02em] text-ink">
+                    {extension.name}
+                  </h1>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <span className="flex items-center gap-1 text-[13px] text-ink/55">
+                      <User className="w-3.5 h-3.5 text-ink/40" />
                       {extension.author}
                     </span>
-                    <span>•</span>
-                    <span className="capitalize px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-medium">
-                      {extension.category}
-                    </span>
+                    <span className="chip">{extension.category}</span>
                   </div>
                 </div>
               </div>
@@ -94,10 +94,10 @@ export default function ExtensionDetailPage({ params }: { params: Promise<{ id: 
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button
                   onClick={handleInstall}
-                  className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all ${
+                  className={`flex-1 sm:flex-none px-6 py-3 text-sm ${
                     installed
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/25'
+                      ? 'inline-flex items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-ink bg-tint text-ink font-semibold shadow-chunky-sm'
+                      : 'btn-chunky'
                   }`}
                 >
                   {installed ? (
@@ -106,10 +106,7 @@ export default function ExtensionDetailPage({ params }: { params: Promise<{ id: 
                       <span>Opening OpenClip...</span>
                     </>
                   ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Install in OpenClip</span>
-                    </>
+                    <span>Install in OpenClip</span>
                   )}
                 </button>
 
@@ -117,36 +114,42 @@ export default function ExtensionDetailPage({ params }: { params: Promise<{ id: 
                   href={extension.downloadURL}
                   download
                   title="Download raw package file"
-                  className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                  className="btn-chunky-outline p-3"
                 >
                   <Download className="w-4 h-4" />
                 </a>
               </div>
             </div>
 
-            {/* Description & Overview Section */}
-            <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl space-y-6">
-              <div>
-                <h2 className="text-lg font-bold text-white mb-2">Description</h2>
-                <p className="text-slate-300 leading-relaxed text-base">
-                  {extension.description}
-                </p>
-              </div>
+            {/* Description & metadata */}
+            <div className="card-chunky p-8">
+              <h2 className="eyebrow text-ink mb-3">Description</h2>
+              <p className="text-ink/75 leading-relaxed text-[15px]">
+                {extension.description}
+              </p>
 
-              <div className="pt-6 border-t border-slate-800/60 grid grid-cols-2 sm:grid-cols-3 gap-6 text-sm">
+              <div className="mt-6 pt-6 border-t-[1.5px] border-ink/10 grid grid-cols-2 gap-6">
                 <div>
-                  <span className="text-xs text-slate-500 uppercase font-semibold block mb-1">Downloads</span>
-                  <span className="font-semibold text-white">⬇ {extension.downloadCount.toLocaleString()}</span>
+                  <span className="eyebrow block mb-1">Downloads</span>
+                  <span className="font-semibold text-ink inline-flex items-center gap-1.5">
+                    <Download className="w-3.5 h-3.5 text-ink/40" />
+                    {extension.downloadCount.toLocaleString()}
+                  </span>
                 </div>
 
                 <div>
-                  <span className="text-xs text-slate-500 uppercase font-semibold block mb-1">Format</span>
-                  <span className="font-semibold text-white">OpenClip Extension (.openclipext)</span>
+                  <span className="eyebrow block mb-1">Version</span>
+                  <span className="font-semibold text-ink">v{extension.version}</span>
                 </div>
 
                 <div>
-                  <span className="text-xs text-slate-500 uppercase font-semibold block mb-1">Compatibility</span>
-                  <span className="font-semibold text-white">macOS 12.0+</span>
+                  <span className="eyebrow block mb-1">Format</span>
+                  <span className="font-semibold text-ink">OpenClip Extension (.openclipext)</span>
+                </div>
+
+                <div>
+                  <span className="eyebrow block mb-1">Compatibility</span>
+                  <span className="font-semibold text-ink">macOS 12.0+</span>
                 </div>
               </div>
             </div>

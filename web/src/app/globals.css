@@ -8,6 +8,21 @@
   --font-sans: var(--font-inter);
 }
 
+@theme {
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-paper: #F4F7FF;
+  --color-card: #FFFFFF;
+  --color-ink: #1A1A1A;
+  --color-accent: #0084FF;
+  --color-accent-deep: #0068CC;
+  --color-tint: #DCEBFF;
+
+  --shadow-chunky: 4px 4px 0 0 #1A1A1A;
+  --shadow-chunky-sm: 2px 2px 0 0 #1A1A1A;
+  --shadow-chunky-lg: 6px 6px 0 0 #1A1A1A;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -20,15 +35,15 @@ html {
 }
 
 body {
-  background: #050A14;
-  color: #E8EDF5;
+  background: #F4F7FF;
+  color: #1A1A1A;
   font-family: var(--font-inter);
   line-height: 1.6;
 }
 
 ::selection {
-  background: rgba(59, 130, 246, 0.35);
-  color: #fff;
+  background: #DCEBFF;
+  color: #1A1A1A;
 }
 
 /* Scrollbar */
@@ -39,6 +54,127 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: rgba(26, 26, 26, 0.25);
   border-radius: 6px;
+}
+
+/* ---- Chunky component classes (indie Mac design language) ---- */
+
+.card-chunky {
+  background: #FFFFFF;
+  border: 1.5px solid #1A1A1A;
+  border-radius: 10px;
+  box-shadow: 4px 4px 0 0 #1A1A1A;
+}
+
+.btn-chunky,
+.btn-chunky-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1.5px solid #1A1A1A;
+  border-radius: 10px;
+  box-shadow: 4px 4px 0 0 #1A1A1A;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+}
+.btn-chunky {
+  background: #0084FF;
+  color: #FFFFFF;
+}
+.btn-chunky:hover {
+  background: #0068CC;
+}
+.btn-chunky-outline {
+  background: #FFFFFF;
+  color: #1A1A1A;
+}
+.btn-chunky-outline:hover {
+  background: #DCEBFF;
+}
+.btn-chunky:active,
+.btn-chunky-outline:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 0 #1A1A1A;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: #DCEBFF;
+  color: #1A1A1A;
+  border: 1.5px solid #1A1A1A;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+}
+
+/* Popup-style hairline divider between pill cells */
+.hairline {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(26, 26, 26, 0.15);
+}
+
+/* Mono eyebrow label used above sections / demo blocks */
+.eyebrow {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(26, 26, 26, 0.5);
+}
+
+/* AI processing glow sweep (mirrors PopupView's 1.3s linear border glow) */
+@keyframes oc-glow-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+.oc-glow-ring {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 132, 255, 0.25) 20%,
+    #0084FF 45%,
+    #4DA6FF 55%,
+    #0084FF 65%,
+    rgba(0, 132, 255, 0.25) 85%,
+    transparent 100%
+  );
+  background-size: 250% 100%;
+  animation: oc-glow-sweep 1.3s linear infinite;
+}
+
+/* Floating action label on PopupDemo cell click */
+@keyframes oc-flash {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.oc-flash {
+  animation: oc-flash 0.9s ease forwards;
 }

@@ -12,6 +12,7 @@ interface ExtensionItem {
   author: string;
   icon: string;
   category: string;
+  version: string;
   downloadCount: number;
   downloadURL: string;
 }
@@ -19,17 +20,8 @@ interface ExtensionItem {
 const CATEGORIES = ['all', 'search', 'writing', 'productivity', 'developer', 'utilities'];
 
 function CategoryBadge({ category }: { category: string }) {
-  const colors: Record<string, string> = {
-    search: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-    writing: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    productivity: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    developer: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
-    utilities: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  };
   return (
-    <span
-      className={`inline-block px-2 py-0.5 rounded-md border text-[10.5px] font-medium uppercase tracking-wide ${colors[category] || 'bg-white/5 text-white/40 border-white/10'}`}
-    >
+    <span className="inline-block px-2 py-0.5 rounded-full border-[1.5px] border-ink bg-tint text-ink font-mono text-[10.5px] uppercase tracking-wide">
       {category}
     </span>
   );
@@ -73,32 +65,33 @@ export default function ExtensionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050A14] text-white flex flex-col">
+    <div className="min-h-screen text-ink flex flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-6xl mx-auto px-5 sm:px-8 py-12 w-full">
+      <main className="flex-1 max-w-6xl mx-auto px-5 sm:px-8 py-16 w-full">
         {/* Page header */}
         <div className="mb-10">
-          <h1 className="text-2xl font-bold tracking-[-0.02em] text-white/95">
-            Extension Store
+          <p className="eyebrow mb-2">Extension Store</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-[-0.02em] text-ink">
+            One-click superpowers.
           </h1>
-          <p className="mt-1.5 text-[13.5px] text-white/40 max-w-lg">
+          <p className="mt-1.5 text-[13.5px] text-ink/55 max-w-lg">
             Auto-synced from GitHub. Every{' '}
-            <code className="font-mono text-white/50">.openclipext</code> folder in the repo
-            appears here automatically.
+            <code className="font-mono text-[12px] bg-tint border border-ink/20 rounded px-1.5 py-0.5">.openclipext</code>{' '}
+            folder in the repo appears here automatically.
           </p>
         </div>
 
         {/* Toolbar */}
         <div className="mb-8 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 pointer-events-none" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/30 pointer-events-none" />
             <input
               type="text"
               placeholder="Search extensions..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/8 text-white text-[13.5px] placeholder-white/25 focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.06] transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-[10px] bg-card border-[1.5px] border-ink text-ink text-[13.5px] placeholder-ink/30 shadow-chunky-sm focus:outline-none focus:shadow-chunky transition-shadow"
             />
           </div>
 
@@ -107,10 +100,10 @@ export default function ExtensionsPage() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-2 rounded-xl text-[12.5px] font-medium capitalize whitespace-nowrap transition-all ${
+                className={`px-3.5 py-2 rounded-[10px] border-[1.5px] border-ink text-[12.5px] font-medium capitalize whitespace-nowrap transition-all ${
                   selectedCategory === cat
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                    : 'bg-white/[0.04] hover:bg-white/[0.07] text-white/45 border border-white/6'
+                    ? 'bg-accent text-white shadow-chunky-sm'
+                    : 'bg-card text-ink/60 hover:bg-tint'
                 }`}
               >
                 {cat}
@@ -123,19 +116,16 @@ export default function ExtensionsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="h-44 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse"
-              />
+              <div key={i} className="h-44 card-chunky bg-tint animate-pulse" />
             ))}
           </div>
         ) : extensions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center mb-4">
-              <PackageOpen className="w-6 h-6 text-white/20" />
+          <div className="card-chunky flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-14 h-14 rounded-[12px] bg-tint border-[1.5px] border-ink flex items-center justify-center mb-4">
+              <PackageOpen className="w-6 h-6 text-accent-deep" />
             </div>
-            <h3 className="text-[15px] font-semibold text-white/60">No extensions found</h3>
-            <p className="text-[13px] text-white/30 mt-1">
+            <h3 className="text-[15px] font-semibold text-ink">No extensions found</h3>
+            <p className="text-[13px] text-ink/50 mt-1">
               {search ? 'Try a different search query.' : 'No extensions published yet.'}
             </p>
           </div>
@@ -146,36 +136,41 @@ export default function ExtensionsPage() {
               return (
                 <div
                   key={ext.id}
-                  className="group flex flex-col justify-between p-5 rounded-2xl bg-white/[0.025] border border-white/6 hover:border-white/12 hover:bg-white/[0.04] transition-all"
+                  className="card-chunky flex flex-col justify-between p-5 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-chunky-lg transition-all"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
-                        <h3 className="text-[14px] font-semibold text-white/90 leading-snug">
+                        <h3 className="text-[14px] font-semibold text-ink leading-snug">
                           {ext.name}
                         </h3>
-                        <p className="text-[11.5px] text-white/30 mt-0.5">by {ext.author}</p>
+                        <p className="text-[11.5px] text-ink/45 mt-0.5">by {ext.author}</p>
                       </div>
                       <CategoryBadge category={ext.category} />
                     </div>
 
-                    <p className="text-[12.5px] text-white/45 leading-relaxed line-clamp-2">
+                    <p className="text-[12.5px] text-ink/60 leading-relaxed line-clamp-2">
                       {ext.description}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-white/5">
-                    <span className="text-[11px] text-white/25 tabular-nums">
-                      {ext.downloadCount > 0 ? `↓ ${ext.downloadCount.toLocaleString()}` : 'New'}
-                    </span>
+                  <div className="flex items-center justify-between mt-5 pt-4 border-t-[1.5px] border-ink/10">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[11px] text-ink/45 tabular-nums">
+                        ↓ {ext.downloadCount.toLocaleString()}
+                      </span>
+                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-tint border border-ink/20 text-ink/60 tabular-nums">
+                        v{ext.version}
+                      </span>
+                    </div>
 
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleInstall(ext)}
-                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all ${
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-[8px] border-[1.5px] border-ink text-[12.5px] font-semibold transition-all ${
                           triggered
-                            ? 'bg-emerald-600/80 text-white'
-                            : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/15'
+                            ? 'bg-tint text-ink shadow-chunky-sm'
+                            : 'btn-chunky shadow-chunky-sm'
                         }`}
                       >
                         {triggered ? (
@@ -193,7 +188,7 @@ export default function ExtensionsPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         title="View on GitHub"
-                        className="p-1.5 rounded-lg bg-white/4 hover:bg-white/8 text-white/30 hover:text-white/60 transition-all border border-white/6"
+                        className="p-1.5 rounded-[8px] bg-card border-[1.5px] border-ink text-ink/40 hover:text-ink hover:bg-tint transition-all"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
