@@ -288,11 +288,7 @@ public struct PopupView: View {
                 exitAIMode()
             }
             
-            let aiPresets = [
-                ("Proofread", "Fix spelling and grammar errors"),
-                ("Rewrite", "Rephrase and polish text"),
-                ("Summarize", "Summarize text into key points")
-            ]
+            let aiPresets = AIServiceManager.shared.enabledPresets.map { ($0.title, $0.prompt) }
             
             ForEach(Array(aiPresets.enumerated()), id: \.offset) { index, preset in
                 let (title, prompt) = preset
