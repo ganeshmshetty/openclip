@@ -5,10 +5,10 @@
 import SwiftUI
 import Core
 
-enum ExtensionSubTab: String, CaseIterable, Identifiable {
-    case store = "Web Store"
+public enum ExtensionSubTab: String, CaseIterable, Identifiable, Sendable {
+    case store = "Store"
     case installed = "Installed"
-    var id: String { rawValue }
+    public var id: String { rawValue }
 }
 
 @MainActor
@@ -42,11 +42,13 @@ public final class ExtensionsStoreViewModel: ObservableObject {
 }
 
 public struct ExtensionsStoreView: View {
+    @Binding var selectedSubTab: ExtensionSubTab
     @StateObject private var viewModel = ExtensionsStoreViewModel()
-    @State private var selectedSubTab: ExtensionSubTab = .store
     @ObservedObject private var coordinator = ActionCoordinator.shared
 
-    public init() {}
+    public init(selectedSubTab: Binding<ExtensionSubTab> = .constant(.store)) {
+        self._selectedSubTab = selectedSubTab
+    }
 
     private var installedExtensionActions: [any Action] {
         coordinator.actions.filter { action in
@@ -61,63 +63,54 @@ public struct ExtensionsStoreView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 14) {
-            // Unified Top Header Control Bar
-            VStack(spacing: 10) {
-                HStack(spacing: 12) {
-                    // Search Bar
-                    HStack(spacing: 6) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 13))
-                        TextField("Search extensions...", text: $viewModel.searchQuery)
-                            .textFieldStyle(.plain)
-                            .onChange(of: viewModel.searchQuery) { _ in
-                                Task { await viewModel.resetAndFetch() }
-                            }
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(0.06))
-                    )
-
-                    // Category Selector
-                    Picker("", selection: $viewModel.selectedCategory) {
-                        Text("All Categories").tag("All")
-                        Text("Productivity").tag("Productivity")
-                        Text("Developer").tag("Developer")
-                        Text("Utilities").tag("Utilities")
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 140)
-                    .onChange(of: viewModel.selectedCategory) { _ in
-                        Task { await viewModel.resetAndFetch() }
-                    }
-
-                    // Store / Installed Toggle
-                    Picker("", selection: $selectedSubTab) {
-                        Text("Store").tag(ExtensionSubTab.store)
-                        Text("Installed (\(installedExtensionActions.count))").tag(ExtensionSubTab.installed)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 170)
-
-                    // Install from File Button
-                    Button(action: {
-                        openInstallExtensionPanel()
-                    }) {
-                        Label("Install File…", systemImage: "square.and.arrow.down")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+        VStack(spacing: 12) {
+            // Filter Control Bar
+            HStack(spacing: 12) {
+                // Search Field
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 13))
+                    TextField("Search extensions...", text: $viewModel.searchQuery)
+                        .textFieldStyle(.plain)
+                        .onChange(of: viewModel.searchQuery) { _ in
+                            Task { await viewModel.resetAndFetch() }
+                        }
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(0.06))
+                )
+
+                // Category Selector
+                Picker("", selection: $viewModel.selectedCategory) {
+                    Text("All Categories").tag("All")
+                    Text("Productivity").tag("Productivity")
+                    Text("Developer").tag("Developer")
+                    Text("Utilities").tag("Utilities")
+                }
+                .pickerStyle(.menu)
+                .frame(width: 140)
+                .onChange(of: viewModel.selectedCategory) { _ in
+                    Task { await viewModel.resetAndFetch() }
+                }
+
+                Spacer()
+
+                // Install from File Button
+                Button(action: {
+                    openInstallExtensionPanel()
+                }) {
+                    Label("Install File…", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
             .padding(.horizontal, 4)
 
-            // Content Area
+            // Content View
             if selectedSubTab == .store {
                 storeView
             } else {
