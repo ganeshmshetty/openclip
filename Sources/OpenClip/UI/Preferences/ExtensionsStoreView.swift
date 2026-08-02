@@ -283,7 +283,13 @@ struct ExtensionCardView: View {
     @State private var showSuccess = false
 
     private var matchingInstalledAction: (any Action)? {
-        ActionCoordinator.shared.actions.first { $0.id.contains(item.id) }
+        ActionCoordinator.shared.actions.first { action in
+            let actID = action.id.lowercased()
+            let itemID = item.id.lowercased()
+            let actTitle = action.displayTitle.lowercased()
+            let itemName = item.name.lowercased()
+            return actID.contains(itemID) || itemID.contains(actID) || actTitle == itemName
+        }
     }
 
     private var isInstalled: Bool {

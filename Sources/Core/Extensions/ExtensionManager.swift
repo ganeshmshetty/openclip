@@ -192,11 +192,39 @@ public final class ExtensionManager: Sendable {
         
         let factory = self.actionFactory
         for itemURL in items {
-            // Check if this item produced the target actionID
-            let actions = await Self.scanDirectory(itemURL.deletingLastPathComponent(), factory: factory)
-            if actions.contains(where: { $0.id == actionID }) {
-                try? fm.removeItem(at: itemURL)
-                break
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: itemURL.path, isDirectory: &isDir) {
+                let actions: [any Action]
+                if isDir.boolValue {
+                    let openclipManifest = itemURL.appendingPathComponent("openclip.json")
+                    let legacyManifest = itemURL.appendingPathComponent("manifest.json")
+                    let jsonConfigURL = itemURL.appendingPathComponent("Config.json")
+                    
+                    if fm.fileExists(atPath: openclipManifest.path) {
+                        actions = await Self.loadManifestExtension(manifestURL: openclipManifest, directoryURL: itemURL, factory: factory)
+                    } else if fm.fileExists(atPath: legacyManifest.path) {
+                        actions = await Self.loadManifestExtension(manifestURL: legacyManifest, directoryURL: itemURL, factory: factory)
+                    } else if fm.fileExists(atPath: jsonConfigURL.path) {
+                        actions = await Self.loadManifestExtension(manifestURL: jsonConfigURL, directoryURL: itemURL, factory: factory)
+                    } else {
+                        actions = []
+                    }
+                } else {
+                    if let action = await Self.loadStandaloneScriptExtension(scriptURL: itemURL, factory: factory) {
+                        actions = [action]
+                    } else {
+                        actions = []
+                    }
+                }
+
+                let matchesID = actions.contains(where: { $0.id == actionID }) ||
+                                itemURL.lastPathComponent.lowercased().contains(actionID.lowercased()) ||
+                                actionID.lowercased().contains(itemURL.deletingPathExtension().lastPathComponent.lowercased())
+
+                if matchesID {
+                    try? fm.removeItem(at: itemURL)
+                    break
+                }
             }
         }
         await loadExtensions(from: targetDir)
