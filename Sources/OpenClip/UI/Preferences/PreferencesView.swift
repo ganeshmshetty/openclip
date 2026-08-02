@@ -523,12 +523,12 @@ struct ActionRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             // Icon Column
             ZStack {
                 ActionIconView(icon: presentationModel.icon, size: 14)
             }
-            .frame(minWidth: 28, minHeight: 28)
+            .frame(width: 28, height: 28)
             .background(Color.primary.opacity(0.06))
             .cornerRadius(6)
             
@@ -536,89 +536,61 @@ struct ActionRowView: View {
             Text(presentationModel.title)
                 .font(.system(size: 13, weight: .medium))
 
-            
             Spacer()
             
-            // Type Badge Column
-            // Type Badge Column
-            switch action.chrome.badge {
-            case .script:
-                EmptyView()
-            case .url:
-                Text("URL Template")
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.purple.opacity(0.15)))
-                    .foregroundColor(.purple)
-            case .custom:
-                if let customAction = action as? CustomAction {
-                    CustomActionBadge(type: customAction.type)
-                } else {
-                    Text("Custom")
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.orange.opacity(0.15)))
-                        .foregroundColor(.orange)
-                }
-            case .extensionPkg(let name):
-                Text(name)
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.green.opacity(0.15)))
-                    .foregroundColor(.green)
-            case .none:
-                EmptyView()
-            }
-            
-            // Enable/Disable Switch
-            Toggle("", isOn: isEnabled)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.small)
-            
-            // Edit / Configure Button
-            Button(action: {
-                showingConfigSheet = true
-            }) {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.plain)
-            .foregroundColor(.secondary)
-            .help("Configure Action")
-            .sheet(isPresented: $showingConfigSheet) {
-                EditActionSheet(action: action)
-            }
-            
-            // Delete Button (if applicable)
-            switch action.chrome.source {
-            case .custom:
+            // Right-aligned controls (Toggle | Gear | Trash slot)
+            HStack(alignment: .center, spacing: 12) {
+                // Enable/Disable Switch
+                Toggle("", isOn: isEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                
+                // Edit / Configure Button
                 Button(action: {
-                    CustomActionManager.shared.delete(customActionID: action.id)
+                    showingConfigSheet = true
                 }) {
-                    Image(systemName: "trash")
+                    Image(systemName: "gearshape")
                         .font(.system(size: 14))
+                        .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .foregroundColor(.red)
-                .help("Delete Custom Action")
-            case .extensionPkg:
-                Button(action: {
-                    Task {
-                        try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                .frame(width: 24, height: 24)
+                .help("Configure Action")
+                .sheet(isPresented: $showingConfigSheet) {
+                    EditActionSheet(action: action)
+                }
+                
+                // Delete / Uninstall Button (with fixed 24x24 slot for alignment)
+                Group {
+                    switch action.chrome.source {
+                    case .custom:
+                        Button(action: {
+                            CustomActionManager.shared.delete(customActionID: action.id)
+                        }) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14))
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Delete Custom Action")
+                    case .extensionPkg:
+                        Button(action: {
+                            Task {
+                                try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                            }
+                        }) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14))
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Uninstall Extension")
+                    case .builtin:
+                        Color.clear
                     }
-                }) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 14))
                 }
-                .buttonStyle(.plain)
-                .foregroundColor(.red)
-                .help("Uninstall Extension")
-            case .builtin:
-                EmptyView()
+                .frame(width: 24, height: 24)
             }
         }
         .padding(.vertical, 4)
@@ -690,7 +662,7 @@ struct TransformGroupRowView: View {
             .padding(.leading, 24)
             .padding(.vertical, 4)
         } label: {
-            HStack(spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 // Icon Column
                 ZStack {
                     if case .symbol(let name) = groupAction.displayIcon {
@@ -706,7 +678,7 @@ struct TransformGroupRowView: View {
                             .foregroundColor(.primary)
                     }
                 }
-                .frame(minWidth: 28, minHeight: 28)
+                .frame(width: 28, height: 28)
                 .background(Color.primary.opacity(0.06))
                 .cornerRadius(6)
                 
@@ -716,24 +688,32 @@ struct TransformGroupRowView: View {
                 
                 Spacer()
                 
-                // Enable/Disable Switch
-                Toggle("", isOn: isGroupEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                
-                // Edit / Configure Button
-                Button(action: {
-                    showingConfigSheet = true
-                }) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 14))
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.secondary)
-                .help("Configure Action")
-                .sheet(isPresented: $showingConfigSheet) {
-                    EditActionSheet(action: groupAction)
+                // Right-aligned controls (Toggle | Gear | Placeholder slot)
+                HStack(alignment: .center, spacing: 12) {
+                    // Enable/Disable Switch
+                    Toggle("", isOn: isGroupEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                    
+                    // Edit / Configure Button
+                    Button(action: {
+                        showingConfigSheet = true
+                    }) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 24, height: 24)
+                    .help("Configure Action")
+                    .sheet(isPresented: $showingConfigSheet) {
+                        EditActionSheet(action: groupAction)
+                    }
+
+                    // Reserved slot matching Trash button
+                    Color.clear
+                        .frame(width: 24, height: 24)
                 }
             }
             .padding(.vertical, 4)
