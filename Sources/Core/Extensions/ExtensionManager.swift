@@ -153,20 +153,31 @@ public final class ExtensionManager: Sendable {
             try fm.copyItem(at: sourceURL, to: destinationURL)
         } else if sourceURL.pathExtension.lowercased() == "zip" {
             // Zip archive installation
-            let extName = sourceURL.deletingPathExtension().lastPathComponent
-            let folderName = extName.hasSuffix(".openclipext") ? extName : "\(extName).openclipext"
+            // Unzip to a temp staging dir, then find the .openclipext folder inside and move it.
+            let stagingDir = targetDir.appendingPathComponent(".install_staging_\(UUID().uuidString)")
+            try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+            defer { try? fm.removeItem(at: stagingDir) }
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+            process.arguments = ["-q", sourceURL.path, "-d", stagingDir.path]
+            try process.run()
+            process.waitUntilExit()
+
+            // Find the .openclipext folder within the staging dir (zip may contain it at root)
+            let stagedItems = (try? fm.contentsOfDirectory(at: stagingDir, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+            let packageURL = stagedItems.first {
+                var d: ObjCBool = false
+                fm.fileExists(atPath: $0.path, isDirectory: &d)
+                return d.boolValue
+            } ?? stagingDir
+
+            let folderName = packageURL.lastPathComponent
             destinationURL = targetDir.appendingPathComponent(folderName)
             if fm.fileExists(atPath: destinationURL.path) {
                 try fm.removeItem(at: destinationURL)
             }
-            try fm.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-            
-            // Extract zip using ditto/unzip
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-            process.arguments = ["-q", sourceURL.path, "-d", destinationURL.path]
-            try process.run()
-            process.waitUntilExit()
+            try fm.moveItem(at: packageURL, to: destinationURL)
         } else {
             // Standalone script installation (.sh, .py, .js)
             let fileName = sourceURL.lastPathComponent
@@ -182,49 +193,48 @@ public final class ExtensionManager: Sendable {
         return loadedActions
     }
     
-    /// Uninstalls an extension by removing its directory or file from ~/.openclip/extensions
+    /// Uninstalls an extension by removing its directory or file from ~/.openclip/extensions.
+    /// Matches the extension folder by reading the manifest identifier, which is the prefix of generated action IDs.
     public func uninstallExtension(actionID: String, targetDir: URL = Constants.extensionsDirectory) async throws {
         ActionRegistry.shared.unregister(actionID: actionID)
         loadedActions.removeAll(where: { $0.id == actionID })
-        
+
         let fm = FileManager.default
-        guard let items = try? fm.contentsOfDirectory(at: targetDir, includingPropertiesForKeys: nil) else { return }
-        
-        let factory = self.actionFactory
+        guard let items = try? fm.contentsOfDirectory(at: targetDir, includingPropertiesForKeys: [.isDirectoryKey]) else { return }
+
         for itemURL in items {
+            // Skip hidden/staging dirs
+            guard !itemURL.lastPathComponent.hasPrefix(".") else { continue }
+
             var isDir: ObjCBool = false
-            if fm.fileExists(atPath: itemURL.path, isDirectory: &isDir) {
-                let actions: [any Action]
-                if isDir.boolValue {
-                    let openclipManifest = itemURL.appendingPathComponent("openclip.json")
-                    let legacyManifest = itemURL.appendingPathComponent("manifest.json")
-                    let jsonConfigURL = itemURL.appendingPathComponent("Config.json")
-                    
-                    if fm.fileExists(atPath: openclipManifest.path) {
-                        actions = await Self.loadManifestExtension(manifestURL: openclipManifest, directoryURL: itemURL, factory: factory)
-                    } else if fm.fileExists(atPath: legacyManifest.path) {
-                        actions = await Self.loadManifestExtension(manifestURL: legacyManifest, directoryURL: itemURL, factory: factory)
-                    } else if fm.fileExists(atPath: jsonConfigURL.path) {
-                        actions = await Self.loadManifestExtension(manifestURL: jsonConfigURL, directoryURL: itemURL, factory: factory)
-                    } else {
-                        actions = []
-                    }
-                } else {
-                    if let action = await Self.loadStandaloneScriptExtension(scriptURL: itemURL, factory: factory) {
-                        actions = [action]
-                    } else {
-                        actions = []
+            guard fm.fileExists(atPath: itemURL.path, isDirectory: &isDir) else { continue }
+
+            var matched = false
+
+            if isDir.boolValue {
+                // Read manifest identifier directly — generated action IDs are "<identifier>.action.<n>"
+                let manifestCandidates = ["openclip.json", "manifest.json", "Config.json"]
+                for fname in manifestCandidates {
+                    let manifestURL = itemURL.appendingPathComponent(fname)
+                    if let data = try? Data(contentsOf: manifestURL),
+                       let meta = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) {
+                        // actionID starts with manifest identifier
+                        if actionID.hasPrefix(meta.identifier) || meta.identifier == actionID {
+                            matched = true
+                        }
+                        break
                     }
                 }
-
-                let matchesID = actions.contains(where: { $0.id == actionID }) ||
-                                itemURL.lastPathComponent.lowercased().contains(actionID.lowercased()) ||
-                                actionID.lowercased().contains(itemURL.deletingPathExtension().lastPathComponent.lowercased())
-
-                if matchesID {
-                    try? fm.removeItem(at: itemURL)
-                    break
+            } else {
+                // Standalone script: generated id uses filename
+                if actionID.contains(itemURL.deletingPathExtension().lastPathComponent) {
+                    matched = true
                 }
+            }
+
+            if matched {
+                try? fm.removeItem(at: itemURL)
+                break
             }
         }
         await loadExtensions(from: targetDir)
