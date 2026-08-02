@@ -22,7 +22,7 @@ final class ActionPresentationTests: XCTestCase {
         let tableModel = presentation.presented(copyAction, surface: .table)
 
         XCTAssertEqual(popupModel.title, "Copy")
-        XCTAssertEqual(popupModel.icon, .symbol("doc.on.doc"))
+        XCTAssertEqual(popupModel.icon, .text("Copy"))
         XCTAssertEqual(tableModel.icon, .symbol("doc.on.doc"))
     }
 
