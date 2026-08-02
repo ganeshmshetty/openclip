@@ -92,6 +92,8 @@ OpenClip enforces a strict single-responsibility architecture across these core 
 - **Swift 6 strict concurrency: continuation guard boxes must be `@unchecked Sendable` classes.** The "resume exactly once" flag inside a `withCheckedThrowingContinuation` cannot be a captured mutable local (`var didResume`) when the resumer is called from a `@Sendable` closure (e.g. `Process.terminationHandler`) — that fails `SWIFT_STRICT_CONCURRENCY: complete`. Use a small lock-guarded helper class (see `OnceGate` in `CustomAction.swift`).
 - **`ActionContext.modifiers` is currently unused.** No action reads it; `PopupWindowController` passes `modifiers: []`. Don't build new logic that assumes modifier keys reach actions without wiring it up first.
 - **Gemini auth uses the `x-goog-api-key` header, not a URL query.** `CloudAPIProvider` sets the key on every request (`processGemini` and `fetchGeminiModels`). Don't reintroduce `?key=` in the URL — it leaks credentials into logs.
+- **Popup theme keeps Glass apart from the color themes.** `PopupThemeSelector` is the single control for popup appearance: System/Light/Dark are the OpenClip color themes, Glass is a separate grouped option (a material, not a color — it adapts to the system's Light/Dark). Selecting a color turns Glass off. Storage: `popupTheme` drives rendering in `PopupView`/`BubbleCardView` (`"system"`/`"light"`/`"dark"`/`"glass"`); `popupThemeColor` remembers the last non-glass choice. Don't reintroduce a flat 4-option picker or a separate Glass switch that leaves the theme picker inert.
+- **Liquid Glass must stay availability-gated.** `glassSurface`/`.glassEffect` require macOS 26; the project targets macOS 14.0. Any glass surface (popup bar, bubble cards, Preferences sidebar, onboarding) must keep the `#available(macOS 26, *)` branch with an `.ultraThinMaterial` fallback so Glass still renders as a frosted material on macOS 14-15. Don't stack a second dimming layer under a glass card — the glass surface itself is the single layer.
 
 ---
 
@@ -180,18 +182,27 @@ Sources/
     │   └── PermissionManager.swift           # Accessibility permission manager
     ├── StatusBarController.swift             # Reads/writes isAppEnabled via UserDefaults.standard
     └── UI/                                   # User Interface (SwiftUI & AppKit Panels)
+        ├── AppIcon.swift                     # App icon loaded from the bundle's AppIcon.icns (avoids the generic placeholder NSApp.applicationIconImage can return for LSUIElement apps)
+        ├── Design/
+        │   └── LiquidGlass.swift             # glassSurface modifier: Liquid Glass (.glassEffect) on macOS 26+, .ultraThinMaterial fallback on macOS 14-15
         ├── Icons/
         │   └── ActionIconView.swift          # Dynamic icon renderer
-        ├── Onboarding/                       # First launch onboarding
+        ├── Onboarding/                       # First-launch 4-step wizard (Welcome → AI → Extensions → Finish)
+        │   ├── OnboardingView.swift          # Step flow; Finish step shows PopupPreview + PopupThemeSelector
+        │   ├── OnboardingWindowController.swift  # Transparent glass panel
+        │   └── RecommendedExtensionsView.swift   # Top store extensions by downloadCount + Install File
         ├── Popup/                            # Floating popup panel
         │   ├── BubbleCardView.swift          # Reusable bubble renderer (info/result/menu) for hover info, results, sub-actions
         │   ├── PopupPanel.swift              # NSPanel subclass
         │   ├── PopupPositioner.swift         # Frame math & screen clamping (pure static, no singletons)
+        │   ├── PopupPreview.swift            # Shared live popup bar preview (Preferences Appearance tab + onboarding Finish)
+        │   ├── PopupThemeSelector.swift      # Theme control: System/Light/Dark apart from Glass; storage popupTheme + popupThemeColor
         │   ├── PopupView.swift               # SwiftUI popup bar
         │   └── PopupWindowController.swift   # Window lifecycle + bubble panel + hover/long-press timers
         └── Preferences/                      # Settings & preferences views
             ├── ActionAppearanceFields.swift
             ├── AddCustomActionSheet.swift
+            ├── AIConfigureForm.swift         # Shared AI engine/provider form (Preferences AI tab + onboarding AI step)
             ├── DynamicActionConfigView.swift
             ├── EditActionSheet.swift
             ├── ExtensionsStoreView.swift

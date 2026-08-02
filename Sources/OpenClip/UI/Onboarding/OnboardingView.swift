@@ -1,14 +1,37 @@
 // OnboardingView.swift
 // OpenClip
 //
-// Renders the multi-step first launch onboarding setup view, guiding users through accessibility permissions and basic settings.
+// Renders the multi-step first-launch onboarding flow: Welcome (accessibility),
+// AI assistant configuration, recommended extensions, then a Finish summary.
+// Presented in a Liquid Glass panel on macOS 26+ with a standard-material
+// fallback on macOS 14-15.
 import SwiftUI
 import AppKit
+
+public enum OnboardingStep: Int, CaseIterable, Identifiable, Sendable {
+    case welcome = 0
+    case ai = 1
+    case extensions = 2
+    case finish = 3
+
+    public var id: Int { rawValue }
+
+    var title: String {
+        switch self {
+        case .welcome: return "Welcome"
+        case .ai: return "AI Assistant"
+        case .extensions: return "Extensions"
+        case .finish: return "Finish"
+        }
+    }
+}
 
 @MainActor
 public struct OnboardingView: View {
     @ObservedObject private var permissionManager = PermissionManager.shared
     public var onComplete: @MainActor () -> Void
+
+    @State private var step: OnboardingStep = .welcome
 
     public init(onComplete: @escaping @MainActor () -> Void) {
         self.onComplete = onComplete
@@ -17,11 +40,11 @@ public struct OnboardingView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // ── App icon + name ──────────────────────────────────────────────
-            HStack(spacing: 14) {
-                Image(nsImage: NSApp.applicationIconImage)
+            // ── App icon + name + step indicator ─────────────────────────────
+            HStack(alignment: .top, spacing: 14) {
+                Image(nsImage: AppIcon.image)
                     .resizable()
-                    .frame(width: 52, height: 52)
+                    .frame(width: 48, height: 48)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("OpenClip")
@@ -30,10 +53,95 @@ public struct OnboardingView: View {
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
                 }
-            }
-            .padding(.bottom, 24)
 
-            // ── How it works ─────────────────────────────────────────────────
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 8) {
+                    HStack(spacing: 12) {
+                        HStack(spacing: 6) {
+                            ForEach(OnboardingStep.allCases) { s in
+                                Circle()
+                                    .fill(step == s ? Color.accentColor : Color.primary.opacity(0.15))
+                                    .frame(width: 8, height: 8)
+                            }
+                        }
+                        Button {
+                            onComplete()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary.opacity(0.6))
+                                .font(.system(size: 14))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Text("Step \(step.rawValue + 1) of \(OnboardingStep.allCases.count)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.bottom, 18)
+
+            // ── Step heading ─────────────────────────────────────────────────
+            HStack(alignment: .firstTextBaseline) {
+                Text(step.title)
+                    .font(.system(size: 20, weight: .bold))
+                Spacer()
+            }
+            .padding(.bottom, 12)
+
+            // ── Step content ─────────────────────────────────────────────────
+            Group {
+                switch step {
+                case .welcome: welcomeContent
+                case .ai: aiContent
+                case .extensions: extensionsContent
+                case .finish: finishContent
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            // ── Footer ───────────────────────────────────────────────────────
+            Divider()
+                .padding(.top, 14)
+                .padding(.bottom, 14)
+
+            HStack {
+                if step != .welcome {
+                    Button("← Back") {
+                        step = OnboardingStep(rawValue: step.rawValue - 1) ?? .welcome
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Spacer()
+
+                Button {
+                    if step == .finish {
+                        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+                        onComplete()
+                    } else {
+                        step = OnboardingStep(rawValue: step.rawValue + 1) ?? .finish
+                    }
+                } label: {
+                    Text(step == .finish ? "Get Started" : "Continue →")
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 5)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(28)
+        .frame(width: 520, height: 600)
+        .glassSurface(.regular, cornerRadius: 20)
+        .onAppear { permissionManager.startMonitoring() }
+        .onDisappear { permissionManager.stopMonitoring() }
+    }
+
+    // MARK: - Welcome
+
+    private var welcomeContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
             Text("How it works")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
@@ -46,7 +154,6 @@ public struct OnboardingView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
 
-            // ── Permission ───────────────────────────────────────────────────
             Divider()
                 .padding(.vertical, 20)
 
@@ -55,7 +162,7 @@ public struct OnboardingView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Accessibility Access")
                             .font(.system(size: 13, weight: .medium))
-                        Text("Required to detect which text you've selected.")
+                        Text("Required to detect which text you've selected. You can grant this later from Preferences.")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
@@ -82,36 +189,47 @@ public struct OnboardingView: View {
                 }
             }
 
-            // ── Footer ───────────────────────────────────────────────────────
-            Divider()
-                .padding(.top, 20)
-                .padding(.bottom, 14)
+            Spacer(minLength: 8)
 
-            HStack {
-                Text("Runs 100% locally — no data leaves your Mac.")
-                    .font(.system(size: 11))
+            Text("Runs 100% locally — no data leaves your Mac.")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - AI
+
+    private var aiContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Pick an engine and set it up. You can change this anytime in Preferences → AI.")
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
-
-                Spacer()
-
-                Button {
-                    UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
-                    onComplete()
-                } label: {
-                    Text("Get Started")
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 5)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!permissionManager.isAccessibilityGranted)
+                AIConfigureForm()
             }
         }
-        .padding(28)
-        .frame(width: 460)
-        .fixedSize(horizontal: true, vertical: true)
-        .onAppear  { permissionManager.startMonitoring() }
-        .onDisappear { permissionManager.stopMonitoring() }
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Extensions
+
+    private var extensionsContent: some View {
+        RecommendedExtensionsView()
+    }
+
+    // MARK: - Finish
+
+    private var finishContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Preview your popup bar and choose how it looks.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                PopupPreview()
+                PopupThemeSelector()
+            }
+        }
+        .scrollContentBackground(.hidden)
     }
 }
 

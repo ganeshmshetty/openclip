@@ -42,6 +42,26 @@ All overrides are managed via [`ActionCustomizationManager`](../../Sources/Core/
 
 ---
 
+## Popup Appearance & Theme
+
+The **Appearance** tab shows a live preview of the floating popup bar and lets you style it.
+
+### Popup Theme
+The theme control groups the color themes apart from Glass:
+
+- **System** — Follows the macOS Light/Dark appearance.
+- **Light** / **Dark** — Always uses the chosen color theme.
+- **Glass** — A frosted material surface (Liquid Glass on macOS 26+, a standard frosted material on macOS 14–15). Glass is a material, not a color: it adapts to the system's Light/Dark appearance automatically, which is why it is grouped apart behind a divider.
+
+Selecting a color theme turns Glass off, and vice-versa — the control always has exactly one active choice.
+
+> [!NOTE]
+> The Liquid Glass effect requires macOS 26+. On macOS 14–15 the Glass option renders as an `.ultraThinMaterial` frosted surface.
+
+The same theme control appears on the onboarding **Finish** step, so the popup can be styled before first use.
+
+---
+
 ## AI Provider Setup
 
 OpenClip includes an AI assistant overlay that processes text selections using local or cloud AI models.

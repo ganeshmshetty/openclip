@@ -41,9 +41,11 @@ System Settings ---> Privacy & Security ---> Accessibility ---> Enable OpenClip
 
 ## First-Launch Onboarding Workflow
 
-When launched for the first time, OpenClip presents an onboarding assistant:
+When launched for the first time, OpenClip presents a 4-step onboarding wizard:
 
-1. **Permission Check**: Verifies that Accessibility permission is granted.
-2. **Shortcut Setup**: Explains global hotkey triggers and mouse-release detection.
-3. **Quick Test**: Demonstrates selecting text in any text field to trigger the floating popup bar.
-4. **Login Item Configuration**: Option to enable launch at login (`LaunchAtLoginManager`).
+1. **Welcome**: Overview of how OpenClip works, plus the Accessibility permission check. Access can also be granted later from Preferences.
+2. **AI Assistant**: Pick and configure an AI engine (Apple Intelligence, Ollama, Cloud, or Browser Redirect). Optional — change anytime in **Preferences → AI**.
+3. **Extensions**: Browse recommended extensions or install one from a file.
+4. **Finish**: Preview the popup bar and choose its theme (System / Light / Dark, plus the separate Glass surface), then **Get Started**.
+
+Onboarding can be skipped at any step; finishing it starts text-selection monitoring.

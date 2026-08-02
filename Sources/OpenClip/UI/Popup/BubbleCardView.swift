@@ -73,7 +73,7 @@ public struct BubbleCardView: View {
         } else {
             let bgFill = effectiveTheme == "dark"
                 ? Color(red: 0.20, green: 0.20, blue: 0.22)
-                : Color(red: 0.98, green: 0.98, blue: 0.99)
+                : Color(red: 0.91, green: 0.91, blue: 0.93)
             base
                 .background(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)

@@ -95,7 +95,6 @@ class StatusBarController {
         window.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
         window.center()
         self.preferencesWindow = window
         window.makeKeyAndOrderFront(nil)

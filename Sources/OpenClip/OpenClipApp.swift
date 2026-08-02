@@ -15,8 +15,11 @@ struct OpenClipApp: App {
         // correctly. The Dock icon is suppressed by calling
         // NSApp.setActivationPolicy(.accessory) in AppDelegate.applicationDidFinishLaunching,
         // which is the Apple-documented approach for agent apps that need a settings window.
+        // hiddenTitleBar makes the glass sidebar extend to the top of the window so the
+        // traffic lights sit directly on the Liquid Glass surface instead of an opaque strip.
         Settings {
             PreferencesView()
         }
+        .windowStyle(.hiddenTitleBar)
     }
 }

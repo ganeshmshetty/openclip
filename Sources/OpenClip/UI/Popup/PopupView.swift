@@ -558,7 +558,7 @@ public struct PopupView: View {
                 .fill(Color(red: 0.20, green: 0.20, blue: 0.22))
         default:
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(red: 0.98, green: 0.98, blue: 0.99))
+                .fill(Color(red: 0.91, green: 0.91, blue: 0.93))
         }
     }
 
