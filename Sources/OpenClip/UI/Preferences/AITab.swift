@@ -146,61 +146,6 @@ public struct AITab: View {
                 }
             }
             .disabled(!aiManager.isAIEnabled)
-
-            Section(header: HStack {
-                Text("AI Actions")
-                Spacer()
-                Button("Reset Defaults") {
-                    aiManager.resetPresetsToDefault()
-                }
-                .font(.caption)
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
-            }) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Enable AI actions and customize their prompt instructions for the popup bar.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    ForEach(aiManager.presets) { preset in
-                        HStack(alignment: .top, spacing: 10) {
-                            Toggle("", isOn: Binding(
-                                get: { preset.isEnabled },
-                                set: { newValue in
-                                    var updated = preset
-                                    updated.isEnabled = newValue
-                                    aiManager.updatePreset(updated)
-                                }
-                            ))
-                            .labelsHidden()
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(preset.title)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-
-                                TextField("Prompt instruction...", text: Binding(
-                                    get: { preset.prompt },
-                                    set: { newPrompt in
-                                        var updated = preset
-                                        updated.prompt = newPrompt
-                                        aiManager.updatePreset(updated)
-                                    }
-                                ))
-                                .textFieldStyle(.roundedBorder)
-                                .font(.caption)
-                            }
-                        }
-                        .padding(.vertical, 2)
-
-                        if preset.id != aiManager.presets.last?.id {
-                            Divider()
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-            .disabled(!aiManager.isAIEnabled)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
