@@ -1,0 +1,9 @@
+{
+  "identifier": "com.openclip.googlemaps",
+  "name": "Google Maps",
+  "action": {
+    "title": "Google Maps",
+    "icon": "map",
+    "url": "https://www.google.com/maps/search/{text}"
+  }
+}
