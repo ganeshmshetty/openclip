@@ -9,7 +9,12 @@ public protocol ActionResultHandler: Sendable {
 
 @MainActor
 public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
-    public init() {}
+    private let settingsStore: SettingsStore
+
+    public init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
+        self.settingsStore = settingsStore
+    }
+
 
     public func handle(_ result: ActionResult, in view: NSView? = nil) async throws {
         switch result {
@@ -26,8 +31,8 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
 
         case .paste(let text):
             let pasteboard = NSPasteboard.general
-            let store = DefaultSettingsStore.shared
-            let copyToClipboard = store.get(.completionCopyToClipboard)
+            let copyToClipboard = settingsStore.get(.completionCopyToClipboard)
+
             
             if copyToClipboard {
                 pasteboard.clearContents()
