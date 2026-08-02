@@ -5,12 +5,7 @@ public struct CutAction: ConfigurableAction {
     public let title = "Cut"
     public let configurationViewID = "builtin.cut"
     public let preferenceIconName = "scissors"
-    public var icon: ActionIcon {
-        if UserDefaults.standard.bool(forKey: "action.cut.useText") {
-            return .text("Cut")
-        }
-        return .symbol("scissors")
-    }
+    public let icon = ActionIcon.symbol("scissors")
     
     public init() {}
     
@@ -24,3 +19,4 @@ public struct CutAction: ConfigurableAction {
         return .cut(context.selection.text)
     }
 }
+

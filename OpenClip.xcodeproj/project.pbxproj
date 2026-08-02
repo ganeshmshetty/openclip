@@ -70,6 +70,7 @@
 		7AC316FB783A7E96C716DE2F /* RemoteExtensionInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEE41531ACE74639DE1C5CB4 /* RemoteExtensionInstaller.swift */; };
 		7CDDEAAD6790A7471D61A940 /* SearchAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5FC00AC73CC488DBF7F7240 /* SearchAction.swift */; };
 		7E44D09AC94810898D6E5D1D /* PopupWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB70FC227E05CD8269458C89 /* PopupWindowController.swift */; };
+		7E73A19CA1EFE95B45FBFCB8 /* ActionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B38B060F52BA3AAA63B8C8 /* ActionPresentation.swift */; };
 		7EDDECF89D21D258E5A00C01 /* AppleIntelligenceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38E0B09A0FCBBCF4C67A0FFF /* AppleIntelligenceProvider.swift */; };
 		84A19D69965D8FE1825442E5 /* MacTextRetriever.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B1ED5E66BD010DECBA31B69 /* MacTextRetriever.swift */; };
 		84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */; };
@@ -115,6 +116,7 @@
 		CB381D0BCDED7C127E52985B /* SelectionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE88AFD0FAB1C8989D5CE6C6 /* SelectionCoordinatorTests.swift */; };
 		CE759FD419A671CB23C175B8 /* DefaultActionFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301144A424F615703BABA2D0 /* DefaultActionFactoryTests.swift */; };
 		DCC694DC2D481C35063D62B4 /* IconPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC7C388035A937859369C48 /* IconPickerView.swift */; };
+		DCDA969A1F312EEBF01E5F96 /* ActionPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B5D0BA6BE281AC2E0ED64FA /* ActionPresentationTests.swift */; };
 		DEEE0BCFD9DB9C3754D01774 /* ModifierFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F4DAB73B13C780B669746CE /* ModifierFlags.swift */; };
 		DF8D4D6ADC91E929BB3F3920 /* LaunchAtLoginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43600D5250056CDB41C7FDF4 /* LaunchAtLoginManager.swift */; };
 		E08C252C9ADA79A930825C1E /* OpenClipApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 871B6048B7968E61FCB53537 /* OpenClipApp.swift */; };
@@ -223,9 +225,11 @@
 		58A3A4C1ECD9EF519BE8134B /* ConfigurableAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurableAction.swift; sourceTree = "<group>"; };
 		58D8C54121CAFC913E8B4110 /* JavaScriptAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptAction.swift; sourceTree = "<group>"; };
 		5B31769AC6C38931924A68F4 /* BuiltinRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltinRegistry.swift; sourceTree = "<group>"; };
+		5B5D0BA6BE281AC2E0ED64FA /* ActionPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionPresentationTests.swift; sourceTree = "<group>"; };
 		5BFF66BC8C0CB6DBE2EEC671 /* PopupPositionerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPositionerTests.swift; sourceTree = "<group>"; };
 		6129D3E6F351430FA57265B6 /* MacSelectionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSelectionMonitor.swift; sourceTree = "<group>"; };
 		65E687A10246C0EFE5F744DA /* BrowserRedirectProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserRedirectProvider.swift; sourceTree = "<group>"; };
+		69B38B060F52BA3AAA63B8C8 /* ActionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionPresentation.swift; sourceTree = "<group>"; };
 		6A9596443229B1173DAB2434 /* ExtensionsStoreViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsStoreViewTests.swift; sourceTree = "<group>"; };
 		6BCD81A735F9A377FDE4DB32 /* DefineActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefineActionTests.swift; sourceTree = "<group>"; };
 		738CD300B1AEB0E382F8435B /* ServicesAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesAction.swift; sourceTree = "<group>"; };
@@ -499,6 +503,7 @@
 				940F1D0FB3BA50C10CCEBCDF /* ActionContext.swift */,
 				00D644F2046169A3D911104F /* ActionCoordinator.swift */,
 				7683646692AA6067DA5AA86D /* ActionCustomizationManager.swift */,
+				69B38B060F52BA3AAA63B8C8 /* ActionPresentation.swift */,
 				1AF0F3CA2EF364269DB523FD /* ActionRegistry.swift */,
 				E54AEEA54ADE3106E777F448 /* ActionResult.swift */,
 				5B31769AC6C38931924A68F4 /* BuiltinRegistry.swift */,
@@ -577,6 +582,7 @@
 				15F2DA7AE2DE334E1A769A2E /* ActionCoordinatorStartupTests.swift */,
 				7BBCBD7E4F5F0D1015061E8D /* ActionCoordinatorTests.swift */,
 				91FEA7E1D95D4DC5416B66A5 /* ActionCustomizationTests.swift */,
+				5B5D0BA6BE281AC2E0ED64FA /* ActionPresentationTests.swift */,
 				1E86D685379782075566534F /* ActionRegistryTests.swift */,
 				7FF20DB76BDB47222A26CBAC /* AIProviderTests.swift */,
 				AF5D851B09CA25A4A497F0C7 /* AppFilterTests.swift */,
@@ -738,6 +744,7 @@
 				57A9F680F5AF294AAB1B57B9 /* ActionCoordinatorStartupTests.swift in Sources */,
 				505BCF709F1851C81A35DD64 /* ActionCoordinatorTests.swift in Sources */,
 				3A295F64CCDCBD5C36941B49 /* ActionCustomizationTests.swift in Sources */,
+				DCDA969A1F312EEBF01E5F96 /* ActionPresentationTests.swift in Sources */,
 				0532F7FF8BA7A439A30D8EA9 /* ActionRegistryTests.swift in Sources */,
 				94F6165DD10ED76B25170C1C /* AppFilterTests.swift in Sources */,
 				C85F042BF73B07FCBDEC234A /* BuiltinActionsTests.swift in Sources */,
@@ -782,6 +789,7 @@
 				998433DC4517993AD4624ECF /* ActionCoordinator.swift in Sources */,
 				E86C2D7468C5053D116BE999 /* ActionCustomizationManager.swift in Sources */,
 				4515E812499967C26560169C /* ActionFactory.swift in Sources */,
+				7E73A19CA1EFE95B45FBFCB8 /* ActionPresentation.swift in Sources */,
 				1CDF0D30E4B08B90733C53D8 /* ActionRegistry.swift in Sources */,
 				AEB67702CE089BAFFFB8DCB7 /* ActionResult.swift in Sources */,
 				E27BC38183CE54F6073EC02F /* AppFilter.swift in Sources */,
