@@ -10,6 +10,8 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
   OpenClip:
