@@ -6,7 +6,7 @@ import SwiftUI
 import Core
 
 enum ExtensionSubTab: String, CaseIterable, Identifiable {
-    case store = "Store"
+    case store = "Web Store"
     case installed = "Installed"
     var id: String { rawValue }
 }
@@ -61,36 +61,70 @@ public struct ExtensionsStoreView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 12) {
-            // Segmented Header Switch (Store | Installed)
-            HStack {
-                Picker("", selection: $selectedSubTab) {
-                    Text("Store").tag(ExtensionSubTab.store)
-                    Text("Installed (\(installedExtensionActions.count))").tag(ExtensionSubTab.installed)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 220)
+        VStack(spacing: 14) {
+            // Unified Top Header Control Bar
+            VStack(spacing: 10) {
+                HStack(spacing: 12) {
+                    // Search Bar
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 13))
+                        TextField("Search extensions...", text: $viewModel.searchQuery)
+                            .textFieldStyle(.plain)
+                            .onChange(of: viewModel.searchQuery) { _ in
+                                Task { await viewModel.resetAndFetch() }
+                            }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.primary.opacity(0.06))
+                    )
 
-                Spacer()
+                    // Category Selector
+                    Picker("", selection: $viewModel.selectedCategory) {
+                        Text("All Categories").tag("All")
+                        Text("Productivity").tag("Productivity")
+                        Text("Developer").tag("Developer")
+                        Text("Utilities").tag("Utilities")
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 140)
+                    .onChange(of: viewModel.selectedCategory) { _ in
+                        Task { await viewModel.resetAndFetch() }
+                    }
 
-                Button(action: {
-                    openInstallExtensionPanel()
-                }) {
-                    Label("Install from File…", systemImage: "square.and.arrow.down")
+                    // Store / Installed Toggle
+                    Picker("", selection: $selectedSubTab) {
+                        Text("Store").tag(ExtensionSubTab.store)
+                        Text("Installed (\(installedExtensionActions.count))").tag(ExtensionSubTab.installed)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 170)
+
+                    // Install from File Button
+                    Button(action: {
+                        openInstallExtensionPanel()
+                    }) {
+                        Label("Install File…", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
             }
-            .padding(.horizontal)
-            .padding(.top, 8)
+            .padding(.horizontal, 4)
 
+            // Content Area
             if selectedSubTab == .store {
                 storeView
             } else {
                 installedView
             }
         }
+        .padding(12)
         .task {
             await viewModel.resetAndFetch()
         }
@@ -98,52 +132,22 @@ public struct ExtensionsStoreView: View {
 
     // MARK: - Store View
     private var storeView: some View {
-        VStack(spacing: 12) {
-            // Search Header Bar
-            HStack(spacing: 10) {
-                TextField("Search extensions...", text: $viewModel.searchQuery)
-                    .textFieldStyle(.roundedBorder)
-                    .onChange(of: viewModel.searchQuery) { _ in
-                        Task { await viewModel.resetAndFetch() }
-                    }
-                
-                Picker("Category", selection: $viewModel.selectedCategory) {
-                    Text("All").tag("All")
-                    Text("Productivity").tag("Productivity")
-                    Text("Developer").tag("Developer")
-                    Text("Utilities").tag("Utilities")
-                }
-                .frame(width: 140)
-                .onChange(of: viewModel.selectedCategory) { _ in
-                    Task { await viewModel.resetAndFetch() }
-                }
-                
-                Button(action: {
-                    if let url = URL(string: "https://getopenclip.vercel.app/extensions") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }) {
-                    Label("Open Web Store", systemImage: "globe")
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding(.horizontal)
-
-            // Cards Grid with Lazy Loading
+        VStack(spacing: 0) {
             if viewModel.extensions.isEmpty && !viewModel.isLoading {
-                VStack(spacing: 8) {
+                VStack(spacing: 12) {
                     Spacer()
                     Image(systemName: "sparkles")
-                        .font(.largeTitle)
+                        .font(.system(size: 36))
                         .foregroundColor(.secondary)
                     Text("No extensions found")
                         .font(.headline)
                         .foregroundColor(.secondary)
                     Spacer()
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 240))], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 14)], spacing: 14) {
                         ForEach(viewModel.extensions) { ext in
                             ExtensionCardView(item: ext)
                                 .onAppear {
@@ -153,8 +157,8 @@ public struct ExtensionsStoreView: View {
                                 }
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 12)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 2)
                 }
             }
         }
@@ -171,12 +175,12 @@ public struct ExtensionsStoreView: View {
                         .foregroundColor(.secondary)
                     Text("No Extensions Installed")
                         .font(.headline)
-                    Text("Browse the Store tab or click 'Install from File...' to add extensions.")
+                    Text("Browse the Store tab or click 'Install File...' to add extensions.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
                     ForEach(installedExtensionActions, id: \.id) { action in
@@ -185,18 +189,20 @@ public struct ExtensionsStoreView: View {
                                 if case .symbol(let name) = action.displayIcon {
                                     Image(systemName: name)
                                         .font(.system(size: 14))
+                                        .foregroundColor(.accentColor)
                                 } else {
                                     Image(systemName: "puzzlepiece.extension.fill")
                                         .font(.system(size: 14))
+                                        .foregroundColor(.accentColor)
                                 }
                             }
-                            .frame(width: 32, height: 32)
-                            .background(Color.primary.opacity(0.06))
-                            .cornerRadius(6)
+                            .frame(width: 36, height: 36)
+                            .background(Color.accentColor.opacity(0.12))
+                            .cornerRadius(8)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(action.displayTitle)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.system(size: 13, weight: .semibold))
 
                                 switch action.chrome.badge {
                                 case .extensionPkg(let pkgName):
@@ -215,21 +221,20 @@ public struct ExtensionsStoreView: View {
                             Button(role: .destructive, action: {
                                 uninstallExtension(actionID: action.id)
                             }) {
-                                Label("Remove", systemImage: "trash")
+                                Label("Uninstall", systemImage: "trash")
                                     .font(.caption)
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
                             .tint(.red)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 6)
                     }
                 }
                 .listStyle(.inset)
                 .scrollContentBackground(.hidden)
             }
         }
-        .padding(.horizontal)
     }
 
     private func uninstallExtension(actionID: String) {
@@ -289,20 +294,35 @@ struct ExtensionCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: item.icon.hasPrefix("symbol:") ? String(item.icon.dropFirst(7)) : item.icon)
-                    .font(.title2)
+        VStack(alignment: .leading, spacing: 10) {
+            // Header Row: Icon + Name & Author
+            HStack(spacing: 12) {
+                ZStack {
+                    Image(systemName: item.icon.hasPrefix("symbol:") ? String(item.icon.dropFirst(7)) : item.icon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.accentColor)
+                }
+                .frame(width: 36, height: 36)
+                .background(Color.accentColor.opacity(0.12))
+                .cornerRadius(8)
+
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name).font(.headline)
-                    Text("by \(item.author)").font(.caption).foregroundColor(.secondary)
+                    Text(item.name)
+                        .font(.system(size: 13, weight: .bold))
+                        .lineLimit(1)
+                    Text("@\(item.author)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
                 Spacer()
             }
+
+            // Description
             Text(item.description)
-                .font(.caption)
+                .font(.system(size: 12))
                 .lineLimit(2)
                 .foregroundColor(.secondary)
+                .frame(minHeight: 32, alignment: .topLeading)
 
             if let err = installError {
                 Text("⚠︎ \(err)")
@@ -311,10 +331,20 @@ struct ExtensionCardView: View {
                     .lineLimit(2)
             }
 
+            // Footer Row: Downloads Pill & Action Button
             HStack {
-                Text(item.downloadCount > 0 ? "⬇ \(item.downloadCount)" : "New")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.caption2)
+                    Text(item.downloadCount > 0 ? "\(item.downloadCount)" : "New")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(Color.primary.opacity(0.06)))
+
                 Spacer()
 
                 if showSuccess || isInstalled {
@@ -358,7 +388,14 @@ struct ExtensionCardView: View {
                 }
             }
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
     }
 }
