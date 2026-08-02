@@ -82,7 +82,7 @@ export default function PopupDemo() {
 
         {/* Glow ring appears while the AI is "working" (mirrors PopupView's border sweep) */}
         <div className={`rounded-[12px] p-[2px] ${phase === 'processing' ? 'oc-glow-ring' : ''}`}>
-          <div className="bg-card border-[1.5px] border-ink rounded-[10px] shadow-chunky overflow-hidden">
+          <div className="bg-card border-[1.5px] border-ink rounded-[10px] overflow-hidden">
             <div
               className={`flex items-stretch transition-opacity ${
                 phase === 'processing' ? 'opacity-70' : ''
