@@ -19,6 +19,7 @@ interface OpenClipBridge {
  openUrl(url: string): void;
  openURL(url: string): void;
  pasteText(text: string): void;
+ showNotification(title: string, message: string): void;
 }
 ```
 
