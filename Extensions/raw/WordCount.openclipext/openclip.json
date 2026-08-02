@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "author": "OpenClip Team",
   "description": "Count the words and characters in the selected text.",
-  "category": "productivity",
+  "category": "writing",
   "action": {
     "title": "Word Count",
     "icon": "text.alignleft",

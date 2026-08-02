@@ -87,6 +87,8 @@ public struct ExtensionsStoreView: View {
                 // Category Selector
                 Picker("", selection: $viewModel.selectedCategory) {
                     Text("All Categories").tag("All")
+                    Text("Search").tag("Search")
+                    Text("Writing").tag("Writing")
                     Text("Productivity").tag("Productivity")
                     Text("Developer").tag("Developer")
                     Text("Utilities").tag("Utilities")
