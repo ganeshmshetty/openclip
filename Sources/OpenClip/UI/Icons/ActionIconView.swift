@@ -17,10 +17,15 @@ public struct ActionIconView: View {
     public var body: some View {
         switch icon {
         case .symbol(let name):
-            Image(systemName: name.isEmpty ? "star" : name)
-                .resizable()
-                .scaledToFit()
-                .frame(width: size, height: size)
+            if name.contains(":") {
+                IconifySVGView(iconId: name)
+                    .frame(width: size, height: size)
+            } else {
+                Image(systemName: name.isEmpty ? "star" : name)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+            }
         case .text(let text):
             Text(text)
                 .font(.system(size: size * 0.75, weight: .bold))

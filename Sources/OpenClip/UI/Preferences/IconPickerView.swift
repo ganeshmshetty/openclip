@@ -221,8 +221,8 @@ public struct AnyIconView: View {
             IconifySVGView(iconId: iconId)
         } else {
             Image(systemName: iconId.isEmpty ? "star" : iconId)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundColor(.white)
+                .resizable()
+                .scaledToFit()
         }
     }
 }
@@ -240,7 +240,6 @@ struct IconifySVGView: View {
                     .resizable()
                     .renderingMode(.template)
                     .scaledToFit()
-                    .foregroundColor(.white)
             } else {
                 Color.primary.opacity(0.1)
                     .overlay(ProgressView().controlSize(.mini))
