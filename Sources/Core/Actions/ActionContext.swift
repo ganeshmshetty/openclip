@@ -1,3 +1,7 @@
+// ActionContext.swift
+// OpenClip
+//
+// Encapsulates the execution context passed to actions, combining selection details with keyboard modifier flags.
 import Foundation
 
 public struct ActionContext: Sendable {

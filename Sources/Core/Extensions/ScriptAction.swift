@@ -1,3 +1,7 @@
+// ScriptAction.swift
+// OpenClip
+//
+// Implements an action backed by an external script file located in an extension directory.
 import Foundation
 
 public struct ScriptAction: Action {

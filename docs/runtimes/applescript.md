@@ -1,121 +1,56 @@
-# AppleScript Extension Runtime
+# AppleScript Action Runtime
 
-OpenClip supports native **AppleScript** execution via macOS `NSAppleScript` (`AppleScriptAction.swift`). AppleScript extensions allow you to seamlessly automate third-party Mac applications, control system settings, and interface with Apple Notes, Finder, Music, Mail, and System Events.
-
----
-
-## Environment Variables & Scope
-
-Before executing your AppleScript code, OpenClip populates the script scope with the active text selection under several variable names:
-
-```applescript
-set OPENCLIP_TEXT to "<highlighted_text>"
-set openclip_text to "<highlighted_text>"
-```
-
-You can reference `OPENCLIP_TEXT` anywhere in your AppleScript.
+The AppleScript action runtime ([`AppleScriptAction`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Actions/AppleScriptAction.swift)) allows OpenClip to automate macOS system applications (such as Safari, Finder, Mail, Notes, and Messages) using native `NSAppleScript`.
 
 ---
 
-## Copy-Pasteable AppleScript Examples
+## Execution Architecture
 
-### Example 1: Add Selected Text to Apple Notes
-
-Creates a new note inside Apple Notes containing your highlighted text.
-
-```json
-// openclip.json
-{
-  "Identifier": "com.openclip.addtoapplenotes",
-  "Name": "Add to Apple Notes",
-  "Actions": [
-    {
-      "Title": "New Note",
-      "Icon": "symbol:note.text",
-      "Script": "main.applescript"
-    }
-  ]
-}
+```
+Selection Context ---> AppleScriptAction.perform(_:) ---> NSAppleScript.executeAndReturnError()
+ |
+ v
+ ActionResult (.copy / .success)
 ```
 
+1. **Environment Setup**: The selected text string is sanitized by escaping double quotes (`"` $\rightarrow$ `\"`).
+2. **Variable Injection**: OpenClip prepends variable declarations to the script string before execution:
+ ```applescript
+ set OPENCLIP_TEXT to "<escaped_selected_text>"
+ set openclip_text to "<escaped_selected_text>"
+ ```
+3. **Background Thread Offloading**: Execution is dispatched onto a detached background task (`Task.detached`) to prevent blocking the main thread during AppleScript OS calls.
+
+---
+
+## Example AppleScript Snippets
+
+### Example 1: Create New Note in macOS Notes App
+
 ```applescript
--- main.applescript
 tell application "Notes"
-    activate
-    tell account "iCloud"
-        make new note at folder "Notes" with properties {name:"OpenClip Selection", body:OPENCLIP_TEXT}
-    end tell
+ activate
+ make new note at folder "Notes" with data OPENCLIP_TEXT
 end tell
+```
+
+### Example 2: Transform Selected Text to Uppercase
+
+```applescript
+use framework "Foundation"
+use scripting additions
+
+set currentText to NSString's stringWithString:OPENCLIP_TEXT
+set upperText to currentText's uppercaseString()
+return (upperText as text)
 ```
 
 ---
 
-### Example 2: Apple Music Search & Play
+## Return Values & Side Effects
 
-Searches Apple Music for the selected song or artist and initiates playback.
+`AppleScriptAction` evaluates the `NSAppleScriptEventDescriptor` returned by `executeAndReturnError()`:
 
-```json
-// openclip.json
-{
-  "Identifier": "com.openclip.applemusicsearch",
-  "Name": "Search Apple Music",
-  "Actions": [
-    {
-      "Title": "Play in Music",
-      "Icon": "symbol:music.note",
-      "Script": "main.applescript"
-    }
-  ]
-}
-```
-
-```applescript
--- main.applescript
-tell application "Music"
-    activate
-    search playlist "Library" for OPENCLIP_TEXT
-    play track 1 of (search playlist "Library" for OPENCLIP_TEXT)
-end tell
-```
-
----
-
-### Example 3: Send New Email with Selected Text (Apple Mail)
-
-Drafts a new email message in Apple Mail with the selected text as the body.
-
-```json
-// openclip.json
-{
-  "Identifier": "com.openclip.mailselection",
-  "Name": "Email Selection",
-  "Actions": [
-    {
-      "Title": "Draft Email",
-      "Icon": "symbol:envelope",
-      "Script": "main.applescript"
-    }
-  ]
-}
-```
-
-```applescript
--- main.applescript
-tell application "Mail"
-    activate
-    set newMessage to make new outgoing message with properties {subject:"Selected Text Note", content:OPENCLIP_TEXT, visible:true}
-end tell
-```
-
----
-
-### Example 4: Speak Selection (macOS Text-to-Speech)
-
-Speaks the highlighted text using system text-to-speech.
-
-```applescript
-#openclip
-# title: Speak Selection
-# icon: speaker.wave.3
-# applescript: say OPENCLIP_TEXT
-```
+- **String Return Value**: If the script returns a non-empty string value (`output.stringValue`), `AppleScriptAction` returns `ActionResult.copy(str)` to copy the generated result to the pasteboard.
+- **No Return Value (`nil` or empty string)**: If the script executes without returning text, it returns `ActionResult.success`.
+- **Error Handling**: If `executeAndReturnError(&errorDict)` returns an error dictionary, the runtime throws `ActionResult.failure(error)` with the error message from `NSAppleScript.errorMessage`.

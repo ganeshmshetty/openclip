@@ -1,3 +1,7 @@
+// ActionIconView.swift
+// OpenClip
+//
+// Renders action icons dynamically across SF Symbols, custom images, remote URLs, and text representations.
 import SwiftUI
 import Core
 

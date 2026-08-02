@@ -1,3 +1,7 @@
+// ActionConfigSheet.swift
+// OpenClip
+//
+// Renders configuration sheets for individual builtin action settings in preferences.
 import SwiftUI
 import Core
 

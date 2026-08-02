@@ -1,3 +1,7 @@
+// MacTextRetriever.swift
+// OpenClip
+//
+// Retrieves selected text from active macOS applications using AXUIElement accessibility APIs and copy simulation fallbacks.
 import AppKit
 import ApplicationServices
 import Foundation

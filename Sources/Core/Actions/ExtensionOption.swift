@@ -1,3 +1,8 @@
+// ExtensionOption.swift
+// OpenClip
+//
+// Defines configurable option specifications and value models for extension-provided actions.
+// Supports string inputs, booleans, option pickers, and secure secret entries for extension configuration.
 import Foundation
 
 public enum ExtensionOptionType: String, Codable, Sendable {

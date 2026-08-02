@@ -1,84 +1,84 @@
-# Single-File Text Snippets
+# Standalone Script Snippets (`OpenClipSnippetParser`)
 
-In addition to multi-file `.openclipext` packages, OpenClip supports lightweight **single-file text snippets**. Snippets allow developers and power users to create actions inside a single text file using header comments (`#openclip` or `//openclip`).
-
----
-
-## Snippet Format Structure
-
-A snippet file starts with a header block declaring metadata key-value pairs followed by inline script code or URL template definitions:
-
-```
-#openclip
-title: My Quick Action
-icon: sparkles
-identifier: com.example.quickaction
-...
-```
+In addition to `.openclipext` package directories, OpenClip supports **standalone single-file script snippets** (`.js`, `.applescript`, `.sh`, `.py`). Standalone scripts declare action metadata in header comment blocks that are extracted by [`OpenClipSnippetParser`](file:///Users/ganesh/dev/openclip/Sources/Core/Extensions/OpenClipSnippetParser.swift).
 
 ---
 
-## Key-Value Header Reference
+## Parser Architecture & Design Constraints
 
-| Key | Description | Example |
-|-----|-------------|---------|
-| `title` (or `name`) | Action display title in HUD | `title: Uppercase JS` |
-| `icon` | Icon name or SF Symbol | `icon: character.uppercase` |
-| `identifier` | Unique identifier string | `identifier: snippet.uppercase` |
-| `url` | URL template (for URL actions) | `url: https://google.com/search?q={text}` |
-| `javascript` (or `js`) | Inline JavaScript code string | `javascript: selection.toUpperCase()` |
-| `applescript` | Inline AppleScript command | `applescript: display dialog selection` |
-| `shell script` (or `sh`) | Inline Shell script code | `sh: echo "$OPENCLIP_TEXT" | tr '[:lower:]' '[:upper:]'` |
+- **Pure Text Parser**: `OpenClipSnippetParser` operates purely on string content and line scanning.
+- **Zero UI Dependencies**: Free of AppKit, SwiftUI, or `@MainActor` main-thread constraints.
+- **Detached Execution**: Executed safely in background threads during directory scanning.
 
 ---
 
-## Examples
+## Header Syntax & Format
 
-### Example 1: JavaScript Snippet (`.js` / `.txt`)
+Header metadata can be specified using single-line comment prefixes (`//` or `#`) or block keys.
+
+### Example 1: Standalone JavaScript Snippet (`upper.js`)
 
 ```javascript
-//openclip
-// title: Reverse Text
-// icon: arrow.triangle.2.circlepath
-// identifier: snippet.reverse
-// js: selection.split('').reverse().join('')
+// title: Upper Case Transformer
+// icon: symbol:textformat.characters
+// identifier: com.user.snippet.uppercase
+// javascript:
+var text = openclip.input.text;
+openclip.pasteText(text.toUpperCase());
 ```
 
-### Example 2: AppleScript Snippet (`.applescript`)
-
-```applescript
-#openclip
-# title: Speak Selection
-# icon: speaker.wave.2
-# applescript: say OPENCLIP_TEXT
-```
-
-### Example 3: Zsh Shell Snippet (`.sh`)
+### Example 2: Standalone Shell Script (`format-sql.sh`)
 
 ```bash
-#!/bin/zsh
-#openclip
-# title: MD Code Block
-# icon: curlybraces
-# sh: printf "```\n%s\n```" "$OPENCLIP_TEXT"
+#!/bin/bash
+# title: Format SQL Query
+# icon: symbol:server.rack
+# identifier: com.user.snippet.sqlformat
+# shell script:
+python3 -c "import sqlparse, sys; print(sqlparse.format(sys.stdin.read(), reindent=True))"
 ```
 
-### Example 4: URL Template Snippet (`.txt`)
+### Example 3: Standalone AppleScript Snippet (`create-note.applescript`)
 
+```applescript
+-- title: New Quick Note
+-- icon: symbol:note.text
+-- identifier: com.user.snippet.newnote
+-- applescript:
+tell application "Notes"
+ make new note at folder "Notes" with data OPENCLIP_TEXT
+end tell
 ```
-#openclip
-title: Search GitHub
-icon: magnify
-url: https://github.com/search?q={text}
+
+### Example 4: Standalone URL Search Snippet (`search-mdn.sh`)
+
+```bash
+# title: Search MDN
+# icon: symbol:doc.text.magnifyingglass
+# url: https://developer.mozilla.org/en-US/search?q={query}
 ```
 
 ---
 
-## How OpenClip Parses Snippets
+## Header Keys Matrix
 
-The `OpenClipSnippetParser` inspects the top lines of any imported file:
+The parser extracts key-value metadata matching the following recognized keys:
 
-1. Looks for `#openclip` or `//openclip` magic headers.
-2. Extracts key-value pairs (`title:`, `icon:`, `url:`, `js:`, `applescript:`, `sh:`).
-3. Instantiates the corresponding Swift action object (`CustomAction`, `ScriptAction`, or `URLTemplateAction`).
-4. Registers the action instantly into `ActionRegistry`.
+| Header Key | Recognized Aliases | Description |
+| :--- | :--- | :--- |
+| **Title** | `title`, `name` | User-facing display title in popup panel and preferences. |
+| **Icon** | `icon` | Icon specifier (`symbol:name`, `icon.png`, or SF Symbol string). |
+| **Identifier** | `identifier`, `id` | Unique action identifier string (defaults to `snippet.<slug>`). |
+| **URL Action** | `url` | URL template string containing `{query}` or `{text}` placeholders. |
+| **JavaScript** | `javascript`, `js` | Inline code block or multiline code following the key. |
+| **AppleScript** | `applescript` | Inline AppleScript automation snippet block. |
+| **Shell Script** | `shell script`, `sh`, `shell` | Inline Zsh/Bash/Python executable script block. |
+
+---
+
+## Parsing Algorithm Details
+
+1. **Header Line Scanning**: Scans up to `Constants.maxHeaderLinesToScan` lines for header comment prefixes (`//`, `#`, `//openclip`, `#openclip`).
+2. **Key-Value Splitting**: Splits line on the first colon (`:`).
+3. **Multiline Body Mode**: When a runtime key (`url`, `javascript`, `applescript`, `shell script`) is encountered without inline content, subsequent lines are accumulated as the script body string.
+4. **Action Instantiation**: The parsed tuple `(ExtensionMetadata, ExtensionActionMetadata)` is passed to `DefaultActionFactory` to instantiate the runtime action.

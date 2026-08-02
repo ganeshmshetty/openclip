@@ -1,3 +1,7 @@
+// PopupPositioner.swift
+// OpenClip
+//
+// Calculates popup window placement and screen edge clamping math based on selection bounds or cursor location.
 import Foundation
 import CoreGraphics
 import Core

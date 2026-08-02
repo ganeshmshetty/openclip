@@ -1,3 +1,7 @@
+// RevealInFinderAction.swift
+// OpenClip
+//
+// Implements Finder file reveal actions for file paths found in selected text using NSWorkspace.
 import Foundation
 #if canImport(AppKit)
 import AppKit

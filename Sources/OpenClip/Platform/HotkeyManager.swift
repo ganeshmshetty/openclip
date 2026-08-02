@@ -1,3 +1,7 @@
+// HotkeyManager.swift
+// OpenClip
+//
+// Manages global keyboard shortcuts using macOS event monitors and KeyboardShortcuts registrations.
 import Foundation
 import AppKit
 import KeyboardShortcuts

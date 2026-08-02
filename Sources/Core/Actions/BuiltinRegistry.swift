@@ -1,3 +1,8 @@
+// BuiltinRegistry.swift
+// OpenClip
+//
+// Constructs and provides the catalog of core AppKit-free builtin actions available in OpenClip.
+// Instantiates default actions including text search, definitions, date calculations, clipboard operations, and case transformations.
 import Foundation
 
 /// Core (AppKit-free) builtin actions. AppDelegate appends platform-specific ones.

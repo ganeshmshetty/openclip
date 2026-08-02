@@ -1,3 +1,7 @@
+// ActionResultHandler.swift
+// OpenClip
+//
+// Serves as the Effect Door, executing macOS platform side-effects such as pasteboard mutations, URL opening, and key event simulations.
 import Foundation
 import AppKit
 import Core

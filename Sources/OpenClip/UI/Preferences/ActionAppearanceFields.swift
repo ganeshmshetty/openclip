@@ -1,3 +1,7 @@
+// ActionAppearanceFields.swift
+// OpenClip
+//
+// Provides reusable SwiftUI form controls for customizing action titles, icon symbols, and display modes.
 import SwiftUI
 
 /// Reusable appearance configuration form fields for Action Name, Icon Symbol, and Display Mode (Icon vs Text).

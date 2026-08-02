@@ -1,3 +1,7 @@
+// CutAction.swift
+// OpenClip
+//
+// Implements the standard cut action that returns a clipboard cut result for selected text.
 import Foundation
 
 public struct CutAction: ConfigurableAction {

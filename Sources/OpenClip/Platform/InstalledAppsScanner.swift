@@ -1,3 +1,7 @@
+// InstalledAppsScanner.swift
+// OpenClip
+//
+// Scans installed macOS applications in system directories to populate application selection interfaces.
 import AppKit
 import Foundation
 

@@ -1,3 +1,7 @@
+// ExtensionsAPIClient.swift
+// OpenClip
+//
+// Interacts with the remote OpenClip extension store API to fetch, search, and download available extensions.
 import Foundation
 
 public final class ExtensionsAPIClient: Sendable {

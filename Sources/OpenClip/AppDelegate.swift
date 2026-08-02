@@ -1,3 +1,7 @@
+// AppDelegate.swift
+// OpenClip
+//
+// Handles macOS NSApplication lifecycle events, status bar item initialization, onboarding display checks, and hotkey registration.
 import AppKit
 @preconcurrency import ApplicationServices
 import SwiftUI

@@ -1,3 +1,7 @@
+// BrowserRedirectProvider.swift
+// OpenClip
+//
+// Implements AI prompt handling by formatting queries and redirecting users to web-based AI interfaces.
 import Foundation
 import AppKit
 

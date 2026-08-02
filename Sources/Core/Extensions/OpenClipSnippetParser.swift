@@ -1,3 +1,7 @@
+// OpenClipSnippetParser.swift
+// OpenClip
+//
+// Parses OpenClip script snippet headers into extension and action metadata structures without UI dependencies.
 import Foundation
 
 @MainActor

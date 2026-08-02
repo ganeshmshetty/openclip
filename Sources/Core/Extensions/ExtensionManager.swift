@@ -1,3 +1,8 @@
+// ExtensionManager.swift
+// OpenClip
+//
+// Discovers, loads, and manages installed OpenClip extensions from disk.
+// Uses registration callbacks to register and unregister extension actions without direct singleton coupling to ActionRegistry.
 import Foundation
 
 public struct ExtensionOptionMetadata: Sendable, Codable {

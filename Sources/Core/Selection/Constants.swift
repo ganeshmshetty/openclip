@@ -1,3 +1,7 @@
+// Constants.swift
+// OpenClip
+//
+// Defines system-wide configuration constants, timing thresholds, key codes, and default settings keys.
 import Foundation
 import CoreGraphics
 

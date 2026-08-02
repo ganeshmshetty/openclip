@@ -1,3 +1,7 @@
+// SelectionCoordinator.swift
+// OpenClip
+//
+// Coordinates selection monitoring events and text retrieval results, publishing unified selection context updates.
 import Foundation
 import Combine
 

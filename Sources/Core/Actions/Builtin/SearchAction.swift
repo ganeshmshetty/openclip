@@ -1,3 +1,7 @@
+// SearchAction.swift
+// OpenClip
+//
+// Implements web search functionality by querying configurable search engine URL templates using selected text.
 import Foundation
 
 public struct SearchAction: ConfigurableAction {

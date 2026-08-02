@@ -1,80 +1,55 @@
-# Managing Extensions
+# Managing Extensions & Custom Actions
 
-OpenClip provides a flexible extension architecture allowing users to install, configure, update, and remove third-party actions seamlessly.
-
----
-
-## Extension Package Formats
-
-OpenClip supports 3 extension distribution formats:
-
-1. **`.openclipext` Folders:** A standard directory package containing a manifest (`openclip.json`) and source files (`main.js`, `script.sh`, `main.applescript`).
-2. **`.zip` Archives:** Compressed extension packages. OpenClip automatically unpacks and installs these into `~/.openclip/extensions`.
-3. **Standalone Script Snippets:** Single-file scripts (`.sh`, `.py`, `.js`, `.applescript`) containing `#openclip` or `//openclip` header metadata.
+OpenClip allows users to install community extensions and create custom search or script actions directly from the application interface or terminal.
 
 ---
 
-## Extension Installation
+## Extension Store & Remote Installation
 
-### Method 1: Using Preferences UI
+OpenClip features a built-in Extension Store browser in **Preferences > Extension Store**.
 
-1. Open **Preferences** (`Cmd + ,` or menu bar icon).
-2. Navigate to the **Actions** tab.
-3. Click **Install Extension…** at the bottom of the window.
-4. Select any `.openclipext` folder, `.zip` archive, or script snippet.
-5. OpenClip will install the extension to `~/.openclip/extensions` and refresh the Action Registry automatically.
-
-```mermaid
-flowchart TD
-    Select[Select Extension File / Folder] --> ExtMgr[ExtensionManager.installExtension]
-    ExtMgr --> CheckType{File Type?}
-    CheckType -->|.openclipext Directory| CopyFolder[Copy to ~/.openclip/extensions/]
-    CheckType -->|.zip Archive| Unzip[Extract archive into ~/.openclip/extensions/]
-    CheckType -->|Standalone Script| CopyScript[Copy script to ~/.openclip/extensions/]
-    CopyFolder --> Reload[Reload Extensions & Register Actions]
-    Unzip --> Reload
-    CopyScript --> Reload
+```
+Preferences > Extension Store
+├── Browse official & community extensions
+├── View extension details, actions, and author metadata
+└── Click 'Install' to download and activate extensions instantly
 ```
 
-### Method 2: Manual Directory Installation
+### How Remote Installation Works
+1. `ExtensionsAPIClient` fetches the published extensions catalog.
+2. `RemoteExtensionInstaller` downloads the extension archive `.zip` or `.openclipext` bundle.
+3. [`ExtensionManager.installExtension(from:)`](file:///Users/ganesh/dev/openclip/Sources/Core/Extensions/ExtensionManager.swift) extracts and verifies the extension in `~/.openclip/extensions/`.
+4. `ExtensionManager` reloads the extensions catalog and registers new actions with `ActionRegistry`.
 
-You can also copy extensions directly into the OpenClip extensions directory:
+---
+
+## Manual Installation of Extensions & Scripts
+
+You can manually install extensions or standalone script files by placing them directly into your local extensions directory:
 
 ```bash
-mkdir -p ~/.openclip/extensions
-cp -R MyExtension.openclipext ~/.openclip/extensions/
+~/.openclip/extensions/
 ```
 
-OpenClip automatically scans `~/.openclip/extensions` on launch.
+### Installation File Types
+- **Extension Bundles (`.openclipext`)**: Folders containing `manifest.json` and code files.
+- **Zip Archives (`.zip`)**: Compressed extension packages automatically unzipped by `ExtensionManager`.
+- **Standalone Scripts (`.sh`, `.py`, `.js`, `.applescript`)**: Single script files with comment header metadata.
 
 ---
 
-## Configuring Extension Options
+## Creating Custom Actions in GUI
 
-When an extension defines declarative user options (via `ExtensionOption`), OpenClip renders a dynamic settings view for that extension inside Preferences:
+You can create custom web search links or inline shell scripts without writing extension manifests:
 
-1. In **Preferences** > **Actions**, find the installed extension.
-2. Click the **Gear Icon** (`gearshape`) next to the extension title.
-3. Adjust options dynamically:
-   - **Text Fields:** Input API keys, tokens, or custom URLs.
-   - **Switch Toggles:** Enable or disable feature flags (`true` / `false`).
-   - **Dropdown Pickers:** Select choices from pre-configured lists.
-   - **Secure Fields:** Password-masked input fields.
+1. Open **Preferences > Actions**.
+2. Click **+ Add Custom Action**.
+3. Choose the action type:
+ - **URL Template**: Enter a title, SF Symbol icon, and URL string (e.g. `https://google.com/search?q={query}`).
+ - **Shell Script**: Enter a script command or inline snippet (e.g. `tr '[:lower:]' '[:upper:]'`).
+4. Click **Save**.
 
-Options are automatically persisted in `UserDefaults` under key pattern:
-`action.<action_id>.option.<option_identifier>`
-
----
-
-## Uninstalling Extensions
-
-To remove an extension:
-
-1. Open **Preferences** > **Actions**.
-2. Click the **Trash Icon** (`trash`) on the extension row.
-3. Confirm uninstallation.
-
-OpenClip will:
-- Unregister the action from `ActionRegistry`.
-- Remove the extension directory or file from `~/.openclip/extensions`.
-- Instantly remove the action from the HUD popup.
+### Storage & Persistence
+- Custom actions are managed by [`CustomActionManager`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/CustomActionManager.swift).
+- Saved definitions are persisted as JSON in Application Support:
+ `~/Library/Application Support/OpenClip/custom_actions.json`

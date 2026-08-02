@@ -1,3 +1,7 @@
+// AIProvider.swift
+// OpenClip
+//
+// Defines the protocol and model types for integrating AI model providers into OpenClip selection processing.
 import Foundation
 
 public enum AIProviderType: String, CaseIterable, Identifiable, Sendable {

@@ -1,87 +1,59 @@
 # Preferences & Customization
 
-OpenClip features a native macOS Preferences window built with SwiftUI. It provides granular control over global settings, popup appearance, action layouts, AI integrations, and per-application rules.
+OpenClip offers extensive customization for action ordering, display labels, custom icons, and AI provider integration through the Preferences window.
 
 ---
 
-## Preference Tabs Overview
+## Opening Preferences
 
-The Preferences window is divided into 6 dedicated tabs accessible via the sidebar:
-
-| Tab | Purpose | Key Settings |
-|-----|---------|--------------|
-| **General** | Global app behavior & status | Master toggle, Global hotkey recorder, Start at Login, Accessibility status |
-| **Appearance** | Visual styling & live preview | Theme selection, Popup size scaling, Live preview canvas |
-| **Actions** | Layout & action management | Drag-and-drop reordering, Enable/disable switches, Gear options sheets, Install extensions |
-| **AI** | Local & cloud LLM configuration | API keys, Custom endpoints, Model selection, Prompt templates |
-| **App Rules** | Per-application policy engine | Exclusion lists, Rule modes (Default, Disabled, Custom) |
-| **About** | App information & links | Version number, license information, GitHub link |
+You can open OpenClip Preferences in two ways:
+- Click the OpenClip menu bar icon and select **Preferences...**
+- Press `Cmd + ,` while the OpenClip popup bar or settings window is focused.
 
 ---
 
-## General Tab
+## Action Catalog & Drag-and-Drop Reordering
 
-The **General** tab controls core system integration:
+The **Actions** tab lists all available builtin actions, user-configured custom actions, and installed extension packages.
 
-- **Enable OpenClip:** Master toggle to pause or activate text selection monitoring globally.
-- **Trigger Popup Shortcut:** Record a custom global hotkey (e.g. `Option + Space`) using `KeyboardShortcuts` to manually invoke the popup HUD over selected text.
-- **Start at Login:** Automatically launches OpenClip when you log into your Mac.
-- **System Permissions Status:** Real-time indicator of macOS Accessibility permissions with a direct link to macOS System Settings.
-
----
-
-## Appearance Tab
-
-Customize the look and feel of the floating action popup:
-
-```mermaid
-graph TD
-    Sub[Selection Context] --> Preview[Live Popup Preview Canvas]
-    Theme[Theme Selection: System / Dark / Light / Glass] --> Preview
-    Size[Popup Size: Small / Medium / Large] --> Preview
+```
+Preferences > Actions
+├── Drag handle (≡) to reorder actions in the floating popup bar
+├── Toggle checkbox to enable or disable individual actions
+└── Click 'Edit' () to customize title and icon overrides
 ```
 
-- **Theme Style:** Choose between:
-  - `System`: Matches macOS system appearance automatically.
-  - `Dark`: Sleek dark theme with high contrast.
-  - `Light`: Clean light theme.
-  - `Glass`: Modern glassmorphic translucent visual effect.
-- **Popup Size:** Adjust button dimensions and font sizes (`small`, `medium`, `large`).
-- **Live Preview:** Real-time preview panel that displays how your action HUD looks as you change theme or size settings.
+### How Action Ordering Works
+- Dragging actions changes their relative order in the floating popup bar.
+- Action ordering is saved automatically via [`SettingsStore`](file:///Users/ganesh/dev/openclip/Sources/Core/Settings/SettingsStore.swift) under key `actionOrder`.
 
 ---
 
-## Actions & Custom Layouts Tab
+## Customizing Action Titles & Icons
 
-Manage available built-in actions and installed extensions:
+OpenClip allows overriding the display title and icon for any action without editing code or manifests.
 
-### Drag-and-Drop Reordering
-Click and drag any action row to change its display order in the HUD popup. The order in this list matches the exact button order in the popup window.
+### Display Overrides via `ActionCustomizationManager`
+- **Custom Title**: Override the default name displayed in popup tooltips or preferences tables.
+- **Custom SF Symbol**: Enter any valid macOS SF Symbol name (e.g. `sparkles`, `doc.on.doc`, `terminal`).
+- **Custom Text Icon**: Display a 1–2 character text icon instead of a symbol.
 
-### Enabling & Disabling Actions
-Use the switch toggle on each action row to show or hide specific actions. Disabled actions are stored in `UserDefaults` under `disabledActionIDs`.
-
-### Action Options Sheet
-Clicking the **Gear Icon** next to any action opens the **Action Configuration Sheet** (`EditActionSheet` / `DynamicActionConfigView`). Here you can:
-- Customize display title and icon (SF Symbol or custom text label).
-- Configure extension-specific options (e.g., API keys, default search engines, formatting flags).
-
-### Installing & Uninstalling Extensions
-- **Install Extension…:** Opens a file picker to select `.openclipext` folders, `.zip` archives, or standalone script files (`.sh`, `.py`, `.js`).
-- **Trash Icon:** Removes custom actions or uninstalls third-party extensions from `~/.openclip/extensions`.
+All overrides are managed via [`ActionCustomizationManager`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionCustomizationManager.swift) and stored persistently in `SettingsStore`.
 
 ---
 
-## AI Tab
+## AI Provider Setup
 
-Configure LLM integrations for intelligent text processing actions (summarization, rewrite, grammar check, code explanation):
+OpenClip includes an AI assistant overlay that processes text selections using local or cloud AI models.
 
-- **API Provider:** Select OpenAI, Anthropic, Ollama (local), or custom OpenAI-compatible endpoints.
-- **API Key & Endpoint:** Securely enter your API keys.
-- **Model Selection:** Choose models like `gpt-4o`, `claude-3-5-sonnet`, or local models (`llama3`).
+Navigate to **Preferences > AI Assistant** to configure your provider:
 
----
+| Provider | Description | Setup Requirements |
+| :--- | :--- | :--- |
+| **Apple Intelligence** | On-device macOS intelligence framework | macOS 15.0+ with Apple Intelligence enabled |
+| **Ollama (Local)** | Privacy-focused local LLM execution | Running Ollama instance (`http://localhost:11434`) |
+| **Cloud AI (OpenAI / Claude)** | Cloud API language models | Valid API Key stored securely in Keychain |
+| **Browser Redirect** | Opens AI query in browser | No API key required |
 
-## App Rules Tab
-
-Specify applications where OpenClip should be automatically disabled or customized. See the **[Application Rules Guide](app-rules.md)** for detailed instructions.
+### AI Settings Channel
+AI settings are managed through `AIServiceManager` and isolated to ensure security and privacy.

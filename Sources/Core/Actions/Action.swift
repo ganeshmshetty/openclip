@@ -1,3 +1,8 @@
+// Action.swift
+// OpenClip
+//
+// Defines the core Action protocol and ActionIcon enum that all executable actions in OpenClip implement.
+// Provides default protocol extensions for formatting flags, chrome metadata, action options, and customization resolution.
 import Foundation
 
 public enum ActionIcon: Sendable, Equatable {

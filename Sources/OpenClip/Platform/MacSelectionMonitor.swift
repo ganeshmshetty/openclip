@@ -1,3 +1,7 @@
+// MacSelectionMonitor.swift
+// OpenClip
+//
+// Monitors macOS mouse and keyboard events to detect text selection actions and trigger OpenClip popup presentation.
 import AppKit
 import ApplicationServices
 import Core

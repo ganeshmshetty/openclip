@@ -1,60 +1,82 @@
-# Application Rules & Policy Engine
+# Application-Specific Policy Rules (`AppRule`)
 
-OpenClip includes a per-application policy engine (`AppRulesTab.swift`, `AppPolicy`) that lets you control popup behavior depending on which macOS application is currently active.
-
----
-
-## Why Use App Rules?
-
-Certain applications have built-in text selection menus or specialized workflows where an overlay popup might interfere with your productivity:
-
-- **IDEs & Code Editors:** Xcode, VS Code, Nova, IntelliJ IDEA.
-- **Terminal Emulators:** iTerm2, macOS Terminal, Alacritty, Ghostty.
-- **Password Managers:** 1Password, Bitwarden, KeePassXC (to prevent accidental clipboard exposure).
-- **Design Tools:** Figma, Sketch, Adobe Illustrator.
-
-With App Rules, you can tell OpenClip to remain silent in specific applications or customize which actions appear.
+OpenClip allows configuring application-specific behavior rules through [`AppRule`](file:///Users/ganesh/dev/openclip/Sources/Core/Rules/AppRule.swift) and [`RuleEngine`](file:///Users/ganesh/dev/openclip/Sources/Core/Rules/RuleEngine.swift). App rules control how OpenClip detects selections, retrieves text, and enables or suppresses formatting actions when specific target macOS applications are active.
 
 ---
 
-## Policy Modes
+## JSON Configuration Format (`rules.json`)
 
-Each application rule can be set to one of 3 policy modes:
+Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) conforming to `RuleEngineConfig`:
 
-| Mode | Behavior |
-|------|----------|
-| **Default (Enabled)** | OpenClip behaves normally, triggering the action HUD whenever text is highlighted. |
-| **Disabled** | OpenClip is completely suppressed when working inside this application. |
-| **Custom** | OpenClip triggers, but limits available actions to a specific filtered subset. |
-
----
-
-## Configuring Application Rules
-
-1. Open **Preferences** (`Cmd + ,`).
-2. Select the **App Rules** tab in the sidebar.
-3. Click **Add Application Rule…** (`+`).
-4. Select the target application using the native macOS Application Picker sheet.
-5. Set the desired policy mode (**Disabled** or **Custom**).
-
-```mermaid
-flowchart TD
-    Highlight[User Highlights Text] --> GetApp[Get Active App Bundle ID]
-    GetApp --> Lookup{Rule Exists in Policy Engine?}
-    Lookup -->|No Rule / Default| ShowHUD[Show OpenClip HUD]
-    Lookup -->|Policy: Disabled| Suppress[Suppress HUD Popup]
-    Lookup -->|Policy: Custom| Filter[Apply Action Filter & Show HUD]
+```json
+{
+ "rules": [
+ {
+ "bundle-identifiers": [
+ "com.jetbrains.*",
+ "com.apple.Terminal",
+ "com.sublimetext.*"
+ ],
+ "deny-formatting": true,
+ "grab-kb": true
+ },
+ {
+ "bundle-identifiers": [
+ "md.obsidian",
+ "com.skype.skype",
+ "com.evernote.Evernote"
+ ],
+ "grab-pb": true
+ },
+ {
+ "bundle-identifiers": [
+ ":chromium-group:"
+ ],
+ "browser-address-bar": true
+ }
+ ]
+}
 ```
 
 ---
 
-## Bundle Identifier Examples
+## Policy Properties Reference
 
-Common application bundle IDs used in policy rules:
+| Property Key in JSON | Code Identifier | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `bundle-identifiers` | `bundleIdentifiers` | Array | Target application bundle ID strings, wildcards, or group aliases. |
+| `deny-formatting` | `denyFormatting` | Bool | When `true`, suppresses text case transformations (e.g. UPPERCASE) in IDEs/Terminals. |
+| `grab-pb` | `grabPasteboard` | Bool | When `true`, opts into using `Cmd+C` pasteboard copy fallback for apps without AX selection support. |
+| `grab-kb` | `grabKeyboard` | Bool | When `true`, listens for keyboard selection events. |
+| `browser-address-bar` | `browserAddressBar` | Bool | Handles selection detection inside web browser address bars. |
+| `assume-paste` | `assumePaste` | Bool | Assumes text replacement should be performed via paste event simulation. |
+| `lenient-select` | `lenientSelect` | Bool | Relaxes selection boundary checks for custom web views. |
+| `deny-probe` | `denyProbe` | Bool | Prevents active AX element probing. |
+| `deny-preprobe` | `denyPreprobe` | Bool | Prevents background AX pre-probing. |
 
-- **Xcode:** `com.apple.dt.Xcode`
-- **VS Code:** `com.microsoft.VSCode`
-- **iTerm2:** `com.googlecode.iterm2`
-- **macOS Terminal:** `com.apple.Terminal`
-- **1Password:** `com.1password.1password`
-- **Safari:** `com.apple.Safari`
+---
+
+## Bundle Identifier Matching & Shortcuts
+
+### Wildcard Pattern Matching
+`RuleEngine` supports prefix wildcard matching using `.*` or global wildcard `*`:
+- `"com.jetbrains.*"` matches `com.jetbrains.intellij`, `com.jetbrains.pycharm`, `com.jetbrains.goland`, etc.
+- `"*" ` matches all applications.
+
+### Builtin Group Expansion Aliases
+
+| Group Shortcut | Expanded Application Bundle Identifiers |
+| :--- | :--- |
+| `:safari-group:` | `com.apple.Safari`, `com.apple.SafariTechnologyPreview` |
+| `:chromium-group:` | `com.google.Chrome`, `com.brave.Browser`, `com.microsoft.edgemac` |
+| `:firefox-group:` | `org.mozilla.firefox` |
+| `:arc-group:` | `company.thebrowser.Browser` |
+
+---
+
+## Rule Evaluation Mechanics
+
+1. When text selection is detected, `ActionCoordinator` queries `RuleEngine.shared.resolvePolicies(for: bundleID)`.
+2. `RuleEngine` matches the target application bundle ID against effective rules (default rules + user rules).
+3. Matched policy settings override default `AppPolicyContext` values.
+4. If `denyFormatting: true` is active for the frontmost application, transform actions are automatically hidden from the floating popup bar.

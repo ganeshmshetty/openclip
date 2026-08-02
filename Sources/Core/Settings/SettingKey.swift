@@ -1,3 +1,7 @@
+// SettingKey.swift
+// OpenClip
+//
+// Defines strongly-typed setting keys and default values for central configuration management via the Settings Door.
 import Foundation
 
 public struct SettingKey<Value: Sendable>: Sendable {

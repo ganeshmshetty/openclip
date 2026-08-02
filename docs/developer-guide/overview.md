@@ -1,57 +1,61 @@
-# Extension Developer Guide: Overview
+# Extending OpenClip Overview
 
-OpenClip is built from the ground up as an extensible platform. Developers can build custom extensions to transform text, interface with macOS apps, call web APIs, run command-line tools, or perform complex automated workflows.
+OpenClip provides a pluggable extension architecture that allows developers and power users to create custom text manipulation tools, integrate third-party APIs, and automate macOS workflows.
 
 ---
 
-## Extension Runtimes Comparison
+## Extension Capabilities
 
-OpenClip supports 4 distinct execution runtimes to fit any extension development requirement:
+You can extend OpenClip in three distinct ways:
 
-```mermaid
-flowchart TD
-    Ext[Extension Request] --> Runtime{Choose Runtime}
-    Runtime -->|Pure Logic / Web API| JSC[JavaScriptCore Engine]
-    Runtime -->|Mac Apps / Finder / Notes| AS[AppleScript Engine]
-    Runtime -->|CLI / Python / Shell| Exec[Zsh / Python Subprocess]
-    Runtime -->|Web Lookup / Search| URL[URL Template Engine]
+```
+Extending OpenClip
+├── 1. Custom Actions (GUI-configured)
+│ ├── Web URL search templates
+│ └── Inline shell scripts (bash, zsh, python, node)
+│
+├── 2. Standalone Script Snippets (Header Metadata)
+│ ├── Single file scripts (.sh, .py, .js, .applescript)
+│ └── Header comments declaring title, icon, and options
+│
+└── 3. OpenClip Extension Packages (.openclipext)
+ ├── Directory containing manifest.json / openclip.json
+ ├── Support for JavaScript (JSContext), AppleScript (NSAppleScript), and Executables
+ └── Custom options UI schema (strings, booleans, dropdowns)
 ```
 
-| Runtime | Execution Environment | Best For | Key Capabilities |
-|---------|-----------------------|----------|------------------|
-| **JavaScript (JSC)** | Native `JSContext` | Text manipulation, string transformation, REST APIs | Fast, lightweight, `openclip` bridge, `XHR` support |
-| **AppleScript** | `NSAppleScript` | Automating macOS apps (Notes, Music, Safari, Finder) | Native macOS app IPC, System Events |
-| **Zsh & Python** | `/bin/zsh` / `python3` subprocess | Local CLI tools, data processing, heavy scripting | Access to full Unix environment, pip modules |
-| **URL Templates** | Browser URL scheme | Web search, dictionary lookup, deep links | Zero code needed, dynamic `{text}` replacement, regex filters |
+---
+
+## Action Types at a Glance
+
+| Action Type | Runtime Engine | Typical Use Cases |
+| :--- | :--- | :--- |
+| **URL Template** | `URLTemplateAction` | Web searches, documentation lookup, deep links |
+| **JavaScript** | `JavaScriptAction` (JavaScriptCore) | Fast string transformations, JSON formatting, web API calls |
+| **AppleScript** | `AppleScriptAction` (NSAppleScript) | macOS app automation (Finder, Safari, Notes, Mail) |
+| **Executable Script** | `ScriptAction` / Shell `CustomAction` | Python, Node.js, Ruby, Zsh scripts accessing CLI utilities |
 
 ---
 
-## Extension Formats
+## Extension Directory Locations
 
-Extensions can be created in 2 ways:
+OpenClip automatically scans the following directory for extensions and script files at launch:
 
-1. **`.openclipext` Packages:** Complete extension directory bundles containing a JSON manifest, script files, custom icons, and option declarations.
-2. **Single-File Snippets:** Quick single-file scripts with metadata headers (`#openclip` or `//openclip`). Ideal for quick sharing and copy-pasting.
-
----
-
-## The Action Lifecycle
-
-When an action is triggered by the user:
-
-1. OpenClip captures the active text selection as a `SelectionContext` object.
-2. OpenClip executes your script or opens your URL template.
-3. Your extension returns an `ActionResult` (or invokes bridge methods like `openclip.pasteText()` or `openclip.openUrl()`).
-4. OpenClip performs the requested host mutation:
-   - `.copy(text)`: Copies output to macOS Clipboard.
-   - `.paste(text)`: Replaces active text selection in target app.
-   - `.openURL(url)`: Opens specified URL in default browser.
-   - `.success`: Action completed with no clipboard/selection mutation.
+```text
+~/.openclip/extensions/
+├── my-extension.openclipext/
+│ ├── manifest.json
+│ ├── main.js
+│ └── icon.png
+├── currency-converter.py
+└── format-sql.sh
+```
 
 ---
 
-## Next Steps
+## Architectural Integration Seam
 
-- Learn about **[Extension Package Format](package-format.md)** to create full `.openclipext` bundles.
-- Read **[Single-File Snippets](snippets.md)** for fast script creation.
-- Explore **[Declarative Options UI](options-ui.md)** to add user configuration settings.
+Extending OpenClip does not require modifying Core framework code:
+1. When extensions are placed in `~/.openclip/extensions/`, [`ExtensionManager`](file:///Users/ganesh/dev/openclip/Sources/Core/Extensions/ExtensionManager.swift) automatically parses manifests and snippets.
+2. Extension metadata is passed to [`DefaultActionFactory`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift) (the **Action Factory**).
+3. Derived action instances are registered with [`ActionRegistry`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionRegistry.swift) through [`ActionCoordinator`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/ActionCoordinator.swift).

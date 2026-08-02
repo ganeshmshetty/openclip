@@ -1,3 +1,7 @@
+// DefineAction.swift
+// OpenClip
+//
+// Implements the dictionary lookup action for single selected words.
 import Foundation
 
 public struct DefineAction: ConfigurableAction {

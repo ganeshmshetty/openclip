@@ -1,3 +1,7 @@
+// PopupPanel.swift
+// OpenClip
+//
+// Defines a custom floating NSPanel subclass configured for non-activating popup bar display.
 import AppKit
 
 @MainActor

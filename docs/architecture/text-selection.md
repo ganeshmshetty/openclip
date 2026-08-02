@@ -1,45 +1,84 @@
-# Text Selection Subsystem
+# Text Selection Subsystem Architecture
 
-The Text Selection Subsystem is responsible for detecting when a user highlights text in any macOS application, extracting the text string, identifying the active source application, and determining cursor or selection bounds for popup HUD placement.
+The text selection subsystem is responsible for detecting user text selection events across all macOS applications and extracting selected text non-destructively.
 
 ---
 
-## Selection Context Data Model
+## Selection Detection Architecture
 
-When text is selected, OpenClip constructs a `SelectionContext` struct containing:
+The subsystem consists of three primary components:
 
-```swift
-public struct SelectionContext: Sendable {
-    public let text: String                   // Extracted text selection
-    public let sourceApp: NSRunningApplication?// Active source application
-    public let cursorPosition: CGPoint        // Mouse cursor screen coordinates
-    public let selectionBounds: CGRect?      // Selection bounding box in screen coordinates
-    public let timestamp: Date                // Timestamp of selection event
-    public let appPolicy: AppPolicy           // Active policy for source application
-}
+```
++------------------------+ +---------------------+ +----------------------+
+| MacSelectionMonitor | ---> | SelectionCoordinator| ---> | ActionCoordinator |
+| (Global Mouse/AX Event)| | (Context Assembly) | | (Action Resolution) |
++------------------------+ +---------------------+ +----------------------+
+ | |
+ v v
++------------------------+ +---------------------+
+| MacTextRetriever | | AppRule / Engine |
+| (AX / Safari / Cmd+C) | | (Per-App Policy) |
++------------------------+ +---------------------+
 ```
 
+1. **[`MacSelectionMonitor`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/MacSelectionMonitor.swift)**: Listens for mouse release events (`leftMouseUp`) or keyboard shortcuts.
+2. **[`MacTextRetriever`](file:///Users/ganesh/dev/openclip/Sources/OpenClip/Platform/MacTextRetriever.swift)**: Implements [`TextRetrieving`](file:///Users/ganesh/dev/openclip/Sources/Core/Selection/TextRetrieving.swift) to extract selected text from the active frontmost application.
+3. **[`SelectionCoordinator`](file:///Users/ganesh/dev/openclip/Sources/Core/Selection/SelectionCoordinator.swift)**: Receives raw selection context events, applies app rules, and notifies subscriber callbacks (such as `PopupWindowController`).
+
 ---
 
-## Detection Strategies
+## Retrieval Strategy Chain
 
-OpenClip uses a multi-tiered strategy to capture selected text across different types of macOS applications:
+OpenClip prioritizes **zero pasteboard side-effects** during background selection detection. Text is retrieved using a structured fall-through strategy chain:
 
 ```mermaid
 flowchart TD
-    Detect[Mouse Drag / Double Click Event] --> Strategy1{Accessibility API AXUIElement}
-    Strategy1 -->|Success| Extract1[Extract kAXSelectedTextAttribute]
-    Strategy1 -->|Fails / Web View| Strategy2{Clipboard Snapshot Fallback}
-    Strategy2 -->|Simulate Cmd+C| Extract2[Read NSPasteboard & Restore Original]
+ Start[Selection Event Detected] --> PolicyCheck{AppPolicy.grabPasteboard?}
+
+ PolicyCheck -- Yes --> StrategyCmdC[Strategy 3: Keyboard Shortcut Cmd+C]
+ PolicyCheck -- No --> StrategyAX[Strategy 1: AX Direct Read]
+
+ StrategyAX -- Success --> ReturnResult[Return Text & Bounds]
+ StrategyAX -- Null/Empty --> SafariCheck{App is Safari?}
+
+ SafariCheck -- Yes --> StrategySafari[Strategy 1.5: Safari JS Read]
+ SafariCheck -- No --> Fail[Selection Ignored]
+
+ StrategySafari -- Success --> ReturnResult
+ StrategySafari -- Null --> Fail
+ StrategyCmdC --> ReturnResult
 ```
 
-### 1. Accessibility API (`AXUIElement`)
-- Queries the currently focused UI element (`kAXFocusedUIElementAttribute`).
-- Reads the selected text attribute (`kAXSelectedTextAttribute`) and parameterised bounds (`kAXBoundsForRangeParameterizedAttribute`).
-- Provides zero-latency, silent text extraction without mutating the macOS Clipboard.
+### Strategy 1: Accessibility (AX) Direct Attribute Read
+- **Mechanism**: Queries `AXUIElementCreateSystemWide()` for `kAXFocusedUIElementAttribute`, then reads `kAXSelectedTextAttribute`.
+- **Bounds Query**: Queries `kAXSelectedTextRangeAttribute` and `kAXBoundsForRangeParameterizedAttribute` to obtain the precise screen rectangle (`CGRect`) of the selected text.
+- **Advantage**: Instant, zero side-effects, never modifies system clipboard.
 
-### 2. Clipboard Snapshot Fallback (Non-AX Applications)
-- Used for custom web views or non-standard UI frameworks that do not expose standard AX attributes.
-- OpenClip temporarily snapshots current `NSPasteboard` contents.
-- Simulates a synthetic `Cmd + C` keypress event.
-- Reads the newly copied selection text, and immediately restores original clipboard contents.
+### Strategy 1.5: Safari JavaScript Read
+- **Target**: Safari browser tabs (`com.apple.Safari`).
+- **Mechanism**: Executed if AX direct read returns empty due to web page DOM rendering delays. Executes a lightweight AppleScript snippet:
+ ```applescript
+ tell application "Safari"
+ if (count of documents) > 0 then
+ do JavaScript "window.getSelection().toString()" in front document
+ end if
+ end tell
+ ```
+
+### Strategy 3: Keyboard Shortcut (`Cmd+C`) Fallback
+- **Trigger**: Executed **only** when an application explicitly has the `grabPasteboard: true` rule set in `AppRule` (e.g., Obsidian, Skype, Evernote).
+- **Mechanism**:
+ 1. Backs up existing pasteboard items (`NSPasteboardItem`).
+ 2. Mutes system alert volume temporarily to prevent error beeps.
+ 3. Posts synthetic `Cmd+C` key events via `CGEvent`.
+ 4. Polls `NSPasteboard.general` change count every 5ms (up to 0.5s timeout).
+ 5. Extracts copied string.
+ 6. Restores original pasteboard contents after a 50ms window.
+
+---
+
+## Privacy & Non-Destructive Guarantees
+
+- **No Clipboard Pollution**: Unless `grabPasteboard` is explicitly configured for an app, OpenClip **never** triggers `Cmd+C` or modifies `NSPasteboard` while monitoring selections.
+- **Muted System Beeps**: When pasteboard polling is required for opted-in apps, system alert volume is muted via AppleScript during key injection so empty selection attempts remain silent.
+- **Ignored Fields**: Secure text fields (such as password inputs or masked text areas) do not expose `kAXSelectedTextAttribute` through AX APIs, ensuring password security.

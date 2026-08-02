@@ -1,3 +1,8 @@
+// CustomActionManager.swift
+// OpenClip
+//
+// Manages the persistence and lifecycle of user-defined custom actions through CustomActionRepository.
+// Uses registration callbacks to wire custom actions into the action ecosystem without direct coupling to ActionRegistry.
 import Foundation
 
 @MainActor

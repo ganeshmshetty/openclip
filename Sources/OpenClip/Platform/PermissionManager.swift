@@ -1,3 +1,7 @@
+// PermissionManager.swift
+// OpenClip
+//
+// Checks and prompts for required macOS Accessibility permissions necessary for text retrieval and event monitoring.
 import AppKit
 import ApplicationServices
 

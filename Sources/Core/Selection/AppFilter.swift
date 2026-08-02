@@ -1,3 +1,7 @@
+// AppFilter.swift
+// OpenClip
+//
+// Maintains exclusion pattern lists to prevent OpenClip from running on unsupported system or game applications.
 import Foundation
 
 public struct AppFilter: Sendable {

@@ -1,111 +1,78 @@
-# URL Template Extension Runtime
+# URL Templates Engine
 
-URL Template extensions (`URLTemplateAction.swift`) provide a zero-code way to build web search lookups, dictionary queries, API links, and deep app URLs.
-
----
-
-## Template Placeholders
-
-URL templates replace dynamic placeholders with percent-encoded text selection values:
-
-- `{text}`: The highlighted text string (percent-encoded for URL query parameters).
-- `{query}`: Alias for `{text}`.
+The URL templates engine ([`URLTemplateAction`](file:///Users/ganesh/dev/openclip/Sources/Core/Actions/URLTemplateAction.swift)) powers instant web search, documentation lookup, and custom URI scheme deep-linking actions.
 
 ---
 
-## Contextual Regular Expression Filtering
+## Execution Mechanism
 
-URL extensions can declare a `regexPattern` (or `Regular Expression` key in `openclip.json`). OpenClip will **only** display the action button in the HUD if the highlighted text matches the specified regex!
+When a user selects a URL template action:
+
+1. **Text Extraction**: Selected text is trimmed of leading and trailing whitespace.
+2. **Placeholder Substitution**: [`TextPlaceholderEngine`](file:///Users/ganesh/dev/openclip/Sources/Core/Utils/TextPlaceholderEngine.swift) substitutes template tokens with percent-encoded query parameters.
+3. **URL Resolution**: The resulting string is parsed into a `URL` object and returned as `ActionResult.openURL(url)`.
+4. **Platform Launch**: `DefaultActionResultHandler` opens the URL via `NSWorkspace.shared.open(url)`.
 
 ---
 
-## Copy-Pasteable URL Template Examples
+## Supported Placeholders
 
-### Example 1: Multi-Search Engine Bundle
+[`TextPlaceholderEngine`](file:///Users/ganesh/dev/openclip/Sources/Core/Utils/TextPlaceholderEngine.swift) replaces the following template tokens:
 
-Search Google, DuckDuckGo, or WolframAlpha.
+| Placeholder Token | Replacement Value | Encoding |
+| :--- | :--- | :--- |
+| `{query}` | Selected text string | Percent-encoded (`.urlQueryAllowed`) |
+| `{text}` | Selected text string | Percent-encoded (`.urlQueryAllowed`) |
 
-```json
-// openclip.json
-{
-  "Identifier": "com.openclip.websearches",
-  "Name": "Web Search Pack",
-  "Actions": [
-    {
-      "Title": "DuckDuckGo",
-      "Icon": "symbol:magnifyingglass",
-      "URL": "https://duckduckgo.com/?q={text}"
-    },
-    {
-      "Title": "WolframAlpha",
-      "Icon": "symbol:function",
-      "URL": "https://www.wolframalpha.com/input/?i={text}"
-    }
-  ]
+---
+
+## Regex Pattern Gating (`regexPattern`)
+
+URL template actions accept an optional `regexPattern` field. When provided, the action is enabled only when the selected text matches the regular expression pattern.
+
+```swift
+public func isEnabled(for context: ActionContext) -> Bool {
+ let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
+ guard !text.isEmpty else { return false }
+
+ if let pattern = regexPattern, !pattern.isEmpty {
+ do {
+ let regex = try NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive])
+ let range = NSRange(text.startIndex..., in: text)
+ return regex.firstMatch(in: text, options: [], range: range) != nil
+ } catch {
+ return true
+ }
+ }
+ return true
 }
 ```
 
+### Common Regex Examples
+
+- **Match URLs Only**: `^https?://\\S+$`
+- **Match Issue Tracker Numbers**: `^#[0-9]+$` or `^[A-Z]+-[0-9]+$`
+- **Match IP Addresses**: `^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$`
+
 ---
 
-### Example 2: Jira Ticket Direct Opener (Contextual Regex)
-
-Only appears when highlighting Jira ticket keys like `PROJ-1234` or `DEV-890`.
+## Practical Examples
 
 ```json
-// openclip.json
 {
-  "Identifier": "com.openclip.jiralookup",
-  "Name": "Open Jira Ticket",
-  "Actions": [
-    {
-      "Title": "Open Jira",
-      "Icon": "symbol:ticket",
-      "URL": "https://mycompany.atlassian.net/browse/{text}",
-      "Regular Expression": "^[A-Z]{2,10}-\\d+$"
-    }
-  ]
+ "id": "builtin.search.google",
+ "title": "Search Google",
+ "icon": "symbol:magnifyingglass",
+ "url": "https://www.google.com/search?q={query}"
 }
 ```
 
----
-
-### Example 3: GitHub Code & Repository Search
-
-Search GitHub code repositories for highlighted functions or terms.
-
 ```json
-// openclip.json
 {
-  "Identifier": "com.openclip.githubsearch",
-  "Name": "GitHub Search",
-  "Actions": [
-    {
-      "Title": "GitHub Code",
-      "Icon": "symbol:chevron.left.forwardslash.chevron.right",
-      "URL": "https://github.com/search?q={text}&type=code"
-    }
-  ]
-}
-```
-
----
-
-### Example 4: Google Maps Coordinates Lookup
-
-Appears when highlighting latitude and longitude coordinates (e.g. `37.7749, -122.4194`).
-
-```json
-// openclip.json
-{
-  "Identifier": "com.openclip.mapslookup",
-  "Name": "Open Coordinates in Maps",
-  "Actions": [
-    {
-      "Title": "Open in Maps",
-      "Icon": "symbol:map",
-      "URL": "https://maps.apple.com/?q={text}",
-      "Regular Expression": "^-?\\d+(\\.\\d+)?,\\s*-?\\d+(\\.\\d+)?$"
-    }
-  ]
+ "id": "action.github.repo",
+ "title": "Open GitHub Repo",
+ "icon": "symbol:book",
+ "url": "https://github.com/{query}",
+ "regex": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$"
 }
 ```

@@ -1,3 +1,7 @@
+// ExtensionManifest.swift
+// OpenClip
+//
+// Defines codable structures for parsing extension package manifests and metadata definitions.
 import Foundation
 
 public struct ExtensionActionMetadata: Codable, Sendable, Equatable {

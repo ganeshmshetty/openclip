@@ -1,86 +1,49 @@
-# Installation & Setup
+# Installation & Onboarding Guide
 
-This guide details system requirements, installation methods, and system permission configuration for OpenClip.
+Welcome to OpenClip! This guide will walk you through installing OpenClip on macOS, granting required permissions, and configuring your initial setup.
 
 ---
 
 ## System Requirements
 
-- **Operating System:** macOS 13.0 (Ventura) or later (macOS 14 Sonoma and macOS 15 Sequoia fully supported).
-- **Architecture:** Universal Binary (Apple Silicon M1/M2/M3/M4 & Intel x86_64).
-- **Permissions:** Accessibility (`AXIsProcessTrusted`).
+- **Operating System**: macOS 14.0 (Sonoma) or later.
+- **Architecture**: Universal binary (Apple Silicon M1/M2/M3/M4 & Intel processors).
+- **Permissions**: Accessibility permission is required for global text selection detection.
 
 ---
 
-## Installation Methods
+## Installation Steps
 
-### Method 1: Building from Source with Xcode
+1. **Download OpenClip**: Download the latest release `.dmg` or `.zip` file from the official releases page.
+2. **Move to Applications**: Drag `OpenClip.app` into your `/Applications` folder.
+3. **Launch OpenClip**: Open `OpenClip.app` from Finder or Spotlight.
 
-1. Clone the OpenClip repository:
-   ```bash
-   git clone https://github.com/openclip-app/openclip.git
-   cd openclip
-   ```
-2. Generate the Xcode project using XcodeGen (if needed) or open `OpenClip.xcodeproj`:
-   ```bash
-   open OpenClip.xcodeproj
-   ```
-3. Select the `OpenClip` scheme and target **My Mac**.
-4. Press `Cmd + R` to build and run the application.
+---
 
-### Method 2: Command-Line Build
+## Granting Accessibility Permissions
 
-You can also build OpenClip from the command line using `xcodebuild`:
+OpenClip relies on macOS Accessibility APIs (`AXUIElement`) to detect text selection events and extract selected text directly without polluting your clipboard.
 
-```bash
-xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -configuration Release build
+```
+System Settings ---> Privacy & Security ---> Accessibility ---> Enable OpenClip
 ```
 
-The compiled binary will be placed inside `build/Release/OpenClip.app`. Move `OpenClip.app` to your `/Applications` directory.
+1. On first launch, OpenClip will prompt you to grant Accessibility permissions.
+2. Click **Open System Settings**.
+3. Navigate to **Privacy & Security > Accessibility**.
+4. Toggle the switch next to **OpenClip** to **On**.
+5. Authenticate with your Mac password or Touch ID.
+
+> [!NOTE]
+> OpenClip reads selected text strictly in real-time when mouse drag or selection events occur. No keystrokes or selection histories are logged or stored locally.
 
 ---
 
-## Granting System Permissions
+## First-Launch Onboarding Workflow
 
-OpenClip relies on macOS Accessibility APIs (`AXUIElement`) to detect selected text in active applications and position the action popup near your cursor.
+When launched for the first time, OpenClip presents an onboarding assistant:
 
-> [!IMPORTANT]
-> Without Accessibility permissions, OpenClip cannot detect highlighted text or display the HUD popup automatically.
-
-### Enabling Accessibility Access
-
-1. Open OpenClip. If Accessibility access is missing, OpenClip will prompt you automatically.
-2. Open **System Settings** on your Mac.
-3. Navigate to **Privacy & Security** > **Accessibility**.
-4. Locate **OpenClip** in the list and toggle the switch **ON**.
-5. If prompted, enter your macOS administrator password.
-
-```mermaid
-flowchart LR
-    A[Launch OpenClip] --> B{Accessibility Granted?}
-    B -->|Yes| C[OpenClip Ready in Menu Bar]
-    B -->|No| D[Prompt System Settings]
-    D --> E[Privacy & Security -> Accessibility]
-    E --> F[Toggle OpenClip ON]
-    F --> C
-```
-
----
-
-## First-Run Verification
-
-Once permissions are granted:
-
-1. Look for the OpenClip status icon in your macOS Menu Bar.
-2. Open any application (e.g. Safari, TextEdit, Pages).
-3. Highlight a sentence or phrase with your mouse cursor.
-4. The OpenClip action HUD popup should appear immediately above your selection!
-
----
-
-## Launch at Login
-
-To make sure OpenClip is always running:
-
-1. Click the OpenClip menu bar icon or press your global hotkey to open **Preferences**.
-2. Under the **General** tab, check **Start at Login**.
+1. **Permission Check**: Verifies that Accessibility permission is granted.
+2. **Shortcut Setup**: Explains global hotkey triggers and mouse-release detection.
+3. **Quick Test**: Demonstrates selecting text in any text field to trigger the floating popup bar.
+4. **Login Item Configuration**: Option to enable launch at login (`LaunchAtLoginManager`).
