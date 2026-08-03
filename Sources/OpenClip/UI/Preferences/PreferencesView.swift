@@ -179,7 +179,8 @@ public struct PreferencesView: View {
                         AboutTab()
                     }
                 }
-                .frame(maxWidth: Self.detailContentMaxWidth, alignment: .topLeading)
+                .frame(maxWidth: Self.detailContentMaxWidth)
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
