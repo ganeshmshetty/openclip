@@ -19,10 +19,4 @@ public class PopupPanel: NSPanel {
         self.isOpaque = false
         self.hasShadow = false   // SwiftUI draws its own shadow; panel shadow causes double artifacts
     }
-
-    // A nonactivating panel may become the key window (and accept keyboard events) without
-    // activating the app. This lets Escape dismissal work via the local event monitor even when
-    // no Accessibility permission is granted to install a global monitor.
-    override public var canBecomeKey: Bool { true }
-    override public var canBecomeMain: Bool { true }
 }
