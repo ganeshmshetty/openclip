@@ -40,6 +40,7 @@ public struct PopupView: View {
     
     @State private var currentPage = 0
     @ObservedObject private var hoverState = PopupHoverState.shared
+    @ObservedObject private var aiManager = AIServiceManager.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
     @State private var isShowingCompletions: Bool = true
@@ -248,7 +249,7 @@ public struct PopupView: View {
                 exitAIMode()
             }
             
-            let aiPresets = AIServiceManager.shared.enabledPresets.map { ($0.title, $0.prompt) }
+            let aiPresets = aiManager.enabledPresets.map { ($0.title, $0.prompt) }
             
             ForEach(Array(aiPresets.enumerated()), id: \.offset) { index, preset in
                 let (title, prompt) = preset
@@ -315,7 +316,7 @@ public struct PopupView: View {
             }
 
             do {
-                let provider = AIServiceManager.shared.currentProvider
+                let provider = aiManager.currentProvider
                 let response = try await provider.process(prompt: prompt, text: selectionText)
                 guard !Task.isCancelled else { return }
 
@@ -390,7 +391,7 @@ public struct PopupView: View {
             }
 
             // Sparkles AI Button (if enabled)
-            if AIServiceManager.shared.isAIEnabled {
+            if aiManager.isAIEnabled {
                 let isHovered = hoveredTarget == .sparkles
                 Button(action: {
                     isShowingAIMode = true
