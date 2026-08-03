@@ -27,6 +27,9 @@ public struct PopupView: View {
     public let onShowBubble: (@MainActor (BubbleContent) -> Void)?
     /// When true, always render the AI sparkles button (used by the static popup preview).
     public let alwaysShowAISparkles: Bool
+    /// True when this is a static preview — hover tracking is disabled entirely so the
+    /// preview never reacts to (or leaks into) the real popup's shared hover state.
+    private let isStatic: Bool
 
     @AppStorage("popupTheme") private var selectedTheme: String = "system"
     @Environment(\.colorScheme) private var colorScheme
@@ -41,7 +44,9 @@ public struct PopupView: View {
     @AppStorage("completionCopyToClipboard") private var completionCopyToClipboard: Bool = false
     
     @State private var currentPage = 0
-    @ObservedObject private var hoverState = PopupHoverState.shared
+    /// The hover state this bar observes. The real popup uses the shared instance; the
+    /// static preview passes its own so the two never affect each other.
+    @ObservedObject private var hoverState: PopupHoverState
     @ObservedObject private var aiManager = AIServiceManager.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
@@ -63,6 +68,8 @@ public struct PopupView: View {
         context: ActionContext,
         initialAICardAboveBar: Bool = false,
         alwaysShowAISparkles: Bool = false,
+        hoverState: PopupHoverState = .shared,
+        isStatic: Bool = false,
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
@@ -81,6 +88,8 @@ public struct PopupView: View {
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onShowBubble = onShowBubble
         self.alwaysShowAISparkles = alwaysShowAISparkles
+        self.isStatic = isStatic
+        self._hoverState = ObservedObject(wrappedValue: hoverState)
         self._aiCardAboveBar = State(initialValue: initialAICardAboveBar)
     }
 
@@ -584,6 +593,7 @@ public struct PopupView: View {
     }
 
     private func updateHoveredTarget(for location: CGPoint?) {
+        guard !isStatic else { return }
         let target = location.flatMap { point in
             hoverFrames.first(where: { $0.value.contains(point) })?.key
         }
@@ -602,7 +612,7 @@ public struct PopupView: View {
     }
 
     private func useLocalHoverFallback(for target: PopupHoverTarget, isHovering: Bool) {
-        guard !hoverState.usesGlobalMouseMonitoring else { return }
+        guard !isStatic, !hoverState.usesGlobalMouseMonitoring else { return }
         if isHovering {
             guard hoveredTarget != target else { return }
             hoveredTarget = target
@@ -680,13 +690,13 @@ public struct PopupView: View {
 }
 
 @MainActor
-final class PopupHoverState: ObservableObject {
-    static let shared = PopupHoverState()
+public final class PopupHoverState: ObservableObject {
+    public static let shared = PopupHoverState()
 
-    @Published var location: CGPoint?
-    @Published var usesGlobalMouseMonitoring = false
+    @Published public var location: CGPoint?
+    @Published public var usesGlobalMouseMonitoring = false
 
-    private init() {}
+    public init() {}
 }
 
 private enum PopupHoverTarget: Hashable {
