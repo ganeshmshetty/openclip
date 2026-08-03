@@ -23,12 +23,21 @@ The floating popup panel subsystem presents contextual actions near the user's c
 - **Window Style**: `.nonactivatingPanel`, `.borderless`
 - **Window Level**: `.floating` (sits above normal application windows). The panel is deliberately **never** the key window (`canBecomeKey` stays the default `false`); making it key would steal keyboard focus from the active app and swallow keystrokes.
 - **Properties**: `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = false` (SwiftUI draws its own shadow; a panel shadow causes double artifacts).
+- **Shadow inset**: `PopupView` keeps ≥16pt of SwiftUI padding around the bar (12pt for info bubbles in `BubbleCardView`) so the SwiftUI shadow renders *inside* the panel rather than being clipped at its edge. If a shadow looks cut off, increase the padding — never re-enable the panel shadow.
 
 ### 2. [`PopupWindowController`](../../Sources/OpenClip/UI/Popup/PopupWindowController.swift)
 - **Responsibility**: Controls window creation, display lifecycle, event monitoring, hover tracking, and AI overlay panel positioning.
 - **Event Handling**: Sets up local and global `NSEvent` monitors (`.leftMouseDown`, `.mouseMoved`, `.scrollWheel`, `.keyDown`). The local monitor sees mouse events over the panel; the global monitor sees events system-wide.
 - **Dismissal Threshold**: Automatically dismisses the popup if the cursor moves beyond `Constants.popupDismissalDistance` (unless a blocking bubble is active).
 - **Keyboard Dismissal**: Requires Accessibility permission (the global monitor). Any key — including `Escape` — dismisses the popup. The global monitor is observation-only, so the keystroke still lands in the source app's document; the panel never needs to become the key window.
+
+---
+
+## Hover Tracking & Preview Isolation
+
+- **Shared hover state**: the real popup observes `PopupHoverState.shared`, a `@MainActor` `ObservableObject` (`location`, `usesGlobalMouseMonitoring`) fed by `PopupWindowController`'s global mouse monitor.
+- **Injected, not hardcoded**: `PopupView` receives `hoverState: PopupHoverState = .shared` and `isStatic: Bool = false` in its initializer. When `isStatic` is `true`, `updateHoveredTarget`/`useLocalHoverFallback` early-return, so hover tracking is fully inert.
+- **Static previews opt in**: [`PopupPreview`](../../Sources/OpenClip/UI/Popup/PopupPreview.swift) (Preferences Appearance tab + onboarding Finish) is a static visual with a fixed canonical action set; it passes its **own** `PopupHoverState()` and `isStatic: true` so hovering the preview never reacts to — or leaks into — the real popup's shared state.
 
 ---
 
