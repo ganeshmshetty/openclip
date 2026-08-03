@@ -64,7 +64,8 @@ public final class ActionCoordinator: ObservableObject, Sendable {
                 mouseDownLocation: context.selection.mouseDownLocation,
                 selectionBounds: context.selection.selectionBounds,
                 timestamp: context.selection.timestamp,
-                appPolicy: policy
+                appPolicy: policy,
+                isClipboardFallback: context.selection.isClipboardFallback
             )
         }
         let updatedContext = ActionContext(selection: updatedSelection, modifiers: context.modifiers)
