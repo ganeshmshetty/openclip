@@ -81,9 +81,6 @@ public class PopupWindowController {
         let size = sanitizedPopupSize(panel.contentView?.fittingSize)
         positionPanel(panel, size: size, for: context)
         panel.makeKeyAndOrderFront(nil)
-        // Make the panel the key window so it receives keyDown through the local event monitor.
-        // A nonactivating panel becoming key does not activate the app.
-        panel.makeKey()
         
         setupMonitors()
     }
@@ -427,9 +424,11 @@ public class PopupWindowController {
                 hide()
             }
         case .keyDown:
-            if event.keyCode == 53 { // Escape
-                hide()
-            }
+            // Any keystroke (including Escape) dismisses the popup. The panel is never the key
+            // window, so this is reachable only through the global monitor (Accessibility
+            // permission): the keystroke is merely observed here and still lands in the source
+            // app's document.
+            hide()
         default:
             break
         }
