@@ -354,7 +354,7 @@ public struct PopupView: View {
     private var completionHStack: some View {
         HStack(spacing: 0) {
             // Far Left: Up Arrow button toggles to normal actions mode
-            chevronButton(systemImage: "chevron.up", label: "Show completions") {
+            chevronButton(systemImage: "chevron.up", label: "Back to actions") {
                 isShowingCompletions = false
             }
             
@@ -376,7 +376,7 @@ public struct PopupView: View {
         HStack(spacing: 0) {
             // If completions exist but user toggled to normal actions, show Down Arrow button on left
             if hasCompletions {
-                chevronButton(systemImage: "chevron.down", label: "Back to actions") {
+                chevronButton(systemImage: "chevron.down", label: "Show completions") {
                     isShowingCompletions = true
                 }
             } else if hasLeftChevron {
