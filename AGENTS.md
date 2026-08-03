@@ -1,6 +1,6 @@
 # AGENTS.md — OpenClip AI Developer & Agent Guide
 
-> **Note for AI Assistant Agents (Antigravity, Claude Code, Codex, Copilot, Gemini CLI):**
+> **Note for AI Agents:**
 > This file is loaded into every session, so it stays lean: essential commands, the hard
 > design rules, and pointers to detail. Pull in a linked doc only when your task touches
 > that area. See §6 for how to keep this file current.
