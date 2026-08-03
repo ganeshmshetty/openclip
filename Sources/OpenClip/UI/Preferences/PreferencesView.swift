@@ -157,6 +157,8 @@ public struct PreferencesView: View {
                         .frame(width: 180)
                     }
                 }
+                .frame(maxWidth: Self.detailContentMaxWidth)
+                .frame(maxWidth: .infinity)
                 .padding(.top, 30)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
