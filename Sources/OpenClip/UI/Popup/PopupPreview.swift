@@ -22,6 +22,10 @@ struct PopupPreview: View {
         ServicesAction()
     ]
 
+    /// The preview observes its own hover state (and ignores hover entirely), so it
+    /// never reacts to — or leaks into — the real popup's shared hover state.
+    private static let previewHoverState = PopupHoverState()
+
     private var mockContext: ActionContext {
         let app = NSRunningApplication.current
         let context = SelectionContext(
@@ -45,7 +49,9 @@ struct PopupPreview: View {
             PopupView(
                 actions: Self.previewActions,
                 context: mockContext,
-                alwaysShowAISparkles: true
+                alwaysShowAISparkles: true,
+                hoverState: Self.previewHoverState,
+                isStatic: true
             ) { _ in }
                 .scaleEffect(1.1)
                 .padding(.vertical, 8)
