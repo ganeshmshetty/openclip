@@ -135,6 +135,7 @@ public struct OnboardingView: View {
         .padding(28)
         .frame(width: 520, height: 600)
         .glassSurface(.regular, cornerRadius: 20)
+        .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 8)
         .onAppear { permissionManager.startMonitoring() }
         .onDisappear { permissionManager.stopMonitoring() }
     }

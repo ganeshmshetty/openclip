@@ -20,7 +20,7 @@ public final class OnboardingWindowController: NSWindowController {
         window.isMovableByWindowBackground = true
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.hasShadow = true
+        window.hasShadow = false
         window.center()
 
         self.init(window: window)
