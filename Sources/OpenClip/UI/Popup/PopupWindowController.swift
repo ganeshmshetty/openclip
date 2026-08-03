@@ -35,7 +35,12 @@ public class PopupWindowController {
         
         let actionContext = ActionContext(selection: context, modifiers: [])
         currentActionContext = actionContext
-        let availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
+        var availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
+        // Shortcut-triggered with no selection (clipboard fallback): the text isn't a live
+        // selection, so only Paste (and the AI button, rendered separately) make sense.
+        if context.isClipboardFallback {
+            availableActions = availableActions.filter { $0.id == "builtin.paste" }
+        }
         
         let panel = self.panel ?? PopupPanel()
         self.panel = panel

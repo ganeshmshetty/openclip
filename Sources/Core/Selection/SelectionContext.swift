@@ -13,6 +13,8 @@ public struct SelectionContext: Sendable {
     public let selectionBounds: CGRect?
     public let timestamp: Date
     public let appPolicy: AppPolicyContext
+    /// True when the text came from the clipboard (shortcut triggered with no selection), not from a live selection.
+    public let isClipboardFallback: Bool
     
     public init(
         text: String,
@@ -21,7 +23,8 @@ public struct SelectionContext: Sendable {
         mouseDownLocation: CGPoint? = nil,
         selectionBounds: CGRect? = nil,
         timestamp: Date,
-        appPolicy: AppPolicyContext
+        appPolicy: AppPolicyContext,
+        isClipboardFallback: Bool = false
     ) {
         self.text = text
         self.sourceApp = sourceApp
@@ -30,5 +33,6 @@ public struct SelectionContext: Sendable {
         self.selectionBounds = selectionBounds
         self.timestamp = timestamp
         self.appPolicy = appPolicy
+        self.isClipboardFallback = isClipboardFallback
     }
 }
