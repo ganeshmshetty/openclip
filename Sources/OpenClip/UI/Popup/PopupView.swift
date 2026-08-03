@@ -138,7 +138,7 @@ public struct PopupView: View {
             .onReceive(hoverState.$location) { location in
                 updateHoveredTarget(for: location)
             }
-            .onChange(of: isProcessingAI) { active in
+            .onChange(of: isProcessingAI) { _, active in
                 onAIStateChange?(active, aiCardAboveBar)
             }
             .onDisappear {
