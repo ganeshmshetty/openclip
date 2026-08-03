@@ -48,13 +48,8 @@ public struct BubbleCardView: View {
         let cornerRadius: CGFloat = content.emphasis == .info ? 8 : 10
 
         if effectiveTheme == "glass" {
-            let material: some View = base
-                .background(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                )
             if #available(macOS 26, *) {
-                material
+                base
                     .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -62,7 +57,11 @@ public struct BubbleCardView: View {
                     )
                     .shadow(color: .black.opacity(shadowOpacity), radius: 10, x: 0, y: 4)
             } else {
-                material
+                base
+                    .background(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
