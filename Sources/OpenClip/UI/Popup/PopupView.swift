@@ -25,6 +25,8 @@ public struct PopupView: View {
     public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
     /// Called with a sub-action/menu bubble content to display (e.g. transform options). Drives the bubble panel.
     public let onShowBubble: (@MainActor (BubbleContent) -> Void)?
+    /// When true, always render the AI sparkles button (used by the static popup preview).
+    public let alwaysShowAISparkles: Bool
 
     @AppStorage("popupTheme") private var selectedTheme: String = "system"
     @Environment(\.colorScheme) private var colorScheme
@@ -60,6 +62,7 @@ public struct PopupView: View {
         actions: [any Action],
         context: ActionContext,
         initialAICardAboveBar: Bool = false,
+        alwaysShowAISparkles: Bool = false,
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
@@ -77,6 +80,7 @@ public struct PopupView: View {
         self.onAIDismiss = onAIDismiss
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onShowBubble = onShowBubble
+        self.alwaysShowAISparkles = alwaysShowAISparkles
         self._aiCardAboveBar = State(initialValue: initialAICardAboveBar)
     }
 
@@ -391,7 +395,7 @@ public struct PopupView: View {
             }
 
             // Sparkles AI Button (if enabled)
-            if aiManager.isAIEnabled {
+            if alwaysShowAISparkles || aiManager.isAIEnabled {
                 let isHovered = hoveredTarget == .sparkles
                 Button(action: {
                     isShowingAIMode = true
