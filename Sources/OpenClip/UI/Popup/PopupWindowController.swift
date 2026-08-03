@@ -81,6 +81,9 @@ public class PopupWindowController {
         let size = sanitizedPopupSize(panel.contentView?.fittingSize)
         positionPanel(panel, size: size, for: context)
         panel.makeKeyAndOrderFront(nil)
+        // Make the panel the key window so it receives keyDown through the local event monitor.
+        // A nonactivating panel becoming key does not activate the app.
+        panel.makeKey()
         
         setupMonitors()
     }
