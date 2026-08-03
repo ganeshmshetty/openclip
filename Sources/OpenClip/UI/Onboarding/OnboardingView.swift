@@ -134,8 +134,18 @@ public struct OnboardingView: View {
         }
         .padding(28)
         .frame(width: 520, height: 600)
-        .glassSurface(.regular, cornerRadius: 20)
-        .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 8)
+        // Solid rounded card with a subtle border so its edge reads clearly against the
+        // desktop. The border adapts to light/dark via Color.primary, and the shadow
+        // renders into the window's transparent inset (see OnboardingWindowController).
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
+                )
+        )
+        .shadow(color: Color.black.opacity(0.2), radius: 18, x: 0, y: 6)
         .onAppear { permissionManager.startMonitoring() }
         .onDisappear { permissionManager.stopMonitoring() }
     }
