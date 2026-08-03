@@ -26,7 +26,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         
         mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
             let point = NSEvent.mouseLocation
-            Task { @MainActor in
+            // Global monitors run on the main thread. Creating `Task { @MainActor in }` here
+            // makes the compiler emit an executor-isolation check that crashes in
+            // swift_task_isCurrentExecutorWithFlagsImpl after long uptime (known Swift 6 runtime
+            // bug); MainActor.assumeIsolated avoids that path.
+            MainActor.assumeIsolated {
                 self?.mouseDownLocation = point
             }
         }
@@ -35,7 +39,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             guard let app = NSWorkspace.shared.frontmostApplication else { return }
             let cursor = NSEvent.mouseLocation
             let clickCount = event.clickCount
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 self?.handleMouseUp(app: app, cursor: cursor, clickCount: clickCount)
             }
         }
