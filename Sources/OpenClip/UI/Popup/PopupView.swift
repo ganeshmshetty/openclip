@@ -268,7 +268,10 @@ public struct PopupView: View {
                 }) {
                     Text(title)
                         .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                         .foregroundColor(isHovered ? .white : restForeground)
+                        .frame(maxWidth: 160)
                         .padding(.horizontal, 10)
                         .frame(minHeight: 28)
                         .background(isHovered ? Color.accentColor : Color.clear)
@@ -441,7 +444,10 @@ public struct PopupView: View {
         } label: {
             Text(word)
                 .font(.system(size: 13, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .foregroundColor(isHovered ? .white : restForeground)
+                .frame(maxWidth: 140)
                 .padding(.horizontal, 10)
                 .frame(minWidth: buttonWidth, minHeight: 28)
                 .background(isHovered ? Color.accentColor : Color.clear)
