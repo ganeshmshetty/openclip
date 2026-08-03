@@ -3,8 +3,8 @@
 //
 // Renders the multi-step first-launch onboarding flow: Welcome (accessibility),
 // AI assistant configuration, recommended extensions, then a Finish summary.
-// Presented in a Liquid Glass panel on macOS 26+ with a standard-material
-// fallback on macOS 14-15.
+// Drawn as a solid rounded card (border + shadow) on a transparent borderless
+// window — a wizard is content, not navigation, so no Liquid Glass surface.
 import SwiftUI
 import AppKit
 
