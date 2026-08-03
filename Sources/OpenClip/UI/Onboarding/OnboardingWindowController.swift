@@ -18,6 +18,9 @@ public final class OnboardingWindowController: NSWindowController {
         )
         window.title = "Welcome to OpenClip"
         window.isMovableByWindowBackground = true
+        // Transparent borderless window — the solid rounded card inside OnboardingView
+        // is the only visible surface (no window background color to leak around the
+        // rounded corners), while the transparent inset gives the card's shadow room.
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
@@ -32,10 +35,9 @@ public final class OnboardingWindowController: NSWindowController {
         let hosting = NSHostingView(rootView: view)
         hosting.translatesAutoresizingMaskIntoConstraints = false
 
-        // A transparent container that insets the card so the SwiftUI shadow (radius 20,
-        // offset y 8) renders inside the window instead of being clipped at its edges.
-        // The window itself is shadowless (hasShadow = false) — the shadow follows the
-        // rounded glass corners of the card, not the window's square bounds.
+        // A transparent container that insets the card so the SwiftUI shadow renders
+        // inside the window instead of being clipped at its edges. The window itself
+        // is shadowless (hasShadow = false) — the shadow follows the rounded card.
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
         window.contentView = container
@@ -45,12 +47,10 @@ public final class OnboardingWindowController: NSWindowController {
             hosting.centerYAnchor.constraint(equalTo: container.centerYAnchor)
         ])
         // Size the window to the card plus the shadow inset, then center it on screen.
-        let inset: CGFloat = 28
+        let inset: CGFloat = 32
         let fitting = hosting.fittingSize
         if fitting.width > 0, fitting.height > 0 {
-            var frame = window.frame
-            frame.size = NSSize(width: fitting.width + inset * 2, height: fitting.height + inset * 2)
-            window.setFrame(frame, display: false)
+            window.setContentSize(NSSize(width: fitting.width + inset * 2, height: fitting.height + inset * 2))
         }
         window.center()
     }
