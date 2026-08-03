@@ -73,7 +73,7 @@ public struct ExtensionsStoreView: View {
                         .font(.system(size: 13))
                     TextField("Search extensions...", text: $viewModel.searchQuery)
                         .textFieldStyle(.plain)
-                        .onChange(of: viewModel.searchQuery) { _ in
+                        .onChange(of: viewModel.searchQuery) { _, _ in
                             Task { await viewModel.resetAndFetch() }
                         }
                 }
@@ -95,7 +95,7 @@ public struct ExtensionsStoreView: View {
                 }
                 .pickerStyle(.menu)
                 .frame(width: 140)
-                .onChange(of: viewModel.selectedCategory) { _ in
+                .onChange(of: viewModel.selectedCategory) { _, _ in
                     Task { await viewModel.resetAndFetch() }
                 }
 
