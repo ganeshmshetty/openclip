@@ -80,7 +80,7 @@ public class PopupWindowController {
         panel.contentView?.layoutSubtreeIfNeeded()
         let size = sanitizedPopupSize(panel.contentView?.fittingSize)
         positionPanel(panel, size: size, for: context)
-        panel.makeKeyAndOrderFront(nil)
+        panel.orderFront(nil)
         
         setupMonitors()
     }
@@ -137,7 +137,7 @@ public class PopupWindowController {
         y = max(screenBounds.minY + padding, min(y, screenBounds.maxY - bubbleSize.height - padding))
 
         bp.setFrame(CGRect(x: x, y: y, width: finalWidth, height: bubbleSize.height), display: true)
-        bp.makeKeyAndOrderFront(nil)
+        bp.orderFront(nil)
     }
 
     /// Replaces the AI overlay with a BubbleCardView `.result` bubble.

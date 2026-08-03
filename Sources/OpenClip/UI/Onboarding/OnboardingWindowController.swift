@@ -30,23 +30,29 @@ public final class OnboardingWindowController: NSWindowController {
             onComplete()
         }
         let hosting = NSHostingView(rootView: view)
-        // Let the hosting view drive the window size
         hosting.translatesAutoresizingMaskIntoConstraints = false
-        window.contentView = hosting
+
+        // A transparent container that insets the card so the SwiftUI shadow (radius 20,
+        // offset y 8) renders inside the window instead of being clipped at its edges.
+        // The window itself is shadowless (hasShadow = false) — the shadow follows the
+        // rounded glass corners of the card, not the window's square bounds.
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        window.contentView = container
+        container.addSubview(hosting)
         NSLayoutConstraint.activate([
-            hosting.topAnchor.constraint(equalTo: window.contentView!.topAnchor),
-            hosting.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor),
-            hosting.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor),
-            hosting.bottomAnchor.constraint(equalTo: window.contentView!.bottomAnchor)
+            hosting.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            hosting.centerYAnchor.constraint(equalTo: container.centerYAnchor)
         ])
-        // Fit the window to the SwiftUI content size
-        if let fittingSize = window.contentView?.fittingSize, fittingSize.height > 0 {
+        // Size the window to the card plus the shadow inset, then center it on screen.
+        let inset: CGFloat = 28
+        let fitting = hosting.fittingSize
+        if fitting.width > 0, fitting.height > 0 {
             var frame = window.frame
-            let newHeight = fittingSize.height
-            frame.origin.y += frame.height - newHeight
-            frame.size.height = newHeight
+            frame.size = NSSize(width: fitting.width + inset * 2, height: fitting.height + inset * 2)
             window.setFrame(frame, display: false)
         }
+        window.center()
     }
 
     public override func showWindow(_ sender: Any?) {
