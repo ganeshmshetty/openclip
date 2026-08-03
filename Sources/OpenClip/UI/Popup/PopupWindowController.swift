@@ -293,7 +293,11 @@ public class PopupWindowController {
     /// Resize the bar-only panel, keeping the bar's top (maxY) fixed so it doesn't jump.
     private func resizePanel(to proposedSize: CGSize) {
         guard let panel, panel.isVisible else { return }
-        let size = sanitizedPopupSize(proposedSize)
+        var size = sanitizedPopupSize(proposedSize)
+        if let screen = panel.screen {
+            let maxWidth = max(0, screen.visibleFrame.width - Constants.popupPadding * 2)
+            size.width = min(size.width, maxWidth)
+        }
         let current = panel.frame.size
         if abs(current.width - size.width) < 1, abs(current.height - size.height) < 1 { return }
         // Bar-only panel: keep maxY fixed, resize downward (though height rarely changes now)

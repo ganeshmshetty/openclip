@@ -40,9 +40,13 @@ public struct PopupPositioner: Sendable {
     ) -> CGRect {
         let padding: CGFloat = Constants.popupPadding
 
+        // --- Clamp popup width so a too-wide popup never overflows the right edge ---
+        let maxPopupWidth = max(0, screenBounds.width - 2 * padding)
+        let popupWidth = max(0, min(popupSize.width, maxPopupWidth))
+
         // --- Horizontal: center on release X, clamp to edges ---
-        var x = releasePoint.x - popupSize.width / 2
-        x = max(screenBounds.minX + padding, min(x, screenBounds.maxX - popupSize.width - padding))
+        var x = releasePoint.x - popupWidth / 2
+        x = max(screenBounds.minX + padding, min(x, screenBounds.maxX - popupWidth - padding))
 
         // --- Vertical Direction Check ---
         // macOS screen coords: Y increases upwards (0 is bottom of screen).
@@ -77,6 +81,6 @@ public struct PopupPositioner: Sendable {
             }
         }
 
-        return CGRect(x: x, y: y, width: popupSize.width, height: popupSize.height)
+        return CGRect(x: x, y: y, width: popupWidth, height: popupSize.height)
     }
 }
