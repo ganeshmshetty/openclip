@@ -1,16 +1,26 @@
 // PopupPreview.swift
 // OpenClip
 //
-// Live preview of the popup bar rendered with a small mock action set, mirroring how
-// the real bar will look for the currently selected theme. Shared by the Preferences
-// Appearance tab and the onboarding Finish step.
+// Static visual preview of the popup bar rendered with a fixed action set
+// (Search, Copy, Cut, Paste, Share + AI), mirroring how the real bar will look
+// for the currently selected theme. It is intentionally decoupled from the live
+// action registry so it always shows the same canonical actions. Shared by the
+// Preferences Appearance tab and the onboarding Finish step.
 import SwiftUI
 import AppKit
 import Core
 
 @MainActor
 struct PopupPreview: View {
-    @ObservedObject private var coordinator = ActionCoordinator.shared
+    /// The canonical action set shown in the preview, independent of what the user
+    /// has enabled/reordered in the real popup.
+    private static let previewActions: [any Action] = [
+        SearchAction(),
+        CopyAction(),
+        CutAction(),
+        PasteAction(),
+        ServicesAction()
+    ]
 
     private var mockContext: ActionContext {
         let app = NSRunningApplication.current
@@ -25,20 +35,18 @@ struct PopupPreview: View {
         return ActionContext(selection: context, modifiers: [])
     }
 
-    private var mockActions: [any Action] {
-        let available = coordinator.resolveActions(for: mockContext)
-        // Show up to 5 actions in the preview to look clean
-        return Array(available.prefix(5))
-    }
-
     var body: some View {
         VStack(spacing: 12) {
-            Text("Live Popup Preview")
+            Text("Popup Preview")
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
 
-            PopupView(actions: mockActions, context: mockContext) { _ in }
+            PopupView(
+                actions: Self.previewActions,
+                context: mockContext,
+                alwaysShowAISparkles: true
+            ) { _ in }
                 .scaleEffect(1.1)
                 .padding(.vertical, 8)
         }
