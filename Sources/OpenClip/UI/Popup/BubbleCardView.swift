@@ -264,7 +264,7 @@ public struct BubbleCardView: View {
                         .background(index.isMultiple(of: 2) ? Color.primary.opacity(0.04) : Color.clear)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(option.title)
+                    .accessibilityLabel(option.subtitle.map { "\(option.title): \($0)" } ?? option.title)
                 }
             }
         }
