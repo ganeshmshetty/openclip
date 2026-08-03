@@ -48,6 +48,7 @@ public struct EditActionSheet: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)

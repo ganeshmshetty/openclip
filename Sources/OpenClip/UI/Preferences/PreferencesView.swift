@@ -98,6 +98,7 @@ public struct PreferencesView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Help Center")
+                    .accessibilityLabel("Help Center")
                     
                     Button(action: {
                         if let url = URL(string: "https://github.com/ganeshmshetty/openclip") {
@@ -111,6 +112,7 @@ public struct PreferencesView: View {
                     }
                     .buttonStyle(.plain)
                     .help("GitHub Repository")
+                    .accessibilityLabel("GitHub Repository")
                     
                     Spacer()
                 }
@@ -228,6 +230,7 @@ struct GeneralTab: View {
                     Spacer()
                     Toggle("", isOn: $isAppEnabled)
                         .labelsHidden()
+                        .accessibilityLabel("Enable OpenClip")
                         .onChange(of: isAppEnabled) { _, newValue in
                             NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
                         }
@@ -276,6 +279,7 @@ struct GeneralTab: View {
                     Spacer()
                     Toggle("", isOn: $launchManager.isEnabled)
                         .labelsHidden()
+                        .accessibilityLabel("Start at Login")
                 }
                 .padding(.vertical, 4)
             }
@@ -502,6 +506,7 @@ struct ActionRowView: View {
                     .buttonStyle(.plain)
                     .frame(width: 24, height: 24)
                     .help("Delete Custom Action")
+                    .accessibilityLabel("Delete Custom Action")
                 case .extensionPkg:
                     Button(action: {
                         Task {
@@ -515,6 +520,7 @@ struct ActionRowView: View {
                     .buttonStyle(.plain)
                     .frame(width: 24, height: 24)
                     .help("Uninstall Extension")
+                    .accessibilityLabel("Uninstall Extension")
                 case .builtin:
                     EmptyView()
                 }
@@ -524,6 +530,7 @@ struct ActionRowView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.small)
+                    .accessibilityLabel("Enable \(action.displayTitle)")
                 
                 // Edit / Configure Button
                 Button(action: {
@@ -536,6 +543,7 @@ struct ActionRowView: View {
                 .buttonStyle(.plain)
                 .frame(width: 24, height: 24)
                 .help("Configure Action")
+                .accessibilityLabel("Configure Action")
                 .sheet(isPresented: $showingConfigSheet) {
                     EditActionSheet(action: action)
                 }
@@ -602,6 +610,7 @@ struct TransformGroupRowView: View {
                                     .labelsHidden()
                                     .toggleStyle(.switch)
                                     .controlSize(.small)
+                                    .accessibilityLabel("Enable \(tCase.displayName)")
                             }
                         }
                     }
@@ -643,6 +652,7 @@ struct TransformGroupRowView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
+                        .accessibilityLabel("Enable \(groupAction.displayTitle)")
                     
                     // Edit / Configure Button
                     Button(action: {
@@ -655,6 +665,7 @@ struct TransformGroupRowView: View {
                     .buttonStyle(.plain)
                     .frame(width: 24, height: 24)
                     .help("Configure Action")
+                    .accessibilityLabel("Configure Action")
                     .sheet(isPresented: $showingConfigSheet) {
                         EditActionSheet(action: groupAction)
                     }

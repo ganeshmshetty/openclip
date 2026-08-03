@@ -66,6 +66,7 @@ public struct AITab: View {
                                     }
                                 ))
                                 .labelsHidden()
+                                .accessibilityLabel("Enable \(preset.title)")
 
                                 Text(preset.title)
                                     .font(.system(size: 13, weight: .medium))
@@ -81,6 +82,7 @@ public struct AITab: View {
                                 }
                                 .buttonStyle(.plain)
                                 .help("Edit Action Prompt")
+                                .accessibilityLabel("Edit Action Prompt")
 
                                 if isCustomPreset(preset) {
                                     Button(action: {
@@ -92,6 +94,7 @@ public struct AITab: View {
                                     }
                                     .buttonStyle(.plain)
                                     .help("Delete Custom Action")
+                                    .accessibilityLabel("Delete Custom Action")
                                 }
                             }
                             .padding(.vertical, 4)

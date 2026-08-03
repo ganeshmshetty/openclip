@@ -73,6 +73,7 @@ public struct OnboardingView: View {
                                 .font(.system(size: 14))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Close")
                     }
                     Text("Step \(step.rawValue + 1) of \(OnboardingStep.allCases.count)")
                         .font(.system(size: 11))

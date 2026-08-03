@@ -146,6 +146,7 @@ private struct AppRuleRowView: View {
             .toggleStyle(.switch)
             .controlSize(.small)
             .help(isAppDisabled ? "Enable OpenClip in this app" : "Disable OpenClip in this app")
+            .accessibilityLabel(isAppDisabled ? "Enable OpenClip in this app" : "Disable OpenClip in this app")
             
             // Three-Dots (...) Actions Menu
             Menu {
@@ -215,6 +216,7 @@ private struct AppRuleRowView: View {
             .menuIndicator(.hidden)
             .fixedSize()
             .help("More Actions")
+            .accessibilityLabel("More Actions")
         }
         .padding(.vertical, 6)
     }

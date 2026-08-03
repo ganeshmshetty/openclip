@@ -61,6 +61,7 @@ public struct AppPickerSheet: View {
                 }
                 .buttonStyle(.plain)
                 .help("Close")
+                .accessibilityLabel("Close")
             }
             .padding(.horizontal, 14)
             .padding(.top, 12)
