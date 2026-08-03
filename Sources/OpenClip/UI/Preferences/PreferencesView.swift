@@ -205,7 +205,7 @@ public struct PreferencesView: View {
 struct GeneralTab: View {
     @AppStorage(Constants.isAppEnabledKey) private var isAppEnabled: Bool = true
     @ObservedObject private var launchManager = LaunchAtLoginManager.shared
-    @State private var isAXTrusted: Bool = AXIsProcessTrustedWithOptions(nil)
+    @ObservedObject private var permissionManager = PermissionManager.shared
     
     var body: some View {
         Form {
@@ -290,14 +290,14 @@ struct GeneralTab: View {
                     HStack(spacing: 12) {
                         Image(systemName: "lock.shield")
                             .font(.system(size: 16))
-                            .foregroundColor(isAXTrusted ? .green : .orange)
+                            .foregroundColor(permissionManager.isAccessibilityGranted ? .green : .orange)
                             .frame(width: 22, alignment: .center)
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Accessibility Access")
                                 .font(.body)
                                 .fontWeight(.medium)
-                            Text(isAXTrusted ? "Active permission for text detection" : "Required to detect selected text in apps")
+                            Text(permissionManager.isAccessibilityGranted ? "Active permission for text detection" : "Required to detect selected text in apps")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -307,18 +307,18 @@ struct GeneralTab: View {
                     
                     HStack(spacing: 10) {
                         HStack(spacing: 5) {
-                            Image(systemName: isAXTrusted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            Image(systemName: permissionManager.isAccessibilityGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                                 .font(.caption)
-                            Text(isAXTrusted ? "Granted" : "Required")
+                            Text(permissionManager.isAccessibilityGranted ? "Granted" : "Required")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                         }
-                        .foregroundColor(isAXTrusted ? .green : .orange)
+                        .foregroundColor(permissionManager.isAccessibilityGranted ? .green : .orange)
                         .padding(.horizontal, 9)
                         .padding(.vertical, 4)
                         .background(
                             Capsule()
-                                .fill((isAXTrusted ? Color.green : Color.orange).opacity(0.15))
+                                .fill((permissionManager.isAccessibilityGranted ? Color.green : Color.orange).opacity(0.15))
                         )
                         
                         Button("Open Settings") {
@@ -337,7 +337,7 @@ struct GeneralTab: View {
         .scrollContentBackground(.hidden)
         .padding(12)
         .onAppear {
-            isAXTrusted = AXIsProcessTrustedWithOptions(nil)
+            permissionManager.checkStatus()
         }
     }
 }
