@@ -49,7 +49,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand)
                 
                 Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 100_000_000)
+                    try? await Task.sleep(nanoseconds: UInt64(Constants.pasteboardRestoreDelay * 1_000_000_000))
                     self.restorePasteboard(pasteboard, items: savedItems)
                 }
             }
