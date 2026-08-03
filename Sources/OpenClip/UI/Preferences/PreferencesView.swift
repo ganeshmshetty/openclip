@@ -30,6 +30,11 @@ enum PreferenceTab: String, CaseIterable, Hashable {
 
 @MainActor
 public struct PreferencesView: View {
+    /// Shared max content width for the detail area. Matches the grouped-form content
+    /// cap (600pt on macOS 15+), so Actions/Appearance/Extensions render at the same
+    /// width as the form-based tabs instead of stretching with the window.
+    private static let detailContentMaxWidth: CGFloat = 600
+
     @AppStorage(Constants.startAtLoginKey) private var startAtLogin: Bool = false
     
     @State private var disabledActionIDs: Set<String> = []
@@ -174,6 +179,7 @@ public struct PreferencesView: View {
                         AboutTab()
                     }
                 }
+                .frame(maxWidth: Self.detailContentMaxWidth, alignment: .topLeading)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
