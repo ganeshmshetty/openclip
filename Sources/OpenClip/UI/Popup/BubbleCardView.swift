@@ -40,7 +40,7 @@ public struct BubbleCardView: View {
     @ViewBuilder
     private var cardContainer: some View {
         let base = cardContent
-            .padding(content.emphasis == .info ? 8 : 12)
+            .padding(content.emphasis == .info ? 12 : 16)
             .frame(minWidth: content.emphasis == .info ? 120 : 220,
                    idealWidth: content.emphasis == .info ? 160 : 300,
                    maxWidth: content.emphasis == .info ? 240 : 360)

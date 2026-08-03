@@ -120,7 +120,7 @@ public struct PopupView: View {
 
     public var body: some View {
         barContent
-            .padding(12)
+            .padding(16)
             .coordinateSpace(name: "popupHoverSpace")
             .background(
                 GeometryReader { proxy in
