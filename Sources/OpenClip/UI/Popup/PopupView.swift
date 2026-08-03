@@ -244,7 +244,7 @@ public struct PopupView: View {
 
     private var aiHStack: some View {
         HStack(spacing: 0) {
-            chevronButton(systemImage: "chevron.left") {
+            chevronButton(systemImage: "chevron.left", label: "Exit AI tools") {
                 exitAIMode()
             }
             
@@ -277,6 +277,7 @@ public struct PopupView: View {
                 .buttonStyle(.plain)
                 .disabled(isProcessingAI)
                 .help(prompt)
+                .accessibilityLabel(title)
                 .popupHoverTarget(.aiPreset(index))
                 .onHover { isHovering in
                     useLocalHoverFallback(for: .aiPreset(index), isHovering: isHovering)
@@ -349,7 +350,7 @@ public struct PopupView: View {
     private var completionHStack: some View {
         HStack(spacing: 0) {
             // Far Left: Up Arrow button toggles to normal actions mode
-            chevronButton(systemImage: "chevron.up") {
+            chevronButton(systemImage: "chevron.up", label: "Show completions") {
                 isShowingCompletions = false
             }
             
@@ -371,11 +372,11 @@ public struct PopupView: View {
         HStack(spacing: 0) {
             // If completions exist but user toggled to normal actions, show Down Arrow button on left
             if hasCompletions {
-                chevronButton(systemImage: "chevron.down") {
+                chevronButton(systemImage: "chevron.down", label: "Back to actions") {
                     isShowingCompletions = true
                 }
             } else if hasLeftChevron {
-                chevronButton(systemImage: "chevron.left") { currentPage -= 1 }
+                chevronButton(systemImage: "chevron.left", label: "Previous page") { currentPage -= 1 }
             }
 
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
@@ -400,6 +401,7 @@ public struct PopupView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Open AI Tools")
+                .accessibilityLabel("AI Tools")
                 .popupHoverTarget(.sparkles)
                 .onHover { isHovering in
                     useLocalHoverFallback(for: .sparkles, isHovering: isHovering)
@@ -407,7 +409,7 @@ public struct PopupView: View {
             }
 
             if !hasCompletions && hasRightChevron {
-                chevronButton(systemImage: "chevron.right") { currentPage += 1 }
+                chevronButton(systemImage: "chevron.right", label: "Next page") { currentPage += 1 }
             }
         }
         .fixedSize()
@@ -453,6 +455,7 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(word)
         .popupHoverTarget(.completion(index))
         .onHover { isHovering in
             useLocalHoverFallback(for: .completion(index), isHovering: isHovering)
@@ -506,6 +509,7 @@ public struct PopupView: View {
             }
             .buttonStyle(.plain)
             .help(action.displayTitle)
+            .accessibilityLabel(action.displayTitle)
             .popupHoverTarget(.action(index))
             .onHover { isHovering in
                 useLocalHoverFallback(for: .action(index), isHovering: isHovering)
@@ -525,6 +529,7 @@ public struct PopupView: View {
             }
             .buttonStyle(.plain)
             .applyBubbleTooltip(for: action, fallback: action.title)
+            .accessibilityLabel(action.displayTitle)
             .popupHoverTarget(.action(index))
             .onHover { isHovering in
                 useLocalHoverFallback(for: .action(index), isHovering: isHovering)
@@ -533,7 +538,7 @@ public struct PopupView: View {
     }
 
     @ViewBuilder
-    private func chevronButton(systemImage: String, action: @escaping () -> Void) -> some View {
+    private func chevronButton(systemImage: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
@@ -542,6 +547,7 @@ public struct PopupView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .popupHoverTarget(.chevron)
         .onHover { isHovering in
             useLocalHoverFallback(for: .chevron, isHovering: isHovering)

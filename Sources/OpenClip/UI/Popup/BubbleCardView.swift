@@ -157,6 +157,7 @@ public struct BubbleCardView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Dismiss")
+                    .accessibilityLabel("Dismiss")
                 }
             }
 
@@ -202,10 +203,12 @@ public struct BubbleCardView: View {
             Button { onOutcome(option.outcome) } label: { label }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
+                .accessibilityLabel(option.title)
         } else {
             Button { onOutcome(option.outcome) } label: { label }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .accessibilityLabel(option.title)
         }
     }
 
@@ -261,6 +264,7 @@ public struct BubbleCardView: View {
                         .background(index.isMultiple(of: 2) ? Color.primary.opacity(0.04) : Color.clear)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(option.title)
                 }
             }
         }
