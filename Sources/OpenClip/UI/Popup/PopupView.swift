@@ -721,24 +721,16 @@ public struct PopupView: View {
         let selectionText = context.selection.text
         var rows: [BubbleRow] = []
 
-        for category in TransformCategory.allCases {
-            let catCases = enabledTransformCases
-                .filter { $0.category == category && $0.isRelevant(for: selectionText) }
-            if catCases.isEmpty { continue }
-
-            rows.append(.text(category.rawValue))
-
-            for tCase in catCases {
-                let res = tCase.transform(selectionText)
-                rows.append(.option(
-                    BubbleOption(
-                        title: tCase.displayName,
-                        subtitle: res,
-                        icon: "textformat",
-                        outcome: .perform(.paste(res))
-                    )
-                ))
-            }
+        for tCase in enabledTransformCases where tCase.isRelevant(for: selectionText) {
+            let res = tCase.transform(selectionText)
+            rows.append(.option(
+                BubbleOption(
+                    title: tCase.displayName,
+                    subtitle: res,
+                    icon: "textformat",
+                    outcome: .perform(.paste(res))
+                )
+            ))
         }
 
         return BubbleContent(
