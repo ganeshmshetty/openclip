@@ -5,7 +5,7 @@
 | **Title** | OpenClip Extension System Expansion |
 | **Author** | (implementation team) |
 | **Date** | 2026-08-03 (revised 2026-08-04) |
-| **Status** | Draft |
+| **Status** | Implemented (Phases 1–8; branch ext/extension-expansion) |
 | **Repo** | `/Users/ganesh/dev/openclip` |
 | **Audience** | Senior engineers implementing against Core + App targets |
 
@@ -1862,6 +1862,16 @@ not a constraint** (no migration maps, no legacy ID preservation).
 4. **Per-action AND per-package disable:** keep `disabledActionIDs`; add the `disabledPackages` SettingKey (set of package IDs). `ActionRegistry.availableActions` filters by package (package ID from `action.chrome.source`); Preferences shows a package-level toggle per extension group (only when the package has ≥2 actions) plus per-row toggles.
 5. **Snippet headers not expanded:** no new header keys (`# apps:` etc.); snippets keep folding into the manifest model; JSON manifests are the rich surface. (Note: `# regex:` is honored only by the Tier-B fallback in `ExtensionManager.loadStandaloneScriptExtension`, ~line 366, not by `OpenClipSnippetParser`.)
 6. **`ActionOptionRuntime` removed:** the store is injected through the factory — `DefaultActionFactory(optionStore:)`; extension action types carry `any ActionOptionReading` (default `SettingsActionOptionStore()`).
+
+**2026-08-04 post-implementation amendments (menu generalization):** the hardcoded transform sub-menu was
+generalized into action-level capabilities. New `RelevanceProviding` (opt-in, sync `isRelevant(for:)`) +
+reuse of `PreviewProviding` for sub-menu subtitles (no new preview protocol); `MenuDecoratedAction` (Core)
+passively stamps a `menuRelevance` regex and a `menuPreview` placeholder template onto an action; the popup's
+`menuBubble` is now the single registry-driven sub-menu for every group, with the `TransformSubAction`
+type-check and `transformMenuBubble` deleted. Manifest keys `menuRelevance` / `menuPreview` are optional
+(`decodeIfPresent`), stamped by the factory. Categories are dropped (no section headers anywhere); the
+transform group was reduced to the four case conversions (uppercase/lowercase/Title Case/camelCase), all
+default-enabled with the group row on by default (`TransformCase.defaultDisabledActionIDs` is now empty).
 
 **Not yet created:** `Notification.Name.openClipOpenActionConfiguration` (the repo currently uses inline string literals, e.g. `Notification.Name("OpenClipEnabledStateChanged")`) — Phase 2 adds a `Notification.Name` extension.
 

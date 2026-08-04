@@ -67,7 +67,8 @@ These change behavior — keep them.
 - **No `switch action.id` string matching in presentation.** Use `ConfigurableAction.preferenceIconName`,
   `action.chrome.badge`, `action.icon`. (One legacy block in `ActionCustomizationManager.tableIcon`.)
 - **Transform on/off policy lives on `TransformCase.defaultDisabledActionIDs`**, not the registry;
-  menu relevance filtering in `TransformCase.isRelevant(for:)`.
+  menu relevance filtering in `TransformCase.isRelevant(for:)`. Transform is now the four case
+  conversions (uppercase/lowercase/Title Case/camelCase) — all on by default, group row default-on.
 - **`OpenClipSnippetParser` is a pure text parser** — no `@MainActor`/UI. (Currently `@MainActor`; removal planned.)
 - **Subprocess actions need a timeout watchdog** — terminate if past `Constants.scriptTimeout` (30 s).
   Any new action that spawns a subprocess must follow.
