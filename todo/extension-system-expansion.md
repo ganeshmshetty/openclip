@@ -5,7 +5,7 @@
 | **Title** | OpenClip Extension System Expansion |
 | **Author** | (implementation team) |
 | **Date** | 2026-08-03 (revised 2026-08-04) |
-| **Status** | Draft |
+| **Status** | Implemented (Phases 1–8; branch `ext/extension-expansion`, 10 commits) |
 | **Repo** | `/Users/ganesh/dev/openclip` |
 | **Audience** | Senior engineers implementing against Core + App targets |
 
