@@ -60,8 +60,10 @@ These change behavior — keep them.
 - **Accept dependencies, don't create them.** Core types needing settings accept `SettingsStore`
   in `init` (default `DefaultSettingsStore.shared`); tests inject a fake store.
 - **No `ActionRegistry.shared` in Core domain.** Only `ActionCoordinator` touches the registry
-  directly. `CustomActionManager`/`ExtensionManager` report via `onRegister`/`onUnregister`
-  callbacks wired in `ActionCoordinator.loadInitialState()`.
+  directly. `ExtensionManager` reports via `onRegister`/`onUnregister` callbacks wired in
+  `ActionCoordinator.loadInitialState()`. The JSON manifest is the only canonical action
+  definition: Add/Edit sheets write manifest packages via `CustomActionManifestWriter`, and
+  `custom_actions.json`/`CustomActionManager` are retired.
 - **No `switch action.id` string matching in presentation.** Use `ConfigurableAction.preferenceIconName`,
   `action.chrome.badge`, `action.icon`. (One legacy block in `ActionCustomizationManager.tableIcon`.)
 - **Transform on/off policy lives on `TransformCase.defaultDisabledActionIDs`**, not the registry;

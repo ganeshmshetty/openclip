@@ -1,82 +1,111 @@
 import XCTest
 @testable import Core
+@testable import OpenClip
 
-final class CustomActionManagerTests: XCTestCase {
-    private struct MockApp: AppIdentifying {
-        let bundleIdentifier: String?
-        let localizedName: String?
+final class CustomActionManifestWriterTests: XCTestCase {
+    var tempDir: URL!
+    
+    override func setUp() {
+        super.setUp()
+        tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     }
     
-    var tempDirectory: URL!
-    var originalActions: [any Action]!
-    
-    @MainActor
-    override func setUp() async throws {
-        // Setup code if needed
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: tempDir)
+        super.tearDown()
     }
     
     @MainActor
-    override func tearDown() async throws {
-        CustomActionManager.shared.delete(customActionID: "test_web")
-        CustomActionManager.shared.delete(customActionID: "test_snippet")
-        CustomActionManager.shared.delete(customActionID: "test_shell")
-    }
-
-    @MainActor
-    func testEncodingAndPersistence() throws {
+    func testWriterWritesSingleActionManifestPackage() throws {
         let action = CustomAction(
-            id: "test_web",
+            id: "com.custom.abc123",
             title: "Test Web Search",
             iconName: "magnifyingglass",
             type: .webSearch(urlTemplate: "https://example.com/?q={text}")
         )
+        let manifestURL = try CustomActionManifestWriter.write(action: action, to: tempDir)
         
-        CustomActionManager.shared.register(customAction: action)
-        XCTAssertTrue(CustomActionManager.shared.customActions.contains(where: { $0.id == "test_web" }))
+        // The package folder is named by the action id and holds openclip.json.
+        XCTAssertEqual(manifestURL.deletingLastPathComponent().lastPathComponent, action.id)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: manifestURL.path))
         
-        CustomActionManager.shared.load()
-        XCTAssertTrue(CustomActionManager.shared.customActions.contains(where: { $0.id == "test_web" }))
-        
-        CustomActionManager.shared.delete(customActionID: "test_web")
-        XCTAssertFalse(CustomActionManager.shared.customActions.contains(where: { $0.id == "test_web" }))
+        let data = try Data(contentsOf: manifestURL)
+        let manifest = try JSONDecoder().decode(ExtensionMetadata.self, from: data)
+        XCTAssertEqual(manifest.identifier, action.id)
+        XCTAssertEqual(manifest.actions.count, 1)
+        XCTAssertEqual(manifest.actions[0].title, "Test Web Search")
+        XCTAssertEqual(manifest.actions[0].type, "url")
+        XCTAssertEqual(manifest.actions[0].url, "https://example.com/?q={text}")
     }
-
+    
     @MainActor
-    func testTextSnippetExecution() async throws {
+    func testWriterRoundTripLoadsActionViaExtensionManager() async throws {
         let action = CustomAction(
-            id: "test_snippet",
+            id: "com.custom.roundtrip1",
+            title: "Round Trip Web",
+            iconName: "magnifyingglass",
+            type: .webSearch(urlTemplate: "https://example.com/search?q={text}")
+        )
+        try CustomActionManifestWriter.write(action: action, to: tempDir)
+        
+        let manager = ExtensionManager.shared
+        manager.actionFactory = DefaultActionFactory()
+        defer { manager.actionFactory = nil }
+        
+        await manager.loadExtensions(from: tempDir)
+        
+        let loaded = manager.loadedActions.first(where: { $0.id == action.id })
+        XCTAssertNotNil(loaded, "Expected the written action to reload with its id")
+        
+        // The reloaded id follows the uniform rule: explicit dot-containing id round-trips verbatim.
+        XCTAssertEqual(loaded?.id, ExtensionManager.uniformActionID(
+            metadata: manifestAction(for: action),
+            manifest: ExtensionMetadata(identifier: action.id, name: action.title, actions: [manifestAction(for: action)]),
+            index: 0
+        ))
+        // A manifest URL action rehydrates as URLTemplateAction with the template and extension chrome.
+        guard let urlAction = loaded as? URLTemplateAction else {
+            XCTFail("Expected the webSearch action to load as URLTemplateAction")
+            return
+        }
+        XCTAssertEqual(urlAction.urlTemplate, "https://example.com/search?q={text}")
+        XCTAssertEqual(urlAction.chrome.source, .extensionPkg(packageID: action.id))
+    }
+    
+    @MainActor
+    func testWriterRoundTripsTextSnippetAndShellScript() async throws {
+        let snippet = CustomAction(
+            id: "com.custom.snippet1",
             title: "Snippet",
             iconName: "doc.text",
             type: .textSnippet(template: "Hello {text}!")
         )
-        
-        let context = ActionContext(selection: SelectionContext(text: "World", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
-        XCTAssertTrue(action.isEnabled(for: context))
-        
-        let result = try await action.perform(context)
-        if case .paste(let string) = result {
-            XCTAssertEqual(string, "Hello World!")
-        } else {
-            XCTFail("Expected .paste result")
-        }
-    }
-    
-    @MainActor
-    func testShellScriptExecution() async throws {
-        let action = CustomAction(
-            id: "test_shell",
+        let shell = CustomAction(
+            id: "com.custom.shell1",
             title: "Shell",
             iconName: "terminal",
-            type: .shellScript(script: "echo -n \"$OPENCLIP_TEXT received\"", replaceSelection: false)
+            type: .shellScript(script: "echo \"$OPENCLIP_TEXT\"", replaceSelection: true)
         )
+        try CustomActionManifestWriter.write(action: snippet, to: tempDir)
+        try CustomActionManifestWriter.write(action: shell, to: tempDir)
         
-        let context = ActionContext(selection: SelectionContext(text: "Data", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
-        let result = try await action.perform(context)
+        let manager = ExtensionManager.shared
+        manager.actionFactory = DefaultActionFactory()
+        defer { manager.actionFactory = nil }
         
-        if case .copy(let string) = result {
-            XCTAssertEqual(string, "Data received")
-        } else {
-            XCTFail("Expected .copy result")
-        }
+        await manager.loadExtensions(from: tempDir)
+        
+        let loadedSnippet = manager.loadedActions.first(where: { $0.id == snippet.id }) as? CustomAction
+        XCTAssertEqual(loadedSnippet?.type, snippet.type)
+        XCTAssertEqual(loadedSnippet?.chrome.source, .extensionPkg(packageID: snippet.id))
+        
+        let loadedShell = manager.loadedActions.first(where: { $0.id == shell.id }) as? CustomAction
+        XCTAssertEqual(loadedShell?.type, shell.type)
+        XCTAssertEqual(loadedShell?.chrome.source, .extensionPkg(packageID: shell.id))
+    }
+    
+    private func manifestAction(for action: CustomAction) -> ExtensionActionMetadata {
+        CustomActionManifestWriter.metadata(for: action).actions[0]
     }
 }

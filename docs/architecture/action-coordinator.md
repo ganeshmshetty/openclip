@@ -1,6 +1,6 @@
 # Action Coordinator & Registry Architecture
 
-The [`ActionCoordinator`](../../Sources/Core/Actions/ActionCoordinator.swift) serves as the **Action Coordinator & Composition** of OpenClip. It bridges domain managers (`CustomActionManager`, `ExtensionManager`, `RuleEngine`) with the central [`ActionRegistry`](../../Sources/Core/Actions/ActionRegistry.swift) catalog, resolving available actions based on user configuration, current text selection, and active application policy rules.
+The [`ActionCoordinator`](../../Sources/Core/Actions/ActionCoordinator.swift) serves as the **Action Coordinator & Composition** of OpenClip. It bridges domain managers (`ExtensionManager`, `RuleEngine`) with the central [`ActionRegistry`](../../Sources/Core/Actions/ActionRegistry.swift) catalog, resolving available actions based on user configuration, current text selection, and active application policy rules.
 
 ---
 
@@ -9,12 +9,10 @@ The [`ActionCoordinator`](../../Sources/Core/Actions/ActionCoordinator.swift) se
 ```mermaid
 flowchart TD
  AC[ActionCoordinator] -->|1. Load Core Builtins| BR[BuiltinRegistry]
- AC -->|2. Load User Custom Actions| CAM[CustomActionManager]
- AC -->|3. Load Disk Extensions| EM[ExtensionManager]
- AC -->|4. Load Application Rules| RE[RuleEngine]
+ AC -->|2. Load Disk Extensions & Manifest Packages| EM[ExtensionManager]
+ AC -->|3. Load Application Rules| RE[RuleEngine]
 
- CAM -->|Register Actions| AR[ActionRegistry]
- EM -->|Register Actions| AR
+ EM -->|Register Actions| AR[ActionRegistry]
  BR -->|Register Actions| AR
 
  Context[ActionContext] --> AC
@@ -31,7 +29,7 @@ flowchart TD
 
 ## Action Registration Mechanics
 
-> **Current reality (2026-08):** the `onRegister`/`onUnregister` callback seam described below is implemented. `ActionCoordinator.loadInitialState()` wires `CustomActionManager` and `ExtensionManager` to the registry via those callbacks; neither manager calls `ActionRegistry.shared` directly.
+> **Current reality (2026-08):** the `onRegister`/`onUnregister` callback seam described below is implemented. `ActionCoordinator.loadInitialState()` wires `ExtensionManager` to the registry via those callbacks; the manager never calls `ActionRegistry.shared` directly. GUI-authored custom actions are single-action manifest packages (written by `CustomActionManifestWriter`) and load through the same extension scan — `custom_actions.json`/`CustomActionManager` are retired.
 
 ### Initial Loading Lifecycle
 
@@ -42,19 +40,15 @@ public func loadInitialState() async {
  let coreBuiltins = BuiltinRegistry.makeCoreBuiltins()
  registry.register(builtIns: coreBuiltins)
 
- // 2. Load custom user actions from disk repository
- CustomActionManager.shared.load()
-
- // 3. Load application rules and scan installed extensions
+ // 2. Load application rules and scan installed extensions (manifests, standalone scripts, snippets)
  await ruleEngine.loadRules(from: Constants.rulesFileURL)
  await extensionManager.loadExtensions()
 }
 ```
 
 ### Registration & Unregistration
-When custom actions or extension packages are added, updated, or removed:
-- `CustomActionManager.register(customAction:)` inserts the item into `customActions` and reports it via its `onRegister` callback (wired to the registry by `ActionCoordinator.loadInitialState()`).
-- `ExtensionManager.loadExtensions()` unregisters previous extension actions and reports newly discovered ones through the same `onRegister`/`onUnregister` callbacks.
+When extension packages are added, updated, or removed:
+- `ExtensionManager.loadExtensions()` unregisters previous extension actions and reports newly discovered ones through the `onRegister`/`onUnregister` callbacks (wired to the registry by `ActionCoordinator.loadInitialState()`).
 - Neither Core domain manager touches `ActionRegistry.shared` directly; `ActionCoordinator` is the only type that does.
 
 ---
@@ -107,10 +101,13 @@ When selected text is detected, `ActionCoordinator.resolveActions(for:)` convert
  - Evaluates `SettingKey.isTransformGroupEnabled`. If `isTransformGroupEnabled` is `false`, `"builtin.transform"` is added to disabled IDs.
  - Applies the default disabled transform cases from `TransformCase.defaultDisabledActionIDs`.
 
-2. **Formatting Policy Check**:
+2. **Disabled Package Check**:
+ - Queries `SettingKey.disabledPackages` from `SettingsStore`. Any action whose `action.chrome.source` is `.extensionPkg(packageID:)` with a disabled packageID is filtered out (whole-package disable).
+
+3. **Formatting Policy Check**:
  - If `context.selection.appPolicy.denyFormatting` is `true` (e.g. Terminal, IDEs), actions with `action.isFormatting == true` are filtered out.
 
-3. **Action Capability Check**:
+4. **Action Capability Check**:
  - Evaluates `action.isEnabled(for: context)`. For instance, script actions check for non-empty text, while URL template actions evaluate optional regex pattern matches (`regexPattern`).
 
 ```swift
@@ -120,13 +117,15 @@ public func availableActions(for context: ActionContext) -> [any Action] {
  let configuredDisabled = settingsStore.get(.disabledActionIDs)
  var disabledIDs = configuredDisabled.isEmpty ? Set(defaultDisabledSubActions) : configuredDisabled
  if !settingsStore.get(.isTransformGroupEnabled) {
- disabledIDs.insert("builtin.transform")
+  disabledIDs.insert("builtin.transform")
  }
+ let disabledPackages = settingsStore.get(.disabledPackages)
 
  return actions.filter { action in
- if disabledIDs.contains(action.id) { return false }
- if context.selection.appPolicy.denyFormatting && action.isFormatting { return false }
- return action.isEnabled(for: context)
+  if disabledIDs.contains(action.id) { return false }
+  if case .extensionPkg(let packageID) = action.chrome.source, disabledPackages.contains(packageID) { return false }
+  if context.selection.appPolicy.denyFormatting && action.isFormatting { return false }
+  return action.isEnabled(for: context)
  }
 }
 ```

@@ -27,9 +27,10 @@ areas; stale debt notes are worse than none.
 
 ## Action Seams Already Implemented
 
-- **Coordinator composition is done.** `ActionCoordinator.loadInitialState()` wires `CustomActionManager`
-  and `ExtensionManager` to the registry via `onRegister`/`onUnregister`; **neither manager calls
-  `ActionRegistry.shared` directly.**
+- **Coordinator composition is done.** `ActionCoordinator.loadInitialState()` wires `ExtensionManager`
+  to the registry via `onRegister`/`onUnregister`; the manager never calls `ActionRegistry.shared`
+  directly. GUI-authored actions persist as manifest packages (via `CustomActionManifestWriter`);
+  `custom_actions.json`/`CustomActionManager` are retired.
 
 ## Presentation / Rule Holes
 
