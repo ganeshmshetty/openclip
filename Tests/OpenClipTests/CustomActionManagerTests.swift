@@ -105,6 +105,48 @@ final class CustomActionManifestWriterTests: XCTestCase {
         XCTAssertEqual(loadedShell?.chrome.source, .extensionPkg(packageID: shell.id))
     }
     
+    @MainActor
+    func testLocateManifestReturnsNilForStandaloneScriptFile() throws {
+        // A standalone snippet script is a file, not a manifest package directory. EditActionSheet
+        // must not find a manifest for it, so the edit sheet stays read-only instead of dropping edits.
+        let scriptPath = tempDir.appendingPathComponent("test_script.sh")
+        let scriptContent = """
+        #!/bin/bash
+        # Title: Test Script
+        # Icon: symbol(test)
+        # Identifier: com.test.script
+        echo "{\\"type\\":\\"paste\\",\\"value\\":\\"test\\"}"
+        """
+        try scriptContent.write(to: scriptPath, atomically: true, encoding: .utf8)
+        
+        let scriptAction = ScriptAction(
+            id: "com.test.script",
+            title: "Test Script",
+            icon: .symbol("test"),
+            scriptURL: scriptPath
+        )
+        
+        let located = EditActionSheet.locateManifest(for: scriptAction, in: tempDir)
+        XCTAssertNil(located, "A standalone script file must not resolve to an editable manifest")
+    }
+    
+    @MainActor
+    func testLocateManifestFindsManifestPackage() throws {
+        let action = CustomAction(
+            id: "com.custom.located1",
+            title: "Located Package",
+            iconName: "magnifyingglass",
+            type: .webSearch(urlTemplate: "https://example.com/search?q={text}")
+        )
+        try CustomActionManifestWriter.write(action: action, to: tempDir)
+        
+        let located = EditActionSheet.locateManifest(for: action, in: tempDir)
+        XCTAssertNotNil(located, "A manifest package must resolve to an editable manifest")
+        XCTAssertEqual(located?.manifestURL.deletingLastPathComponent().lastPathComponent, action.id)
+        XCTAssertEqual(located?.manifest.identifier, action.id)
+        XCTAssertEqual(located?.targetIndex, 0)
+    }
+    
     private func manifestAction(for action: CustomAction) -> ExtensionActionMetadata {
         CustomActionManifestWriter.metadata(for: action).actions[0]
     }
