@@ -2,10 +2,12 @@
 // OpenClip
 //
 // Serves as the Birth Door implementation, instantiating executable Action instances from extension manifests and snippets.
-// Applies the uniform action-ID rule, keeps `group` actions schema-only (returns nil in Phase 1), threads the
-// option store into every runtime that reads configured option values, and stamps `.extensionPkg` chrome on every
-// action it creates — including shellInline/textSnippet CustomActions — so GUI-authored actions share the extension
-// package trash path.
+// Applies the uniform action-ID rule, threads the option store into every runtime that reads configured option values,
+// and stamps `.extensionPkg` chrome on every action it creates — including shellInline/textSnippet CustomActions — so
+// GUI-authored actions share the extension package trash path. Single-action creation (`createAction`) keeps `group`
+// actions schema-only (returns nil); `createActions` (used by the registry loader) materializes a `.group` into a
+// GroupAction row plus one entry per sub-action under the `\(groupID).\(subID)` ID-prefix convention, and routes the
+// keyPress/shortcut/service kinds (Phase 8) to their runtime actions.
 import Foundation
 import Core
 
@@ -77,9 +79,67 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         directoryURL: URL,
         index: Int
     ) async -> (any Action)? {
-        // Groups are schema-only in Phase 1 (runtimes land in Phase 8): never register a group as runnable.
+        await makeAction(metadata: metadata, manifest: manifest, directoryURL: directoryURL, index: index, forcedID: nil)
+    }
+
+    /// Materializes every registry entry for one manifest action. Non-group actions return the
+    /// single `createAction` result; a `.group` returns a GroupAction row plus one entry per
+    /// sub-action whose ID is `\(groupID).\(subID)` (ID-prefix convention — no parentGroupID
+    /// marker). Nested groups are not flattened in v1.
+    public func createActions(
+        metadata: ExtensionActionMetadata,
+        manifest: ExtensionMetadata,
+        directoryURL: URL,
+        index: Int
+    ) async -> [any Action] {
+        guard metadata.kind == .group else {
+            guard let action = await makeAction(metadata: metadata, manifest: manifest, directoryURL: directoryURL, index: index, forcedID: nil) else { return [] }
+            return [action]
+        }
+
+        let groupID = ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
+        let groupRules = ExtensionActionRules(
+            requirements: metadata.requirements,
+            legacyRegex: metadata.regex,
+            after: .default,
+            stayVisible: metadata.stayVisible ?? false
+        )
+        let groupChrome = ActionChrome(
+            badge: .extensionPkg(manifest.name),
+            rowStyle: .transformGroup,
+            popupBehavior: .showTransformMenu,
+            source: .extensionPkg(packageID: manifest.identifier)
+        )
+        var result: [any Action] = [GroupAction(
+            id: groupID,
+            title: metadata.title ?? manifest.name,
+            icon: ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL),
+            chrome: groupChrome,
+            rules: groupRules
+        )]
+        for (subIndex, sub) in (metadata.subActions ?? []).enumerated() where sub.kind != .group {
+            let subID = "\(groupID).\(sub.id ?? String(subIndex))"
+            if let action = await makeAction(metadata: sub, manifest: manifest, directoryURL: directoryURL, index: subIndex, forcedID: subID) {
+                result.append(action)
+            }
+        }
+        return result
+    }
+
+    /// Renders a single executable Action for a manifest entry, or nil when the entry is a `.group`
+    /// (schema-only here; `createActions` handles group materialization) or otherwise not runnable.
+    /// `forcedID` overrides the uniform-ID computation so group sub-actions can be stamped with the
+    /// `\(groupID).\(subID)` prefix convention.
+    private func makeAction(
+        metadata: ExtensionActionMetadata,
+        manifest: ExtensionMetadata,
+        directoryURL: URL,
+        index: Int,
+        forcedID: String?
+    ) async -> (any Action)? {
+        // Groups are schema-only at the single-action seam: never register a bare group as runnable.
         guard metadata.kind != .group else { return nil }
-        let actionId = ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
+        let actionId = forcedID ?? ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
         let title = metadata.title ?? manifest.name
         let icon = ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL)
         
@@ -101,7 +161,40 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             popupBehavior: .perform,
             source: .extensionPkg(packageID: manifest.identifier)
         )
-        
+
+        // Phase 8 runtime kinds: keyPress / shortcut / service. Checked before the generic url and
+        // script branches so a keyPress-without-URL doesn't fall through to a bogus ScriptAction.
+        if metadata.kind == .keyPress, let keyPress = metadata.keyPress, let spec = KeyPressSpec(manifestString: keyPress) {
+            return KeyPressAction(
+                id: actionId,
+                title: title,
+                icon: icon,
+                spec: spec,
+                chrome: extensionChrome,
+                rules: rules
+            )
+        }
+        if metadata.kind == .shortcut, let shortcutName = metadata.shortcutName {
+            return ShortcutAction(
+                id: actionId,
+                title: title,
+                icon: icon,
+                shortcutName: shortcutName,
+                chrome: extensionChrome,
+                rules: rules
+            )
+        }
+        if metadata.kind == .service {
+            return NamedServiceAction(
+                id: actionId,
+                title: title,
+                icon: icon,
+                serviceName: metadata.serviceName,
+                chrome: extensionChrome,
+                rules: rules
+            )
+        }
+
         if let urlTemplate = metadata.url {
             return URLTemplateAction(
                 id: actionId,

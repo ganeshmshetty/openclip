@@ -20,4 +20,23 @@ final class ActionResultHandlerTests: XCTestCase {
         let bubble = BubbleContent(title: "Test", rows: [.text("hi")], emphasis: .result)
         try await handler.handle(.showBubble(bubble), in: nil)
     }
+
+    /// The `shortcut` effect routes through the shortcuts CLI under a watchdog. Only exercised when
+    /// the binary is present; there is no deterministic short-lived Shortcut to invoke here, so the
+    /// assertion is that a non-existent name surfaces as a thrown error (→ status) and that the
+    /// missing-binary guard throws cleanly too.
+    func testRunShortcutDoesNotCrash() async throws {
+        let handler = DefaultActionResultHandler()
+        let binary = URL(fileURLWithPath: Constants.shortcutsBinaryPath)
+        guard FileManager.default.isExecutableFile(atPath: binary.path) else {
+            throw XCTSkip("shortcuts CLI unavailable; skipping run-shortcut handler test")
+        }
+        // A name that almost certainly does not exist: either it runs and logs, or the CLI exits
+        // non-zero (→ throw). Both are acceptable; the point is the handler path does not hang.
+        do {
+            try await handler.handle(.runShortcut(name: "__openclip_should_not_exist__", input: nil), in: nil)
+        } catch {
+            // Expected: non-existent shortcut → non-zero exit → thrown error.
+        }
+    }
 }

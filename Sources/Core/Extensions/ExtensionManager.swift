@@ -327,11 +327,11 @@ public final class ExtensionManager: Sendable {
         
         var actions: [any Action] = []
         for (index, actionMeta) in manifest.actions.enumerated() {
-            // Groups are schema-only in Phase 1 (runtimes land in Phase 8): never register a group as runnable.
-            guard actionMeta.kind != .group else { continue }
-            if let factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL, index: index) {
-                actions.append(action)
-            } else {
+            if let factory {
+                // createActions flattens `.group` entries into a GroupAction row + sub-actions
+                // (Phase 8); non-group kinds return a single entry.
+                actions.append(contentsOf: await factory.createActions(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL, index: index))
+            } else if actionMeta.kind != .group {
                 let actionId = uniformActionID(metadata: actionMeta, manifest: manifest, index: index)
                 let title = actionMeta.title ?? manifest.name
                 let icon = parseIcon(actionMeta.icon, directoryURL: directoryURL)
