@@ -2,30 +2,173 @@
 // OpenClip
 //
 // Serves as the Birth Door implementation, instantiating executable Action instances from extension manifests and snippets.
+// Applies the uniform action-ID rule, threads the option store into every runtime that reads configured option values,
+// and stamps `.extensionPkg` chrome on every action it creates — including shellInline/textSnippet CustomActions — so
+// GUI-authored actions share the extension package trash path. Single-action creation (`createAction`) keeps `group`
+// actions schema-only (returns nil); `createActions` (used by the registry loader) materializes a `.group` into a
+// GroupAction row plus one entry per sub-action under the `\(groupID).\(subID)` ID-prefix convention, and routes the
+// keyPress/shortcut/service kinds (Phase 8) to their runtime actions.
 import Foundation
 import Core
 
 public final class DefaultActionFactory: ActionFactory, Sendable {
-    public init() {}
+    private let optionStore: any ActionOptionReading
+
+    public init(optionStore: any ActionOptionReading = SettingsActionOptionStore()) {
+        self.optionStore = optionStore
+    }
+
+    /// Reduces any `ActionIcon` to the plain symbol name `CustomAction` stores in `iconName`.
+    private func iconSymbolName(_ icon: ActionIcon) -> String {
+        switch icon {
+        case .symbol(let name): name
+        case .local(let url): url.lastPathComponent
+        case .url(let url): url.absoluteString
+        case .text(let txt): txt
+        }
+    }
+
+    /// Maps manifest/action option metadata to the runtime `ExtensionOption` model, wiring
+    /// `values`/`options` into the `.multiple` picker choices (T1-minor-1 carryover).
+    private func makeExtensionOption(from metadata: ExtensionOptionMetadata) -> ExtensionOption {
+        ExtensionOption(
+            identifier: metadata.identifier,
+            label: metadata.label,
+            type: ExtensionOptionType(rawValue: metadata.type.lowercased()) ?? .string,
+            defaultValue: metadata.defaultValue,
+            options: metadata.values
+        )
+    }
+
+    /// Merges per-action option overrides (`metadata.options`) onto the manifest-level defaults
+    /// (`manifest.options`) by identifier. Manifest-level options keep their order; overrides
+    /// replace matching identifiers in place, and identifiers unique to the action are appended
+    /// in declaration order.
+    private func mergedOptions(
+        manifestOptions: [ExtensionOptionMetadata]?,
+        actionOptions: [ExtensionOptionMetadata]?
+    ) -> [ExtensionOption] {
+        var result: [ExtensionOption] = (manifestOptions ?? []).map(makeExtensionOption)
+        guard let actionOverrides = actionOptions, !actionOverrides.isEmpty else { return result }
+
+        var overrides: [String: ExtensionOption] = [:]
+        var orderedNewKeys: [String] = []
+        for metadata in actionOverrides {
+            let option = makeExtensionOption(from: metadata)
+            if overrides[option.identifier] == nil { orderedNewKeys.append(option.identifier) }
+            overrides[option.identifier] = option
+        }
+        for index in result.indices {
+            if let override = overrides[result[index].identifier] {
+                result[index] = override
+                overrides.removeValue(forKey: result[index].identifier)
+                orderedNewKeys.removeAll { $0 == result[index].identifier }
+            }
+        }
+        for key in orderedNewKeys {
+            if let override = overrides[key] {
+                result.append(override)
+            }
+        }
+        return result
+    }
 
     public func createAction(
         metadata: ExtensionActionMetadata,
         manifest: ExtensionMetadata,
-        directoryURL: URL
+        directoryURL: URL,
+        index: Int
     ) async -> (any Action)? {
-        let actionId = metadata.id ?? (manifest.identifier.hasPrefix("snippet.") ? manifest.identifier : "\(manifest.identifier).action.\(metadata.title ?? manifest.name)")
+        guard let base = await makeAction(metadata: metadata, manifest: manifest, directoryURL: directoryURL, index: index, forcedID: nil) else { return nil }
+        return decorate(base, metadata: metadata)
+    }
+
+    /// Materializes every registry entry for one manifest action. Non-group actions return the
+    /// single `createAction` result; a `.group` returns a GroupAction row plus one entry per
+    /// sub-action whose ID is `\(groupID).\(subID)` (ID-prefix convention — no parentGroupID
+    /// marker). Nested groups are not flattened in v1.
+    public func createActions(
+        metadata: ExtensionActionMetadata,
+        manifest: ExtensionMetadata,
+        directoryURL: URL,
+        index: Int
+    ) async -> [any Action] {
+        guard metadata.kind == .group else {
+            guard let action = await makeAction(metadata: metadata, manifest: manifest, directoryURL: directoryURL, index: index, forcedID: nil) else { return [] }
+            return [decorate(action, metadata: metadata)]
+        }
+
+        let groupID = ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
+        let groupRules = ExtensionActionRules(
+            requirements: metadata.requirements,
+            legacyRegex: metadata.regex,
+            after: .default,
+            stayVisible: metadata.stayVisible ?? false
+        )
+        let groupChrome = ActionChrome(
+            badge: .extensionPkg(manifest.name),
+            rowStyle: .transformGroup,
+            popupBehavior: .showTransformMenu,
+            source: .extensionPkg(packageID: manifest.identifier)
+        )
+        var result: [any Action] = [GroupAction(
+            id: groupID,
+            title: metadata.title ?? manifest.name,
+            icon: ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL),
+            chrome: groupChrome,
+            rules: groupRules
+        )]
+        for (subIndex, sub) in (metadata.subActions ?? []).enumerated() where sub.kind != .group {
+            let subID = "\(groupID).\(sub.id ?? String(subIndex))"
+            if let action = await makeAction(metadata: sub, manifest: manifest, directoryURL: directoryURL, index: subIndex, forcedID: subID) {
+                result.append(decorate(action, metadata: sub))
+            }
+        }
+        return result
+    }
+
+    /// Wraps a created action in `MenuDecoratedAction` when its manifest metadata declares
+    /// `menuRelevance` / `menuPreview`, stamping the action with sub-menu relevance and a one-line
+    /// preview without changing its identity. Non-declaring actions pass through unchanged.
+    private func decorate(_ action: any Action, metadata: ExtensionActionMetadata) -> any Action {
+        guard metadata.menuRelevance != nil || metadata.menuPreview != nil else {
+            return action
+        }
+        return MenuDecoratedAction(
+            base: action,
+            menuRelevanceRegex: metadata.menuRelevance,
+            menuPreviewTemplate: metadata.menuPreview
+        )
+    }
+
+    /// Renders a single executable Action for a manifest entry, or nil when the entry is a `.group`
+    /// (schema-only here; `createActions` handles group materialization) or otherwise not runnable.
+    /// `forcedID` overrides the uniform-ID computation so group sub-actions can be stamped with the
+    /// `\(groupID).\(subID)` prefix convention.
+    private func makeAction(
+        metadata: ExtensionActionMetadata,
+        manifest: ExtensionMetadata,
+        directoryURL: URL,
+        index: Int,
+        forcedID: String?
+    ) async -> (any Action)? {
+        // Groups are schema-only at the single-action seam: never register a bare group as runnable.
+        guard metadata.kind != .group else { return nil }
+        let actionId = forcedID ?? ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
         let title = metadata.title ?? manifest.name
         let icon = ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL)
         
-        let options = manifest.options?.map { opt -> ExtensionOption in
-            let optType = ExtensionOptionType(rawValue: opt.type.lowercased()) ?? .string
-            return ExtensionOption(
-                identifier: opt.identifier,
-                label: opt.label,
-                type: optType,
-                defaultValue: opt.defaultValue
-            )
-        } ?? []
+        let options = mergedOptions(manifestOptions: manifest.options, actionOptions: metadata.options)
+        
+        // Declarative visibility/behavior rules applied to every extension action this factory
+        // creates: requirements (regex, app allow/deny, requiresSelection) + legacy manifest
+        // `regex` + after-run behavior + stay-visible.
+        let rules = ExtensionActionRules(
+            requirements: metadata.requirements,
+            legacyRegex: metadata.regex,
+            after: metadata.after ?? .default,
+            stayVisible: metadata.stayVisible ?? false
+        )
         
         let extensionChrome = ActionChrome(
             badge: .extensionPkg(manifest.name),
@@ -33,7 +176,40 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             popupBehavior: .perform,
             source: .extensionPkg(packageID: manifest.identifier)
         )
-        
+
+        // Phase 8 runtime kinds: keyPress / shortcut / service. Checked before the generic url and
+        // script branches so a keyPress-without-URL doesn't fall through to a bogus ScriptAction.
+        if metadata.kind == .keyPress, let keyPress = metadata.keyPress, let spec = KeyPressSpec(manifestString: keyPress) {
+            return KeyPressAction(
+                id: actionId,
+                title: title,
+                icon: icon,
+                spec: spec,
+                chrome: extensionChrome,
+                rules: rules
+            )
+        }
+        if metadata.kind == .shortcut, let shortcutName = metadata.shortcutName {
+            return ShortcutAction(
+                id: actionId,
+                title: title,
+                icon: icon,
+                shortcutName: shortcutName,
+                chrome: extensionChrome,
+                rules: rules
+            )
+        }
+        if metadata.kind == .service {
+            return NamedServiceAction(
+                id: actionId,
+                title: title,
+                icon: icon,
+                serviceName: metadata.serviceName,
+                chrome: extensionChrome,
+                rules: rules
+            )
+        }
+
         if let urlTemplate = metadata.url {
             return URLTemplateAction(
                 id: actionId,
@@ -41,7 +217,21 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 icon: icon,
                 urlTemplate: urlTemplate,
                 regexPattern: metadata.regex,
-                chrome: extensionChrome
+                chrome: extensionChrome,
+                rules: rules
+            )
+        }
+
+        // Text snippet actions (GUI "Text Snippet", manifest type "textsnippet"/"snippet"/"text")
+        // hold their template in `scriptCode` and run as CustomAction text snippets.
+        if metadata.kind == .textSnippet, let scriptCode = metadata.scriptCode, !scriptCode.isEmpty {
+            return CustomAction(
+                id: actionId,
+                title: title,
+                iconName: iconSymbolName(icon),
+                type: .textSnippet(template: scriptCode),
+                chrome: extensionChrome,
+                rules: rules
             )
         }
         
@@ -55,7 +245,9 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     icon: icon,
                     scriptCode: scriptCode,
                     options: options,
-                    chrome: extensionChrome
+                    chrome: extensionChrome,
+                    optionStore: optionStore,
+                    rules: rules
                 )
             case "applescript", "scpt":
                 return AppleScriptAction(
@@ -64,20 +256,17 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     icon: icon,
                     appleScriptCode: scriptCode,
                     options: options,
-                    chrome: extensionChrome
+                    chrome: extensionChrome,
+                    rules: rules
                 )
             case "sh", "shell", "shell script":
-                let iconSymbol = switch icon {
-                case .symbol(let name): name
-                case .local(let url): url.lastPathComponent
-                case .url(let url): url.absoluteString
-                case .text(let txt): txt
-                }
                 return CustomAction(
                     id: actionId,
                     title: title,
-                    iconName: iconSymbol,
-                    type: .shellScript(script: scriptCode, replaceSelection: true)
+                    iconName: iconSymbolName(icon),
+                    type: .shellScript(script: scriptCode, replaceSelection: true),
+                    chrome: extensionChrome,
+                    rules: rules
                 )
             default:
                 break
@@ -104,7 +293,9 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 icon: icon,
                 scriptCode: code,
                 options: options,
-                chrome: extensionChrome
+                chrome: extensionChrome,
+                optionStore: optionStore,
+                rules: rules
             )
         case "applescript", "scpt":
             guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else { return nil }
@@ -114,7 +305,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 icon: icon,
                 appleScriptCode: code,
                 options: options,
-                chrome: extensionChrome
+                chrome: extensionChrome,
+                rules: rules
             )
         default:
             return ScriptAction(
@@ -122,7 +314,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 title: title,
                 icon: icon,
                 scriptURL: scriptURL,
-                chrome: extensionChrome
+                chrome: extensionChrome,
+                rules: rules
             )
         }
     }

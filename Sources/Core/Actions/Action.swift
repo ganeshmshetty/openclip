@@ -21,6 +21,12 @@ public protocol Action: Sendable {
     
     @MainActor
     func isEnabled(for context: ActionContext) -> Bool
+
+    /// Re-runs the shared visibility evaluator for this action at perform time (match plumbing
+    /// approach A). Returns the `ActionMatchInfo` the caller should thread into
+    /// `ActionContext.match`; nil for actions with no match plumbing (builtins).
+    @MainActor
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo?
     
     @MainActor
     func perform(_ context: ActionContext) async throws -> ActionResult
@@ -34,6 +40,9 @@ public extension Action {
     var chrome: ActionChrome {
         ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin)
     }
+
+    @MainActor
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
     
     @MainActor
     var displayTitle: String {

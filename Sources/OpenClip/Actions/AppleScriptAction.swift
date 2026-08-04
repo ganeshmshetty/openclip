@@ -2,6 +2,7 @@
 // OpenClip
 //
 // Implements action execution for AppleScript snippets and files using macOS NSAppleScript automation.
+// Enablement and match resolution delegate to the shared ActionVisibility evaluator when rules are attached.
 import Foundation
 import Core
 
@@ -15,6 +16,7 @@ public struct AppleScriptAction: ConfigurableAction {
     public let appleScriptCode: String
     public let actionOptions: [ExtensionOption]
     public let chrome: ActionChrome
+    public let rules: ExtensionActionRules?
 
     nonisolated public init(
         id: String,
@@ -22,7 +24,8 @@ public struct AppleScriptAction: ConfigurableAction {
         icon: ActionIcon = .symbol("applescript"),
         appleScriptCode: String,
         options: [ExtensionOption] = [],
-        chrome: ActionChrome? = nil
+        chrome: ActionChrome? = nil,
+        rules: ExtensionActionRules? = nil
     ) {
         self.id = id
         self.title = title
@@ -37,6 +40,7 @@ public struct AppleScriptAction: ConfigurableAction {
         self.appleScriptCode = appleScriptCode
         self.actionOptions = options
         self.chrome = chrome ?? ActionChrome(badge: .script, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: id))
+        self.rules = rules
     }
 
     nonisolated public init(
@@ -45,19 +49,28 @@ public struct AppleScriptAction: ConfigurableAction {
         iconSymbol: String,
         appleScriptCode: String,
         options: [ExtensionOption] = [],
-        chrome: ActionChrome? = nil
+        chrome: ActionChrome? = nil,
+        rules: ExtensionActionRules? = nil
     ) {
-        self.init(id: id, title: title, icon: .symbol(iconSymbol), appleScriptCode: appleScriptCode, options: options, chrome: chrome)
+        self.init(id: id, title: title, icon: .symbol(iconSymbol), appleScriptCode: appleScriptCode, options: options, chrome: chrome, rules: rules)
     }
 
     public func isEnabled(for context: ActionContext) -> Bool {
-        return !context.selection.text.isEmpty
+        guard let rules else {
+            return !context.selection.text.isEmpty
+        }
+        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).enabled
+    }
+
+    public func matchInfo(for context: ActionContext) -> ActionMatchInfo? {
+        guard let rules else { return nil }
+        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).match
     }
 
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let rawText = context.selection.text
         let text = rawText.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        let scriptWithVars = TextPlaceholderEngine.replacePlaceholders(in: appleScriptCode, with: rawText, urlEncode: false)
+        let scriptWithVars = TextPlaceholderEngine.replacePlaceholders(in: appleScriptCode, context: context, urlEncode: false)
         
         let fullScript = """
         global OPENCLIP_TEXT, openclip_text

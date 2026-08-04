@@ -7,6 +7,25 @@ fileprivate struct MockApp: AppIdentifying {
     let localizedName: String? = "GoldenTestApp"
 }
 
+/// In-memory option store injected into the factory so the JS option override test never
+/// touches UserDefaults.standard. All access happens on the MainActor.
+fileprivate final class MemoryOptionStore: ActionOptionReading, ActionOptionWriting, @unchecked Sendable {
+    private var values: [String: String] = [:]
+
+    func stringValue(actionID: String, option: ExtensionOption) -> String {
+        let name = SettingKey.actionOption(actionID: actionID, optionID: option.identifier).name
+        return values[name] ?? (option.defaultValue ?? "")
+    }
+
+    func setStringValue(_ value: String, actionID: String, option: ExtensionOption) {
+        values[SettingKey.actionOption(actionID: actionID, optionID: option.identifier).name] = value
+    }
+
+    func clearValue(actionID: String, option: ExtensionOption) {
+        values[SettingKey.actionOption(actionID: actionID, optionID: option.identifier).name] = ""
+    }
+}
+
 private extension ActionContext {
     init(selectedText: String, denyFormatting: Bool = false) {
         let policy = AppPolicyContext(
@@ -29,24 +48,24 @@ private extension ActionContext {
 
 final class GoldenExtensionPlatformTests: XCTestCase {
     var tempDir: URL!
-    
+    fileprivate var optionStore: MemoryOptionStore!
+
+    @MainActor
     override func setUp() async throws {
         try await super.setUp()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        
-        await MainActor.run {
-            ExtensionManager.shared.actionFactory = DefaultActionFactory()
-        }
+
+        optionStore = MemoryOptionStore()
+        ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
     }
-    
+
+    @MainActor
     override func tearDown() async throws {
         if let tempDir = tempDir {
             try? FileManager.default.removeItem(at: tempDir)
         }
-        await MainActor.run {
-            ExtensionManager.shared.actionFactory = nil
-        }
+        ExtensionManager.shared.actionFactory = nil
         try await super.tearDown()
     }
     
@@ -188,10 +207,9 @@ final class GoldenExtensionPlatformTests: XCTestCase {
             XCTFail("Expected .copy result for JS action, got \(defaultJSResult)")
         }
         
-        // Test JS Custom Option Override from UserDefaults
-        let optionKey = "action.com.golden.js.action.option.prefix"
-        UserDefaults.standard.set("CUSTOM_PREFIX: ", forKey: optionKey)
-        defer { UserDefaults.standard.removeObject(forKey: optionKey) }
+        // Test JS Custom Option Override via the injected option store
+        let jsOption = jsAction.actionOptions.first(where: { $0.identifier == "prefix" })!
+        optionStore.setStringValue("CUSTOM_PREFIX: ", actionID: "com.golden.js.action", option: jsOption)
         
         let customJSResult = try await jsAction.perform(sampleContext)
         if case .copy(let text) = customJSResult {
@@ -262,5 +280,62 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         
         let availableWithDisabled = registry.availableActions(for: sampleContext)
         XCTAssertFalse(availableWithDisabled.contains(where: { $0.id == "com.golden.js.action" }), "Disabled action should be filtered out by registry")
+    }
+
+    /// Exit criterion: a JS extension calling openclip.showBubble(...) produces a `.showBubble`
+    /// result through the full load → factory → host pipeline.
+    @MainActor
+    func testJSBubbleExtensionProducesShowBubble() async throws {
+        let jsBundle = tempDir.appendingPathComponent("JSBubbleExt.openclipext")
+        try FileManager.default.createDirectory(at: jsBundle, withIntermediateDirectories: true)
+        let jsManifest = """
+        {
+            "identifier": "com.golden.jsbubble",
+            "name": "JS Bubble Golden Extension",
+            "actions": [
+                {
+                    "id": "com.golden.jsbubble.action",
+                    "title": "JS Bubble Action",
+                    "script": "bubble.js"
+                }
+            ]
+        }
+        """
+        try jsManifest.write(to: jsBundle.appendingPathComponent("openclip.json"), atomically: true, encoding: .utf8)
+        let jsCode = """
+        function action(text, options) {
+            openclip.showBubble({ title: "Processed", body: "Hello " + text, footer: ["paste", "copy"] });
+            return null;
+        }
+        """
+        try jsCode.write(to: jsBundle.appendingPathComponent("bubble.js"), atomically: true, encoding: .utf8)
+
+        await ExtensionManager.shared.loadExtensions(from: tempDir)
+        let loadedActions = ExtensionManager.shared.loadedActions
+
+        guard let action = loadedActions.first(where: { $0.id == "com.golden.jsbubble.action" }) as? JavaScriptAction else {
+            XCTFail("Missing JavaScriptAction for com.golden.jsbubble.action")
+            return
+        }
+
+        let result = try await action.perform(ActionContext(selectedText: "World"))
+        guard case .showBubble(let content) = result else {
+            return XCTFail("Expected .showBubble, got \(result)")
+        }
+        XCTAssertEqual(content.title, "Processed")
+        XCTAssertEqual(content.rows.count, 1)
+        guard case .text(let rowText) = content.rows[0] else {
+            return XCTFail("Expected text row")
+        }
+        XCTAssertEqual(rowText, "Hello World")
+        XCTAssertEqual(content.footer.count, 2)
+        XCTAssertEqual(content.footer[0].title, "Paste")
+        guard case .perform(.paste("Hello World")) = content.footer[0].outcome else {
+            return XCTFail("Expected Paste footer performing .paste(Hello World)")
+        }
+        XCTAssertEqual(content.footer[1].title, "Copy")
+        guard case .perform(.copy("Hello World")) = content.footer[1].outcome else {
+            return XCTFail("Expected Copy footer performing .copy(Hello World)")
+        }
     }
 }

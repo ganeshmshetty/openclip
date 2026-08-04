@@ -2,21 +2,25 @@
 // OpenClip
 //
 // Discovers, loads, and manages installed OpenClip extensions from disk.
+// Applies the uniform action-ID rule (explicit id with bare-slug expansion, else index-based)
+// and keeps `group` actions schema-only (not registered as runnable).
 // Reports registration changes to the ActionRegistry via the onRegister/onUnregister
 // callbacks that ActionCoordinator.loadInitialState() wires. Does not touch ActionRegistry directly.
 import Foundation
 
-public struct ExtensionOptionMetadata: Sendable, Codable {
+public struct ExtensionOptionMetadata: Sendable, Codable, Equatable {
     public let identifier: String
     public let label: String
     public let type: String
     public let defaultValue: String?
+    public let values: [String]?
     
-    public init(identifier: String, label: String, type: String, defaultValue: String? = nil) {
+    public init(identifier: String, label: String, type: String, defaultValue: String? = nil, values: [String]? = nil) {
         self.identifier = identifier
         self.label = label
         self.type = type
         self.defaultValue = defaultValue
+        self.values = values
     }
     
     public init(from decoder: Decoder) throws {
@@ -30,6 +34,9 @@ public struct ExtensionOptionMetadata: Sendable, Codable {
             ?? container.decode(String.self, forKey: .legacyType)
         self.defaultValue = try container.decodeIfPresent(String.self, forKey: .defaultValue)
             ?? container.decodeIfPresent(String.self, forKey: .legacyDefaultValue)
+        self.values = try container.decodeIfPresent([String].self, forKey: .values)
+            ?? container.decodeIfPresent([String].self, forKey: .valuesOptions)
+            ?? container.decodeIfPresent([String].self, forKey: .valuesLegacyOptions)
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -38,6 +45,7 @@ public struct ExtensionOptionMetadata: Sendable, Codable {
         try container.encode(label, forKey: .label)
         try container.encode(type, forKey: .type)
         try container.encodeIfPresent(defaultValue, forKey: .defaultValue)
+        try container.encodeIfPresent(values, forKey: .values)
     }
     
     enum CodingKeys: String, CodingKey {
@@ -50,6 +58,9 @@ public struct ExtensionOptionMetadata: Sendable, Codable {
         case legacyType = "Type"
         case defaultValue = "default"
         case legacyDefaultValue = "Default"
+        case values = "values"
+        case valuesOptions = "options"
+        case valuesLegacyOptions = "Options"
     }
 }
 
@@ -316,10 +327,12 @@ public final class ExtensionManager: Sendable {
         
         var actions: [any Action] = []
         for (index, actionMeta) in manifest.actions.enumerated() {
-            if let factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL) {
-                actions.append(action)
-            } else {
-                let actionId = "\(manifest.identifier).action.\(index)"
+            if let factory {
+                // createActions flattens `.group` entries into a GroupAction row + sub-actions
+                // (Phase 8); non-group kinds return a single entry.
+                actions.append(contentsOf: await factory.createActions(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL, index: index))
+            } else if actionMeta.kind != .group {
+                let actionId = uniformActionID(metadata: actionMeta, manifest: manifest, index: index)
                 let title = actionMeta.title ?? manifest.name
                 let icon = parseIcon(actionMeta.icon, directoryURL: directoryURL)
                 let regex = actionMeta.regex
@@ -381,7 +394,7 @@ public final class ExtensionManager: Sendable {
             type: urlTemplate != nil ? "url" : "script"
         )
         let manifest = ExtensionMetadata(identifier: actionId, name: parsedTitle, actions: [actionMeta])
-        if let factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: scriptURL.deletingLastPathComponent()) {
+        if let factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: scriptURL.deletingLastPathComponent(), index: 0) {
             return action
         }
         
@@ -417,5 +430,15 @@ public final class ExtensionManager: Sendable {
             return .local(directoryURL.appendingPathComponent(iconStr))
         }
         return .symbol(iconStr)
+    }
+
+    /// Uniform action ID rule: an explicit `metadata.id` wins (a bare slug without a dot is prefixed with
+    /// the manifest identifier); otherwise the ID is stable by action index (`\(identifier).action.\(index)`).
+    /// Title-based IDs are gone.
+    nonisolated public static func uniformActionID(metadata: ExtensionActionMetadata, manifest: ExtensionMetadata, index: Int) -> String {
+        if let id = metadata.id {
+            return id.contains(".") ? id : "\(manifest.identifier).\(id)"
+        }
+        return "\(manifest.identifier).action.\(index)"
     }
 }

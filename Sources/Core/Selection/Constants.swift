@@ -9,9 +9,6 @@ public enum Constants {
     public static let filterDelay: TimeInterval = 0.075
     public static let elementTimeout: TimeInterval = 0.3
     public static let maxTextLength: Int = 10_485_760
-    /// Selections above this size skip the expensive pretty-print diff in the transform
-    /// smart-filter, falling back to a single JSON parse so the menu stays responsive.
-    public static let maxTransformCheckLength: Int = 200_000
     public static let pasteboardRestoreDelay: TimeInterval = 0.8
     public static let cVirtualKey: CGKeyCode = 0x08
     public static let deleteVirtualKey: CGKeyCode = 0x33
@@ -77,6 +74,11 @@ public enum Constants {
     public static let actionTypeOpenURL: String = "openURL"
     
     public static let envVarText: String = "OPENCLIP_TEXT"
+    public static let envVarMatched: String = "OPENCLIP_MATCHED"
+    public static let envVarCapturePrefix: String = "OPENCLIP_CAPTURE_"
+    public static let envVarBundleID: String = "OPENCLIP_BUNDLE_ID"
+    public static let envVarActionID: String = "OPENCLIP_ACTION_ID"
+    public static let shortcutsBinaryPath: String = "/usr/bin/shortcuts"
     public static let maxHeaderLinesToScan: Int = 50
 
     /// Maximum wall-clock runtime for shell/AppleScript/JS subprocess actions before they are killed,

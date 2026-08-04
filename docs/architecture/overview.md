@@ -76,8 +76,8 @@ graph TD
 - **Strict Rule**: `PopupWindowController` manages window presentation and event filtering, delegating all result execution side-effects to `ActionResultHandler`.
 
 ### 6. Action Coordinator & Composition — [`ActionCoordinator`](../../Sources/Core/Actions/ActionCoordinator.swift)
-- **Responsibility**: Orchestrates initial state loading, registers builtins, and connects custom actions and extensions to the central `ActionRegistry`.
-- **Strict Rule**: `CustomActionManager` and `ExtensionManager` do not couple directly to the registry; they report changes through `onRegister`/`onUnregister` callbacks wired by `ActionCoordinator.loadInitialState()`.
+- **Responsibility**: Orchestrates initial state loading, registers builtins, and connects disk extensions (including GUI-authored manifest packages) to the central `ActionRegistry`.
+- **Strict Rule**: `ExtensionManager` does not couple directly to the registry; it reports changes through `onRegister`/`onUnregister` callbacks wired by `ActionCoordinator.loadInitialState()`.
 
 ---
 

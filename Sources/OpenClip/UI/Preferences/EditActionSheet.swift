@@ -2,6 +2,14 @@
 // OpenClip
 //
 // Renders the modal sheet interface for editing existing action appearances, titles, and parameters.
+// For non-builtin actions (extension packages — including GUI-authored com.custom.<id> packages) it
+// acts as a manifest reader/writer: the Appearance tab edits title/icon in the manifest, the General
+// tab edits the target action's type/logic fields, and saving rewrites the manifest then reloads the
+// extension list. Builtin actions keep the legacy ActionCustomizationManager appearance overrides.
+// A non-builtin action whose manifest can't be located on disk (e.g. a standalone snippet script
+// file) is read-only: the sheet surfaces why and disables Save rather than silently dropping edits.
+// When opened via a ConfigurationRequest (missing-required-options short-circuit), a reason banner
+// appears above the tabs and the missing option rows are highlighted in the General tab (Phase 7).
 import SwiftUI
 import AppKit
 import Core
@@ -9,11 +17,15 @@ import Core
 @MainActor
 public struct EditActionSheet: View {
     let action: any Action
+    /// Optional request from the action (e.g. a missing-required-options short-circuit): surfaces a
+    /// reason banner and highlights the missing option rows in the unified editor (Phase 7).
+    let configurationRequest: ConfigurationRequest?
     @Environment(\.dismiss) private var dismiss
     
     @State private var activeTab: Int = 0 // 0 = Appearance, 1 = General
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
+    @State private var initialIconSymbol: String = ""
     @State private var displayMode: Int = 0 // 0 = Icon, 1 = Text
     @State private var showingIconPicker: Bool = false
     
@@ -23,7 +35,20 @@ public struct EditActionSheet: View {
     @State private var customSnippetTemplate: String = "{text}"
     @State private var customShellScript: String = "echo $OPENCLIP_TEXT"
     @State private var replaceSelection: Bool = true
-    @AppStorage("completionCopyToClipboard") private var completionCopyToClipboard: Bool = false
+    
+    // Manifest-backed state: the target action lives in an extension manifest package.
+    struct ManifestEditState {
+        let manifestURL: URL
+        let manifest: ExtensionMetadata
+        let targetIndex: Int
+    }
+    @State private var manifestState: ManifestEditState?
+    @State private var logicEditable: Bool = false
+    // True when a non-builtin action has no locatable manifest (standalone script file), so the
+    // sheet must stay read-only instead of dropping edits on Save.
+    @State private var manifestMissing: Bool = false
+    @State private var showingSaveAlert: Bool = false
+    @State private var saveAlertMessage: String = ""
     
     private let popularSymbols = [
         "magnifyingglass", "doc.on.doc", "scissors", "folder",
@@ -31,8 +56,29 @@ public struct EditActionSheet: View {
         "textformat", "globe", "terminal", "gearshape"
     ]
     
-    public init(action: any Action) {
+    public init(action: any Action, configurationRequest: ConfigurationRequest? = nil) {
         self.action = action
+        self.configurationRequest = configurationRequest
+    }
+    
+    private var isBuiltin: Bool {
+        if case .builtin = action.chrome.source { return true }
+        return false
+    }
+
+    /// Banner text when the sheet was opened because the action needs configuration. Falls back to a
+    /// generic message when the request has no reason but does name missing options.
+    private var configurationBannerText: String? {
+        guard let configurationRequest else { return nil }
+        if let reason = configurationRequest.reason, !reason.isEmpty { return reason }
+        if !configurationRequest.missingOptionIDs.isEmpty {
+            return "This action needs configuration before it can run."
+        }
+        return nil
+    }
+    
+    private var saveDisabled: Bool {
+        !isBuiltin && manifestState == nil
     }
     
     public var body: some View {
@@ -61,7 +107,29 @@ public struct EditActionSheet: View {
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
             .padding(.bottom, 10)
-            
+
+            if let bannerText = configurationBannerText {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                    Text(bannerText)
+                        .font(.caption)
+                        .foregroundColor(.primary)
+                    Spacer(minLength: 0)
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.orange.opacity(0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+            }
+
             Divider()
             
             ScrollView {
@@ -76,22 +144,27 @@ public struct EditActionSheet: View {
                             )
                             
                             Button("Reset Name & Icon to Default") {
-                                ActionCustomizationManager.shared.resetOverride(for: action.id)
-                                loadInitialState()
+                                resetAppearance()
                             }
                             .font(.caption)
                             .buttonStyle(.link)
                             .padding(.top, 4)
                         }
+                        .disabled(manifestMissing)
                     } else {
                         // General Tab (Behavior & Logic)
                         if !action.actionOptions.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Action Options")
                                     .font(.headline)
-                                DynamicActionConfigView(actionID: action.id, options: action.actionOptions)
+                                DynamicActionConfigView(
+                                    actionID: action.id,
+                                    options: action.actionOptions,
+                                    optionStore: KeychainActionOptionStore(),
+                                    missingOptionIDs: Set(configurationRequest?.missingOptionIDs ?? [])
+                                )
                             }
-                        } else if let customAction = action as? CustomAction {
+                        } else if logicEditable {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Action Type & Execution Logic")
                                     .font(.headline)
@@ -135,9 +208,15 @@ public struct EditActionSheet: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("General Action Information")
                                     .font(.headline)
-                                Text("Standard action. Execution behavior and options are managed automatically by OpenClip.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                if manifestMissing {
+                                    Text("This action is a standalone script file with no editable manifest. Delete it and re-create it as a snippet or extension package to customize its behavior, name, or icon.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("Standard action. Execution behavior and options are managed automatically by OpenClip.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                     }
@@ -152,18 +231,63 @@ public struct EditActionSheet: View {
                 Button("Cancel") { dismiss() }
                 Spacer()
                 Button("Save Changes") {
-                    saveChanges()
-                    dismiss()
+                    Task {
+                        if await saveChanges() {
+                            dismiss()
+                        }
+                    }
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(saveDisabled)
             }
             .padding(12)
         }
         .frame(width: 340, height: 360)
+        .alert("Unable to Save Changes", isPresented: $showingSaveAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveAlertMessage)
+        }
         .onAppear {
             loadInitialState()
         }
     }
+    
+    // MARK: - Manifest lookup
+    
+    /// Locates the manifest package whose identifier matches the action's chrome source (or, as a
+    /// fallback for stray `.custom` actions, its id) and returns the target action's edit state.
+    /// Only directory-backed manifest packages are considered; a standalone script file with the
+    /// same identifier returns nil, which the sheet treats as a read-only, uneditable action.
+    static func locateManifest(for action: any Action, in directory: URL = Constants.extensionsDirectory) -> ManifestEditState? {
+        let packageID: String
+        if case .extensionPkg(let pid) = action.chrome.source {
+            packageID = pid
+        } else {
+            packageID = action.id
+        }
+        guard let items = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) else {
+            return nil
+        }
+        let manifestNames = [Constants.manifestFileName, Constants.legacyManifestFileName, "Config.json"]
+        for item in items {
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: item.path, isDirectory: &isDir), isDir.boolValue else { continue }
+            for name in manifestNames {
+                let manifestURL = item.appendingPathComponent(name)
+                guard let data = try? Data(contentsOf: manifestURL),
+                      let manifest = try? JSONDecoder().decode(ExtensionMetadata.self, from: data),
+                      manifest.identifier == packageID else { continue }
+                for (index, meta) in manifest.actions.enumerated()
+                where ExtensionManager.uniformActionID(metadata: meta, manifest: manifest, index: index) == action.id {
+                    return ManifestEditState(manifestURL: manifestURL, manifest: manifest, targetIndex: index)
+                }
+            }
+        }
+        return nil
+    }
+    
+    // MARK: - State loading
     
     private func loadInitialState() {
         let override = ActionCustomizationManager.shared.override(for: action.id)
@@ -176,6 +300,7 @@ public struct EditActionSheet: View {
         } else {
             iconSymbol = "star"
         }
+        initialIconSymbol = iconSymbol
         
         if override?.customIconText != nil {
             displayMode = 1
@@ -185,19 +310,76 @@ public struct EditActionSheet: View {
             displayMode = 0
         }
         
-        if let customAction = action as? CustomAction {
-            customType = customAction.type
-            switch customAction.type {
-            case .webSearch(let url): customURLTemplate = url
-            case .textSnippet(let snippet): customSnippetTemplate = snippet
-            case .shellScript(let script, let replace):
-                customShellScript = script
-                replaceSelection = replace
+        if isBuiltin {
+            manifestState = nil
+            logicEditable = false
+            manifestMissing = false
+            if let customAction = action as? CustomAction {
+                loadCustomType(from: customAction)
             }
+            return
+        }
+        
+        manifestState = Self.locateManifest(for: action)
+        guard let state = manifestState else {
+            // Standalone-script action (or a stray non-builtin with no manifest on disk): the JSON
+            // manifest is the only editable surface, so there is nothing to write. Keep the sheet
+            // read-only and disable Save rather than silently dropping edits.
+            logicEditable = false
+            manifestMissing = true
+            return
+        }
+        manifestMissing = false
+        
+        let meta = state.manifest.actions[state.targetIndex]
+        switch meta.kind {
+        case .url, .webSearch:
+            customType = .webSearch(urlTemplate: customURLTemplate)
+            customURLTemplate = meta.url ?? ""
+            logicEditable = true
+        case .textSnippet:
+            customType = .textSnippet(template: customSnippetTemplate)
+            customSnippetTemplate = meta.scriptCode ?? ""
+            logicEditable = true
+        case .shellInline:
+            customType = .shellScript(script: customShellScript, replaceSelection: replaceSelection)
+            customShellScript = meta.scriptCode ?? ""
+            logicEditable = true
+        default:
+            logicEditable = false
         }
     }
     
-    private func saveChanges() {
+    private func loadCustomType(from customAction: CustomAction) {
+        customType = customAction.type
+        switch customAction.type {
+        case .webSearch(let url): customURLTemplate = url
+        case .textSnippet(let snippet): customSnippetTemplate = snippet
+        case .shellScript(let script, let replace):
+            customShellScript = script
+            replaceSelection = replace
+        }
+    }
+    
+    private func resetAppearance() {
+        if isBuiltin {
+            ActionCustomizationManager.shared.resetOverride(for: action.id)
+        }
+        // Manifest-backed and builtin both re-read current on-disk state, discarding unsaved edits.
+        loadInitialState()
+    }
+    
+    // MARK: - Saving
+    
+    private func saveChanges() async -> Bool {
+        if isBuiltin {
+            saveBuiltinOverride()
+            return true
+        }
+        return await saveManifestChanges()
+    }
+    
+    private func saveBuiltinOverride() {
         let titleOverride: String? = (customTitle.isEmpty || customTitle == action.title) ? nil : customTitle
         let symbolOverride: String? = iconSymbol.isEmpty ? nil : iconSymbol
         let textOverride: String? = (displayMode == 1) ? (customTitle.isEmpty ? action.title : customTitle) : nil
@@ -208,26 +390,86 @@ public struct EditActionSheet: View {
             symbol: symbolOverride,
             text: textOverride
         )
-        
-        // Save custom action logic if applicable
-        if action is CustomAction {
-            let finalType: CustomActionType
-            if case .webSearch = customType {
-                finalType = .webSearch(urlTemplate: customURLTemplate)
-            } else if case .textSnippet = customType {
-                finalType = .textSnippet(template: customSnippetTemplate)
-            } else {
-                finalType = .shellScript(script: customShellScript, replaceSelection: replaceSelection)
-            }
-            
-            let updatedCustomAction = CustomAction(
-                id: action.id,
-                title: customTitle.isEmpty ? action.title : customTitle,
-                iconName: iconSymbol.isEmpty ? "star" : iconSymbol,
-                type: finalType
-            )
-            CustomActionManager.shared.register(customAction: updatedCustomAction)
+    }
+    
+    private func saveManifestChanges() async -> Bool {
+        guard let state = manifestState else {
+            // Defensive: the Save button is disabled in this state, but if reached anyway (e.g. a
+            // keyboard path) surface the reason instead of silently returning with edits dropped.
+            saveAlertMessage = "This action is backed by a standalone script file with no editable manifest, so changes cannot be saved here."
+            showingSaveAlert = true
+            return false
         }
+        
+        let meta = state.manifest.actions[state.targetIndex]
+        let finalTitle = customTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Only rewrite the icon when the user actually changed it, so local-file icons on
+        // extension actions aren't clobbered by the symbol-only fallback value.
+        let finalIcon = (iconSymbol != initialIconSymbol && !iconSymbol.isEmpty) ? iconSymbol : meta.icon
+        
+        var newURL = meta.url
+        var newType = meta.type
+        var newScriptCode = meta.scriptCode
+        if logicEditable {
+            switch customType {
+            case .webSearch:
+                newURL = customURLTemplate
+                newType = "url"
+                newScriptCode = nil
+            case .textSnippet:
+                newURL = nil
+                newType = "textsnippet"
+                newScriptCode = customSnippetTemplate
+            case .shellScript:
+                newURL = nil
+                newType = "shell"
+                newScriptCode = customShellScript
+            }
+        }
+        
+        let updatedMeta = ExtensionActionMetadata(
+            id: meta.id,
+            title: finalTitle.isEmpty ? meta.title : finalTitle,
+            icon: finalIcon,
+            script: meta.script,
+            url: newURL,
+            regex: meta.regex,
+            type: newType,
+            scriptCode: newScriptCode,
+            requirements: meta.requirements,
+            after: meta.after,
+            stayVisible: meta.stayVisible,
+            options: meta.options,
+            subActions: meta.subActions,
+            keyPress: meta.keyPress,
+            serviceName: meta.serviceName,
+            shortcutName: meta.shortcutName
+        )
+        
+        var actions = state.manifest.actions
+        actions[state.targetIndex] = updatedMeta
+        let updatedManifest = ExtensionMetadata(
+            identifier: state.manifest.identifier,
+            name: state.manifest.name,
+            actions: actions,
+            options: state.manifest.options
+        )
+        
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(updatedManifest)
+            try data.write(to: state.manifestURL, options: .atomic)
+        } catch {
+            print("Failed to save action manifest: \(error)")
+            saveAlertMessage = "Failed to save the action manifest: \(error.localizedDescription)"
+            showingSaveAlert = true
+            return false
+        }
+        
+        // Manifest edits supersede any legacy appearance override for this action.
+        ActionCustomizationManager.shared.resetOverride(for: action.id)
+        await ExtensionManager.shared.loadExtensions()
+        return true
     }
 }
-

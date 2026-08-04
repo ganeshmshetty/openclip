@@ -3,15 +3,31 @@
 //
 // The single reusable renderer for the popup bubble: renders a BubbleContent with one of three
 // emphasis styles — .info (small dim hover tooltip), .result (standard card with delivery buttons),
-// or .menu (vertical sub-action rows). Replaces the ad-hoc AI overlay card.
+// or .menu (vertical sub-action rows). Replaces the ad-hoc AI overlay card. Also renders an optional
+// top-trailing status badge (decision 10) driven by StatusBadgeModel, so a status that arrives while
+// a card is already open is surfaced as a corner badge rather than replacing the card.
 import SwiftUI
 import Core
+
+/// Shared observable holding the status badge shown on the currently open bubble card. Presenter code
+/// (PopupWindowController) writes it; BubbleCardView observes it, so a status arriving after the card
+/// mounted still appears. Mirrors the shared-singleton pattern of PopupHoverState.
+@MainActor
+public final class StatusBadgeModel: ObservableObject {
+    public static let shared = StatusBadgeModel()
+
+    @Published public var currentStatusBadge: StatusFeedback?
+
+    private init() {}
+}
 
 @MainActor
 public struct BubbleCardView: View {
     public let content: BubbleContent
     public let onOutcome: (BubbleOutcome) -> Void
     public let onClose: (() -> Void)?
+
+    @ObservedObject public var statusBadgeModel: StatusBadgeModel = .shared
 
     @AppStorage("popupTheme") private var selectedTheme: String = "system"
     @Environment(\.colorScheme) private var colorScheme
@@ -35,6 +51,50 @@ public struct BubbleCardView: View {
 
     public var body: some View {
         cardContainer
+            .overlay(alignment: .topTrailing) {
+                statusBadgeOverlay
+            }
+    }
+
+    // MARK: - Status Badge (decision 10)
+
+    /// Small top-trailing capsule surfacing a transient status on an already-open card. Pushed below
+    /// the title/close row on `.result` cards so it never overlaps the close button.
+    @ViewBuilder
+    private var statusBadgeOverlay: some View {
+        if let status = statusBadgeModel.currentStatusBadge {
+            HStack(spacing: 4) {
+                Image(systemName: status.symbolName ?? Self.symbol(for: status.style))
+                    .font(.system(size: 10, weight: .semibold))
+                Text(status.message)
+                    .font(.system(size: 10, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .foregroundColor(Self.color(for: status.style))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background((colorScheme == .dark ? Color.black : Color.white).opacity(0.75))
+            .clipShape(Capsule())
+            .padding(.top, content.emphasis == .result ? 38 : 4)
+            .padding(.trailing, 6)
+        }
+    }
+
+    private static func symbol(for style: StatusFeedback.Style) -> String {
+        switch style {
+        case .success: return "checkmark.circle.fill"
+        case .error: return "exclamationmark.triangle.fill"
+        case .info: return "info.circle.fill"
+        }
+    }
+
+    private static func color(for style: StatusFeedback.Style) -> Color {
+        switch style {
+        case .success: return .green
+        case .error: return .red
+        case .info: return .accentColor
+        }
     }
 
     @ViewBuilder
