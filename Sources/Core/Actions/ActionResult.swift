@@ -2,9 +2,9 @@
 // OpenClip
 //
 // Defines the value enum representing execution results and platform side-effects returned by actions.
-// Specifies outcomes such as copy, cut, paste, URL opening, system service triggers, presentation
-// results (bubbles, status, configuration), and simple success/failure. Also carries the popup
-// dismissal policy computed once on a top-level result (decision 8).
+// Specifies outcomes such as copy, cut, paste, URL opening, system service triggers, notification
+// posting, presentation results (bubbles, status, configuration), and simple success/failure. Also
+// carries the popup dismissal policy computed once on a top-level result (decision 8).
 import Foundation
 
 public indirect enum ActionResult: Sendable {
@@ -16,6 +16,10 @@ public indirect enum ActionResult: Sendable {
     case cut(String)
     case paste(String)
     case showServices(String)
+
+    /// Post a macOS user notification (title/body) via `UNUserNotificationCenter`. Handled by the
+    /// effect door so Core and the JS host stay testable; best-effort (skipped if not authorized).
+    case notify(title: String, body: String)
 
     // MARK: - Presentation results (presenter-owned; the effect handler treats these as no-ops)
 
