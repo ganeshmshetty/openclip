@@ -78,12 +78,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     }
     
     public func availableActions(for context: ActionContext) -> [any Action] {
-        let defaultDisabledSubActions = TransformCase.defaultDisabledActionIDs
-        let configuredDisabled = settingsStore.get(.disabledActionIDs)
-        var disabledIDs = configuredDisabled.isEmpty ? Set(defaultDisabledSubActions) : configuredDisabled
-        if !settingsStore.get(.isTransformGroupEnabled) {
-            disabledIDs.insert("builtin.transform")
-        }
+        let disabledIDs = settingsStore.get(.disabledActionIDs)
         let disabledPackages = settingsStore.get(.disabledPackages)
 
         func passes(_ action: any Action) -> Bool {
@@ -102,9 +97,8 @@ public final class ActionRegistry: ObservableObject, Sendable {
         }
 
         // Group sub-actions are only reachable through their group's sub-menu. A group whose
-        // row is disabled (or otherwise not visible) hides its sub-actions entirely, so
-        // "disable Transform Text" really disables the whole transform group and a disabled
-        // extension group never leaks its sub-actions into the bar.
+        // row is disabled (or otherwise not visible) hides its sub-actions entirely, so a
+        // disabled group never leaks its sub-actions into the bar.
         let groupRowIDs = actions
             .filter { $0.chrome.popupBehavior == .showTransformMenu }
             .map { $0.id }

@@ -2,9 +2,8 @@
 // OpenClip
 //
 // Pure Core action representing an extension `.group` row (Phase 8). A group materializes as a
-// row whose chrome stamps `.showTransformMenu` (mirroring the builtin TransformTextGroupAction)
-// plus one registry entry per sub-action; membership is the ID-prefix convention (no
-// parentGroupID marker). perform is structural-only, exactly like TransformTextGroupAction.
+// row whose chrome stamps `.showTransformMenu` plus one registry entry per sub-action; membership
+// is the ID-prefix convention (no parentGroupID marker). perform is structural-only.
 // Enablement and match resolution delegate to the shared ActionVisibility evaluator when the
 // group carries declarative rules; otherwise the default requires a non-blank selection.
 import Foundation

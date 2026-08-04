@@ -208,18 +208,12 @@ public struct PreferencesView: View {
     }
     
     private func loadDisabledState() {
-        var set = DefaultSettingsStore.shared.get(.disabledActionIDs)
-        if !DefaultSettingsStore.shared.get(.isTransformGroupEnabled) {
-            set.insert("builtin.transform")
-        }
-        disabledActionIDs = set
+        disabledActionIDs = DefaultSettingsStore.shared.get(.disabledActionIDs)
         disabledPackages = DefaultSettingsStore.shared.get(.disabledPackages)
     }
     
     private func saveDisabledState() {
         DefaultSettingsStore.shared.set(.disabledActionIDs, value: disabledActionIDs)
-        let transformEnabled = !disabledActionIDs.contains("builtin.transform")
-        DefaultSettingsStore.shared.set(.isTransformGroupEnabled, value: transformEnabled)
         DefaultSettingsStore.shared.set(.disabledPackages, value: disabledPackages)
     }
 
@@ -396,8 +390,8 @@ struct ActionsTab: View {
     @ObservedObject private var coordinator = ActionCoordinator.shared
     
     /// Row model for the grouped actions list: multi-action extension packages get a package
-    /// header row (with a whole-package toggle) before their actions; single-action packages,
-    /// builtins, and transform rows stay flat.
+    /// header row (with a whole-package toggle) before their actions; single-action packages and
+    /// builtins stay flat.
     private enum ListRow: Identifiable {
         case packageHeader(packageID: String, title: String)
         case action(any Action)
@@ -413,7 +407,6 @@ struct ActionsTab: View {
     private var packageActionCounts: [String: Int] {
         var counts: [String: Int] = [:]
         for action in coordinator.actions {
-            if action.id.hasPrefix("builtin.transform.") { continue }
             if case .extensionPkg(let packageID) = action.chrome.source {
                 counts[packageID, default: 0] += 1
             }
@@ -425,7 +418,6 @@ struct ActionsTab: View {
         var seenPackages: Set<String> = []
         var rows: [ListRow] = []
         for action in coordinator.actions {
-            if action.id.hasPrefix("builtin.transform.") { continue }
             if case .extensionPkg(let packageID) = action.chrome.source {
                 if !seenPackages.contains(packageID) {
                     seenPackages.insert(packageID)
@@ -470,11 +462,7 @@ struct ActionsTab: View {
                         case .packageHeader(let packageID, let title):
                             PackageHeaderRowView(packageID: packageID, title: title, disabledPackages: $disabledPackages)
                         case .action(let action):
-                            if action.id == "builtin.transform" {
-                                TransformGroupRowView(groupAction: action, disabledActionIDs: $disabledActionIDs)
-                            } else {
-                                ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
-                            }
+                            ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
                         }
                     }
                     .onMove(perform: moveRows)
@@ -685,117 +673,6 @@ struct PackageHeaderRowView: View {
                 .accessibilityLabel("Enable \(title)")
         }
         .padding(.vertical, 4)
-    }
-}
-
-@MainActor
-struct TransformGroupRowView: View {
-    let groupAction: any Action
-    @Binding var disabledActionIDs: Set<String>
-    @State private var isExpanded = false
-    @State private var showingConfigSheet = false
-    
-    private var isGroupEnabled: Binding<Bool> {
-        Binding<Bool>(
-            get: { !disabledActionIDs.contains(groupAction.id) },
-            set: { enabled in
-                if enabled {
-                    disabledActionIDs.remove(groupAction.id)
-                } else {
-                    disabledActionIDs.insert(groupAction.id)
-                }
-            }
-        )
-    }
-    
-    private func isSubActionEnabled(_ tCase: TransformCase) -> Binding<Bool> {
-        let actionID = "builtin.transform.\(tCase.rawValue)"
-        return Binding<Bool>(
-            get: { !disabledActionIDs.contains(actionID) },
-            set: { enabled in
-                if enabled {
-                    disabledActionIDs.remove(actionID)
-                    disabledActionIDs.remove(groupAction.id)
-                } else {
-                    disabledActionIDs.insert(actionID)
-                }
-            }
-        )
-    }
-    
-    var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(TransformCase.allCases) { tCase in
-                    HStack {
-                        Text(tCase.displayName)
-                            .font(.system(size: 12))
-                        Spacer()
-                        Toggle("", isOn: isSubActionEnabled(tCase))
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .accessibilityLabel("Enable \(tCase.displayName)")
-                    }
-                }
-            }
-            .padding(.leading, 24)
-            .padding(.vertical, 4)
-        } label: {
-            HStack(alignment: .center, spacing: 12) {
-                // Icon Column
-                ZStack {
-                    if case .symbol(let name) = groupAction.displayIcon {
-                        AnyIconView(iconId: name)
-                            .frame(width: 14, height: 14)
-                    } else if case .text(let txt) = groupAction.displayIcon {
-                        Text(txt)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.primary)
-                    } else {
-                        Image(systemName: "textformat")
-                            .font(.system(size: 14))
-                            .foregroundColor(.primary)
-                    }
-                }
-                .frame(width: 28, height: 28)
-                .background(Color.primary.opacity(0.06))
-                .cornerRadius(6)
-                
-                // Title Column
-                Text(groupAction.displayTitle)
-                    .font(.system(size: 13, weight: .medium))
-                
-                Spacer()
-                
-                // Right-aligned controls (Toggle | Gear)
-                HStack(alignment: .center, spacing: 12) {
-                    // Enable/Disable Switch
-                    Toggle("", isOn: isGroupEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .accessibilityLabel("Enable \(groupAction.displayTitle)")
-                    
-                    // Edit / Configure Button
-                    Button(action: {
-                        showingConfigSheet = true
-                    }) {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 24, height: 24)
-                    .help("Configure Action")
-                    .accessibilityLabel("Configure Action")
-                    .sheet(isPresented: $showingConfigSheet) {
-                        EditActionSheet(action: groupAction)
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-        }
     }
 }
 

@@ -80,18 +80,4 @@ final class MenuActionTests: XCTestCase {
         let preview = await decorated.previewLine(for: makeContext(text: "hello"))
         XCTAssertNil(preview)
     }
-
-    // MARK: - TransformSubAction capability conformances
-
-    func testTransformSubActionRelevance() {
-        XCTAssertTrue(TransformSubAction(transformCase: .uppercase).isRelevant(for: "hello world"))
-        XCTAssertFalse(TransformSubAction(transformCase: .uppercase).isRelevant(for: "HELLO"))
-        XCTAssertFalse(TransformSubAction(transformCase: .camelCase).isRelevant(for: "hello"))
-    }
-
-    func testTransformSubActionPreview() async {
-        let sub = TransformSubAction(transformCase: .uppercase)
-        let preview = await sub.previewLine(for: makeContext(text: "hello world"))
-        XCTAssertEqual(preview, "HELLO WORLD")
-    }
 }

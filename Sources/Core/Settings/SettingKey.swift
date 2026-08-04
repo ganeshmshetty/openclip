@@ -38,7 +38,6 @@ public extension SettingKey where Value == Set<String> {
 }
 
 public extension SettingKey where Value == Bool {
-    static var isTransformGroupEnabled: SettingKey<Bool> { SettingKey<Bool>("action.transform.enabled", defaultValue: true) }
     static var isAppEnabled: SettingKey<Bool> { SettingKey<Bool>("isAppEnabled", defaultValue: true) }
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
     static var startAtLogin: SettingKey<Bool> { SettingKey<Bool>("startAtLogin", defaultValue: false) }

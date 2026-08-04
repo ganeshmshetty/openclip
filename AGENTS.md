@@ -66,9 +66,6 @@ These change behavior — keep them.
   `custom_actions.json`/`CustomActionManager` are retired.
 - **No `switch action.id` string matching in presentation.** Use `ConfigurableAction.preferenceIconName`,
   `action.chrome.badge`, `action.icon`. (One legacy block in `ActionCustomizationManager.tableIcon`.)
-- **Transform on/off policy lives on `TransformCase.defaultDisabledActionIDs`**, not the registry;
-  menu relevance filtering in `TransformCase.isRelevant(for:)`. Transform is now the four case
-  conversions (uppercase/lowercase/Title Case/camelCase) — all on by default, group row default-on.
 - **`OpenClipSnippetParser` is a pure text parser** — no `@MainActor`/UI. (Currently `@MainActor`; removal planned.)
 - **Subprocess actions need a timeout watchdog** — terminate if past `Constants.scriptTimeout` (30 s).
   Any new action that spawns a subprocess must follow.
@@ -112,8 +109,7 @@ These change behavior — keep them.
    never `ActionRegistry.shared` directly.
 5. **Data-driven UI:** use `action.chrome`, `ConfigurableAction.preferenceIconName`,
    `Action.gesturePolicy` — never Swift type checks (`is ScriptAction`) or `switch action.id`.
-6. **`TransformCase` owns transform policy & relevance** — don't duplicate it elsewhere.
-7. **Update file-level doc comments** when a file's responsibilities change.
+6. **Update file-level doc comments** when a file's responsibilities change.
 8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
    hang in automated sessions, so prefer the gated build (`timeout -k 5 60 … build`).
 9. **Popup must never be key.** No `canBecomeKey`/`canBecomeMain`/`makeKey()`; keyboard dismissal
