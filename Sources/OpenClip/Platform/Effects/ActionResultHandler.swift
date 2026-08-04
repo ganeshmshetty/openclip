@@ -66,6 +66,17 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         case .simulatePaste:
             simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand)
 
+        // Presentation/flow results are presenter-owned (PopupWindowController). The handler treats
+        // them as no-ops so the switch stays exhaustive without crashing when one is routed here.
+        case .showBubble, .showStatus, .openConfiguration, .sequence:
+            break
+        case .keepVisible(let inner):
+            try await handle(inner, in: view)
+
+        // Keyboard execution is Phase 8; nothing happens yet.
+        case .keyPress, .runShortcut:
+            break
+
         case .success, .none:
             break
 

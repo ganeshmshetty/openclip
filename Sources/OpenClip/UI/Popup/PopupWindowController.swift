@@ -4,6 +4,9 @@
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
 // Also owns the reusable bubble panel (BubbleCardView) that renders hover info, result, and sub-action
 // bubbles, plus the hover-debounce and long-press timers that trigger them per Action.gesturePolicy.
+// Implements the decision-8 ActionResult tree-walk (handleActionResult): presentation results render
+// here, leaf effects route to DefaultActionResultHandler, and dismissal is decided once via
+// ActionResult.dismissesPopup.
 import AppKit
 import SwiftUI
 import Core
@@ -24,6 +27,17 @@ public class PopupWindowController {
     private var longPressFired = false
     /// Set true while a non-dismissable bubble (.result/.menu) is showing.
     private var bubbleBlocksDismiss = false
+
+    /// Top-trailing status badge shown on the open bubble card (decision 10). Backed by the shared
+    /// StatusBadgeModel so an already-mounted BubbleCardView re-renders when a status arrives.
+    private var currentStatusBadge: StatusFeedback? {
+        get { StatusBadgeModel.shared.currentStatusBadge }
+        set { StatusBadgeModel.shared.currentStatusBadge = newValue }
+    }
+    /// Auto-dismiss timer for the non-blocking status info bubble.
+    private var statusDismissTask: Task<Void, Never>?
+    /// How long the non-blocking status info bubble stays up before auto-dismissing.
+    private let statusBubbleDurationNanoseconds: UInt64 = 1_500_000_000
 
     private var isMenuTracking = false
     
@@ -57,8 +71,13 @@ public class PopupWindowController {
             context: actionContext,
             initialAICardAboveBar: cardAbove,
             onResult: { [weak self] result in
-                self?.handleResult(result)
-                self?.hide()
+                guard let self else { return }
+                // Decision 8: dismissal is decided once on the top-level result; the tree-walk never
+                // hides per-item.
+                if result.dismissesPopup {
+                    self.hide()
+                }
+                self.handleActionResult(result)
             },
             onContentSizeChange: { [weak self] size in
                 self?.resizePanel(to: size)
@@ -171,7 +190,7 @@ public class PopupWindowController {
             blocksDismiss: true,
             onOutcome: { [weak self] outcome in
                 guard case .perform(let result) = outcome else { return }
-                self?.handleResult(result)
+                self?.handleActionResult(result)
                 if case .paste = result {
                     self?.hide()
                 } else {
@@ -192,7 +211,7 @@ public class PopupWindowController {
             anchorX: NSEvent.mouseLocation.x,
             onOutcome: { [weak self] outcome in
                 guard case .perform(let result) = outcome else { return }
-                self?.handleResult(result)
+                self?.handleActionResult(result)
                 self?.hide()
             },
             onClose: { [weak self] in
@@ -202,6 +221,9 @@ public class PopupWindowController {
     }
 
     private func hideBubble() {
+        statusDismissTask?.cancel()
+        statusDismissTask = nil
+        currentStatusBadge = nil
         bubblePanel?.orderOut(nil)
         bubblePanel = nil
         bubbleBlocksDismiss = false
@@ -282,7 +304,7 @@ public class PopupWindowController {
             longPressFired = true
             self.showBubble(content: bubble, blocksDismiss: true, anchorX: clickLocation.x) { [weak self] outcome in
                 guard case .perform(let result) = outcome else { return }
-                self?.handleResult(result)
+                self?.handleActionResult(result)
                 self?.hide()
             } onClose: { [weak self] in
                 self?.hideBubble()
@@ -465,9 +487,99 @@ public class PopupWindowController {
     
     private let resultHandler: ActionResultHandler = DefaultActionResultHandler()
 
-    private func handleResult(_ result: ActionResult) {
-        Task { @MainActor in
-            try? await resultHandler.handle(result, in: panel?.contentView)
+    // MARK: - Decision 8: ActionResult Tree-Walk
+
+    /// Walks an ActionResult produced by a perform, rendering presentation results in the popup and
+    /// routing leaf effects to the effect handler. Never hides the popup per-item — dismissal is
+    /// decided once on the top-level result via `dismissesPopup`.
+    private func handleActionResult(_ result: ActionResult) {
+        switch result {
+        case .showBubble(let content):
+            showBubble(
+                content: content,
+                blocksDismiss: true,
+                anchorX: NSEvent.mouseLocation.x,
+                onOutcome: { [weak self] outcome in
+                    guard case .perform(let inner) = outcome else { return }
+                    self?.handleActionResult(inner)
+                },
+                onClose: { [weak self] in
+                    self?.hideBubble()
+                }
+            )
+        case .showStatus(let feedback):
+            presentStatus(feedback)
+        case .openConfiguration(let request):
+            presentConfiguration(for: request)
+        case .keepVisible(let inner):
+            handleActionResult(inner)
+        case .sequence(let items):
+            for item in items { handleActionResult(item) }
+        default:
+            handleEffect(result)
         }
+    }
+
+    /// Routes a leaf effect to DefaultActionResultHandler and surfaces any thrown error uniformly
+    /// (decision 9): an error becomes a `.showStatus(.error)` and the popup stays.
+    private func handleEffect(_ result: ActionResult) {
+        guard let effect = result.effectForHandler else { return }
+        Task { @MainActor in
+            do {
+                try await resultHandler.handle(effect, in: panel?.contentView)
+            } catch {
+                handleActionResult(.showStatus(StatusFeedback(error: error)))
+            }
+        }
+    }
+
+    /// Decision 10: surfaces a StatusFeedback. With no bubble open, pops an auto-dismissing (~1.5s)
+    /// non-blocking `.info` bubble; with a bubble already open, shows a top-trailing corner badge on
+    /// the open card instead.
+    private func presentStatus(_ feedback: StatusFeedback) {
+        // Never surface a status if the popup isn't showing (e.g. a `.failure` result dismissed it
+        // before the effect threw); otherwise a detached bubble would float with no bar.
+        guard panel?.isVisible == true else { return }
+        if bubblePanel != nil {
+            currentStatusBadge = feedback
+            return
+        }
+
+        let content = BubbleContent(
+            icon: feedback.symbolName ?? statusSymbol(for: feedback.style),
+            subtitle: feedback.message,
+            emphasis: .info
+        )
+        showBubble(
+            content: content,
+            blocksDismiss: false,
+            anchorX: NSEvent.mouseLocation.x,
+            onOutcome: { _ in }
+        )
+        statusDismissTask?.cancel()
+        statusDismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: statusBubbleDurationNanoseconds)
+            guard !Task.isCancelled else { return }
+            self.hideBubble()
+        }
+    }
+
+    private func statusSymbol(for style: StatusFeedback.Style) -> String {
+        switch style {
+        case .success: return "checkmark.circle.fill"
+        case .error: return "exclamationmark.triangle.fill"
+        case .info: return "info.circle.fill"
+        }
+    }
+
+    /// Decision 8 config-open path: the popup has already hidden (`.openConfiguration` dismisses it);
+    /// post the configuration notification so the Preferences host presents the action's
+    /// EditActionSheet (StatusBarController opens Preferences and drives the sheet).
+    private func presentConfiguration(for request: ConfigurationRequest) {
+        NotificationCenter.default.post(
+            name: .openClipOpenActionConfiguration,
+            object: nil,
+            userInfo: ["request": request]
+        )
     }
 }
