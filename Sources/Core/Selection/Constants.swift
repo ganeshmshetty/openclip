@@ -9,9 +9,6 @@ public enum Constants {
     public static let filterDelay: TimeInterval = 0.075
     public static let elementTimeout: TimeInterval = 0.3
     public static let maxTextLength: Int = 10_485_760
-    /// Selections above this size skip the expensive pretty-print diff in the transform
-    /// smart-filter, falling back to a single JSON parse so the menu stays responsive.
-    public static let maxTransformCheckLength: Int = 200_000
     public static let pasteboardRestoreDelay: TimeInterval = 0.8
     public static let cVirtualKey: CGKeyCode = 0x08
     public static let deleteVirtualKey: CGKeyCode = 0x33

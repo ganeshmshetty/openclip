@@ -726,27 +726,16 @@ struct TransformGroupRowView: View {
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(TransformCategory.allCases, id: \.rawValue) { category in
-                    let catCases = TransformCase.allCases.filter { $0.category == category }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(category.rawValue)
-                            .font(.caption)
-                            .bold()
-                            .foregroundColor(.secondary)
-                            .padding(.top, 4)
-                        
-                        ForEach(catCases) { tCase in
-                            HStack {
-                                Text(tCase.displayName)
-                                    .font(.system(size: 12))
-                                Spacer()
-                                Toggle("", isOn: isSubActionEnabled(tCase))
-                                    .labelsHidden()
-                                    .toggleStyle(.switch)
-                                    .controlSize(.small)
-                                    .accessibilityLabel("Enable \(tCase.displayName)")
-                            }
-                        }
+                ForEach(TransformCase.allCases) { tCase in
+                    HStack {
+                        Text(tCase.displayName)
+                            .font(.system(size: 12))
+                        Spacer()
+                        Toggle("", isOn: isSubActionEnabled(tCase))
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .accessibilityLabel("Enable \(tCase.displayName)")
                     }
                 }
             }
