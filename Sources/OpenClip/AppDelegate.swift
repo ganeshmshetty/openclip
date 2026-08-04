@@ -40,7 +40,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.setup(popupController: controller)
         
         Task {
-            ExtensionManager.shared.actionFactory = DefaultActionFactory()
+            ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: SettingsActionOptionStore())
             await ActionCoordinator.shared.loadInitialState()
             ActionCoordinator.shared.register(action: CompletionAction())
             ActionCoordinator.shared.register(action: OpenURLAction())

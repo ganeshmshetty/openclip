@@ -43,5 +43,11 @@ public extension SettingKey where Value == String {
     static var calculateMode: SettingKey<String> { SettingKey<String>("action.calculate.mode", defaultValue: "paste") }
     static var calendarProvider: SettingKey<String> { SettingKey<String>("action.calendar.provider", defaultValue: "native") }
     static var searchURL: SettingKey<String> { SettingKey<String>("action.search.url", defaultValue: "https://www.google.com/search?q={query}") }
+
+    /// Per-action option value key. The key name matches the legacy `action.<id>.option.<optID>`
+    /// convention so existing stored values migrate over with zero data changes.
+    static func actionOption(actionID: String, optionID: String, default defaultValue: String = "") -> SettingKey<String> {
+        SettingKey<String>("action.\(actionID).option.\(optionID)", defaultValue: defaultValue)
+    }
 }
 
