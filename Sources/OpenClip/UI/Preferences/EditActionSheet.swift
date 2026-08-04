@@ -6,6 +6,8 @@
 // acts as a manifest reader/writer: the Appearance tab edits title/icon in the manifest, the General
 // tab edits the target action's type/logic fields, and saving rewrites the manifest then reloads the
 // extension list. Builtin actions keep the legacy ActionCustomizationManager appearance overrides.
+// A non-builtin action whose manifest can't be located on disk (e.g. a standalone snippet script
+// file) is read-only: the sheet surfaces why and disables Save rather than silently dropping edits.
 import SwiftUI
 import AppKit
 import Core
@@ -30,13 +32,18 @@ public struct EditActionSheet: View {
     @State private var replaceSelection: Bool = true
     
     // Manifest-backed state: the target action lives in an extension manifest package.
-    private struct ManifestEditState {
+    struct ManifestEditState {
         let manifestURL: URL
         let manifest: ExtensionMetadata
         let targetIndex: Int
     }
     @State private var manifestState: ManifestEditState?
     @State private var logicEditable: Bool = false
+    // True when a non-builtin action has no locatable manifest (standalone script file), so the
+    // sheet must stay read-only instead of dropping edits on Save.
+    @State private var manifestMissing: Bool = false
+    @State private var showingSaveAlert: Bool = false
+    @State private var saveAlertMessage: String = ""
     
     private let popularSymbols = [
         "magnifyingglass", "doc.on.doc", "scissors", "folder",
@@ -51,6 +58,10 @@ public struct EditActionSheet: View {
     private var isBuiltin: Bool {
         if case .builtin = action.chrome.source { return true }
         return false
+    }
+    
+    private var saveDisabled: Bool {
+        !isBuiltin && manifestState == nil
     }
     
     public var body: some View {
@@ -100,6 +111,7 @@ public struct EditActionSheet: View {
                             .buttonStyle(.link)
                             .padding(.top, 4)
                         }
+                        .disabled(manifestMissing)
                     } else {
                         // General Tab (Behavior & Logic)
                         if !action.actionOptions.isEmpty {
@@ -152,9 +164,15 @@ public struct EditActionSheet: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("General Action Information")
                                     .font(.headline)
-                                Text("Standard action. Execution behavior and options are managed automatically by OpenClip.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                if manifestMissing {
+                                    Text("This action is a standalone script file with no editable manifest. Delete it and re-create it as a snippet or extension package to customize its behavior, name, or icon.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("Standard action. Execution behavior and options are managed automatically by OpenClip.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                     }
@@ -170,15 +188,22 @@ public struct EditActionSheet: View {
                 Spacer()
                 Button("Save Changes") {
                     Task {
-                        await saveChanges()
-                        dismiss()
+                        if await saveChanges() {
+                            dismiss()
+                        }
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(saveDisabled)
             }
             .padding(12)
         }
         .frame(width: 340, height: 360)
+        .alert("Unable to Save Changes", isPresented: $showingSaveAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveAlertMessage)
+        }
         .onAppear {
             loadInitialState()
         }
@@ -188,14 +213,15 @@ public struct EditActionSheet: View {
     
     /// Locates the manifest package whose identifier matches the action's chrome source (or, as a
     /// fallback for stray `.custom` actions, its id) and returns the target action's edit state.
-    private static func locateManifest(for action: any Action) -> ManifestEditState? {
+    /// Only directory-backed manifest packages are considered; a standalone script file with the
+    /// same identifier returns nil, which the sheet treats as a read-only, uneditable action.
+    static func locateManifest(for action: any Action, in directory: URL = Constants.extensionsDirectory) -> ManifestEditState? {
         let packageID: String
         if case .extensionPkg(let pid) = action.chrome.source {
             packageID = pid
         } else {
             packageID = action.id
         }
-        let directory = Constants.extensionsDirectory
         guard let items = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) else {
             return nil
         }
@@ -243,6 +269,7 @@ public struct EditActionSheet: View {
         if isBuiltin {
             manifestState = nil
             logicEditable = false
+            manifestMissing = false
             if let customAction = action as? CustomAction {
                 loadCustomType(from: customAction)
             }
@@ -251,13 +278,14 @@ public struct EditActionSheet: View {
         
         manifestState = Self.locateManifest(for: action)
         guard let state = manifestState else {
-            // Stray non-builtin action with no manifest on disk: fall back to the in-memory type.
+            // Standalone-script action (or a stray non-builtin with no manifest on disk): the JSON
+            // manifest is the only editable surface, so there is nothing to write. Keep the sheet
+            // read-only and disable Save rather than silently dropping edits.
             logicEditable = false
-            if let customAction = action as? CustomAction {
-                loadCustomType(from: customAction)
-            }
+            manifestMissing = true
             return
         }
+        manifestMissing = false
         
         let meta = state.manifest.actions[state.targetIndex]
         switch meta.kind {
@@ -299,12 +327,12 @@ public struct EditActionSheet: View {
     
     // MARK: - Saving
     
-    private func saveChanges() async {
+    private func saveChanges() async -> Bool {
         if isBuiltin {
             saveBuiltinOverride()
-            return
+            return true
         }
-        await saveManifestChanges()
+        return await saveManifestChanges()
     }
     
     private func saveBuiltinOverride() {
@@ -320,8 +348,14 @@ public struct EditActionSheet: View {
         )
     }
     
-    private func saveManifestChanges() async {
-        guard let state = manifestState else { return }
+    private func saveManifestChanges() async -> Bool {
+        guard let state = manifestState else {
+            // Defensive: the Save button is disabled in this state, but if reached anyway (e.g. a
+            // keyboard path) surface the reason instead of silently returning with edits dropped.
+            saveAlertMessage = "This action is backed by a standalone script file with no editable manifest, so changes cannot be saved here."
+            showingSaveAlert = true
+            return false
+        }
         
         let meta = state.manifest.actions[state.targetIndex]
         let finalTitle = customTitle.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -384,11 +418,14 @@ public struct EditActionSheet: View {
             try data.write(to: state.manifestURL, options: .atomic)
         } catch {
             print("Failed to save action manifest: \(error)")
-            return
+            saveAlertMessage = "Failed to save the action manifest: \(error.localizedDescription)"
+            showingSaveAlert = true
+            return false
         }
         
         // Manifest edits supersede any legacy appearance override for this action.
         ActionCustomizationManager.shared.resetOverride(for: action.id)
         await ExtensionManager.shared.loadExtensions()
+        return true
     }
 }
