@@ -72,7 +72,8 @@ These change behavior — keep them.
 - **Subprocess actions need a timeout watchdog** — terminate if past `Constants.scriptTimeout` (30 s).
   Any new action that spawns a subprocess must follow.
 - **Swift 6 strict concurrency: continuation resume-once flags must be `@unchecked Sendable` classes**
-  (see `OnceGate` in `CustomAction.swift`), not captured mutable locals.
+  (see `TimeoutFlag`/`OnceGate` in `Sources/Core/Extensions/ShellProcessRunner.swift`), not captured
+  mutable locals.
 - **`ActionContext.modifiers` is unused.** Don't build logic assuming modifier keys reach actions.
 - **Gemini auth via the `x-goog-api-key` header only** — never `?key=` in the URL (leaks credentials).
 - **Glass stays apart from the color themes.** `PopupThemeSelector` groups System/Light/Dark vs Glass;

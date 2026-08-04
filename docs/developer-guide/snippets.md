@@ -24,7 +24,7 @@ Header metadata can be specified using single-line comment prefixes (`//` or `#`
 // identifier: com.user.snippet.uppercase
 // javascript:
 var text = openclip.input.text;
-openclip.pasteText(text.toUpperCase());
+openclip.paste(text.toUpperCase());
 ```
 
 ### Example 2: Standalone Shell Script (`format-sql.sh`)

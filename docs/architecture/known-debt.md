@@ -11,9 +11,9 @@ areas; stale debt notes are worse than none.
 
 - The typed settings abstraction is `SettingsStore` + `SettingKey<T>` (see `Sources/Core/Settings/`).
   New settings code must route through it.
-- **Current reality:** `UserDefaults.standard` is still called directly in ~13 App-target call
-  sites: `AppDelegate` ×2, `StatusBarController` ×4, `JavaScriptAction` ×1, `AIServiceManager` ×2,
-  `OnboardingView` ×1, `LaunchAtLoginManager` ×3. Migrating these is ongoing — **don't add new ones.**
+- **Current reality:** `UserDefaults.standard` is still called directly in ~12 App-target call
+  sites: `AppDelegate` ×2, `StatusBarController` ×4, `AIServiceManager` ×2, `OnboardingView` ×1,
+  `LaunchAtLoginManager` ×3. Migrating these is ongoing — **don't add new ones.**
 - **Secrets live in the Keychain, not UserDefaults.** Sensitive credentials (the cloud AI API key)
   must use `KeychainStore` (generic-password `SecItem` wrapper, `kSecAttrAccessibleAfterFirstUnlock`).
   `AIServiceManager.cloudAPIKey` is `@Published`, backed by `KeychainStore` (account `aiCloudAPIKey`);

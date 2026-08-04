@@ -51,6 +51,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Popup Panel & Positioning Math](architecture/popup-window.md) — `PopupPanel`, static layout math in `PopupPositioner`, and window lifecycle management.
 
 ### Developer Guide
+- [AGENTS.md — Authoring & Packaging Extensions](developer-guide/AGENTS.md) — **Start here.** Self-contained v2 guide: manifest schema, all action kinds, options, requirements, groups, and the result surface.
 - [Extending OpenClip Overview](developer-guide/overview.md) — Extension architecture and custom action integration.
 - [Extension Package Format](developer-guide/package-format.md) — `.openclipext` bundle structure, `manifest.json` schema, and options definitions.
 - [Standalone Snippet Parsing](developer-guide/snippets.md) — Pure header parsing via `OpenClipSnippetParser`.
@@ -59,7 +60,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [AppleScript Runtime](runtimes/applescript.md) — `AppleScriptAction` execution, variable injection, and output handling.
 - [JavaScript Runtime](runtimes/javascript.md) — `JavaScriptAction` under JavaScriptCore, the `openclip` bridge, and option keys via `SettingKey`.
 - [URL Templates Engine](runtimes/url-templates.md) — Parameterized search links using `URLTemplateAction` and `TextPlaceholderEngine`.
-- [Shell & Executable Scripts](runtimes/zsh-python.md) — Process execution, environment variables (`OPENCLIP_TEXT`, `OPENCLIP_OPTION_*`), and JSON/text stdout parsing.
+- [Shell & Executable Scripts](runtimes/zsh-python.md) — Process execution, environment variables (`OPENCLIP_TEXT`, `OPENCLIP_MATCHED`, `OPENCLIP_ACTION_ID`), and JSON/text stdout parsing.
 
 ### User Guide
 - [Installation & Onboarding](user-guide/installation.md) — Installing OpenClip, Accessibility permissions setup, and first-launch workflow.
