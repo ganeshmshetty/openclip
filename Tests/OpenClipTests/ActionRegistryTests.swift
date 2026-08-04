@@ -11,6 +11,13 @@ struct MockAction: Action {
     let title = "Mock"
     let icon = ActionIcon.symbol("star")
     let shouldBeEnabled: Bool
+    let chrome: ActionChrome
+    
+    init(id: String, shouldBeEnabled: Bool, chrome: ActionChrome = ActionChrome()) {
+        self.id = id
+        self.shouldBeEnabled = shouldBeEnabled
+        self.chrome = chrome
+    }
     
     @MainActor
     func isEnabled(for context: ActionContext) -> Bool {
@@ -107,5 +114,104 @@ final class ActionRegistryTests: XCTestCase {
         let available = registry.availableActions(for: context)
         
         XCTAssertFalse(available.contains(where: { $0.id == "mock.disabled.test" }))
+    }
+    
+    @MainActor
+    func testDisabledPackageHidesAllPackageActions() {
+        let registry = ActionRegistry.shared
+        
+        let packageID = "com.test.pkg"
+        let pkgChrome = ActionChrome(
+            badge: .extensionPkg(packageID),
+            rowStyle: .standard,
+            popupBehavior: .perform,
+            source: .extensionPkg(packageID: packageID)
+        )
+        let a1 = MockAction(id: "\(packageID).action.1", shouldBeEnabled: true, chrome: pkgChrome)
+        let a2 = MockAction(id: "\(packageID).action.2", shouldBeEnabled: true, chrome: pkgChrome)
+        registry.register(builtIns: [a1, a2])
+        
+        let oldDisabled = UserDefaults.standard.stringArray(forKey: "disabledPackages")
+        UserDefaults.standard.set([packageID], forKey: "disabledPackages")
+        defer {
+            if let oldDisabled {
+                UserDefaults.standard.set(oldDisabled, forKey: "disabledPackages")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "disabledPackages")
+            }
+        }
+        
+        let selection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection, modifiers: [])
+        let available = registry.availableActions(for: context)
+        
+        XCTAssertFalse(available.contains(where: { $0.id == a1.id }))
+        XCTAssertFalse(available.contains(where: { $0.id == a2.id }))
+    }
+
+    @MainActor
+    func testDisabledGroupRowHidesItsSubActions() {
+        let registry = ActionRegistry.shared
+        let groupID = "mock.group"
+        let groupChrome = ActionChrome(
+            badge: .none,
+            rowStyle: .transformGroup,
+            popupBehavior: .showTransformMenu,
+            source: .builtin
+        )
+        let group = MockAction(id: groupID, shouldBeEnabled: true, chrome: groupChrome)
+        let subA = MockAction(id: "\(groupID).a", shouldBeEnabled: true)
+        let subB = MockAction(id: "\(groupID).b", shouldBeEnabled: true)
+        registry.register(builtIns: [group, subA, subB])
+
+        let oldDisabled = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey)
+        UserDefaults.standard.set([groupID], forKey: Constants.disabledActionIDsKey)
+        defer {
+            if let oldDisabled {
+                UserDefaults.standard.set(oldDisabled, forKey: Constants.disabledActionIDsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Constants.disabledActionIDsKey)
+            }
+        }
+
+        let selection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection, modifiers: [])
+        let available = registry.availableActions(for: context)
+
+        XCTAssertFalse(available.contains { $0.id == groupID })
+        XCTAssertFalse(available.contains { $0.id == subA.id })
+        XCTAssertFalse(available.contains { $0.id == subB.id })
+    }
+
+    @MainActor
+    func testEnabledGroupRowKeepsSubActionsAvailable() {
+        let registry = ActionRegistry.shared
+        let groupID = "mock.group.visible"
+        let groupChrome = ActionChrome(
+            badge: .none,
+            rowStyle: .transformGroup,
+            popupBehavior: .showTransformMenu,
+            source: .builtin
+        )
+        let group = MockAction(id: groupID, shouldBeEnabled: true, chrome: groupChrome)
+        let sub = MockAction(id: "\(groupID).x", shouldBeEnabled: true)
+        registry.register(builtIns: [group, sub])
+
+        let oldDisabled = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey)
+        UserDefaults.standard.removeObject(forKey: Constants.disabledActionIDsKey)
+        defer {
+            if let oldDisabled {
+                UserDefaults.standard.set(oldDisabled, forKey: Constants.disabledActionIDsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Constants.disabledActionIDsKey)
+            }
+        }
+
+        let selection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection, modifiers: [])
+        let available = registry.availableActions(for: context)
+
+        XCTAssertTrue(available.contains { $0.id == groupID })
+        XCTAssertTrue(available.contains { $0.id == sub.id })
     }
 }

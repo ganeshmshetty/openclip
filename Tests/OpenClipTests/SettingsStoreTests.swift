@@ -24,4 +24,16 @@ final class SettingsStoreTests: XCTestCase {
         store.set(.disabledActionIDs, value: ["builtin.transform"])
         XCTAssertEqual(store.get(.disabledActionIDs), ["builtin.transform"])
     }
+
+    func testActionOptionKeyNameAndRoundTrip() {
+        let key = SettingKey.actionOption(actionID: "com.test.action", optionID: "prefix")
+        XCTAssertEqual(key.name, "action.com.test.action.option.prefix")
+        XCTAssertEqual(key.defaultValue, "")
+
+        XCTAssertEqual(store.get(key), "")
+        store.set(key, value: "hello")
+        XCTAssertEqual(store.get(key), "hello")
+        store.set(key, value: "")
+        XCTAssertEqual(store.get(key), "")
+    }
 }

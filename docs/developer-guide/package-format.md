@@ -1,5 +1,9 @@
 # Extension Package Format (`.openclipext`)
 
+> **Authoritative reference:** the current (v2) manifest schema, all action kinds, options,
+> requirements, groups, and the runtime result surface are documented in
+> [`docs/developer-guide/AGENTS.md`](./AGENTS.md). This page is a summary and may lag it.
+
 OpenClip extension packages are directory bundles (suffixed with `.openclipext` or plain directories) containing a manifest JSON file (`manifest.json`, `openclip.json`, or `Config.json`) along with supporting script files and local asset icons.
 
 ---
@@ -72,11 +76,15 @@ OpenClip decodes extension metadata via [`ExtensionMetadata`](../../Sources/Core
 | `id` | String | Unique action identifier. If omitted, generated as `<manifest.id>.action.<index>`. |
 | `title` | String | Display title presented in UI surfaces. |
 | `icon` | String | Icon definition. Accepts `symbol:sf_symbol_name`, local filename (`icon.png`), or URL. |
-| `type` | String | Runtime type: `"javascript"` (`"js"`), `"applescript"` (`"scpt"`), `"shell"` (`"sh"`), or `"url"`. |
+| `type` | String | Runtime kind (case-insensitive): `"url"` (default), `"javascript"` (`"js"`), `"applescript"`, `"shell"` (`"shellinline"`), `"script"` (`"scriptfile"`), `"textSnippet"` (`"snippet"`/`"text"`), `"webSearch"` (`"web"`/`"search"`), `"keyPress"` (`"keys"`), `"service"` (`"servicemenu"`), `"shortcut"` (`"keyboardshortcut"`), `"group"` (`"subactions"`). Unknown values default to `"url"`. |
 | `script` | String | Path to script file relative to extension directory (defaults to `main.js`). |
 | `scriptCode` | String | Inline script code string (used when code is embedded directly in manifest/snippet). |
 | `url` | String | URL template pattern string with `{query}` or `{text}` placeholders. |
 | `regex` | String | Optional regular expression pattern to gate action visibility. |
+| `keyPress` | String | Key-press spec like `"command+shift+o"` (for `type: "keyPress"`). |
+| `shortcutName` | String | Name of a macOS Shortcut to run (for `type: "shortcut"`). |
+| `serviceName` | String | Reserved for the macOS Services menu (for `type: "service"`). |
+| `subActions` | Array | Sub-action objects for `type: "group"`; rendered as a sub-menu with IDs `<groupID>.<subID>`. |
 
 ---
 
@@ -88,10 +96,11 @@ Extensions can expose user preferences rendered in the Preferences window under 
 | :--- | :--- | :--- | :--- |
 | `identifier` | String | `id`, `Identifier` | Option key used when reading configuration. |
 | `label` | String | `Label` | User-facing title in the Preferences panel. |
-| `type` | String | `Type` | Input control type: `"string"`, `"boolean"`, `"select"`. |
+| `type` | String | `Type` | Input control type: `"string"`, `"boolean"`, `"multiple"` (picker; see `options`), `"secret"` (Keychain-backed). |
 | `default` | String | `Default` | Default value if unspecified by the user. |
+| `options` | Array | `Options` | Candidate choices for `type: "multiple"`. |
 
 ### Option Storage & Retrieval
-- Dynamic action options are saved through [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) using typed setting key strings:
- `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)`
-- Direct `UserDefaults.standard` access is discouraged and should not be added in new code. (Note: `JavaScriptAction` currently reads option values via `UserDefaults.standard.string(forKey:)`; migrating it to `SettingKey` is planned.)
+- Non-secret option values are saved through [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) using typed setting key strings: `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)`.
+- `type: "secret"` option values live in the **Keychain**, never `SettingsStore`/UserDefaults — resolved via [`KeychainActionOptionStore`](../../Sources/OpenClip/Platform/Extensions/KeychainActionOptionStore.swift) (Keychain account from `ActionOptionKey.keychainAccount(actionID:optionID:)`).
+- Direct `UserDefaults.standard` access is discouraged and should not be added in new code. The JavaScript runtime reads options through the injected `ActionOptionReading` store (`OpenClipJSHost`), not `UserDefaults`.

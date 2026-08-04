@@ -24,6 +24,12 @@ class StatusBarController {
             name: Notification.Name("OpenClipEnabledStateChanged"),
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleOpenConfiguration(_:)),
+            name: .openClipOpenActionConfiguration,
+            object: nil
+        )
     }
     
     /// Sets up the menu for the status bar item.
@@ -68,6 +74,15 @@ class StatusBarController {
         updateStatusItem(isEnabled: isEnabled)
     }
     
+    /// Decision 8 config-open path: an action requested its configuration. The popup has already
+    /// hidden; open Preferences and hand the request to the coordinator so PreferencesView can
+    /// present the matching EditActionSheet (the window may not have existed yet).
+    @objc private func handleOpenConfiguration(_ notification: Notification) {
+        guard let request = notification.userInfo?["request"] as? ConfigurationRequest else { return }
+        ActionConfigurationCoordinator.shared.pendingRequest = request
+        showPreferences()
+    }
+    
     public func updateStatusItem(isEnabled: Bool) {
         toggleEnabledItem?.title = isEnabled ? "Disable OpenClip" : "Enable OpenClip"
         updateStatusIcon(isEnabled: isEnabled)
@@ -75,8 +90,7 @@ class StatusBarController {
     
     private func updateStatusIcon(isEnabled: Bool) {
         if let button = statusItem.button {
-            let symbolName = isEnabled ? "paperclip" : "paperclip.badge.ellipsis"
-            button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "OpenClip")
+            button.image = NSImage(named: "MenuBarIcon")
             button.image?.isTemplate = true
             button.alphaValue = isEnabled ? 1.0 : 0.45
         }

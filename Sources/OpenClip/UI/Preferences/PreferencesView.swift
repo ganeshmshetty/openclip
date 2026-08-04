@@ -38,9 +38,12 @@ public struct PreferencesView: View {
     @AppStorage(Constants.startAtLoginKey) private var startAtLogin: Bool = false
     
     @State private var disabledActionIDs: Set<String> = []
+    @State private var disabledPackages: Set<String> = []
     @State private var selectedTab: PreferenceTab = .general
     @State private var aiSubTab: AISubTab = .configure
     @State private var extensionsSubTab: ExtensionSubTab = .store
+    @State private var configuringAction: ConfigurationSheetItem?
+    @ObservedObject private var configurationCoordinator = ActionConfigurationCoordinator.shared
 
     private var installedExtensionCount: Int {
         ActionCoordinator.shared.actions.filter { action in
@@ -170,7 +173,7 @@ public struct PreferencesView: View {
                     case .appearance: 
                         AppearanceTab()
                     case .actions: 
-                        ActionsTab(disabledActionIDs: $disabledActionIDs)
+                        ActionsTab(disabledActionIDs: $disabledActionIDs, disabledPackages: $disabledPackages)
                     case .extensions:
                         ExtensionsStoreView(selectedSubTab: $extensionsSubTab)
                     case .ai:
@@ -190,24 +193,44 @@ public struct PreferencesView: View {
         }
         .glassSurface(.regular, cornerRadius: 0)
         .frame(minWidth: 760, idealWidth: 860, minHeight: 640, idealHeight: 720)
-        .onAppear { loadDisabledActionIDs() }
-        .onChange(of: disabledActionIDs) { _, _ in saveDisabledActionIDs() }
+        .onAppear { loadDisabledState() }
+        .onChange(of: disabledActionIDs) { _, _ in saveDisabledState() }
+        .onChange(of: disabledPackages) { _, _ in saveDisabledState() }
+        .onChange(of: configurationCoordinator.pendingRequest, initial: true) { _, request in
+            guard let request else { return }
+            configurationCoordinator.pendingRequest = nil
+            guard let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
+            configuringAction = ConfigurationSheetItem(action: action, request: request)
+        }
+        .sheet(item: $configuringAction) { item in
+            EditActionSheet(action: item.action, configurationRequest: item.request)
+        }
     }
     
-    private func loadDisabledActionIDs() {
+    private func loadDisabledState() {
         var set = DefaultSettingsStore.shared.get(.disabledActionIDs)
         if !DefaultSettingsStore.shared.get(.isTransformGroupEnabled) {
             set.insert("builtin.transform")
         }
         disabledActionIDs = set
+        disabledPackages = DefaultSettingsStore.shared.get(.disabledPackages)
     }
     
-    private func saveDisabledActionIDs() {
+    private func saveDisabledState() {
         DefaultSettingsStore.shared.set(.disabledActionIDs, value: disabledActionIDs)
         let transformEnabled = !disabledActionIDs.contains("builtin.transform")
         DefaultSettingsStore.shared.set(.isTransformGroupEnabled, value: transformEnabled)
+        DefaultSettingsStore.shared.set(.disabledPackages, value: disabledPackages)
     }
 
+}
+
+/// Identifiable wrapper so a config sheet can be driven by `.sheet(item:)` with any `Action`,
+/// optionally carrying the `ConfigurationRequest` that opened it (reason banner + missing highlights).
+private struct ConfigurationSheetItem: Identifiable {
+    let action: any Action
+    let request: ConfigurationRequest?
+    var id: String { action.id }
 }
 
 @MainActor
@@ -368,23 +391,93 @@ struct AppearanceTab: View {
 @MainActor
 struct ActionsTab: View {
     @Binding var disabledActionIDs: Set<String>
+    @Binding var disabledPackages: Set<String>
     @State private var showingAddActionSheet = false
     @ObservedObject private var coordinator = ActionCoordinator.shared
+    
+    /// Row model for the grouped actions list: multi-action extension packages get a package
+    /// header row (with a whole-package toggle) before their actions; single-action packages,
+    /// builtins, and transform rows stay flat.
+    private enum ListRow: Identifiable {
+        case packageHeader(packageID: String, title: String)
+        case action(any Action)
+        
+        var id: String {
+            switch self {
+            case .packageHeader(let packageID, _): return "pkg.\(packageID)"
+            case .action(let action): return action.id
+            }
+        }
+    }
+    
+    private var packageActionCounts: [String: Int] {
+        var counts: [String: Int] = [:]
+        for action in coordinator.actions {
+            if action.id.hasPrefix("builtin.transform.") { continue }
+            if case .extensionPkg(let packageID) = action.chrome.source {
+                counts[packageID, default: 0] += 1
+            }
+        }
+        return counts
+    }
+    
+    private var listRows: [ListRow] {
+        var seenPackages: Set<String> = []
+        var rows: [ListRow] = []
+        for action in coordinator.actions {
+            if action.id.hasPrefix("builtin.transform.") { continue }
+            if case .extensionPkg(let packageID) = action.chrome.source {
+                if !seenPackages.contains(packageID) {
+                    seenPackages.insert(packageID)
+                    if packageActionCounts[packageID] ?? 0 >= 2 {
+                        let title: String
+                        if case .extensionPkg(let name) = action.chrome.badge {
+                            title = name
+                        } else {
+                            title = packageID
+                        }
+                        rows.append(.packageHeader(packageID: packageID, title: title))
+                    }
+                }
+                rows.append(.action(action))
+            } else {
+                rows.append(.action(action))
+            }
+        }
+        return rows
+    }
+    
+    /// Translates indices in the grouped row list (which contains inert package headers) back to
+    /// `coordinator.actions` indices so reordering stays correct despite the inserted headers.
+    private func moveRows(source: IndexSet, destination: Int) {
+        let actionIndices: [(rowIndex: Int, actionIndex: Int)] = listRows.enumerated().compactMap { rowIndex, row in
+            guard case .action(let action) = row else { return nil }
+            guard let actionIndex = coordinator.actions.firstIndex(where: { $0.id == action.id }) else { return nil }
+            return (rowIndex, actionIndex)
+        }
+        let actionIndexByRow = Dictionary(uniqueKeysWithValues: actionIndices.map { ($0.rowIndex, $0.actionIndex) })
+        let actionSource = IndexSet(source.compactMap { actionIndexByRow[$0] })
+        let actionDestination = actionIndices.prefix { $0.rowIndex < destination }.count
+        coordinator.moveActions(from: actionSource, to: actionDestination)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             List {
                 Section {
-                    ForEach(coordinator.actions.filter { !$0.id.hasPrefix("builtin.transform.") }, id: \.id) { action in
-                        if action.id == "builtin.transform" {
-                            TransformGroupRowView(groupAction: action, disabledActionIDs: $disabledActionIDs)
-                        } else {
-                            ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
+                    ForEach(listRows) { row in
+                        switch row {
+                        case .packageHeader(let packageID, let title):
+                            PackageHeaderRowView(packageID: packageID, title: title, disabledPackages: $disabledPackages)
+                        case .action(let action):
+                            if action.id == "builtin.transform" {
+                                TransformGroupRowView(groupAction: action, disabledActionIDs: $disabledActionIDs)
+                            } else {
+                                ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
+                            }
                         }
                     }
-                    .onMove { source, destination in
-                        coordinator.moveActions(from: source, to: destination)
-                    }
+                    .onMove(perform: moveRows)
                 }
             }
             .listStyle(.inset)
@@ -503,19 +596,10 @@ struct ActionRowView: View {
             HStack(alignment: .center, spacing: 12) {
                 // Delete / Uninstall Button (if applicable)
                 switch action.chrome.source {
-                case .custom:
-                    Button(action: {
-                        CustomActionManager.shared.delete(customActionID: action.id)
-                    }) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14))
-                            .foregroundColor(.red)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 24, height: 24)
-                    .help("Delete Custom Action")
-                    .accessibilityLabel("Delete Custom Action")
-                case .extensionPkg:
+                case .custom, .extensionPkg:
+                    // GUI-created custom actions live in manifest packages (source .extensionPkg),
+                    // and snippet-sourced custom actions are standalone files — both uninstall by
+                    // removing the package/folder that produced the action's id.
                     Button(action: {
                         Task {
                             try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
@@ -563,6 +647,48 @@ struct ActionRowView: View {
 
 
 @MainActor
+struct PackageHeaderRowView: View {
+    let packageID: String
+    let title: String
+    @Binding var disabledPackages: Set<String>
+    
+    var isEnabled: Binding<Bool> {
+        Binding<Bool>(
+            get: { !disabledPackages.contains(packageID) },
+            set: { enabled in
+                if enabled {
+                    disabledPackages.remove(packageID)
+                } else {
+                    disabledPackages.insert(packageID)
+                }
+            }
+        )
+    }
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "shippingbox")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .frame(width: 28, height: 28)
+            
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            Toggle("", isOn: isEnabled)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .accessibilityLabel("Enable \(title)")
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+@MainActor
 struct TransformGroupRowView: View {
     let groupAction: any Action
     @Binding var disabledActionIDs: Set<String>
@@ -600,27 +726,16 @@ struct TransformGroupRowView: View {
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(TransformCategory.allCases, id: \.rawValue) { category in
-                    let catCases = TransformCase.allCases.filter { $0.category == category }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(category.rawValue)
-                            .font(.caption)
-                            .bold()
-                            .foregroundColor(.secondary)
-                            .padding(.top, 4)
-                        
-                        ForEach(catCases) { tCase in
-                            HStack {
-                                Text(tCase.displayName)
-                                    .font(.system(size: 12))
-                                Spacer()
-                                Toggle("", isOn: isSubActionEnabled(tCase))
-                                    .labelsHidden()
-                                    .toggleStyle(.switch)
-                                    .controlSize(.small)
-                                    .accessibilityLabel("Enable \(tCase.displayName)")
-                            }
-                        }
+                ForEach(TransformCase.allCases) { tCase in
+                    HStack {
+                        Text(tCase.displayName)
+                            .font(.system(size: 12))
+                        Spacer()
+                        Toggle("", isOn: isSubActionEnabled(tCase))
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .accessibilityLabel("Enable \(tCase.displayName)")
                     }
                 }
             }

@@ -107,12 +107,18 @@ public struct PopupView: View {
         return hasCompletions && isShowingCompletions
     }
 
-    private var enabledTransformCases: [TransformCase] {
-        actions.compactMap { ($0 as? TransformSubAction)?.transformCase }
+    /// Group row IDs (chrome stamps `.showTransformMenu`); sub-actions live under `\(groupID).\(subID)`.
+    private var groupIDs: [String] {
+        actions.compactMap { $0.chrome.popupBehavior == .showTransformMenu ? $0.id : nil }
     }
 
+    /// Bar rows: everything except the inline completion pseudo-action and any group sub-action.
+    /// Sub-action membership follows the ID-prefix convention (no parentGroupID marker).
     private var displayActions: [any Action] {
-        actions.filter { $0.id != "builtin.completion" && !$0.id.hasPrefix("builtin.transform.") }
+        actions.filter { action in
+            guard action.id != "builtin.completion" else { return false }
+            return !groupIDs.contains { action.id.hasPrefix($0 + ".") }
+        }
     }
 
     private var totalPages: Int {
@@ -523,7 +529,9 @@ public struct PopupView: View {
         switch action.gesturePolicy.singleClick {
         case .showMenu:
             Button {
-                onShowBubble?(transformMenuBubble())
+                Task {
+                    onShowBubble?(await menuBubble(for: action))
+                }
             } label: {
                 labelView
             }
@@ -538,10 +546,20 @@ public struct PopupView: View {
             Button {
                 Task {
                     do {
-                        let result = try await action.perform(context)
+                        // Match plumbing (approach A): re-run the shared visibility evaluator for
+                        // this action and thread the match into the perform context so placeholders
+                        // and env vars see the same match that enabled the row.
+                        let match = action.matchInfo(for: context)
+                        let performContext = match.map {
+                            ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
+                        } ?? context
+                        let result = try await action.perform(performContext)
                         onResult(result)
                     } catch {
                         print("Action failed: \(error)")
+                        // Decision 9: a thrown perform error surfaces uniformly as an error status
+                        // and the popup stays.
+                        onResult(.showStatus(StatusFeedback(error: error)))
                     }
                 }
             } label: {
@@ -656,36 +674,45 @@ public struct PopupView: View {
         }
     }
 
-    private func transformMenuBubble() -> BubbleContent {
+    /// Registry-driven sub-menu for a group row (extension groups and the builtin transform group).
+    /// Rows are uniform: a sub-action is listed only when it is relevant (`RelevanceProviding`,
+    /// non-conforming actions always show) and carries a one-line preview
+    /// (`PreviewProviding`, default none) as its subtitle. No action-type special-casing.
+    @MainActor
+    private func menuBubble(for action: any Action) async -> BubbleContent {
+        let subs = actions.filter { $0.id.hasPrefix(action.id + ".") }
         let selectionText = context.selection.text
+
         var rows: [BubbleRow] = []
-
-        for category in TransformCategory.allCases {
-            let catCases = enabledTransformCases
-                .filter { $0.category == category && $0.isRelevant(for: selectionText) }
-            if catCases.isEmpty { continue }
-
-            rows.append(.text(category.rawValue))
-
-            for tCase in catCases {
-                let res = tCase.transform(selectionText)
-                rows.append(.option(
-                    BubbleOption(
-                        title: tCase.displayName,
-                        subtitle: res,
-                        icon: "textformat",
-                        outcome: .perform(.paste(res))
-                    )
-                ))
-            }
+        for sub in subs {
+            guard (sub as? any RelevanceProviding)?.isRelevant(for: selectionText) ?? true else { continue }
+            // Same match plumbing as the bar's `.perform` path: thread the visibility match into the
+            // perform context so placeholders/env see the same match that enabled the row. Computed
+            // here (main actor, selection is fixed) and captured into the `@Sendable` outcome closure.
+            let match = sub.matchInfo(for: context)
+            let performContext = match.map {
+                ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
+            } ?? context
+            let preview = await (sub as? any PreviewProviding)?.previewLine(for: context)
+            rows.append(.option(BubbleOption(
+                title: sub.displayTitle,
+                subtitle: preview,
+                icon: bubbleIcon(for: sub.displayIcon),
+                outcome: .run { try await sub.perform(performContext) }
+            )))
         }
-
         return BubbleContent(
-            title: "Transform Text",
-            icon: "textformat",
+            title: action.displayTitle,
+            icon: bubbleIcon(for: action.displayIcon),
             rows: rows,
             emphasis: .menu
         )
+    }
+
+    /// Bubble rows render SF Symbols only; iconify/local/URL/text icons have no bubble glyph.
+    private func bubbleIcon(for icon: ActionIcon) -> String? {
+        if case .symbol(let name) = icon { return name }
+        return nil
     }
 }
 

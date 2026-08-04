@@ -11,9 +11,9 @@ areas; stale debt notes are worse than none.
 
 - The typed settings abstraction is `SettingsStore` + `SettingKey<T>` (see `Sources/Core/Settings/`).
   New settings code must route through it.
-- **Current reality:** `UserDefaults.standard` is still called directly in ~13 App-target call
-  sites: `AppDelegate` ×2, `StatusBarController` ×4, `JavaScriptAction` ×1, `AIServiceManager` ×2,
-  `OnboardingView` ×1, `LaunchAtLoginManager` ×3. Migrating these is ongoing — **don't add new ones.**
+- **Current reality:** `UserDefaults.standard` is still called directly in ~12 App-target call
+  sites: `AppDelegate` ×2, `StatusBarController` ×4, `AIServiceManager` ×2, `OnboardingView` ×1,
+  `LaunchAtLoginManager` ×3. Migrating these is ongoing — **don't add new ones.**
 - **Secrets live in the Keychain, not UserDefaults.** Sensitive credentials (the cloud AI API key)
   must use `KeychainStore` (generic-password `SecItem` wrapper, `kSecAttrAccessibleAfterFirstUnlock`).
   `AIServiceManager.cloudAPIKey` is `@Published`, backed by `KeychainStore` (account `aiCloudAPIKey`);
@@ -22,14 +22,23 @@ areas; stale debt notes are worse than none.
 - **Builtin actions** (`CalculateAction`, `CalendarAction`, `SearchAction`) read
   `DefaultSettingsStore.shared` directly — they don't accept an injected `SettingsStore` today.
 - **Dynamic action option keys** (`JavaScriptAction`, `AppleScriptAction`): the target pattern is
-  `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. Today
-  `JavaScriptAction` reads option values via `UserDefaults.standard.string(forKey:)` (migration target).
+  `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. The JS
+  path already reads through the injected `optionStore` (`OpenClipJSHost` reads options read-only via
+  `ActionOptionReading`); `AppleScriptAction` does not consume options today.
 
 ## Action Seams Already Implemented
 
-- **Coordinator composition is done.** `ActionCoordinator.loadInitialState()` wires `CustomActionManager`
-  and `ExtensionManager` to the registry via `onRegister`/`onUnregister`; **neither manager calls
-  `ActionRegistry.shared` directly.**
+- **Coordinator composition is done.** `ActionCoordinator.loadInitialState()` wires `ExtensionManager`
+  to the registry via `onRegister`/`onUnregister`; the manager never calls `ActionRegistry.shared`
+  directly. GUI-authored actions persist as manifest packages (via `CustomActionManifestWriter`);
+  `custom_actions.json`/`CustomActionManager` are retired.
+- **Shell runtimes share one executor.** `ScriptAction` script files and `CustomAction.shellScript`
+  both run through `ShellProcessRunner` (one watchdog; `TimeoutFlag`/`OnceGate` live in
+  `ShellProcessRunner.swift`) and translate stdout JSON via `ShellResultMapper`; `NSUserNotification`
+  is gone (`.notify` is handled by the effect door via `UNUserNotificationCenter`).
+- **`ActionResultAdapter.apply` is the single after/stayVisible translator.** Runtimes return raw
+  results; each extension runtime's `perform` applies `rules.after`/`rules.stayVisible` via the
+  adapter. `OpenClipJSHost.run` returns only raw results (no JSC watchdog — plan §13).
 
 ## Presentation / Rule Holes
 

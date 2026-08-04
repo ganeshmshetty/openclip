@@ -84,14 +84,44 @@ public final class ActionRegistry: ObservableObject, Sendable {
         if !settingsStore.get(.isTransformGroupEnabled) {
             disabledIDs.insert("builtin.transform")
         }
-        return actions.filter { action in
+        let disabledPackages = settingsStore.get(.disabledPackages)
+
+        func passes(_ action: any Action) -> Bool {
             if disabledIDs.contains(action.id) {
+                return false
+            }
+            // Whole-package disable: an action whose chrome source names a disabled package
+            // is hidden before per-action visibility runs.
+            if case .extensionPkg(let packageID) = action.chrome.source, disabledPackages.contains(packageID) {
                 return false
             }
             if context.selection.appPolicy.denyFormatting && action.isFormatting {
                 return false
             }
             return action.isEnabled(for: context)
+        }
+
+        // Group sub-actions are only reachable through their group's sub-menu. A group whose
+        // row is disabled (or otherwise not visible) hides its sub-actions entirely, so
+        // "disable Transform Text" really disables the whole transform group and a disabled
+        // extension group never leaks its sub-actions into the bar.
+        let groupRowIDs = actions
+            .filter { $0.chrome.popupBehavior == .showTransformMenu }
+            .map { $0.id }
+        let enabledGroupIDs = Set(
+            actions
+                .filter { $0.chrome.popupBehavior == .showTransformMenu }
+                .filter(passes)
+                .map { $0.id }
+        )
+
+        return actions.filter { action in
+            guard passes(action) else { return false }
+            if let groupID = groupRowIDs.first(where: { action.id.hasPrefix($0 + ".") }),
+               !enabledGroupIDs.contains(groupID) {
+                return false
+            }
+            return true
         }
     }
 }

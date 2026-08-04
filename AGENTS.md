@@ -60,17 +60,21 @@ These change behavior — keep them.
 - **Accept dependencies, don't create them.** Core types needing settings accept `SettingsStore`
   in `init` (default `DefaultSettingsStore.shared`); tests inject a fake store.
 - **No `ActionRegistry.shared` in Core domain.** Only `ActionCoordinator` touches the registry
-  directly. `CustomActionManager`/`ExtensionManager` report via `onRegister`/`onUnregister`
-  callbacks wired in `ActionCoordinator.loadInitialState()`.
+  directly. `ExtensionManager` reports via `onRegister`/`onUnregister` callbacks wired in
+  `ActionCoordinator.loadInitialState()`. The JSON manifest is the only canonical action
+  definition: Add/Edit sheets write manifest packages via `CustomActionManifestWriter`, and
+  `custom_actions.json`/`CustomActionManager` are retired.
 - **No `switch action.id` string matching in presentation.** Use `ConfigurableAction.preferenceIconName`,
   `action.chrome.badge`, `action.icon`. (One legacy block in `ActionCustomizationManager.tableIcon`.)
 - **Transform on/off policy lives on `TransformCase.defaultDisabledActionIDs`**, not the registry;
-  menu relevance filtering in `TransformCase.isRelevant(for:)`.
+  menu relevance filtering in `TransformCase.isRelevant(for:)`. Transform is now the four case
+  conversions (uppercase/lowercase/Title Case/camelCase) — all on by default, group row default-on.
 - **`OpenClipSnippetParser` is a pure text parser** — no `@MainActor`/UI. (Currently `@MainActor`; removal planned.)
 - **Subprocess actions need a timeout watchdog** — terminate if past `Constants.scriptTimeout` (30 s).
   Any new action that spawns a subprocess must follow.
 - **Swift 6 strict concurrency: continuation resume-once flags must be `@unchecked Sendable` classes**
-  (see `OnceGate` in `CustomAction.swift`), not captured mutable locals.
+  (see `TimeoutFlag`/`OnceGate` in `Sources/Core/Extensions/ShellProcessRunner.swift`), not captured
+  mutable locals.
 - **`ActionContext.modifiers` is unused.** Don't build logic assuming modifier keys reach actions.
 - **Gemini auth via the `x-goog-api-key` header only** — never `?key=` in the URL (leaks credentials).
 - **Glass stays apart from the color themes.** `PopupThemeSelector` groups System/Light/Dark vs Glass;
