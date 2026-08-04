@@ -13,8 +13,13 @@ final class PopupGesturePolicyTests: XCTestCase {
     }
 
     @MainActor
-    func testTransformGroupShowsMenuWithoutLongPress() {
-        let action = TransformTextGroupAction()
+    func testGroupActionShowsMenuWithoutLongPress() {
+        let action = GroupAction(
+            id: "ext.group",
+            title: "Group",
+            icon: .symbol("folder"),
+            chrome: ActionChrome(rowStyle: .transformGroup, popupBehavior: .showTransformMenu)
+        )
         let policy = action.gesturePolicy
         XCTAssertEqual(policy.singleClick, .showMenu)
         XCTAssertNil(policy.longPress)

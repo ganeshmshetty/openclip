@@ -21,8 +21,8 @@ final class SettingsStoreTests: XCTestCase {
 
     func testDisabledActionIDsDefault() {
         XCTAssertTrue(store.get(.disabledActionIDs).isEmpty)
-        store.set(.disabledActionIDs, value: ["builtin.transform"])
-        XCTAssertEqual(store.get(.disabledActionIDs), ["builtin.transform"])
+        store.set(.disabledActionIDs, value: ["builtin.search"])
+        XCTAssertEqual(store.get(.disabledActionIDs), ["builtin.search"])
     }
 
     func testActionOptionKeyNameAndRoundTrip() {

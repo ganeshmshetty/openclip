@@ -90,7 +90,7 @@ class StatusBarController {
     
     private func updateStatusIcon(isEnabled: Bool) {
         if let button = statusItem.button {
-            button.image = NSImage(named: "MenuBarIcon")
+            button.image = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "paperclip", accessibilityDescription: "OpenClip")
             button.image?.isTemplate = true
             button.alphaValue = isEnabled ? 1.0 : 0.45
         }
