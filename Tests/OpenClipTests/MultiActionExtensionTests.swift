@@ -151,7 +151,14 @@ final class MultiActionExtensionTests: XCTestCase {
         await ExtensionManager.shared.loadExtensions(from: tempDir)
         let actions = ExtensionManager.shared.loadedActions
 
-        XCTAssertEqual(actions.count, 1)
-        XCTAssertEqual(actions.map(\.id), ["grppkg.run"])
+        // Phase 8: a group flattens into a structural GroupAction row (not runnable) plus its
+        // sub-actions under the ID-prefix convention, alongside the top-level runnable.
+        XCTAssertEqual(actions.count, 3)
+        XCTAssertEqual(actions.map(\.id), ["grppkg.grp", "grppkg.grp.s1", "grppkg.run"])
+        guard let group = actions.first(where: { $0.id == "grppkg.grp" }) else {
+            return XCTFail("Group row should be materialized")
+        }
+        XCTAssertTrue(group is GroupAction, "Group row must be a structural GroupAction, not a runnable action")
+        XCTAssertEqual(group.chrome.popupBehavior, .showTransformMenu)
     }
 }

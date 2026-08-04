@@ -85,6 +85,26 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertTrue(action.stayVisible ?? false)
     }
 
+    func testMenuRelevanceAndPreviewDecode() throws {
+        let json = """
+        {
+            "id": "slug",
+            "title": "Slugify",
+            "type": "shell",
+            "script": "slug.sh",
+            "menuRelevance": "\\\\s",
+            "menuPreview": "{text} -> {matched}"
+        }
+        """.data(using: .utf8)!
+        let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
+        XCTAssertEqual(action.menuRelevance, "\\s")
+        XCTAssertEqual(action.menuPreview, "{text} -> {matched}")
+
+        let absent = try JSONDecoder().decode(ExtensionActionMetadata.self, from: #"{"title":"Plain"}"#.data(using: .utf8)!)
+        XCTAssertNil(absent.menuRelevance)
+        XCTAssertNil(absent.menuPreview)
+    }
+
     func testManifestDecoding() throws {
         let json = """
         {

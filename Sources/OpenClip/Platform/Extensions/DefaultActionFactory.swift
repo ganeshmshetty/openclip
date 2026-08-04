@@ -79,7 +79,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         directoryURL: URL,
         index: Int
     ) async -> (any Action)? {
-        await makeAction(metadata: metadata, manifest: manifest, directoryURL: directoryURL, index: index, forcedID: nil)
+        guard let base = await makeAction(metadata: metadata, manifest: manifest, directoryURL: directoryURL, index: index, forcedID: nil) else { return nil }
+        return decorate(base, metadata: metadata)
     }
 
     /// Materializes every registry entry for one manifest action. Non-group actions return the
@@ -94,7 +95,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
     ) async -> [any Action] {
         guard metadata.kind == .group else {
             guard let action = await makeAction(metadata: metadata, manifest: manifest, directoryURL: directoryURL, index: index, forcedID: nil) else { return [] }
-            return [action]
+            return [decorate(action, metadata: metadata)]
         }
 
         let groupID = ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
@@ -120,10 +121,24 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         for (subIndex, sub) in (metadata.subActions ?? []).enumerated() where sub.kind != .group {
             let subID = "\(groupID).\(sub.id ?? String(subIndex))"
             if let action = await makeAction(metadata: sub, manifest: manifest, directoryURL: directoryURL, index: subIndex, forcedID: subID) {
-                result.append(action)
+                result.append(decorate(action, metadata: sub))
             }
         }
         return result
+    }
+
+    /// Wraps a created action in `MenuDecoratedAction` when its manifest metadata declares
+    /// `menuRelevance` / `menuPreview`, stamping the action with sub-menu relevance and a one-line
+    /// preview without changing its identity. Non-declaring actions pass through unchanged.
+    private func decorate(_ action: any Action, metadata: ExtensionActionMetadata) -> any Action {
+        guard metadata.menuRelevance != nil || metadata.menuPreview != nil else {
+            return action
+        }
+        return MenuDecoratedAction(
+            base: action,
+            menuRelevanceRegex: metadata.menuRelevance,
+            menuPreviewTemplate: metadata.menuPreview
+        )
     }
 
     /// Renders a single executable Action for a manifest entry, or nil when the entry is a `.group`
