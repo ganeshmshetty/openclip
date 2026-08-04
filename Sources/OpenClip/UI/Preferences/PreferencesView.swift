@@ -200,10 +200,10 @@ public struct PreferencesView: View {
             guard let request else { return }
             configurationCoordinator.pendingRequest = nil
             guard let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
-            configuringAction = ConfigurationSheetItem(action: action)
+            configuringAction = ConfigurationSheetItem(action: action, request: request)
         }
         .sheet(item: $configuringAction) { item in
-            EditActionSheet(action: item.action)
+            EditActionSheet(action: item.action, configurationRequest: item.request)
         }
     }
     
@@ -225,9 +225,11 @@ public struct PreferencesView: View {
 
 }
 
-/// Identifiable wrapper so a config sheet can be driven by `.sheet(item:)` with any `Action`.
+/// Identifiable wrapper so a config sheet can be driven by `.sheet(item:)` with any `Action`,
+/// optionally carrying the `ConfigurationRequest` that opened it (reason banner + missing highlights).
 private struct ConfigurationSheetItem: Identifiable {
     let action: any Action
+    let request: ConfigurationRequest?
     var id: String { action.id }
 }
 
