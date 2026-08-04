@@ -18,6 +18,10 @@ public enum BubbleEmphasis: Sendable, Equatable {
 public enum BubbleOutcome: Sendable {
     /// Deliver an execution result (handled by ActionResultHandler).
     case perform(ActionResult)
+    /// Async outcome for menu sub-actions (extension group rows): executed by the popup after the
+    /// menu option is clicked. `ActionContext` and `Action` are both Sendable, so the closure can
+    /// capture them.
+    case run(@Sendable () async throws -> ActionResult)
     /// Reserved: a nested bubble launched from this option (not implemented in v1).
     case showSubMenu
 }

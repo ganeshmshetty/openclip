@@ -43,6 +43,27 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
     
+    func testScriptActionExposesActionIDEnvVar() async throws {
+        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("action_id_test_\(UUID().uuidString).sh")
+        let scriptContent = """
+        #!/bin/bash
+        echo "$OPENCLIP_ACTION_ID"
+        """
+        try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
+
+        let action = ScriptAction(id: "test.actionid", title: "ActionID", icon: .symbol("terminal"), scriptURL: tempScript)
+        let result = try await action.perform(ActionContext(selectedText: "SampleInput"))
+
+        if case .paste(let text) = result {
+            XCTAssertEqual(text.trimmingCharacters(in: .whitespacesAndNewlines), "test.actionid")
+        } else {
+            XCTFail("Expected .paste result echoing the action id, got \(result)")
+        }
+
+        try? FileManager.default.removeItem(at: tempScript)
+    }
+
     func testScriptActionEnvironmentVariables() async throws {
         let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("env_test_\(UUID().uuidString).sh")
         let scriptContent = """

@@ -111,8 +111,18 @@ public struct PopupView: View {
         actions.compactMap { ($0 as? TransformSubAction)?.transformCase }
     }
 
+    /// Group row IDs (chrome stamps `.showTransformMenu`); sub-actions live under `\(groupID).\(subID)`.
+    private var groupIDs: [String] {
+        actions.compactMap { $0.chrome.popupBehavior == .showTransformMenu ? $0.id : nil }
+    }
+
+    /// Bar rows: everything except the inline completion pseudo-action and any group sub-action.
+    /// Sub-action membership follows the ID-prefix convention (no parentGroupID marker).
     private var displayActions: [any Action] {
-        actions.filter { $0.id != "builtin.completion" && !$0.id.hasPrefix("builtin.transform.") }
+        actions.filter { action in
+            guard action.id != "builtin.completion" else { return false }
+            return !groupIDs.contains { action.id.hasPrefix($0 + ".") }
+        }
     }
 
     private var totalPages: Int {
@@ -523,7 +533,7 @@ public struct PopupView: View {
         switch action.gesturePolicy.singleClick {
         case .showMenu:
             Button {
-                onShowBubble?(transformMenuBubble())
+                onShowBubble?(menuBubble(for: action))
             } label: {
                 labelView
             }
@@ -664,6 +674,47 @@ public struct PopupView: View {
             Text(text)
                 .font(.system(size: 13, weight: .medium))
         }
+    }
+
+    /// Registry-driven sub-menu for a group row (extension groups and the builtin transform group).
+    /// Extension sub-actions are listed as plain rows whose `.run` outcome performs the sub-action
+    /// on click; the builtin transform group keeps its smart category/relevance/preview menu.
+    @MainActor
+    private func menuBubble(for action: any Action) -> BubbleContent {
+        let subs = actions.filter { $0.id.hasPrefix(action.id + ".") }
+        // The one type check here targets a Core BUILTIN (TransformSubAction), not an extension
+        // runtime — it selects the transform-specific menu instead of the plain extension list.
+        if subs.contains(where: { $0 is TransformSubAction }) {
+            return transformMenuBubble()
+        }
+
+        var rows: [BubbleRow] = []
+        for sub in subs {
+            // Same match plumbing as the bar's `.perform` path: thread the visibility match into the
+            // perform context so placeholders/env see the same match that enabled the row. Computed
+            // here (main actor, selection is fixed) and captured into the `@Sendable` outcome closure.
+            let match = sub.matchInfo(for: context)
+            let performContext = match.map {
+                ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
+            } ?? context
+            rows.append(.option(BubbleOption(
+                title: sub.displayTitle,
+                icon: bubbleIcon(for: sub.displayIcon),
+                outcome: .run { try await sub.perform(performContext) }
+            )))
+        }
+        return BubbleContent(
+            title: action.displayTitle,
+            icon: bubbleIcon(for: action.displayIcon),
+            rows: rows,
+            emphasis: .menu
+        )
+    }
+
+    /// Bubble rows render SF Symbols only; iconify/local/URL/text icons have no bubble glyph.
+    private func bubbleIcon(for icon: ActionIcon) -> String? {
+        if case .symbol(let name) = icon { return name }
+        return nil
     }
 
     private func transformMenuBubble() -> BubbleContent {

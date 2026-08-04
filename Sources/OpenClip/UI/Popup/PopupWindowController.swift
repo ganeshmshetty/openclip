@@ -210,9 +210,24 @@ public class PopupWindowController {
             blocksDismiss: true,
             anchorX: NSEvent.mouseLocation.x,
             onOutcome: { [weak self] outcome in
-                guard case .perform(let result) = outcome else { return }
-                self?.handleActionResult(result)
-                self?.hide()
+                switch outcome {
+                case .perform(let result):
+                    self?.handleActionResult(result)
+                    self?.hide()
+                case .run(let runner):
+                    Task { @MainActor in
+                        do {
+                            let result = try await runner()
+                            self?.handleActionResult(result)
+                            self?.hide()
+                        } catch {
+                            self?.handleActionResult(.showStatus(StatusFeedback(error: error)))
+                            self?.hideBubble()
+                        }
+                    }
+                case .showSubMenu:
+                    break
+                }
             },
             onClose: { [weak self] in
                 self?.hideBubble()

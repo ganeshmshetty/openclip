@@ -4,7 +4,8 @@
 // Implements an action backed by an external script file located in an extension directory.
 // Enablement and match resolution delegate to the shared ActionVisibility evaluator when rules
 // are attached; perform exports the selection and match data to the subprocess via env vars
-// (OPENCLIP_TEXT, OPENCLIP_MATCHED, OPENCLIP_CAPTURE_N, OPENCLIP_BUNDLE_ID) and runs it through the
+// (OPENCLIP_TEXT, OPENCLIP_MATCHED, OPENCLIP_CAPTURE_N, OPENCLIP_BUNDLE_ID, OPENCLIP_ACTION_ID)
+// and runs it through the
 // shared ShellProcessRunner (one watchdog), then translates stdout JSON via ShellResultMapper and
 // applies the declarative after/stayVisible rules via ActionResultAdapter at the end of perform.
 import Foundation
@@ -57,6 +58,7 @@ public struct ScriptAction: Action {
         var env = ProcessInfo.processInfo.environment
         env[Constants.envVarText] = text
         env[Constants.envVarMatched] = match?.matchedText ?? text
+        env[Constants.envVarActionID] = id
         if let bundleID = match?.sourceBundleID ?? context.selection.sourceApp.bundleIdentifier {
             env[Constants.envVarBundleID] = bundleID
         }

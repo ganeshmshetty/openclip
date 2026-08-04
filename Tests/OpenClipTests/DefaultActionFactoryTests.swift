@@ -112,9 +112,10 @@ final class DefaultActionFactoryTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
-    func testGroupActionIsNotRegisteredAsRunnable() async {
+    func testGroupActionIsNotRunnableAsSingleButFlattensViaCreateActions() async {
         let factory = DefaultActionFactory()
         let actionMeta = ExtensionActionMetadata(
+            id: "tools",
             title: "Group",
             type: "group",
             subActions: [
@@ -126,8 +127,16 @@ final class DefaultActionFactoryTests: XCTestCase {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
+        // The single-action seam keeps groups schema-only (never a runnable bare group row).
         let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
         XCTAssertNil(action)
+
+        // The registry path flattens: a GroupAction row plus sub-actions under the ID-prefix convention.
+        let flattened = await factory.createActions(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertEqual(flattened.count, 2)
+        XCTAssertTrue(flattened[0] is GroupAction)
+        XCTAssertEqual(flattened[0].id, "pkg.tools")
+        XCTAssertEqual(flattened[1].id, "pkg.tools.sub")
 
         try? FileManager.default.removeItem(at: tempDir)
     }
