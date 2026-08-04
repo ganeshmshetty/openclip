@@ -2,6 +2,8 @@
 // OpenClip
 //
 // Renders the modal sheet interface for creating new custom web search, snippet, or script actions.
+// On add it writes a single-action manifest package (com.custom.<id>/openclip.json) and reloads the
+// extension list, so the GUI and JSON manifests share one storage/list.
 import SwiftUI
 import Core
 
@@ -146,8 +148,17 @@ public struct AddCustomActionSheet: View {
             iconName: iconName.isEmpty ? "wand.and.stars" : iconName,
             type: actionType
         )
-        CustomActionManager.shared.register(customAction: newAction)
-        dismiss()
+        // The manifest is the only canonical action definition: write a single-action package
+        // under ~/.openclip/extensions and let the extension loader register it.
+        Task {
+            do {
+                try CustomActionManifestWriter.write(action: newAction)
+                await ExtensionManager.shared.loadExtensions()
+            } catch {
+                print("Failed to write custom action manifest: \(error)")
+            }
+            dismiss()
+        }
     }
 }
 

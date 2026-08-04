@@ -5,8 +5,8 @@
 // Enables data-driven UI views to inspect action presentation rules without runtime type checking or string matching.
 import Foundation
 
-public struct ActionChrome: Sendable, Equatable {
-    public enum Badge: Sendable, Equatable {
+public struct ActionChrome: Codable, Sendable, Equatable {
+    public enum Badge: Codable, Sendable, Equatable {
         case none
         case script
         case url
@@ -14,18 +14,18 @@ public struct ActionChrome: Sendable, Equatable {
         case extensionPkg(String)
     }
 
-    public enum RowStyle: Sendable, Equatable {
+    public enum RowStyle: Codable, Sendable, Equatable {
         case standard
         case transformGroup
     }
 
-    public enum PopupBehavior: Sendable, Equatable {
+    public enum PopupBehavior: Codable, Sendable, Equatable {
         case perform
         case showTransformMenu
         case provideCompletions
     }
 
-    public enum Source: Sendable, Equatable {
+    public enum Source: Codable, Sendable, Equatable {
         case builtin
         case custom
         case extensionPkg(packageID: String)

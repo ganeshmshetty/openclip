@@ -20,6 +20,7 @@ public extension SettingKey where Value == [String] {
 
 public extension SettingKey where Value == Set<String> {
     static var disabledActionIDs: SettingKey<Set<String>> { SettingKey<Set<String>>("disabledActionIDs", defaultValue: []) }
+    static var disabledPackages: SettingKey<Set<String>> { SettingKey<Set<String>>("disabledPackages", defaultValue: []) }
 }
 
 public extension SettingKey where Value == Bool {

@@ -2,8 +2,10 @@
 // OpenClip
 //
 // Serves as the Birth Door implementation, instantiating executable Action instances from extension manifests and snippets.
-// Applies the uniform action-ID rule, keeps `group` actions schema-only (returns nil in Phase 1), and threads the
-// option store into every runtime that reads configured option values.
+// Applies the uniform action-ID rule, keeps `group` actions schema-only (returns nil in Phase 1), threads the
+// option store into every runtime that reads configured option values, and stamps `.extensionPkg` chrome on every
+// action it creates — including shellInline/textSnippet CustomActions — so GUI-authored actions share the extension
+// package trash path.
 import Foundation
 import Core
 
@@ -12,6 +14,16 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
 
     public init(optionStore: any ActionOptionReading = SettingsActionOptionStore()) {
         self.optionStore = optionStore
+    }
+
+    /// Reduces any `ActionIcon` to the plain symbol name `CustomAction` stores in `iconName`.
+    private func iconSymbolName(_ icon: ActionIcon) -> String {
+        switch icon {
+        case .symbol(let name): name
+        case .local(let url): url.lastPathComponent
+        case .url(let url): url.absoluteString
+        case .text(let txt): txt
+        }
     }
 
     /// Maps manifest/action option metadata to the runtime `ExtensionOption` model, wiring
@@ -101,6 +113,19 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 rules: rules
             )
         }
+
+        // Text snippet actions (GUI "Text Snippet", manifest type "textsnippet"/"snippet"/"text")
+        // hold their template in `scriptCode` and run as CustomAction text snippets.
+        if metadata.kind == .textSnippet, let scriptCode = metadata.scriptCode, !scriptCode.isEmpty {
+            return CustomAction(
+                id: actionId,
+                title: title,
+                iconName: iconSymbolName(icon),
+                type: .textSnippet(template: scriptCode),
+                chrome: extensionChrome,
+                rules: rules
+            )
+        }
         
         if let scriptCode = metadata.scriptCode, !scriptCode.isEmpty {
             let typeStr = (metadata.type ?? "").lowercased()
@@ -127,17 +152,12 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     rules: rules
                 )
             case "sh", "shell", "shell script":
-                let iconSymbol = switch icon {
-                case .symbol(let name): name
-                case .local(let url): url.lastPathComponent
-                case .url(let url): url.absoluteString
-                case .text(let txt): txt
-                }
                 return CustomAction(
                     id: actionId,
                     title: title,
-                    iconName: iconSymbol,
+                    iconName: iconSymbolName(icon),
                     type: .shellScript(script: scriptCode, replaceSelection: true),
+                    chrome: extensionChrome,
                     rules: rules
                 )
             default:

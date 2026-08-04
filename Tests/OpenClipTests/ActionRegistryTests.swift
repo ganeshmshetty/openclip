@@ -11,6 +11,13 @@ struct MockAction: Action {
     let title = "Mock"
     let icon = ActionIcon.symbol("star")
     let shouldBeEnabled: Bool
+    let chrome: ActionChrome
+    
+    init(id: String, shouldBeEnabled: Bool, chrome: ActionChrome = ActionChrome()) {
+        self.id = id
+        self.shouldBeEnabled = shouldBeEnabled
+        self.chrome = chrome
+    }
     
     @MainActor
     func isEnabled(for context: ActionContext) -> Bool {
@@ -107,5 +114,38 @@ final class ActionRegistryTests: XCTestCase {
         let available = registry.availableActions(for: context)
         
         XCTAssertFalse(available.contains(where: { $0.id == "mock.disabled.test" }))
+    }
+    
+    @MainActor
+    func testDisabledPackageHidesAllPackageActions() {
+        let registry = ActionRegistry.shared
+        
+        let packageID = "com.test.pkg"
+        let pkgChrome = ActionChrome(
+            badge: .extensionPkg(packageID),
+            rowStyle: .standard,
+            popupBehavior: .perform,
+            source: .extensionPkg(packageID: packageID)
+        )
+        let a1 = MockAction(id: "\(packageID).action.1", shouldBeEnabled: true, chrome: pkgChrome)
+        let a2 = MockAction(id: "\(packageID).action.2", shouldBeEnabled: true, chrome: pkgChrome)
+        registry.register(builtIns: [a1, a2])
+        
+        let oldDisabled = UserDefaults.standard.stringArray(forKey: "disabledPackages")
+        UserDefaults.standard.set([packageID], forKey: "disabledPackages")
+        defer {
+            if let oldDisabled {
+                UserDefaults.standard.set(oldDisabled, forKey: "disabledPackages")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "disabledPackages")
+            }
+        }
+        
+        let selection = SelectionContext(text: "test", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection, modifiers: [])
+        let available = registry.availableActions(for: context)
+        
+        XCTAssertFalse(available.contains(where: { $0.id == a1.id }))
+        XCTAssertFalse(available.contains(where: { $0.id == a2.id }))
     }
 }

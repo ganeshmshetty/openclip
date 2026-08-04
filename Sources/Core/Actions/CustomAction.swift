@@ -3,8 +3,9 @@
 //
 // Defines the domain model for user-created custom actions, supporting web searches, text templates,
 // and shell scripts. Implements the Action protocol to allow user-defined operations to be presented
-// and executed seamlessly. The manifest shellInline path attaches ExtensionActionRules so declarative
-// visibility flows through the shared evaluator here too.
+// and executed seamlessly. The manifest shellInline/textSnippet paths attach ExtensionActionRules so
+// declarative visibility flows through the shared evaluator here too, and the factory stamps
+// `.extensionPkg` chrome so GUI-created actions share the extension trash path.
 import Foundation
 
 public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
@@ -18,24 +19,28 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
     public let title: String
     public let iconName: String
     public let type: CustomActionType
+    public let chrome: ActionChrome
     public let rules: ExtensionActionRules?
     
-    public init(id: String, title: String, iconName: String, type: CustomActionType, rules: ExtensionActionRules? = nil) {
+    public init(
+        id: String,
+        title: String,
+        iconName: String,
+        type: CustomActionType,
+        chrome: ActionChrome = ActionChrome(badge: .custom, rowStyle: .standard, popupBehavior: .perform, source: .custom),
+        rules: ExtensionActionRules? = nil
+    ) {
         self.id = id
         self.title = title
         self.iconName = iconName
         self.type = type
+        self.chrome = chrome
         self.rules = rules
     }
     
     public var icon: ActionIcon {
         return .symbol(iconName)
     }
-    
-    public var chrome: ActionChrome {
-        ActionChrome(badge: .custom, rowStyle: .standard, popupBehavior: .perform, source: .custom)
-    }
-
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {

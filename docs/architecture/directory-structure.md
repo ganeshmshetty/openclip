@@ -20,11 +20,9 @@ Sources/
 │   │   │   └── TransformTextAction.swift     # TransformCase enum & transform implementations (default-on/off policy lives in TransformCase.defaultDisabledActionIDs; isRelevant(for:) drives menu smart-filtering)
 │   │   ├── BuiltinRegistry.swift             # Default builtin actions catalog
 │   │   ├── ConfigurableAction.swift          # Configurable action protocol (preferenceIconName)
-│   │   ├── Custom/                           # Custom action draft & I/O seam
-│   │   │   ├── CustomActionDraft.swift       # Value-type DTO for form editing
-│   │   │   └── CustomActionRepository.swift  # I/O seam for custom_actions.json (currently unused; CustomActionManager does its own I/O)
+│   │   ├── Custom/                           # Custom action draft DTO
+│   │   │   └── CustomActionDraft.swift       # Value-type DTO for form editing
 │   │   ├── CustomAction.swift                # Custom action domain model
-│   │   ├── CustomActionManager.swift         # Manages custom action list; does its own file I/O; reports changes via onRegister/onUnregister callbacks
 │   │   ├── ExtensionOption.swift             # Extension option models
 │   │   ├── ModifierFlags.swift               # Keyboard modifier flags
 │   │   ├── PopupGesturePolicy.swift          # Derived popup interaction policy (click/long-press/hover) from chrome + conformance

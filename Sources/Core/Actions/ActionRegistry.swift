@@ -84,8 +84,14 @@ public final class ActionRegistry: ObservableObject, Sendable {
         if !settingsStore.get(.isTransformGroupEnabled) {
             disabledIDs.insert("builtin.transform")
         }
+        let disabledPackages = settingsStore.get(.disabledPackages)
         return actions.filter { action in
             if disabledIDs.contains(action.id) {
+                return false
+            }
+            // Whole-package disable: an action whose chrome source names a disabled package
+            // is hidden before per-action visibility runs.
+            if case .extensionPkg(let packageID) = action.chrome.source, disabledPackages.contains(packageID) {
                 return false
             }
             if context.selection.appPolicy.denyFormatting && action.isFormatting {

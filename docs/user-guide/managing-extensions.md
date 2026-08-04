@@ -50,6 +50,8 @@ You can create custom web search links or inline shell scripts without writing e
 4. Click **Save**.
 
 ### Storage & Persistence
-- Custom actions are managed by [`CustomActionManager`](../../Sources/Core/Actions/CustomActionManager.swift).
-- Saved definitions are persisted as JSON in Application Support:
- `~/Library/Application Support/OpenClip/custom_actions.json`
+- Custom actions created in the GUI are written as single-action manifest packages by
+  [`CustomActionManifestWriter`](../../Sources/OpenClip/Platform/Extensions/CustomActionManifestWriter.swift):
+  `~/Library/Application Support` is not used; the package lives at
+  `~/.openclip/extensions/<id>/openclip.json` and loads through the same extension scan as installed
+  extensions. (`custom_actions.json` and `CustomActionManager` are retired.)
