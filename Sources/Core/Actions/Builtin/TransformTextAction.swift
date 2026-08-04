@@ -76,7 +76,7 @@ public enum TransformCase: String, CaseIterable, Sendable, Identifiable {
     }
 }
 
-public struct TransformSubAction: Action {
+public struct TransformSubAction: Action, RelevanceProviding, PreviewProviding {
     public let transformCase: TransformCase
 
     public var id: String { "builtin.transform.\(transformCase.rawValue)" }
@@ -85,6 +85,15 @@ public struct TransformSubAction: Action {
 
     public init(transformCase: TransformCase) {
         self.transformCase = transformCase
+    }
+
+    public func isRelevant(for text: String) -> Bool {
+        transformCase.isRelevant(for: text)
+    }
+
+    @MainActor
+    public func previewLine(for context: ActionContext) async -> String? {
+        transformCase.transform(context.selection.text)
     }
 
     @MainActor
