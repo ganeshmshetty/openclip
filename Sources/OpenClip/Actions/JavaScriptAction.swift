@@ -16,6 +16,7 @@ public struct JavaScriptAction: ConfigurableAction {
     public let scriptCode: String
     public let actionOptions: [ExtensionOption]
     public let chrome: ActionChrome
+    public let optionStore: any ActionOptionReading
 
     nonisolated public init(
         id: String,
@@ -23,7 +24,8 @@ public struct JavaScriptAction: ConfigurableAction {
         icon: ActionIcon = .symbol("terminal"),
         scriptCode: String,
         options: [ExtensionOption] = [],
-        chrome: ActionChrome? = nil
+        chrome: ActionChrome? = nil,
+        optionStore: any ActionOptionReading = SettingsActionOptionStore()
     ) {
         self.id = id
         self.title = title
@@ -38,6 +40,7 @@ public struct JavaScriptAction: ConfigurableAction {
         self.scriptCode = scriptCode
         self.actionOptions = options
         self.chrome = chrome ?? ActionChrome(badge: .script, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: id))
+        self.optionStore = optionStore
     }
 
     nonisolated public init(
@@ -46,9 +49,10 @@ public struct JavaScriptAction: ConfigurableAction {
         iconSymbol: String,
         scriptCode: String,
         options: [ExtensionOption] = [],
-        chrome: ActionChrome? = nil
+        chrome: ActionChrome? = nil,
+        optionStore: any ActionOptionReading = SettingsActionOptionStore()
     ) {
-        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome)
+        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome, optionStore: optionStore)
     }
 
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -63,8 +67,7 @@ public struct JavaScriptAction: ConfigurableAction {
         // Populate options dictionary
         var optionsDict: [String: Any] = [:]
         for opt in actionOptions {
-            let key = "action.\(id).option.\(opt.identifier)"
-            optionsDict[opt.identifier] = UserDefaults.standard.string(forKey: key) ?? (opt.defaultValue ?? "")
+            optionsDict[opt.identifier] = optionStore.stringValue(actionID: id, option: opt)
         }
         
         var openURLResult: URL?

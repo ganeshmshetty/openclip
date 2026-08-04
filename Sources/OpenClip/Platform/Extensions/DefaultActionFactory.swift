@@ -2,12 +2,62 @@
 // OpenClip
 //
 // Serves as the Birth Door implementation, instantiating executable Action instances from extension manifests and snippets.
-// Applies the uniform action-ID rule and keeps `group` actions schema-only (returns nil in Phase 1).
+// Applies the uniform action-ID rule, keeps `group` actions schema-only (returns nil in Phase 1), and threads the
+// option store into every runtime that reads configured option values.
 import Foundation
 import Core
 
 public final class DefaultActionFactory: ActionFactory, Sendable {
-    public init() {}
+    private let optionStore: any ActionOptionReading
+
+    public init(optionStore: any ActionOptionReading = SettingsActionOptionStore()) {
+        self.optionStore = optionStore
+    }
+
+    /// Maps manifest/action option metadata to the runtime `ExtensionOption` model, wiring
+    /// `values`/`options` into the `.multiple` picker choices (T1-minor-1 carryover).
+    private func makeExtensionOption(from metadata: ExtensionOptionMetadata) -> ExtensionOption {
+        ExtensionOption(
+            identifier: metadata.identifier,
+            label: metadata.label,
+            type: ExtensionOptionType(rawValue: metadata.type.lowercased()) ?? .string,
+            defaultValue: metadata.defaultValue,
+            options: metadata.values
+        )
+    }
+
+    /// Merges per-action option overrides (`metadata.options`) onto the manifest-level defaults
+    /// (`manifest.options`) by identifier. Manifest-level options keep their order; overrides
+    /// replace matching identifiers in place, and identifiers unique to the action are appended
+    /// in declaration order.
+    private func mergedOptions(
+        manifestOptions: [ExtensionOptionMetadata]?,
+        actionOptions: [ExtensionOptionMetadata]?
+    ) -> [ExtensionOption] {
+        var result: [ExtensionOption] = (manifestOptions ?? []).map(makeExtensionOption)
+        guard let actionOverrides = actionOptions, !actionOverrides.isEmpty else { return result }
+
+        var overrides: [String: ExtensionOption] = [:]
+        var orderedNewKeys: [String] = []
+        for metadata in actionOverrides {
+            let option = makeExtensionOption(from: metadata)
+            if overrides[option.identifier] == nil { orderedNewKeys.append(option.identifier) }
+            overrides[option.identifier] = option
+        }
+        for index in result.indices {
+            if let override = overrides[result[index].identifier] {
+                result[index] = override
+                overrides.removeValue(forKey: result[index].identifier)
+                orderedNewKeys.removeAll { $0 == result[index].identifier }
+            }
+        }
+        for key in orderedNewKeys {
+            if let override = overrides[key] {
+                result.append(override)
+            }
+        }
+        return result
+    }
 
     public func createAction(
         metadata: ExtensionActionMetadata,
@@ -21,15 +71,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         let title = metadata.title ?? manifest.name
         let icon = ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL)
         
-        let options = manifest.options?.map { opt -> ExtensionOption in
-            let optType = ExtensionOptionType(rawValue: opt.type.lowercased()) ?? .string
-            return ExtensionOption(
-                identifier: opt.identifier,
-                label: opt.label,
-                type: optType,
-                defaultValue: opt.defaultValue
-            )
-        } ?? []
+        let options = mergedOptions(manifestOptions: manifest.options, actionOptions: metadata.options)
         
         let extensionChrome = ActionChrome(
             badge: .extensionPkg(manifest.name),
@@ -59,7 +101,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     icon: icon,
                     scriptCode: scriptCode,
                     options: options,
-                    chrome: extensionChrome
+                    chrome: extensionChrome,
+                    optionStore: optionStore
                 )
             case "applescript", "scpt":
                 return AppleScriptAction(
@@ -108,7 +151,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 icon: icon,
                 scriptCode: code,
                 options: options,
-                chrome: extensionChrome
+                chrome: extensionChrome,
+                optionStore: optionStore
             )
         case "applescript", "scpt":
             guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else { return nil }
