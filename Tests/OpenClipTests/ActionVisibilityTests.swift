@@ -73,6 +73,26 @@ final class ActionVisibilityTests: XCTestCase {
         XCTAssertTrue(result.enabled)
     }
 
+    func testDecodedRequirementsWithoutSelectionKeyDefaultToTrue() throws {
+        let json = #"{"apps": ["com.test.app"]}"#.data(using: .utf8)!
+        let requirements = try JSONDecoder().decode(ActionRequirements.self, from: json)
+        XCTAssertTrue(requirements.requiresSelection)
+
+        let context = ActionContext(selectedText: "   ")
+        let result = ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, context: context)
+        XCTAssertFalse(result.enabled)
+    }
+
+    func testDecodedRequirementsExplicitFalseAllowsEmptySelection() throws {
+        let json = #"{"requires-selection": false}"#.data(using: .utf8)!
+        let requirements = try JSONDecoder().decode(ActionRequirements.self, from: json)
+        XCTAssertFalse(requirements.requiresSelection)
+
+        let context = ActionContext(selectedText: "")
+        let result = ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, context: context)
+        XCTAssertTrue(result.enabled)
+    }
+
     // MARK: - Regex match / negation
 
     func testRegexEnablesWhenMatches() {
