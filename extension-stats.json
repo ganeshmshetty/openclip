@@ -1,11 +1,11 @@
 {
-  "updatedAt": "2026-08-02T09:44:35Z",
+  "updatedAt": "2026-08-04T06:03:55Z",
   "downloads": {
-    "com.openclip.applemusic": 0,
-    "com.openclip.googlemaps": 0,
-    "com.openclip.translate": 0,
-    "com.openclip.wikipedia": 0,
-    "com.openclip.wordcount": 0,
-    "com.openclip.youtube": 0
+    "com.openclip.applemusic": 7,
+    "com.openclip.googlemaps": 4,
+    "com.openclip.translate": 1,
+    "com.openclip.wikipedia": 1,
+    "com.openclip.wordcount": 1,
+    "com.openclip.youtube": 3
   }
 }
