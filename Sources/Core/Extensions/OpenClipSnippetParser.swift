@@ -167,7 +167,7 @@ public struct OpenClipSnippetParser: Sendable {
             return nil
         }
         
-        if let factory = factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL) {
+        if let factory = factory, let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: directoryURL, index: 0) {
             return action
         }
         

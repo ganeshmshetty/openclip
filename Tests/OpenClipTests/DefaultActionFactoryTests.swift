@@ -13,7 +13,7 @@ final class DefaultActionFactoryTests: XCTestCase {
         let jsFile = tempDir.appendingPathComponent("test.js")
         try? "console.log('hello');".write(to: jsFile, atomically: true, encoding: .utf8)
         
-        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir)
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
         XCTAssertTrue(action is JavaScriptAction)
         
         try? FileManager.default.removeItem(at: tempDir)
@@ -29,7 +29,7 @@ final class DefaultActionFactoryTests: XCTestCase {
         let scriptFile = tempDir.appendingPathComponent("test.applescript")
         try? "return \"hello\"".write(to: scriptFile, atomically: true, encoding: .utf8)
         
-        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir)
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
         XCTAssertTrue(action is AppleScriptAction)
         
         try? FileManager.default.removeItem(at: tempDir)
@@ -43,7 +43,7 @@ final class DefaultActionFactoryTests: XCTestCase {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         
-        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir)
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
         XCTAssertTrue(action is URLTemplateAction)
         
         try? FileManager.default.removeItem(at: tempDir)
@@ -59,9 +59,71 @@ final class DefaultActionFactoryTests: XCTestCase {
         let scriptFile = tempDir.appendingPathComponent("test.sh")
         try? "#!/bin/sh\necho hi".write(to: scriptFile, atomically: true, encoding: .utf8)
         
-        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir)
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
         XCTAssertTrue(action is ScriptAction)
         
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    func testUniformIDBareSlugExpandsWithManifestIdentifier() async {
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(id: "a", title: "Action A", icon: "symbol:link", script: nil, url: "https://example.com/a?q={query}", regex: nil)
+        let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [actionMeta], options: nil)
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertEqual(action?.id, "pkg.a")
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    func testUniformIDFullIDUsedVerbatim() async {
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(id: "com.custom.namespaced.action", title: "Action", icon: "symbol:link", script: nil, url: "https://example.com?q={query}", regex: nil)
+        let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [actionMeta], options: nil)
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertEqual(action?.id, "com.custom.namespaced.action")
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    func testUniformIDIndexFallbackIgnoresTitle() async {
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(title: "Some Title", icon: "symbol:link", script: nil, url: "https://example.com?q={query}", regex: nil)
+        let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [actionMeta], options: nil)
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 2)
+        XCTAssertEqual(action?.id, "pkg.action.2")
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    func testGroupActionIsNotRegisteredAsRunnable() async {
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(
+            title: "Group",
+            type: "group",
+            subActions: [
+                ExtensionActionMetadata(id: "sub", title: "Sub Action", url: "https://example.com?q={query}", type: "url")
+            ]
+        )
+        let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [actionMeta], options: nil)
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertNil(action)
+
         try? FileManager.default.removeItem(at: tempDir)
     }
 }
