@@ -542,6 +542,9 @@ public struct PopupView: View {
                         onResult(result)
                     } catch {
                         print("Action failed: \(error)")
+                        // Decision 9: a thrown perform error surfaces uniformly as an error status
+                        // and the popup stays.
+                        onResult(.showStatus(StatusFeedback(error: error)))
                     }
                 }
             } label: {

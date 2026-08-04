@@ -2,10 +2,12 @@
 // OpenClip
 //
 // Defines the value enum representing execution results and platform side-effects returned by actions.
-// Specifies outcomes such as copy, cut, paste, URL opening, system service triggers, or simple success/failure.
+// Specifies outcomes such as copy, cut, paste, URL opening, system service triggers, presentation
+// results (bubbles, status, configuration), and simple success/failure. Also carries the popup
+// dismissal policy computed once on a top-level result (decision 8).
 import Foundation
 
-public enum ActionResult: Sendable {
+public indirect enum ActionResult: Sendable {
     case success
     case failure(Error)
     case simulatePaste
@@ -14,5 +16,53 @@ public enum ActionResult: Sendable {
     case cut(String)
     case paste(String)
     case showServices(String)
+
+    // MARK: - Presentation results (presenter-owned; the effect handler treats these as no-ops)
+
+    /// Render a result bubble on the popup card. Keeps the popup open.
+    case showBubble(BubbleContent)
+    /// Surface a transient status (success/error/info) as a bubble or corner badge. Keeps the popup open.
+    case showStatus(StatusFeedback)
+    /// Hide the popup and ask the user to configure the named action (opens Preferences → EditActionSheet).
+    case openConfiguration(ConfigurationRequest)
+
+    // MARK: - Flow combinators
+
+    /// Perform the inner result but never dismiss the popup as a result of it.
+    case keepVisible(ActionResult)
+    /// Perform multiple results in order; the popup hides only if every item dismisses it.
+    case sequence([ActionResult])
+
+    // MARK: - Keyboard execution (Phase 8; no execution here)
+
+    /// Send a synthetic key press to the frontmost app.
+    case keyPress(KeyPressSpec)
+    /// Run a registered shortcut by name with optional input.
+    case runShortcut(name: String, input: String?)
+
     case none
+}
+
+extension ActionResult {
+    /// Whether the popup should hide after this top-level result is handled. Computed once on the
+    /// top-level result (decision 8): `.showBubble`/`.showStatus` keep the popup up, `.keepVisible`
+    /// explicitly suppresses dismissal, and a `.sequence` dismisses only when non-empty and every
+    /// item dismisses. Everything else (leaf effects, `.openConfiguration`) dismisses.
+    public var dismissesPopup: Bool {
+        switch self {
+        case .keepVisible, .showBubble, .showStatus:
+            return false
+        case .sequence(let items):
+            return !items.isEmpty && items.allSatisfy(\.dismissesPopup)
+        default:
+            return true // includes openConfiguration: hide bar, then open Preferences
+        }
+    }
+
+    /// The effect a handler should actually execute, unwrapping `.keepVisible` so a leaf that was
+    /// wrapped for presentation still reaches the effect door when driven outside the tree-walk.
+    public var effectForHandler: ActionResult? {
+        if case .keepVisible(let inner) = self { return inner }
+        return self
+    }
 }

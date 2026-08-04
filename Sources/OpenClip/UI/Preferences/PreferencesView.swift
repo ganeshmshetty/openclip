@@ -41,6 +41,8 @@ public struct PreferencesView: View {
     @State private var selectedTab: PreferenceTab = .general
     @State private var aiSubTab: AISubTab = .configure
     @State private var extensionsSubTab: ExtensionSubTab = .store
+    @State private var configuringAction: ConfigurationSheetItem?
+    @ObservedObject private var configurationCoordinator = ActionConfigurationCoordinator.shared
 
     private var installedExtensionCount: Int {
         ActionCoordinator.shared.actions.filter { action in
@@ -192,6 +194,15 @@ public struct PreferencesView: View {
         .frame(minWidth: 760, idealWidth: 860, minHeight: 640, idealHeight: 720)
         .onAppear { loadDisabledActionIDs() }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledActionIDs() }
+        .onChange(of: configurationCoordinator.pendingRequest, initial: true) { _, request in
+            guard let request else { return }
+            configurationCoordinator.pendingRequest = nil
+            guard let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
+            configuringAction = ConfigurationSheetItem(action: action)
+        }
+        .sheet(item: $configuringAction) { item in
+            EditActionSheet(action: item.action)
+        }
     }
     
     private func loadDisabledActionIDs() {
@@ -208,6 +219,12 @@ public struct PreferencesView: View {
         DefaultSettingsStore.shared.set(.isTransformGroupEnabled, value: transformEnabled)
     }
 
+}
+
+/// Identifiable wrapper so a config sheet can be driven by `.sheet(item:)` with any `Action`.
+private struct ConfigurationSheetItem: Identifiable {
+    let action: any Action
+    var id: String { action.id }
 }
 
 @MainActor
