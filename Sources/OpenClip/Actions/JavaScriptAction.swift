@@ -1,8 +1,11 @@
 // JavaScriptAction.swift
 // OpenClip
 //
-// Implements action execution for JavaScript snippets using JavaScriptCore, reading options via the Settings Door.
-// Enablement and match resolution delegate to the shared ActionVisibility evaluator when rules are attached.
+// Implements action execution for JavaScript snippets using JavaScriptCore, reading options via the
+// Settings Door. Enablement and match resolution delegate to the shared ActionVisibility evaluator
+// when rules are attached. perform delegates to OpenClipJSHost (the dedicated, testable bridge that
+// exposes the read-only openclip.* surface) for the RAW runtime result, then applies the declarative
+// after/stayVisible rules via ActionResultAdapter.
 import Foundation
 import JavaScriptCore
 import Core
@@ -73,83 +76,21 @@ public struct JavaScriptAction: ConfigurableAction {
     }
 
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        let text = context.selection.text
-        
-        let jsContext = JSContext()!
-        
-        // Populate options dictionary
-        var optionsDict: [String: Any] = [:]
-        for opt in actionOptions {
-            optionsDict[opt.identifier] = optionStore.stringValue(actionID: id, option: opt)
-        }
-        
-        var openURLResult: URL?
-        var pasteTextResult: String?
-        
-        // Expose native openclip JS bridge object
-        let openclipBridge: @convention(block) () -> [String: Any] = {
-            return [
-                "input": ["text": text],
-                "options": optionsDict
-            ]
-        }
-        
-        let openUrlBlock: @convention(block) (String) -> Void = { urlString in
-            if let url = URL(string: urlString) {
-                openURLResult = url
-            }
-        }
-        
-        let pasteTextBlock: @convention(block) (String) -> Void = { textString in
-            pasteTextResult = textString
-        }
-        
-        let showNotificationBlock: @convention(block) (String, String) -> Void = { title, message in
-            let userNotification = NSUserNotification()
-            userNotification.title = title
-            userNotification.informativeText = message
-            NSUserNotificationCenter.default.deliver(userNotification)
-        }
-        
-        jsContext.setObject(openclipBridge(), forKeyedSubscript: "openclip" as NSString)
-        jsContext.evaluateScript("openclip.openUrl = function(u) { _openUrl(u); };")
-        jsContext.evaluateScript("openclip.openURL = function(u) { _openUrl(u); };")
-        jsContext.evaluateScript("openclip.pasteText = function(t) { _pasteText(t); };")
-        jsContext.evaluateScript("openclip.showNotification = function(title, msg) { _showNotification(title, msg); };")
-        jsContext.setObject(openUrlBlock, forKeyedSubscript: "_openUrl" as NSString)
-        jsContext.setObject(pasteTextBlock, forKeyedSubscript: "_pasteText" as NSString)
-        jsContext.setObject(showNotificationBlock, forKeyedSubscript: "_showNotification" as NSString)
-        
-        // Execute JS script
-        let wrappedScript = """
-        (function() {
-            var selection = openclip.input.text;
-            var options = openclip.options;
-            \(scriptCode)
-            if (typeof action === 'function') {
-                return action(selection, options);
-            }
-            if (typeof main === 'function') {
-                return main(selection, options);
-            }
-            return null;
-        })();
-        """
-        
-        let jsResult = jsContext.evaluateScript(wrappedScript)
-        
-        if let url = openURLResult {
-            return .openURL(url)
-        }
-        
-        if let pasteText = pasteTextResult {
-            return .paste(pasteText)
-        }
-        
-        if let resultString = jsResult?.toString(), resultString != "undefined", resultString != "null" {
-            return .copy(resultString)
-        }
-        
-        return .success
+        let request = OpenClipJSHost.Request(
+            actionID: id,
+            scriptCode: scriptCode,
+            context: context,
+            options: actionOptions,
+            optionStore: optionStore,
+            rules: rules ?? ExtensionActionRules()
+        )
+        let raw = try OpenClipJSHost().run(request)
+        return ActionResultAdapter.apply(
+            raw: raw,
+            after: rules?.after ?? .default,
+            stayVisible: rules?.stayVisible ?? false,
+            title: title,
+            icon: preferenceIconName
+        )
     }
 }

@@ -22,8 +22,9 @@ areas; stale debt notes are worse than none.
 - **Builtin actions** (`CalculateAction`, `CalendarAction`, `SearchAction`) read
   `DefaultSettingsStore.shared` directly — they don't accept an injected `SettingsStore` today.
 - **Dynamic action option keys** (`JavaScriptAction`, `AppleScriptAction`): the target pattern is
-  `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. Today
-  `JavaScriptAction` reads option values via `UserDefaults.standard.string(forKey:)` (migration target).
+  `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. The JS
+  path already reads through the injected `optionStore` (`OpenClipJSHost` reads options read-only via
+  `ActionOptionReading`); `AppleScriptAction` does not consume options today.
 
 ## Action Seams Already Implemented
 
@@ -31,6 +32,13 @@ areas; stale debt notes are worse than none.
   to the registry via `onRegister`/`onUnregister`; the manager never calls `ActionRegistry.shared`
   directly. GUI-authored actions persist as manifest packages (via `CustomActionManifestWriter`);
   `custom_actions.json`/`CustomActionManager` are retired.
+- **Shell runtimes share one executor.** `ScriptAction` script files and `CustomAction.shellScript`
+  both run through `ShellProcessRunner` (one watchdog; `TimeoutFlag`/`OnceGate` live in
+  `ShellProcessRunner.swift`) and translate stdout JSON via `ShellResultMapper`; `NSUserNotification`
+  is gone (`.notify` is handled by the effect door via `UNUserNotificationCenter`).
+- **`ActionResultAdapter.apply` is the single after/stayVisible translator.** Runtimes return raw
+  results; each extension runtime's `perform` applies `rules.after`/`rules.stayVisible` via the
+  adapter. `OpenClipJSHost.run` returns only raw results (no JSC watchdog — plan §13).
 
 ## Presentation / Rule Holes
 

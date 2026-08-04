@@ -281,4 +281,61 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         let availableWithDisabled = registry.availableActions(for: sampleContext)
         XCTAssertFalse(availableWithDisabled.contains(where: { $0.id == "com.golden.js.action" }), "Disabled action should be filtered out by registry")
     }
+
+    /// Exit criterion: a JS extension calling openclip.showBubble(...) produces a `.showBubble`
+    /// result through the full load → factory → host pipeline.
+    @MainActor
+    func testJSBubbleExtensionProducesShowBubble() async throws {
+        let jsBundle = tempDir.appendingPathComponent("JSBubbleExt.openclipext")
+        try FileManager.default.createDirectory(at: jsBundle, withIntermediateDirectories: true)
+        let jsManifest = """
+        {
+            "identifier": "com.golden.jsbubble",
+            "name": "JS Bubble Golden Extension",
+            "actions": [
+                {
+                    "id": "com.golden.jsbubble.action",
+                    "title": "JS Bubble Action",
+                    "script": "bubble.js"
+                }
+            ]
+        }
+        """
+        try jsManifest.write(to: jsBundle.appendingPathComponent("openclip.json"), atomically: true, encoding: .utf8)
+        let jsCode = """
+        function action(text, options) {
+            openclip.showBubble({ title: "Processed", body: "Hello " + text, footer: ["paste", "copy"] });
+            return null;
+        }
+        """
+        try jsCode.write(to: jsBundle.appendingPathComponent("bubble.js"), atomically: true, encoding: .utf8)
+
+        await ExtensionManager.shared.loadExtensions(from: tempDir)
+        let loadedActions = ExtensionManager.shared.loadedActions
+
+        guard let action = loadedActions.first(where: { $0.id == "com.golden.jsbubble.action" }) as? JavaScriptAction else {
+            XCTFail("Missing JavaScriptAction for com.golden.jsbubble.action")
+            return
+        }
+
+        let result = try await action.perform(ActionContext(selectedText: "World"))
+        guard case .showBubble(let content) = result else {
+            return XCTFail("Expected .showBubble, got \(result)")
+        }
+        XCTAssertEqual(content.title, "Processed")
+        XCTAssertEqual(content.rows.count, 1)
+        guard case .text(let rowText) = content.rows[0] else {
+            return XCTFail("Expected text row")
+        }
+        XCTAssertEqual(rowText, "Hello World")
+        XCTAssertEqual(content.footer.count, 2)
+        XCTAssertEqual(content.footer[0].title, "Paste")
+        guard case .perform(.paste("Hello World")) = content.footer[0].outcome else {
+            return XCTFail("Expected Paste footer performing .paste(Hello World)")
+        }
+        XCTAssertEqual(content.footer[1].title, "Copy")
+        guard case .perform(.copy("Hello World")) = content.footer[1].outcome else {
+            return XCTFail("Expected Copy footer performing .copy(Hello World)")
+        }
+    }
 }

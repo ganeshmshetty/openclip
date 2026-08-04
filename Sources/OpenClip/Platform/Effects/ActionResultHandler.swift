@@ -1,9 +1,11 @@
 // ActionResultHandler.swift
 // OpenClip
 //
-// Serves as the Effect Door, executing macOS platform side-effects such as pasteboard mutations, URL opening, and key event simulations.
+// Serves as the Effect Door, executing macOS platform side-effects such as pasteboard mutations, URL
+// opening, key event simulations, and user notifications (via UNUserNotificationCenter).
 import Foundation
 import AppKit
+import UserNotifications
 import Core
 
 public protocol ActionResultHandler: Sendable {
@@ -63,6 +65,9 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
             }
 
+        case .notify(let title, let body):
+            postNotification(title: title, body: body)
+
         case .simulatePaste:
             simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand)
 
@@ -82,6 +87,21 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
 
         case .failure(let error):
             throw error
+        }
+    }
+
+    /// Best-effort notification posting: only when the user granted notification authorization;
+    /// otherwise skip silently (never crash on an unprivileged call).
+    private func postNotification(title: String, body: String) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+            UNUserNotificationCenter.current().add(request)
         }
     }
 
