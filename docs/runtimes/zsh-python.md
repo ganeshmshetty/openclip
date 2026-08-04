@@ -22,7 +22,7 @@ Selection Context ---> Process Instance ---> Inject Environment & write stdin
 1. **Executable Check**: `ScriptAction` checks `FileManager.default.isExecutableFile(atPath:)`.
 2. **Environment Injection**:
  - `OPENCLIP_TEXT`: Selected text string.
- - `OPENCLIP_OPTION_<NAME>`: Configured extension option values.
+ - `OPENCLIP_MATCHED`, `OPENCLIP_CAPTURE_N`, `OPENCLIP_BUNDLE_ID`, `OPENCLIP_ACTION_ID` (see the matrix below).
 3. **Pipes Setup**: Sets up `standardInput`, `standardOutput`, and `standardError` using `Pipe()`.
 4. **Standard Input Delivery**: Selected text is written to `stdin` asynchronously.
 5. **Timeout Watchdog**: A detached task terminates the process if it exceeds `Constants.scriptTimeout` (30 s), so a hanging script never leaves the popup spinning. Any new action that spawns a subprocess must implement the same watchdog.
@@ -35,29 +35,40 @@ Selection Context ---> Process Instance ---> Inject Environment & write stdin
 | Environment Variable | Description |
 | :--- | :--- |
 | `OPENCLIP_TEXT` | Full text selected by the user. |
-| `OPENCLIP_OPTION_<NAME>` | Value of extension option `<NAME>` (uppercase). |
+| `OPENCLIP_MATCHED` | Text matched by the action's regex (falls back to the full selection). |
+| `OPENCLIP_CAPTURE_N` | Regex capture group `N` (1-based), one per group. |
+| `OPENCLIP_BUNDLE_ID` | Bundle identifier of the frontmost/source app. |
+| `OPENCLIP_ACTION_ID` | The action's identifier. |
 
----
+The selected text is also written to the subprocess's `stdin`. Extension *options* are not injected
+as environment variables; read them from stdin or resolve them on the OpenClip side.
 
 ## Output Processing: JSON vs Plain Text
 
-`ScriptAction` evaluates output from `stdout` using a dual-mode parser:
+`ScriptAction` evaluates output from `stdout` via `ShellResultMapper` using a dual-mode parser:
 
-### Mode 1: Structured JSON Output (`ScriptOutput`)
+### Mode 1: Structured JSON Output (`ScriptJSONOutput`)
 
 Scripts can return a JSON payload to specify explicit platform actions:
 
 ```json
 {
- "type": "paste",
- "value": "Transformed text output"
+  "type": "paste",
+  "value": "Transformed text output"
 }
 ```
 
 Supported `type` values:
-- `"paste"` $\rightarrow$ `ActionResult.paste(value)` (replaces selection in target application).
-- `"copy"` $\rightarrow$ `ActionResult.copy(value)` (copies text to system clipboard).
-- `"open_url"` $\rightarrow$ `ActionResult.openURL(URL)` (opens URL in default browser).
+- `"paste"` → `ActionResult.paste(value)` (replaces selection in target application).
+- `"copy"` → `ActionResult.copy(value)` (copies text to system clipboard).
+- `"openURL"` → `ActionResult.openURL(URL)` (opens URL in default browser; URL parsed from `value`).
+- `"showBubble"` → result bubble (`title`, `body`, `footer`: `"paste"`/`"copy"` presets).
+- `"status"` → `ActionResult.showStatus` (`message`, `style`: `"success"`/`"error"`/`"info"`).
+- `"keepVisible"` → wraps a nested `effect` payload so the popup stays open.
+- `"configure"` → `ActionResult.openConfiguration` (`reason`, `missing: [optionID]`).
+
+Unknown or malformed JSON falls through to plain-text handling; a decoded-but-unknown `type`
+maps to `.success`.
 
 ### Mode 2: Plain Text Output Fallback
 

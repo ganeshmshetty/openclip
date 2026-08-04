@@ -11,10 +11,13 @@ Sources/
 │   │   ├── ActionChrome.swift                # UI metadata policy enum
 │   │   ├── ActionContext.swift               # Action resolution context
 │   │   ├── ActionCoordinator.swift           # Action execution coordinator & composition root (wires managers to registry)
+│   │   ├── ActionResult.swift                # Action result value types
+│   │   ├── ActionResultAdapter.swift         # Single after/stayVisible translator for extension runtime results
 │   │   ├── ActionCustomizationManager.swift  # User action overrides (title/icon); delegates I/O to SettingsStore
 │   │   ├── ActionPresentation.swift          # Presentation styling generator
 │   │   ├── ActionRegistry.swift              # Storage, ordering, and transform default-on/off policy
-│   │   ├── ActionResult.swift                # Action result value types
+│   │   ├── GroupAction.swift                 # Pure group-row action (chrome .showTransformMenu); perform → .none
+│   │   ├── KeyPressSpec.swift                # Key-press spec ("mod+mod+key") parsed from manifest keyPress
 │   │   ├── BubbleContent.swift               # Popup bubble value-type model (rows/options/emphasis)
 │   │   ├── Builtin/                          # Core builtin actions (Copy, Cut, Paste, etc.)
 │   │   │   └── TransformTextAction.swift     # TransformCase enum & transform implementations (default-on/off policy lives in TransformCase.defaultDisabledActionIDs; isRelevant(for:) drives menu smart-filtering)
@@ -38,7 +41,8 @@ Sources/
 │   │   │   ├── ExtensionActionKind.swift     # Normalized extension kind enum
 │   │   │   └── ExtensionManifest.swift       # Extension manifest decoder
 │   │   ├── OpenClipSnippetParser.swift       # Standalone snippet header parser (currently @MainActor); body mode ends only at `#` header keys, `//` lines stay body
-│   │   └── ScriptAction.swift                # Executable script action
+│   │   ├── ScriptAction.swift                # Executable script action
+│   │   └── ShellProcessRunner.swift          # Shared subprocess executor + 30s watchdog; hosts TimeoutFlag/OnceGate; maps stdout JSON via ShellResultMapper
 │   ├── Rules/                                # App-specific policy rules
 │   │   ├── AppRule.swift                     # AppPolicyContext (5 active fields) + AppRule Codable model
 │   │   └── RuleEngine.swift
@@ -62,7 +66,11 @@ Sources/
     │   └── Providers/                        # Apple Intelligence, Cloud, Ollama, BrowserRedirect
     ├── Actions/                              # Runtime actions requiring AppKit/JavaScript
     │   ├── AppleScriptAction.swift
-    │   └── JavaScriptAction.swift            # Reads action options via UserDefaults.standard directly (migration target: SettingKey)
+    │   ├── JavaScriptAction.swift            # Manifests JS actions; short-circuits to .openConfiguration when a required option is unresolved, else delegates to OpenClipJSHost (options via injected ActionOptionReading)
+    │   ├── KeyPressAction.swift              # type: "keyPress" runtime → .keyPress(KeyPressSpec)
+    │   ├── NamedServiceAction.swift          # type: "service" runtime → .showServices(text)
+    │   ├── OpenClipJSHost.swift              # JS bridge (openclip.*) + effect resolver + .openConfiguration short-circuit support
+    │   └── ShortcutAction.swift              # type: "shortcut" runtime → .runShortcut(name:input:)
     ├── App/
     │   └── AppServices.swift                 # UI-facing composition root
     ├── AppDelegate.swift                     # Reads isAppEnabled / hasCompletedOnboarding via UserDefaults.standard
@@ -72,7 +80,8 @@ Sources/
     │   ├── Effects/
     │   │   └── ActionResultHandler.swift     # Platform side-effects handler
     │   ├── Extensions/
-    │   │   ├── DefaultActionFactory.swift    # ActionFactory implementation
+    │   │   ├── DefaultActionFactory.swift    # ActionFactory implementation (routing kinds incl. keyPress/shortcut/service/group)
+    │   │   ├── KeychainActionOptionStore.swift  # Composite option store; .secret options → Keychain
     │   │   ├── OpenClipSnippetParser+DefaultFactory.swift
     │   │   └── RemoteExtensionInstaller.swift
     │   ├── HotkeyManager.swift               # Global shortcut manager

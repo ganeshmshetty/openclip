@@ -1,106 +1,113 @@
 # JavaScript Action Runtime
 
-The JavaScript action runtime ([`JavaScriptAction`](../../Sources/OpenClip/Actions/JavaScriptAction.swift)) executes JavaScript code using macOS `JSContext` (JavaScriptCore framework). It provides an in-memory JS execution environment with access to a bridge object named `openclip`.
+The JavaScript action runtime ([`OpenClipJSHost`](../../Sources/OpenClip/Actions/OpenClipJSHost.swift),
+reached via [`JavaScriptAction`](../../Sources/OpenClip/Actions/JavaScriptAction.swift)) executes
+`type: "javascript"` extension scripts using macOS `JSContext` (JavaScriptCore). It injects a
+read-only `openclip` object into the global scope and resolves collected effects into an
+[`ActionResult`](../../Sources/Core/Actions/ActionResult.swift).
 
----
-
-## The `openclip` JS Bridge Object
-
-OpenClip injects the `openclip` object into the global execution context before running the script:
+## The `openclip` JS Object
 
 ```typescript
 interface OpenClipBridge {
- input: {
- text: string; // Current selected text
- };
- options: Record<string, string>; // Key-value dictionary of extension options
+  input: {
+    text: string;            // Full selected text
+    matchedText: string;     // Text matched by the action's regex (falls back to text)
+    captures: string[];      // Regex capture groups (empty when no regex)
+    app: { bundleID: string; name: string }; // Frontmost source app
+  };
+  options: Record<string, string>; // Resolved option values (values only, read-only)
+  option(id: string): string | undefined; // Functional form of options[id]
 
- // Side-effect functions:
- openUrl(url: string): void;
- openURL(url: string): void;
- pasteText(text: string): void;
- showNotification(title: string, message: string): void;
+  // Effect functions (call order is preserved):
+  paste(value: string): void;
+  copy(value: string): void;
+  cut(value: string): void;
+  openURL(urlString: string): void;      // Invalid URLs are ignored
+  keyPress(key: string, modifiers: string[]): void; // e.g. openclip.keyPress("a", ["command"])
+  runShortcut(name: string): void;       // Runs a macOS Shortcut (requires /usr/bin/shortcuts)
+  notify(title: string, body: string): void;
+  showStatus(message: string, style?: string): void; // style: "success" | "error" | "info"
+  showBubble(payload: object): void;     // See below
+  keepVisible(): void;                   // Keep the popup open after the result
+  requireConfiguration(payload: object): void; // { reason?: string, missing?: string[] }
 }
 ```
 
----
+Modifier names accepted by `keyPress`: `command`/`cmd`, `shift`, `option`/`alt`,
+`control`/`ctrl`. The key is a macOS virtual-key name (QWERTY/ANSI layout is assumed), e.g.
+letters `a`–`z`, digits `0`–`9`, or named keys like `return`, `space`, `escape`.
+
+`showBubble` accepts an object with optional `title`, `icon`, `subtitle`, `body`, `emphasis`
+(`"info"` | `"menu"` | default `"result"`), `rows` (`[{type:"text", value}]`), and `footer`
+(`"paste"`/`"copy"` presets or `{title, icon, action: "paste"|"copy", value}` objects).
 
 ## Options & Preference Integration
 
-Extension options defined in `manifest.json` are loaded dynamically using setting keys of the form `action.<id>.option.<identifier>`:
-
-```swift
-for opt in actionOptions {
- let key = "action.\(id).option.\(opt.identifier)"
- optionsDict[opt.identifier] = UserDefaults.standard.string(forKey: key) ?? (opt.defaultValue ?? "")
-}
-```
-
-- Direct calls to `UserDefaults.standard` are discouraged and should not be added in new code; the intended path is `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. (Note: `JavaScriptAction` currently reads option values via `UserDefaults.standard.string(forKey:)`; migrating it is planned.)
-- Options configured by users in the Preferences window are automatically passed into `openclip.options`.
-
----
-
-## Script Execution Flow & Entry Points
-
-`JavaScriptAction` wraps user code in an IIFE and evaluates standard entry point functions (`action` or `main`):
+Extension options declared in the manifest are resolved through the injected option store
+(`ActionOptionReading`) — **not** `UserDefaults` directly. Non-secret options come from
+`SettingsStore` (`SettingKey<String>("action.<id>.option.<identifier>")`); `.secret` options come
+from the Keychain via `KeychainActionOptionStore`. Values land in `openclip.options` and
+`openclip.option(id)`. The wrapped script also receives them as the second argument:
 
 ```javascript
 (function() {
- var selection = openclip.input.text;
- var options = openclip.options;
-
- // User script code body
- // ...
-
- if (typeof action === 'function') {
- return action(selection, options);
- }
- if (typeof main === 'function') {
- return main(selection, options);
- }
- return null;
+  var selection = openclip.input.text;
+  var options = openclip.options;
+  // ...your code...
+  if (typeof action === 'function') { return action(selection, options); }
+  if (typeof main === 'function')   { return main(selection, options); }
+  return null;
 })();
 ```
 
----
+Define an `action(selection, options)` or `main(selection, options)` entry function.
 
-## Side-Effect Handling & Result Resolution
+## Result Resolution
 
-The runtime resolves the execution outcome into an [`ActionResult`](../../Sources/Core/Actions/ActionResult.swift) based on function calls or return values:
+`OpenClipJSHost.run` resolves the outcome in a deterministic order:
 
-1. **`openclip.openUrl(urlString)`**:
- - If invoked, execution returns `ActionResult.openURL(URL)`.
-2. **`openclip.pasteText(textString)`**:
- - If invoked, execution returns `ActionResult.paste(String)` (replaces selection or pastes into frontmost app).
-3. **Return Value (String)**:
- - If the function returns a non-null string, execution returns `ActionResult.copy(String)`.
-4. **Void / Undefined Return**:
- - Execution returns `ActionResult.success`.
+1. `requireConfiguration(...)` → `.openConfiguration`.
+2. `showBubble(...)` → `.showBubble`.
+3. `showStatus(...)` (with no effects) → `.showStatus`.
+4. Effects (paste/copy/cut/openURL/keyPress/runShortcut/notify) → single `.paste`/`.copy`/etc, or
+   `.sequence` of them when multiple were called.
+5. String return value → `.copy(string)`.
+6. Otherwise → `.success`.
 
----
+If `keepVisible()` was called, the resolved result is wrapped in `.keepVisible(...)`.
+A JavaScript exception produces `.showStatus(.error, message)` instead of throwing; the popup
+stays visible.
 
 ## Practical Examples
 
-### Prettify JSON Snippet
+### Prettify JSON (returns a string → copied)
 
 ```javascript
 function action(selection) {
- try {
- var obj = JSON.parse(selection);
- var indent = parseInt(openclip.options.indent_spaces || "2", 10);
- return JSON.stringify(obj, null, indent);
- } catch (e) {
- return "Invalid JSON: " + e.message;
- }
+  try {
+    var obj = JSON.parse(selection);
+    var indent = parseInt(openclip.options.indent_spaces || "2", 10);
+    return JSON.stringify(obj, null, indent);
+  } catch (e) {
+    return "Invalid JSON: " + e.message;
+  }
 }
 ```
 
-### Search Web & Open URL
+### Search Web (opens a URL)
 
 ```javascript
 function action(selection) {
- var query = encodeURIComponent(selection.trim());
- openclip.openUrl("https://duckduckgo.com/?q=" + query);
+  var query = encodeURIComponent(selection.trim());
+  openclip.openURL("https://duckduckgo.com/?q=" + query);
+}
+```
+
+### Replace the selection with uppercased text
+
+```javascript
+function action(selection) {
+  openclip.paste(selection.toUpperCase());
 }
 ```
