@@ -2,6 +2,7 @@
 // OpenClip
 //
 // Serves as the Birth Door implementation, instantiating executable Action instances from extension manifests and snippets.
+// Applies the uniform action-ID rule and keeps `group` actions schema-only (returns nil in Phase 1).
 import Foundation
 import Core
 
@@ -11,9 +12,12 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
     public func createAction(
         metadata: ExtensionActionMetadata,
         manifest: ExtensionMetadata,
-        directoryURL: URL
+        directoryURL: URL,
+        index: Int
     ) async -> (any Action)? {
-        let actionId = metadata.id ?? (manifest.identifier.hasPrefix("snippet.") ? manifest.identifier : "\(manifest.identifier).action.\(metadata.title ?? manifest.name)")
+        // Groups are schema-only in Phase 1 (runtimes land in Phase 8): never register a group as runnable.
+        guard metadata.kind != .group else { return nil }
+        let actionId = ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
         let title = metadata.title ?? manifest.name
         let icon = ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL)
         

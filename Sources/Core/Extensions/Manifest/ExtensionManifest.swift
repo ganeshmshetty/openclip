@@ -13,6 +13,14 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     public let regex: String?
     public let type: String?
     public let scriptCode: String?
+    public let requirements: ActionRequirements?
+    public let after: ActionAfterBehavior?
+    public let stayVisible: Bool?
+    public let options: [ExtensionOptionMetadata]?
+    public let subActions: [ExtensionActionMetadata]?
+    public let keyPress: String?
+    public let serviceName: String?
+    public let shortcutName: String?
 
     public var kind: ExtensionActionKind {
         ExtensionActionKind(rawType: type ?? "url")
@@ -26,7 +34,15 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         url: String? = nil,
         regex: String? = nil,
         type: String? = nil,
-        scriptCode: String? = nil
+        scriptCode: String? = nil,
+        requirements: ActionRequirements? = nil,
+        after: ActionAfterBehavior? = nil,
+        stayVisible: Bool? = nil,
+        options: [ExtensionOptionMetadata]? = nil,
+        subActions: [ExtensionActionMetadata]? = nil,
+        keyPress: String? = nil,
+        serviceName: String? = nil,
+        shortcutName: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -36,6 +52,14 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.regex = regex
         self.type = type
         self.scriptCode = scriptCode
+        self.requirements = requirements
+        self.after = after
+        self.stayVisible = stayVisible
+        self.options = options
+        self.subActions = subActions
+        self.keyPress = keyPress
+        self.serviceName = serviceName
+        self.shortcutName = shortcutName
     }
 
     public init(from decoder: Decoder) throws {
@@ -54,6 +78,16 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
             ?? container.decodeIfPresent(String.self, forKey: .legacyRegex)
         self.type = try container.decodeIfPresent(String.self, forKey: .type)
         self.scriptCode = try container.decodeIfPresent(String.self, forKey: .scriptCode)
+        self.requirements = try container.decodeIfPresent(ActionRequirements.self, forKey: .requirements)
+        self.after = try container.decodeIfPresent(ActionAfterBehavior.self, forKey: .after)
+        self.stayVisible = try container.decodeIfPresent(Bool.self, forKey: .stayVisible)
+            ?? container.decodeIfPresent(Bool.self, forKey: .stayVisibleDash)
+        self.options = try container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .options)
+        self.subActions = try container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .subActions)
+            ?? container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .subActionsDash)
+        self.keyPress = try container.decodeIfPresent(String.self, forKey: .keyPress)
+        self.serviceName = try container.decodeIfPresent(String.self, forKey: .serviceName)
+        self.shortcutName = try container.decodeIfPresent(String.self, forKey: .shortcutName)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -66,6 +100,14 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(regex, forKey: .regex)
         try container.encodeIfPresent(type, forKey: .type)
         try container.encodeIfPresent(scriptCode, forKey: .scriptCode)
+        try container.encodeIfPresent(requirements, forKey: .requirements)
+        try container.encodeIfPresent(after, forKey: .after)
+        try container.encodeIfPresent(stayVisible, forKey: .stayVisible)
+        try container.encodeIfPresent(options, forKey: .options)
+        try container.encodeIfPresent(subActions, forKey: .subActions)
+        try container.encodeIfPresent(keyPress, forKey: .keyPress)
+        try container.encodeIfPresent(serviceName, forKey: .serviceName)
+        try container.encodeIfPresent(shortcutName, forKey: .shortcutName)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -83,6 +125,16 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case legacyRegex = "Regular Expression"
         case type = "type"
         case scriptCode = "scriptCode"
+        case requirements = "requirements"
+        case after = "after"
+        case stayVisible = "stayVisible"
+        case stayVisibleDash = "stay-visible"
+        case options = "options"
+        case subActions = "subActions"
+        case subActionsDash = "sub-actions"
+        case keyPress = "keyPress"
+        case serviceName = "serviceName"
+        case shortcutName = "shortcutName"
     }
 }
 
