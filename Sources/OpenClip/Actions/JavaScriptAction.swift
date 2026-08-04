@@ -3,9 +3,10 @@
 //
 // Implements action execution for JavaScript snippets using JavaScriptCore, reading options via the
 // Settings Door. Enablement and match resolution delegate to the shared ActionVisibility evaluator
-// when rules are attached. perform delegates to OpenClipJSHost (the dedicated, testable bridge that
-// exposes the read-only openclip.* surface) for the RAW runtime result, then applies the declarative
-// after/stayVisible rules via ActionResultAdapter.
+// when rules are attached. perform short-circuits to `.openConfiguration` when a declaratively
+// required option has no resolved value (Phase 7), then delegates to OpenClipJSHost (the dedicated,
+// testable bridge that exposes the read-only openclip.* surface) for the RAW runtime result, and
+// finally applies the declarative after/stayVisible rules via ActionResultAdapter.
 import Foundation
 import JavaScriptCore
 import Core
@@ -76,6 +77,24 @@ public struct JavaScriptAction: ConfigurableAction {
     }
 
     public func perform(_ context: ActionContext) async throws -> ActionResult {
+        // Phase 7: a declaratively-required option with no resolved value short-circuits to
+        // configuration BEFORE any JS runs. Distinct from the runtime `openclip.requireConfiguration`
+        // call (a script-time request); this is the manifest `requiredOptions` auto-check and must
+        // not be duplicated inside OpenClipJSHost.
+        let missing = ActionVisibility.missingRequiredOptions(
+            requirements: rules?.requirements,
+            options: actionOptions,
+            optionStore: optionStore,
+            actionID: id
+        )
+        if !missing.isEmpty {
+            return .openConfiguration(ConfigurationRequest(
+                actionID: id,
+                reason: missing.count == 1 ? "Required option not set." : "Required options not set.",
+                missingOptionIDs: missing
+            ))
+        }
+
         let request = OpenClipJSHost.Request(
             actionID: id,
             scriptCode: scriptCode,

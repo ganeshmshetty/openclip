@@ -237,4 +237,54 @@ final class OpenClipJSHostTests: XCTestCase {
         }
         XCTAssertEqual(text, "SET: |SET: ")
     }
+
+    // MARK: - Manifest requiredOptions short-circuit (Phase 7)
+
+    /// A required option with no resolved value must short-circuit to `.openConfiguration` BEFORE the
+    /// JS body runs — the script would throw if executed, so only the short-circuit path can produce
+    /// `.openConfiguration`.
+    func testMissingRequiredOptionsShortCircuitsToOpenConfigurationBeforeJSRuns() async throws {
+        let option = ExtensionOption(identifier: "apiKey", label: "API Key", type: .secret, defaultValue: nil)
+        let rules = ExtensionActionRules(requirements: ActionRequirements(requiredOptions: ["apiKey"]))
+        let action = JavaScriptAction(
+            id: "test.required",
+            title: "Required",
+            iconSymbol: "terminal",
+            scriptCode: "throw new Error('must not run');",
+            options: [option],
+            optionStore: MemoryOptionStore(),
+            rules: rules
+        )
+
+        let result = try await action.perform(makeContext())
+        guard case .openConfiguration(let config) = result else {
+            return XCTFail("Expected .openConfiguration, got \(result)")
+        }
+        XCTAssertEqual(config.actionID, "test.required")
+        XCTAssertEqual(config.missingOptionIDs, ["apiKey"])
+        XCTAssertEqual(config.reason, "Required option not set.")
+    }
+
+    /// The same action with the required option set runs normally (`.copy`, not `.openConfiguration`).
+    func testMissingRequiredOptionsRunsNormallyWhenStoreSet() async throws {
+        let option = ExtensionOption(identifier: "apiKey", label: "API Key", type: .secret, defaultValue: nil)
+        let store = MemoryOptionStore()
+        store.setStringValue("secret", actionID: "test.required", option: option)
+        let rules = ExtensionActionRules(requirements: ActionRequirements(requiredOptions: ["apiKey"]))
+        let action = JavaScriptAction(
+            id: "test.required",
+            title: "Required",
+            iconSymbol: "terminal",
+            scriptCode: "function action() { return 'ran'; }",
+            options: [option],
+            optionStore: store,
+            rules: rules
+        )
+
+        let result = try await action.perform(makeContext())
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "ran")
+    }
 }

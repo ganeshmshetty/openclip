@@ -89,7 +89,8 @@ public enum ActionVisibility {
 
     /// Returns the identifiers of required options whose resolved value is empty. Pure helper —
     /// never called from `isEnabled`/`evaluate` (Gotcha 4: N synchronous Keychain reads per popup
-    /// resolution). Evaluated at perform time (Phase 7 wires the short-circuit).
+    /// resolution). Evaluated at perform time: Phase 7's `JavaScriptAction.perform` short-circuits
+    /// to `.openConfiguration` when this returns non-empty.
     public static func missingRequiredOptions(
         requirements: ActionRequirements?,
         resolvedOptions: [String: String]
@@ -99,5 +100,19 @@ public enum ActionVisibility {
             let value = resolvedOptions[optionID] ?? ""
             return value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
+    }
+
+    /// Resolves every option value through the given store, then delegates to the pure
+    /// `missingRequiredOptions(requirements:resolvedOptions:)`. Called at perform time (Phase 7)
+    /// before any script runs; a non-empty result means the action cannot run and should open its
+    /// configuration instead.
+    public static func missingRequiredOptions(
+        requirements: ActionRequirements?,
+        options: [ExtensionOption],
+        optionStore: any ActionOptionReading,
+        actionID: String
+    ) -> [String] {
+        let resolved = Dictionary(uniqueKeysWithValues: options.map { ($0.identifier, optionStore.stringValue(actionID: actionID, option: $0)) })
+        return missingRequiredOptions(requirements: requirements, resolvedOptions: resolved)
     }
 }

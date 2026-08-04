@@ -14,6 +14,20 @@ public struct SettingKey<Value: Sendable>: Sendable {
     }
 }
 
+/// Stable per-action option namespaces (Phase 7). `defaultsKey` is the SettingsStore/UserDefaults
+/// key for non-secret options; `keychainAccount` names the Keychain account for `.secret` options.
+/// Both produce the same `action.<actionID>.option.<optionID>` string — one namespace, two backends
+/// (secrets never touch UserDefaults).
+public enum ActionOptionKey {
+    public static func defaultsKey(actionID: String, optionID: String) -> String {
+        "action.\(actionID).option.\(optionID)"
+    }
+
+    public static func keychainAccount(actionID: String, optionID: String) -> String {
+        defaultsKey(actionID: actionID, optionID: optionID)
+    }
+}
+
 public extension SettingKey where Value == [String] {
     static var actionOrder: SettingKey<[String]> { SettingKey<[String]>("action.order", defaultValue: []) }
 }

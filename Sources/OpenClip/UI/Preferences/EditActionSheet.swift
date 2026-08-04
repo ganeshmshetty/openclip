@@ -8,6 +8,8 @@
 // extension list. Builtin actions keep the legacy ActionCustomizationManager appearance overrides.
 // A non-builtin action whose manifest can't be located on disk (e.g. a standalone snippet script
 // file) is read-only: the sheet surfaces why and disables Save rather than silently dropping edits.
+// When opened via a ConfigurationRequest (missing-required-options short-circuit), a reason banner
+// appears above the tabs and the missing option rows are highlighted in the General tab (Phase 7).
 import SwiftUI
 import AppKit
 import Core
@@ -15,6 +17,9 @@ import Core
 @MainActor
 public struct EditActionSheet: View {
     let action: any Action
+    /// Optional request from the action (e.g. a missing-required-options short-circuit): surfaces a
+    /// reason banner and highlights the missing option rows in the unified editor (Phase 7).
+    let configurationRequest: ConfigurationRequest?
     @Environment(\.dismiss) private var dismiss
     
     @State private var activeTab: Int = 0 // 0 = Appearance, 1 = General
@@ -51,13 +56,25 @@ public struct EditActionSheet: View {
         "textformat", "globe", "terminal", "gearshape"
     ]
     
-    public init(action: any Action) {
+    public init(action: any Action, configurationRequest: ConfigurationRequest? = nil) {
         self.action = action
+        self.configurationRequest = configurationRequest
     }
     
     private var isBuiltin: Bool {
         if case .builtin = action.chrome.source { return true }
         return false
+    }
+
+    /// Banner text when the sheet was opened because the action needs configuration. Falls back to a
+    /// generic message when the request has no reason but does name missing options.
+    private var configurationBannerText: String? {
+        guard let configurationRequest else { return nil }
+        if let reason = configurationRequest.reason, !reason.isEmpty { return reason }
+        if !configurationRequest.missingOptionIDs.isEmpty {
+            return "This action needs configuration before it can run."
+        }
+        return nil
     }
     
     private var saveDisabled: Bool {
@@ -90,7 +107,29 @@ public struct EditActionSheet: View {
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
             .padding(.bottom, 10)
-            
+
+            if let bannerText = configurationBannerText {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                    Text(bannerText)
+                        .font(.caption)
+                        .foregroundColor(.primary)
+                    Spacer(minLength: 0)
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.orange.opacity(0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+            }
+
             Divider()
             
             ScrollView {
@@ -118,7 +157,12 @@ public struct EditActionSheet: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Action Options")
                                     .font(.headline)
-                                DynamicActionConfigView(actionID: action.id, options: action.actionOptions)
+                                DynamicActionConfigView(
+                                    actionID: action.id,
+                                    options: action.actionOptions,
+                                    optionStore: KeychainActionOptionStore(),
+                                    missingOptionIDs: Set(configurationRequest?.missingOptionIDs ?? [])
+                                )
                             }
                         } else if logicEditable {
                             VStack(alignment: .leading, spacing: 12) {
