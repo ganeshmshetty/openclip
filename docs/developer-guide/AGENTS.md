@@ -252,6 +252,35 @@ structural only — running it returns `.none`. The group row is registered by t
 `createActions` (the registry/loader path); the single-action seam treats a bare group as
 schema-only (produces nothing).
 
+### 3j. Sub-menu relevance & preview (`menuRelevance`, `menuPreview`)
+
+Any action — most usefully a sub-action inside a `group` — may declare two optional keys that
+dress up how it appears in the group's sub-menu:
+
+```jsonc
+{
+  "id": "upper",
+  "title": "UPPERCASE",
+  "type": "url",
+  "url": "https://example.com/?q={text}",
+  "menuRelevance": "\\S",                     // optional regex: only list when the selection matches
+  "menuPreview": "{text} → {matched}"         // optional placeholder template shown as the row subtitle
+}
+```
+
+- **`menuRelevance`** (regex): when present, the sub-action is listed in the sub-menu only if the
+  selected text (trimmed, case-insensitive, dot-matches-newlines) matches. Absent → always listed.
+  A malformed pattern never hides the action (defensive). This is a *menu-time* filter only — it
+  does not affect `requirements`-based visibility or the popup bar.
+- **`menuPreview`** (placeholder template): rendered with `TextPlaceholderEngine`
+  (`{text}`/`{query}`/`{matched}`/`{captureN}`/`{bundleID}`) and shown as the sub-menu row's
+  one-line subtitle. Absent → no subtitle.
+
+The builtin **Transform** group is the reference: its four case-conversion sub-actions
+(UPPERCASE, lowercase, Title Case, camelCase) self-filter to no-ops and preview the transformed
+result. The factory wraps any action declaring these keys in a passive decorator that forwards the
+original action's identity and behavior — registry sorting, disable, and perform are unaffected.
+
 ---
 
 ## 4. Options & requirements

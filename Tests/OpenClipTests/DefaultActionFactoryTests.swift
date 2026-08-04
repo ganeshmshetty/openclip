@@ -141,6 +141,70 @@ final class DefaultActionFactoryTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
+    func testFactoryDecoratesActionsThatDeclareMenuBehavior() async {
+        let factory = DefaultActionFactory()
+        let declaring = ExtensionActionMetadata(
+            id: "slug",
+            title: "Slugify",
+            url: "https://example.com/slug?q={query}",
+            type: "url",
+            menuRelevance: "\\s",
+            menuPreview: "Slug: {matched}"
+        )
+        let plain = ExtensionActionMetadata(
+            id: "open",
+            title: "Open",
+            url: "https://example.com?q={query}",
+            type: "url"
+        )
+        let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [declaring, plain], options: nil)
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        guard let decorated = await factory.createAction(metadata: declaring, manifest: manifest, directoryURL: tempDir, index: 0) as? MenuDecoratedAction else {
+            return XCTFail("Declaring action should be wrapped in MenuDecoratedAction")
+        }
+        XCTAssertEqual(decorated.id, "pkg.slug")
+        XCTAssertTrue(decorated.base is URLTemplateAction)
+        XCTAssertEqual(decorated.menuRelevanceRegex, "\\s")
+        XCTAssertEqual(decorated.menuPreviewTemplate, "Slug: {matched}")
+        XCTAssertTrue(decorated.isRelevant(for: "a b"))
+        XCTAssertFalse(decorated.isRelevant(for: "ab"))
+
+        let plainAction = await factory.createAction(metadata: plain, manifest: manifest, directoryURL: tempDir, index: 1)
+        XCTAssertTrue(plainAction is URLTemplateAction)
+        XCTAssertFalse(plainAction is MenuDecoratedAction)
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    func testFactoryDecoratesGroupSubActionsThatDeclareMenuBehavior() async {
+        let factory = DefaultActionFactory()
+        let groupMeta = ExtensionActionMetadata(
+            id: "tools",
+            title: "Group",
+            type: "group",
+            subActions: [
+                ExtensionActionMetadata(id: "upper", title: "Uppercase", url: "https://example.com?q={query}", type: "url", menuPreview: "Upper: {text}")
+            ]
+        )
+        let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [groupMeta], options: nil)
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let flattened = await factory.createActions(metadata: groupMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertEqual(flattened.count, 2)
+        XCTAssertTrue(flattened[0] is GroupAction)
+        XCTAssertEqual(flattened[1].id, "pkg.tools.upper")
+        guard let decorated = flattened[1] as? MenuDecoratedAction else {
+            return XCTFail("Declaring sub-action should be wrapped")
+        }
+        XCTAssertEqual(decorated.menuPreviewTemplate, "Upper: {text}")
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
     // MARK: - Rules attachment (Phase 4 visibility)
 
     @MainActor
