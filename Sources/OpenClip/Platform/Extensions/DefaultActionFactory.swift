@@ -73,6 +73,16 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         
         let options = mergedOptions(manifestOptions: manifest.options, actionOptions: metadata.options)
         
+        // Declarative visibility/behavior rules applied to every extension action this factory
+        // creates: requirements (regex, app allow/deny, requiresSelection) + legacy manifest
+        // `regex` + after-run behavior + stay-visible.
+        let rules = ExtensionActionRules(
+            requirements: metadata.requirements,
+            legacyRegex: metadata.regex,
+            after: metadata.after ?? .default,
+            stayVisible: metadata.stayVisible ?? false
+        )
+        
         let extensionChrome = ActionChrome(
             badge: .extensionPkg(manifest.name),
             rowStyle: .standard,
@@ -87,7 +97,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 icon: icon,
                 urlTemplate: urlTemplate,
                 regexPattern: metadata.regex,
-                chrome: extensionChrome
+                chrome: extensionChrome,
+                rules: rules
             )
         }
         
@@ -102,7 +113,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     scriptCode: scriptCode,
                     options: options,
                     chrome: extensionChrome,
-                    optionStore: optionStore
+                    optionStore: optionStore,
+                    rules: rules
                 )
             case "applescript", "scpt":
                 return AppleScriptAction(
@@ -111,7 +123,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     icon: icon,
                     appleScriptCode: scriptCode,
                     options: options,
-                    chrome: extensionChrome
+                    chrome: extensionChrome,
+                    rules: rules
                 )
             case "sh", "shell", "shell script":
                 let iconSymbol = switch icon {
@@ -124,7 +137,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     id: actionId,
                     title: title,
                     iconName: iconSymbol,
-                    type: .shellScript(script: scriptCode, replaceSelection: true)
+                    type: .shellScript(script: scriptCode, replaceSelection: true),
+                    rules: rules
                 )
             default:
                 break
@@ -152,7 +166,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 scriptCode: code,
                 options: options,
                 chrome: extensionChrome,
-                optionStore: optionStore
+                optionStore: optionStore,
+                rules: rules
             )
         case "applescript", "scpt":
             guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else { return nil }
@@ -162,7 +177,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 icon: icon,
                 appleScriptCode: code,
                 options: options,
-                chrome: extensionChrome
+                chrome: extensionChrome,
+                rules: rules
             )
         default:
             return ScriptAction(
@@ -170,7 +186,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 title: title,
                 icon: icon,
                 scriptURL: scriptURL,
-                chrome: extensionChrome
+                chrome: extensionChrome,
+                rules: rules
             )
         }
     }

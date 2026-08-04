@@ -2,6 +2,7 @@
 // OpenClip
 //
 // Implements action execution for JavaScript snippets using JavaScriptCore, reading options via the Settings Door.
+// Enablement and match resolution delegate to the shared ActionVisibility evaluator when rules are attached.
 import Foundation
 import JavaScriptCore
 import Core
@@ -17,6 +18,7 @@ public struct JavaScriptAction: ConfigurableAction {
     public let actionOptions: [ExtensionOption]
     public let chrome: ActionChrome
     public let optionStore: any ActionOptionReading
+    public let rules: ExtensionActionRules?
 
     nonisolated public init(
         id: String,
@@ -25,7 +27,8 @@ public struct JavaScriptAction: ConfigurableAction {
         scriptCode: String,
         options: [ExtensionOption] = [],
         chrome: ActionChrome? = nil,
-        optionStore: any ActionOptionReading = SettingsActionOptionStore()
+        optionStore: any ActionOptionReading = SettingsActionOptionStore(),
+        rules: ExtensionActionRules? = nil
     ) {
         self.id = id
         self.title = title
@@ -41,6 +44,7 @@ public struct JavaScriptAction: ConfigurableAction {
         self.actionOptions = options
         self.chrome = chrome ?? ActionChrome(badge: .script, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: id))
         self.optionStore = optionStore
+        self.rules = rules
     }
 
     nonisolated public init(
@@ -50,13 +54,22 @@ public struct JavaScriptAction: ConfigurableAction {
         scriptCode: String,
         options: [ExtensionOption] = [],
         chrome: ActionChrome? = nil,
-        optionStore: any ActionOptionReading = SettingsActionOptionStore()
+        optionStore: any ActionOptionReading = SettingsActionOptionStore(),
+        rules: ExtensionActionRules? = nil
     ) {
-        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome, optionStore: optionStore)
+        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome, optionStore: optionStore, rules: rules)
     }
 
     public func isEnabled(for context: ActionContext) -> Bool {
-        return !context.selection.text.isEmpty
+        guard let rules else {
+            return !context.selection.text.isEmpty
+        }
+        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).enabled
+    }
+
+    public func matchInfo(for context: ActionContext) -> ActionMatchInfo? {
+        guard let rules else { return nil }
+        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).match
     }
 
     public func perform(_ context: ActionContext) async throws -> ActionResult {

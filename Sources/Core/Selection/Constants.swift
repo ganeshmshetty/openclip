@@ -77,6 +77,9 @@ public enum Constants {
     public static let actionTypeOpenURL: String = "openURL"
     
     public static let envVarText: String = "OPENCLIP_TEXT"
+    public static let envVarMatched: String = "OPENCLIP_MATCHED"
+    public static let envVarCapturePrefix: String = "OPENCLIP_CAPTURE_"
+    public static let envVarBundleID: String = "OPENCLIP_BUNDLE_ID"
     public static let maxHeaderLinesToScan: Int = 50
 
     /// Maximum wall-clock runtime for shell/AppleScript/JS subprocess actions before they are killed,

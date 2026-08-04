@@ -538,7 +538,14 @@ public struct PopupView: View {
             Button {
                 Task {
                     do {
-                        let result = try await action.perform(context)
+                        // Match plumbing (approach A): re-run the shared visibility evaluator for
+                        // this action and thread the match into the perform context so placeholders
+                        // and env vars see the same match that enabled the row.
+                        let match = action.matchInfo(for: context)
+                        let performContext = match.map {
+                            ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
+                        } ?? context
+                        let result = try await action.perform(performContext)
                         onResult(result)
                     } catch {
                         print("Action failed: \(error)")
