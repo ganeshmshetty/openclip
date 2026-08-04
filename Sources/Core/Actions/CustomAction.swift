@@ -1,8 +1,10 @@
 // CustomAction.swift
 // OpenClip
 //
-// Defines the domain model for user-created custom actions, supporting web searches, text templates, and shell scripts.
-// Implements the Action protocol to allow user-defined operations to be presented and executed seamlessly.
+// Defines the domain model for user-created custom actions, supporting web searches, text templates,
+// and shell scripts. Implements the Action protocol to allow user-defined operations to be presented
+// and executed seamlessly. The manifest shellInline path attaches ExtensionActionRules so declarative
+// visibility flows through the shared evaluator here too.
 import Foundation
 
 public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
@@ -16,12 +18,14 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
     public let title: String
     public let iconName: String
     public let type: CustomActionType
+    public let rules: ExtensionActionRules?
     
-    public init(id: String, title: String, iconName: String, type: CustomActionType) {
+    public init(id: String, title: String, iconName: String, type: CustomActionType, rules: ExtensionActionRules? = nil) {
         self.id = id
         self.title = title
         self.iconName = iconName
         self.type = type
+        self.rules = rules
     }
     
     public var icon: ActionIcon {
@@ -35,7 +39,16 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        return !context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard let rules else {
+            return !context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).enabled
+    }
+
+    @MainActor
+    public func matchInfo(for context: ActionContext) -> ActionMatchInfo? {
+        guard let rules else { return nil }
+        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).match
     }
     
     @MainActor
@@ -43,24 +56,34 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
         let text = context.selection.text
         switch type {
         case .webSearch(let urlTemplate):
-            let urlString = TextPlaceholderEngine.replacePlaceholders(in: urlTemplate, with: text, urlEncode: true)
+            let urlString = TextPlaceholderEngine.replacePlaceholders(in: urlTemplate, context: context, urlEncode: true)
             if let url = URL(string: urlString) {
                 return .openURL(url)
             }
             return .none
             
         case .textSnippet(let template):
-            let formatted = TextPlaceholderEngine.replacePlaceholders(in: template, with: text, urlEncode: false)
+            let formatted = TextPlaceholderEngine.replacePlaceholders(in: template, context: context, urlEncode: false)
             return .paste(formatted) // mapped from replaceSelection(formatted)
             
         case .shellScript(let script, let replaceSelection):
+            let match = context.match
             return try await withCheckedThrowingContinuation { continuation in
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/bin/zsh")
                 process.arguments = ["-c", script]
                 
                 var env = ProcessInfo.processInfo.environment
-                env["OPENCLIP_TEXT"] = text
+                env[Constants.envVarText] = text
+                env[Constants.envVarMatched] = match?.matchedText ?? text
+                if let bundleID = match?.sourceBundleID ?? context.selection.sourceApp.bundleIdentifier {
+                    env[Constants.envVarBundleID] = bundleID
+                }
+                if let captures = match?.captures {
+                    for (index, capture) in captures.enumerated() {
+                        env[Constants.envVarCapturePrefix + "\(index + 1)"] = capture
+                    }
+                }
                 process.environment = env
                 
                 let pipe = Pipe()

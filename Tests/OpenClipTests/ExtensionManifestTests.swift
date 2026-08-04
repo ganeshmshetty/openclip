@@ -61,6 +61,30 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertEqual(action.requirements, nil)
     }
 
+    func testRulesRelevantMetadataDecodesTogether() throws {
+        let json = """
+        {
+            "id": "copy",
+            "title": "Copy",
+            "type": "url",
+            "url": "https://example.com",
+            "regex": "^[a-z]+$",
+            "requirements": {
+                "apps": ["com.allowed"],
+                "apps-mode": "allow"
+            },
+            "after": "show-result",
+            "stay-visible": true
+        }
+        """.data(using: .utf8)!
+        let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
+        XCTAssertEqual(action.regex, "^[a-z]+$")
+        XCTAssertEqual(action.requirements?.apps, ["com.allowed"])
+        XCTAssertEqual(action.requirements?.appsMode, .allow)
+        XCTAssertEqual(action.after, .showResult)
+        XCTAssertTrue(action.stayVisible ?? false)
+    }
+
     func testManifestDecoding() throws {
         let json = """
         {
