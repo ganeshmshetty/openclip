@@ -107,10 +107,6 @@ public struct PopupView: View {
         return hasCompletions && isShowingCompletions
     }
 
-    private var enabledTransformCases: [TransformCase] {
-        actions.compactMap { ($0 as? TransformSubAction)?.transformCase }
-    }
-
     /// Group row IDs (chrome stamps `.showTransformMenu`); sub-actions live under `\(groupID).\(subID)`.
     private var groupIDs: [String] {
         actions.compactMap { $0.chrome.popupBehavior == .showTransformMenu ? $0.id : nil }
@@ -533,7 +529,9 @@ public struct PopupView: View {
         switch action.gesturePolicy.singleClick {
         case .showMenu:
             Button {
-                onShowBubble?(menuBubble(for: action))
+                Task {
+                    onShowBubble?(await menuBubble(for: action))
+                }
             } label: {
                 labelView
             }
@@ -677,19 +675,17 @@ public struct PopupView: View {
     }
 
     /// Registry-driven sub-menu for a group row (extension groups and the builtin transform group).
-    /// Extension sub-actions are listed as plain rows whose `.run` outcome performs the sub-action
-    /// on click; the builtin transform group keeps its smart category/relevance/preview menu.
+    /// Rows are uniform: a sub-action is listed only when it is relevant (`RelevanceProviding`,
+    /// non-conforming actions always show) and carries a one-line preview
+    /// (`PreviewProviding`, default none) as its subtitle. No action-type special-casing.
     @MainActor
-    private func menuBubble(for action: any Action) -> BubbleContent {
+    private func menuBubble(for action: any Action) async -> BubbleContent {
         let subs = actions.filter { $0.id.hasPrefix(action.id + ".") }
-        // The one type check here targets a Core BUILTIN (TransformSubAction), not an extension
-        // runtime — it selects the transform-specific menu instead of the plain extension list.
-        if subs.contains(where: { $0 is TransformSubAction }) {
-            return transformMenuBubble()
-        }
+        let selectionText = context.selection.text
 
         var rows: [BubbleRow] = []
         for sub in subs {
+            guard (sub as? any RelevanceProviding)?.isRelevant(for: selectionText) ?? true else { continue }
             // Same match plumbing as the bar's `.perform` path: thread the visibility match into the
             // perform context so placeholders/env see the same match that enabled the row. Computed
             // here (main actor, selection is fixed) and captured into the `@Sendable` outcome closure.
@@ -697,8 +693,10 @@ public struct PopupView: View {
             let performContext = match.map {
                 ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
             } ?? context
+            let preview = await (sub as? any PreviewProviding)?.previewLine(for: context)
             rows.append(.option(BubbleOption(
                 title: sub.displayTitle,
+                subtitle: preview,
                 icon: bubbleIcon(for: sub.displayIcon),
                 outcome: .run { try await sub.perform(performContext) }
             )))
@@ -715,30 +713,6 @@ public struct PopupView: View {
     private func bubbleIcon(for icon: ActionIcon) -> String? {
         if case .symbol(let name) = icon { return name }
         return nil
-    }
-
-    private func transformMenuBubble() -> BubbleContent {
-        let selectionText = context.selection.text
-        var rows: [BubbleRow] = []
-
-        for tCase in enabledTransformCases where tCase.isRelevant(for: selectionText) {
-            let res = tCase.transform(selectionText)
-            rows.append(.option(
-                BubbleOption(
-                    title: tCase.displayName,
-                    subtitle: res,
-                    icon: "textformat",
-                    outcome: .perform(.paste(res))
-                )
-            ))
-        }
-
-        return BubbleContent(
-            title: "Transform Text",
-            icon: "textformat",
-            rows: rows,
-            emphasis: .menu
-        )
     }
 }
 
