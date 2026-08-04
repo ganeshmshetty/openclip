@@ -23,7 +23,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         regexNegated: Bool = false,
         apps: [String]? = nil,
         appsMode: AppsMode = .allow,
-        requiresSelection: Bool = false,
+        requiresSelection: Bool = true,
         requiredOptions: [String]? = nil
     ) {
         self.regex = regex
@@ -43,7 +43,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         self.appsMode = try container.decodeIfPresent(AppsMode.self, forKey: .appsMode)
             ?? container.decodeIfPresent(AppsMode.self, forKey: .appsModeDash) ?? .allow
         self.requiresSelection = try container.decodeIfPresent(Bool.self, forKey: .requiresSelection)
-            ?? container.decodeIfPresent(Bool.self, forKey: .requiresSelectionDash) ?? false
+            ?? container.decodeIfPresent(Bool.self, forKey: .requiresSelectionDash) ?? true
         self.requiredOptions = try container.decodeIfPresent([String].self, forKey: .requiredOptions)
             ?? container.decodeIfPresent([String].self, forKey: .requiredOptionsDash)
     }
