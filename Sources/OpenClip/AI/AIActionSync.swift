@@ -3,8 +3,9 @@
 //
 // Keeps AIServiceManager's AI presets registered in the ActionCoordinator as individual
 // `AIAction`s, so every preset shows up as a searchable entry in the action-search palette and
-// as its own row in Preferences → Actions (while staying out of the popup bar — the Sparkles
-// button is the bar's AI entry point). Reconciles the registered set whenever the preset list
+// as its own row in Preferences → Actions (while staying out of the popup bar — the reorderable
+// `builtin.aiTools` action is the bar's AI entry point). Also registers that AI Tools launcher.
+// Reconciles the registered set whenever the preset list
 // changes; the title snapshot on `AIAction` is refreshed by re-registering on any content change.
 import Foundation
 import Core

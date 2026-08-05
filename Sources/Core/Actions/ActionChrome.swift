@@ -31,7 +31,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         case extensionPkg(packageID: String)
         /// AI preset action (a row in AIServiceManager's preset list). Reachable through the
         /// action-search palette and Preferences → Actions, never through the popup bar
-        /// (the Sparkles button is the bar's entry point to AI).
+        /// (the reorderable `builtin.aiTools` action is the bar's entry point to AI).
         case ai
     }
 

@@ -82,7 +82,7 @@ flowchart TD
 The strategies above apply to *passive selection monitoring*. The global toggle shortcut ([`HotkeyManager`](../../Sources/OpenClip/Platform/HotkeyManager.swift)) has an extra path: if the frontmost app yields no selection (empty or whitespace-only text), OpenClip falls back to the current contents of `NSPasteboard.general` so the popup still has input to act on.
 
 - This is distinct from the background `grabPasteboard` strategy — it happens only on explicit shortcut invocation, never during passive monitoring.
-- The context is flagged `SelectionContext.isClipboardFallback`; `PopupWindowController.show` then filters the available actions down to **Paste** (the AI button is rendered separately). Selection-oriented actions are meaningless for clipboard text, so they're hidden.
+- The context is flagged `SelectionContext.isClipboardFallback`; `PopupWindowController.show` then filters the available actions down to **Paste** (the AI Tools launcher stays available — it doesn't touch the selection). Selection-oriented actions are meaningless for clipboard text, so they're hidden.
 
 ---
 
