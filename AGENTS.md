@@ -81,6 +81,11 @@ These change behavior — keep them.
   storage `popupTheme` + `popupThemeColor`. No flat 4-option picker or separate Glass switch.
 - **Liquid Glass is macOS 26+ only** — `.ultraThinMaterial` fallback on macOS 14-15. Every glass
   surface keeps an `#available(macOS 26, *)` branch. Don't stack a dimmer under a glass card.
+- **`glassEffect(.regular)` casts an elevation shadow that scales with surface size** — it clips on
+  large surfaces (e.g. the search palette) even with 16pt padding, while the small bar is fine.
+  `GlassEffectContainer` does NOT fix it. The pattern that does: `.ultraThinMaterial` background +
+  `.clipShape` + `.glassEffect(.clear)` + `.compositingGroup()` then the SwiftUI `.shadow`.
+  `.clear` keeps the glass sheen but skips the frost/elevation layer (the material supplies frost).
 - **Standard windows unless a chrome-less card is the goal.** Preferences = stock chrome
   (`.titled`/`.fullSizeContentView`/`.hiddenTitleBar`) + `.glassSurface` content; the system provides
   shadow/corners/resize. A `.borderless` transparent window re-draws all of it manually.

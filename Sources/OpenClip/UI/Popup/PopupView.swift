@@ -196,11 +196,17 @@ public struct PopupView: View {
                 
                 if #available(macOS 26, *) {
                     unifiedHStack
-                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .stroke(glassBorderColor, lineWidth: 1.0)
                         )
+                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .compositingGroup()
                         .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
                 } else {
                     unifiedHStack
