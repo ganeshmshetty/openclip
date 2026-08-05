@@ -118,5 +118,18 @@ public final class ActionRegistry: ObservableObject, Sendable {
             return true
         }
     }
+
+    /// The full registered catalog for the action-search palette: every action regardless of
+    /// enable state, minus the inline completion pseudo-action and group sub-actions (which are
+    /// reached through their group's sub-menu). No enable/disable or context filtering.
+    public var searchCatalog: [any Action] {
+        let groupRowIDs = actions
+            .filter { $0.chrome.popupBehavior == .showTransformMenu }
+            .map(\.id)
+        return actions.filter { action in
+            guard action.id != "builtin.completion" else { return false }
+            return !groupRowIDs.contains { action.id.hasPrefix($0 + ".") }
+        }
+    }
 }
 

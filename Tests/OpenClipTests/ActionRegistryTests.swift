@@ -209,4 +209,29 @@ final class ActionRegistryTests: XCTestCase {
         XCTAssertTrue(available.contains { $0.id == groupID })
         XCTAssertTrue(available.contains { $0.id == sub.id })
     }
+
+    @MainActor
+    func testSearchCatalogIncludesAllAndExcludesCompletionAndSubActions() {
+        let registry = ActionRegistry()
+        let groupChrome = ActionChrome(
+            badge: .none,
+            rowStyle: .transformGroup,
+            popupBehavior: .showTransformMenu,
+            source: .builtin
+        )
+        let group = MockAction(id: "mock.searchgroup", shouldBeEnabled: true, chrome: groupChrome)
+        let sub = MockAction(id: "mock.searchgroup.a", shouldBeEnabled: true)
+        let completion = MockAction(id: "builtin.completion", shouldBeEnabled: true)
+        let disabled = MockAction(id: "mock.searchdisabled", shouldBeEnabled: false)
+        let normal = MockAction(id: "mock.searchnormal", shouldBeEnabled: true)
+        registry.register(builtIns: [group, sub, completion, disabled, normal])
+
+        let catalog = registry.searchCatalog
+
+        XCTAssertTrue(catalog.contains { $0.id == "mock.searchgroup" })
+        XCTAssertTrue(catalog.contains { $0.id == "mock.searchdisabled" })
+        XCTAssertTrue(catalog.contains { $0.id == "mock.searchnormal" })
+        XCTAssertFalse(catalog.contains { $0.id == "mock.searchgroup.a" })
+        XCTAssertFalse(catalog.contains { $0.id == "builtin.completion" })
+    }
 }
