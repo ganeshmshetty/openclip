@@ -481,29 +481,26 @@ public struct PopupView: View {
                 chevronButton(systemImage: "chevron.right", label: "Next page") { currentPage += 1 }
             }
 
-            // Action-search affordance: command glyph (never the web-search magnifier). Hidden in
-            // clipboard-fallback mode (Paste + AI only); the hotkey still works there. Kept outside
+            // Action-search affordance: command glyph (never the web-search magnifier). Kept outside
             // the paged actions so it always sits at the far-right edge on every page.
-            if !context.selection.isClipboardFallback {
-                let isHovered = hoveredTarget == .search
-                let affordanceForeground = PopupThemeModel.restForeground(for: effectiveTheme)
-                Button {
-                    onEnterSearch()
-                } label: {
-                    Image(systemName: "command")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(isHovered ? .white : affordanceForeground)
-                        .frame(width: buttonWidth, height: 28)
-                        .background(isHovered ? Color.accentColor : Color.clear)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Search all actions")
-                .accessibilityLabel("Search all actions")
-                .popupHoverTarget(.search)
-                .onHover { isHovering in
-                    useLocalHoverFallback(for: .search, isHovering: isHovering)
-                }
+            let isHovered = hoveredTarget == .search
+            let affordanceForeground = PopupThemeModel.restForeground(for: effectiveTheme)
+            Button {
+                onEnterSearch()
+            } label: {
+                Image(systemName: "command")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(isHovered ? .white : affordanceForeground)
+                    .frame(width: buttonWidth, height: 28)
+                    .background(isHovered ? Color.accentColor : Color.clear)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Search all actions")
+            .accessibilityLabel("Search all actions")
+            .popupHoverTarget(.search)
+            .onHover { isHovering in
+                useLocalHoverFallback(for: .search, isHovering: isHovering)
             }
         }
         .fixedSize()

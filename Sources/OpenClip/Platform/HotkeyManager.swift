@@ -42,9 +42,10 @@ public final class HotkeyManager {
                     selectionBounds = result.bounds
                 }
                 
-                // No selection in the frontmost app: fall back to the clipboard so the popup
-                // still has text to act on (Paste, AI, etc.) instead of reporting "no input".
-                // isClipboardFallback restricts the popup to Paste + AI (no selection actions).
+                // No selection in the frontmost app: fall back to the clipboard so the popup has
+                // text to act on instead of reporting "no input". isClipboardFallback marks the
+                // text as not-from-a-live-selection; the registry drops Copy/Cut (they require a
+                // real selection) and every other enabled action acts on the clipboard text.
                 var isClipboardFallback = false
                 if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                    let clipboard = NSPasteboard.general.string(forType: .string),

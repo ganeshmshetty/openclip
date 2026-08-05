@@ -55,13 +55,8 @@ public class PopupWindowController {
         
         let actionContext = ActionContext(selection: context, modifiers: [])
         currentActionContext = actionContext
-        var availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
-        // Shortcut-triggered with no selection (clipboard fallback): the text isn't a live
-        // selection, so only Paste (and the AI button, rendered separately) make sense.
-        if context.isClipboardFallback {
-            availableActions = availableActions.filter { $0.id == "builtin.paste" }
-        }
-        
+        let availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
+
         let panel = self.panel ?? PopupPanel()
         self.panel = panel
         // A fresh show is an intentional placement: never re-anchor it (stale search-mode pinning
