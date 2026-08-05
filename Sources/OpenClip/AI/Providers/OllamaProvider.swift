@@ -44,7 +44,7 @@ public final class OllamaProvider: AIProvider {
 
         let decoded = try JSONDecoder().decode(OllamaGenerateResponse.self, from: data)
         let rawResponse = decoded.response?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let responseText = AIRequestSupport.sanitizeResponseText(rawResponse)
+        let responseText = AIRequestSupport.extractResultText(rawResponse)
         guard !responseText.isEmpty else {
             throw AIError.invalidResponse
         }

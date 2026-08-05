@@ -2,11 +2,6 @@ import XCTest
 @testable import Core
 @testable import OpenClip
 
-fileprivate struct MockApp: AppIdentifying {
-    let bundleIdentifier: String?
-    let localizedName: String?
-}
-
 final class DefaultActionFactoryTests: XCTestCase {
     func testFactoryRoutesJavaScriptFileToJavaScriptAction() async {
         let factory = DefaultActionFactory()
@@ -236,11 +231,11 @@ final class DefaultActionFactoryTests: XCTestCase {
 
         // Allow-list filtering flows through ActionVisibility.
         let allowedContext = ActionContext(
-            selection: SelectionContext(text: "hello", sourceApp: MockApp(bundleIdentifier: "com.allowed", localizedName: "Allowed"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
+            selection: SelectionContext(text: "hello", sourceApp: AppIdentity(bundleIdentifier: "com.allowed", localizedName: "Allowed"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
             modifiers: []
         )
         let deniedContext = ActionContext(
-            selection: SelectionContext(text: "hello", sourceApp: MockApp(bundleIdentifier: "com.other", localizedName: "Other"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
+            selection: SelectionContext(text: "hello", sourceApp: AppIdentity(bundleIdentifier: "com.other", localizedName: "Other"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
             modifiers: []
         )
         XCTAssertTrue(action.isEnabled(for: allowedContext))
@@ -273,7 +268,7 @@ final class DefaultActionFactoryTests: XCTestCase {
         XCTAssertEqual(action.rules?.requirements?.regex, "^[0-9]+$")
 
         let context = ActionContext(
-            selection: SelectionContext(text: "123", sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
+            selection: SelectionContext(text: "123", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
             modifiers: []
         )
         XCTAssertTrue(action.isEnabled(for: context))
@@ -306,11 +301,11 @@ final class DefaultActionFactoryTests: XCTestCase {
 
         // Deny-list filtering flows through ActionVisibility on the shellInline path too.
         let deniedContext = ActionContext(
-            selection: SelectionContext(text: "hello", sourceApp: MockApp(bundleIdentifier: "com.allowed", localizedName: "Allowed"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
+            selection: SelectionContext(text: "hello", sourceApp: AppIdentity(bundleIdentifier: "com.allowed", localizedName: "Allowed"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
             modifiers: []
         )
         let allowedContext = ActionContext(
-            selection: SelectionContext(text: "hello", sourceApp: MockApp(bundleIdentifier: "com.other", localizedName: "Other"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
+            selection: SelectionContext(text: "hello", sourceApp: AppIdentity(bundleIdentifier: "com.other", localizedName: "Other"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default),
             modifiers: []
         )
         XCTAssertFalse(action.isEnabled(for: deniedContext))

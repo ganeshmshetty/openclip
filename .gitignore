@@ -15,3 +15,5 @@ DerivedData/
 .worktrees/
 
 .commandcode/
+
+codebase_bundle.xml

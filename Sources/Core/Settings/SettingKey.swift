@@ -42,11 +42,6 @@ public extension SettingKey where Value == Bool {
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
     static var startAtLogin: SettingKey<Bool> { SettingKey<Bool>("startAtLogin", defaultValue: false) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
-    static var calculateUseText: SettingKey<Bool> { SettingKey<Bool>("action.calculate.useText", defaultValue: false) }
-    static var copyUseText: SettingKey<Bool> { SettingKey<Bool>("action.copy.useText", defaultValue: false) }
-    static var cutUseText: SettingKey<Bool> { SettingKey<Bool>("action.cut.useText", defaultValue: false) }
-    static var defineUseText: SettingKey<Bool> { SettingKey<Bool>("action.define.useText", defaultValue: false) }
-    static var pasteUseText: SettingKey<Bool> { SettingKey<Bool>("action.paste.useText", defaultValue: false) }
 }
 
 public extension SettingKey where Value == Data? {

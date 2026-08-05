@@ -7,7 +7,7 @@ final class TextRetrieverTests: XCTestCase {
     @MainActor
     func testTextRetrieverRetrievesSelectedText() async throws {
         let retriever = MacTextRetriever()
-        let currentApp = NSRunningApplication.current
+        let currentApp = AppIdentity(NSRunningApplication.current)
 
         // Without grabPasteboard policy, MacTextRetriever only uses AX.
         // In the test runner there is no real text selection, so AX returns nil.
@@ -26,7 +26,7 @@ final class TextRetrieverTests: XCTestCase {
     @MainActor
     func testGrabPasteboardPolicySkipsAccessibility() async throws {
         let retriever = MacTextRetriever()
-        let currentApp = NSRunningApplication.current
+        let currentApp = AppIdentity(NSRunningApplication.current)
         
         Task {
             try? await Task.sleep(nanoseconds: 50_000_000)

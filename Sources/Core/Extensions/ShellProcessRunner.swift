@@ -32,21 +32,6 @@ final class TimeoutFlag: @unchecked Sendable {
     }
 }
 
-/// Thread-safe guard that allows exactly one caller to proceed. Retained for future async host
-/// callbacks that need a continuation resume-once gate (plan §8); unused by the sync shell runner.
-final class OnceGate: @unchecked Sendable {
-    private let lock = NSLock()
-    private var claimed = false
-
-    func claim() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !claimed else { return false }
-        claimed = true
-        return true
-    }
-}
-
 /// Reference box so the value-type `ScriptJSONOutput` can recursively contain itself via `effect`
 /// (a Swift struct cannot have a stored property that recursively contains it).
 final class ScriptJSONEffect: Decodable {

@@ -2,16 +2,11 @@ import XCTest
 @testable import Core
 @testable import OpenClip
 
-fileprivate struct MockApp: AppIdentifying {
-    let bundleIdentifier: String?
-    let localizedName: String?
-}
-
 fileprivate func makeContext(text: String = "hello", bundleID: String = "com.test.app") -> ActionContext {
     ActionContext(
         selection: SelectionContext(
             text: text,
-            sourceApp: MockApp(bundleIdentifier: bundleID, localizedName: "Test"),
+            sourceApp: AppIdentity(bundleIdentifier: bundleID, localizedName: "Test"),
             cursorPosition: .zero,
             timestamp: Date(),
             appPolicy: .default

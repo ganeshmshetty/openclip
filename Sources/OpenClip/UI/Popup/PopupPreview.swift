@@ -30,7 +30,7 @@ struct PopupPreview: View {
         let app = NSRunningApplication.current
         let context = SelectionContext(
             text: "OpenClip Preview",
-            sourceApp: app,
+            sourceApp: AppIdentity(app),
             cursorPosition: .zero,
             selectionBounds: nil,
             timestamp: Date(),

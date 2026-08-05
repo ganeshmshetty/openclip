@@ -14,6 +14,7 @@ extension KeyboardShortcuts.Name {
 @MainActor
 public final class HotkeyManager {
     public static let shared = HotkeyManager()
+    private let retriever = MacTextRetriever()
     
     private init() {}
     
@@ -22,14 +23,14 @@ public final class HotkeyManager {
             Task { @MainActor in
                 guard DefaultSettingsStore.shared.get(.isAppEnabled) else { return }
                 
-                let retriever = MacTextRetriever()
                 let frontApp = NSWorkspace.shared.frontmostApplication ?? NSRunningApplication.current
                 let policy = await RuleEngine.shared.resolvePolicies(for: frontApp.bundleIdentifier ?? "")
+                let appIdentity = AppIdentity(frontApp)
                 
                 var retrievedText = ""
                 var selectionBounds: CGRect? = nil
                 
-                if let result = await retriever.retrieveTextResult(for: frontApp, policy: policy) {
+                if let result = await self.retriever.retrieveTextResult(for: appIdentity, policy: policy) {
                     retrievedText = result.text
                     selectionBounds = result.bounds
                 }
@@ -47,7 +48,7 @@ public final class HotkeyManager {
                 
                 let context = SelectionContext(
                     text: retrievedText,
-                    sourceApp: frontApp,
+                    sourceApp: appIdentity,
                     cursorPosition: NSEvent.mouseLocation,
                     selectionBounds: selectionBounds,
                     timestamp: Date(),

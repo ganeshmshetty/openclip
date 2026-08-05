@@ -7,7 +7,7 @@ final class DefineActionTests: XCTestCase {
     @MainActor
     func testDefineActionSmartTrigger() async throws {
         let action = DefineAction()
-        let app = NSRunningApplication.current
+        let app = AppIdentity(NSRunningApplication.current)
         
         // Single word -> Enabled
         let wordContext = ActionContext(
@@ -48,7 +48,7 @@ final class DefineActionTests: XCTestCase {
     @MainActor
     func testDefineActionExecution() async throws {
         let action = DefineAction()
-        let app = NSRunningApplication.current
+        let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "epiphany", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
             modifiers: []

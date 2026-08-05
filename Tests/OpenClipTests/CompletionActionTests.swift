@@ -7,7 +7,7 @@ final class CompletionActionTests: XCTestCase {
     @MainActor
     func testCompletionActionSmartTrigger() async throws {
         let action = CompletionAction()
-        let app = NSRunningApplication.current
+        let app = AppIdentity(NSRunningApplication.current)
         
         // Single incomplete word (e.g. "comple") -> Should have completions
         let partialContext = ActionContext(

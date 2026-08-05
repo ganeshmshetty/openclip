@@ -21,11 +21,6 @@ private final class MemoryOptionStore: ActionOptionReading, ActionOptionWriting,
     }
 }
 
-private struct MockApp: AppIdentifying {
-    let bundleIdentifier: String? = "com.openclip.tests"
-    let localizedName: String? = "OpenClipTests"
-}
-
 private extension ActionContext {
     init(selectedText: String) {
         let policy = AppPolicyContext(
@@ -37,7 +32,7 @@ private extension ActionContext {
         )
         let selection = SelectionContext(
             text: selectedText,
-            sourceApp: MockApp(),
+            sourceApp: AppIdentity(bundleIdentifier: "com.openclip.tests", localizedName: "OpenClipTests"),
             cursorPosition: .zero,
             timestamp: Date(),
             appPolicy: policy

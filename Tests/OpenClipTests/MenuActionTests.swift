@@ -4,15 +4,10 @@ import XCTest
 @MainActor
 final class MenuActionTests: XCTestCase {
 
-    private struct TestApp: AppIdentifying {
-        let bundleIdentifier: String?
-        let localizedName: String?
-    }
-
     private func makeContext(text: String) -> ActionContext {
         let selection = SelectionContext(
             text: text,
-            sourceApp: TestApp(bundleIdentifier: "com.test", localizedName: "Test"),
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
             cursorPosition: .zero,
             timestamp: Date(),
             appPolicy: .default

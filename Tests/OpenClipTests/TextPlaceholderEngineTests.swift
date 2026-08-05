@@ -1,16 +1,11 @@
 import XCTest
 @testable import Core
 
-fileprivate struct MockApp: AppIdentifying {
-    let bundleIdentifier: String?
-    let localizedName: String?
-}
-
 private extension ActionContext {
     init(selectedText: String, match: ActionMatchInfo? = nil) {
         let selection = SelectionContext(
             text: selectedText,
-            sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"),
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
             cursorPosition: .zero,
             timestamp: Date(),
             appPolicy: .default
@@ -58,7 +53,7 @@ final class TextPlaceholderEngineTests: XCTestCase {
             icon: .symbol("magnifyingglass"),
             urlTemplate: "https://example.com/search?q={query}"
         )
-        let mockApp = MockApp(bundleIdentifier: "com.test", localizedName: "Test")
+        let mockApp = AppIdentity(bundleIdentifier: "com.test", localizedName: "Test")
         let selection = SelectionContext(text: "swift testing", sourceApp: mockApp, cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
         let context = ActionContext(selection: selection, modifiers: [])
         

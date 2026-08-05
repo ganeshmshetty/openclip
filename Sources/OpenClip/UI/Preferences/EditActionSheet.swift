@@ -50,12 +50,6 @@ public struct EditActionSheet: View {
     @State private var showingSaveAlert: Bool = false
     @State private var saveAlertMessage: String = ""
     
-    private let popularSymbols = [
-        "magnifyingglass", "doc.on.doc", "scissors", "folder",
-        "sparkles", "link", "character.cursor", "square.and.arrow.up",
-        "textformat", "globe", "terminal", "gearshape"
-    ]
-    
     public init(action: any Action, configurationRequest: ConfigurationRequest? = nil) {
         self.action = action
         self.configurationRequest = configurationRequest

@@ -1,26 +1,14 @@
 import XCTest
 @testable import Core
 
-fileprivate struct MockApp: AppIdentifying {
-    let bundleIdentifier: String?
-    let localizedName: String?
-}
-
 private extension ActionContext {
     init(selectedText: String, bundleID: String? = "com.test.app") {
-        let policy = AppPolicyContext(
-            denyFormatting: false,
-            denyProbe: false,
-            denyPreprobe: false,
-            grabPasteboard: false,
-            assumePaste: false
-        )
         let selection = SelectionContext(
             text: selectedText,
-            sourceApp: MockApp(bundleIdentifier: bundleID, localizedName: "TestApp"),
+            sourceApp: AppIdentity(bundleIdentifier: bundleID, localizedName: "TestApp"),
             cursorPosition: .zero,
             timestamp: Date(),
-            appPolicy: policy
+            appPolicy: .default
         )
         self.init(selection: selection, modifiers: [])
     }

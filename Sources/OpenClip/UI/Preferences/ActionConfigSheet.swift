@@ -18,15 +18,15 @@ struct ActionConfigSheet: View {
             if configurationViewID == "builtin.search" {
                 SearchConfigView()
             } else if configurationViewID == "builtin.copy" {
-                CopyConfigView()
+                SimpleUseTextConfigView(key: "action.copy.useText", label: "Copy", iconDescription: "the document icon")
             } else if configurationViewID == "builtin.cut" {
-                CutConfigView()
+                SimpleUseTextConfigView(key: "action.cut.useText", label: "Cut", iconDescription: "the scissors icon")
             } else if configurationViewID == "builtin.paste" {
-                PasteConfigView()
+                SimpleUseTextConfigView(key: "action.paste.useText", label: "Paste", iconDescription: "the clipboard icon")
             } else if configurationViewID == "builtin.calculate" {
                 CalculateConfigView()
             } else if configurationViewID == "builtin.define" {
-                DefineConfigView()
+                SimpleUseTextConfigView(key: "action.define.useText", label: "Define", iconDescription: "the book icon")
             } else {
                 Text("No configuration available for this action.")
                     .foregroundColor(.secondary)
@@ -117,39 +117,24 @@ private struct SearchConfigView: View {
     }
 }
 
-private struct CopyConfigView: View {
-    @AppStorage("action.copy.useText") private var useText: Bool = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle("Use text label instead of icon", isOn: $useText)
-            Text("When enabled, the popup will show 'Copy' instead of the document icon.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-    }
-}
+private struct SimpleUseTextConfigView: View {
+    let key: String
+    let label: String
+    let iconDescription: String
+    @AppStorage private var useText: Bool
 
-private struct PasteConfigView: View {
-    @AppStorage("action.paste.useText") private var useText: Bool = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle("Use text label instead of icon", isOn: $useText)
-            Text("When enabled, the popup will show 'Paste' instead of the clipboard icon.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
+    init(key: String, label: String, iconDescription: String) {
+        self.key = key
+        self.label = label
+        self.iconDescription = iconDescription
+        self._useText = AppStorage(wrappedValue: false, key)
     }
-}
 
-private struct CutConfigView: View {
-    @AppStorage("action.cut.useText") private var useText: Bool = false
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle("Use text label instead of icon", isOn: $useText)
-            Text("When enabled, the popup will show 'Cut' instead of the scissors icon.")
+            Toggle("Use text label ('\(label)') instead of icon", isOn: $useText)
+                .font(.subheadline)
+            Text("When enabled, the popup will show '\(label)' instead of \(iconDescription).")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -180,20 +165,6 @@ private struct CalculateConfigView: View {
             Toggle("Use text label (=) instead of icon", isOn: $useText)
                 .font(.subheadline)
             Text("When enabled, the popup will show '=' instead of the equal circle icon.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-    }
-}
-
-private struct DefineConfigView: View {
-    @AppStorage("action.define.useText") private var useText: Bool = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle("Use text label ('Define') instead of icon", isOn: $useText)
-                .font(.subheadline)
-            Text("When enabled, the popup will show 'Define' instead of the book icon.")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
