@@ -17,4 +17,11 @@ final class ActionChromeTests: XCTestCase {
         XCTAssertEqual(custom.chrome.source, .custom)
     }
 
+    func testAIToolsActionChrome() {
+        let launcher = AIToolsAction()
+        XCTAssertEqual(launcher.chrome.source, .builtin)
+        XCTAssertEqual(launcher.chrome.popupBehavior, .perform)
+        XCTAssertTrue(launcher.chrome.launchesAI)
+    }
+
 }
