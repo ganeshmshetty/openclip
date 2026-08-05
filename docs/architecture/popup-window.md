@@ -29,7 +29,7 @@ The floating popup panel subsystem presents contextual actions near the user's c
 - **Responsibility**: Controls window creation, display lifecycle, event monitoring, hover tracking, and AI overlay panel positioning.
 - **Event Handling**: Sets up local and global `NSEvent` monitors (`.leftMouseDown`, `.mouseMoved`, `.scrollWheel`, `.keyDown`). The local monitor sees mouse events over the panel; the global monitor sees events system-wide.
 - **Dismissal Threshold**: Automatically dismisses the popup if the cursor moves beyond `Constants.popupDismissalDistance` (unless a blocking bubble is active).
-- **Keyboard Dismissal**: Requires Accessibility permission (the global monitor). In actions mode any key — including `Escape` — dismisses the popup; the global monitor is observation-only, so the keystroke still lands in the source app's document and the panel never needs to become key. In search mode the panel *is* key, so keys go to the search field (`Escape` clears the query, then exits).
+- **Keyboard Dismissal**: Requires Accessibility permission (the global monitor). In actions mode any key — including `Escape` — dismisses the popup; the global monitor is observation-only, so the keystroke still lands in the source app's document and the panel never needs to become key. In search mode the panel *is* key, so keys go to the search field (`Escape` clears a scoped query, then exits).
 
 ---
 
@@ -102,7 +102,26 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
 - **Row icons are strictly `[icon | text]`**: a `.text` icon falls back to
   `ConfigurableAction.preferenceIconName`; Iconify-format symbols (`prefix:name`) render via
   `AnyIconView`, matching the bar (`PopupSearchView.swift:214,230`).
-- **Escape** clears the query first, then exits to the actions bar.
+- **Escape** clears the query first, then exits to the actions bar. In a **scoped** sub-action
+  palette, Escape instead drops the scope (`PopupSearchView.exitSearch()` → `onExitScope`) and
+  closes back to the bar.
+
+### Scoped Sub-Action Palette
+
+Opening a group/AI bar row and reaching the palette from hotkey are the same surface, differing only
+in `modeStore.scope`:
+
+- **Entering scoped**: a bar click on a group row (`.openSubActions`) or the AI Tools launcher
+  (`chrome.launchesAI`) calls `PopupWindowController.enterScopedSearch(for:)`
+  (`PopupWindowController.swift:158`), which resolves the parent's children via the Core
+  `SubActionResolver` over `searchCatalog` and calls `enterSearch(with: SearchScope(parent:children:))`.
+  `modeStore.scope` (added Task 5) carries the parent + pre-resolved children.
+- **Membership is protocol-driven**: `GroupAction` and `AIToolsAction` conform to `SubActionProviding`
+  (Core, `SubAction.swift`); resolution is id-prefix/`.ai` driven, never `switch action.id`.
+- **Scoped view behavior**: `PopupSearchView` matches/search-catalogs only `scope.children`
+  (`PopupSearchView.swift:49`), swaps the field's leading icon to the parent's, and the placeholder
+  reads **"Search within <parent.title>"**. Esc (`onExitScope`) drops the scope; the leading icon and
+  placeholder come from `actionIcon(parent)/parent.displayTitle`.
 
 ### Scoped Key Exception
 
