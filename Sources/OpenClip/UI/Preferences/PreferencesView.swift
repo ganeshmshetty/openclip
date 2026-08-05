@@ -10,7 +10,6 @@ enum PreferenceTab: String, CaseIterable, Hashable {
     case general = "General"
     case appearance = "Appearance"
     case actions = "Actions"
-    case extensions = "Extensions"
     case ai = "AI"
     case appRules = "App Rules"
     case about = "About"
@@ -20,7 +19,6 @@ enum PreferenceTab: String, CaseIterable, Hashable {
         case .general: return "gearshape.fill"
         case .appearance: return "paintbrush.fill"
         case .actions: return "bolt.horizontal.fill"
-        case .extensions: return "puzzlepiece.extension.fill"
         case .ai: return "sparkles"
         case .appRules: return "shield.checkerboard"
         case .about: return "info.circle.fill"
@@ -28,10 +26,17 @@ enum PreferenceTab: String, CaseIterable, Hashable {
     }
 }
 
+/// Sub-tab selector for the merged Actions tab (Actions | Store | Installed).
+enum ActionsSubTab: String, CaseIterable, Hashable {
+    case actions = "Actions"
+    case store = "Store"
+    case installed = "Installed"
+}
+
 @MainActor
 public struct PreferencesView: View {
     /// Shared max content width for the detail area. Matches the grouped-form content
-    /// cap (600pt on macOS 15+), so Actions/Appearance/Extensions render at the same
+    /// cap (600pt on macOS 15+), so Actions/Appearance render at the same
     /// width as the form-based tabs instead of stretching with the window.
     private static let detailContentMaxWidth: CGFloat = 600
 
@@ -41,7 +46,7 @@ public struct PreferencesView: View {
     @State private var disabledPackages: Set<String> = []
     @State private var selectedTab: PreferenceTab = .general
     @State private var aiSubTab: AISubTab = .configure
-    @State private var extensionsSubTab: ExtensionSubTab = .store
+    @State private var actionsSubTab: ActionsSubTab = .actions
     @State private var configuringAction: ConfigurationSheetItem?
 
     private var installedExtensionCount: Int {
@@ -149,14 +154,15 @@ public struct PreferencesView: View {
                         .pickerStyle(.segmented)
                         .labelsHidden()
                         .frame(width: 170)
-                    } else if selectedTab == .extensions {
-                        Picker("", selection: $extensionsSubTab) {
-                            Text("Store").tag(ExtensionSubTab.store)
-                            Text("Installed (\(installedExtensionCount))").tag(ExtensionSubTab.installed)
+                    } else if selectedTab == .actions {
+                        Picker("", selection: $actionsSubTab) {
+                            Text("Actions").tag(ActionsSubTab.actions)
+                            Text("Store").tag(ActionsSubTab.store)
+                            Text("Installed (\(installedExtensionCount))").tag(ActionsSubTab.installed)
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
-                        .frame(width: 180)
+                        .frame(width: 240)
                     }
                 }
                 .frame(maxWidth: Self.detailContentMaxWidth)
@@ -172,16 +178,21 @@ public struct PreferencesView: View {
                     case .appearance: 
                         AppearanceTab()
                     case .actions:
-                        ActionsTab(
-                            disabledActionIDs: $disabledActionIDs,
-                            disabledPackages: $disabledPackages,
-                            onOpenAI: {
-                                aiSubTab = .actions
-                                selectedTab = .ai
-                            }
-                        )
-                    case .extensions:
-                        ExtensionsStoreView(selectedSubTab: $extensionsSubTab)
+                        switch actionsSubTab {
+                        case .actions:
+                            ActionsTab(
+                                disabledActionIDs: $disabledActionIDs,
+                                disabledPackages: $disabledPackages,
+                                onOpenAI: {
+                                    aiSubTab = .actions
+                                    selectedTab = .ai
+                                }
+                            )
+                        case .store:
+                            ExtensionStoreView()
+                        case .installed:
+                            InstalledExtensionsView()
+                        }
                     case .ai:
                         AITab(selectedSubTab: $aiSubTab)
                     case .appRules: 
