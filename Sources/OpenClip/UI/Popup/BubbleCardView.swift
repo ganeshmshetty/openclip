@@ -29,7 +29,8 @@ public struct BubbleCardView: View {
 
     @ObservedObject public var statusBadgeModel: StatusBadgeModel = .shared
 
-    @AppStorage("popupTheme") private var selectedTheme: String = "system"
+    @AppStorage("popupTheme") private var selectedTheme: String = "classic"
+    @AppStorage("popupThemeColor") private var themeColor: String = "system"
     @Environment(\.colorScheme) private var colorScheme
 
     public init(
@@ -42,11 +43,20 @@ public struct BubbleCardView: View {
         self.onClose = onClose
     }
 
+    private var themeCategory: PopupThemeModel.Category {
+        PopupThemeModel.category(fromStored: selectedTheme)
+    }
+
+    /// The color scheme the card content should render as — matching the effective theme
+    /// (classic or glass) so `.primary`/`.secondary` and the material agree with the chosen
+    /// appearance even when the system is the opposite.
+    private var effectiveColorScheme: ColorScheme {
+        PopupThemeModel.effectiveScheme(appearance: themeColor, systemIsDark: colorScheme == .dark)
+    }
+
     private var effectiveTheme: String {
-        if selectedTheme == "system" {
-            return colorScheme == .dark ? "dark" : "light"
-        }
-        return selectedTheme
+        if themeCategory == .glass { return "glass" }
+        return PopupThemeModel.classicToken(appearance: themeColor, systemIsDark: colorScheme == .dark)
     }
 
     public var body: some View {
@@ -74,7 +84,7 @@ public struct BubbleCardView: View {
             .foregroundColor(Self.color(for: status.style))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background((colorScheme == .dark ? Color.black : Color.white).opacity(0.75))
+            .background((effectiveColorScheme == .dark ? Color.black : Color.white).opacity(0.75))
             .clipShape(Capsule())
             .padding(.top, content.emphasis == .result ? 38 : 4)
             .padding(.trailing, 6)
@@ -107,54 +117,59 @@ public struct BubbleCardView: View {
 
         let cornerRadius: CGFloat = content.emphasis == .info ? 8 : 10
 
-        if effectiveTheme == "glass" {
-            if #available(macOS 26, *) {
-                base
-                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(cardBorder, lineWidth: 1.0)
-                    )
-                    .shadow(color: .black.opacity(shadowOpacity), radius: 10, x: 0, y: 4)
+        let styled = Group {
+            if effectiveTheme == "glass" {
+                if #available(macOS 26, *) {
+                    base
+                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                                .stroke(cardBorder, lineWidth: 1.0)
+                        )
+                        .shadow(color: .black.opacity(shadowOpacity), radius: 10, x: 0, y: 4)
+                } else {
+                    base
+                        .background(
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                                .stroke(cardBorder, lineWidth: 1.0)
+                        )
+                        .shadow(color: .black.opacity(shadowOpacity), radius: 10, x: 0, y: 4)
+                }
             } else {
+                let bgFill = effectiveTheme == "dark"
+                    ? Color(red: 0.20, green: 0.20, blue: 0.22)
+                    : Color(red: 0.91, green: 0.91, blue: 0.93)
                 base
                     .background(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(.ultraThinMaterial)
+                            .fill(content.emphasis == .info ? bgFill.opacity(0.9) : bgFill)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .stroke(cardBorder, lineWidth: 1.0)
                     )
-                    .shadow(color: .black.opacity(shadowOpacity), radius: 10, x: 0, y: 4)
+                    .shadow(color: .black.opacity(shadowOpacity), radius: content.emphasis == .info ? 6 : 10, x: 0, y: 4)
             }
-        } else {
-            let bgFill = effectiveTheme == "dark"
-                ? Color(red: 0.20, green: 0.20, blue: 0.22)
-                : Color(red: 0.91, green: 0.91, blue: 0.93)
-            base
-                .background(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(content.emphasis == .info ? bgFill.opacity(0.9) : bgFill)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(cardBorder, lineWidth: 1.0)
-                )
-                .shadow(color: .black.opacity(shadowOpacity), radius: content.emphasis == .info ? 6 : 10, x: 0, y: 4)
         }
+
+        return styled
+            .environment(\.colorScheme, effectiveColorScheme)
     }
 
     private var cardBorder: Color {
         switch content.emphasis {
         case .info:
-            return colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.14)
+            return effectiveColorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.14)
         case .result:
-            return colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
+            return effectiveColorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
         case .menu:
-            return colorScheme == .dark ? Color.white.opacity(0.20) : Color.black.opacity(0.18)
+            return effectiveColorScheme == .dark ? Color.white.opacity(0.20) : Color.black.opacity(0.18)
         }
     }
 

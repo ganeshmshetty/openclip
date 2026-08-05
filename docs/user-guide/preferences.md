@@ -47,13 +47,12 @@ All overrides are managed via [`ActionCustomizationManager`](../../Sources/Core/
 The **Appearance** tab shows a static preview of the floating popup bar and lets you style it. The preview is a fixed visual mock of the canonical action set (Search, Copy, Cut, Paste, Services plus the AI button) — it does **not** reflect your configured actions, ordering, or overrides, and hovering it never affects the real popup.
 
 ### Popup Theme
-The theme control groups the color themes apart from Glass:
+The theme control has two labeled rows:
 
-- **System** — Follows the macOS Light/Dark appearance.
-- **Light** / **Dark** — Always uses the chosen color theme.
-- **Glass** — A frosted material surface (Liquid Glass on macOS 26+, a standard frosted material on macOS 14–15). Glass is a material, not a color: it adapts to the system's Light/Dark appearance automatically, which is why it is grouped apart behind a divider.
+1. **Category** — **Classic** (solid color themes) or **Glass** (a frosted material surface: Liquid Glass on macOS 26+, a standard frosted material on macOS 14–15).
+2. **Appearance** — **System**, **Light**, or **Dark**. This appearance is shared by both categories (Glass adapts to it too — Glass is a material, not a color).
 
-Selecting a color theme turns Glass off, and vice-versa — the control always has exactly one active choice.
+The preview always reflects the active combination, and a pinned appearance forces the popup's `colorScheme` so the material *and* the content colors flip together.
 
 > [!NOTE]
 > The Liquid Glass effect requires macOS 26+. On macOS 14–15 the Glass option renders as an `.ultraThinMaterial` frosted surface.
