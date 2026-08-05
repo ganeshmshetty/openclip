@@ -19,7 +19,8 @@ struct PopupPreview: View {
         CopyAction(),
         CutAction(),
         PasteAction(),
-        ServicesAction()
+        ServicesAction(),
+        AIToolsAction()
     ]
 
     /// The preview observes its own hover state (and ignores hover entirely), so it
@@ -49,7 +50,6 @@ struct PopupPreview: View {
             PopupView(
                 actions: Self.previewActions,
                 context: mockContext,
-                alwaysShowAISparkles: true,
                 hoverState: Self.previewHoverState,
                 isStatic: true,
                 modeStore: PopupModeStore()
