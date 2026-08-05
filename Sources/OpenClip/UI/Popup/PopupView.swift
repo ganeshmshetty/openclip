@@ -470,8 +470,13 @@ public struct PopupView: View {
                 }
             }
 
+            if !hasCompletions && hasRightChevron {
+                chevronButton(systemImage: "chevron.right", label: "Next page") { currentPage += 1 }
+            }
+
             // Action-search affordance: command glyph (never the web-search magnifier). Hidden in
-            // clipboard-fallback mode (Paste + AI only); the hotkey still works there.
+            // clipboard-fallback mode (Paste + AI only); the hotkey still works there. Kept outside
+            // the paged actions so it always sits at the far-right edge on every page.
             if !context.selection.isClipboardFallback {
                 let isHovered = hoveredTarget == .search
                 let affordanceForeground = PopupThemeModel.restForeground(for: effectiveTheme)
@@ -492,10 +497,6 @@ public struct PopupView: View {
                 .onHover { isHovering in
                     useLocalHoverFallback(for: .search, isHovering: isHovering)
                 }
-            }
-
-            if !hasCompletions && hasRightChevron {
-                chevronButton(systemImage: "chevron.right", label: "Next page") { currentPage += 1 }
             }
         }
         .fixedSize()

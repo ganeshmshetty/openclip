@@ -8,7 +8,10 @@ import {
   CaseUpper,
   Calculator,
   Sparkles,
-  ChevronRight,
+  Command,
+  Search,
+  Globe,
+  BookOpen,
   X,
 } from 'lucide-react';
 
@@ -22,6 +25,17 @@ const ACTION_CELLS = [
   { icon: Calculator, label: 'CALCULATE' },
 ];
 
+const PALETTE_ACTIONS = [
+  { icon: Copy, label: 'Copy' },
+  { icon: Scissors, label: 'Cut' },
+  { icon: ClipboardPaste, label: 'Paste' },
+  { icon: CaseUpper, label: 'Transform Case' },
+  { icon: Calculator, label: 'Calculate' },
+  { icon: BookOpen, label: 'Define' },
+  { icon: Globe, label: 'Search Web', badge: 'url' },
+  { icon: Sparkles, label: 'Fix Grammar', badge: 'AI' },
+];
+
 const SAMPLE_RESULT =
   'Highlight any text on macOS. Run instant actions in milliseconds — no setup, no overhead.';
 
@@ -29,7 +43,11 @@ export default function PopupDemo() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [typed, setTyped] = useState('');
   const [flash, setFlash] = useState<{ text: string; key: number } | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const timers = useRef<number[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
 
@@ -45,6 +63,15 @@ export default function PopupDemo() {
     }, 18);
     return () => window.clearInterval(id);
   }, [phase]);
+
+  // Focus the search field whenever the palette opens
+  useEffect(() => {
+    if (paletteOpen) inputRef.current?.focus();
+  }, [paletteOpen]);
+
+  const filteredActions = PALETTE_ACTIONS.filter((a) =>
+    a.label.toLowerCase().includes(query.trim().toLowerCase())
+  );
 
   const showFlash = (text: string) => {
     setFlash({ text, key: Date.now() });
@@ -74,6 +101,57 @@ export default function PopupDemo() {
     }
   };
 
+  const togglePalette = () => {
+    setPaletteOpen((open) => !open);
+    setQuery('');
+    setSelectedIndex(0);
+  };
+
+  // Global ⌘K / Ctrl+K opens the palette from anywhere on the page
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        togglePalette();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const runPaletteAction = (label: string) => {
+    showFlash(label);
+    setPaletteOpen(false);
+    setQuery('');
+    setSelectedIndex(0);
+  };
+
+  const handlePaletteKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (query) {
+        setQuery('');
+      } else {
+        setPaletteOpen(false);
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (filteredActions.length) setSelectedIndex((i) => (i + 1) % filteredActions.length);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (filteredActions.length) {
+        setSelectedIndex((i) => (i - 1 + filteredActions.length) % filteredActions.length);
+      }
+      return;
+    }
+    if (e.key === 'Enter' && filteredActions[selectedIndex]) {
+      runPaletteAction(filteredActions[selectedIndex].label);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center">
       <div className="relative">
@@ -86,48 +164,113 @@ export default function PopupDemo() {
           </span>
         )}
 
-        {/* Glow ring appears while the AI is "working" (mirrors PopupView's border sweep) */}
-        <div className={`rounded-[12px] p-[2px] ${phase === 'processing' ? 'oc-glow-ring' : ''}`}>
-          <div className="bg-card border-[1.5px] border-ink rounded-[10px] overflow-hidden">
-            <div
-              className={`flex items-stretch transition-opacity ${
-                phase === 'processing' ? 'opacity-70' : ''
-              }`}
-            >
-              {ACTION_CELLS.map(({ icon: Icon, label }) => (
-                <div key={label} className="group flex items-stretch">
+        <div className="relative">
+          {/* Glow ring appears while the AI is "working" (mirrors PopupView's border sweep) */}
+          <div className={`rounded-[12px] p-[2px] ${phase === 'processing' ? 'oc-glow-ring' : ''}`}>
+            <div className="bg-card border-[1.5px] border-ink rounded-[10px] overflow-hidden">
+              <div
+                className={`flex items-stretch transition-opacity ${
+                  phase === 'processing' ? 'opacity-70' : ''
+                }`}
+              >
+                {ACTION_CELLS.map(({ icon: Icon, label }) => (
+                  <div key={label} className="group flex items-stretch">
+                    <button
+                      onClick={() => showFlash(label)}
+                      className="flex items-center justify-center w-9 h-7 text-ink hover:bg-accent hover:text-white"
+                      aria-label={label}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="hairline group-hover:opacity-0" />
+                  </div>
+                ))}
+
+                {/* AI cell — accent glyph at rest, like the real popup */}
+                <div className="group flex items-stretch">
                   <button
-                    onClick={() => showFlash(label)}
-                    className="flex items-center justify-center w-9 h-7 text-ink hover:bg-accent hover:text-white"
-                    aria-label={label}
+                    onClick={runAI}
+                    className="flex items-center justify-center w-9 h-7 text-accent-deep hover:bg-accent hover:text-white"
+                    aria-label="AI actions"
                   >
-                    <Icon className="w-3.5 h-3.5" />
+                    <Sparkles className="w-3.5 h-3.5" />
                   </button>
                   <span className="hairline group-hover:opacity-0" />
                 </div>
-              ))}
 
-              {/* AI cell — accent glyph at rest, like the real popup */}
-              <div className="group flex items-stretch">
-                <button
-                  onClick={runAI}
-                  className="flex items-center justify-center w-9 h-7 text-accent-deep hover:bg-accent hover:text-white"
-                  aria-label="AI actions"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                </button>
-                <span className="hairline group-hover:opacity-0" />
+                {/* ⌘ command button — replaces the chevron, toggles the action-search palette */}
+                <div className="group flex items-stretch">
+                  <button
+                    onClick={togglePalette}
+                    className={`flex items-center justify-center w-9 h-7 hover:bg-accent hover:text-white ${
+                      paletteOpen ? 'bg-accent text-white' : 'text-ink/40'
+                    }`}
+                    aria-label="Search all actions"
+                    title="Search all actions (⌘K)"
+                  >
+                    <Command className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-
-              <button
-                onClick={() => showFlash('MORE ACTIONS')}
-                className="flex items-center justify-center w-[26px] h-7 text-ink/40 hover:bg-accent hover:text-white"
-                aria-label="More actions"
-              >
-                <ChevronRight className="w-3 h-3" />
-              </button>
             </div>
           </div>
+
+          {/* Action-search palette — overlays the bar (the popup becomes the search field) so it
+              never shifts the download buttons below */}
+          {paletteOpen && (
+            <div className="absolute top-[2px] left-[2px] right-[2px] z-20 bg-card border-[1.5px] border-ink rounded-[10px] shadow-chunky overflow-hidden">
+              <div className="flex items-center gap-2 h-9 px-3">
+                <Search className="w-3.5 h-3.5 text-ink/40 shrink-0" />
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setSelectedIndex(0);
+                  }}
+                  onKeyDown={handlePaletteKeyDown}
+                  placeholder="Search all actions"
+                  className="flex-1 min-w-0 bg-transparent text-[13px] text-ink placeholder:text-ink/40 outline-none font-[var(--font-inter)]"
+                  spellCheck={false}
+                />
+                <span
+                  className="chip !px-1.5 !py-0.5 cursor-pointer"
+                  onClick={() => setPaletteOpen(false)}
+                >
+                  esc
+                </span>
+              </div>
+
+              <div className="border-t-[1.5px] border-ink max-h-[130px] overflow-y-auto">
+                {filteredActions.length === 0 && (
+                  <p className="px-3 py-2.5 text-[12px] text-ink/50">No matching actions</p>
+                )}
+                {filteredActions.map(({ icon: Icon, label, badge }, i) => {
+                  const isSelected = i === selectedIndex;
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => runPaletteAction(label)}
+                      onMouseEnter={() => setSelectedIndex(i)}
+                      className={`flex items-center gap-2 w-full h-8 px-3 text-left ${
+                        isSelected ? 'bg-accent text-white' : 'hover:bg-tint'
+                      }`}
+                    >
+                      <Icon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-white' : 'text-ink'}`} />
+                      <span className="flex-1 min-w-0 text-[13px] font-medium truncate">{label}</span>
+                      {badge && (
+                        <span className={`text-[10px] font-mono uppercase tracking-wide ${
+                          isSelected ? 'text-white/80' : 'text-ink/40'
+                        }`}>
+                          {badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* AI result card — absolutely positioned so it overlays the download buttons without shifting layout */}
