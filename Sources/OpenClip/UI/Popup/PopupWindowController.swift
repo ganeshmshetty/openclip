@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
-// Also owns the reusable bubble panel (BubbleCardView) that renders hover info, result, and sub-action
+// Also owns the reusable bubble panel (BubbleCardView) that renders hover info and result
 // bubbles, plus the hover-debounce and long-press timers that trigger them per Action.gesturePolicy.
 // Owns the popup mode state machine (actions bar ↔ action-search palette): search mode makes the panel
 // key (a scoped exception to the never-key rule) and restores focus to the previous app on exit.

@@ -84,11 +84,19 @@ These change behavior — keep them.
   They appear in the action-search palette and Preferences → Actions but are excluded from the popup
   bar (`ActionRegistry.availableActions`) — the bar's AI entry is the reorderable `builtin.aiTools`
   action (`AIToolsAction`, chrome `launchesAI`), which renders as a normal paginated bar row and
-  routes its click into AI mode instead of `perform`. The
-  palette routes `.ai` selections through `onRunAI` → `runAIPreset` (AI card), never `perform`.
+  routes its click into a **scoped AI-presets palette** (`onEnteredScopedSearch`), never `perform`.
+  The palette routes `.ai` selections through `onRunAI` → `runAIPreset` (AI card), never `perform`.
   Enable/disable is single-sourced to `AIActionPreset.isEnabled`; the Actions-tab toggle shares it.
   `AIToolsAction`'s enable state is single-sourced to `isAIEnabled`, shared by the AI-tab and
   Actions-tab toggles; `launchesAI` actions are excluded from `searchCatalog`.
+- **Group sub-actions open a scoped palette, not a bubble.** Extension groups (`GroupAction` + registry
+  entries id-prefixed `\(groupID).\\(subID)`) and the builtin transform group render as normal bar
+  rows (`chrome.popupBehavior == .showTransformMenu` → `gesturePolicy.singleClick == .openSubActions`);
+  a click calls `PopupWindowController.enterScopedSearch(for:)`, which resolves children via the Core
+  `SubActionResolver` over `searchCatalog` and enters the palette with `modeStore.scope =
+  SearchScope(parent:children:)`. `PopupSearchView` scopes results to those children, swaps the field's
+  leading icon to the parent's, and its Esc path (`onExitScope`) drops the scope back to the bar. No
+  hover sub-menu bubble; membership is `SubActionProviding`-driven (`SubAction.swift`), never id switches.
 - **Gemini auth via the `x-goog-api-key` header only** — never `?key=` in the URL (leaks credentials).
 - **Glass stays apart from the color themes.** `PopupThemeSelector` has two rows: theme category
   (Classic | Glass) then appearance (System/Light/Dark). Storage: `popupTheme` ("classic"/"glass"),
