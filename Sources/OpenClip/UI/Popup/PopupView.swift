@@ -26,8 +26,6 @@ public struct PopupView: View {
     public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
     /// Called with a sub-action/menu bubble content to display (e.g. transform options). Drives the bubble panel.
     public let onShowBubble: (@MainActor (BubbleContent) -> Void)?
-    /// When true, always render the AI sparkles button (used by the static popup preview).
-    public let alwaysShowAISparkles: Bool
     /// True when this is a static preview — hover tracking is disabled entirely so the
     /// preview never reacts to (or leaks into) the real popup's shared hover state.
     private let isStatic: Bool
@@ -84,7 +82,6 @@ public struct PopupView: View {
         actions: [any Action],
         context: ActionContext,
         initialAICardAboveBar: Bool = false,
-        alwaysShowAISparkles: Bool = false,
         hoverState: PopupHoverState = .shared,
         isStatic: Bool = false,
         modeStore: PopupModeStore = PopupModeStore(),
@@ -107,7 +104,6 @@ public struct PopupView: View {
         self.onAIDismiss = onAIDismiss
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onShowBubble = onShowBubble
-        self.alwaysShowAISparkles = alwaysShowAISparkles
         self.isStatic = isStatic
         self._hoverState = ObservedObject(wrappedValue: hoverState)
         self._modeStore = ObservedObject(wrappedValue: modeStore)
@@ -451,28 +447,8 @@ public struct PopupView: View {
                 actionButton(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
             }
 
-            // Sparkles AI Button (if enabled)
-            if alwaysShowAISparkles || aiManager.isAIEnabled {
-                let isHovered = hoveredTarget == .sparkles
-                let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
-                Button(action: {
-                    isShowingAIMode = true
-                }) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(isHovered ? .white : restForeground)
-                        .frame(width: buttonWidth, height: 28)
-                        .background(isHovered ? Color.accentColor : Color.clear)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Open AI Tools")
-                .accessibilityLabel("AI Tools")
-                .popupHoverTarget(.sparkles)
-                .onHover { isHovering in
-                    useLocalHoverFallback(for: .sparkles, isHovering: isHovering)
-                }
-            }
+            // Sparkles AI launcher is a normal action row (chrome.launchesAI); it paginates with
+            // the other actions and its click opens AI mode via the branch in actionButton.
 
             if hasLeftChevron {
                 chevronButton(systemImage: "chevron.left", label: "Previous page") { currentPage -= 1 }
@@ -585,34 +561,51 @@ public struct PopupView: View {
                 useLocalHoverFallback(for: .action(index), isHovering: isHovering)
             }
         case .showResultBubble, .perform:
-            Button {
-                Task {
-                    do {
-                        // Match plumbing (approach A): re-run the shared visibility evaluator for
-                        // this action and thread the match into the perform context so placeholders
-                        // and env vars see the same match that enabled the row.
-                        let match = action.matchInfo(for: context)
-                        let performContext = match.map {
-                            ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
-                        } ?? context
-                        let result = try await action.perform(performContext)
-                        onResult(result)
-                    } catch {
-                        print("Action failed: \(error)")
-                        // Decision 9: a thrown perform error surfaces uniformly as an error status
-                        // and the popup stays.
-                        onResult(.showStatus(StatusFeedback(error: error)))
-                    }
+            if action.chrome.launchesAI {
+                // The AI Tools launcher opens AI mode instead of performing (chrome-driven, no id
+                // switching); it renders as a normal bar row and paginates like any other action.
+                Button {
+                    isShowingAIMode = true
+                } label: {
+                    labelView
                 }
-            } label: {
-                labelView
-            }
-            .buttonStyle(.plain)
-            .applyBubbleTooltip(for: action, fallback: action.title)
-            .accessibilityLabel(action.displayTitle)
-            .popupHoverTarget(.action(index))
-            .onHover { isHovering in
-                useLocalHoverFallback(for: .action(index), isHovering: isHovering)
+                .buttonStyle(.plain)
+                .applyBubbleTooltip(for: action, fallback: action.title)
+                .accessibilityLabel(action.displayTitle)
+                .popupHoverTarget(.action(index))
+                .onHover { isHovering in
+                    useLocalHoverFallback(for: .action(index), isHovering: isHovering)
+                }
+            } else {
+                Button {
+                    Task {
+                        do {
+                            // Match plumbing (approach A): re-run the shared visibility evaluator for
+                            // this action and thread the match into the perform context so placeholders
+                            // and env vars see the same match that enabled the row.
+                            let match = action.matchInfo(for: context)
+                            let performContext = match.map {
+                                ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
+                            } ?? context
+                            let result = try await action.perform(performContext)
+                            onResult(result)
+                        } catch {
+                            print("Action failed: \(error)")
+                            // Decision 9: a thrown perform error surfaces uniformly as an error status
+                            // and the popup stays.
+                            onResult(.showStatus(StatusFeedback(error: error)))
+                        }
+                    }
+                } label: {
+                    labelView
+                }
+                .buttonStyle(.plain)
+                .applyBubbleTooltip(for: action, fallback: action.title)
+                .accessibilityLabel(action.displayTitle)
+                .popupHoverTarget(.action(index))
+                .onHover { isHovering in
+                    useLocalHoverFallback(for: .action(index), isHovering: isHovering)
+                }
             }
         }
     }
@@ -774,7 +767,6 @@ private enum PopupHoverTarget: Hashable {
     case action(Int)
     case completion(Int)
     case chevron
-    case sparkles
     case aiPreset(Int)
     case search
 }
