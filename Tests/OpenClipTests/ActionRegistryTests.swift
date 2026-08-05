@@ -211,7 +211,7 @@ final class ActionRegistryTests: XCTestCase {
     }
 
     @MainActor
-    func testSearchCatalogIncludesAllAndExcludesCompletionAndSubActions() {
+    func testSearchCatalogIncludesAllAndExcludesOnlyCompletion() {
         let registry = ActionRegistry()
         let groupChrome = ActionChrome(
             badge: .none,
@@ -229,9 +229,9 @@ final class ActionRegistryTests: XCTestCase {
         let catalog = registry.searchCatalog
 
         XCTAssertTrue(catalog.contains { $0.id == "mock.searchgroup" })
+        XCTAssertTrue(catalog.contains { $0.id == "mock.searchgroup.a" })
         XCTAssertTrue(catalog.contains { $0.id == "mock.searchdisabled" })
         XCTAssertTrue(catalog.contains { $0.id == "mock.searchnormal" })
-        XCTAssertFalse(catalog.contains { $0.id == "mock.searchgroup.a" })
         XCTAssertFalse(catalog.contains { $0.id == "builtin.completion" })
     }
 
