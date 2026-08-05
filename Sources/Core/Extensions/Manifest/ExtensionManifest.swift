@@ -16,6 +16,10 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     public let requirements: ActionRequirements?
     public let after: ActionAfterBehavior?
     public let stayVisible: Bool?
+    /// When true the JS runtime runs asynchronously: the host awaits the action's promise, provides
+    /// the `openclip.fetch(url, options)` polyfill, and enforces the execution watchdog. When false
+    /// (or absent) the legacy synchronous evaluation is used.
+    public let isAsync: Bool?
     public let options: [ExtensionOptionMetadata]?
     public let subActions: [ExtensionActionMetadata]?
     public let keyPress: String?
@@ -40,6 +44,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         requirements: ActionRequirements? = nil,
         after: ActionAfterBehavior? = nil,
         stayVisible: Bool? = nil,
+        isAsync: Bool? = nil,
         options: [ExtensionOptionMetadata]? = nil,
         subActions: [ExtensionActionMetadata]? = nil,
         keyPress: String? = nil,
@@ -59,6 +64,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.requirements = requirements
         self.after = after
         self.stayVisible = stayVisible
+        self.isAsync = isAsync
         self.options = options
         self.subActions = subActions
         self.keyPress = keyPress
@@ -88,6 +94,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.after = try container.decodeIfPresent(ActionAfterBehavior.self, forKey: .after)
         self.stayVisible = try container.decodeIfPresent(Bool.self, forKey: .stayVisible)
             ?? container.decodeIfPresent(Bool.self, forKey: .stayVisibleDash)
+        self.isAsync = try container.decodeIfPresent(Bool.self, forKey: .isAsync)
         self.options = try container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .options)
         self.subActions = try container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .subActions)
             ?? container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .subActionsDash)
@@ -111,6 +118,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(requirements, forKey: .requirements)
         try container.encodeIfPresent(after, forKey: .after)
         try container.encodeIfPresent(stayVisible, forKey: .stayVisible)
+        try container.encodeIfPresent(isAsync, forKey: .isAsync)
         try container.encodeIfPresent(options, forKey: .options)
         try container.encodeIfPresent(subActions, forKey: .subActions)
         try container.encodeIfPresent(keyPress, forKey: .keyPress)
@@ -139,6 +147,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case after = "after"
         case stayVisible = "stayVisible"
         case stayVisibleDash = "stay-visible"
+        case isAsync = "async"
         case options = "options"
         case subActions = "subActions"
         case subActionsDash = "sub-actions"

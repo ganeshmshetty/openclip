@@ -71,7 +71,11 @@ These change behavior — keep them.
   `action.chrome.badge`, `action.icon`. (One legacy block in `ActionCustomizationManager.tableIcon`.)
 - **`OpenClipSnippetParser` is a pure text parser** — no `@MainActor`/UI. (Currently `@MainActor`; removal planned.)
 - **Subprocess actions need a timeout watchdog** — terminate if past `Constants.scriptTimeout` (30 s).
-  Any new action that spawns a subprocess must follow.
+  Any new action that spawns a subprocess must follow. The JS runtime uses the same `TimeoutFlag`
+  pattern (flag + pump-loop check; `JSVirtualMachine.invalidate()` no longer exists in modern SDKs).
+- **Never `Self.<static>` inside a `Task.detached` closure** — it trips a Swift 6 region-based
+  isolation checker bug (`"pattern that the region-based isolation checker does not understand how
+  to check"`). Reference the type by name (`OpenClipJSHost.execute(...)`). See `docs/runtimes/javascript.md`.
 - **Swift 6 strict concurrency: continuation resume-once flags must be `@unchecked Sendable` classes**
   (see `TimeoutFlag`/`OnceGate` in `Sources/Core/Extensions/ShellProcessRunner.swift`), not captured
   mutable locals.

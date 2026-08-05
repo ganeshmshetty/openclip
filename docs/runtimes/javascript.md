@@ -6,6 +6,12 @@ reached via [`JavaScriptAction`](../../Sources/OpenClip/Actions/JavaScriptAction
 read-only `openclip` object into the global scope and resolves collected effects into an
 [`ActionResult`](../../Sources/Core/Actions/ActionResult.swift).
 
+Extensions opt into **asynchronous** execution with the manifest flag `"async": true`
+(`ExtensionActionMetadata.isAsync`). Async extensions get a `fetch()` polyfill bridged to URLSession,
+and the host awaits the action's returned promise (or the promise an entry function returns) before
+resolving. Without the flag, scripts run in the legacy synchronous mode described below and any
+promise-like return is ignored (never pasted as `[object Promise]`).
+
 ## The `openclip` JS Object
 
 ```typescript
@@ -62,6 +68,49 @@ from the Keychain via `KeychainActionOptionStore`. Values land in `openclip.opti
 ```
 
 Define an `action(selection, options)` or `main(selection, options)` entry function.
+
+## Async Mode (`"async": true`)
+
+In async mode the entry function may return a `Promise`. The wrapped script dispatches the entry
+point through an internal `__openclip_dispatch` that settles the host's promise bridge — immediately
+for synchronous returns, via `.then`/catch for promises. A script with no `action`/`main` entry
+(top-level side effects only) still settles, so it never hangs. A rejected promise surfaces as
+`.showStatus(.error, message)`.
+
+### `fetch(url, options)`
+
+Async scripts get a global `fetch(url, options)` polyfill bridged to URLSession:
+
+```javascript
+async function action(selection) {
+  const r = await openclip.fetch("https://example.com/api", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ q: selection })
+  });
+  const body = await r.json();
+  return r.status + ":" + body.ok; // "201:true"
+}
+```
+
+`options`: `method` (default GET), `headers` (object), `body` (string; use `JSON.stringify` for
+JSON). The response is `{ status: number, ok: boolean, text(): Promise<string>,
+json(): Promise<any> }`. Network errors reject the promise. Requests use the injected URLSession
+(`URLSession.shared` in production; tests inject a URLProtocol-mocked ephemeral session).
+
+### Execution model & watchdog
+
+Every run executes inside a `Task.detached` on a background thread — never the `MainActor`. All
+JavaScript VM access is confined to that single thread; URLSession completions hop back onto the
+thread's CFRunLoop via `CFRunLoopPerformBlock` + `CFRunLoopWakeUp`, and the host pumps the runloop
+until the promise settles. A watchdog (`TimeoutFlag`, mirroring the `ShellProcessRunner` pattern)
+throws `Script timed out after N seconds` after `Constants.scriptTimeout` (30 s; tests override via
+`Request.timeout`).
+
+> **Compiler landmine:** inside the `Task.detached` closure, static members must be referenced by
+> the explicit type name (`OpenClipJSHost.execute(...)`), never `Self.execute(...)`. `Self.x` in a
+> detached-task closure trips a Swift 6 region-based-isolation checker bug (`"pattern that the
+> region-based isolation checker does not understand how to check"`).
 
 ## Result Resolution
 

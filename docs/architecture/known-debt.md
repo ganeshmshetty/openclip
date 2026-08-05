@@ -38,7 +38,8 @@ areas; stale debt notes are worse than none.
   is gone (`.notify` is handled by the effect door via `UNUserNotificationCenter`).
 - **`ActionResultAdapter.apply` is the single after/stayVisible translator.** Runtimes return raw
   results; each extension runtime's `perform` applies `rules.after`/`rules.stayVisible` via the
-  adapter. `OpenClipJSHost.run` returns only raw results (no JSC watchdog — plan §13).
+  adapter. `OpenClipJSHost.run` returns only raw results; async JS runs are guarded by the
+  `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
 
 ## Presentation / Rule Holes
 

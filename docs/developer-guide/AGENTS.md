@@ -131,6 +131,10 @@ percent-encoded; the action opens the URL. `websearch` behaves identically.
 to the same runtime. Runs under the `openclip.*` bridge (§7). Option values are available as
 `openclip.options` / `openclip.option(id)` (§4).
 
+**Async mode**: set `"async": true` to run the script asynchronously — the entry function may return
+a `Promise` (which the host awaits) and a `fetch(url, options)` polyfill is available for HTTP calls
+(§7). Without the flag, scripts run synchronously and a promise-like return is ignored.
+
 ### 3c. applescript (inline or file)
 
 ```jsonc
@@ -413,6 +417,12 @@ Entry points: the code is wrapped in an IIFE; if you define `action(selection, o
 `main(selection, options)` it is called with the selection and options dict; otherwise the top-level
 code runs. A returned non-null string maps to `.copy`.
 
+**Async mode (`"async": true`)** — the entry function may return a `Promise`; the host awaits it and
+a rejected promise surfaces as `.showStatus(.error)`. A script with no entry point (top-level side
+effects only) still settles. Async scripts also get a `fetch(url, options)` polyfill bridged to
+URLSession: `options` = `{ method, headers, body }` (default GET); the response is
+`{ status, ok, text(): Promise<string>, json(): Promise<any> }`; network errors reject the promise.
+
 Side effects (each appends an effect; multiple effects run as a `.sequence` in call order):
 
 - `openclip.paste(text)`
@@ -436,8 +446,10 @@ throws never propagate as Swift errors); else `requireConfiguration` → `openCo
 single/`sequence`; function string return → `copy`; else `success`. `keepVisible()` wraps the final
 result unconditionally.
 
-> There is **no JSC execution watchdog** in v1 — authors must not block. Note the resolution above:
-> `showStatus` followed by an effect yields the effect, not the status.
+> Execution runs on a background thread (never the `MainActor`); async scripts are guarded by a
+> 30-second watchdog (`Constants.scriptTimeout`, `TimeoutFlag` pattern) — a never-settling promise
+> surfaces as an error status. Note the resolution above: `showStatus` followed by an effect yields
+> the effect, not the status.
 
 ---
 
@@ -604,7 +616,9 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 - **Do not write a `parentGroupID`** — groups use the id-prefix convention only (§3i); it was
   deliberately deferred.
 - **Do not invent JSON effect `type` strings** — the shell protocol accepts only the types in §8a.
-- **Do not block inside JS** — there is no JSC watchdog; keep the JS synchronous and fast.
+- **Do not block inside JS** — the async watchdog kills never-settling promises after 30 s
+  (`Constants.scriptTimeout`), but keep scripts fast; `"async": true` is required for any script
+  that needs `fetch` or to await a promise.
 - **Do not use `?key=` for Gemini/auth in URLs**; credentials go in headers, and secrets belong in
   Keychain-backed options, not in a manifest.
 

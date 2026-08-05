@@ -23,6 +23,8 @@ public struct JavaScriptAction: ConfigurableAction {
     public let chrome: ActionChrome
     public let optionStore: any ActionOptionReading
     public let rules: ExtensionActionRules?
+    /// When true the JS host runs asynchronously (promise awaiting + fetch polyfill + watchdog).
+    public let isAsync: Bool
 
     nonisolated public init(
         id: String,
@@ -32,7 +34,8 @@ public struct JavaScriptAction: ConfigurableAction {
         options: [ExtensionOption] = [],
         chrome: ActionChrome? = nil,
         optionStore: any ActionOptionReading = SettingsActionOptionStore(),
-        rules: ExtensionActionRules? = nil
+        rules: ExtensionActionRules? = nil,
+        isAsync: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -49,6 +52,7 @@ public struct JavaScriptAction: ConfigurableAction {
         self.chrome = chrome ?? ActionChrome(badge: .script, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: id))
         self.optionStore = optionStore
         self.rules = rules
+        self.isAsync = isAsync
     }
 
     nonisolated public init(
@@ -59,9 +63,10 @@ public struct JavaScriptAction: ConfigurableAction {
         options: [ExtensionOption] = [],
         chrome: ActionChrome? = nil,
         optionStore: any ActionOptionReading = SettingsActionOptionStore(),
-        rules: ExtensionActionRules? = nil
+        rules: ExtensionActionRules? = nil,
+        isAsync: Bool = false
     ) {
-        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome, optionStore: optionStore, rules: rules)
+        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome, optionStore: optionStore, rules: rules, isAsync: isAsync)
     }
 
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -101,9 +106,10 @@ public struct JavaScriptAction: ConfigurableAction {
             context: context,
             options: actionOptions,
             optionStore: optionStore,
-            rules: rules ?? ExtensionActionRules()
+            rules: rules ?? ExtensionActionRules(),
+            isAsync: isAsync
         )
-        let raw = try OpenClipJSHost().run(request)
+        let raw = try await OpenClipJSHost().run(request)
         return ActionResultAdapter.apply(
             raw: raw,
             after: rules?.after ?? .default,
