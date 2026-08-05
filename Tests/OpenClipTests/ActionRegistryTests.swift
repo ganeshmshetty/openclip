@@ -276,6 +276,39 @@ final class ActionRegistryTests: XCTestCase {
     }
 
     @MainActor
+    func testUnorderedBuiltinDefaultsIntoBuiltinGroupBeforeExtensions() {
+        // Regression: with a populated `.actionOrder` that omits a newly registered builtin
+        // (e.g. the AI Tools launcher on upgrade), it must slot into the builtin group — after
+        // the last ordered builtin and ahead of installed extensions — not the absolute tail.
+        let userDefaults = UserDefaults(suiteName: #file)!
+        userDefaults.removePersistentDomain(forName: #file)
+        let store = DefaultSettingsStore(userDefaults: userDefaults)
+        store.set(.actionOrder, value: ["builtin.search", "builtin.copy", "builtin.reveal_in_finder"])
+        let registry = ActionRegistry(settingsStore: store)
+
+        let search = MockAction(id: "builtin.search", shouldBeEnabled: true)
+        let copy = MockAction(id: "builtin.copy", shouldBeEnabled: true)
+        let reveal = MockAction(id: "builtin.reveal_in_finder", shouldBeEnabled: true)
+        let extChrome = ActionChrome(source: .extensionPkg(packageID: "com.ext.pkg"))
+        let extensions = (1...4).map {
+            MockAction(id: "com.ext.pkg.\($0)", shouldBeEnabled: true, chrome: extChrome)
+        }
+        let aiTools = MockAction(id: "builtin.aiTools", shouldBeEnabled: true, chrome: ActionChrome(launchesAI: true))
+
+        registry.register(builtIns: [search, copy, reveal])
+        registry.register(builtIns: extensions)
+        registry.register(action: aiTools)
+
+        let ids = registry.actions.map(\.id)
+        let lastBuiltin = ids.firstIndex(of: "builtin.reveal_in_finder")!
+        let ai = ids.firstIndex(of: "builtin.aiTools")!
+        let firstExt = ids.firstIndex(of: "com.ext.pkg.1")!
+
+        XCTAssertGreaterThan(ai, lastBuiltin, "AI Tools sits after the last ordered builtin")
+        XCTAssertLessThan(ai, firstExt, "AI Tools precedes extensions by default")
+    }
+
+    @MainActor
     func testClipboardFallbackExcludesRequiresLiveSelectionActions() {
         let registry = ActionRegistry()
         let copy = MockAction(id: "builtin.copy", shouldBeEnabled: true, chrome: ActionChrome(requiresLiveSelection: true))
