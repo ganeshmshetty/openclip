@@ -171,8 +171,15 @@ public struct PreferencesView: View {
                         GeneralTab()
                     case .appearance: 
                         AppearanceTab()
-                    case .actions: 
-                        ActionsTab(disabledActionIDs: $disabledActionIDs, disabledPackages: $disabledPackages)
+                    case .actions:
+                        ActionsTab(
+                            disabledActionIDs: $disabledActionIDs,
+                            disabledPackages: $disabledPackages,
+                            onOpenAI: {
+                                aiSubTab = .actions
+                                selectedTab = .ai
+                            }
+                        )
                     case .extensions:
                         ExtensionsStoreView(selectedSubTab: $extensionsSubTab)
                     case .ai:
@@ -384,6 +391,9 @@ struct AppearanceTab: View {
 struct ActionsTab: View {
     @Binding var disabledActionIDs: Set<String>
     @Binding var disabledPackages: Set<String>
+    /// Called by the single AI row (and its gear) to open the AI tab. Wired in PreferencesView
+    /// to switch `selectedTab` to `.ai` and `aiSubTab` to `.actions`.
+    let onOpenAI: () -> Void
     @State private var showingAddActionSheet = false
     @ObservedObject private var coordinator = ActionCoordinator.shared
     
@@ -416,6 +426,10 @@ struct ActionsTab: View {
         var seenPackages: Set<String> = []
         var rows: [ListRow] = []
         for action in coordinator.actions {
+            // AI presets collapse into the single AI row below; they're managed in the AI tab.
+            if case .ai = action.chrome.source {
+                continue
+            }
             if case .extensionPkg(let packageID) = action.chrome.source {
                 if !seenPackages.contains(packageID) {
                     seenPackages.insert(packageID)
@@ -455,6 +469,8 @@ struct ActionsTab: View {
         VStack(alignment: .leading, spacing: 12) {
             List {
                 Section {
+                    AIRowView(onOpenAI: onOpenAI)
+
                     ForEach(listRows) { row in
                         switch row {
                         case .packageHeader(let packageID, let title):
@@ -650,6 +666,40 @@ struct ActionRowView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+
+@MainActor
+struct AIRowView: View {
+    let onOpenAI: () -> Void
+
+    var body: some View {
+        Button(action: onOpenAI) {
+            HStack(alignment: .center, spacing: 12) {
+                ZStack {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14))
+                }
+                .frame(width: 28, height: 28)
+                .background(Color.primary.opacity(0.06))
+                .cornerRadius(6)
+
+                Text("AI")
+                    .font(.system(size: 13, weight: .medium))
+
+                Spacer()
+
+                Image(systemName: "gearshape")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Manage AI actions")
+        .accessibilityLabel("Manage AI actions")
     }
 }
 
