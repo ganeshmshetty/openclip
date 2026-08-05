@@ -182,11 +182,7 @@ public struct PreferencesView: View {
                         case .actions:
                             ActionsTab(
                                 disabledActionIDs: $disabledActionIDs,
-                                disabledPackages: $disabledPackages,
-                                onOpenAI: {
-                                    aiSubTab = .actions
-                                    selectedTab = .ai
-                                }
+                                disabledPackages: $disabledPackages
                             )
                         case .store:
                             ExtensionStoreView()
@@ -402,9 +398,6 @@ struct AppearanceTab: View {
 struct ActionsTab: View {
     @Binding var disabledActionIDs: Set<String>
     @Binding var disabledPackages: Set<String>
-    /// Called by the single AI row (and its gear) to open the AI tab. Wired in PreferencesView
-    /// to switch `selectedTab` to `.ai` and `aiSubTab` to `.actions`.
-    let onOpenAI: () -> Void
     @State private var showingAddActionSheet = false
     @ObservedObject private var coordinator = ActionCoordinator.shared
     
@@ -437,7 +430,8 @@ struct ActionsTab: View {
         var seenPackages: Set<String> = []
         var rows: [ListRow] = []
         for action in coordinator.actions {
-            // AI presets collapse into the single AI row below; they're managed in the AI tab.
+            // AI presets never appear here — they're managed in the AI tab (and the palette).
+            // The reorderable "AI Tools" launcher action (chrome.launchesAI) renders as a normal row.
             if case .ai = action.chrome.source {
                 continue
             }
@@ -480,8 +474,6 @@ struct ActionsTab: View {
         VStack(alignment: .leading, spacing: 12) {
             List {
                 Section {
-                    AIRowView(onOpenAI: onOpenAI)
-
                     ForEach(listRows) { row in
                         switch row {
                         case .packageHeader(let packageID, let title):
@@ -579,7 +571,20 @@ struct ActionRowView: View {
         return false
     }
 
+    /// The "AI Tools" bar launcher also shares its toggle with the AI tab — but with
+    /// `isAIEnabled`, the single source of truth for the whole AI feature. Never touches
+    /// `disabledActionIDs`.
+    private var isAITools: Bool {
+        action.chrome.launchesAI
+    }
+
     var isEnabled: Binding<Bool> {
+        if isAITools {
+            return Binding<Bool>(
+                get: { aiManager.isAIEnabled },
+                set: { aiManager.isAIEnabled = $0 }
+            )
+        }
         if isAI {
             return Binding<Bool>(
                 get: { aiManager.preset(forActionID: action.id)?.isEnabled ?? false },
@@ -657,8 +662,9 @@ struct ActionRowView: View {
                     .controlSize(.small)
                     .accessibilityLabel("Enable \(action.displayTitle)")
                 
-                // Edit / Configure Button (hidden for AI preset rows — they're configured in the AI tab)
-                if !isAI {
+                // Edit / Configure Button (hidden for AI preset and AI Tools launcher rows — they're
+                // managed in the AI tab)
+                if !isAI && !isAITools {
                     Button(action: {
                         showingConfigSheet = true
                     }) {
@@ -677,40 +683,6 @@ struct ActionRowView: View {
             }
         }
         .padding(.vertical, 4)
-    }
-}
-
-
-@MainActor
-struct AIRowView: View {
-    let onOpenAI: () -> Void
-
-    var body: some View {
-        Button(action: onOpenAI) {
-            HStack(alignment: .center, spacing: 12) {
-                ZStack {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 14))
-                }
-                .frame(width: 28, height: 28)
-                .background(Color.primary.opacity(0.06))
-                .cornerRadius(6)
-
-                Text("AI")
-                    .font(.system(size: 13, weight: .medium))
-
-                Spacer()
-
-                Image(systemName: "gearshape")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-            }
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("Manage AI actions")
-        .accessibilityLabel("Manage AI actions")
     }
 }
 
