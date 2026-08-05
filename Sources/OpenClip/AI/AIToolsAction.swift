@@ -9,7 +9,7 @@
 import Foundation
 import Core
 
-public struct AIToolsAction: Action {
+public struct AIToolsAction: Action, SubActionProviding {
     public init() {}
 
     public var id: String { "builtin.aiTools" }
@@ -29,5 +29,13 @@ public struct AIToolsAction: Action {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         .success
+    }
+
+    // The AI Tools launcher's sub-actions are the registered AI presets (chrome source `.ai`).
+    public func subActions(in catalog: [any Action]) -> [any Action] {
+        catalog.filter { action in
+            if case .ai = action.chrome.source { return true }
+            return false
+        }
     }
 }
