@@ -120,7 +120,8 @@ These change behavior — keep them.
   above the field don't shove the popup off the cursor. `show(for:)`/`hide()` clear the pin — don't
   work around the auto-resize with preference keys or resize callbacks.
 - **Shortcut with no selection falls back to the clipboard.** `HotkeyManager` reads the pasteboard
-  and sets `isClipboardFallback`; the popup then shows Paste + AI only.
+  and sets `isClipboardFallback`; the full catalog then acts on the clipboard text except Copy/Cut,
+  which `ActionChrome.requiresLiveSelection` + the registry gate drop (no live selection).
 
 ---
 
