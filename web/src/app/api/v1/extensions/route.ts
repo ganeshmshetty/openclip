@@ -81,17 +81,20 @@ async function loadCatalog(): Promise<ExtensionItem[]> {
 
     // Merge GitHub Release download counts published nightly to extension-stats.json.
     const stats = await loadStats();
-    if (stats === null) {
-      // Statistics are unavailable and there is no prior valid snapshot: don't cache a
-      // zeroed catalog for five minutes. Fall back to the last valid merged catalog.
-      console.warn('Stats unavailable; serving last valid catalog');
-      return cachedCatalog ?? [];
-    }
-
     const merged = (data.extensions ?? []).map((item) => ({
       ...item,
-      downloadCount: stats[item.id] ?? 0,
+      downloadCount: stats?.[item.id] ?? 0,
     }));
+
+    if (stats === null) {
+      // Stats are unavailable. Prefer the last valid snapshot so counts don't blink
+      // to zero; if there is none, serve the fresh catalog zeroed so the store never
+      // renders empty. Either way, don't cache zeroed counts here — the next request
+      // retries stats.
+      console.warn('Stats unavailable; serving catalog without counts');
+      return cachedCatalog ?? merged;
+    }
+
     cachedCatalog = merged;
     cachedCatalogAt = Date.now();
     return merged;
