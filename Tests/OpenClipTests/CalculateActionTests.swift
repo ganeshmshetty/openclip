@@ -7,7 +7,7 @@ final class CalculateActionTests: XCTestCase {
     @MainActor
     func testCalculateActionEnabledForMath() async throws {
         let action = CalculateAction()
-        let app = NSRunningApplication.current
+        let app = AppIdentity(NSRunningApplication.current)
         
         let validMathContext = ActionContext(
             selection: SelectionContext(text: "12 + 4.5", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
@@ -26,7 +26,7 @@ final class CalculateActionTests: XCTestCase {
     func testCalculateActionExecution() async throws {
         UserDefaults.standard.removeObject(forKey: "action.calculate.mode")
         let action = CalculateAction()
-        let app = NSRunningApplication.current
+        let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "100 * 2.5", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
             modifiers: []
@@ -45,7 +45,7 @@ final class CalculateActionTests: XCTestCase {
     @MainActor
     func testResultBubbleFooterOptions() async {
         let action = CalculateAction()
-        let app = NSRunningApplication.current
+        let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "12 * 12", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
             modifiers: []
@@ -65,7 +65,7 @@ final class CalculateActionTests: XCTestCase {
     @MainActor
     func testResultBubbleNilForNonMath() async {
         let action = CalculateAction()
-        let app = NSRunningApplication.current
+        let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "Hello World", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
             modifiers: []

@@ -81,7 +81,7 @@ public final class CloudAPIProvider: AIProvider {
         let decoded = try JSONDecoder().decode(OpenAIChatResponse.self, from: data)
         let rawContent = decoded.choices?.first?.message?.content?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let content = AIRequestSupport.sanitizeResponseText(rawContent)
+        let content = AIRequestSupport.extractResultText(rawContent)
         guard !content.isEmpty else {
             throw AIError.invalidResponse
         }
@@ -122,7 +122,7 @@ public final class CloudAPIProvider: AIProvider {
             .compactMap { $0.text }
             .joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let content = AIRequestSupport.sanitizeResponseText(rawContent)
+        let content = AIRequestSupport.extractResultText(rawContent)
         guard !content.isEmpty else {
             throw AIError.invalidResponse
         }
@@ -256,7 +256,7 @@ public final class CloudAPIProvider: AIProvider {
         let decoded = try JSONDecoder().decode(GeminiChatResponse.self, from: data)
         let rawContent = decoded.candidates?.first?.content?.parts?.first?.text?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let content = AIRequestSupport.sanitizeResponseText(rawContent)
+        let content = AIRequestSupport.extractResultText(rawContent)
         guard !content.isEmpty else {
             throw AIError.invalidResponse
         }

@@ -78,8 +78,6 @@ class StatusBarController {
     /// hidden; open Preferences and hand the request to the coordinator so PreferencesView can
     /// present the matching EditActionSheet (the window may not have existed yet).
     @objc private func handleOpenConfiguration(_ notification: Notification) {
-        guard let request = notification.userInfo?["request"] as? ConfigurationRequest else { return }
-        ActionConfigurationCoordinator.shared.pendingRequest = request
         showPreferences()
     }
     

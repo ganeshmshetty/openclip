@@ -81,13 +81,14 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             guard isDragOrMultiClick else { return }
             
+            let appIdentity = AppIdentity(app)
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
-            if let result = await self.retriever.retrieveTextResult(for: app, policy: policy) {
+            if let result = await self.retriever.retrieveTextResult(for: appIdentity, policy: policy) {
                 let text = result.text
                 if text.utf8.count <= Constants.maxTextLength {
                     let context = SelectionContext(
                         text: text,
-                        sourceApp: app,
+                        sourceApp: appIdentity,
                         cursorPosition: cursor,
                         mouseDownLocation: downPoint,
                         selectionBounds: result.bounds,

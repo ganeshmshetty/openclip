@@ -7,7 +7,7 @@ import CoreGraphics
 
 public struct SelectionContext: Sendable {
     public let text: String
-    public let sourceApp: any AppIdentifying
+    public let sourceApp: AppIdentity
     public let cursorPosition: CGPoint
     public let mouseDownLocation: CGPoint?
     public let selectionBounds: CGRect?
@@ -18,7 +18,7 @@ public struct SelectionContext: Sendable {
     
     public init(
         text: String,
-        sourceApp: any AppIdentifying,
+        sourceApp: AppIdentity,
         cursorPosition: CGPoint,
         mouseDownLocation: CGPoint? = nil,
         selectionBounds: CGRect? = nil,

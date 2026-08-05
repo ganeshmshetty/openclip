@@ -2,11 +2,6 @@ import XCTest
 @testable import OpenClip
 @testable import Core
 
-fileprivate struct MockApp: AppIdentifying {
-    let bundleIdentifier: String?
-    let localizedName: String?
-}
-
 final class ScriptActionTests: XCTestCase {
     var tempDir: URL!
     
@@ -43,7 +38,7 @@ final class ScriptActionTests: XCTestCase {
         
         let action = ScriptAction(id: "test", title: "Test", icon: .symbol("test"), scriptURL: scriptPath)
         
-        let context = ActionContext(selection: SelectionContext(text: "hello", sourceApp: MockApp(bundleIdentifier: "test", localizedName: "test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
+        let context = ActionContext(selection: SelectionContext(text: "hello", sourceApp: AppIdentity(bundleIdentifier: "test", localizedName: "test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
         let result = try await action.perform(context)
         
         switch result {
@@ -72,7 +67,7 @@ final class ScriptActionTests: XCTestCase {
         
         let action = ScriptAction(id: "test2", title: "Test2", icon: .symbol("test"), scriptURL: scriptPath)
         
-        let context = ActionContext(selection: SelectionContext(text: "environment", sourceApp: MockApp(bundleIdentifier: "test", localizedName: "test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
+        let context = ActionContext(selection: SelectionContext(text: "environment", sourceApp: AppIdentity(bundleIdentifier: "test", localizedName: "test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
         let result = try await action.perform(context)
         
         switch result {
@@ -99,7 +94,7 @@ final class ScriptActionTests: XCTestCase {
         
         let action = ScriptAction(id: "testFail", title: "TestFail", icon: .symbol("test"), scriptURL: scriptPath)
         
-        let context = ActionContext(selection: SelectionContext(text: "hello", sourceApp: MockApp(bundleIdentifier: "test", localizedName: "test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
+        let context = ActionContext(selection: SelectionContext(text: "hello", sourceApp: AppIdentity(bundleIdentifier: "test", localizedName: "test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default))
         
         do {
             _ = try await action.perform(context)

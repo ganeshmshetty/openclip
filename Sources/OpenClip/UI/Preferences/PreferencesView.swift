@@ -43,7 +43,6 @@ public struct PreferencesView: View {
     @State private var aiSubTab: AISubTab = .configure
     @State private var extensionsSubTab: ExtensionSubTab = .store
     @State private var configuringAction: ConfigurationSheetItem?
-    @ObservedObject private var configurationCoordinator = ActionConfigurationCoordinator.shared
 
     private var installedExtensionCount: Int {
         ActionCoordinator.shared.actions.filter { action in
@@ -196,10 +195,9 @@ public struct PreferencesView: View {
         .onAppear { loadDisabledState() }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledState() }
         .onChange(of: disabledPackages) { _, _ in saveDisabledState() }
-        .onChange(of: configurationCoordinator.pendingRequest, initial: true) { _, request in
-            guard let request else { return }
-            configurationCoordinator.pendingRequest = nil
-            guard let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
+        .onReceive(NotificationCenter.default.publisher(for: .openClipOpenActionConfiguration)) { notification in
+            guard let request = notification.userInfo?["request"] as? ConfigurationRequest,
+                  let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
             configuringAction = ConfigurationSheetItem(action: action, request: request)
         }
         .sheet(item: $configuringAction) { item in
@@ -561,7 +559,7 @@ struct ActionRowView: View {
     @State private var showingConfigSheet = false
     
     private var presentationModel: ActionPresentationModel {
-        ActionPresentation.shared.presented(action, surface: .table)
+        ActionCustomizationManager.shared.presented(action, surface: .table)
     }
 
     var body: some View {

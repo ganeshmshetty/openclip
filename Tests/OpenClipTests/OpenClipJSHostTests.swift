@@ -2,11 +2,6 @@ import XCTest
 @testable import Core
 @testable import OpenClip
 
-fileprivate struct MockApp: AppIdentifying {
-    let bundleIdentifier: String? = "com.host.test"
-    let localizedName: String? = "HostTestApp"
-}
-
 /// In-memory option store for host tests; never touches UserDefaults. All access happens on the
 /// MainActor in these tests, so the plain dictionary is safe.
 fileprivate final class MemoryOptionStore: ActionOptionReading, ActionOptionWriting, @unchecked Sendable {
@@ -40,7 +35,7 @@ final class OpenClipJSHostTests: XCTestCase {
     private func makeContext(selectedText: String = "hello", match: ActionMatchInfo? = nil) -> ActionContext {
         let selection = SelectionContext(
             text: selectedText,
-            sourceApp: MockApp(),
+            sourceApp: AppIdentity(bundleIdentifier: "com.host.test", localizedName: "HostTestApp"),
             cursorPosition: .zero,
             timestamp: Date(),
             appPolicy: .default

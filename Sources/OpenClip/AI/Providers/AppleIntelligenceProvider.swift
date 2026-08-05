@@ -27,7 +27,7 @@ public final class AppleIntelligenceProvider: AIProvider {
                 let session = LanguageModelSession(instructions: systemInstruction)
                 let fullPrompt = "\(prompt):\n\n\"\(input)\""
                 let response = try await session.respond(to: fullPrompt)
-                let content = AIRequestSupport.sanitizeResponseText(response.content)
+                let content = AIRequestSupport.extractResultText(response.content)
                 if !content.isEmpty {
                     return content
                 }

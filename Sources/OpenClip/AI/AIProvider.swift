@@ -115,9 +115,4 @@ enum AIRequestSupport {
         }
         
         return trimmed
-    }
-
-    static func sanitizeResponseText(_ raw: String) -> String {
-        return extractResultText(raw)
-    }
-}
+    }}

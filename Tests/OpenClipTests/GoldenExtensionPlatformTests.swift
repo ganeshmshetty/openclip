@@ -2,11 +2,6 @@ import XCTest
 @testable import Core
 @testable import OpenClip
 
-fileprivate struct MockApp: AppIdentifying {
-    let bundleIdentifier: String? = "com.golden.testapp"
-    let localizedName: String? = "GoldenTestApp"
-}
-
 /// In-memory option store injected into the factory so the JS option override test never
 /// touches UserDefaults.standard. All access happens on the MainActor.
 fileprivate final class MemoryOptionStore: ActionOptionReading, ActionOptionWriting, @unchecked Sendable {
@@ -37,7 +32,7 @@ private extension ActionContext {
         )
         let selection = SelectionContext(
             text: selectedText,
-            sourceApp: MockApp(),
+            sourceApp: AppIdentity(bundleIdentifier: "com.golden.testapp", localizedName: "GoldenTestApp"),
             cursorPosition: .zero,
             timestamp: Date(),
             appPolicy: policy

@@ -6,6 +6,21 @@
 import Foundation
 import Combine
 
+public enum ActionPresentationSurface: Sendable {
+    case popup
+    case table
+}
+
+public struct ActionPresentationModel: Sendable, Equatable {
+    public let title: String
+    public let icon: ActionIcon
+
+    public init(title: String, icon: ActionIcon) {
+        self.title = title
+        self.icon = icon
+    }
+}
+
 public struct ActionOverride: Codable, Sendable, Equatable {
     public var customTitle: String?
     public var customIconSymbol: String?
@@ -98,14 +113,19 @@ public final class ActionCustomizationManager: ObservableObject, Sendable {
         if let configurable = action as? any ConfigurableAction {
             return .symbol(configurable.preferenceIconName)
         }
-        switch action.id {
-        case "builtin.copy": return .symbol("doc.on.doc")
-        case "builtin.cut": return .symbol("scissors")
-        case "builtin.paste": return .symbol("doc.on.clipboard")
-        case "builtin.define": return .symbol("character.book.closed")
-        default:
-            return action.icon
+        return action.icon
+    }
+
+    public func presented(_ action: any Action, surface: ActionPresentationSurface) -> ActionPresentationModel {
+        let title = displayTitle(for: action)
+        let icon: ActionIcon
+        switch surface {
+        case .popup:
+            icon = popupIcon(for: action)
+        case .table:
+            icon = tableIcon(for: action)
         }
+        return ActionPresentationModel(title: title, icon: icon)
     }
 
     private func saveOverrides() {

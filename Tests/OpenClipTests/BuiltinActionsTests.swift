@@ -2,15 +2,10 @@ import XCTest
 @testable import Core
 @testable import OpenClip
 
-fileprivate struct MockApp: AppIdentifying {
-    let bundleIdentifier: String?
-    let localizedName: String?
-}
-
 final class BuiltinActionsTests: XCTestCase {
     
     func createMockContext(with text: String) -> ActionContext {
-        let selection = SelectionContext(text: text, sourceApp: MockApp(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let selection = SelectionContext(text: text, sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
         return ActionContext(selection: selection, modifiers: [])
     }
     

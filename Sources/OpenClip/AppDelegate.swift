@@ -13,7 +13,7 @@ import SDWebImageSVGCoder
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
-    private var selectionCoordinator: SelectionCoordinator?
+    private var selectionMonitor: (any SelectionMonitoring)?
     private var popupController: PopupWindowController?
 
     private var onboardingWindowController: OnboardingWindowController?
@@ -48,17 +48,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ActionCoordinator.shared.register(action: RevealInFinderAction())
         }
         
-        // Setup selection coordinator
+        // Setup selection monitor
         let retriever = MacTextRetriever()
         let macMonitor = MacSelectionMonitor(retriever: retriever)
-        let coordinator = SelectionCoordinator(monitor: macMonitor)
-        coordinator.onSelection = { [weak self] context in
-            let isEnabled = UserDefaults.standard.object(forKey: Constants.isAppEnabledKey) as? Bool ?? true
+        macMonitor.onSelection = { [weak self] context in
+            let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
             if isEnabled {
                 self?.popupController?.show(for: context)
             }
         }
-        selectionCoordinator = coordinator
+        selectionMonitor = macMonitor
         
         let isGranted = PermissionManager.shared.isAccessibilityGranted
         let completedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
@@ -66,13 +65,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !isGranted || !completedOnboarding {
             showOnboarding()
         } else {
-            selectionCoordinator?.start()
+            selectionMonitor?.start()
         }
     }
     
     private func showOnboarding() {
         onboardingWindowController = OnboardingWindowController { [weak self] in
-            self?.selectionCoordinator?.start()
+            self?.selectionMonitor?.start()
             self?.statusBarController?.showPreferences()
         }
         onboardingWindowController?.showWindow(nil)

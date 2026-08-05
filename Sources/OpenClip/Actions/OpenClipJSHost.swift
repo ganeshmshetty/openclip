@@ -238,7 +238,7 @@ public final class OpenClipJSHost {
         text: String,
         matchedText: String,
         captures: [String],
-        sourceApp: any AppIdentifying,
+        sourceApp: AppIdentity,
         options: [String: String]
     ) -> JSValue {
         let openclip = JSValue(newObjectIn: jsContext)!

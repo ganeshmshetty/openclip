@@ -22,11 +22,11 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
     // MARK: - TextRetrieving
 
-    internal func retrieveText(for app: any AppIdentifying, policy: AppPolicyContext) async -> String? {
+    internal func retrieveText(for app: AppIdentity, policy: AppPolicyContext) async -> String? {
         await retrieveTextResult(for: app, policy: policy)?.text
     }
 
-    internal func retrieveTextResult(for app: any AppIdentifying, policy: AppPolicyContext) async -> TextResult? {
+    internal func retrieveTextResult(for app: AppIdentity, policy: AppPolicyContext) async -> TextResult? {
         // `grabPasteboard` is an explicit per-app policy that opts into Cmd+C behaviour.
         // Never send Cmd+C by default — OpenClip uses AX selection only, with no clipboard side-effects.
         if policy.grabPasteboard {
@@ -54,7 +54,7 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         return nil
     }
     
-    private func strategySafariJS(for app: any AppIdentifying) async -> String? {
+    private func strategySafariJS(for app: AppIdentity) async -> String? {
         guard app.bundleIdentifier == "com.apple.Safari" else { return nil }
         let script = """
         tell application "Safari"
@@ -278,28 +278,20 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
     /// Run an AppleScript on a background thread with a timeout and return its string output.
     private func runAppleScript(_ source: String, timeout: TimeInterval = 0.2) async -> String? {
-        return await withCheckedContinuation { continuation in
-            let task = Task.detached { () -> String? in
+        await withTaskGroup(of: String?.self) { group in
+            group.addTask {
+                guard let script = NSAppleScript(source: source) else { return nil }
                 var error: NSDictionary?
-                guard let script = NSAppleScript(source: source) else {
-                    return nil
-                }
                 let result = script.executeAndReturnError(&error)
-                if error != nil {
-                    return nil
-                }
-                return result.stringValue
+                return error == nil ? result.stringValue : nil
             }
-            
-            Task.detached {
+            group.addTask {
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                task.cancel()
+                return nil
             }
-            
-            Task.detached {
-                let val = await task.value
-                continuation.resume(returning: val)
-            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
         }
     }
 }

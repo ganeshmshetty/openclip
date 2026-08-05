@@ -21,7 +21,7 @@ final class RevealInFinderActionTests: XCTestCase {
         let action = RevealInFinderAction()
         let currentDir = FileManager.default.currentDirectoryPath
         
-        let app = NSRunningApplication.current
+        let app = AppIdentity(NSRunningApplication.current)
         let validContext = ActionContext(
             selection: SelectionContext(
                 text: currentDir,
