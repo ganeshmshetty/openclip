@@ -62,6 +62,11 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         let updatedContext = ActionContext(selection: updatedSelection, modifiers: context.modifiers)
         return registry.availableActions(for: updatedContext)
     }
+
+    /// Full catalog for the action-search palette (all registered actions, enabled or not).
+    public var searchCatalog: [any Action] {
+        registry.searchCatalog
+    }
     
     public func register(action: any Action) {
         registry.register(action: action)
