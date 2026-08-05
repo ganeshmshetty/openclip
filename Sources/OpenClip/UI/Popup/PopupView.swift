@@ -32,14 +32,24 @@ public struct PopupView: View {
     /// preview never reacts to (or leaks into) the real popup's shared hover state.
     private let isStatic: Bool
 
-    @AppStorage("popupTheme") private var selectedTheme: String = "system"
+    @AppStorage("popupTheme") private var selectedTheme: String = "classic"
+    @AppStorage("popupThemeColor") private var themeColor: String = "system"
     @Environment(\.colorScheme) private var colorScheme
-    
+
+    private var themeCategory: PopupThemeModel.Category {
+        PopupThemeModel.category(fromStored: selectedTheme)
+    }
+
+    /// The color scheme the popup content should render as — matching the effective theme
+    /// (classic or glass) so `.primary`/`.secondary` and the glass material agree with the
+    /// chosen appearance even when the system is the opposite.
+    private var effectiveColorScheme: ColorScheme {
+        PopupThemeModel.effectiveScheme(appearance: themeColor, systemIsDark: colorScheme == .dark)
+    }
+
     private var effectiveTheme: String {
-        if selectedTheme == "system" {
-            return colorScheme == .dark ? "dark" : "light"
-        }
-        return selectedTheme
+        if themeCategory == .glass { return "glass" }
+        return PopupThemeModel.classicToken(appearance: themeColor, systemIsDark: colorScheme == .dark)
     }
     
     @AppStorage("completionCopyToClipboard") private var completionCopyToClipboard: Bool = false
@@ -192,7 +202,7 @@ public struct PopupView: View {
     private var mainBarStyled: some View {
         let baseView = Group {
             if effectiveTheme == "glass" {
-                let glassBorderColor: Color = colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
+                let glassBorderColor: Color = effectiveColorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
                 
                 if #available(macOS 26, *) {
                     unifiedHStack
@@ -233,7 +243,9 @@ public struct PopupView: View {
             }
         }
 
-        baseView.overlay(processingGlowBorder)
+        baseView
+            .environment(\.colorScheme, effectiveColorScheme)
+            .overlay(processingGlowBorder)
     }
 
     @ViewBuilder
@@ -306,14 +318,8 @@ public struct PopupView: View {
                 let (title, prompt) = preset
                 let isLast = index == aiPresets.count - 1
                 let isHovered = hoveredTarget == .aiPreset(index)
-                
-                let restForeground: Color = {
-                    switch effectiveTheme {
-                    case "light": return .black.opacity(0.85)
-                    case "dark": return .white.opacity(0.90)
-                    default: return .primary
-                    }
-                }()
+
+                let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
                 
                 Button(action: {
                     runAIPreset(prompt: prompt)
@@ -444,12 +450,13 @@ public struct PopupView: View {
             // Sparkles AI Button (if enabled)
             if alwaysShowAISparkles || aiManager.isAIEnabled {
                 let isHovered = hoveredTarget == .sparkles
+                let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
                 Button(action: {
                     isShowingAIMode = true
                 }) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(isHovered ? .white : .accentColor)
+                        .foregroundColor(isHovered ? .white : restForeground)
                         .frame(width: buttonWidth, height: 28)
                         .background(isHovered ? Color.accentColor : Color.clear)
                         .contentShape(Rectangle())
@@ -467,13 +474,7 @@ public struct PopupView: View {
             // clipboard-fallback mode (Paste + AI only); the hotkey still works there.
             if !context.selection.isClipboardFallback {
                 let isHovered = hoveredTarget == .search
-                let affordanceForeground: Color = {
-                    switch effectiveTheme {
-                    case "light": return .black.opacity(0.85)
-                    case "dark": return .white.opacity(0.90)
-                    default: return .primary
-                    }
-                }()
+                let affordanceForeground = PopupThemeModel.restForeground(for: effectiveTheme)
                 Button {
                     onEnterSearch()
                 } label: {
@@ -505,21 +506,8 @@ public struct PopupView: View {
 
     @ViewBuilder
     private func completionButton(word: String, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
-        let restForeground: Color = {
-            switch effectiveTheme {
-            case "light": return .black.opacity(0.85)
-            case "dark": return .white.opacity(0.90)
-            default: return .primary
-            }
-        }()
-
-        let dividerColor: Color = {
-            switch effectiveTheme {
-            case "light": return .black.opacity(0.12)
-            case "dark": return .white.opacity(0.14)
-            default: return .white.opacity(0.20)
-            }
-        }()
+        let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
+        let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
 
         Button {
             onResult(.paste(word))
@@ -554,21 +542,8 @@ public struct PopupView: View {
 
     @ViewBuilder
     private func actionButton(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
-        let restForeground: Color = {
-            switch effectiveTheme {
-            case "light": return .black.opacity(0.85)
-            case "dark": return .white.opacity(0.90)
-            default: return .primary
-            }
-        }()
-        
-        let dividerColor: Color = {
-            switch effectiveTheme {
-            case "light": return .black.opacity(0.12)
-            case "dark": return .white.opacity(0.14)
-            default: return .white.opacity(0.20)
-            }
-        }()
+        let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
+        let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
 
         let labelView = iconView(for: action.displayIcon)
             .font(.system(size: 13, weight: .medium))
@@ -639,11 +614,13 @@ public struct PopupView: View {
 
     @ViewBuilder
     private func chevronButton(systemImage: String, label: String, action: @escaping () -> Void) -> some View {
+        let isHovered = hoveredTarget == .chevron
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundColor(isHovered ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
                 .frame(width: chevronWidth, height: 28)
+                .background(isHovered ? Color.accentColor : Color.clear)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

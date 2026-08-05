@@ -18,8 +18,24 @@ public struct PopupSearchView: View {
 
     @State private var query = ""
     @State private var selectedIndex = 0
-    @State private var isEscHovered = false
     @FocusState private var isFocused: Bool
+
+    @AppStorage("popupTheme") private var selectedTheme: String = "classic"
+    @AppStorage("popupThemeColor") private var themeColor: String = "system"
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// Hover follows the same mechanism as the bar: the AX global-mouse location hit-tested
+    /// against registered frames (instant), with an `.onHover` fallback when global monitoring
+    /// is unavailable. This avoids SwiftUI's delayed hover for the palette's small targets.
+    @ObservedObject private var hoverState = PopupHoverState.shared
+    @State private var hoverFrames: [SearchHoverTarget: CGRect] = [:]
+    @State private var hoveredTarget: SearchHoverTarget?
+
+    private var effectiveTheme: String {
+        let category = PopupThemeModel.category(fromStored: selectedTheme)
+        if category == .glass { return "glass" }
+        return PopupThemeModel.classicToken(appearance: themeColor, systemIsDark: colorScheme == .dark)
+    }
 
     private var searchIndex: [ActionSearchIndex] {
         catalog.map { action in
@@ -66,6 +82,13 @@ public struct PopupSearchView: View {
         }
         .frame(width: 280)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onPreferenceChange(SearchHoverFramePreferenceKey.self) { frames in
+            hoverFrames = frames
+            updateHoveredTarget(for: hoverState.location)
+        }
+        .onReceive(hoverState.$location) { location in
+            updateHoveredTarget(for: location)
+        }
         .onAppear {
             isFocused = true
         }
@@ -75,10 +98,11 @@ public struct PopupSearchView: View {
         HStack(spacing: 8) {
             Image(systemName: "command")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
             TextField("Search all actions", text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
+                .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
                 .focused($isFocused)
                 .onSubmit { runSelected() }
                 .onKeyPress { press in
@@ -102,21 +126,25 @@ public struct PopupSearchView: View {
                     }
                     return .ignored
                 }
+            let isEscHovered = hoveredTarget == .esc
             Button(action: onExit) {
                 Text("esc")
                     .font(.caption2)
-                    .foregroundColor(isEscHovered ? .white : .secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
+                    .foregroundColor(isEscHovered ? .white : PopupThemeModel.restSecondary(for: effectiveTheme))
+                    .frame(minWidth: 24)
+                    .padding(.horizontal, 8)
+                    .frame(maxHeight: .infinity)
                     .background(
                         isEscHovered ? Color.accentColor : Color.clear,
                         in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                     )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Exit search")
+            .searchHoverTarget(.esc)
             .onHover { hovering in
-                isEscHovered = hovering
+                useLocalHoverFallback(for: .esc, isHovering: hovering)
             }
         }
         .padding(.horizontal, 12)
@@ -143,7 +171,7 @@ public struct PopupSearchView: View {
 
     @ViewBuilder
     private func resultRow(item: ActionSearchIndex, index: Int) -> some View {
-        let isSelected = index == selectedIndex
+        let isSelected = index == selectedIndex || hoveredTarget == .row(index)
         Button {
             selectedIndex = index
             runSelected()
@@ -152,17 +180,17 @@ public struct PopupSearchView: View {
                 iconView(for: rowIcon(for: item.action))
                     .font(.system(size: 13, weight: .medium))
                     .frame(width: 16)
-                    .foregroundColor(isSelected ? .white : .primary)
+                    .foregroundColor(isSelected ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
                 Text(item.title)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .foregroundColor(isSelected ? .white : .primary)
+                    .foregroundColor(isSelected ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
                 Spacer(minLength: 8)
                 if let badge = badgeText(for: item.action) {
                     Text(badge)
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
                 }
             }
             .padding(.horizontal, 12)
@@ -171,6 +199,10 @@ public struct PopupSearchView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .searchHoverTarget(.row(index))
+        .onHover { hovering in
+            useLocalHoverFallback(for: .row(index), isHovering: hovering)
+        }
     }
 
     private func moveSelection(by delta: Int) {
@@ -262,6 +294,56 @@ public struct PopupSearchView: View {
         case .none:
             if case .extensionPkg = action.chrome.source { return "extension" }
             return nil
+        }
+    }
+
+    // MARK: - Hover (same location-based mechanism as the bar)
+
+    /// The hovered target is derived from the shared mouse location, hit-tested against the
+    /// frames each row/esc registers in the popup's named coordinate space.
+    private func updateHoveredTarget(for location: CGPoint?) {
+        let target = location.flatMap { point in
+            hoverFrames.first(where: { $0.value.contains(point) })?.key
+        }
+        guard target != hoveredTarget else { return }
+        hoveredTarget = target
+    }
+
+    /// Local `.onHover` fallback used only when the AX global mouse monitor is unavailable;
+    /// otherwise the location-driven path above owns hover (instant, no SwiftUI hover delay).
+    private func useLocalHoverFallback(for target: SearchHoverTarget, isHovering: Bool) {
+        guard !hoverState.usesGlobalMouseMonitoring else { return }
+        if isHovering {
+            guard hoveredTarget != target else { return }
+            hoveredTarget = target
+        } else if hoveredTarget == target {
+            hoveredTarget = nil
+        }
+    }
+}
+
+private enum SearchHoverTarget: Hashable {
+    case row(Int)
+    case esc
+}
+
+private struct SearchHoverFramePreferenceKey: PreferenceKey {
+    static let defaultValue: [SearchHoverTarget: CGRect] = [:]
+
+    static func reduce(value: inout [SearchHoverTarget: CGRect], nextValue: () -> [SearchHoverTarget: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private extension View {
+    func searchHoverTarget(_ target: SearchHoverTarget) -> some View {
+        background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: SearchHoverFramePreferenceKey.self,
+                    value: [target: proxy.frame(in: .named("popupHoverSpace"))]
+                )
+            }
         }
     }
 }

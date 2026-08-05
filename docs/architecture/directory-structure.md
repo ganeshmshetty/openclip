@@ -111,7 +111,8 @@ Sources/
         │   ├── PopupPositioner.swift           # Frame math & screen clamping (pure static, no singletons)
         │   ├── PopupPreview.swift              # Static popup bar preview (fixed canonical actions; Preferences Appearance tab + onboarding Finish)
         │   ├── PopupSearchView.swift           # Action-search palette: field + ranked results as one surface with the bar
-        │   ├── PopupThemeSelector.swift        # Theme control: System/Light/Dark apart from Glass; storage popupTheme + popupThemeColor
+        │   ├── PopupThemeModel.swift           # Theme resolution: category (classic/glass) + shared appearance → tokens/colorScheme
+        │   ├── PopupThemeSelector.swift        # Theme control: two rows (Classic|Glass, then System/Light/Dark); storage popupTheme + popupThemeColor
         │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode branch + ⌘ affordance)
         │   └── PopupWindowController.swift   # Window lifecycle + bubble panel + hover/long-press timers + popup mode state machine
         └── Preferences/                      # Settings & preferences views

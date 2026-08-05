@@ -31,7 +31,7 @@ Prefer `scripts/` over raw `xcodebuild`/`xcodegen`:
 | Regenerate Xcode project after adding/deleting Swift files (MANDATORY) | `xcodegen generate` |
 | Build (Debug) + launch | `./scripts/dev_run.sh` |
 | Build (Release) + package `build/OpenClip.zip` | `./scripts/package_app.sh` |
-| Full test suite (can hang; wrap in a timeout) | `timeout -k 10 600 ./scripts/test.sh` |
+| Full test suite (can hang; wrap in a timeout) | `timeout -k 10 60 ./scripts/test.sh` |
 | Single test class | `./scripts/test.sh SettingsStoreTests` |
 | Clean DerivedData + build artifacts | `./scripts/clean.sh` |
 | Install a local extension/snippet into `~/.openclip/extensions` | `./scripts/install_extension.sh <path>` |
@@ -77,8 +77,13 @@ These change behavior — keep them.
   mutable locals.
 - **`ActionContext.modifiers` is unused.** Don't build logic assuming modifier keys reach actions.
 - **Gemini auth via the `x-goog-api-key` header only** — never `?key=` in the URL (leaks credentials).
-- **Glass stays apart from the color themes.** `PopupThemeSelector` groups System/Light/Dark vs Glass;
-  storage `popupTheme` + `popupThemeColor`. No flat 4-option picker or separate Glass switch.
+- **Glass stays apart from the color themes.** `PopupThemeSelector` has two rows: theme category
+  (Classic | Glass) then appearance (System/Light/Dark). Storage: `popupTheme` ("classic"/"glass"),
+  `popupThemeColor` (shared appearance "system"/"light"/"dark" — one value for both themes). A pinned
+  appearance forces the popup's `colorScheme` via `PopupThemeModel.effectiveScheme` so the material *and*
+  `.primary`/`.secondary` content flip together — that's the fix for near-white glass over a white
+  background. The force is scoped with `.environment(\.colorScheme, ...)` on the popup content only,
+  so it never changes the surrounding Preferences window (preview-only).
 - **Liquid Glass is macOS 26+ only** — `.ultraThinMaterial` fallback on macOS 14-15. Every glass
   surface keeps an `#available(macOS 26, *)` branch. Don't stack a dimmer under a glass card.
 - **`glassEffect(.regular)` casts an elevation shadow that scales with surface size** — it clips on
@@ -124,7 +129,7 @@ These change behavior — keep them.
    `Action.gesturePolicy` — never Swift type checks (`is ScriptAction`) or `switch action.id`.
 6. **Update file-level doc comments** when a file's responsibilities change.
 8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
-   hang in automated sessions, so prefer the gated build (`timeout -k 5 60 … build`).
+   hang in automated sessions, so wrap it in a 60 s timeout (`timeout -k 10 60 ./scripts/test.sh`).
 9. **Popup must never be key — except the scoped action-search exception.** `PopupPanel.allowsKey`
    enables key status only in search mode, with focus forced via `focusSearchField()` on the next
    run-loop turn (a `@FocusState`-in-onAppear request is silently dropped on macOS); on exit/hide,
