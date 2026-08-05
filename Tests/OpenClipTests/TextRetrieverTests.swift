@@ -45,4 +45,11 @@ final class TextRetrieverTests: XCTestCase {
         
         try? await Task.sleep(nanoseconds: UInt64((Constants.pasteboardRestoreDelay + 0.1) * 1_000_000_000))
     }
+    
+    func testTextResultInitialization() {
+        let bounds = CGRect(x: 10, y: 20, width: 100, height: 50)
+        let result = TextResult(text: "Hello World", bounds: bounds)
+        XCTAssertEqual(result.text, "Hello World")
+        XCTAssertEqual(result.bounds, bounds)
+    }
 }

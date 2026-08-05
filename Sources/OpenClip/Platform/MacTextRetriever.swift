@@ -134,6 +134,55 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         }
     }
 
+    /// Extract selected text and bounds from an AX element, trying kAXSelectedTextAttribute first,
+    /// then falling back to kAXValueAttribute + kAXSelectedTextRangeAttribute substring extraction.
+    private func extractTextAndBounds(from element: AXUIElement) -> TextResult? {
+        var textRef: CFTypeRef?
+        var selectedText: String? = nil
+        
+        if AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &textRef) == .success,
+           let text = textRef as? String, !text.isEmpty {
+            selectedText = text
+        } else {
+            // Fallback: Check kAXValueAttribute and kAXSelectedTextRangeAttribute
+            var valueRef: CFTypeRef?
+            var rangeRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueRef) == .success,
+               let fullValue = valueRef as? String, !fullValue.isEmpty,
+               AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
+               let rangeVal = rangeRef {
+                var cfRange = CFRange()
+                if AXValueGetValue(rangeVal as! AXValue, .cfRange, &cfRange),
+                   cfRange.length > 0,
+                   cfRange.location >= 0,
+                   cfRange.location + cfRange.length <= fullValue.count {
+                    let start = fullValue.index(fullValue.startIndex, offsetBy: cfRange.location)
+                    let end = fullValue.index(start, offsetBy: cfRange.length)
+                    selectedText = String(fullValue[start..<end])
+                }
+            }
+        }
+        
+        guard let text = selectedText, !text.isEmpty else { return nil }
+        
+        // Bounds extraction
+        var bounds: CGRect? = nil
+        var rangeRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
+           let rangeRef {
+            var boundsRef: CFTypeRef?
+            if AXUIElementCopyParameterizedAttributeValue(element, kAXBoundsForRangeParameterizedAttribute as CFString, rangeRef, &boundsRef) == .success,
+               let boundsRef {
+                var rect = CGRect.zero
+                if AXValueGetValue(boundsRef as! AXValue, .cgRect, &rect) {
+                    bounds = rect
+                }
+            }
+        }
+        
+        return TextResult(text: text, bounds: bounds)
+    }
+
     // MARK: - Strategy 3: Keyboard Shortcut (Cmd+C)
 
     /// Post a synthetic Cmd+C keystroke, then poll the pasteboard for a change.
