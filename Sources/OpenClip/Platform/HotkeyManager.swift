@@ -22,7 +22,14 @@ public final class HotkeyManager {
         KeyboardShortcuts.onKeyUp(for: .togglePopup) { [weak popupController] in
             Task { @MainActor in
                 guard DefaultSettingsStore.shared.get(.isAppEnabled) else { return }
-                
+
+                // Popup already visible: the hotkey toggles actions → search palette → dismiss,
+                // instead of re-running text retrieval and re-showing.
+                if let popupController, popupController.isVisible {
+                    popupController.toggleMode()
+                    return
+                }
+
                 let frontApp = NSWorkspace.shared.frontmostApplication ?? NSRunningApplication.current
                 let policy = await RuleEngine.shared.resolvePolicies(for: frontApp.bundleIdentifier ?? "")
                 let appIdentity = AppIdentity(frontApp)
