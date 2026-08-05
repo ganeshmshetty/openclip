@@ -1,7 +1,8 @@
 // ExtensionsStoreView.swift
 // OpenClip
 //
-// Renders the extension store browser, installed extensions manager, and installer interface in preferences.
+// Provides the extension store browsing and installed-extension management views for the
+// merged Actions tab in preferences, plus the shared view model and card used by onboarding.
 import SwiftUI
 import Core
 
@@ -38,6 +39,211 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         self.currentPage = 1
         self.extensions = []
         await fetchNextPage()
+    }
+}
+
+public struct ExtensionStoreView: View {
+    @StateObject private var viewModel = ExtensionsStoreViewModel()
+
+    public init() {}
+
+    public var body: some View {
+        VStack(spacing: 12) {
+            filterBar
+            storeContent
+        }
+        .padding(12)
+        .task {
+            await viewModel.resetAndFetch()
+        }
+    }
+
+    private var filterBar: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 13))
+                TextField("Search extensions...", text: $viewModel.searchQuery)
+                    .textFieldStyle(.plain)
+                    .onChange(of: viewModel.searchQuery) { _, _ in
+                        Task { await viewModel.resetAndFetch() }
+                    }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+
+            Picker("", selection: $viewModel.selectedCategory) {
+                Text("All Categories").tag("All")
+                Text("Search").tag("Search")
+                Text("Writing").tag("Writing")
+                Text("Productivity").tag("Productivity")
+                Text("Developer").tag("Developer")
+                Text("Utilities").tag("Utilities")
+            }
+            .pickerStyle(.menu)
+            .frame(width: 140)
+            .onChange(of: viewModel.selectedCategory) { _, _ in
+                Task { await viewModel.resetAndFetch() }
+            }
+
+            Spacer()
+
+            Button(action: {
+                presentInstallExtensionPanel()
+            }) {
+                Label("Install File…", systemImage: "square.and.arrow.down")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var storeContent: some View {
+        VStack(spacing: 0) {
+            if viewModel.extensions.isEmpty && !viewModel.isLoading {
+                VStack(spacing: 12) {
+                    Spacer()
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 36))
+                        .foregroundColor(.secondary)
+                    Text("No extensions found")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    let twoColumns = [
+                        GridItem(.flexible(), spacing: 14),
+                        GridItem(.flexible(), spacing: 14)
+                    ]
+                    LazyVGrid(columns: twoColumns, spacing: 14) {
+                        ForEach(viewModel.extensions) { ext in
+                            ExtensionCardView(item: ext)
+                                .onAppear {
+                                    if ext.id == viewModel.extensions.last?.id {
+                                        Task { await viewModel.fetchNextPage() }
+                                    }
+                                }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 2)
+                }
+            }
+        }
+    }
+}
+
+public struct InstalledExtensionsView: View {
+    @ObservedObject private var coordinator = ActionCoordinator.shared
+
+    public init() {}
+
+    private var installedExtensionActions: [any Action] {
+        coordinator.actions.filter { action in
+            if case .extensionPkg = action.chrome.badge {
+                return true
+            }
+            if case .extensionPkg = action.chrome.source {
+                return true
+            }
+            return false
+        }
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Spacer()
+                Button(action: {
+                    presentInstallExtensionPanel()
+                }) {
+                    Label("Install File…", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 4)
+
+            if installedExtensionActions.isEmpty {
+                VStack(spacing: 12) {
+                    Spacer()
+                    Image(systemName: "puzzlepiece.extension")
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary)
+                    Text("No Extensions Installed")
+                        .font(.headline)
+                    Text("Browse the Store tab or click 'Install File...' to add extensions.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(installedExtensionActions, id: \.id) { action in
+                        HStack(spacing: 12) {
+                            ZStack {
+                                ActionIconView(icon: action.displayIcon, size: 16)
+                                    .foregroundColor(.accentColor)
+                            }
+                            .frame(width: 36, height: 36)
+                            .background(Color.accentColor.opacity(0.12))
+                            .cornerRadius(8)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(action.displayTitle)
+                                    .font(.system(size: 13, weight: .semibold))
+
+                                switch action.chrome.badge {
+                                case .extensionPkg(let pkgName):
+                                    Text(pkgName)
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                default:
+                                    Text("Extension Package")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+
+                            Spacer()
+
+                            Button(role: .destructive, action: {
+                                uninstallExtension(actionID: action.id)
+                            }) {
+                                Label("Uninstall", systemImage: "trash")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .tint(.red)
+                        }
+                        .padding(.vertical, 6)
+                    }
+                }
+                .listStyle(.inset)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .padding(12)
+    }
+
+    private func uninstallExtension(actionID: String) {
+        Task {
+            try? await ExtensionManager.shared.uninstallExtension(actionID: actionID)
+            await MainActor.run {
+                NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+            }
+        }
     }
 }
 
@@ -397,5 +603,37 @@ struct ExtensionCardView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
+    }
+}
+
+private func presentInstallExtensionPanel() {
+    let panel = NSOpenPanel()
+    panel.title = "Select Extension to Install"
+    panel.message = "Choose a .openclipext folder, .zip archive, or script file"
+    panel.allowsMultipleSelection = false
+    panel.canChooseDirectories = true
+    panel.canChooseFiles = true
+    panel.treatsFilePackagesAsDirectories = true
+    panel.allowedContentTypes = []
+
+    panel.begin { response in
+        guard response == .OK, let selectedURL = panel.url else { return }
+        Task {
+            do {
+                _ = try await ExtensionManager.shared.installExtension(from: selectedURL)
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+                }
+            } catch {
+                await MainActor.run {
+                    let alert = NSAlert()
+                    alert.messageText = "Extension Install Failed"
+                    alert.informativeText = error.localizedDescription
+                    alert.alertStyle = .warning
+                    alert.addButton(withTitle: "OK")
+                    alert.runModal()
+                }
+            }
+        }
     }
 }
