@@ -87,6 +87,11 @@ public final class ActionRegistry: ObservableObject, Sendable {
             if case .ai = action.chrome.source {
                 return false
             }
+            // Clipboard fallback is not a live selection: Copy/Cut (and any future action that
+            // reads or mutates the real selection) must not act on text that was never selected.
+            if context.selection.isClipboardFallback && action.chrome.requiresLiveSelection {
+                return false
+            }
             if disabledIDs.contains(action.id) {
                 return false
             }

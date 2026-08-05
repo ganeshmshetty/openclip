@@ -253,4 +253,38 @@ final class ActionRegistryTests: XCTestCase {
         XCTAssertTrue(available.contains { $0.id == "mock.normal" })
         XCTAssertTrue(registry.searchCatalog.contains { $0.id == "ai.preset.proofread" })
     }
+
+    @MainActor
+    func testClipboardFallbackExcludesRequiresLiveSelectionActions() {
+        let registry = ActionRegistry()
+        let copy = MockAction(id: "builtin.copy", shouldBeEnabled: true, chrome: ActionChrome(requiresLiveSelection: true))
+        let cut = MockAction(id: "builtin.cut", shouldBeEnabled: true, chrome: ActionChrome(requiresLiveSelection: true))
+        let paste = MockAction(id: "builtin.paste", shouldBeEnabled: true)
+        let search = MockAction(id: "builtin.search", shouldBeEnabled: true)
+        registry.register(builtIns: [copy, cut, paste, search])
+
+        let app = AppIdentity(bundleIdentifier: "com.test", localizedName: "Test")
+        let fallbackSelection = SelectionContext(text: "hello", sourceApp: app, cursorPosition: .zero, timestamp: Date(), appPolicy: .default, isClipboardFallback: true)
+        let available = registry.availableActions(for: ActionContext(selection: fallbackSelection, modifiers: []))
+
+        XCTAssertFalse(available.contains { $0.id == "builtin.copy" })
+        XCTAssertFalse(available.contains { $0.id == "builtin.cut" })
+        XCTAssertTrue(available.contains { $0.id == "builtin.paste" })
+        XCTAssertTrue(available.contains { $0.id == "builtin.search" })
+
+        // Same text, real selection (no fallback flag): Copy/Cut come back.
+        let normalSelection = SelectionContext(text: "hello", sourceApp: app, cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let normal = registry.availableActions(for: ActionContext(selection: normalSelection, modifiers: []))
+        XCTAssertTrue(normal.contains { $0.id == "builtin.copy" })
+        XCTAssertTrue(normal.contains { $0.id == "builtin.cut" })
+    }
+
+    @MainActor
+    func testCopyAndCutBuiltinsRequireLiveSelection() {
+        let builtins = BuiltinRegistry.makeCoreBuiltins()
+        XCTAssertTrue(builtins.first { $0.id == "builtin.copy" }?.chrome.requiresLiveSelection == true)
+        XCTAssertTrue(builtins.first { $0.id == "builtin.cut" }?.chrome.requiresLiveSelection == true)
+        XCTAssertTrue(builtins.first { $0.id == "builtin.paste" }?.chrome.requiresLiveSelection == false)
+        XCTAssertTrue(builtins.first { $0.id == "builtin.search" }?.chrome.requiresLiveSelection == false)
+    }
 }

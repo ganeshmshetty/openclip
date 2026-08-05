@@ -11,6 +11,10 @@ public struct CopyAction: ConfigurableAction {
     public let preferenceIconName = "doc.on.doc"
     public let icon = ActionIcon.text("Copy")
     
+    public var chrome: ActionChrome {
+        ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin, requiresLiveSelection: true)
+    }
+    
     public init() {}
     
     @MainActor

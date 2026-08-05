@@ -39,16 +39,21 @@ public struct ActionChrome: Codable, Sendable, Equatable {
     public let rowStyle: RowStyle
     public let popupBehavior: PopupBehavior
     public let source: Source
+    /// True when the action reads or mutates the real text selection (e.g. Copy/Cut) and is
+    /// therefore unsafe when the text came from the clipboard rather than a live selection.
+    public let requiresLiveSelection: Bool
 
     public init(
         badge: Badge = .none,
         rowStyle: RowStyle = .standard,
         popupBehavior: PopupBehavior = .perform,
-        source: Source = .builtin
+        source: Source = .builtin,
+        requiresLiveSelection: Bool = false
     ) {
         self.badge = badge
         self.rowStyle = rowStyle
         self.popupBehavior = popupBehavior
         self.source = source
+        self.requiresLiveSelection = requiresLiveSelection
     }
 }

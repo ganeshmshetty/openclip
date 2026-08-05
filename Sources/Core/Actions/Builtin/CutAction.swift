@@ -11,6 +11,10 @@ public struct CutAction: ConfigurableAction {
     public let preferenceIconName = "scissors"
     public let icon = ActionIcon.text("Cut")
     
+    public var chrome: ActionChrome {
+        ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin, requiresLiveSelection: true)
+    }
+    
     public init() {}
     
     @MainActor
