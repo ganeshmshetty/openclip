@@ -545,7 +545,7 @@ public struct PopupView: View {
             .contentShape(Rectangle())
 
         switch action.gesturePolicy.singleClick {
-        case .showMenu:
+        case .openSubActions:
             Button {
                 Task {
                     onShowBubble?(await menuBubble(for: action))
