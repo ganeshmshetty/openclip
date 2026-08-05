@@ -105,8 +105,8 @@ public class PopupWindowController {
             onHoveredActionChanged: { [weak self] action in
                 self?.updateHoveredAction(action)
             },
-            onShowBubble: { [weak self] content in
-                self?.showMenuBubble(content: content)
+            onEnteredScopedSearch: { [weak self] action in
+                self?.enterScopedSearch(for: action)
             }
         )
         panel.contentView = NSHostingView(rootView: rootView)
@@ -132,12 +132,14 @@ public class PopupWindowController {
         }
     }
 
-    /// Enter search mode: the panel becomes key (a scoped, user-initiated exception to the
-    /// never-key rule) so the search field can receive typing. A nonactivating panel can become
-    /// key without activating this app, so the source app stays active throughout.
-    public func enterSearch() {
+/// Enter search mode, optionally scoped to a parent action's sub-actions: the panel becomes key
+    /// (a scoped, user-initiated exception to the never-key rule) so the search field can receive
+    /// typing. A nonactivating panel can become key without activating this app, so the source app
+    /// stays active throughout.
+    public func enterSearch(with scope: SearchScope? = nil) {
         guard panel?.isVisible == true else { return }
         previousFrontmostApp = NSWorkspace.shared.frontmostApplication
+        modeStore.scope = scope
         modeStore.mode = .search
         panel?.allowsKey = true
         // Content-driven growth keeps the panel's bottom edge fixed (results render above the field,
@@ -151,6 +153,17 @@ public class PopupWindowController {
             await Task.yield()
             self.focusSearchField()
         }
+    }
+
+    /// Opens the palette scoped to a bar row's sub-actions. The parent action supplies its children
+    /// via `SubActionProviding` (core, id/`.ai`-driven); resolution happens here so the view never
+    /// type-checks against the action catalog.
+    private func enterScopedSearch(for action: any Action) {
+        let children = SubActionResolver().subActions(
+            of: action,
+            in: ActionCoordinator.shared.searchCatalog
+        )
+        enterSearch(with: SearchScope(parent: action, children: children))
     }
 
     private func focusSearchField() {
@@ -174,6 +187,7 @@ public class PopupWindowController {
     /// it is cleared by hide() and the next show(for:).
     public func exitSearch() {
         guard modeStore.mode == .search else { return }
+        modeStore.scope = nil
         modeStore.mode = .actions
         panel?.allowsKey = false
         if NSApp.isActive {
@@ -276,37 +290,10 @@ public class PopupWindowController {
         )
     }
 
-    /// Shows a sub-action `.menu` bubble (e.g. transform options) anchored near the current mouse position.
-    private func showMenuBubble(content: BubbleContent) {
-        showBubble(
-            content: content,
-            blocksDismiss: true,
-            anchorX: NSEvent.mouseLocation.x,
-            onOutcome: { [weak self] outcome in
-                switch outcome {
-                case .perform(let result):
-                    self?.handleActionResult(result)
-                    self?.hide()
-                case .run(let runner):
-                    Task { @MainActor in
-                        do {
-                            let result = try await runner()
-                            self?.handleActionResult(result)
-                            self?.hide()
-                        } catch {
-                            self?.handleActionResult(.showStatus(StatusFeedback(error: error)))
-                            self?.hideBubble()
-                        }
-                    }
-                case .showSubMenu:
-                    break
-                }
-            },
-            onClose: { [weak self] in
-                self?.hideBubble()
-            }
-        )
-    }
+
+
+
+
 
     private func hideBubble() {
         statusDismissTask?.cancel()
@@ -455,6 +442,7 @@ public class PopupWindowController {
         longPressTask = nil
         longPressFired = false
         modeStore.mode = .actions
+        modeStore.scope = nil
         panel?.allowsKey = false
         panel?.pinBottomEdgeOnResize = false
         panel?.orderOut(nil)
