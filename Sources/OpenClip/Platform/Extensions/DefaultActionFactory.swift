@@ -247,7 +247,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     options: options,
                     chrome: extensionChrome,
                     optionStore: optionStore,
-                    rules: rules
+                    rules: rules,
+                    isAsync: metadata.isAsync ?? false
                 )
             case "applescript", "scpt":
                 return AppleScriptAction(
@@ -295,7 +296,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 options: options,
                 chrome: extensionChrome,
                 optionStore: optionStore,
-                rules: rules
+                rules: rules,
+                isAsync: metadata.isAsync ?? false
             )
         case "applescript", "scpt":
             guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else { return nil }

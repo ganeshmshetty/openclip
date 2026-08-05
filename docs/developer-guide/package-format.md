@@ -79,6 +79,7 @@ OpenClip decodes extension metadata via [`ExtensionMetadata`](../../Sources/Core
 | `type` | String | Runtime kind (case-insensitive): `"url"` (default), `"javascript"` (`"js"`), `"applescript"`, `"shell"` (`"shellinline"`), `"script"` (`"scriptfile"`), `"textSnippet"` (`"snippet"`/`"text"`), `"webSearch"` (`"web"`/`"search"`), `"keyPress"` (`"keys"`), `"service"` (`"servicemenu"`), `"shortcut"` (`"keyboardshortcut"`), `"group"` (`"subactions"`). Unknown values default to `"url"`. |
 | `script` | String | Path to script file relative to extension directory (defaults to `main.js`). |
 | `scriptCode` | String | Inline script code string (used when code is embedded directly in manifest/snippet). |
+| `async` | Boolean | Optional. For `type: "javascript"` only: runs the script asynchronously, enabling a `fetch()` polyfill and awaiting the entry function's returned promise. Default `false` (legacy synchronous mode). |
 | `url` | String | URL template pattern string with `{query}` or `{text}` placeholders. |
 | `regex` | String | Optional regular expression pattern to gate action visibility. |
 | `keyPress` | String | Key-press spec like `"command+shift+o"` (for `type: "keyPress"`). |
