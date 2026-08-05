@@ -247,11 +247,32 @@ final class ActionRegistryTests: XCTestCase {
         let context = ActionContext(selection: selection, modifiers: [])
         let available = registry.availableActions(for: context)
 
-        // AI preset actions never flood the popup bar (the Sparkles button is the AI entry point),
-        // but the palette still discovers them.
+        // AI preset actions never flood the popup bar (the reorderable AI Tools action is the
+        // bar's entry point), but the palette still discovers them.
         XCTAssertFalse(available.contains { $0.id == "ai.preset.proofread" })
         XCTAssertTrue(available.contains { $0.id == "mock.normal" })
         XCTAssertTrue(registry.searchCatalog.contains { $0.id == "ai.preset.proofread" })
+    }
+
+    @MainActor
+    func testAIToolsLauncherInBarExcludedFromPalette() {
+        let registry = ActionRegistry()
+        let launcher = MockAction(id: "builtin.aiTools", shouldBeEnabled: true, chrome: ActionChrome(launchesAI: true))
+        let completion = MockAction(id: "builtin.completion", shouldBeEnabled: true)
+        let normal = MockAction(id: "mock.normal", shouldBeEnabled: true)
+        registry.register(builtIns: [launcher, completion, normal])
+
+        let selection = SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection, modifiers: [])
+        let available = registry.availableActions(for: context)
+
+        // The launcher is a normal bar row (bar-visible), but the palette excludes it — the AI
+        // presets already cover AI there.
+        XCTAssertTrue(available.contains { $0.id == "builtin.aiTools" })
+        XCTAssertTrue(available.contains { $0.id == "mock.normal" })
+        XCTAssertFalse(registry.searchCatalog.contains { $0.id == "builtin.aiTools" })
+        XCTAssertFalse(registry.searchCatalog.contains { $0.id == "builtin.completion" })
+        XCTAssertTrue(registry.searchCatalog.contains { $0.id == "mock.normal" })
     }
 
     @MainActor
