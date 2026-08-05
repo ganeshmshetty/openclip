@@ -18,10 +18,10 @@ export interface ExtensionsPageResponse {
   totalCount: number;
 }
 
-const REPO = 'ganeshmshetty/openclip';
+const REPO = 'ganeshmshetty/openclip-extensions';
 const BRANCH = 'main';
-const CATALOG_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/catalog.json`;
-const STATS_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/extension-stats.json`;
+const CATALOG_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/published/catalog.json`;
+const STATS_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/published/extension-stats.json`;
 
 // Optional GitHub token (set as GH_TOKEN in the Vercel environment) to raise
 // api.github.com rate limits if raw.githubusercontent ever throttles us.
@@ -31,7 +31,7 @@ function githubHeaders(): HeadersInit {
   return GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {};
 }
 
-// Download counts are published nightly to extension-stats.json by the
+// Download counts are published nightly to published/extension-stats.json by the
 // update-stats.yml workflow (Obsidian model). Serve from a short cache to
 // avoid re-fetching on every request; stats only change once a day.
 const STATS_TTL_MS = 60 * 60 * 1000;
