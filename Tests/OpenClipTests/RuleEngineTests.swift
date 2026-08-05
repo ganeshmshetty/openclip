@@ -99,4 +99,16 @@ final class RuleEngineTests: XCTestCase {
         
         try FileManager.default.removeItem(at: tempURL)
     }
+
+    @MainActor
+    func testMenuCopyAppsMacroResolvesUseMenuCopy() async throws {
+        let vsCodeContext = RuleEngine.shared.resolvePolicies(for: "com.microsoft.VSCode")
+        XCTAssertTrue(vsCodeContext.useMenuCopy, "VS Code should resolve useMenuCopy policy to true")
+        
+        let zedContext = RuleEngine.shared.resolvePolicies(for: "dev.zed.Zed")
+        XCTAssertTrue(zedContext.useMenuCopy, "Zed should resolve useMenuCopy policy to true")
+        
+        let randomContext = RuleEngine.shared.resolvePolicies(for: "com.random.app")
+        XCTAssertFalse(randomContext.useMenuCopy, "Random app should resolve useMenuCopy policy to false")
+    }
 }

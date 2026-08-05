@@ -82,6 +82,11 @@ public final class ActionRegistry: ObservableObject, Sendable {
         let disabledPackages = settingsStore.get(.disabledPackages)
 
         func passes(_ action: any Action) -> Bool {
+            // AI preset actions are never bar rows: the Sparkles button is the popup's AI entry
+            // point, so they must not flood the paginated bar even when enabled.
+            if case .ai = action.chrome.source {
+                return false
+            }
             if disabledIDs.contains(action.id) {
                 return false
             }

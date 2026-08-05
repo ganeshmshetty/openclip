@@ -5,6 +5,12 @@
 import Foundation
 import SwiftUI
 
+extension Notification.Name {
+    /// Posted by `AIServiceManager` after the AI preset list has been written, so observers
+    /// (e.g. `AIActionSync`) can re-register AI actions against the freshly committed list.
+    public static let aiActionPresetsDidChange = Notification.Name("OpenClip.AIActionPresetsDidChange")
+}
+
 @MainActor
 public final class AIServiceManager: ObservableObject {
     public static let shared = AIServiceManager()
@@ -84,6 +90,10 @@ public final class AIServiceManager: ObservableObject {
                let str = String(data: data, encoding: .utf8) {
                 actionPresetsJSON = str
             }
+            // Posted after the value above has committed, so observers always read the fresh list
+            // (objectWillChange fires before @AppStorage lands). AIActionSync keeps the registered
+            // AI actions in step with this list.
+            NotificationCenter.default.post(name: .aiActionPresetsDidChange, object: self)
         }
     }
 
@@ -100,6 +110,16 @@ public final class AIServiceManager: ObservableObject {
             current.append(updated)
         }
         presets = current
+    }
+
+    /// Maps a registered AI action id (`ai.preset.<presetID>`, see `AIAction`) back to its live
+    /// preset, so palette/preferences routing can resolve the preset without touching `AIAction`'s
+    /// internals.
+    public func preset(forActionID actionID: String) -> AIActionPreset? {
+        let prefix = "ai.preset."
+        guard actionID.hasPrefix(prefix) else { return nil }
+        let presetID = String(actionID.dropFirst(prefix.count))
+        return presets.first { $0.id == presetID }
     }
 
     public func resetPresetsToDefault() {

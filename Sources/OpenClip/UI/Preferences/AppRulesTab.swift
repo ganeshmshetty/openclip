@@ -92,10 +92,6 @@ private struct AppRuleRowView: View {
         rule.denyFormatting == true
     }
     
-    private var isClipboardForced: Bool {
-        rule.grabPasteboard == true
-    }
-    
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             // App Icon
@@ -182,23 +178,6 @@ private struct AppRuleRowView: View {
                     Label(
                         isFormattingDisabled ? "Enable Formatting Actions" : "Hide Formatting Actions",
                         systemImage: "textformat"
-                    )
-                }
-                
-                Button {
-                    let updated = AppRule(
-                        bundleIdentifiers: rule.bundleIdentifiers,
-                        denyFormatting: rule.denyFormatting,
-                        denyProbe: rule.denyProbe,
-                        denyPreprobe: rule.denyPreprobe,
-                        grabPasteboard: isClipboardForced ? nil : true,
-                        assumePaste: rule.assumePaste
-                    )
-                    onUpdate(updated)
-                } label: {
-                    Label(
-                        isClipboardForced ? "Use Accessibility Reading" : "Force Clipboard Copy (Cmd+C)",
-                        systemImage: "doc.on.clipboard"
                     )
                 }
                 

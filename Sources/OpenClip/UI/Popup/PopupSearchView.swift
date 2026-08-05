@@ -15,6 +15,10 @@ public struct PopupSearchView: View {
     public let resultsAbove: Bool
     public let onResult: @MainActor (ActionResult) -> Void
     public let onExit: @MainActor () -> Void
+    /// Routes AI preset selections (chrome source `.ai`) to the popup's AI card flow instead of
+    /// `perform`. Passed the registered AI action id (`ai.preset.<presetID>`); nil disables the
+    /// route and falls back to `perform`.
+    public let onRunAI: @MainActor (String) -> Void
 
     @State private var query = ""
     @State private var selectedIndex = 0
@@ -69,13 +73,15 @@ public struct PopupSearchView: View {
         context: ActionContext,
         resultsAbove: Bool,
         onResult: @escaping @MainActor (ActionResult) -> Void,
-        onExit: @escaping @MainActor () -> Void
+        onExit: @escaping @MainActor () -> Void,
+        onRunAI: @escaping @MainActor (String) -> Void = { _ in }
     ) {
         self.catalog = catalog
         self.context = context
         self.resultsAbove = resultsAbove
         self.onResult = onResult
         self.onExit = onExit
+        self.onRunAI = onRunAI
     }
 
     public var body: some View {
@@ -223,6 +229,12 @@ public struct PopupSearchView: View {
     private func runSelected() {
         guard results.indices.contains(selectedIndex) else { return }
         let action = results[selectedIndex].action
+        // AI preset actions render their result in the popup's AI card (same flow as the Sparkles
+        // toolbar), so route them there instead of through `perform`.
+        if case .ai = action.chrome.source {
+            onRunAI(action.id)
+            return
+        }
         Task { @MainActor in
             do {
                 // Same match plumbing as the bar's perform path: thread the visibility match into

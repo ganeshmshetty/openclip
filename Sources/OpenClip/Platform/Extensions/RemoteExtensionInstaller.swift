@@ -20,6 +20,9 @@ public final class RemoteExtensionInstaller: Sendable {
     /// treated as untrusted and rejected.
     public nonisolated static let allowedDownloadHosts: Set<String> = [
         "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com",
+        "raw.githubusercontent.com",
         "getopenclip.vercel.app",
         "openclip.app",
     ]
