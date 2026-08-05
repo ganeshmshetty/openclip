@@ -42,18 +42,24 @@ public struct ActionChrome: Codable, Sendable, Equatable {
     /// True when the action reads or mutates the real text selection (e.g. Copy/Cut) and is
     /// therefore unsafe when the text came from the clipboard rather than a live selection.
     public let requiresLiveSelection: Bool
+    /// True when the action is an AI-mode launcher (the "AI Tools" bar entry). The popup bar
+    /// routes its click into AI mode instead of `perform`, and the search palette excludes it
+    /// (AI presets are already searchable there).
+    public let launchesAI: Bool
 
     public init(
         badge: Badge = .none,
         rowStyle: RowStyle = .standard,
         popupBehavior: PopupBehavior = .perform,
         source: Source = .builtin,
-        requiresLiveSelection: Bool = false
+        requiresLiveSelection: Bool = false,
+        launchesAI: Bool = false
     ) {
         self.badge = badge
         self.rowStyle = rowStyle
         self.popupBehavior = popupBehavior
         self.source = source
         self.requiresLiveSelection = requiresLiveSelection
+        self.launchesAI = launchesAI
     }
 }

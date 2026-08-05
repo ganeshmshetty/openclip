@@ -134,7 +134,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     /// context, or group filtering — sub-actions appear individually, flat. Group rows remain
     /// (their sub-actions are now reachable directly from the palette).
     public var searchCatalog: [any Action] {
-        actions.filter { $0.id != "builtin.completion" }
+        actions.filter { !$0.chrome.launchesAI && $0.id != "builtin.completion" }
     }
 }
 
