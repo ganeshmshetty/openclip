@@ -24,8 +24,9 @@ public struct PopupView: View {
     public let onAIDismiss: (@MainActor () -> Void)?
     /// Called when the hovered action changes (nil when nothing hovered). Drives the hover info bubble.
     public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
-    /// Called with a sub-action/menu bubble content to display (e.g. transform options). Drives the bubble panel.
-    public let onShowBubble: (@MainActor (BubbleContent) -> Void)?
+    /// Opens a scoped palette for a bar row's sub-actions (group rows via `.openSubActions` and the
+    /// AI Tools launcher): the controller resolves + owns the SearchScope and enters search mode.
+    public let onEnteredScopedSearch: (@MainActor (any Action) -> Void)?
     /// True when this is a static preview — hover tracking is disabled entirely so the
     /// preview never reacts to (or leaks into) the real popup's shared hover state.
     private let isStatic: Bool
@@ -66,7 +67,6 @@ public struct PopupView: View {
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
     @State private var isShowingCompletions: Bool = true
-    @State private var isShowingAIMode: Bool = false
     @State private var isProcessingAI: Bool = false
     @State private var aiTask: Task<Void, Never>? = nil
     /// Captured once when the popup appears — never re-read from mouse location to avoid jitter.
@@ -93,7 +93,7 @@ public struct PopupView: View {
         onAIResult: (@MainActor (String, Bool) -> Void)? = nil,
         onAIDismiss: (@MainActor () -> Void)? = nil,
         onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
-        onShowBubble: (@MainActor (BubbleContent) -> Void)? = nil
+        onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil
     ) {
         self.actions = actions
         self.context = context
@@ -103,7 +103,7 @@ public struct PopupView: View {
         self.onAIResult = onAIResult
         self.onAIDismiss = onAIDismiss
         self.onHoveredActionChanged = onHoveredActionChanged
-        self.onShowBubble = onShowBubble
+        self.onEnteredScopedSearch = onEnteredScopedSearch
         self.isStatic = isStatic
         self._hoverState = ObservedObject(wrappedValue: hoverState)
         self._modeStore = ObservedObject(wrappedValue: modeStore)
@@ -280,8 +280,6 @@ public struct PopupView: View {
     private var unifiedHStack: some View {
         if modeStore.mode == .search {
             searchContent
-        } else if isShowingAIMode {
-            aiHStack
         } else if inCompletionMode {
             completionHStack
         } else {
@@ -295,67 +293,19 @@ public struct PopupView: View {
             catalog: ActionCoordinator.shared.searchCatalog,
             context: context,
             resultsAbove: modeStore.searchResultsAbove,
+            scope: modeStore.scope,
             onResult: onResult,
             onExit: onExitSearch,
+            onExitScope: {
+                modeStore.scope = nil
+                onExitSearch()
+            },
             onRunAI: { actionID in
                 guard let preset = aiManager.preset(forActionID: actionID) else { return }
                 onExitSearch()
                 runAIPreset(prompt: preset.prompt)
             }
         )
-    }
-
-    // MARK: - AI Mode Bar Layout
-
-    private var aiHStack: some View {
-        HStack(spacing: 0) {
-            chevronButton(systemImage: "chevron.left", label: "Exit AI tools") {
-                exitAIMode()
-            }
-            
-            let aiPresets = aiManager.enabledPresets.map { ($0.title, $0.prompt) }
-            
-            ForEach(Array(aiPresets.enumerated()), id: \.offset) { index, preset in
-                let (title, prompt) = preset
-                let isLast = index == aiPresets.count - 1
-                let isHovered = hoveredTarget == .aiPreset(index)
-
-                let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
-                
-                Button(action: {
-                    runAIPreset(prompt: prompt)
-                }) {
-                    Text(title)
-                        .font(.system(size: 13, weight: .medium))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .foregroundColor(isHovered ? .white : restForeground)
-                        .frame(maxWidth: 160)
-                        .padding(.horizontal, 10)
-                        .frame(minHeight: 28)
-                        .background(isHovered ? Color.accentColor : Color.clear)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(isProcessingAI)
-                .help(prompt)
-                .accessibilityLabel(title)
-                .popupHoverTarget(.aiPreset(index))
-                .onHover { isHovering in
-                    useLocalHoverFallback(for: .aiPreset(index), isHovering: isHovering)
-                }
-                .overlay(alignment: .trailing) {
-                    if !isLast && !isHovered {
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.12))
-                            .frame(width: 0.6, height: 28)
-                    }
-                }
-            }
-        }
-        .fixedSize()
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .opacity(isProcessingAI ? 0.7 : 1.0)
     }
 
     // MARK: - AI Helpers
@@ -393,12 +343,6 @@ public struct PopupView: View {
                 onAIResult?(message, true)
             }
         }
-    }
-
-    private func exitAIMode() {
-        cancelAITask()
-        isShowingAIMode = false
-        onAIDismiss?()
     }
 
     private func cancelAITask() {
@@ -546,10 +490,10 @@ public struct PopupView: View {
 
         switch action.gesturePolicy.singleClick {
         case .openSubActions:
+            // Group rows (extension groups + the builtin transform group) open a scoped palette of
+            // their children instead of a hover bubble. The controller resolves the SearchScope.
             Button {
-                Task {
-                    onShowBubble?(await menuBubble(for: action))
-                }
+                onEnteredScopedSearch?(action)
             } label: {
                 labelView
             }
@@ -562,10 +506,10 @@ public struct PopupView: View {
             }
         case .showResultBubble, .perform:
             if action.chrome.launchesAI {
-                // The AI Tools launcher opens AI mode instead of performing (chrome-driven, no id
+                // The AI Tools launcher opens the scoped AI-presets palette (chrome-driven, no id
                 // switching); it renders as a normal bar row and paginates like any other action.
                 Button {
-                    isShowingAIMode = true
+                    onEnteredScopedSearch?(action)
                 } label: {
                     labelView
                 }
@@ -710,47 +654,6 @@ public struct PopupView: View {
                 .font(.system(size: 13, weight: .medium))
         }
     }
-
-    /// Registry-driven sub-menu for a group row (extension groups and the builtin transform group).
-    /// Rows are uniform: a sub-action is listed only when it is relevant (`RelevanceProviding`,
-    /// non-conforming actions always show) and carries a one-line preview
-    /// (`PreviewProviding`, default none) as its subtitle. No action-type special-casing.
-    @MainActor
-    private func menuBubble(for action: any Action) async -> BubbleContent {
-        let subs = actions.filter { $0.id.hasPrefix(action.id + ".") }
-        let selectionText = context.selection.text
-
-        var rows: [BubbleRow] = []
-        for sub in subs {
-            guard (sub as? any RelevanceProviding)?.isRelevant(for: selectionText) ?? true else { continue }
-            // Same match plumbing as the bar's `.perform` path: thread the visibility match into the
-            // perform context so placeholders/env see the same match that enabled the row. Computed
-            // here (main actor, selection is fixed) and captured into the `@Sendable` outcome closure.
-            let match = sub.matchInfo(for: context)
-            let performContext = match.map {
-                ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
-            } ?? context
-            let preview = await (sub as? any PreviewProviding)?.previewLine(for: context)
-            rows.append(.option(BubbleOption(
-                title: sub.displayTitle,
-                subtitle: preview,
-                icon: bubbleIcon(for: sub.displayIcon),
-                outcome: .run { try await sub.perform(performContext) }
-            )))
-        }
-        return BubbleContent(
-            title: action.displayTitle,
-            icon: bubbleIcon(for: action.displayIcon),
-            rows: rows,
-            emphasis: .menu
-        )
-    }
-
-    /// Bubble rows render SF Symbols only; iconify/local/URL/text icons have no bubble glyph.
-    private func bubbleIcon(for icon: ActionIcon) -> String? {
-        if case .symbol(let name) = icon { return name }
-        return nil
-    }
 }
 
 @MainActor
@@ -767,7 +670,6 @@ private enum PopupHoverTarget: Hashable {
     case action(Int)
     case completion(Int)
     case chevron
-    case aiPreset(Int)
     case search
 }
 
