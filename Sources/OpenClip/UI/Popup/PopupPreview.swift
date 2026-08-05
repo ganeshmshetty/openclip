@@ -51,7 +51,8 @@ struct PopupPreview: View {
                 context: mockContext,
                 alwaysShowAISparkles: true,
                 hoverState: Self.previewHoverState,
-                isStatic: true
+                isStatic: true,
+                modeStore: PopupModeStore()
             ) { _ in }
                 .scaleEffect(1.1)
                 .padding(.vertical, 8)

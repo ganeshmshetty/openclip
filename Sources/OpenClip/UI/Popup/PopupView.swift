@@ -1,7 +1,8 @@
 // PopupView.swift
 // OpenClip
 //
-// Renders the main floating action bar popup view presenting available actions, transform menus, and inline completion buttons.
+// Renders the main floating action bar popup view presenting available actions, transform menus,
+// inline completion buttons, and (in search mode) the action-search palette.
 import SwiftUI
 import AppKit
 import CoreGraphics
@@ -47,6 +48,12 @@ public struct PopupView: View {
     /// The hover state this bar observes. The real popup uses the shared instance; the
     /// static preview passes its own so the two never affect each other.
     @ObservedObject private var hoverState: PopupHoverState
+    /// The mode this bar observes: the real popup uses the store injected by
+    /// PopupWindowController; the static preview passes a throwaway store.
+    @ObservedObject private var modeStore: PopupModeStore
+    /// Requests entering/leaving search mode; the controller owns the key-window changes.
+    private let onEnterSearch: @MainActor () -> Void
+    private let onExitSearch: @MainActor () -> Void
     @ObservedObject private var aiManager = AIServiceManager.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
@@ -70,6 +77,9 @@ public struct PopupView: View {
         alwaysShowAISparkles: Bool = false,
         hoverState: PopupHoverState = .shared,
         isStatic: Bool = false,
+        modeStore: PopupModeStore = PopupModeStore(),
+        onEnterSearch: @escaping @MainActor () -> Void = {},
+        onExitSearch: @escaping @MainActor () -> Void = {},
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
@@ -90,6 +100,9 @@ public struct PopupView: View {
         self.alwaysShowAISparkles = alwaysShowAISparkles
         self.isStatic = isStatic
         self._hoverState = ObservedObject(wrappedValue: hoverState)
+        self._modeStore = ObservedObject(wrappedValue: modeStore)
+        self.onEnterSearch = onEnterSearch
+        self.onExitSearch = onExitSearch
         self._aiCardAboveBar = State(initialValue: initialAICardAboveBar)
     }
 
@@ -251,13 +264,26 @@ public struct PopupView: View {
 
     @ViewBuilder
     private var unifiedHStack: some View {
-        if isShowingAIMode {
+        if modeStore.mode == .search {
+            searchContent
+        } else if isShowingAIMode {
             aiHStack
         } else if inCompletionMode {
             completionHStack
         } else {
             actionsHStack
         }
+    }
+
+    @ViewBuilder
+    private var searchContent: some View {
+        PopupSearchView(
+            catalog: ActionCoordinator.shared.searchCatalog,
+            context: context,
+            resultsAbove: modeStore.searchResultsAbove,
+            onResult: onResult,
+            onExit: onExitSearch
+        )
     }
 
     // MARK: - AI Mode Bar Layout
@@ -428,6 +454,36 @@ public struct PopupView: View {
                 .popupHoverTarget(.sparkles)
                 .onHover { isHovering in
                     useLocalHoverFallback(for: .sparkles, isHovering: isHovering)
+                }
+            }
+
+            // Action-search affordance: command glyph (never the web-search magnifier). Hidden in
+            // clipboard-fallback mode (Paste + AI only); the hotkey still works there.
+            if !context.selection.isClipboardFallback {
+                let isHovered = hoveredTarget == .search
+                let affordanceForeground: Color = {
+                    switch effectiveTheme {
+                    case "light": return .black.opacity(0.85)
+                    case "dark": return .white.opacity(0.90)
+                    default: return .primary
+                    }
+                }()
+                Button {
+                    onEnterSearch()
+                } label: {
+                    Image(systemName: "command")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(isHovered ? .white : affordanceForeground)
+                        .frame(width: buttonWidth, height: 28)
+                        .background(isHovered ? Color.accentColor : Color.clear)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Search all actions")
+                .accessibilityLabel("Search all actions")
+                .popupHoverTarget(.search)
+                .onHover { isHovering in
+                    useLocalHoverFallback(for: .search, isHovering: isHovering)
                 }
             }
 
@@ -732,6 +788,7 @@ private enum PopupHoverTarget: Hashable {
     case chevron
     case sparkles
     case aiPreset(Int)
+    case search
 }
 
 private struct PopupHoverFramePreferenceKey: PreferenceKey {
