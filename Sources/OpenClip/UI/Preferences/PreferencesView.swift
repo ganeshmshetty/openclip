@@ -182,7 +182,11 @@ public struct PreferencesView: View {
                         case .actions:
                             ActionsTab(
                                 disabledActionIDs: $disabledActionIDs,
-                                disabledPackages: $disabledPackages
+                                disabledPackages: $disabledPackages,
+                                onOpenAI: {
+                                    aiSubTab = .configure
+                                    selectedTab = .ai
+                                }
                             )
                         case .store:
                             ExtensionStoreView()
@@ -398,6 +402,9 @@ struct AppearanceTab: View {
 struct ActionsTab: View {
     @Binding var disabledActionIDs: Set<String>
     @Binding var disabledPackages: Set<String>
+    /// Called by the AI Tools row's gear to open the AI tab. Wired in PreferencesView to switch
+    /// `selectedTab` to `.ai` (and land on the Configure sub-tab where `isAIEnabled` lives).
+    let onOpenAI: () -> Void
     @State private var showingAddActionSheet = false
     @ObservedObject private var coordinator = ActionCoordinator.shared
     
@@ -479,7 +486,7 @@ struct ActionsTab: View {
                         case .packageHeader(let packageID, let title):
                             PackageHeaderRowView(packageID: packageID, title: title, disabledPackages: $disabledPackages)
                         case .action(let action):
-                            ActionRowView(action: action, disabledActionIDs: $disabledActionIDs)
+                            ActionRowView(action: action, disabledActionIDs: $disabledActionIDs, onOpenAI: onOpenAI)
                         }
                     }
                     .onMove(perform: moveRows)
@@ -560,8 +567,16 @@ struct ActionsTab: View {
 struct ActionRowView: View {
     let action: any Action
     @Binding var disabledActionIDs: Set<String>
+    /// Opens the AI tab (AI Tools launcher rows); nil for rows without a nav gear.
+    let onOpenAI: (() -> Void)?
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     @ObservedObject private var aiManager = AIServiceManager.shared
+
+    init(action: any Action, disabledActionIDs: Binding<Set<String>>, onOpenAI: (() -> Void)? = nil) {
+        self.action = action
+        self._disabledActionIDs = disabledActionIDs
+        self.onOpenAI = onOpenAI
+    }
 
     /// AI preset rows share their toggle with the AI tab: enabling/disabling here (or there)
     /// writes the preset's `isEnabled`, the single source of truth. Never touches
@@ -662,9 +677,21 @@ struct ActionRowView: View {
                     .controlSize(.small)
                     .accessibilityLabel("Enable \(action.displayTitle)")
                 
-                // Edit / Configure Button (hidden for AI preset and AI Tools launcher rows — they're
-                // managed in the AI tab)
-                if !isAI && !isAITools {
+                // Edit / Configure Button. AI Tools launcher rows get a gear that opens the AI tab
+                // (where `isAIEnabled` lives); AI preset rows get none; everything else edits via sheet.
+                if isAITools {
+                    if let onOpenAI {
+                        Button(action: onOpenAI) {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: 24, height: 24)
+                        .help("Open AI settings")
+                        .accessibilityLabel("Open AI settings")
+                    }
+                } else if !isAI {
                     Button(action: {
                         showingConfigSheet = true
                     }) {
