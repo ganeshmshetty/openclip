@@ -100,7 +100,7 @@ public struct PreferencesView: View {
                 // Bottom footer icons (Help and GitHub - NO TEXT)
                 HStack(spacing: 14) {
                     Button(action: {
-                        if let url = URL(string: "https://openclip.app/help") {
+                        if let url = URL(string: "https://getopenclip.vercel.app/help") {
                             NSWorkspace.shared.open(url)
                         }
                     }) {
@@ -117,10 +117,9 @@ public struct PreferencesView: View {
                             NSWorkspace.shared.open(url)
                         }
                     }) {
-                        GitHubIconShape()
-                            .fill(Color.primary)
-                            .frame(width: 17, height: 17)
-                            .contentShape(Rectangle())
+                        Image(systemName: "chevron.left.forwardslash.chevron.right")
+                            .font(.system(size: 15))
+                            .foregroundColor(.primary)
                     }
                     .buttonStyle(.plain)
                     .help("GitHub Repository")
@@ -785,141 +784,3 @@ struct AboutTab: View {
     }
 }
 
-struct GitHubIconShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let scale = min(rect.width, rect.height) / 24.0
-        let offsetX = (rect.width - 24.0 * scale) / 2.0
-        let offsetY = (rect.height - 24.0 * scale) / 2.0
-        
-        var path = Path()
-        path.move(to: CGPoint(x: 12 * scale + offsetX, y: 0 * scale + offsetY))
-        
-        path.addCurve(
-            to: CGPoint(x: 0 * scale + offsetX, y: 12 * scale + offsetY),
-            control1: CGPoint(x: 5.37 * scale + offsetX, y: 0 * scale + offsetY),
-            control2: CGPoint(x: 0 * scale + offsetX, y: 5.37 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 8.205 * scale + offsetX, y: 23.385 * scale + offsetY),
-            control1: CGPoint(x: 0 * scale + offsetX, y: 17.31 * scale + offsetY),
-            control2: CGPoint(x: 3.435 * scale + offsetX, y: 21.795 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 9.03 * scale + offsetX, y: 22.815 * scale + offsetY),
-            control1: CGPoint(x: 8.805 * scale + offsetX, y: 23.49 * scale + offsetY),
-            control2: CGPoint(x: 9.03 * scale + offsetX, y: 23.13 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 9.015 * scale + offsetX, y: 20.58 * scale + offsetY),
-            control1: CGPoint(x: 9.03 * scale + offsetX, y: 22.53 * scale + offsetY),
-            control2: CGPoint(x: 9.015 * scale + offsetX, y: 21.585 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 4.98 * scale + offsetX, y: 19.17 * scale + offsetY),
-            control1: CGPoint(x: 6.0 * scale + offsetX, y: 21.135 * scale + offsetY),
-            control2: CGPoint(x: 5.22 * scale + offsetX, y: 19.845 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 3.75 * scale + offsetX, y: 17.475 * scale + offsetY),
-            control1: CGPoint(x: 4.845 * scale + offsetX, y: 18.825 * scale + offsetY),
-            control2: CGPoint(x: 4.26 * scale + offsetX, y: 17.76 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 3.735 * scale + offsetX, y: 16.68 * scale + offsetY),
-            control1: CGPoint(x: 3.33 * scale + offsetX, y: 17.25 * scale + offsetY),
-            control2: CGPoint(x: 2.73 * scale + offsetX, y: 16.695 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 5.58 * scale + offsetX, y: 17.91 * scale + offsetY),
-            control1: CGPoint(x: 4.68 * scale + offsetX, y: 16.665 * scale + offsetY),
-            control2: CGPoint(x: 5.355 * scale + offsetX, y: 17.55 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 9.075 * scale + offsetX, y: 18.9 * scale + offsetY),
-            control1: CGPoint(x: 6.66 * scale + offsetX, y: 19.725 * scale + offsetY),
-            control2: CGPoint(x: 8.385 * scale + offsetX, y: 19.215 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 9.84 * scale + offsetX, y: 17.295 * scale + offsetY),
-            control1: CGPoint(x: 9.18 * scale + offsetX, y: 18.12 * scale + offsetY),
-            control2: CGPoint(x: 9.495 * scale + offsetX, y: 17.595 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 4.38 * scale + offsetX, y: 11.37 * scale + offsetY),
-            control1: CGPoint(x: 7.17 * scale + offsetX, y: 16.995 * scale + offsetY),
-            control2: CGPoint(x: 4.38 * scale + offsetX, y: 15.96 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 5.61 * scale + offsetX, y: 8.145 * scale + offsetY),
-            control1: CGPoint(x: 4.38 * scale + offsetX, y: 10.065 * scale + offsetY),
-            control2: CGPoint(x: 4.845 * scale + offsetX, y: 8.985 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 5.73 * scale + offsetX, y: 4.965 * scale + offsetY),
-            control1: CGPoint(x: 5.49 * scale + offsetX, y: 7.845 * scale + offsetY),
-            control2: CGPoint(x: 5.07 * scale + offsetX, y: 6.615 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 9.03 * scale + offsetX, y: 6.195 * scale + offsetY),
-            control1: CGPoint(x: 5.73 * scale + offsetX, y: 4.965 * scale + offsetY),
-            control2: CGPoint(x: 6.735 * scale + offsetX, y: 4.65 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 12 * scale + offsetX, y: 5.79 * scale + offsetY),
-            control1: CGPoint(x: 9.99 * scale + offsetX, y: 5.925 * scale + offsetY),
-            control2: CGPoint(x: 11.01 * scale + offsetX, y: 5.79 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 14.97 * scale + offsetX, y: 6.195 * scale + offsetY),
-            control1: CGPoint(x: 12.99 * scale + offsetX, y: 5.79 * scale + offsetY),
-            control2: CGPoint(x: 14.01 * scale + offsetX, y: 5.925 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 18.27 * scale + offsetX, y: 4.965 * scale + offsetY),
-            control1: CGPoint(x: 17.265 * scale + offsetX, y: 4.635 * scale + offsetY),
-            control2: CGPoint(x: 18.27 * scale + offsetX, y: 4.965 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 18.39 * scale + offsetX, y: 8.145 * scale + offsetY),
-            control1: CGPoint(x: 18.93 * scale + offsetX, y: 6.615 * scale + offsetY),
-            control2: CGPoint(x: 18.51 * scale + offsetX, y: 7.845 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 19.62 * scale + offsetX, y: 11.37 * scale + offsetY),
-            control1: CGPoint(x: 19.155 * scale + offsetX, y: 8.985 * scale + offsetY),
-            control2: CGPoint(x: 19.62 * scale + offsetX, y: 10.05 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 14.145 * scale + offsetX, y: 17.295 * scale + offsetY),
-            control1: CGPoint(x: 19.62 * scale + offsetX, y: 15.975 * scale + offsetY),
-            control2: CGPoint(x: 16.815 * scale + offsetX, y: 16.995 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 14.955 * scale + offsetX, y: 19.515 * scale + offsetY),
-            control1: CGPoint(x: 14.58 * scale + offsetX, y: 17.67 * scale + offsetY),
-            control2: CGPoint(x: 14.955 * scale + offsetX, y: 18.39 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 14.94 * scale + offsetX, y: 22.815 * scale + offsetY),
-            control1: CGPoint(x: 14.955 * scale + offsetX, y: 21.12 * scale + offsetY),
-            control2: CGPoint(x: 14.94 * scale + offsetX, y: 22.41 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 15.765 * scale + offsetX, y: 23.385 * scale + offsetY),
-            control1: CGPoint(x: 14.94 * scale + offsetX, y: 23.13 * scale + offsetY),
-            control2: CGPoint(x: 15.165 * scale + offsetX, y: 23.49 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 24 * scale + offsetX, y: 12 * scale + offsetY),
-            control1: CGPoint(x: 20.565 * scale + offsetX, y: 21.795 * scale + offsetY),
-            control2: CGPoint(x: 24 * scale + offsetX, y: 17.31 * scale + offsetY)
-        )
-        path.addCurve(
-            to: CGPoint(x: 12 * scale + offsetX, y: 0 * scale + offsetY),
-            control1: CGPoint(x: 24 * scale + offsetX, y: 5.37 * scale + offsetY),
-            control2: CGPoint(x: 18.63 * scale + offsetX, y: 0 * scale + offsetY)
-        )
-        path.closeSubpath()
-        return path
-    }
-}
