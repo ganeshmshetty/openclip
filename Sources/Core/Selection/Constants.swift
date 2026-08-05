@@ -22,6 +22,9 @@ public enum Constants {
     /// Action-search palette sizing: visible result rows and result row height.
     public static let searchMaxRows: Int = 3
     public static let searchResultRowHeight: CGFloat = 32
+    /// Fraction of an extra result row shown beyond `searchMaxRows` so the next action peeks,
+    /// hinting that the list scrolls.
+    public static let searchPeekRowFraction: CGFloat = 0.5
     /// Height cap for the popup panel while in search mode (field row + 3 result rows + padding).
     public static let searchMaxHeight: CGFloat = 176
     /// Delay before the hover info bubble appears (400ms).

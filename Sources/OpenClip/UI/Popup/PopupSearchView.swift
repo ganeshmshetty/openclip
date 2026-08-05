@@ -56,6 +56,14 @@ public struct PopupSearchView: View {
         min(results.count, Constants.searchMaxRows)
     }
 
+    /// Scroll-viewport height: full rows up to `searchMaxRows`, plus a partial extra row when
+    /// more results exist so the next action peeks and signals scrollability.
+    private var resultsViewportHeight: CGFloat {
+        let base = CGFloat(visibleResultCount) * Constants.searchResultRowHeight
+        guard results.count > visibleResultCount else { return base }
+        return base + Constants.searchPeekRowFraction * Constants.searchResultRowHeight
+    }
+
     public init(
         catalog: [any Action],
         context: ActionContext,
@@ -133,7 +141,7 @@ public struct PopupSearchView: View {
                     .foregroundColor(isEscHovered ? .white : PopupThemeModel.restSecondary(for: effectiveTheme))
                     .frame(minWidth: 24)
                     .padding(.horizontal, 8)
-                    .frame(maxHeight: .infinity)
+                    .padding(.vertical, 3)
                     .background(
                         isEscHovered ? Color.accentColor : Color.clear,
                         in: RoundedRectangle(cornerRadius: 5, style: .continuous)
@@ -142,6 +150,8 @@ public struct PopupSearchView: View {
             }
             .buttonStyle(.plain)
             .help("Exit search")
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
             .searchHoverTarget(.esc)
             .onHover { hovering in
                 useLocalHoverFallback(for: .esc, isHovering: hovering)
@@ -161,7 +171,7 @@ public struct PopupSearchView: View {
                     }
                 }
             }
-            .frame(height: CGFloat(visibleResultCount) * Constants.searchResultRowHeight)
+            .frame(height: resultsViewportHeight)
             .onChange(of: selectedIndex) { _, newValue in
                 guard newValue < results.count else { return }
                 proxy.scrollTo(results[newValue].id)
