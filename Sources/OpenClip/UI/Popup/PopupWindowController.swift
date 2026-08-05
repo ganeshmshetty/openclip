@@ -64,6 +64,9 @@ public class PopupWindowController {
         
         let panel = self.panel ?? PopupPanel()
         self.panel = panel
+        // A fresh show is an intentional placement: never re-anchor it (stale search-mode pinning
+        // must not correct the new frame). enterSearch() re-enables pinning for growth.
+        panel.pinBottomEdgeOnResize = false
 
         // Pre-compute card direction from real screen position
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
@@ -142,11 +145,38 @@ public class PopupWindowController {
         previousFrontmostApp = NSWorkspace.shared.frontmostApplication
         modeStore.mode = .search
         panel?.allowsKey = true
+        // Content-driven growth keeps the panel's bottom edge fixed (results render above the field,
+        // so growth must extend upward); see PopupPanel.setFrame.
+        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         panel?.makeKeyAndOrderFront(nil)
+        // Explicitly make the search field first responder on the next run-loop turn. A @FocusState
+        // request issued during the mode-change render can be silently dropped on macOS before the
+        // panel has finished becoming key (worst on the click-path: the click that opened search).
+        Task { @MainActor in
+            await Task.yield()
+            self.focusSearchField()
+        }
+    }
+
+    private func focusSearchField() {
+        guard let panel, panel.isVisible, modeStore.mode == .search else { return }
+        guard let field = findTextInput(in: panel.contentView) else { return }
+        panel.makeFirstResponder(field)
+    }
+
+    private func findTextInput(in view: NSView?) -> NSView? {
+        guard let view else { return nil }
+        if view is NSTextView || view is NSTextField { return view }
+        for subview in view.subviews {
+            if let found = findTextInput(in: subview) { return found }
+        }
+        return nil
     }
 
     /// Leave search mode back to the actions bar: restore the never-key invariant and hand
-    /// keyboard focus back to the source app. Never hides the popup.
+    /// keyboard focus back to the source app. Never hides the popup. The bottom-edge pin is kept
+    /// active through the shrink so the bar returns to the field's spot (results-above case);
+    /// it is cleared by hide() and the next show(for:).
     public func exitSearch() {
         guard modeStore.mode == .search else { return }
         modeStore.mode = .actions
@@ -377,7 +407,10 @@ public class PopupWindowController {
     
     // MARK: - Panel Resize
 
-    /// Resize the bar-only panel, keeping the bar's top (maxY) fixed so it doesn't jump.
+    /// Resize the bar/search panel, keeping the field's edge fixed so entering search mode never
+    /// jumps the popup. With results below the field the field is at the palette top (anchor the top
+    /// edge, grow down); with results above the field the field is at the palette bottom (anchor the
+    /// bottom edge, grow up).
     private func resizePanel(to proposedSize: CGSize) {
         guard let panel, panel.isVisible else { return }
         var size = sanitizedPopupSize(proposedSize)
@@ -389,10 +422,16 @@ public class PopupWindowController {
         size.height = min(size.height, Constants.searchMaxHeight)
         let current = panel.frame.size
         if abs(current.width - size.width) < 1, abs(current.height - size.height) < 1 { return }
-        // Bar-only panel: keep maxY fixed, resize downward (though height rarely changes now)
-        let newOriginY = panel.frame.maxY - size.height
-        panel.setFrame(CGRect(x: panel.frame.origin.x, y: newOriginY,
-                              width: size.width, height: size.height), display: true)
+        if modeStore.searchResultsAbove {
+            // Field at the palette bottom: keep the bottom edge fixed, grow upward.
+            panel.setFrame(CGRect(x: panel.frame.origin.x, y: panel.frame.minY,
+                                  width: size.width, height: size.height), display: true)
+        } else {
+            // Field at the palette top: keep the top edge fixed, grow downward.
+            let newOriginY = panel.frame.maxY - size.height
+            panel.setFrame(CGRect(x: panel.frame.origin.x, y: newOriginY,
+                                  width: size.width, height: size.height), display: true)
+        }
     }
 
     private func sanitizedPopupSize(_ raw: CGSize?) -> CGSize {
@@ -422,6 +461,7 @@ public class PopupWindowController {
         longPressFired = false
         modeStore.mode = .actions
         panel?.allowsKey = false
+        panel?.pinBottomEdgeOnResize = false
         panel?.orderOut(nil)
         removeMonitors()
         currentContext = nil

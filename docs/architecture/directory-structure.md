@@ -16,6 +16,7 @@ Sources/
 │   │   ├── ActionCustomizationManager.swift  # User action overrides (title/icon); delegates I/O to SettingsStore
 │   │   ├── ActionPresentation.swift          # Presentation styling generator
 │   │   ├── ActionRegistry.swift              # Storage, ordering, and transform default-on/off policy
+│   │   ├── ActionSearch.swift                # Popup mode enum + pure substring matcher for the action-search palette
 │   │   ├── GroupAction.swift                 # Pure group-row action (chrome .showTransformMenu); perform → .none
 │   │   ├── KeyPressSpec.swift                # Key-press spec ("mod+mod+key") parsed from manifest keyPress
 │   │   ├── BubbleContent.swift               # Popup bubble value-type model (rows/options/emphasis)
@@ -28,6 +29,7 @@ Sources/
 │   │   ├── CustomAction.swift                # Custom action domain model
 │   │   ├── ExtensionOption.swift             # Extension option models
 │   │   ├── ModifierFlags.swift               # Keyboard modifier flags
+│   │   ├── MathEvaluator.swift               # Deterministic exception-free arithmetic parser (replaces NSExpression; used by CalculateAction)
 │   │   ├── PopupGesturePolicy.swift          # Derived popup interaction policy (click/long-press/hover) from chrome + conformance
 │   │   ├── ResultBubbleProviding.swift       # Opt-in PreviewProviding / ResultBubbleProviding protocols for the bubble
 │   │   ├── URLTemplateAction.swift           # Web search / URL template action
@@ -84,7 +86,7 @@ Sources/
     │   │   ├── KeychainActionOptionStore.swift  # Composite option store; .secret options → Keychain
     │   │   ├── OpenClipSnippetParser+DefaultFactory.swift
     │   │   └── RemoteExtensionInstaller.swift
-    │   ├── HotkeyManager.swift               # Global shortcut manager
+    │   ├── HotkeyManager.swift               # Global shortcut manager (⌥⌘C toggles popup actions → search → dismiss when visible)
     │   ├── InstalledAppsScanner.swift        # App scanner
     │   ├── KeychainStore.swift               # Generic-password SecItem wrapper for sensitive credentials (AI API key)
     │   ├── LaunchAtLoginManager.swift        # Login item manager
@@ -104,12 +106,14 @@ Sources/
         │   └── RecommendedExtensionsView.swift   # Top store extensions by downloadCount + Install File
         ├── Popup/                            # Floating popup panel
         │   ├── BubbleCardView.swift            # Reusable bubble renderer (info/result/menu) for hover info, results, sub-actions
-        │   ├── PopupPanel.swift                # NSPanel subclass
+        │   ├── PopupModeStore.swift            # Shared observable actions↔search mode + resultsAbove; preview passes a throwaway store
+        │   ├── PopupPanel.swift                # NSPanel subclass (scoped allowsKey + bottom-edge pin on content-driven resize)
         │   ├── PopupPositioner.swift           # Frame math & screen clamping (pure static, no singletons)
         │   ├── PopupPreview.swift              # Static popup bar preview (fixed canonical actions; Preferences Appearance tab + onboarding Finish)
+        │   ├── PopupSearchView.swift           # Action-search palette: field + ranked results as one surface with the bar
         │   ├── PopupThemeSelector.swift        # Theme control: System/Light/Dark apart from Glass; storage popupTheme + popupThemeColor
-        │   ├── PopupView.swift               # SwiftUI popup bar
-        │   └── PopupWindowController.swift   # Window lifecycle + bubble panel + hover/long-press timers
+        │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode branch + ⌘ affordance)
+        │   └── PopupWindowController.swift   # Window lifecycle + bubble panel + hover/long-press timers + popup mode state machine
         └── Preferences/                      # Settings & preferences views
             ├── ActionAppearanceFields.swift
             ├── AddCustomActionSheet.swift
