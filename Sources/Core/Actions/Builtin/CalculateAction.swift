@@ -94,16 +94,15 @@ public struct CalculateAction: ConfigurableAction, ResultBubbleProviding {
             .replacingOccurrences(of: "÷", with: "/")
             .replacingOccurrences(of: ",", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         // Ensure string only contains digits, math operators, spaces, parentheses, and dots
         let allowed = CharacterSet(charactersIn: "0123456789.+-*/%() ")
-        guard sanitized.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return nil }
-        
-        let expression = NSExpression(format: sanitized)
-        guard let value = expression.expressionValue(with: nil, context: nil) as? NSNumber else {
-            return nil
-        }
-        return value.doubleValue
+        guard !sanitized.isEmpty,
+              sanitized.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return nil }
+
+        // MathEvaluator parses deterministically and returns nil for malformed input; NSExpression
+        // used to throw an uncaught Objective-C exception here (e.g. on a bare "+" selection).
+        return MathEvaluator.evaluate(sanitized)
     }
     
     private func formatResult(_ value: Double) -> String {

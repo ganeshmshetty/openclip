@@ -11,7 +11,8 @@
 
 **OpenClip** is a lightweight macOS (14.0+) floating popup utility in Swift. It reads selected
 text, presents contextual actions (copy/cut/paste, definitions, web search, scripts, extensions),
-and runs platform side-effects.
+and runs platform side-effects. A ⌥⌘C hotkey toggles the popup bar into an **action-search palette**
+that filters the full action catalog (enabled and disabled) without leaving the popup.
 
 - **Core** (Swift Package): pure domain models, actions, rules, selection logic, settings,
   manifest parsers. No `AppKit`/`SwiftUI`.
@@ -30,7 +31,7 @@ Prefer `scripts/` over raw `xcodebuild`/`xcodegen`:
 | Regenerate Xcode project after adding/deleting Swift files (MANDATORY) | `xcodegen generate` |
 | Build (Debug) + launch | `./scripts/dev_run.sh` |
 | Build (Release) + package `build/OpenClip.zip` | `./scripts/package_app.sh` |
-| Full test suite | `./scripts/test.sh` |
+| Full test suite (can hang; wrap in a timeout) | `timeout -k 10 600 ./scripts/test.sh` |
 | Single test class | `./scripts/test.sh SettingsStoreTests` |
 | Clean DerivedData + build artifacts | `./scripts/clean.sh` |
 | Install a local extension/snippet into `~/.openclip/extensions` | `./scripts/install_extension.sh <path>` |
@@ -47,9 +48,11 @@ OpenClip enforces strict single-responsibility subsystems. Read what's relevant 
 - **Known debt / current-state realities** (UserDefaults → `SettingsStore` migration, singleton
   wiring, latent issues) — `docs/architecture/known-debt.md`
 - **Annotated directory tree** — `docs/architecture/directory-structure.md`
-- **Popup panel internals** (never-key window, hover state, positioning, preview isolation) —
-  `docs/architecture/popup-window.md`
+- **Popup panel internals** (never-key window, hover state, positioning, preview isolation,
+  action-search palette + panel-growth anchoring) — `docs/architecture/popup-window.md`
 - **Text selection & retrieval** (incl. clipboard fallback) — `docs/architecture/text-selection.md`
+- **Action-search palette** (search catalog/matcher, popup mode state machine, scoped key
+  exception) — `Sources/Core/Actions/ActionSearch.swift`, `Sources/OpenClip/UI/Popup/PopupSearchView.swift`
 
 ---
 
@@ -92,6 +95,11 @@ These change behavior — keep them.
 - **Hover state = one shared singleton + an opt-in static mode.** Real popup observes
   `PopupHoverState.shared`; any other `PopupView` gets its own `hoverState:` + `isStatic: true`
   (early-return in `updateHoveredTarget`/`useLocalHoverFallback`).
+- **Content-driven panel growth re-anchors in `PopupPanel.setFrame`.** The hosting view auto-resizes
+  the panel top-anchored with no controller callback (`onContentSizeChange`/`sizingOptions` have no
+  effect on this auto-resize); `pinBottomEdgeOnResize` keeps the bottom edge fixed so search results
+  above the field don't shove the popup off the cursor. `show(for:)`/`hide()` clear the pin — don't
+  work around the auto-resize with preference keys or resize callbacks.
 - **Shortcut with no selection falls back to the clipboard.** `HotkeyManager` reads the pasteboard
   and sets `isClipboardFallback`; the popup then shows Paste + AI only.
 
@@ -112,9 +120,12 @@ These change behavior — keep them.
 6. **Update file-level doc comments** when a file's responsibilities change.
 8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
    hang in automated sessions, so prefer the gated build (`timeout -k 5 60 … build`).
-9. **Popup must never be key.** No `canBecomeKey`/`canBecomeMain`/`makeKey()`; keyboard dismissal
-   runs through the global (AX) event monitor only — observation-only, so keystrokes stay in the
-   source app.
+9. **Popup must never be key — except the scoped action-search exception.** `PopupPanel.allowsKey`
+   enables key status only in search mode, with focus forced via `focusSearchField()` on the next
+   run-loop turn (a `@FocusState`-in-onAppear request is silently dropped on macOS); on exit/hide,
+   `previousFrontmostApp` is re-activated. No other `canBecomeKey`/`canBecomeMain`/`makeKey()`;
+   keyboard dismissal runs through the global (AX) event monitor only — observation-only, so
+   keystrokes stay in the source app.
 
 ---
 

@@ -18,6 +18,7 @@ public struct PopupSearchView: View {
 
     @State private var query = ""
     @State private var selectedIndex = 0
+    @State private var isEscHovered = false
     @FocusState private var isFocused: Bool
 
     private var searchIndex: [ActionSearchIndex] {
@@ -101,9 +102,22 @@ public struct PopupSearchView: View {
                     }
                     return .ignored
                 }
-            Text("esc")
-                .font(.caption2)
-                .foregroundColor(.secondary)
+            Button(action: onExit) {
+                Text("esc")
+                    .font(.caption2)
+                    .foregroundColor(isEscHovered ? .white : .secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(
+                        isEscHovered ? Color.accentColor : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Exit search")
+            .onHover { hovering in
+                isEscHovered = hovering
+            }
         }
         .padding(.horizontal, 12)
         .frame(height: 36)
@@ -135,7 +149,7 @@ public struct PopupSearchView: View {
             runSelected()
         } label: {
             HStack(spacing: 8) {
-                iconView(for: item.action.displayIcon)
+                iconView(for: rowIcon(for: item.action))
                     .font(.system(size: 13, weight: .medium))
                     .frame(width: 16)
                     .foregroundColor(isSelected ? .white : .primary)
@@ -194,11 +208,32 @@ public struct PopupSearchView: View {
         return parts.joined(separator: " ")
     }
 
+    /// Rows are strictly [icon | text]: a text icon in the icon column would duplicate the title, so
+    /// resolve symbol-first (custom override, then the action's SF Symbol preference), matching the
+    /// preferences table.
+    private func rowIcon(for action: any Action) -> ActionIcon {
+        switch action.displayIcon {
+        case .symbol, .url, .local:
+            return action.displayIcon
+        case .text:
+            if let configurable = action as? any ConfigurableAction {
+                return .symbol(configurable.preferenceIconName)
+            }
+            return action.displayIcon
+        }
+    }
+
     @ViewBuilder
     private func iconView(for icon: ActionIcon) -> some View {
         switch icon {
         case .symbol(let name):
-            Image(systemName: name)
+            if name.contains(":") {
+                // Iconify format "prefix:name" — render via SDWebImage + SVGCoder (matches the bar).
+                AnyIconView(iconId: name)
+                    .frame(width: 14, height: 14)
+            } else {
+                Image(systemName: name)
+            }
         case .text(let text):
             Text(text).font(.system(size: 11))
         case .url(let url):

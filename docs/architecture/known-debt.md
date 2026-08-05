@@ -47,6 +47,36 @@ areas; stale debt notes are worse than none.
 - **`OpenClipSnippetParser` is annotated `@MainActor`** (it should be a pure text parser). Removing
   that is planned, not done.
 
+## Action-Search Palette & Popup Growth
+
+- **Content-driven panel growth has no controller callback.** The `NSHostingView` auto-resizes the
+  panel window top-anchored when its SwiftUI content grows (e.g. entering search mode);
+  `onPreferenceChange`/`onContentSizeChange` never fires for this and `sizingOptions` has no effect.
+  The only reliable hook is `PopupPanel.setFrame` (`PopupPanel.swift:42`): when
+  `pinBottomEdgeOnResize` is set it keeps the bottom edge fixed so results-above-the-field growth
+  never shoves the popup. The pin stays active through the search→bar collapse (Esc no longer jumps
+  the popup) and is cleared by `show(for:)` (`PopupWindowController.swift:69`) and `hide()`
+  (`:464`) before intentional placement.
+- **Search mode is the scoped key exception to the never-key rule.** `PopupPanel.allowsKey`
+  enables `canBecomeKey` only in search mode (`PopupPanel.swift:15,34`). A `@FocusState`-in-onAppear
+  request is silently dropped on macOS, so focus is forced via `focusSearchField()` on the next
+  run-loop turn (`PopupWindowController.swift:161`); `previousFrontmostApp` is captured on
+  `enterSearch` (`:145`) and re-activated on `exitSearch`/`hide`.
+- **Search mode suspends popup dismissal.** The distance auto-dismiss and the key/scroll dismissals
+  in `handleEvent` are skipped while `modeStore.mode == .search` (`PopupWindowController.swift:544,564,572`),
+  so typing with the mouse elsewhere doesn't close the palette.
+- **`MathEvaluator` replaced crash-prone `NSExpression`.** `CalculateAction` used to run
+  `NSExpression(format:)`, which throws an **uncaught Objective-C exception** on malformed selection
+  text like `+` or `1+` (crash). The pure-Swift `MathEvaluator` (`Sources/Core/Actions/MathEvaluator.swift`)
+  returns nil (never traps) and properly supports `%` modulo. Regression coverage in
+  `Tests/OpenClipTests/CalculateActionTests.swift`.
+- **Search rows render icons strictly `[icon | text]`.** A `.text` icon in the icon column would
+  duplicate the title, so `PopupSearchView.rowIcon` falls back to `ConfigurableAction.preferenceIconName`
+  (`PopupSearchView.swift:214`); Iconify-format symbols (`prefix:name`) render via `AnyIconView`
+  matching the bar (`:230`).
+- **Search sizing constants:** `Constants.searchMaxHeight` (176), `searchMaxRows` (3),
+  `searchResultRowHeight` (32) — `Sources/Core/Selection/Constants.swift:23`.
+
 ## Unused / Latent
 
 - **`ActionContext.modifiers` is currently unused.** No action reads it; `PopupWindowController`

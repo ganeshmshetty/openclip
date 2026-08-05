@@ -129,6 +129,7 @@
 		9A8000B4F562A79A1B636061 /* ActionResultAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 364218FC07B793D119A1CE17 /* ActionResultAdapterTests.swift */; };
 		9AB9ED8B8D3061F52C183CB8 /* ResultBubbleProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8616913506E33AA6AB043BA4 /* ResultBubbleProviding.swift */; };
 		9B2C92B98C80BB5FCC596CC3 /* ExtensionsStoreIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA880751E87F795D5A87C8F /* ExtensionsStoreIntegrationTests.swift */; };
+		A0FB8CDFC556B5B10CED023B /* MathEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37B15A81CCA6D36DF0183BA /* MathEvaluator.swift */; };
 		A14729C1ADC7E7C780F75E60 /* KeyPressSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71D66B03CE90BB5DD34187BD /* KeyPressSpec.swift */; };
 		A32E8105B852A0AF20AC8945 /* PopupPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFEE1DAE171FE965EB13F090 /* PopupPanelTests.swift */; };
 		A4B07F7C0AA32D61F32510D5 /* DynamicActionConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3675FDD7BC06CF3B3CBDA003 /* DynamicActionConfigView.swift */; };
@@ -353,6 +354,7 @@
 		C0B0960E3A7EF80331F08063 /* CopyAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyAction.swift; sourceTree = "<group>"; };
 		C23C73042D592446C69337A8 /* ActionMatchInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionMatchInfo.swift; sourceTree = "<group>"; };
 		C29A7771E75FA4091D2066E2 /* ConfigurationRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurationRequest.swift; sourceTree = "<group>"; };
+		C37B15A81CCA6D36DF0183BA /* MathEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathEvaluator.swift; sourceTree = "<group>"; };
 		C5D1E29A447351B335A4C2A4 /* OpenURLAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenURLAction.swift; sourceTree = "<group>"; };
 		C5D5D2263A84CD1657679210 /* ShellProcessRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellProcessRunner.swift; sourceTree = "<group>"; };
 		C5FC00AC73CC488DBF7F7240 /* SearchAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchAction.swift; sourceTree = "<group>"; };
@@ -663,6 +665,7 @@
 				B7534A2D6FD5368B237CB5C5 /* ExtensionOption.swift */,
 				B0ACC75077CD6CBA3991371E /* GroupAction.swift */,
 				71D66B03CE90BB5DD34187BD /* KeyPressSpec.swift */,
+				C37B15A81CCA6D36DF0183BA /* MathEvaluator.swift */,
 				0287D4C35BF5F5C6196903B7 /* MenuDecoratedAction.swift */,
 				0F4DAB73B13C780B669746CE /* ModifierFlags.swift */,
 				E4A5A16510BF970D4F778BA8 /* PopupGesturePolicy.swift */,
@@ -1022,6 +1025,7 @@
 				8A76237BE8A09680AB8B3350 /* ExtensionsModels.swift in Sources */,
 				5C6D928545D3358F1F1FBE82 /* GroupAction.swift in Sources */,
 				A14729C1ADC7E7C780F75E60 /* KeyPressSpec.swift in Sources */,
+				A0FB8CDFC556B5B10CED023B /* MathEvaluator.swift in Sources */,
 				3AF0B64A9CA529B87AF60C5C /* MenuDecoratedAction.swift in Sources */,
 				DEEE0BCFD9DB9C3754D01774 /* ModifierFlags.swift in Sources */,
 				9A5AB557F078A06A470B696F /* OpenClipSnippetParser.swift in Sources */,

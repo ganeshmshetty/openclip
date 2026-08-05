@@ -14,6 +14,7 @@ OpenClip Workspace
 │ ├── Pure domain models (Action, ActionChrome, ActionResult, SelectionContext)
 │ ├── Selection detection contracts (TextRetrieving, SelectionMonitoring, SelectionCoordinator)
 │ ├── Central action catalog & ordering (ActionRegistry, ActionCoordinator)
+│ ├── Action-search matcher & popup mode (ActionSearch)
 │ ├── Strongly-typed settings engine (SettingsStore, SettingKey)
 │ ├── Application policy rules (AppRule, RuleEngine)
 │ └── Pure snippet & manifest parsing (OpenClipSnippetParser, ExtensionManifest)
@@ -78,6 +79,7 @@ graph TD
 ### 6. Action Coordinator & Composition — [`ActionCoordinator`](../../Sources/Core/Actions/ActionCoordinator.swift)
 - **Responsibility**: Orchestrates initial state loading, registers builtins, and connects disk extensions (including GUI-authored manifest packages) to the central `ActionRegistry`.
 - **Strict Rule**: `ExtensionManager` does not couple directly to the registry; it reports changes through `onRegister`/`onUnregister` callbacks wired by `ActionCoordinator.loadInitialState()`.
+- **Search catalog**: `ActionCoordinator.searchCatalog` (→ `ActionRegistry.searchCatalog`) exposes the **full** registered catalog — enabled and disabled, no context/visibility filtering — for the popup's action-search palette; [`ActionSearch.search`](../../Sources/Core/Actions/ActionSearch.swift) ranks it.
 
 ---
 

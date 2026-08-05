@@ -201,7 +201,7 @@ public struct PopupView: View {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .stroke(glassBorderColor, lineWidth: 1.0)
                         )
-                        .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
+                        .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
                 } else {
                     unifiedHStack
                         .background(
@@ -213,7 +213,7 @@ public struct PopupView: View {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .stroke(glassBorderColor, lineWidth: 1.0)
                         )
-                        .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
+                        .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
                 }
             } else {
                 unifiedHStack
@@ -223,7 +223,7 @@ public struct PopupView: View {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(opaqueBorder, lineWidth: 1.0)
                     )
-                    .shadow(color: .black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 10, x: 0, y: 4)
+                    .shadow(color: .black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 6, x: 0, y: 3)
             }
         }
 

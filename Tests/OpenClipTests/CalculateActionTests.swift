@@ -74,4 +74,116 @@ final class CalculateActionTests: XCTestCase {
         let bubble = await action.makeBubble(for: context)
         XCTAssertNil(bubble)
     }
+
+    // MARK: - Malformed Input Regression (crash fix)
+
+    /// Previously, "12 + 4.5" worked but a bare operator or malformed expression crashed the app:
+    /// NSExpression(format:) throws an uncaught Objective-C exception. These must all be treated as
+    /// "not calculable" (disabled, no crash) rather than trapping.
+    @MainActor
+    func testMalformedExpressionsAreDisabledAndDoNotCrash() {
+        let action = CalculateAction()
+        let app = AppIdentity(NSRunningApplication.current)
+        for bad in ["+", "-", "*", "/", "%", "1+", "(1+", "1+2)", "2..5", "1 1", "(", "1+*2", "1 % 0", "5/0"] {
+            let context = ActionContext(
+                selection: SelectionContext(text: bad, sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+                modifiers: []
+            )
+            XCTAssertFalse(action.isEnabled(for: context),
+                           "\(bad) must be treated as not calculable (and must not crash)")
+        }
+    }
+
+    @MainActor
+    func testModuloExpressionEvaluates() async throws {
+        UserDefaults.standard.removeObject(forKey: "action.calculate.mode")
+        let action = CalculateAction()
+        let app = AppIdentity(NSRunningApplication.current)
+        let context = ActionContext(
+            selection: SelectionContext(text: "5 % 2", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+            modifiers: []
+        )
+        XCTAssertTrue(action.isEnabled(for: context), "5 % 2 should be calculable")
+        let result = try await action.perform(context)
+        if case .paste(let newText) = result {
+            XCTAssertEqual(newText, "1", "5 % 2 should equal 1")
+        } else {
+            XCTFail("Expected paste result for modulo expression")
+        }
+    }
+
+    @MainActor
+    func testUnaryMinusAndParenthesesEvaluate() async throws {
+        UserDefaults.standard.removeObject(forKey: "action.calculate.mode")
+        let action = CalculateAction()
+        let app = AppIdentity(NSRunningApplication.current)
+        let cases: [(input: String, expected: String)] = [
+            ("-5", "-5"),
+            ("(-5)", "-5"),
+            ("1-(-2)", "3"),
+            ("(1+2)*3", "9")
+        ]
+        for testCase in cases {
+            let context = ActionContext(
+                selection: SelectionContext(text: testCase.input, sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+                modifiers: []
+            )
+            XCTAssertTrue(action.isEnabled(for: context), "\(testCase.input) should be calculable")
+            let result = try await action.perform(context)
+            if case .paste(let newText) = result {
+                XCTAssertEqual(newText, testCase.expected, "\(testCase.input) should equal \(testCase.expected)")
+            } else {
+                XCTFail("Expected paste result for \(testCase.input)")
+            }
+        }
+    }
+
+    // MARK: - MathEvaluator (deterministic parser, replaces crash-prone NSExpression)
+
+    func testMathEvaluatorBasicArithmetic() {
+        let cases: [(input: String, expected: Double)] = [
+            ("12 + 4.5", 16.5),
+            ("100 * 2.5", 250),
+            ("1 + 2 - 3 * 4 / 2", -3),
+            ("5 % 2", 1),
+            (".5 + 0.5", 1)
+        ]
+        for testCase in cases {
+            guard let value = MathEvaluator.evaluate(testCase.input) else {
+                return XCTFail("\(testCase.input) should evaluate")
+            }
+            XCTAssertEqual(value, testCase.expected, accuracy: 0.0001)
+        }
+    }
+
+    func testMathEvaluatorUnaryAndParens() {
+        let cases: [(input: String, expected: Double)] = [
+            ("-5", -5),
+            ("(-5)", -5),
+            ("1-(-2)", 3),
+            ("(1+2)*3", 9)
+        ]
+        for testCase in cases {
+            guard let value = MathEvaluator.evaluate(testCase.input) else {
+                return XCTFail("\(testCase.input) should evaluate")
+            }
+            XCTAssertEqual(value, testCase.expected, accuracy: 0.0001)
+        }
+    }
+
+    func testMathEvaluatorRejectsMalformed() {
+        XCTAssertNil(MathEvaluator.evaluate("+"))
+        XCTAssertNil(MathEvaluator.evaluate("-"))
+        XCTAssertNil(MathEvaluator.evaluate("1+"))
+        XCTAssertNil(MathEvaluator.evaluate("1+*2"))
+        XCTAssertNil(MathEvaluator.evaluate("()"))
+        XCTAssertNil(MathEvaluator.evaluate("("))
+        XCTAssertNil(MathEvaluator.evaluate("1+2)"))
+        XCTAssertNil(MathEvaluator.evaluate("2..5"))
+        XCTAssertNil(MathEvaluator.evaluate("1 1"))
+        XCTAssertNil(MathEvaluator.evaluate("1/0"))
+        XCTAssertNil(MathEvaluator.evaluate("5 % 0"))
+        XCTAssertNil(MathEvaluator.evaluate(""))
+        XCTAssertNil(MathEvaluator.evaluate("hello"))
+    }
 }
