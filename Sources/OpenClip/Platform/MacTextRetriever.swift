@@ -69,69 +69,77 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
     // MARK: - Strategy 1: AX Direct
 
-    /// Read `kAXSelectedTextAttribute` and optional `kAXBoundsForRangeParameterizedAttribute` from the focused UI element.
+    /// Read selected text directly using Accessibility APIs:
+    /// 1. Focused UI element
+    /// 2. Hit-test element under mouse cursor (`AXUIElementCopyElementAtPosition`)
+    /// 3. Ancestor hierarchy walk (up to 4 levels)
     private func strategyAXDirect() async -> TextResult? {
         return await withCheckedContinuation { continuation in
-            // Run on a detached task so we don't block the caller's executor.
             Task.detached { [logger] in
                 let systemWide = AXUIElementCreateSystemWide()
+                
+                // 1. Try focused UI element
                 var focusedRef: CFTypeRef?
-                guard AXUIElementCopyAttributeValue(
-                    systemWide,
-                    kAXFocusedUIElementAttribute as CFString,
-                    &focusedRef
-                ) == .success, let focusedRef else {
-                    logger.debug("AX strategy: could not obtain focused element")
-                    continuation.resume(returning: nil)
-                    return
+                if AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
+                   let focusedRef, CFGetTypeID(focusedRef) == AXUIElementGetTypeID() {
+                    let focusedElement = focusedRef as! AXUIElement
+                    if let result = self.extractTextAndBounds(from: focusedElement) {
+                        logger.debug("AX strategy: success from focused element (\(result.text.count) chars)")
+                        continuation.resume(returning: result)
+                        return
+                    }
+                    
+                    // Try ancestors of focused element (up to 4 levels)
+                    if let ancestorResult = self.extractFromAncestors(element: focusedElement, maxDepth: 4) {
+                        logger.debug("AX strategy: success from focused element ancestor (\(ancestorResult.text.count) chars)")
+                        continuation.resume(returning: ancestorResult)
+                        return
+                    }
                 }
-                guard CFGetTypeID(focusedRef) == AXUIElementGetTypeID() else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                let element = focusedRef as! AXUIElement
-                var textRef: CFTypeRef?
-                guard AXUIElementCopyAttributeValue(
-                    element,
-                    kAXSelectedTextAttribute as CFString,
-                    &textRef
-                ) == .success, let text = textRef as? String else {
-                    logger.debug("AX strategy: kAXSelectedTextAttribute unavailable")
-                    continuation.resume(returning: nil)
-                    return
-                }
-                guard !text.isEmpty else {
-                    logger.debug("AX strategy: selected text is empty, falling through")
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                // Query text bounds via kAXSelectedTextRangeAttribute & kAXBoundsForRangeParameterizedAttribute
-                var bounds: CGRect? = nil
-                var rangeRef: CFTypeRef?
-                if AXUIElementCopyAttributeValue(
-                    element,
-                    kAXSelectedTextRangeAttribute as CFString,
-                    &rangeRef
-                ) == .success, let rangeRef {
-                    var boundsRef: CFTypeRef?
-                    if AXUIElementCopyParameterizedAttributeValue(
-                        element,
-                        kAXBoundsForRangeParameterizedAttribute as CFString,
-                        rangeRef,
-                        &boundsRef
-                    ) == .success, let boundsRef {
-                        var rect = CGRect.zero
-                        if AXValueGetValue(boundsRef as! AXValue, .cgRect, &rect) {
-                            bounds = rect
+                
+                // 2. Try hit-test element under mouse cursor
+                if let mouseLocation = CGEvent(source: nil)?.location {
+                    var hitElement: AXUIElement?
+                    if AXUIElementCopyElementAtPosition(systemWide, Float(mouseLocation.x), Float(mouseLocation.y), &hitElement) == .success,
+                       let hitElement {
+                        if let result = self.extractTextAndBounds(from: hitElement) {
+                            logger.debug("AX strategy: success from cursor hit-test element (\(result.text.count) chars)")
+                            continuation.resume(returning: result)
+                            return
+                        }
+                        
+                        // Try ancestors of hit-test element (up to 4 levels)
+                        if let ancestorResult = self.extractFromAncestors(element: hitElement, maxDepth: 4) {
+                            logger.debug("AX strategy: success from cursor hit-test ancestor (\(ancestorResult.text.count) chars)")
+                            continuation.resume(returning: ancestorResult)
+                            return
                         }
                     }
                 }
-
-                logger.debug("AX strategy: success (\(text.count) chars, bounds: \(bounds?.debugDescription ?? "none"))")
-                continuation.resume(returning: TextResult(text: text, bounds: bounds))
+                
+                logger.debug("AX strategy: all direct AX resolution attempts exhausted")
+                continuation.resume(returning: nil)
             }
         }
+    }
+
+    /// Walk up element's parent hierarchy (maxDepth levels) looking for selected text.
+    private func extractFromAncestors(element: AXUIElement, maxDepth: Int) -> TextResult? {
+        var current = element
+        for _ in 0..<maxDepth {
+            var parentRef: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(current, kAXParentAttribute as CFString, &parentRef) == .success,
+                  let parentRef, CFGetTypeID(parentRef) == AXUIElementGetTypeID() else {
+                break
+            }
+            let parent = parentRef as! AXUIElement
+            if CFEqual(current, parent) { break }
+            if let result = extractTextAndBounds(from: parent) {
+                return result
+            }
+            current = parent
+        }
+        return nil
     }
 
     /// Extract selected text and bounds from an AX element, trying kAXSelectedTextAttribute first,
