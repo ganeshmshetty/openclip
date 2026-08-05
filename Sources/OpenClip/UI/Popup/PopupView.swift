@@ -77,7 +77,7 @@ public struct PopupView: View {
 
     private let buttonWidth: CGFloat = 36
     private let chevronWidth: CGFloat = 26
-    private let pageSize = 8
+    private let pageSize = 7
 
 
     public init(
@@ -300,7 +300,12 @@ public struct PopupView: View {
             context: context,
             resultsAbove: modeStore.searchResultsAbove,
             onResult: onResult,
-            onExit: onExitSearch
+            onExit: onExitSearch,
+            onRunAI: { actionID in
+                guard let preset = aiManager.preset(forActionID: actionID) else { return }
+                onExitSearch()
+                runAIPreset(prompt: preset.prompt)
+            }
         )
     }
 
@@ -431,13 +436,12 @@ public struct PopupView: View {
 
     private var actionsHStack: some View {
         HStack(spacing: 0) {
-            // If completions exist but user toggled to normal actions, show Down Arrow button on left
+            // Completion toggle lives on the far left; both pagination chevrons sit together on the
+            // right (just before the command affordance) so next/previous are easy to reach.
             if hasCompletions {
                 chevronButton(systemImage: "chevron.down", label: "Show completions") {
                     isShowingCompletions = true
                 }
-            } else if hasLeftChevron {
-                chevronButton(systemImage: "chevron.left", label: "Previous page") { currentPage -= 1 }
             }
 
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
@@ -470,7 +474,10 @@ public struct PopupView: View {
                 }
             }
 
-            if !hasCompletions && hasRightChevron {
+            if hasLeftChevron {
+                chevronButton(systemImage: "chevron.left", label: "Previous page") { currentPage -= 1 }
+            }
+            if hasRightChevron {
                 chevronButton(systemImage: "chevron.right", label: "Next page") { currentPage += 1 }
             }
 

@@ -47,11 +47,68 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
             return TextResult(text: safariText, bounds: nil)
         }
 
-        // Strategy 2 (menu copy) and Strategy 3 (Cmd+C) removed:
-        // They silently copy text to the clipboard, which is unexpected behaviour.
-        // Only apps explicitly opted-in via grabPasteboard policy use Cmd+C.
+        // Strategy 1.8: AX Menu Copy for lenient selection apps (VS Code, Electron)
+        if policy.useMenuCopy {
+            if let text = await strategyAXMenuCopy(for: app) {
+                return TextResult(text: text, bounds: nil)
+            }
+        }
 
         return nil
+    }
+
+    /// Perform AXPress on Edit -> Copy in the application's AX menu bar.
+    private func strategyAXMenuCopy(for app: AppIdentity) async -> String? {
+        let logger = self.logger
+        logger.debug("AX Menu Copy strategy: attempting Edit -> Copy via AXPress for \(app.bundleIdentifier ?? "unknown")")
+        return await fetchPasteboardText(timeout: 0.15) {
+            Task.detached {
+                guard let runningApp = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == app.bundleIdentifier }) ?? NSWorkspace.shared.frontmostApplication else {
+                    logger.debug("AX Menu Copy: running app unavailable")
+                    return
+                }
+                let appElement = AXUIElementCreateApplication(runningApp.processIdentifier)
+                var menuBarRef: CFTypeRef?
+                guard AXUIElementCopyAttributeValue(appElement, kAXMenuBarAttribute as CFString, &menuBarRef) == .success,
+                      let menuBarRef, CFGetTypeID(menuBarRef) == AXUIElementGetTypeID() else {
+                    logger.debug("AX Menu Copy: could not obtain menu bar")
+                    return
+                }
+                let menuBar = menuBarRef as! AXUIElement
+                
+                var childrenRef: CFTypeRef?
+                guard AXUIElementCopyAttributeValue(menuBar, kAXChildrenAttribute as CFString, &childrenRef) == .success,
+                      let children = childrenRef as? [AXUIElement] else {
+                    return
+                }
+                
+                // Find Edit menu bar item
+                for item in children {
+                    var titleRef: CFTypeRef?
+                    if AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &titleRef) == .success,
+                       let title = titleRef as? String, title.localizedCaseInsensitiveContains("Edit") {
+                        var menuChildrenRef: CFTypeRef?
+                        if AXUIElementCopyAttributeValue(item, kAXChildrenAttribute as CFString, &menuChildrenRef) == .success,
+                           let menuChildren = menuChildrenRef as? [AXUIElement] {
+                            let menu = menuChildren.first ?? item
+                            var editItemsRef: CFTypeRef?
+                            if AXUIElementCopyAttributeValue(menu, kAXChildrenAttribute as CFString, &editItemsRef) == .success,
+                               let editItems = editItemsRef as? [AXUIElement] {
+                                for copyCandidate in editItems {
+                                    var copyTitleRef: CFTypeRef?
+                                    if AXUIElementCopyAttributeValue(copyCandidate, kAXTitleAttribute as CFString, &copyTitleRef) == .success,
+                                       let copyTitle = copyTitleRef as? String, copyTitle.localizedCaseInsensitiveContains("Copy") {
+                                        let pressErr = AXUIElementPerformAction(copyCandidate, kAXPressAction as CFString)
+                                        logger.debug("AX Menu Copy: performed AXPress on Copy (result: \(pressErr.rawValue))")
+                                        return
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     
     private func strategySafariJS(for app: AppIdentity) async -> String? {
@@ -241,8 +298,8 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
         action()
 
-        // Poll every 5 ms
-        let pollInterval: TimeInterval = 0.005
+        // Poll every 2 ms
+        let pollInterval: TimeInterval = 0.002
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if pasteboard.changeCount != initialChangeCount { break }
@@ -259,13 +316,13 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         let text = pasteboard.string(forType: .string)
         let changeCountAfterCopy = pasteboard.changeCount
 
-        // Restore original contents after a short delay so the paste operation
-        // (if any downstream code uses the pasteboard) can complete first.
+        // Instantly restore original pasteboard contents within 15 ms so clipboard monitors
+        // (like Paste app) see original items restored before their debounce handler fires.
         Task { @MainActor [logger] in
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50 ms
+            try? await Task.sleep(nanoseconds: 15_000_000) // 15 ms
             if NSPasteboard.general.changeCount == changeCountAfterCopy {
                 self.restorePasteboard(NSPasteboard.general, items: savedItems)
-                logger.debug("Pasteboard strategy: original contents restored")
+                logger.debug("Pasteboard strategy: original contents restored in 15 ms")
             }
         }
 

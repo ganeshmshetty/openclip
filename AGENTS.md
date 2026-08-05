@@ -80,6 +80,11 @@ These change behavior — keep them.
   (see `TimeoutFlag`/`OnceGate` in `Sources/Core/Extensions/ShellProcessRunner.swift`), not captured
   mutable locals.
 - **`ActionContext.modifiers` is unused.** Don't build logic assuming modifier keys reach actions.
+- **AI presets are registered Actions with chrome source `.ai`** (`AIAction`, synced by `AIActionSync`).
+  They appear in the action-search palette and Preferences → Actions but are excluded from the popup
+  bar (`ActionRegistry.availableActions`) — the Sparkles button is the bar's AI entry point. The
+  palette routes `.ai` selections through `onRunAI` → `runAIPreset` (AI card), never `perform`.
+  Enable/disable is single-sourced to `AIActionPreset.isEnabled`; the Actions-tab toggle shares it.
 - **Gemini auth via the `x-goog-api-key` header only** — never `?key=` in the URL (leaks credentials).
 - **Glass stays apart from the color themes.** `PopupThemeSelector` has two rows: theme category
   (Classic | Glass) then appearance (System/Light/Dark). Storage: `popupTheme` ("classic"/"glass"),

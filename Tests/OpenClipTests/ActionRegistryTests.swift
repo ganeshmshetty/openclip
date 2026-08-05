@@ -234,4 +234,23 @@ final class ActionRegistryTests: XCTestCase {
         XCTAssertFalse(catalog.contains { $0.id == "mock.searchgroup.a" })
         XCTAssertFalse(catalog.contains { $0.id == "builtin.completion" })
     }
+
+    @MainActor
+    func testAIChromeActionsExcludedFromBarButIncludedInSearchCatalog() {
+        let registry = ActionRegistry()
+        let aiChrome = ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .ai)
+        let aiAction = MockAction(id: "ai.preset.proofread", shouldBeEnabled: true, chrome: aiChrome)
+        let normal = MockAction(id: "mock.normal", shouldBeEnabled: true)
+        registry.register(builtIns: [aiAction, normal])
+
+        let selection = SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection, modifiers: [])
+        let available = registry.availableActions(for: context)
+
+        // AI preset actions never flood the popup bar (the Sparkles button is the AI entry point),
+        // but the palette still discovers them.
+        XCTAssertFalse(available.contains { $0.id == "ai.preset.proofread" })
+        XCTAssertTrue(available.contains { $0.id == "mock.normal" })
+        XCTAssertTrue(registry.searchCatalog.contains { $0.id == "ai.preset.proofread" })
+    }
 }

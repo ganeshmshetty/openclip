@@ -542,9 +542,28 @@ struct ActionRowView: View {
     let action: any Action
     @Binding var disabledActionIDs: Set<String>
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
-    
+    @ObservedObject private var aiManager = AIServiceManager.shared
+
+    /// AI preset rows share their toggle with the AI tab: enabling/disabling here (or there)
+    /// writes the preset's `isEnabled`, the single source of truth. Never touches
+    /// `disabledActionIDs`, which drives the bar via ActionRegistry.availableActions.
+    private var isAI: Bool {
+        if case .ai = action.chrome.source { return true }
+        return false
+    }
+
     var isEnabled: Binding<Bool> {
-        Binding<Bool>(
+        if isAI {
+            return Binding<Bool>(
+                get: { aiManager.preset(forActionID: action.id)?.isEnabled ?? false },
+                set: { enabled in
+                    guard var preset = aiManager.preset(forActionID: action.id) else { return }
+                    preset.isEnabled = enabled
+                    aiManager.updatePreset(preset)
+                }
+            )
+        }
+        return Binding<Bool>(
             get: { !disabledActionIDs.contains(action.id) },
             set: { enabled in
                 if enabled {
@@ -599,7 +618,8 @@ struct ActionRowView: View {
                     .frame(width: 24, height: 24)
                     .help("Uninstall Extension")
                     .accessibilityLabel("Uninstall Extension")
-                case .builtin:
+                case .builtin, .ai:
+                    // AI preset rows are managed (and removed) in the AI tab, not here.
                     EmptyView()
                 }
 
@@ -610,20 +630,22 @@ struct ActionRowView: View {
                     .controlSize(.small)
                     .accessibilityLabel("Enable \(action.displayTitle)")
                 
-                // Edit / Configure Button
-                Button(action: {
-                    showingConfigSheet = true
-                }) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 24, height: 24)
-                .help("Configure Action")
-                .accessibilityLabel("Configure Action")
-                .sheet(isPresented: $showingConfigSheet) {
-                    EditActionSheet(action: action)
+                // Edit / Configure Button (hidden for AI preset rows — they're configured in the AI tab)
+                if !isAI {
+                    Button(action: {
+                        showingConfigSheet = true
+                    }) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 24, height: 24)
+                    .help("Configure Action")
+                    .accessibilityLabel("Configure Action")
+                    .sheet(isPresented: $showingConfigSheet) {
+                        EditActionSheet(action: action)
+                    }
                 }
             }
         }

@@ -15,6 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     private var selectionMonitor: (any SelectionMonitoring)?
     private var popupController: PopupWindowController?
+    private var aiActionSync: AIActionSync?
 
     private var onboardingWindowController: OnboardingWindowController?
 
@@ -46,6 +47,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: ServicesAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
+            // Register each AI preset as an individual action (palette + Preferences → Actions).
+            aiActionSync = AIActionSync.shared
         }
         
         // Setup selection monitor

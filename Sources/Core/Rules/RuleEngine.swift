@@ -78,14 +78,16 @@ public final class RuleEngine: ObservableObject, Sendable {
         return rules.map { rule in
             var expandedIdentifiers: [String] = []
             for id in rule.bundleIdentifiers {
-                if id == ":safari-group:" {
-                    expandedIdentifiers.append(contentsOf: ["com.apple.Safari", "com.apple.SafariTechnologyPreview"])
+                if id == ":menu-copy-apps:" {
+                    expandedIdentifiers.append(contentsOf: DefaultAppRules.menuCopyApps)
+                } else if id == ":safari-group:" {
+                    expandedIdentifiers.append(contentsOf: DefaultAppRules.safariGroup)
                 } else if id == ":chromium-group:" {
-                    expandedIdentifiers.append(contentsOf: ["com.google.Chrome", "com.brave.Browser", "com.microsoft.edgemac"])
+                    expandedIdentifiers.append(contentsOf: DefaultAppRules.chromiumGroup)
                 } else if id == ":firefox-group:" {
-                    expandedIdentifiers.append("org.mozilla.firefox")
+                    expandedIdentifiers.append(contentsOf: DefaultAppRules.firefoxGroup)
                 } else if id == ":arc-group:" {
-                    expandedIdentifiers.append("company.thebrowser.Browser")
+                    expandedIdentifiers.append(contentsOf: DefaultAppRules.arcGroup)
                 } else {
                     expandedIdentifiers.append(id)
                 }
@@ -96,7 +98,8 @@ public final class RuleEngine: ObservableObject, Sendable {
                 denyProbe: rule.denyProbe,
                 denyPreprobe: rule.denyPreprobe,
                 grabPasteboard: rule.grabPasteboard,
-                assumePaste: rule.assumePaste
+                assumePaste: rule.assumePaste,
+                useMenuCopy: rule.useMenuCopy
             )
         }
     }
@@ -111,7 +114,8 @@ public final class RuleEngine: ObservableObject, Sendable {
                     denyProbe: rule.denyProbe ?? context.denyProbe,
                     denyPreprobe: rule.denyPreprobe ?? context.denyPreprobe,
                     grabPasteboard: rule.grabPasteboard ?? context.grabPasteboard,
-                    assumePaste: rule.assumePaste ?? context.assumePaste
+                    assumePaste: rule.assumePaste ?? context.assumePaste,
+                    useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy
                 )
             }
         }
@@ -129,18 +133,5 @@ public final class RuleEngine: ObservableObject, Sendable {
         return false
     }
     
-    public static let defaultRules: [AppRule] = [
-        AppRule(
-            bundleIdentifiers: ["com.jetbrains.*", "com.apple.Terminal", "com.sublimetext.*"],
-            denyFormatting: true
-        ),
-        AppRule(
-            bundleIdentifiers: ["md.obsidian", "com.skype.skype", "com.evernote.Evernote"],
-            grabPasteboard: true
-        ),
-        AppRule(
-            bundleIdentifiers: ["net.ankiweb.dtop"],
-            assumePaste: true
-        )
-    ]
+    public static let defaultRules: [AppRule] = DefaultAppRules.catalog
 }
