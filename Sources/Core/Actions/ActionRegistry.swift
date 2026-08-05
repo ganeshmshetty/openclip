@@ -44,12 +44,29 @@ public final class ActionRegistry: ObservableObject, Sendable {
         actions.sort { a, b in
             let idxA = order.firstIndex(of: a.id) ?? Int.max
             let idxB = order.firstIndex(of: b.id) ?? Int.max
-            // Keep original order if neither is in the order array
+            // Default slot for un-ordered actions: a builtin (e.g. the AI Tools launcher) joins
+            // the far end of the builtin group — right after the last ordered builtin, ahead of
+            // un-ordered extensions/AI presets — instead of the absolute tail. Without this, a
+            // newly added builtin sorts after installed extensions whenever `.actionOrder` is
+            // populated but omits it.
             if idxA == Int.max && idxB == Int.max {
+                let aIsBuiltin = builtinSource(a)
+                let bIsBuiltin = builtinSource(b)
+                if aIsBuiltin != bIsBuiltin {
+                    return aIsBuiltin && !bIsBuiltin
+                }
+                // Same group (both ordered-equivalent): keep registry-relative order. Not a
+                // strict guarantee (Swift sort is unstable) but membership filtering downstream
+                // is order-agnostic.
                 return false
             }
             return idxA < idxB
         }
+    }
+
+    private func builtinSource(_ action: any Action) -> Bool {
+        if case .builtin = action.chrome.source { return true }
+        return false
     }
     
     public func moveActions(from source: IndexSet, to destination: Int) {
