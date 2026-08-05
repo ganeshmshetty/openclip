@@ -29,6 +29,7 @@ public final class AIActionSync {
             }
         }
         sync()
+        coordinator.register(action: AIToolsAction())
     }
 
     /// Reconciles the registered AI actions against the current preset list. Cheap when nothing

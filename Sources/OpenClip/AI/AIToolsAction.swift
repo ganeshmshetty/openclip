@@ -1,0 +1,33 @@
+// AIToolsAction.swift
+// OpenClip
+//
+// The "AI Tools" bar launcher, modeled as a normal reorderable builtin action so users can
+// position it among their other bar actions. Never a search-palette entry (chrome.launchesAI is
+// excluded in `ActionRegistry.searchCatalog`); the popup bar routes its click into AI mode via
+// `chrome.launchesAI` instead of `perform`. Its enable state is single-sourced to
+// `AIServiceManager.isAIEnabled`, which the AI-tab and Actions-tab toggles share.
+import Foundation
+import Core
+
+public struct AIToolsAction: Action {
+    public init() {}
+
+    public var id: String { "builtin.aiTools" }
+    public var title: String { "AI Tools" }
+    public var icon: ActionIcon { .symbol("sparkles") }
+    public var chrome: ActionChrome {
+        ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin, launchesAI: true)
+    }
+
+    @MainActor
+    public func isEnabled(for context: ActionContext) -> Bool {
+        AIServiceManager.shared.isAIEnabled
+    }
+
+    /// Defensive fallback: the bar routes via `chrome.launchesAI` and the palette excludes this
+    /// action, so `perform` is never the entry point (same contract as `AIAction`).
+    @MainActor
+    public func perform(_ context: ActionContext) async throws -> ActionResult {
+        .success
+    }
+}
