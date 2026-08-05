@@ -4,6 +4,8 @@
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
 // Also owns the reusable bubble panel (BubbleCardView) that renders hover info, result, and sub-action
 // bubbles, plus the hover-debounce and long-press timers that trigger them per Action.gesturePolicy.
+// Owns the popup mode state machine (actions bar ↔ action-search palette): search mode makes the panel
+// key (a scoped exception to the never-key rule) and restores focus to the previous app on exit.
 // Implements the decision-8 ActionResult tree-walk (handleActionResult): presentation results render
 // here, leaf effects route to DefaultActionResultHandler, and dismissal is decided once via
 // ActionResult.dismissesPopup.
@@ -20,6 +22,10 @@ public class PopupWindowController {
     private var currentContext: SelectionContext?
     private var currentActionContext: ActionContext?
     private var cardAbove = false
+    /// Popup display mode (actions bar ↔ search palette), observed by PopupView.
+    public let modeStore = PopupModeStore()
+    /// Frontmost app before search mode made the panel key; reactivated on exit/hide.
+    private var previousFrontmostApp: NSRunningApplication?
 
     private var hoverDebounceTask: Task<Void, Never>?
     private var longPressTask: Task<Void, Never>?
@@ -66,10 +72,16 @@ public class PopupWindowController {
             for: context, popupSize: CGSize(width: 320, height: 54), in: screenBounds)
         cardAbove = tempFrame.minY < screenBounds.minY + 280
 
+        modeStore.mode = .actions
+        modeStore.searchResultsAbove = cardAbove
+
         let rootView = PopupView(
             actions: availableActions,
             context: actionContext,
             initialAICardAboveBar: cardAbove,
+            modeStore: modeStore,
+            onEnterSearch: { [weak self] in self?.enterSearch() },
+            onExitSearch: { [weak self] in self?.exitSearch() },
             onResult: { [weak self] result in
                 guard let self else { return }
                 // Decision 8: dismissal is decided once on the top-level result; the tree-walk never
@@ -107,6 +119,42 @@ public class PopupWindowController {
         panel.orderFront(nil)
         
         setupMonitors()
+    }
+
+    public var isVisible: Bool { panel?.isVisible ?? false }
+
+    /// Hotkey-driven mode toggle: actions → search palette → dismiss.
+    public func toggleMode() {
+        guard panel?.isVisible == true else { return }
+        switch modeStore.mode {
+        case .actions:
+            enterSearch()
+        case .search:
+            hide()
+        }
+    }
+
+    /// Enter search mode: the panel becomes key (a scoped, user-initiated exception to the
+    /// never-key rule) so the search field can receive typing. A nonactivating panel can become
+    /// key without activating this app, so the source app stays active throughout.
+    public func enterSearch() {
+        guard panel?.isVisible == true else { return }
+        previousFrontmostApp = NSWorkspace.shared.frontmostApplication
+        modeStore.mode = .search
+        panel?.allowsKey = true
+        panel?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Leave search mode back to the actions bar: restore the never-key invariant and hand
+    /// keyboard focus back to the source app. Never hides the popup.
+    public func exitSearch() {
+        guard modeStore.mode == .search else { return }
+        modeStore.mode = .actions
+        panel?.allowsKey = false
+        if NSApp.isActive {
+            previousFrontmostApp?.activate(options: [.activateAllWindows])
+        }
+        previousFrontmostApp = nil
     }
 
     // MARK: - Bubble Panel
@@ -337,6 +385,8 @@ public class PopupWindowController {
             let maxWidth = max(0, screen.visibleFrame.width - Constants.popupPadding * 2)
             size.width = min(size.width, maxWidth)
         }
+        // Cap the search palette height so a long result list scrolls instead of stretching off-screen.
+        size.height = min(size.height, Constants.searchMaxHeight)
         let current = panel.frame.size
         if abs(current.width - size.width) < 1, abs(current.height - size.height) < 1 { return }
         // Bar-only panel: keep maxY fixed, resize downward (though height rarely changes now)
@@ -370,6 +420,8 @@ public class PopupWindowController {
         longPressTask?.cancel()
         longPressTask = nil
         longPressFired = false
+        modeStore.mode = .actions
+        panel?.allowsKey = false
         panel?.orderOut(nil)
         removeMonitors()
         currentContext = nil
@@ -377,6 +429,11 @@ public class PopupWindowController {
         hoveredAction = nil
         isMenuTracking = false
         PopupHoverState.shared.location = nil
+        // If making the panel key activated this app, hand focus back to the previous app.
+        if NSApp.isActive {
+            previousFrontmostApp?.activate(options: [.activateAllWindows])
+        }
+        previousFrontmostApp = nil
     }
     
     private func setupMonitors() {
@@ -442,8 +499,9 @@ public class PopupWindowController {
         case .mouseMoved:
             updatePopupHover(at: NSEvent.mouseLocation)
             let cursorLoc = NSEvent.mouseLocation
-            // Only auto-dismiss by distance when no dismiss-blocking bubble is showing
-            if !bubbleBlocksDismiss, let panel = panel {
+            // Only auto-dismiss by distance in actions mode; search mode suspends it so typing
+            // with the mouse elsewhere doesn't dismiss the palette.
+            if modeStore.mode == .actions, !bubbleBlocksDismiss, let panel = panel {
                 let frame = panel.frame
                 let dx = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
                 let dy = max(0, max(frame.minY - cursorLoc.y, cursorLoc.y - frame.maxY))
@@ -462,14 +520,16 @@ public class PopupWindowController {
                 hide()
             }
         case .scrollWheel:
+            // In search mode the wheel scrolls the results list (the panel is key).
+            if modeStore.mode == .search { break }
             if !bubbleBlocksDismiss {
                 hide()
             }
         case .keyDown:
-            // Any keystroke (including Escape) dismisses the popup. The panel is never the key
-            // window, so this is reachable only through the global monitor (Accessibility
-            // permission): the keystroke is merely observed here and still lands in the source
-            // app's document.
+            // Actions mode: any keystroke (including Escape) dismisses the popup; the panel is
+            // never key here, so keys land in the source app and are merely observed.
+            // Search mode: keys go to the search field (panel is key); Escape is handled there.
+            if modeStore.mode == .search { break }
             hide()
         default:
             break
