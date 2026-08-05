@@ -19,6 +19,11 @@ public struct PopupSearchView: View {
     /// `perform`. Passed the registered AI action id (`ai.preset.<presetID>`); nil disables the
     /// route and falls back to `perform`.
     public let onRunAI: @MainActor (String) -> Void
+    /// When non-nil, the palette is scoped to a parent action's sub-actions: it lists only those
+    /// children and rerenders the field with the parent's icon + a "Search within ..." placeholder.
+    public let scope: SearchScope?
+    /// Called when the user drops the current scope (Esc with an empty query) back to the full list.
+    public let onExitScope: @MainActor () -> Void
 
     @State private var query = ""
     @State private var selectedIndex = 0
@@ -41,8 +46,13 @@ public struct PopupSearchView: View {
         return PopupThemeModel.classicToken(appearance: themeColor, systemIsDark: colorScheme == .dark)
     }
 
+    /// When scoped, only the parent's resolved children are candidates for matching/search.
+    private var scopedChildren: [any Action]? {
+        scope.map { $0.children }
+    }
+
     private var searchIndex: [ActionSearchIndex] {
-        catalog.map { action in
+        (scopedChildren ?? catalog).map { action in
             ActionSearchIndex(
                 id: action.id,
                 title: action.displayTitle,
@@ -72,15 +82,19 @@ public struct PopupSearchView: View {
         catalog: [any Action],
         context: ActionContext,
         resultsAbove: Bool,
+        scope: SearchScope? = nil,
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onExit: @escaping @MainActor () -> Void,
+        onExitScope: @escaping @MainActor () -> Void = {},
         onRunAI: @escaping @MainActor (String) -> Void = { _ in }
     ) {
         self.catalog = catalog
         self.context = context
         self.resultsAbove = resultsAbove
+        self.scope = scope
         self.onResult = onResult
         self.onExit = onExit
+        self.onExitScope = onExitScope
         self.onRunAI = onRunAI
     }
 
@@ -110,24 +124,18 @@ public struct PopupSearchView: View {
 
     private var searchFieldRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: "command")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
-            TextField("Search all actions", text: $query)
+            searchIcon
+            TextField(scope == nil ? "Search all actions" : "Search within \(scope?.parent.displayTitle ?? "")", text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
                 .focused($isFocused)
                 .onSubmit { runSelected() }
                 .onKeyPress { press in
-                    // Attached to the focused field: Escape clears the query, then exits search;
+                    // Attached to the focused field: Escape drops the scope (or exits search),
                     // up/down move the result selection.
                     if press.key == .escape {
-                        if !query.isEmpty {
-                            query = ""
-                        } else {
-                            onExit()
-                        }
+                        exitSearch()
                         return .handled
                     }
                     if press.key == .upArrow {
@@ -141,7 +149,7 @@ public struct PopupSearchView: View {
                     return .ignored
                 }
             let isEscHovered = hoveredTarget == .esc
-            Button(action: onExit) {
+            Button(action: exitSearch) {
                 Text("esc")
                     .font(.caption2)
                     .foregroundColor(isEscHovered ? .white : PopupThemeModel.restSecondary(for: effectiveTheme))
@@ -165,6 +173,54 @@ public struct PopupSearchView: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 36)
+    }
+
+    /// Closes the palette by dropping the scope back to the full list (Esc with an empty scoped
+    /// query) or, when already flat, exiting search entirely.
+    private func exitSearch() {
+        if scope != nil { onExitScope() } else { onExit() }
+    }
+
+    /// Leading field icon: the scope parent's icon when scoped, otherwise the palette's ⌘ glyph.
+    private var searchIcon: some View {
+        if let parent = scope?.parent {
+            return AnyView(actionIcon(parent).foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme)))
+        } else {
+            return AnyView(
+                Image(systemName: "command")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+            )
+        }
+    }
+
+    /// Render an action's icon (symbol / iconify / url / local / text) at field size.
+    @ViewBuilder private func actionIcon(_ action: any Action) -> some View {
+        switch action.icon {
+        case .symbol(let name):
+            if name.contains(":") {
+                AnyIconView(iconId: name)
+                    .frame(width: 14, height: 14)
+            } else {
+                Image(systemName: name).font(.system(size: 14))
+            }
+        case .url(let url):
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image.resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
+                } else {
+                    Image(systemName: "circle.dashed")
+                }
+            }
+        case .local(let url):
+            if let nsImage = NSImage(contentsOf: url) {
+                Image(nsImage: nsImage).resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
+            } else {
+                Image(systemName: "exclamationmark.triangle")
+            }
+        case .text(let text):
+            Text(text).font(.system(size: 13, weight: .medium))
+        }
     }
 
     private var resultsList: some View {
