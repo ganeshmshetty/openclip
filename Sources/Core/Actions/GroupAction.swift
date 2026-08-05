@@ -8,7 +8,7 @@
 // group carries declarative rules; otherwise the default requires a non-blank selection.
 import Foundation
 
-public struct GroupAction: Action {
+public struct GroupAction: Action, SubActionProviding {
     public let id: String
     public let title: String
     public let icon: ActionIcon
@@ -46,5 +46,15 @@ public struct GroupAction: Action {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         return .none
+    }
+
+    // Sub-actions are the registry entries whose id is `\(self.id).\(subID)` (the uniform convention
+    // used by DefaultActionFactory). The group itself, AI launchers, and the inline completion
+    // pseudo-action are excluded.
+    public func subActions(in catalog: [any Action]) -> [any Action] {
+        catalog.filter { action in
+            guard action.id != self.id, action.id.hasPrefix(self.id + ".") else { return false }
+            return !action.chrome.launchesAI && action.id != "builtin.completion"
+        }
     }
 }
