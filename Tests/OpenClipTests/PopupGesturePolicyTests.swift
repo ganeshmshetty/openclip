@@ -21,7 +21,7 @@ final class PopupGesturePolicyTests: XCTestCase {
             chrome: ActionChrome(rowStyle: .transformGroup, popupBehavior: .showTransformMenu)
         )
         let policy = action.gesturePolicy
-        XCTAssertEqual(policy.singleClick, .showMenu)
+        XCTAssertEqual(policy.singleClick, .openSubActions)
         XCTAssertNil(policy.longPress)
         XCTAssertFalse(policy.hoverPreview)
     }

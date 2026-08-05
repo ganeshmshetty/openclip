@@ -10,8 +10,8 @@ public struct PopupGesturePolicy: Sendable, Equatable {
     public enum SingleClick: Sendable, Equatable {
         /// Run the action immediately (fast path).
         case perform
-        /// Open the sub-action menu (e.g. text transform group).
-        case showMenu
+        /// Open the sub-action palette scoped to this group.
+        case openSubActions
         /// Show the result bubble directly instead of performing (opt-in actions).
         case showResultBubble
     }
@@ -40,7 +40,7 @@ public extension Action {
     var gesturePolicy: PopupGesturePolicy {
         switch chrome.popupBehavior {
         case .showTransformMenu:
-            return PopupGesturePolicy(singleClick: .showMenu)
+            return PopupGesturePolicy(singleClick: .openSubActions)
         case .provideCompletions:
             return PopupGesturePolicy(singleClick: .perform)
         case .perform:
