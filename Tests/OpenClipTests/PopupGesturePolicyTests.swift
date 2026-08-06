@@ -18,7 +18,7 @@ final class PopupGesturePolicyTests: XCTestCase {
             id: "ext.group",
             title: "Group",
             icon: .symbol("folder"),
-            chrome: ActionChrome(rowStyle: .transformGroup, popupBehavior: .showTransformMenu)
+            chrome: ActionChrome(rowStyle: .actionGroup, popupBehavior: .showSubActions)
         )
         let policy = action.gesturePolicy
         XCTAssertEqual(policy.singleClick, .openSubActions)

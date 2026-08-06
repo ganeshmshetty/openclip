@@ -17,7 +17,7 @@ Sources/
 │   │   ├── ActionPresentation.swift          # Presentation styling generator
 │   │   ├── ActionRegistry.swift              # Storage, ordering, and transform default-on/off policy
 │   │   ├── ActionSearch.swift                # Popup mode enum + pure substring matcher for the action-search palette
-│   │   ├── GroupAction.swift                 # Pure group-row action (chrome .showTransformMenu); perform → .none
+│   │   ├── GroupAction.swift                 # Pure group-row action (chrome .showSubActions); perform → .none
 │   │   ├── KeyPressSpec.swift                # Key-press spec ("mod+mod+key") parsed from manifest keyPress
 │   │   ├── BubbleContent.swift               # Popup bubble value-type model (rows/options/emphasis)
 │   │   ├── Builtin/                          # Core builtin actions (Copy, Cut, Paste, etc.)

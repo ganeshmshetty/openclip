@@ -91,7 +91,7 @@ These change behavior — keep them.
   Actions-tab toggles; `launchesAI` actions are excluded from `searchCatalog`.
 - **Group sub-actions open a scoped palette, not a bubble.** Extension groups (`GroupAction` + registry
   entries id-prefixed `\(groupID).\\(subID)`) and the builtin transform group render as normal bar
-  rows (`chrome.popupBehavior == .showTransformMenu` → `gesturePolicy.singleClick == .openSubActions`);
+  rows (`chrome.popupBehavior == .showSubActions` → `gesturePolicy.singleClick == .openSubActions`);
   a click calls `PopupWindowController.enterScopedSearch(for:)`, which resolves children via the Core
   `SubActionResolver` over `searchCatalog` and enters the palette with `modeStore.scope =
   SearchScope(parent:children:)`. `PopupSearchView` scopes results to those children, swaps the field's

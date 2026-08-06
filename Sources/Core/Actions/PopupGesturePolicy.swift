@@ -39,7 +39,7 @@ public extension Action {
     @MainActor
     var gesturePolicy: PopupGesturePolicy {
         switch chrome.popupBehavior {
-        case .showTransformMenu:
+        case .showSubActions:
             return PopupGesturePolicy(singleClick: .openSubActions)
         case .provideCompletions:
             return PopupGesturePolicy(singleClick: .perform)

@@ -159,6 +159,6 @@ final class MultiActionExtensionTests: XCTestCase {
             return XCTFail("Group row should be materialized")
         }
         XCTAssertTrue(group is GroupAction, "Group row must be a structural GroupAction, not a runnable action")
-        XCTAssertEqual(group.chrome.popupBehavior, .showTransformMenu)
+        XCTAssertEqual(group.chrome.popupBehavior, .showSubActions)
     }
 }
