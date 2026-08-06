@@ -67,4 +67,22 @@ final class PopupPositionerTests: XCTestCase {
         // y = 5 + 12 = 17 — fits above fine
         XCTAssertEqual(frame.origin.y, 17)
     }
+
+    // Width changes must re-center on the release X so the bar never drifts off the cursor.
+    func testCenteredXReanchorsOnResize() {
+        let releaseX: CGFloat = 400
+        let centeredWide = PopupPositioner.centeredX(releaseX: releaseX, width: 300, screenBounds: screen)
+        XCTAssertEqual(centeredWide, 250, "wide popup centered on release X")
+
+        let centeredNarrow = PopupPositioner.centeredX(releaseX: releaseX, width: 100, screenBounds: screen)
+        XCTAssertEqual(centeredNarrow, 350, "narrow popup re-centered so the bar stays under the cursor")
+    }
+
+    func testCenteredXClampsToEdges() {
+        let nearRight = PopupPositioner.centeredX(releaseX: 790, width: 300, screenBounds: screen)
+        XCTAssertEqual(nearRight, screen.maxX - 300 - 8, "clamped to right padding edge")
+
+        let nearLeft = PopupPositioner.centeredX(releaseX: 5, width: 300, screenBounds: screen)
+        XCTAssertEqual(nearLeft, screen.minX + 8, "clamped to left padding edge")
+    }
 }

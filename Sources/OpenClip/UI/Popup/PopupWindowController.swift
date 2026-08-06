@@ -322,22 +322,30 @@ public class PopupWindowController {
     private func resizePanel(to proposedSize: CGSize) {
         guard let panel, panel.isVisible else { return }
         var size = sanitizedPopupSize(proposedSize)
-        if let screen = panel.screen {
-            let maxWidth = max(0, screen.visibleFrame.width - Constants.popupPadding * 2)
-            size.width = min(size.width, maxWidth)
-        }
+        let screenBounds = panel.screen?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+        let maxWidth = max(0, screenBounds.width - Constants.popupPadding * 2)
+        size.width = min(size.width, maxWidth)
         // Cap the search palette height so a long result list scrolls instead of stretching off-screen.
         size.height = min(size.height, Constants.searchMaxHeight)
         let current = panel.frame.size
         if abs(current.width - size.width) < 1, abs(current.height - size.height) < 1 { return }
+        // Keep the popup centered on the cursor's release X across width changes (search palette,
+        // pagination) so the bar never drifts left/right of the cursor.
+        let x = PopupPositioner.centeredX(
+            releaseX: currentContext?.cursorPosition.x ?? panel.frame.midX,
+            width: size.width,
+            screenBounds: screenBounds
+        )
         if modeStore.searchResultsAbove {
             // Field at the palette bottom: keep the bottom edge fixed, grow upward.
-            panel.setFrame(CGRect(x: panel.frame.origin.x, y: panel.frame.minY,
+            panel.setFrame(CGRect(x: x, y: panel.frame.minY,
                                   width: size.width, height: size.height), display: true)
         } else {
             // Field at the palette top: keep the top edge fixed, grow downward.
             let newOriginY = panel.frame.maxY - size.height
-            panel.setFrame(CGRect(x: panel.frame.origin.x, y: newOriginY,
+            panel.setFrame(CGRect(x: x, y: newOriginY,
                                   width: size.width, height: size.height), display: true)
         }
     }
