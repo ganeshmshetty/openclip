@@ -12,8 +12,8 @@ import Core
 
 /// Registry action for one AI preset. Never a popup bar row (`chrome.source == .ai` is excluded
 /// in `ActionRegistry.availableActions`); the search palette routes `.ai` selections through the
-/// popup's AI flow (`runAIPreset`) rather than `perform`, so results render in the AI card just
-/// like clicking the preset in the AI Tools bar.
+/// popup's AI flow (`runAIPreset`) rather than `perform`, so results render in the content canvas
+/// just like clicking the preset in the AI Tools bar.
 public struct AIAction: Action {
     public let presetID: String
 
@@ -35,19 +35,19 @@ public struct AIAction: Action {
     }
 
     /// Defensive fallback for any non-palette caller (the palette routes `.ai` through the AI
-    /// card flow). Runs the provider and shows the response in a popup bubble.
+    /// card flow). Runs the provider and shows the response in a popup content canvas.
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         guard let preset = preset(), !context.selection.text.isEmpty else { return .success }
         let provider = AIServiceManager.shared.currentProvider
         let response = try await provider.process(prompt: preset.prompt, text: context.selection.text)
-        return .keepVisible(.showBubble(BubbleContent(
+        return .keepVisible(.showContent(PopupContent(
             title: "AI Result",
             icon: "sparkles",
             rows: [.text(response)],
             footer: [
-                BubbleOption(title: "Replace", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(response))),
-                BubbleOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(response)))
+                ContentOption(title: "Replace", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(response))),
+                ContentOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(response)))
             ],
             emphasis: .result
         )))

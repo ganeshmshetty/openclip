@@ -134,11 +134,11 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "Copied")
     }
 
-    func testShowBubbleReturnsBubbleWithFooterPresets() async throws {
-        let script = "openclip.showBubble({ title: 'T', body: 'Hello', footer: ['paste', 'copy'] });"
+    func testShowContentReturnsContentWithFooterPresets() async throws {
+        let script = "openclip.showContent({ title: 'T', body: 'Hello', footer: ['paste', 'copy'] });"
         let result = try await host.run(makeRequest(script: script))
-        guard case .showBubble(let content) = result else {
-            return XCTFail("Expected .showBubble, got \(result)")
+        guard case .showContent(let content) = result else {
+            return XCTFail("Expected .showContent, got \(result)")
         }
         XCTAssertEqual(content.title, "T")
         XCTAssertEqual(content.rows.count, 1)

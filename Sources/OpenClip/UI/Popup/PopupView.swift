@@ -22,7 +22,7 @@ public struct PopupView: View {
     public let onAIResult: (@MainActor (String, Bool) -> Void)?
     /// Called when the AI overlay should be dismissed
     public let onAIDismiss: (@MainActor () -> Void)?
-    /// Called when the hovered action changes (nil when nothing hovered). Drives the hover info bubble.
+    /// Called when the hovered action changes (nil when nothing hovered). Drives the hover preview strip.
     public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
     /// Opens a scoped palette for a bar row's sub-actions (group rows via `.openSubActions` and the
     /// AI Tools launcher): the controller resolves + owns the SearchScope and enters search mode.
@@ -491,7 +491,7 @@ public struct PopupView: View {
         switch action.gesturePolicy.singleClick {
         case .openSubActions:
             // Group rows (extension groups + the builtin transform group) open a scoped palette of
-            // their children instead of a hover bubble. The controller resolves the SearchScope.
+            // their children instead of a hover preview strip. The controller resolves the SearchScope.
             Button {
                 onEnteredScopedSearch?(action)
             } label: {
@@ -504,7 +504,7 @@ public struct PopupView: View {
             .onHover { isHovering in
                 useLocalHoverFallback(for: .action(index), isHovering: isHovering)
             }
-        case .showResultBubble, .perform:
+        case .showResultContent, .perform:
             if action.chrome.launchesAI {
                 // The AI Tools launcher opens the scoped AI-presets palette (chrome-driven, no id
                 // switching); it renders as a normal bar row and paginates like any other action.
@@ -514,7 +514,7 @@ public struct PopupView: View {
                     labelView
                 }
                 .buttonStyle(.plain)
-                .applyBubbleTooltip(for: action, fallback: action.title)
+                .applyContentTooltip(for: action, fallback: action.title)
                 .accessibilityLabel(action.displayTitle)
                 .popupHoverTarget(.action(index))
                 .onHover { isHovering in
@@ -544,7 +544,7 @@ public struct PopupView: View {
                     labelView
                 }
                 .buttonStyle(.plain)
-                .applyBubbleTooltip(for: action, fallback: action.title)
+                .applyContentTooltip(for: action, fallback: action.title)
                 .accessibilityLabel(action.displayTitle)
                 .popupHoverTarget(.action(index))
                 .onHover { isHovering in
@@ -601,7 +601,7 @@ public struct PopupView: View {
         reportHoveredAction()
     }
 
-    /// Maps the current hoveredTarget to its action (if any) and reports it upward for the info bubble.
+    /// Maps the current hoveredTarget to its action (if any) and reports it upward for the preview strip.
     private func reportHoveredAction() {
         let action: (any Action)? = {
             guard case .action(let index) = hoveredTarget, index < pagedActions.count else { return nil }
@@ -701,12 +701,12 @@ private extension View {
         }
     }
 
-    /// Uses the OS `.help()` tooltip unless the action has hover preview, in which case the
-    /// info bubble replaces it (avoids double tooltips on PreviewProviding actions).
+    /// Uses the OS `.help()` tooltip unless the action has a hover preview, in which case the
+    /// preview strip replaces it (avoids double tooltips on PreviewProviding actions).
     @MainActor
-    func applyBubbleTooltip(for action: any Action, fallback: String) -> some View {
-        let usesInfoBubble = action.gesturePolicy.hoverPreview
-        if usesInfoBubble {
+    func applyContentTooltip(for action: any Action, fallback: String) -> some View {
+        let usesPreviewStrip = action.gesturePolicy.hoverPreview
+        if usesPreviewStrip {
             return AnyView(self.help(""))
         }
         return AnyView(self.help(fallback))

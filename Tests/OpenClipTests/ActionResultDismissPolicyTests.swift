@@ -4,8 +4,8 @@ import XCTest
 final class ActionResultDismissPolicyTests: XCTestCase {
     private struct DummyError: Error {}
 
-    private func makeBubble() -> BubbleContent {
-        BubbleContent(title: "Test", rows: [.text("hi")], emphasis: .info)
+    private func makeContent() -> PopupContent {
+        PopupContent(title: "Test", rows: [.text("hi")], emphasis: .info)
     }
 
     // MARK: - Dismiss-policy matrix (decision 8)
@@ -20,7 +20,7 @@ final class ActionResultDismissPolicyTests: XCTestCase {
     }
 
     func testSequenceDismissesOnlyWhenAllItemsDismiss() {
-        XCTAssertFalse(ActionResult.sequence([.copy("x"), .showBubble(makeBubble())]).dismissesPopup)
+        XCTAssertFalse(ActionResult.sequence([.copy("x"), .showContent(makeContent())]).dismissesPopup)
         XCTAssertTrue(ActionResult.sequence([.copy("x"), .paste("y")]).dismissesPopup)
         // An empty sequence never dismisses.
         XCTAssertFalse(ActionResult.sequence([]).dismissesPopup)
@@ -37,7 +37,7 @@ final class ActionResultDismissPolicyTests: XCTestCase {
     }
 
     func testPresentationResultsKeepPopup() {
-        XCTAssertFalse(ActionResult.showBubble(makeBubble()).dismissesPopup)
+        XCTAssertFalse(ActionResult.showContent(makeContent()).dismissesPopup)
         XCTAssertFalse(ActionResult.showStatus(.init(message: "ok", style: .success)).dismissesPopup)
         XCTAssertFalse(ActionResult.showStatus(.init(message: "boom", style: .error)).dismissesPopup)
     }

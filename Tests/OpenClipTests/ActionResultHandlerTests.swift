@@ -15,10 +15,10 @@ final class ActionResultHandlerTests: XCTestCase {
 
     /// Presentation/flow results are presenter-owned (PopupWindowController); the handler must treat
     /// them as no-ops without crashing.
-    func testHandlerIgnoresShowBubble() async throws {
+    func testHandlerIgnoresShowContent() async throws {
         let handler = DefaultActionResultHandler()
-        let bubble = BubbleContent(title: "Test", rows: [.text("hi")], emphasis: .result)
-        try await handler.handle(.showBubble(bubble), in: nil)
+        let content = PopupContent(title: "Test", rows: [.text("hi")], emphasis: .result)
+        try await handler.handle(.showContent(content), in: nil)
     }
 
     /// The `shortcut` effect routes through the shortcuts CLI under a watchdog. Only exercised when

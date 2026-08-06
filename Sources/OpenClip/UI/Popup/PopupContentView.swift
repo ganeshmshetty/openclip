@@ -1,17 +1,17 @@
-// BubbleCardView.swift
+// PopupContentView.swift
 // OpenClip
 //
-// The single reusable renderer for the popup bubble: renders a BubbleContent with one of three
-// emphasis styles — .info (small dim hover tooltip), .result (standard card with delivery buttons),
-// or .menu (vertical sub-action rows). Replaces the ad-hoc AI overlay card. Also renders an optional
+// The single reusable renderer for the popup content canvas: renders a PopupContent with one of
+// three emphasis styles — .info (small dim card), .result (standard card with delivery buttons),
+// or .menu (vertical option rows). Replaces the ad-hoc AI overlay card. Also renders an optional
 // top-trailing status badge (decision 10) driven by StatusBadgeModel, so a status that arrives while
 // a card is already open is surfaced as a corner badge rather than replacing the card.
 import SwiftUI
 import Core
 
-/// Shared observable holding the status badge shown on the currently open bubble card. Presenter code
-/// (PopupWindowController) writes it; BubbleCardView observes it, so a status arriving after the card
-/// mounted still appears. Mirrors the shared-singleton pattern of PopupHoverState.
+/// Shared observable holding the status badge shown on the currently open content canvas. Presenter
+/// code (PopupWindowController) writes it; PopupContentView observes it, so a status arriving after
+/// the canvas mounted still appears. Mirrors the shared-singleton pattern of PopupHoverState.
 @MainActor
 public final class StatusBadgeModel: ObservableObject {
     public static let shared = StatusBadgeModel()
@@ -22,9 +22,9 @@ public final class StatusBadgeModel: ObservableObject {
 }
 
 @MainActor
-public struct BubbleCardView: View {
-    public let content: BubbleContent
-    public let onOutcome: (BubbleOutcome) -> Void
+public struct PopupContentView: View {
+    public let content: PopupContent
+    public let onOutcome: (ContentOutcome) -> Void
     public let onClose: (() -> Void)?
 
     @ObservedObject public var statusBadgeModel: StatusBadgeModel = .shared
@@ -34,8 +34,8 @@ public struct BubbleCardView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     public init(
-        content: BubbleContent,
-        onOutcome: @escaping (BubbleOutcome) -> Void,
+        content: PopupContent,
+        onOutcome: @escaping (ContentOutcome) -> Void,
         onClose: (() -> Void)? = nil
     ) {
         self.content = content
@@ -271,7 +271,7 @@ public struct BubbleCardView: View {
     }
 
     @ViewBuilder
-    private func footerButton(option: BubbleOption, isPrimary: Bool) -> some View {
+    private func footerButton(option: ContentOption, isPrimary: Bool) -> some View {
         let label = Label(option.title, systemImage: option.icon ?? "arrow.right")
             .font(.caption)
         if isPrimary {
@@ -348,7 +348,7 @@ public struct BubbleCardView: View {
 
     // MARK: - Row Helpers
 
-    private var rowsContent: [BubbleRow] {
+    private var rowsContent: [ContentRow] {
         content.rows
     }
 }

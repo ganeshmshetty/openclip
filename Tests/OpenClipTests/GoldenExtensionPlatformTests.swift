@@ -277,21 +277,21 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         XCTAssertFalse(availableWithDisabled.contains(where: { $0.id == "com.golden.js.action" }), "Disabled action should be filtered out by registry")
     }
 
-    /// Exit criterion: a JS extension calling openclip.showBubble(...) produces a `.showBubble`
+    /// Exit criterion: a JS extension calling openclip.showContent(...) produces a `.showContent`
     /// result through the full load → factory → host pipeline.
     @MainActor
-    func testJSBubbleExtensionProducesShowBubble() async throws {
-        let jsBundle = tempDir.appendingPathComponent("JSBubbleExt.openclipext")
+    func testJSContentExtensionProducesShowContent() async throws {
+        let jsBundle = tempDir.appendingPathComponent("JSContentExt.openclipext")
         try FileManager.default.createDirectory(at: jsBundle, withIntermediateDirectories: true)
         let jsManifest = """
         {
-            "identifier": "com.golden.jsbubble",
-            "name": "JS Bubble Golden Extension",
+            "identifier": "com.golden.jscontent",
+            "name": "JS Content Golden Extension",
             "actions": [
                 {
-                    "id": "com.golden.jsbubble.action",
-                    "title": "JS Bubble Action",
-                    "script": "bubble.js"
+                    "id": "com.golden.jscontent.action",
+                    "title": "JS Content Action",
+                    "script": "content.js"
                 }
             ]
         }
@@ -299,23 +299,23 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         try jsManifest.write(to: jsBundle.appendingPathComponent("openclip.json"), atomically: true, encoding: .utf8)
         let jsCode = """
         function action(text, options) {
-            openclip.showBubble({ title: "Processed", body: "Hello " + text, footer: ["paste", "copy"] });
+            openclip.showContent({ title: "Processed", body: "Hello " + text, footer: ["paste", "copy"] });
             return null;
         }
         """
-        try jsCode.write(to: jsBundle.appendingPathComponent("bubble.js"), atomically: true, encoding: .utf8)
+        try jsCode.write(to: jsBundle.appendingPathComponent("content.js"), atomically: true, encoding: .utf8)
 
         await ExtensionManager.shared.loadExtensions(from: tempDir)
         let loadedActions = ExtensionManager.shared.loadedActions
 
-        guard let action = loadedActions.first(where: { $0.id == "com.golden.jsbubble.action" }) as? JavaScriptAction else {
-            XCTFail("Missing JavaScriptAction for com.golden.jsbubble.action")
+        guard let action = loadedActions.first(where: { $0.id == "com.golden.jscontent.action" }) as? JavaScriptAction else {
+            XCTFail("Missing JavaScriptAction for com.golden.jscontent.action")
             return
         }
 
         let result = try await action.perform(ActionContext(selectedText: "World"))
-        guard case .showBubble(let content) = result else {
-            return XCTFail("Expected .showBubble, got \(result)")
+        guard case .showContent(let content) = result else {
+            return XCTFail("Expected .showContent, got \(result)")
         }
         XCTAssertEqual(content.title, "Processed")
         XCTAssertEqual(content.rows.count, 1)

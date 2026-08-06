@@ -3,7 +3,7 @@
 //
 // Defines the value enum representing execution results and platform side-effects returned by actions.
 // Specifies outcomes such as copy, cut, paste, URL opening, system service triggers, notification
-// posting, presentation results (bubbles, status, configuration), and simple success/failure. Also
+// posting, presentation results (content canvas, status, configuration), and simple success/failure. Also
 // carries the popup dismissal policy computed once on a top-level result (decision 8).
 import Foundation
 
@@ -23,9 +23,9 @@ public indirect enum ActionResult: Sendable {
 
     // MARK: - Presentation results (presenter-owned; the effect handler treats these as no-ops)
 
-    /// Render a result bubble on the popup card. Keeps the popup open.
-    case showBubble(BubbleContent)
-    /// Surface a transient status (success/error/info) as a bubble or corner badge. Keeps the popup open.
+    /// Render a content canvas on the popup panel. Keeps the popup open.
+    case showContent(PopupContent)
+    /// Surface a transient status (success/error/info) as a banner or corner badge. Keeps the popup open.
     case showStatus(StatusFeedback)
     /// Hide the popup and ask the user to configure the named action (opens Preferences → EditActionSheet).
     case openConfiguration(ConfigurationRequest)
@@ -49,12 +49,12 @@ public indirect enum ActionResult: Sendable {
 
 extension ActionResult {
     /// Whether the popup should hide after this top-level result is handled. Computed once on the
-    /// top-level result (decision 8): `.showBubble`/`.showStatus` keep the popup up, `.keepVisible`
+    /// top-level result (decision 8): `.showContent`/`.showStatus` keep the popup up, `.keepVisible`
     /// explicitly suppresses dismissal, and a `.sequence` dismisses only when non-empty and every
     /// item dismisses. Everything else (leaf effects, `.openConfiguration`) dismisses.
     public var dismissesPopup: Bool {
         switch self {
-        case .keepVisible, .showBubble, .showStatus:
+        case .keepVisible, .showContent, .showStatus:
             return false
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)
