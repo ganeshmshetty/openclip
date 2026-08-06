@@ -63,8 +63,8 @@ graph TD
 - **Responsibility**: Exposes UI policy metadata for actions without logic coupling.
 - **Metadata**:
  - `badge`: `.none`, `.script`, `.url`, `.custom`, `.extensionPkg(String)`
- - `rowStyle`: `.standard`, `.transformGroup`
- - `popupBehavior`: `.perform`, `.showTransformMenu`, `.provideCompletions`
+ - `rowStyle`: `.standard`, `.actionGroup`
+ - `popupBehavior`: `.perform`, `.showSubActions`, `.provideCompletions`
  - `source`: `.builtin`, `.custom`, `.extensionPkg(packageID: String)`
 - **Strict Rule**: Views must inspect `action.chrome.badge` or `action.chrome.source` instead of checking `if action is ScriptAction` or matching `action.id`.
 

@@ -26,7 +26,7 @@ final class SubActionResolverTests: XCTestCase {
 
     @MainActor
     func testGroupResolvesChildrenByIDPrefix() {
-        let group = GroupAction(id: "com.pkg.group", title: "G", icon: .symbol("folder"), chrome: ActionChrome(popupBehavior: .showTransformMenu))
+        let group = GroupAction(id: "com.pkg.group", title: "G", icon: .symbol("folder"), chrome: ActionChrome(popupBehavior: .showSubActions))
         let sub1 = FakeAction(id: "com.pkg.group.a")
         let sub2 = FakeAction(id: "com.pkg.group.b")
         let unrelated = FakeAction(id: "com.other.x")

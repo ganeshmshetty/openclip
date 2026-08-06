@@ -128,11 +128,11 @@ public final class ActionRegistry: ObservableObject, Sendable {
         // row is disabled (or otherwise not visible) hides its sub-actions entirely, so a
         // disabled group never leaks its sub-actions into the bar.
         let groupRowIDs = actions
-            .filter { $0.chrome.popupBehavior == .showTransformMenu }
+            .filter { $0.chrome.popupBehavior == .showSubActions }
             .map { $0.id }
         let enabledGroupIDs = Set(
             actions
-                .filter { $0.chrome.popupBehavior == .showTransformMenu }
+                .filter { $0.chrome.popupBehavior == .showSubActions }
                 .filter(passes)
                 .map { $0.id }
         )

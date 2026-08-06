@@ -150,8 +150,8 @@ final class ActionRegistryTests: XCTestCase {
         let groupID = "mock.group"
         let groupChrome = ActionChrome(
             badge: .none,
-            rowStyle: .transformGroup,
-            popupBehavior: .showTransformMenu,
+            rowStyle: .actionGroup,
+            popupBehavior: .showSubActions,
             source: .builtin
         )
         let group = MockAction(id: groupID, shouldBeEnabled: true, chrome: groupChrome)
@@ -184,8 +184,8 @@ final class ActionRegistryTests: XCTestCase {
         let groupID = "mock.group.visible"
         let groupChrome = ActionChrome(
             badge: .none,
-            rowStyle: .transformGroup,
-            popupBehavior: .showTransformMenu,
+            rowStyle: .actionGroup,
+            popupBehavior: .showSubActions,
             source: .builtin
         )
         let group = MockAction(id: groupID, shouldBeEnabled: true, chrome: groupChrome)
@@ -215,8 +215,8 @@ final class ActionRegistryTests: XCTestCase {
         let registry = ActionRegistry()
         let groupChrome = ActionChrome(
             badge: .none,
-            rowStyle: .transformGroup,
-            popupBehavior: .showTransformMenu,
+            rowStyle: .actionGroup,
+            popupBehavior: .showSubActions,
             source: .builtin
         )
         let group = MockAction(id: "mock.searchgroup", shouldBeEnabled: true, chrome: groupChrome)

@@ -19,7 +19,7 @@ final class PopupSearchScopeTests: XCTestCase {
     @MainActor
     func testScopedPaletteBuildsResultsFromChildrenOnly() {
         // Exercise the same path PopupView uses: SubActionResolver over a catalog, wrapped in SearchScope.
-        let group = GroupAction(id: "com.pkg.g", title: "G", icon: .symbol("folder"), chrome: ActionChrome(popupBehavior: .showTransformMenu))
+        let group = GroupAction(id: "com.pkg.g", title: "G", icon: .symbol("folder"), chrome: ActionChrome(popupBehavior: .showSubActions))
         let catalog: [any Action] = [
             group,
             GroupScopeAction(id: "com.pkg.g.a"),
@@ -31,7 +31,7 @@ final class PopupSearchScopeTests: XCTestCase {
 
     @MainActor
     func testScopedViewHostsWithoutCrash() throws {
-        let group = GroupAction(id: "com.pkg.g", title: "G", icon: .symbol("folder"), chrome: ActionChrome(popupBehavior: .showTransformMenu))
+        let group = GroupAction(id: "com.pkg.g", title: "G", icon: .symbol("folder"), chrome: ActionChrome(popupBehavior: .showSubActions))
         let children = [GroupScopeAction(id: "com.pkg.g.a")]
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(

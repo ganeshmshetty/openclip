@@ -126,9 +126,9 @@ public struct PopupView: View {
         return hasCompletions && isShowingCompletions
     }
 
-    /// Group row IDs (chrome stamps `.showTransformMenu`); sub-actions live under `\(groupID).\(subID)`.
+    /// Group row IDs (chrome stamps `.showSubActions`); sub-actions live under `\(groupID).\(subID)`.
     private var groupIDs: [String] {
-        actions.compactMap { $0.chrome.popupBehavior == .showTransformMenu ? $0.id : nil }
+        actions.compactMap { $0.chrome.popupBehavior == .showSubActions ? $0.id : nil }
     }
 
     /// Bar rows: everything except the inline completion pseudo-action and any group sub-action.

@@ -137,8 +137,8 @@ final class NewExtensionKindTests: XCTestCase {
             return XCTFail("First entry must be GroupAction")
         }
         XCTAssertEqual(row.id, "pkg.tools")
-        XCTAssertEqual(row.chrome.popupBehavior, .showTransformMenu)
-        XCTAssertEqual(row.chrome.rowStyle, .transformGroup)
+        XCTAssertEqual(row.chrome.popupBehavior, .showSubActions)
+        XCTAssertEqual(row.chrome.rowStyle, .actionGroup)
 
         let rowResult = try await row.perform(makeContext())
         guard case .none = rowResult else {
@@ -161,7 +161,7 @@ final class NewExtensionKindTests: XCTestCase {
             id: "pkg.group",
             title: "G",
             icon: .symbol("folder"),
-            chrome: ActionChrome(badge: .none, rowStyle: .transformGroup, popupBehavior: .showTransformMenu, source: .extensionPkg(packageID: "pkg")),
+            chrome: ActionChrome(badge: .none, rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .extensionPkg(packageID: "pkg")),
             rules: ExtensionActionRules(requirements: ActionRequirements(apps: ["com.allowed"], appsMode: .allow))
         )
         XCTAssertTrue(group.isEnabled(for: makeContext(bundleID: "com.allowed")))

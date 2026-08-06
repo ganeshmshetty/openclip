@@ -107,8 +107,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         )
         let groupChrome = ActionChrome(
             badge: .extensionPkg(manifest.name),
-            rowStyle: .transformGroup,
-            popupBehavior: .showTransformMenu,
+            rowStyle: .actionGroup,
+            popupBehavior: .showSubActions,
             source: .extensionPkg(packageID: manifest.identifier)
         )
         var result: [any Action] = [GroupAction(

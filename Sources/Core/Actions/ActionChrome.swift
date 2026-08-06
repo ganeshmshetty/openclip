@@ -16,12 +16,12 @@ public struct ActionChrome: Codable, Sendable, Equatable {
 
     public enum RowStyle: Codable, Sendable, Equatable {
         case standard
-        case transformGroup
+        case actionGroup
     }
 
     public enum PopupBehavior: Codable, Sendable, Equatable {
         case perform
-        case showTransformMenu
+        case showSubActions
         case provideCompletions
     }
 

@@ -18,7 +18,7 @@ final class MenuActionTests: XCTestCase {
     // MARK: - MenuDecoratedAction: identity forwarding
 
     func testDecoratorForwardsIdentity() {
-        let chrome = ActionChrome(badge: .extensionPkg("Pkg"), rowStyle: .transformGroup, popupBehavior: .showTransformMenu, source: .extensionPkg(packageID: "com.test.pkg"))
+        let chrome = ActionChrome(badge: .extensionPkg("Pkg"), rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .extensionPkg(packageID: "com.test.pkg"))
         let base = MockAction(id: "pkg.sub", shouldBeEnabled: true, chrome: chrome)
         let decorated = MenuDecoratedAction(base: base, menuRelevanceRegex: "\\d+", menuPreviewTemplate: "{text}")
 
