@@ -137,13 +137,24 @@ public struct PopupContentView: View {
         let styled = Group {
             if effectiveTheme == "glass" {
                 if #available(macOS 26, *) {
+                    // glassEffect(.regular) casts an elevation shadow that scales with surface size
+                    // and clips on large surfaces; the palette-proven pattern is a material + .clear
+                    // glass layer + compositingGroup, then a SwiftUI shadow (AGENTS.md hard rule).
+                    // The SwiftUI shadow uses the palette's compact radius (6) so its blur stays
+                    // within the 16pt panel padding — a 10pt radius clips in every theme.
                     base
-                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                        .background(
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .stroke(cardBorder, lineWidth: 1.0)
                         )
-                        .shadow(color: .black.opacity(shadowOpacity), radius: 10, x: 0, y: 4)
+                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                        .compositingGroup()
+                        .shadow(color: .black.opacity(shadowOpacity), radius: 6, x: 0, y: 3)
                 } else {
                     base
                         .background(
@@ -155,7 +166,7 @@ public struct PopupContentView: View {
                             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .stroke(cardBorder, lineWidth: 1.0)
                         )
-                        .shadow(color: .black.opacity(shadowOpacity), radius: 10, x: 0, y: 4)
+                        .shadow(color: .black.opacity(shadowOpacity), radius: 6, x: 0, y: 3)
                 }
             } else {
                 let bgFill = effectiveTheme == "dark"
@@ -171,7 +182,7 @@ public struct PopupContentView: View {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .stroke(cardBorder, lineWidth: 1.0)
                     )
-                    .shadow(color: .black.opacity(shadowOpacity), radius: content.emphasis == .info ? 6 : 10, x: 0, y: 4)
+                    .shadow(color: .black.opacity(shadowOpacity), radius: 6, x: 0, y: 3)
             }
         }
 
