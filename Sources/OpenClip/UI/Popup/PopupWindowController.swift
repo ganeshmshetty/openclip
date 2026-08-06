@@ -2,10 +2,11 @@
 // OpenClip
 //
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
-// Also owns the reusable bubble panel (PopupContentView) that renders hover info and result
-// bubbles, plus the hover-debounce and long-press timers that trigger them per Action.gesturePolicy.
-// Owns the popup mode state machine (actions bar ↔ action-search palette): search mode makes the panel
-// key (a scoped exception to the never-key rule) and restores focus to the previous app on exit.
+// Owns the popup mode state machine (actions bar ↔ action-search palette ↔ content canvas): search
+// mode makes the panel key (a scoped exception to the never-key rule) and restores focus to the
+// previous app on exit; content mode renders action/AI results inline on the panel and stays non-key
+// (Esc is observed by the event monitors). Also owns the hover-debounce and long-press timers that
+// feed the preview strip / result canvas per Action.gesturePolicy.
 // Implements the decision-8 ActionResult tree-walk (handleActionResult): presentation results render
 // here, leaf effects route to DefaultActionResultHandler, and dismissal is decided once via
 // ActionResult.dismissesPopup.
@@ -16,7 +17,6 @@ import Core
 @MainActor
 public class PopupWindowController {
     private var panel: PopupPanel?
-    private var bubblePanel: PopupPanel?
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var currentContext: SelectionContext?
@@ -31,8 +31,10 @@ public class PopupWindowController {
     private var longPressTask: Task<Void, Never>?
     private var hoveredAction: (any Action)?
     private var longPressFired = false
-    /// Set true while a non-dismissable bubble (.result/.menu) is showing.
-    private var bubbleBlocksDismiss = false
+    /// True while a blocking content canvas (.result/.menu) is open; suppresses distance dismissal.
+    private var contentBlocksDismiss: Bool {
+        modeStore.mode == .content && modeStore.content?.emphasis != .info
+    }
 
     /// Top-trailing status badge shown on the open content canvas (decision 10). Backed by the shared
     /// StatusBadgeModel so an already-mounted PopupContentView re-renders when a status arrives.
@@ -80,6 +82,17 @@ public class PopupWindowController {
             modeStore: modeStore,
             onEnterSearch: { [weak self] in self?.enterSearch() },
             onExitSearch: { [weak self] in self?.exitSearch() },
+            onExitContent: { [weak self] in self?.exitContent() },
+            onContentOutcome: { [weak self] outcome in
+                guard let self, case .perform(let inner) = outcome else { return }
+                if case .paste = inner {
+                    self.handleActionResult(inner)
+                    self.hide()
+                } else {
+                    self.exitContent()
+                    self.handleActionResult(inner)
+                }
+            },
             onResult: { [weak self] result in
                 guard let self else { return }
                 // Decision 8: dismissal is decided once on the top-level result; the tree-walk never
@@ -94,13 +107,9 @@ public class PopupWindowController {
             },
             onAIStateChange: { [weak self] active, _ in
                 self?.isAIOverlayActive = active
-                // Bubble panel is dismissed only by explicit user actions or hide()
             },
             onAIResult: { [weak self] text, isError in
-                self?.showAIBubble(text: text, isError: isError)
-            },
-            onAIDismiss: { [weak self] in
-                self?.hideBubble()
+                self?.showAIContent(text: text, isError: isError)
             },
             onHoveredActionChanged: { [weak self] action in
                 self?.updateHoveredAction(action)
@@ -200,63 +209,27 @@ public class PopupWindowController {
         previousFrontmostApp = nil
     }
 
-    // MARK: - Bubble Panel
+    // MARK: - Content Canvas
 
-    private func showBubble(content: PopupContent, blocksDismiss: Bool, anchorX: CGFloat? = nil, onOutcome: @escaping (ContentOutcome) -> Void, onClose: (() -> Void)? = nil) {
-        guard let panel else { return }
-
-        hideBubble()
-        let bp = PopupPanel()
-        self.bubblePanel = bp
-        bubbleBlocksDismiss = blocksDismiss
-
-        let bubbleView = PopupContentView(
-            content: content,
-            onOutcome: { outcome in
-                onOutcome(outcome)
-            },
-            onClose: onClose
-        )
-        bp.contentView = NSHostingView(rootView: bubbleView)
-        bp.contentView?.layoutSubtreeIfNeeded()
-
-        let bubbleSize = sanitizedBubbleSize(bp.contentView?.fittingSize)
-        let gap: CGFloat = 8
-        let barFrame = panel.frame
-
-        // Horizontal: center on the anchor point (e.g. the pressed/hovered button) clamped to the
-        // screen; fall back to aligning with the bar's left edge.
-        let screen = NSScreen.screens.first { $0.frame.contains(barFrame.origin) } ?? NSScreen.main
-        let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
-        let padding: CGFloat = Constants.popupPadding
-        // The panel is as wide as the wider of the bubble and the bar, so clamp by the final width.
-        let finalWidth = max(bubbleSize.width, barFrame.width)
-        var x: CGFloat
-        if let anchorX {
-            x = anchorX - finalWidth / 2
-        } else {
-            x = barFrame.origin.x
-        }
-        x = max(screenBounds.minX + padding, min(x, screenBounds.maxX - finalWidth - padding))
-
-        var y: CGFloat
-        if cardAbove {
-            // Place bubble ABOVE bar — position its bottom edge just above bar's top
-            y = barFrame.maxY + gap
-        } else {
-            // Place bubble BELOW bar — position its top edge just below bar's bottom
-            y = barFrame.minY - bubbleSize.height - gap
-        }
-        // Clamp the final frame fully inside the screen so a tall menu bubble (no height bound)
-        // never renders off-screen.
-        y = max(screenBounds.minY + padding, min(y, screenBounds.maxY - bubbleSize.height - padding))
-
-        bp.setFrame(CGRect(x: x, y: y, width: finalWidth, height: bubbleSize.height), display: true)
-        bp.orderFront(nil)
+    /// Opens the content canvas for a result: the panel transforms into the canvas (bar hidden,
+    /// like search mode). The panel stays non-key — Esc is observed by the event monitors.
+    private func enterContent(_ content: PopupContent) {
+        guard panel?.isVisible == true else { return }
+        modeStore.content = content
+        modeStore.mode = .content
+        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
     }
 
-    /// Replaces the AI overlay with a PopupContentView `.result` canvas.
-    private func showAIBubble(text: String, isError: Bool) {
+    /// Collapses the content canvas back to the actions bar. Never hides the popup.
+    public func exitContent() {
+        guard modeStore.mode == .content else { return }
+        modeStore.content = nil
+        modeStore.mode = .actions
+        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+    }
+
+    /// Renders the AI response (or error) as a content canvas with Replace/Copy delivery options.
+    private func showAIContent(text: String, isError: Bool) {
         let content = PopupContent(
             title: isError ? "AI Error" : "AI Result",
             icon: isError ? "exclamationmark.triangle" : "sparkles",
@@ -275,67 +248,24 @@ public class PopupWindowController {
             ],
             emphasis: .result
         )
-
-        showBubble(
-            content: content,
-            blocksDismiss: true,
-            onOutcome: { [weak self] outcome in
-                guard case .perform(let result) = outcome else { return }
-                self?.handleActionResult(result)
-                if case .paste = result {
-                    self?.hide()
-                } else {
-                    self?.hideBubble()
-                }
-            },
-            onClose: { [weak self] in
-                self?.hideBubble()
-            }
-        )
+        enterContent(content)
     }
 
-
-
-
-
-
-    private func hideBubble() {
-        statusDismissTask?.cancel()
-        statusDismissTask = nil
-        currentStatusBadge = nil
-        bubblePanel?.orderOut(nil)
-        bubblePanel = nil
-        bubbleBlocksDismiss = false
-    }
-
-    private func sanitizedBubbleSize(_ raw: CGSize?) -> CGSize {
-        var s = raw ?? CGSize(width: 300, height: 120)
-        s.width = max(s.width, 160)
-        s.height = max(s.height, 48)
-        return s
-    }
-
-    // MARK: - Hover Info Bubble
+    // MARK: - Hover Preview
 
     private func updateHoveredAction(_ action: (any Action)?) {
-        // Re-entry with the same action id must not cancel a pending hover bubble for it.
+        // Re-entry with the same action id must not cancel a pending hover preview for it.
         guard action?.id != hoveredAction?.id else { return }
         hoverDebounceTask?.cancel()
         hoveredAction = action
 
-        guard let action, let actionContext = currentActionContext else {
-            if bubbleBlocksDismiss == false {
-                hideBubble()
-            }
+        guard let action, let actionContext = currentActionContext, modeStore.mode == .actions else {
+            modeStore.preview = nil
             return
         }
 
         guard action.gesturePolicy.hoverPreview else {
-            // Never tear down a blocking (.result/.menu) bubble just because the pointer
-            // crossed a bar button that has no hover preview.
-            if bubbleBlocksDismiss == false {
-                hideBubble()
-            }
+            modeStore.preview = nil
             return
         }
 
@@ -343,8 +273,7 @@ public class PopupWindowController {
             try? await Task.sleep(nanoseconds: Constants.bubbleHoverDelayNanoseconds)
             guard !Task.isCancelled,
                   self.hoveredAction?.id == action.id,
-                  // A blocking bubble may have opened while we were debouncing; don't replace it.
-                  self.bubbleBlocksDismiss == false else { return }
+                  self.modeStore.mode == .actions else { return }
 
             let icon: String? = {
                 if case .symbol(let name) = action.displayIcon { return name }
@@ -352,17 +281,16 @@ public class PopupWindowController {
             }()
             let line = await (action as? any PreviewProviding)?.previewLine(for: actionContext)
 
-            let content = PopupContent(
+            self.modeStore.preview = PopupContent(
                 title: action.displayTitle,
                 icon: icon,
                 subtitle: line ?? action.displayTitle,
                 emphasis: .info
             )
-            self.showBubble(content: content, blocksDismiss: false, anchorX: NSEvent.mouseLocation.x) { _ in }
         }
     }
 
-    // MARK: - Long-Press Bubble
+    // MARK: - Long-Press Canvas
 
     private func beginLongPressIfNeeded(at clickLocation: CGPoint) {
         longPressTask?.cancel()
@@ -381,13 +309,7 @@ public class PopupWindowController {
             }
             guard !Task.isCancelled else { return }
             longPressFired = true
-            self.showBubble(content: content, blocksDismiss: true, anchorX: clickLocation.x) { [weak self] outcome in
-                guard case .perform(let result) = outcome else { return }
-                self?.handleActionResult(result)
-                self?.hide()
-            } onClose: { [weak self] in
-                self?.hideBubble()
-            }
+            self.enterContent(content)
         }
     }
     
@@ -440,7 +362,12 @@ public class PopupWindowController {
     
     public func hide() {
         isAIOverlayActive = false
-        hideBubble()
+        statusDismissTask?.cancel()
+        statusDismissTask = nil
+        currentStatusBadge = nil
+        modeStore.statusBanner = nil
+        modeStore.content = nil
+        modeStore.preview = nil
         hoverDebounceTask?.cancel()
         longPressTask?.cancel()
         longPressTask = nil
@@ -526,9 +453,14 @@ public class PopupWindowController {
         case .mouseMoved:
             updatePopupHover(at: NSEvent.mouseLocation)
             let cursorLoc = NSEvent.mouseLocation
-            // Only auto-dismiss by distance in actions mode; search mode suspends it so typing
-            // with the mouse elsewhere doesn't dismiss the palette.
-            if modeStore.mode == .actions, !bubbleBlocksDismiss, let panel = panel {
+            // Distance dismissal suspends in search mode (typing elsewhere must not dismiss the
+            // palette) and while a blocking content canvas is open; it is active otherwise.
+            let distanceDismissActive: Bool = {
+                if modeStore.mode == .search { return false }
+                if modeStore.mode == .content { return modeStore.content?.emphasis != .info }
+                return true
+            }()
+            if distanceDismissActive, !contentBlocksDismiss, let panel = panel {
                 let frame = panel.frame
                 let dx = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
                 let dy = max(0, max(frame.minY - cursorLoc.y, cursorLoc.y - frame.maxY))
@@ -539,24 +471,32 @@ public class PopupWindowController {
         case .leftMouseDown:
             let clickLoc = NSEvent.mouseLocation
             let inBar = panel?.frame.contains(clickLoc) ?? false
-            let inBubble = bubblePanel?.frame.contains(clickLoc) ?? false
             if inBar {
                 beginLongPressIfNeeded(at: clickLoc)
             }
-            if !inBar && !inBubble {
+            if !inBar {
                 hide()
             }
         case .scrollWheel:
             // In search mode the wheel scrolls the results list (the panel is key).
             if modeStore.mode == .search { break }
-            if !bubbleBlocksDismiss {
+            if !contentBlocksDismiss {
                 hide()
             }
         case .keyDown:
             // Actions mode: any keystroke (including Escape) dismisses the popup; the panel is
             // never key here, so keys land in the source app and are merely observed.
             // Search mode: keys go to the search field (panel is key); Escape is handled there.
+            // Content mode: Escape collapses the canvas back to the bar; any other key dismisses.
             if modeStore.mode == .search { break }
+            if modeStore.mode == .content {
+                if event.keyCode == 53 { // Esc
+                    exitContent()
+                } else {
+                    hide()
+                }
+                return
+            }
             hide()
         default:
             break
@@ -594,21 +534,10 @@ public class PopupWindowController {
     /// Walks an ActionResult produced by a perform, rendering presentation results in the popup and
     /// routing leaf effects to the effect handler. Never hides the popup per-item — dismissal is
     /// decided once on the top-level result via `dismissesPopup`.
-    private func handleActionResult(_ result: ActionResult) {
+    func handleActionResult(_ result: ActionResult) {
         switch result {
         case .showContent(let content):
-            showBubble(
-                content: content,
-                blocksDismiss: true,
-                anchorX: NSEvent.mouseLocation.x,
-                onOutcome: { [weak self] outcome in
-                    guard case .perform(let inner) = outcome else { return }
-                    self?.handleActionResult(inner)
-                },
-                onClose: { [weak self] in
-                    self?.hideBubble()
-                }
-            )
+            enterContent(content)
         case .showStatus(let feedback):
             presentStatus(feedback)
         case .openConfiguration(let request):
@@ -635,34 +564,23 @@ public class PopupWindowController {
         }
     }
 
-    /// Decision 10: surfaces a StatusFeedback. With no bubble open, pops an auto-dismissing (~1.5s)
-    /// non-blocking `.info` bubble; with a bubble already open, shows a top-trailing corner badge on
+    /// Decision 10: surfaces a StatusFeedback. With no content canvas open, shows an auto-dismissing
+    /// (~1.5s) non-blocking banner; with a canvas already open, shows a top-trailing corner badge on
     /// the open card instead.
     private func presentStatus(_ feedback: StatusFeedback) {
         // Never surface a status if the popup isn't showing (e.g. a `.failure` result dismissed it
-        // before the effect threw); otherwise a detached bubble would float with no bar.
+        // before the effect threw); otherwise a detached banner would float with no bar.
         guard panel?.isVisible == true else { return }
-        if bubblePanel != nil {
+        if modeStore.mode == .content {
             currentStatusBadge = feedback
             return
         }
-
-        let content = PopupContent(
-            icon: feedback.symbolName ?? statusSymbol(for: feedback.style),
-            subtitle: feedback.message,
-            emphasis: .info
-        )
-        showBubble(
-            content: content,
-            blocksDismiss: false,
-            anchorX: NSEvent.mouseLocation.x,
-            onOutcome: { _ in }
-        )
         statusDismissTask?.cancel()
+        modeStore.statusBanner = feedback
         statusDismissTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: statusBubbleDurationNanoseconds)
             guard !Task.isCancelled else { return }
-            self.hideBubble()
+            self.modeStore.statusBanner = nil
         }
     }
 

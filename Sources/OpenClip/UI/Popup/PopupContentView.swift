@@ -2,10 +2,11 @@
 // OpenClip
 //
 // The single reusable renderer for the popup content canvas: renders a PopupContent with one of
-// three emphasis styles — .info (small dim card), .result (standard card with delivery buttons),
-// or .menu (vertical option rows). Replaces the ad-hoc AI overlay card. Also renders an optional
-// top-trailing status badge (decision 10) driven by StatusBadgeModel, so a status that arrives while
-// a card is already open is surfaced as a corner badge rather than replacing the card.
+// three emphasis styles — .info (small dim card), .result (standard card with header and delivery
+// buttons), or .menu (vertical option rows). The canvas header shows the content title and a back
+// chevron when `onBack` is provided. Also renders an optional top-trailing status badge (decision
+// 10) driven by StatusBadgeModel, so a status that arrives while a card is already open is surfaced
+// as a corner badge rather than replacing the card.
 import SwiftUI
 import Core
 
@@ -25,7 +26,7 @@ public final class StatusBadgeModel: ObservableObject {
 public struct PopupContentView: View {
     public let content: PopupContent
     public let onOutcome: (ContentOutcome) -> Void
-    public let onClose: (() -> Void)?
+    public let onBack: (() -> Void)?
 
     @ObservedObject public var statusBadgeModel: StatusBadgeModel = .shared
 
@@ -35,12 +36,12 @@ public struct PopupContentView: View {
 
     public init(
         content: PopupContent,
-        onOutcome: @escaping (ContentOutcome) -> Void,
-        onClose: (() -> Void)? = nil
+        onBack: (() -> Void)? = nil,
+        onOutcome: @escaping (ContentOutcome) -> Void
     ) {
         self.content = content
+        self.onBack = onBack
         self.onOutcome = onOutcome
-        self.onClose = onClose
     }
 
     private var themeCategory: PopupThemeModel.Category {
@@ -220,9 +221,9 @@ public struct PopupContentView: View {
                         .foregroundColor(.accentColor)
                 }
                 Spacer()
-                if let onClose {
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
+                if let onBack {
+                    Button(action: onBack) {
+                        Image(systemName: "chevron.left")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.secondary)
                             .frame(width: 28, height: 28)
@@ -231,8 +232,8 @@ public struct PopupContentView: View {
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
-                    .help("Dismiss")
-                    .accessibilityLabel("Dismiss")
+                    .help("Back")
+                    .accessibilityLabel("Back")
                 }
             }
 

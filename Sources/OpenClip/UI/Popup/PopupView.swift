@@ -2,7 +2,8 @@
 // OpenClip
 //
 // Renders the main floating action bar popup view presenting available actions, transform menus,
-// inline completion buttons, and (in search mode) the action-search palette.
+// inline completion buttons, the action-search palette, and the inline content canvas (which
+// replaces the bar with an action/AI result card in content mode).
 import SwiftUI
 import AppKit
 import CoreGraphics
@@ -18,10 +19,13 @@ public struct PopupView: View {
     public let onContentSizeChange: (@MainActor (CGSize) -> Void)?
     /// active=true when AI is running or showing result; cardAboveBar=true when the card should render above the bar
     public let onAIStateChange: (@MainActor (Bool, Bool) -> Void)?
-    /// Called with (resultText, isError) when the AI result is ready to show in a separate overlay panel
+    /// Called with (resultText, isError) when the AI result is ready to show in the content canvas.
     public let onAIResult: (@MainActor (String, Bool) -> Void)?
-    /// Called when the AI overlay should be dismissed
-    public let onAIDismiss: (@MainActor () -> Void)?
+    /// Called when the content canvas should collapse back to the bar (back chevron).
+    public let onExitContent: @MainActor () -> Void
+    /// Called when the user taps a canvas footer/menu option. The controller owns the
+    /// paste→dismiss vs. collapse-to-bar decision (old bubble UX preserved).
+    public let onContentOutcome: @MainActor (ContentOutcome) -> Void
     /// Called when the hovered action changes (nil when nothing hovered). Drives the hover preview strip.
     public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
     /// Opens a scoped palette for a bar row's sub-actions (group rows via `.openSubActions` and the
@@ -87,11 +91,12 @@ public struct PopupView: View {
         modeStore: PopupModeStore = PopupModeStore(),
         onEnterSearch: @escaping @MainActor () -> Void = {},
         onExitSearch: @escaping @MainActor () -> Void = {},
+        onExitContent: @escaping @MainActor () -> Void = {},
+        onContentOutcome: @escaping @MainActor (ContentOutcome) -> Void = { _ in },
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
         onAIResult: (@MainActor (String, Bool) -> Void)? = nil,
-        onAIDismiss: (@MainActor () -> Void)? = nil,
         onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
         onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil
     ) {
@@ -101,7 +106,8 @@ public struct PopupView: View {
         self.onContentSizeChange = onContentSizeChange
         self.onAIStateChange = onAIStateChange
         self.onAIResult = onAIResult
-        self.onAIDismiss = onAIDismiss
+        self.onExitContent = onExitContent
+        self.onContentOutcome = onContentOutcome
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
         self.isStatic = isStatic
@@ -189,8 +195,23 @@ public struct PopupView: View {
 
     @ViewBuilder
     private var barContent: some View {
-        // Bar only — AI overlay lives in its own separate NSPanel managed by PopupWindowController
-        mainBarStyled
+        if modeStore.mode == .content {
+            contentCanvas
+        } else {
+            mainBarStyled
+        }
+    }
+
+    /// The content canvas: renders action/AI results inline on the popup panel in place of the bar.
+    @ViewBuilder
+    private var contentCanvas: some View {
+        if let content = modeStore.content {
+            PopupContentView(
+                content: content,
+                onBack: { onExitContent() },
+                onOutcome: onContentOutcome
+            )
+        }
     }
 
 
@@ -312,7 +333,6 @@ public struct PopupView: View {
 
     private func runAIPreset(prompt: String) {
         cancelAITask()
-        onAIDismiss?()
 
         let selectionText = context.selection.text
         aiTask = Task { @MainActor in
