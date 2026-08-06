@@ -19,7 +19,7 @@ Sources/
 │   │   ├── ActionSearch.swift                # Popup mode enum + pure substring matcher for the action-search palette
 │   │   ├── GroupAction.swift                 # Pure group-row action (chrome .showSubActions); perform → .none
 │   │   ├── KeyPressSpec.swift                # Key-press spec ("mod+mod+key") parsed from manifest keyPress
-│   │   ├── BubbleContent.swift               # Popup bubble value-type model (rows/options/emphasis)
+│   │   ├── PopupContent.swift                 # Popup content canvas value-type model (rows/options/emphasis)
 │   │   ├── Builtin/                          # Core builtin actions (Copy, Cut, Paste, etc.)
 │   │   │   └── TransformTextAction.swift     # TransformCase enum & transform implementations (default-on/off policy lives in TransformCase.defaultDisabledActionIDs; isRelevant(for:) drives menu smart-filtering)
 │   │   ├── BuiltinRegistry.swift             # Default builtin actions catalog
@@ -31,7 +31,7 @@ Sources/
 │   │   ├── ModifierFlags.swift               # Keyboard modifier flags
 │   │   ├── MathEvaluator.swift               # Deterministic exception-free arithmetic parser (replaces NSExpression; used by CalculateAction)
 │   │   ├── PopupGesturePolicy.swift          # Derived popup interaction policy (click/long-press/hover) from chrome + conformance
-│   │   ├── ResultBubbleProviding.swift       # Opt-in PreviewProviding / ResultBubbleProviding protocols for the bubble
+│   │   ├── ResultContentProviding.swift       # Opt-in PreviewProviding / ResultContentProviding protocols for the content canvas
 │   │   ├── URLTemplateAction.swift           # Web search / URL template action
 │   │   └── WordCompletionProviding.swift     # Completion provider protocol
 │   ├── Extensions/
@@ -105,16 +105,17 @@ Sources/
         │   ├── OnboardingWindowController.swift  # Transparent borderless window hosting the solid rounded card
         │   └── RecommendedExtensionsView.swift   # Top store extensions by downloadCount + Install File
         ├── Popup/                            # Floating popup panel
-        │   ├── BubbleCardView.swift            # Reusable bubble renderer (info/result/menu) for hover info, results, sub-actions
-        │   ├── PopupModeStore.swift            # Shared observable actions↔search mode + resultsAbove; preview passes a throwaway store
+        │   ├── PopupContentView.swift          # Reusable content canvas renderer (info/result/menu) for hover previews, results, sub-actions
+        │   ├── PopupModeStore.swift            # Shared observable actions↔search↔content mode + content/preview/statusBanner payloads; preview passes a throwaway store
         │   ├── PopupPanel.swift                # NSPanel subclass (scoped allowsKey + bottom-edge pin on content-driven resize)
         │   ├── PopupPositioner.swift           # Frame math & screen clamping (pure static, no singletons)
         │   ├── PopupPreview.swift              # Static popup bar preview (fixed canonical actions; Preferences Appearance tab + onboarding Finish)
+        │   ├── PopupPreviewStrip.swift         # Compact inline hover-preview strip stacked with the bar
         │   ├── PopupSearchView.swift           # Action-search palette: field + ranked results as one surface with the bar
         │   ├── PopupThemeModel.swift           # Theme resolution: category (classic/glass) + shared appearance → tokens/colorScheme
         │   ├── PopupThemeSelector.swift        # Theme control: two rows (Classic|Glass, then System/Light/Dark); storage popupTheme + popupThemeColor
-        │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode branch + ⌘ affordance)
-        │   └── PopupWindowController.swift   # Window lifecycle + bubble panel + hover/long-press timers + popup mode state machine
+        │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode / content-canvas branch + ⌘ affordance)
+        │   └── PopupWindowController.swift   # Window lifecycle + mode state machine (bar/search/content) + hover/long-press timers
         └── Preferences/                      # Settings & preferences views
             ├── ActionAppearanceFields.swift
             ├── AddCustomActionSheet.swift

@@ -11,9 +11,10 @@ The floating popup panel subsystem presents contextual actions near the user's c
 | PopupWindowController |
 | ├── PopupPanel (NSPanel, non-activating, borderless, floating level) |
 | │ └── NSHostingView(PopupView) |
-| │ └── Action Buttons / Sub-menus |
-| ├── AI PopupPanel (Secondary panel for AI responses) |
-| │ └── NSHostingView(AIResultOverlayView) |
+| │ ├── Action Buttons / Sub-menus |
+| │ ├── PopupContentView (inline content canvas in .content mode) |
+| │ ├── PopupPreviewStrip (inline hover preview) |
+| │ └── Status banner / corner badge (inline status) |
 | └── Event Monitors (Global / Local NSEvent tracking) |
 +-----------------------------------------------------------------------------+
 ```
@@ -21,15 +22,15 @@ The floating popup panel subsystem presents contextual actions near the user's c
 ### 1. [`PopupPanel`](../../Sources/OpenClip/UI/Popup/PopupPanel.swift)
 - **Base Class**: `NSPanel`
 - **Window Style**: `.nonactivatingPanel`, `.borderless`
-- **Window Level**: `.floating` (sits above normal application windows). The panel is deliberately **never** the key window by default; making it key would steal keyboard focus from the active app and swallow keystrokes. The **only** exception is action-search mode: `PopupPanel.allowsKey` gates `canBecomeKey`/`canBecomeMain`, enabled solely by `PopupWindowController.enterSearch()`.
-- **Properties**: `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = false` (SwiftUI draws its own shadow; a panel shadow causes double artifacts). `pinBottomEdgeOnResize` (search mode only) re-anchors content-driven growth — see *Action-Search Palette & Panel Growth* below.
-- **Shadow inset**: `PopupView` keeps ≥16pt of SwiftUI padding around the bar (12pt for info bubbles in `BubbleCardView`) so the SwiftUI shadow renders *inside* the panel rather than being clipped at its edge. If a shadow looks cut off, increase the padding — never re-enable the panel shadow.
+- **Window Level**: `.floating` (sits above normal application windows). The panel is deliberately **never** the key window by default; making it key would steal keyboard focus from the active app and swallow keystrokes. The **only** exception is action-search mode: `PopupPanel.allowsKey` gates `canBecomeKey`/`canBecomeMain`, enabled solely by `PopupWindowController.enterSearch()`. Content mode is **not** an exception — Esc is handled by the event monitors (observation-only).
+- **Properties**: `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = false` (SwiftUI draws its own shadow; a panel shadow causes double artifacts). `pinBottomEdgeOnResize` (search/content mode only) re-anchors content-driven growth — see *Action-Search Palette & Panel Growth* below.
+- **Shadow inset**: `PopupView` keeps ≥16pt of SwiftUI padding around the bar (12pt for info cards in `PopupContentView`) so the SwiftUI shadow renders *inside* the panel rather than being clipped at its edge. If a shadow looks cut off, increase the padding — never re-enable the panel shadow.
 
 ### 2. [`PopupWindowController`](../../Sources/OpenClip/UI/Popup/PopupWindowController.swift)
-- **Responsibility**: Controls window creation, display lifecycle, event monitoring, hover tracking, and AI overlay panel positioning.
+- **Responsibility**: Controls window creation, display lifecycle, event monitoring, hover tracking, and the popup mode state machine (actions bar ↔ search palette ↔ content canvas).
 - **Event Handling**: Sets up local and global `NSEvent` monitors (`.leftMouseDown`, `.mouseMoved`, `.scrollWheel`, `.keyDown`). The local monitor sees mouse events over the panel; the global monitor sees events system-wide.
-- **Dismissal Threshold**: Automatically dismisses the popup if the cursor moves beyond `Constants.popupDismissalDistance` (unless a blocking bubble is active).
-- **Keyboard Dismissal**: Requires Accessibility permission (the global monitor). In actions mode any key — including `Escape` — dismisses the popup; the global monitor is observation-only, so the keystroke still lands in the source app's document and the panel never needs to become key. In search mode the panel *is* key, so keys go to the search field (`Escape` clears a scoped query, then exits).
+- **Dismissal Threshold**: Automatically dismisses the popup if the cursor moves beyond `Constants.popupDismissalDistance` (suspended in search mode and while a blocking content canvas — `.result`/`.menu` — is open).
+- **Keyboard Dismissal**: Requires Accessibility permission (the global monitor). In actions mode any key — including `Escape` — dismisses the popup; the global monitor is observation-only, so the keystroke still lands in the source app's document and the panel never needs to become key. In search mode the panel *is* key, so keys go to the search field (`Escape` clears a scoped query, then exits). In content mode the panel stays non-key: `Escape` collapses the canvas back to the bar (`exitContent()`), any other key dismisses.
 
 ---
 
@@ -70,15 +71,39 @@ public static func placeNearReleasePoint(
 
 ---
 
-## AI Result Overlay Sub-System
+## Content Canvas (inline results, no floating panel)
 
-When an AI action (such as text summary or rewrite) is performed:
+All action/AI/hover/status content renders **inside** the single `PopupPanel` — there is no second
+floating panel. A `.content` mode on `PopupModeStore` (mirroring `.search`) transforms the panel:
+the bar is hidden and `PopupView.barContent` renders `PopupContentView` with the canvas.
 
-1. `PopupWindowController` receives an AI result callback.
-2. `showAIPanel(text:isError:cardAbove:)` instantiates a secondary `PopupPanel` for `AIResultOverlayView`.
-3. The AI overlay card is positioned directly adjacent to the main action bar (above or below depending on available vertical space).
-4. The main action bar remains anchored while the AI card displays streaming or final response text.
-5. User actions on the AI overlay (such as "Replace Selection" or "Copy Text") route execution through `ActionResultHandler`.
+### Content Mode
+
+- **Entry**: `PopupWindowController.enterContent(_:)` sets `modeStore.content` then `modeStore.mode = .content`.
+  Every former bubble source routes into the store: `handleActionResult(.showContent(...))`, the AI
+  result (`showAIContent`), and the long-press result card (`beginLongPressIfNeeded` →
+  `ResultContentProviding.makeContent`).
+- **Canvas renderer**: `PopupContentView` (`PopupContentView.swift`) renders a `PopupContent` with
+  one of three emphasis styles — `.info` (small dim card), `.result` (standard card with a header
+  row and delivery buttons), `.menu` (vertical option rows). The header shows the content title and
+  a **back chevron** when `onBack` is provided, wired to `PopupView.onExitContent` →
+  `PopupWindowController.exitContent()`.
+- **Non-key Esc**: content mode is **not** a key-window exception. `exitContent()` collapses the
+  canvas back to the bar without hiding the popup; the global event monitor observes Esc in content
+  mode and calls it. `handleActionResult` is internal so tests drive the canvas directly.
+- **Canvas outcomes**: footer/menu options resolve through `PopupView.onContentOutcome`; the
+  controller preserves the old bubble paste-vs-copy UX — a `.paste` outcome hides the popup after
+  delivering, anything else collapses to the bar then handles the effect.
+- **Status**: with no canvas open, a `StatusFeedback` shows as an inline auto-dismissing banner
+  (`modeStore.statusBanner`, cleared after ~1.5s); with a canvas open it becomes a top-trailing
+  corner badge on the card via `StatusBadgeModel.shared`.
+
+### Hover Preview Strip
+
+Hovering an action whose `gesturePolicy.hoverPreview` is set (`PreviewProviding`) shows a compact
+inline strip (`PopupPreviewStrip`, `PopupPreviewStrip.swift`) stacked with the bar — above the bar
+when `searchResultsAbove`, below otherwise. The bar stays visible; the panel grows via the existing
+content-driven resize. The `.info` hover card from the old floating bubble is gone.
 
 ---
 
@@ -91,8 +116,9 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
 ### Search Mode
 
 - **Mode state**: [`PopupModeStore`](../../Sources/OpenClip/UI/Popup/PopupModeStore.swift) holds
-  `mode` (`.actions`/`.search`) and `searchResultsAbove` (set from `cardAbove` in `show(for:)`).
-  `PopupView` branches on `modeStore.mode` in `unifiedHStack` (`PopupView.swift:267`) and renders
+  `mode` (`.actions`/`.search`/`.content`), `searchResultsAbove` (set from `cardAbove` in
+  `show(for:)`), plus the canvas payloads `content`, `preview`, and `statusBanner`.
+  `PopupView` branches on `modeStore.mode` in `unifiedHStack` and renders
   `PopupSearchView` — the field + result list rendered as **one surface** with the bar, results
   above or below the field by `searchResultsAbove`.
 - **Catalog & matching**: the palette searches the **full** catalog (enabled + disabled, no context
@@ -144,9 +170,9 @@ The `NSHostingView` auto-resizes the panel **top-anchored** when its SwiftUI con
 2. **`PopupPanel.setFrame`** (`PopupPanel.swift:42`) intercepts *every* resize the hosting view
    performs on its own and, when `pinBottomEdgeOnResize` is set, pins the bottom edge before the
    frame displays — so the auto-resize for results-above growth doesn't shove the popup off the
-   cursor. The pin is set by `enterSearch` (when `searchResultsAbove`) and **stays active through
-   the search→bar collapse**, so the bar returns to the field's spot (Esc no longer jumps the
-   popup); `show(for:)` and `hide()` clear it before intentional placement.
+   cursor. The pin is set by `enterSearch`/`enterContent` (when `searchResultsAbove`) and **stays
+   active through the search→bar collapse**, so the bar returns to the field's spot (Esc no longer
+   jumps the popup); `show(for:)` and `hide()` clear it before intentional placement.
 
 Behavioral contract is pinned by `Tests/OpenClipTests/PopupPanelTests.swift` (top/bottom edge fixed
 on enter, bar returns to position on exit, panel key + field first-responder on re-entry).
