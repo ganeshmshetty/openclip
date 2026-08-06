@@ -30,6 +30,10 @@ public struct PopupContentView: View {
     public let content: PopupContent
     public let onOutcome: (ContentOutcome) -> Void
     public let onBack: (() -> Void)?
+    /// When true (popup sits at the bottom of the screen) the chrome header renders at the card's
+    /// bottom edge — near the cursor — and the canvas body grows upward above it, mirroring how the
+    /// search palette keeps its field fixed and grows results above.
+    public let searchResultsAbove: Bool
 
     @ObservedObject public var statusBadgeModel: StatusBadgeModel = .shared
 
@@ -48,11 +52,13 @@ public struct PopupContentView: View {
     public init(
         content: PopupContent,
         onBack: (() -> Void)? = nil,
-        onOutcome: @escaping (ContentOutcome) -> Void
+        onOutcome: @escaping (ContentOutcome) -> Void,
+        searchResultsAbove: Bool = false
     ) {
         self.content = content
         self.onBack = onBack
         self.onOutcome = onOutcome
+        self.searchResultsAbove = searchResultsAbove
     }
 
     private var themeCategory: PopupThemeModel.Category {
@@ -264,7 +270,7 @@ public struct PopupContentView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .overlay(alignment: .bottom) {
+        .overlay(alignment: searchResultsAbove ? .top : .bottom) {
             Rectangle()
                 .fill(Color.primary.opacity(0.08))
                 .frame(height: 1)
@@ -304,43 +310,54 @@ public struct PopupContentView: View {
 
     private var resultContent: some View {
         VStack(spacing: 0) {
-            resultHeader
+            if searchResultsAbove {
+                // Popup at the bottom of the screen: keep the chrome header pinned near the cursor
+                // (bottom edge) and let the body grow upward, exactly like the search palette keeps
+                // its field fixed and grows results above it.
+                resultBody
+                resultHeader
+            } else {
+                resultHeader
+                resultBody
+            }
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 10) {
-                if let subtitle = content.subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
+    private var resultBody: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let subtitle = content.subtitle {
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
 
-                ForEach(Array(rowsContent.enumerated()), id: \.offset) { _, row in
-                    switch row {
-                    case .text(let text):
-                        ScrollView(.vertical, showsIndicators: true) {
-                            Text(text)
-                                .font(.system(size: 13, weight: .regular))
-                                .lineSpacing(2)
-                                .foregroundColor(.primary)
-                                .textSelection(.enabled)
-                                .padding(.bottom, 4)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .frame(minHeight: 40, maxHeight: 270)
-                    case .option:
-                        EmptyView()
+            ForEach(Array(rowsContent.enumerated()), id: \.offset) { _, row in
+                switch row {
+                case .text(let text):
+                    ScrollView(.vertical, showsIndicators: true) {
+                        Text(text)
+                            .font(.system(size: 13, weight: .regular))
+                            .lineSpacing(2)
+                            .foregroundColor(.primary)
+                            .textSelection(.enabled)
+                            .padding(.bottom, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .frame(minHeight: 40, maxHeight: 270)
+                case .option:
+                    EmptyView()
                 }
+            }
 
-                if !content.footer.isEmpty {
-                    HStack(spacing: 8) {
-                        ForEach(Array(content.footer.enumerated()), id: \.offset) { index, option in
-                            footerButton(option: option, isPrimary: index == 0)
-                        }
+            if !content.footer.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(Array(content.footer.enumerated()), id: \.offset) { index, option in
+                        footerButton(option: option, isPrimary: index == 0)
                     }
                 }
             }
-            .padding(16)
         }
+        .padding(16)
     }
 
     @ViewBuilder
