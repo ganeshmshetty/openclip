@@ -222,7 +222,7 @@ public struct PopupView: View {
                 let glassBorderColor: Color = effectiveColorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
                 
                 if #available(macOS 26, *) {
-                    unifiedHStack
+                    barStack
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .fill(.ultraThinMaterial)
@@ -236,7 +236,7 @@ public struct PopupView: View {
                         .compositingGroup()
                         .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
                 } else {
-                    unifiedHStack
+                    barStack
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .fill(.ultraThinMaterial)
@@ -249,7 +249,7 @@ public struct PopupView: View {
                         .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
                 }
             } else {
-                unifiedHStack
+                barStack
                     .background(opaqueBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(
@@ -263,6 +263,41 @@ public struct PopupView: View {
         baseView
             .environment(\.colorScheme, effectiveColorScheme)
             .overlay(processingGlowBorder)
+    }
+
+    /// The themed bar content: an optional status banner stacked above the actions/search content.
+    @ViewBuilder
+    private var barStack: some View {
+        VStack(spacing: 0) {
+            if let banner = modeStore.statusBanner {
+                statusBannerView(banner)
+            }
+            unifiedHStack
+        }
+    }
+
+    @ViewBuilder
+    private func statusBannerView(_ feedback: StatusFeedback) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: feedback.symbolName ?? "info.circle")
+                .font(.system(size: 10, weight: .semibold))
+            Text(feedback.message)
+                .font(.system(size: 10, weight: .semibold))
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .foregroundColor(Self.statusColor(for: feedback.style))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private static func statusColor(for style: StatusFeedback.Style) -> Color {
+        switch style {
+        case .success: return .green
+        case .error: return .red
+        case .info: return .accentColor
+        }
     }
 
     @ViewBuilder
@@ -304,7 +339,22 @@ public struct PopupView: View {
         } else if inCompletionMode {
             completionHStack
         } else {
+            actionsStack
+        }
+    }
+
+    /// The actions bar with the inline hover-preview strip: the strip renders above the bar when
+    /// the popup sits low on screen (results above the cursor), below otherwise.
+    @ViewBuilder
+    private var actionsStack: some View {
+        VStack(spacing: 0) {
+            if let preview = modeStore.preview, modeStore.searchResultsAbove {
+                PopupPreviewStrip(content: preview)
+            }
             actionsHStack
+            if let preview = modeStore.preview, !modeStore.searchResultsAbove {
+                PopupPreviewStrip(content: preview)
+            }
         }
     }
 
