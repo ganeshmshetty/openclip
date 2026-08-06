@@ -209,7 +209,8 @@ public struct PopupView: View {
             PopupContentView(
                 content: content,
                 onBack: { onExitContent() },
-                onOutcome: onContentOutcome
+                onOutcome: onContentOutcome,
+                searchResultsAbove: modeStore.searchResultsAbove
             )
         }
     }

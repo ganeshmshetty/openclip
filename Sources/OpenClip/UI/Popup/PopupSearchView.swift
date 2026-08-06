@@ -160,6 +160,10 @@ public struct PopupSearchView: View {
                         isEscHovered ? Color.accentColor : Color.clear,
                         in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                     )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .stroke(isEscHovered ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.45), lineWidth: 1)
+                    )
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
