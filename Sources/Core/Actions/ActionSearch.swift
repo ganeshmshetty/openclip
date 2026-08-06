@@ -6,10 +6,11 @@
 // beats title contains, which beats keyword contains; ties keep original order.
 import Foundation
 
-/// The popup's display mode. Search mode is a UI state, never an Action in the registry.
+/// The popup's display mode. Search and content modes are UI states, never Actions in the registry.
 public enum PopupMode: Sendable, Equatable {
     case actions
     case search
+    case content
 }
 
 /// One searchable catalog entry. `title` is the display title, `keywords` adds searchable text
