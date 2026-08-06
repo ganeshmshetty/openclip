@@ -36,12 +36,12 @@ final class ActionResultAdapterTests: XCTestCase {
         }
     }
 
-    // MARK: - showResult → bubble with Paste/Copy footer
+    // MARK: - showResult → content card with Paste/Copy footer
 
-    func testShowResultWrapsCopyInBubble() {
+    func testShowResultWrapsCopyInContent() {
         let result = ActionResultAdapter.apply(raw: .copy("x"), after: .showResult, stayVisible: false, title: "My Title", icon: "doc.text")
-        guard case .showBubble(let content) = result else {
-            return XCTFail("Expected .showBubble, got \(result)")
+        guard case .showContent(let content) = result else {
+            return XCTFail("Expected .showContent, got \(result)")
         }
         XCTAssertEqual(content.title, "My Title")
         XCTAssertEqual(content.icon, "doc.text")
@@ -62,10 +62,10 @@ final class ActionResultAdapterTests: XCTestCase {
         }
     }
 
-    func testShowResultWrapsPasteInBubble() {
+    func testShowResultWrapsPasteInContent() {
         let result = ActionResultAdapter.apply(raw: .paste("x"), after: .showResult, stayVisible: false, title: "T", icon: nil)
-        guard case .showBubble(let content) = result else {
-            return XCTFail("Expected .showBubble, got \(result)")
+        guard case .showContent(let content) = result else {
+            return XCTFail("Expected .showContent, got \(result)")
         }
         XCTAssertEqual(content.rows.count, 1)
     }
@@ -104,9 +104,9 @@ final class ActionResultAdapterTests: XCTestCase {
     // MARK: - presentations pass through untouched
 
     func testPresentationsPassThroughUnchanged() {
-        let bubble = ActionResultAdapter.apply(raw: .showBubble(BubbleContent(title: "B")), after: .copyResult, stayVisible: true, title: "T", icon: nil)
-        guard case .showBubble(let content) = bubble else {
-            return XCTFail("Expected .showBubble passthrough, got \(bubble)")
+        let content = ActionResultAdapter.apply(raw: .showContent(PopupContent(title: "B")), after: .copyResult, stayVisible: true, title: "T", icon: nil)
+        guard case .showContent(let content) = content else {
+            return XCTFail("Expected .showContent passthrough, got \(content)")
         }
         XCTAssertEqual(content.title, "B")
 
@@ -175,9 +175,9 @@ final class ActionResultAdapterTests: XCTestCase {
     }
 
     func testStayVisibleDoesNotWrapPresentations() {
-        let bubble = ActionResultAdapter.apply(raw: .showBubble(BubbleContent(title: "B")), after: .default, stayVisible: true, title: "T", icon: nil)
-        guard case .showBubble = bubble else {
-            return XCTFail("Expected unwrapped .showBubble, got \(bubble)")
+        let content = ActionResultAdapter.apply(raw: .showContent(PopupContent(title: "B")), after: .default, stayVisible: true, title: "T", icon: nil)
+        guard case .showContent = content else {
+            return XCTFail("Expected unwrapped .showContent, got \(content)")
         }
 
         let status = ActionResultAdapter.apply(raw: .showStatus(StatusFeedback(message: "s", style: .info)), after: .default, stayVisible: true, title: "T", icon: nil)

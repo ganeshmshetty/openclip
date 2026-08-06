@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Pure resolution logic for the popup theme storage, shared by PopupView,
-// BubbleCardView and PopupThemeSelector. The theme has two axes: a category
+// PopupContentView and PopupThemeSelector. The theme has two axes: a category
 // ("classic" solid colors vs "glass" material) and a shared appearance
 // ("system", "light" or "dark") that applies to whichever category is active.
 //

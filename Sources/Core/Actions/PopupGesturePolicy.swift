@@ -12,14 +12,14 @@ public struct PopupGesturePolicy: Sendable, Equatable {
         case perform
         /// Open the sub-action palette scoped to this group.
         case openSubActions
-        /// Show the result bubble directly instead of performing (opt-in actions).
-        case showResultBubble
+        /// Show the result content directly instead of performing (opt-in actions).
+        case showResultContent
     }
 
     public let singleClick: SingleClick
     /// What a long-press does; nil means long-press is not handled (click proceeds normally).
     public let longPress: SingleClick?
-    /// Whether hovering shows a cheap preview line in the info bubble.
+    /// Whether hovering shows a cheap preview line in the hover preview strip.
     public let hoverPreview: Bool
 
     public init(
@@ -44,10 +44,10 @@ public extension Action {
         case .provideCompletions:
             return PopupGesturePolicy(singleClick: .perform)
         case .perform:
-            if self is any ResultBubbleProviding {
+            if self is any ResultContentProviding {
                 return PopupGesturePolicy(
                     singleClick: .perform,
-                    longPress: .showResultBubble,
+                    longPress: .showResultContent,
                     hoverPreview: self is any PreviewProviding
                 )
             }

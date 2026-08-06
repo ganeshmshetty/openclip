@@ -8,7 +8,7 @@ final class PopupGesturePolicyTests: XCTestCase {
         let action = CalculateAction()
         let policy = action.gesturePolicy
         XCTAssertEqual(policy.singleClick, .perform)
-        XCTAssertEqual(policy.longPress, .showResultBubble)
+        XCTAssertEqual(policy.longPress, .showResultContent)
         XCTAssertFalse(policy.hoverPreview, "Calculate is long-press only; no hover preview")
     }
 

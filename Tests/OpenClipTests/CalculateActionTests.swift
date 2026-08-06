@@ -40,10 +40,10 @@ final class CalculateActionTests: XCTestCase {
         }
     }
 
-    // MARK: - Result Bubble
+    // MARK: - Result Content
 
     @MainActor
-    func testResultBubbleFooterOptions() async {
+    func testResultContentFooterOptions() async {
         let action = CalculateAction()
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
@@ -51,19 +51,19 @@ final class CalculateActionTests: XCTestCase {
             modifiers: []
         )
 
-        guard let bubble = await action.makeBubble(for: context) else {
-            return XCTFail("Expected a result bubble")
+        guard let content = await action.makeContent(for: context) else {
+            return XCTFail("Expected a result content card")
         }
-        XCTAssertEqual(bubble.title, "Calculate")
-        XCTAssertEqual(bubble.subtitle, "12 * 12 = 144")
+        XCTAssertEqual(content.title, "Calculate")
+        XCTAssertEqual(content.subtitle, "12 * 12 = 144")
         XCTAssertEqual(
-            bubble.footer.map(\.title),
+            content.footer.map(\.title),
             ["Paste 144", "Copy 144", "Copy 12 * 12 = 144"]
         )
     }
 
     @MainActor
-    func testResultBubbleNilForNonMath() async {
+    func testResultContentNilForNonMath() async {
         let action = CalculateAction()
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
@@ -71,8 +71,8 @@ final class CalculateActionTests: XCTestCase {
             modifiers: []
         )
 
-        let bubble = await action.makeBubble(for: context)
-        XCTAssertNil(bubble)
+        let content = await action.makeContent(for: context)
+        XCTAssertNil(content)
     }
 
     // MARK: - Malformed Input Regression (crash fix)

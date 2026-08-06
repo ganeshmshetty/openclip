@@ -66,7 +66,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var paste: String?
         public var copy: String?
         public var cut: String?
-        public var bubble: BubbleContent?
+        public var content: PopupContent?
         public var status: StatusFeedback?
         public var configuration: ConfigurationRequest?
         public var keyPress: KeyPressSpec?
@@ -199,8 +199,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let showStatusBlock: @convention(block) (String, String) -> Void = { message, style in
             collected.value.status = StatusFeedback(message: message, style: Self.mapStatusStyle(style))
         }
-        let showBubbleBlock: @convention(block) (JSValue) -> Void = { value in
-            collected.value.bubble = Self.parseBubble(value)
+        let showContentBlock: @convention(block) (JSValue) -> Void = { value in
+            collected.value.content = Self.parseContent(value)
         }
         let keepVisibleBlock: @convention(block) () -> Void = {
             collected.value.keepVisible = true
@@ -217,7 +217,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(runShortcutBlock, forKeyedSubscript: "runShortcut" as NSString)
         openclip.setObject(notifyBlock, forKeyedSubscript: "notify" as NSString)
         openclip.setObject(showStatusBlock, forKeyedSubscript: "showStatus" as NSString)
-        openclip.setObject(showBubbleBlock, forKeyedSubscript: "showBubble" as NSString)
+        openclip.setObject(showContentBlock, forKeyedSubscript: "showContent" as NSString)
         openclip.setObject(keepVisibleBlock, forKeyedSubscript: "keepVisible" as NSString)
         openclip.setObject(requireConfigurationBlock, forKeyedSubscript: "requireConfiguration" as NSString)
 
@@ -479,14 +479,14 @@ public final class OpenClipJSHost: @unchecked Sendable {
             return collected.keepVisible ? .keepVisible(raw) : raw
         }
 
-        // Deterministic resolution order (plan §8): configuration > bubble > status-only > effects
+        // Deterministic resolution order (plan §8): configuration > content > status-only > effects
         // (in call order, sequence when >1) > function string return > success.
         let effects = evaluation.effects
         let raw: ActionResult
         if let configuration = collected.configuration {
             raw = .openConfiguration(configuration)
-        } else if let bubble = collected.bubble {
-            raw = .showBubble(bubble)
+        } else if let content = collected.content {
+            raw = .showContent(content)
         } else if let status = collected.status, effects.isEmpty {
             raw = .showStatus(status)
         } else if !effects.isEmpty {
@@ -596,14 +596,14 @@ public final class OpenClipJSHost: @unchecked Sendable {
         return ConfigurationRequest(actionID: actionID, reason: reason, missingOptionIDs: missing)
     }
 
-    private static func parseBubble(_ value: JSValue) -> BubbleContent {
-        guard value.isObject else { return BubbleContent() }
+    private static func parseContent(_ value: JSValue) -> PopupContent {
+        guard value.isObject else { return PopupContent() }
         let title = stringValue(value.objectForKeyedSubscript("title"))
         let icon = stringValue(value.objectForKeyedSubscript("icon"))
         let subtitle = stringValue(value.objectForKeyedSubscript("subtitle"))
         let body = stringValue(value.objectForKeyedSubscript("body"))
 
-        var emphasis: BubbleEmphasis = .result
+        var emphasis: ContentEmphasis = .result
         if let raw = stringValue(value.objectForKeyedSubscript("emphasis")) {
             switch raw.lowercased() {
             case "info": emphasis = .info
@@ -612,7 +612,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             }
         }
 
-        var rows: [BubbleRow] = []
+        var rows: [ContentRow] = []
         if let rowsValue = value.objectForKeyedSubscript("rows"), rowsValue.isArray {
             let array = rowsValue.toArray() ?? []
             for element in array {
@@ -626,15 +626,15 @@ public final class OpenClipJSHost: @unchecked Sendable {
             rows = [.text(body)]
         }
 
-        var footer: [BubbleOption] = []
+        var footer: [ContentOption] = []
         if let footerValue = value.objectForKeyedSubscript("footer"), footerValue.isArray {
             for element in footerValue.toArray() ?? [] {
                 if let preset = element as? String {
                     switch preset.lowercased() {
                     case "paste":
-                        footer.append(BubbleOption(title: "Paste", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(body ?? ""))))
+                        footer.append(ContentOption(title: "Paste", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(body ?? ""))))
                     case "copy":
-                        footer.append(BubbleOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(body ?? ""))))
+                        footer.append(ContentOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(body ?? ""))))
                     default:
                         break
                     }
@@ -645,9 +645,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
                     let optionValue = object["value"] as? String ?? body ?? ""
                     switch action {
                     case "paste":
-                        footer.append(BubbleOption(title: optionTitle, icon: optionIcon, outcome: .perform(.paste(optionValue))))
+                        footer.append(ContentOption(title: optionTitle, icon: optionIcon, outcome: .perform(.paste(optionValue))))
                     case "copy":
-                        footer.append(BubbleOption(title: optionTitle, icon: optionIcon, outcome: .perform(.copy(optionValue))))
+                        footer.append(ContentOption(title: optionTitle, icon: optionIcon, outcome: .perform(.copy(optionValue))))
                     default:
                         break
                     }
@@ -655,7 +655,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             }
         }
 
-        return BubbleContent(title: title, icon: icon, subtitle: subtitle, rows: rows, footer: footer, emphasis: emphasis)
+        return PopupContent(title: title, icon: icon, subtitle: subtitle, rows: rows, footer: footer, emphasis: emphasis)
     }
 
     /// Captures the calling thread's CFRunLoop in a Sendable box. Kept as a helper so the raw CF

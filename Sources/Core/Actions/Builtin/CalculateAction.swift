@@ -2,11 +2,11 @@
 // OpenClip
 //
 // Implements the builtin math expression evaluation action, computing mathematical expressions found in selected text.
-// Conforms to ResultBubbleProviding to surface a result bubble (on long-press) with per-click delivery options
-// (paste/copy), superseding the global calculateMode setting for the bubble path.
+// Conforms to ResultContentProviding to surface a result card (on long-press) with per-click delivery options
+// (paste/copy), superseding the global calculateMode setting for the result-card path.
 import Foundation
 
-public struct CalculateAction: ConfigurableAction, ResultBubbleProviding {
+public struct CalculateAction: ConfigurableAction, ResultContentProviding {
     public let id = "builtin.calculate"
     public var title: String { "Calculate" }
     public let configurationViewID = "builtin.calculate"
@@ -49,34 +49,34 @@ public struct CalculateAction: ConfigurableAction, ResultBubbleProviding {
         return .none
     }
     
-    // MARK: - ResultBubbleProviding
-    
+    // MARK: - ResultContentProviding
+
     @MainActor
-    public func makeBubble(for context: ActionContext) async -> BubbleContent? {
+    public func makeContent(for context: ActionContext) async -> PopupContent? {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let result = evaluateExpression(text) else { return nil }
         let resultString = formatResult(result)
         let fullLine = "\(text) = \(resultString)"
-        
-        return BubbleContent(
+
+        return PopupContent(
             title: "Calculate",
             icon: preferenceIconName,
             subtitle: fullLine,
             rows: [.text(resultString)],
             footer: [
-                BubbleOption(
+                ContentOption(
                     title: "Paste \(resultString)",
                     subtitle: "Replace selection with result",
                     icon: "arrow.triangle.2.circlepath",
                     outcome: .perform(.paste(resultString))
                 ),
-                BubbleOption(
+                ContentOption(
                     title: "Copy \(resultString)",
                     subtitle: "Copy result to clipboard",
                     icon: "doc.on.doc",
                     outcome: .perform(.copy(resultString))
                 ),
-                BubbleOption(
+                ContentOption(
                     title: "Copy \(fullLine)",
                     subtitle: "Copy expression and result",
                     icon: "doc.on.doc.fill",

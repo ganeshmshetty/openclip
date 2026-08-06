@@ -105,20 +105,20 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
 
-    func testScriptActionShowBubbleJSONReturnsShowBubble() async throws {
-        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("bubble_test_\(UUID().uuidString).sh")
+    func testScriptActionShowContentJSONReturnsShowContent() async throws {
+        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("content_test_\(UUID().uuidString).sh")
         let scriptContent = """
         #!/bin/bash
-        echo '{"type":"showBubble","title":"T","body":"Body","footer":["paste","copy"]}'
+        echo '{"type":"showContent","title":"T","body":"Body","footer":["paste","copy"]}'
         """
         try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
 
-        let action = ScriptAction(id: "test.bubble", title: "Bubble", icon: .symbol("terminal"), scriptURL: tempScript)
+        let action = ScriptAction(id: "test.content", title: "Content", icon: .symbol("terminal"), scriptURL: tempScript)
         let result = try await action.perform(ActionContext(selectedText: "SampleInput"))
 
-        guard case .showBubble(let content) = result else {
-            return XCTFail("Expected .showBubble, got \(result)")
+        guard case .showContent(let content) = result else {
+            return XCTFail("Expected .showContent, got \(result)")
         }
         XCTAssertEqual(content.title, "T")
         XCTAssertEqual(content.rows.count, 1)

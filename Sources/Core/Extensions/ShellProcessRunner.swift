@@ -79,20 +79,20 @@ enum ShellResultMapper {
         case Constants.actionTypeOpenURL:
             guard let value = output.value, let url = URL(string: value) else { return .success }
             return .openURL(url)
-        case "showBubble":
+        case "showContent":
             let body = output.body ?? ""
-            var footer: [BubbleOption] = []
+            var footer: [ContentOption] = []
             for preset in output.footer ?? [] {
                 switch preset.lowercased() {
                 case "paste":
-                    footer.append(BubbleOption(title: "Paste", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(body))))
+                    footer.append(ContentOption(title: "Paste", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(body))))
                 case "copy":
-                    footer.append(BubbleOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(body))))
+                    footer.append(ContentOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(body))))
                 default:
                     break
                 }
             }
-            return .showBubble(BubbleContent(
+            return .showContent(PopupContent(
                 title: output.title,
                 rows: body.isEmpty ? [] : [.text(body)],
                 footer: footer,

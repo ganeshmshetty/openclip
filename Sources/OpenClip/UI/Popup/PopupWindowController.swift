@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
-// Also owns the reusable bubble panel (BubbleCardView) that renders hover info and result
+// Also owns the reusable bubble panel (PopupContentView) that renders hover info and result
 // bubbles, plus the hover-debounce and long-press timers that trigger them per Action.gesturePolicy.
 // Owns the popup mode state machine (actions bar ↔ action-search palette): search mode makes the panel
 // key (a scoped exception to the never-key rule) and restores focus to the previous app on exit.
@@ -34,8 +34,8 @@ public class PopupWindowController {
     /// Set true while a non-dismissable bubble (.result/.menu) is showing.
     private var bubbleBlocksDismiss = false
 
-    /// Top-trailing status badge shown on the open bubble card (decision 10). Backed by the shared
-    /// StatusBadgeModel so an already-mounted BubbleCardView re-renders when a status arrives.
+    /// Top-trailing status badge shown on the open content canvas (decision 10). Backed by the shared
+    /// StatusBadgeModel so an already-mounted PopupContentView re-renders when a status arrives.
     private var currentStatusBadge: StatusFeedback? {
         get { StatusBadgeModel.shared.currentStatusBadge }
         set { StatusBadgeModel.shared.currentStatusBadge = newValue }
@@ -198,7 +198,7 @@ public class PopupWindowController {
 
     // MARK: - Bubble Panel
 
-    private func showBubble(content: BubbleContent, blocksDismiss: Bool, anchorX: CGFloat? = nil, onOutcome: @escaping (BubbleOutcome) -> Void, onClose: (() -> Void)? = nil) {
+    private func showBubble(content: PopupContent, blocksDismiss: Bool, anchorX: CGFloat? = nil, onOutcome: @escaping (ContentOutcome) -> Void, onClose: (() -> Void)? = nil) {
         guard let panel else { return }
 
         hideBubble()
@@ -206,7 +206,7 @@ public class PopupWindowController {
         self.bubblePanel = bp
         bubbleBlocksDismiss = blocksDismiss
 
-        let bubbleView = BubbleCardView(
+        let bubbleView = PopupContentView(
             content: content,
             onOutcome: { outcome in
                 onOutcome(outcome)
@@ -251,19 +251,19 @@ public class PopupWindowController {
         bp.orderFront(nil)
     }
 
-    /// Replaces the AI overlay with a BubbleCardView `.result` bubble.
+    /// Replaces the AI overlay with a PopupContentView `.result` canvas.
     private func showAIBubble(text: String, isError: Bool) {
-        let content = BubbleContent(
+        let content = PopupContent(
             title: isError ? "AI Error" : "AI Result",
             icon: isError ? "exclamationmark.triangle" : "sparkles",
             rows: [.text(text)],
             footer: isError ? [] : [
-                BubbleOption(
+                ContentOption(
                     title: "Replace",
                     icon: "arrow.triangle.2.circlepath",
                     outcome: .perform(.paste(text))
                 ),
-                BubbleOption(
+                ContentOption(
                     title: "Copy",
                     icon: "doc.on.doc",
                     outcome: .perform(.copy(text))
@@ -348,7 +348,7 @@ public class PopupWindowController {
             }()
             let line = await (action as? any PreviewProviding)?.previewLine(for: actionContext)
 
-            let content = BubbleContent(
+            let content = PopupContent(
                 title: action.displayTitle,
                 icon: icon,
                 subtitle: line ?? action.displayTitle,
@@ -372,12 +372,12 @@ public class PopupWindowController {
         longPressTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: Constants.bubbleLongPressNanoseconds)
             guard !Task.isCancelled, self.hoveredAction?.id == targetAction.id else { return }
-            guard let bubble = await (targetAction as? any ResultBubbleProviding)?.makeBubble(for: actionContext) else {
+            guard let content = await (targetAction as? any ResultContentProviding)?.makeContent(for: actionContext) else {
                 return
             }
             guard !Task.isCancelled else { return }
             longPressFired = true
-            self.showBubble(content: bubble, blocksDismiss: true, anchorX: clickLocation.x) { [weak self] outcome in
+            self.showBubble(content: content, blocksDismiss: true, anchorX: clickLocation.x) { [weak self] outcome in
                 guard case .perform(let result) = outcome else { return }
                 self?.handleActionResult(result)
                 self?.hide()
@@ -592,7 +592,7 @@ public class PopupWindowController {
     /// decided once on the top-level result via `dismissesPopup`.
     private func handleActionResult(_ result: ActionResult) {
         switch result {
-        case .showBubble(let content):
+        case .showContent(let content):
             showBubble(
                 content: content,
                 blocksDismiss: true,
@@ -643,7 +643,7 @@ public class PopupWindowController {
             return
         }
 
-        let content = BubbleContent(
+        let content = PopupContent(
             icon: feedback.symbolName ?? statusSymbol(for: feedback.style),
             subtitle: feedback.message,
             emphasis: .info
