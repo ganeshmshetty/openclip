@@ -3,10 +3,11 @@
 //
 // The single reusable renderer for the popup content canvas: renders a PopupContent with one of
 // three emphasis styles — .info (small dim card), .result (standard card with header and delivery
-// buttons), or .menu (vertical option rows). The canvas header shows the content title and a back
-// chevron when `onBack` is provided. Also renders an optional top-trailing status badge (decision
-// 10) driven by StatusBadgeModel, so a status that arrives while a card is already open is surfaced
-// as a corner badge rather than replacing the card.
+// buttons), or .menu (vertical option rows). The .result header is styled like a command palette: a
+// plain (non-accent) title on the left, an Esc keycap affordance on the right (when `onBack` is
+// provided), and a hairline divider separating the header strip from the content body. Also renders
+// an optional top-trailing status badge (decision 10) driven by StatusBadgeModel, so a status that
+// arrives while a card is already open is surfaced as a corner badge rather than replacing the card.
 import SwiftUI
 import Core
 
@@ -87,7 +88,7 @@ public struct PopupContentView: View {
             .padding(.vertical, 4)
             .background((effectiveColorScheme == .dark ? Color.black : Color.white).opacity(0.75))
             .clipShape(Capsule())
-            .padding(.top, content.emphasis == .result ? 38 : 4)
+            .padding(.top, content.emphasis == .result ? 44 : 4)
             .padding(.trailing, 6)
         }
     }
@@ -206,36 +207,52 @@ public struct PopupContentView: View {
         }
     }
 
+    /// Command-palette-style header for the `.result` canvas: the title (plain, not accent-colored)
+    /// on the left, an Esc keycap affordance on the right, and a hairline divider separating the
+    /// header strip from the content body below.
+    @ViewBuilder
+    private var resultHeader: some View {
+        HStack(spacing: 8) {
+            if let icon = content.icon {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .frame(width: 16)
+            }
+            Text(content.title ?? "")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 8)
+            if let onBack {
+                Button(action: onBack) {
+                    Text("esc")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .stroke(Color.secondary.opacity(0.45), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help("Back (Esc)")
+                .accessibilityLabel("Back")
+            }
+        }
+        .padding(.bottom, 10)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.primary.opacity(0.08))
+                .frame(height: 1)
+        }
+    }
+
     private var resultContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                if let icon = content.icon {
-                    Label(content.title ?? "", systemImage: icon)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.accentColor)
-                } else if let title = content.title {
-                    Text(title)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.accentColor)
-                }
-                Spacer()
-                if let onBack {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 28, height: 28)
-                            .background(Color.primary.opacity(0.06))
-                            .clipShape(Circle())
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .help("Back")
-                    .accessibilityLabel("Back")
-                }
-            }
+            resultHeader
 
             if let subtitle = content.subtitle {
                 Text(subtitle)
