@@ -129,6 +129,10 @@ public class PopupWindowController {
             enterSearch()
         case .search:
             hide()
+        case .content:
+            // Not reachable until Task 3 wires the canvas; hotkey collapses back to the bar.
+            modeStore.content = nil
+            modeStore.mode = .actions
         }
     }
 
