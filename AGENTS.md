@@ -49,7 +49,8 @@ OpenClip enforces strict single-responsibility subsystems. Read what's relevant 
   wiring, latent issues) — `docs/architecture/known-debt.md`
 - **Annotated directory tree** — `docs/architecture/directory-structure.md`
 - **Popup panel internals** (never-key window, hover state, positioning, preview isolation,
-  action-search palette + panel-growth anchoring) — `docs/architecture/popup-window.md`
+  content canvas + hover preview strip + status banner, action-search palette + panel-growth
+  anchoring) — `docs/architecture/popup-window.md`
 - **Text selection & retrieval** (incl. clipboard fallback) — `docs/architecture/text-selection.md`
 - **Action-search palette** (search catalog/matcher, popup mode state machine, scoped key
   exception) — `Sources/Core/Actions/ActionSearch.swift`, `Sources/OpenClip/UI/Popup/PopupSearchView.swift`
@@ -89,14 +90,19 @@ These change behavior — keep them.
   Enable/disable is single-sourced to `AIActionPreset.isEnabled`; the Actions-tab toggle shares it.
   `AIToolsAction`'s enable state is single-sourced to `isAIEnabled`, shared by the AI-tab and
   Actions-tab toggles; `launchesAI` actions are excluded from `searchCatalog`.
-- **Group sub-actions open a scoped palette, not a bubble.** Extension groups (`GroupAction` + registry
+- **Group sub-actions open a scoped palette, not a floating panel.** Extension groups (`GroupAction` + registry
   entries id-prefixed `\(groupID).\\(subID)`) and the builtin transform group render as normal bar
   rows (`chrome.popupBehavior == .showSubActions` → `gesturePolicy.singleClick == .openSubActions`);
   a click calls `PopupWindowController.enterScopedSearch(for:)`, which resolves children via the Core
   `SubActionResolver` over `searchCatalog` and enters the palette with `modeStore.scope =
   SearchScope(parent:children:)`. `PopupSearchView` scopes results to those children, swaps the field's
   leading icon to the parent's, and its Esc path (`onExitScope`) drops the scope back to the bar. No
-  hover sub-menu bubble; membership is `SubActionProviding`-driven (`SubAction.swift`), never id switches.
+  hover sub-menu; membership is `SubActionProviding`-driven (`SubAction.swift`), never id switches.
+- **Content renders in the single popup canvas, never a floating panel.** Actions, AI results,
+  long-press result cards, hover previews (inline `PopupPreviewStrip`), and status (inline auto-dismiss
+  banner / canvas corner badge) all render inside the one `PopupPanel`. `PopupContentView` is the only
+  content renderer. Content mode (`.content` on `PopupModeStore`) is **not** a key-window exception —
+  the panel stays non-key and Esc is observed by the global event monitor (observation-only).
 - **Gemini auth via the `x-goog-api-key` header only** — never `?key=` in the URL (leaks credentials).
 - **Glass stays apart from the color themes.** `PopupThemeSelector` has two rows: theme category
   (Classic | Glass) then appearance (System/Light/Dark). Storage: `popupTheme` ("classic"/"glass"),
@@ -117,8 +123,8 @@ These change behavior — keep them.
   shadow/corners/resize. A `.borderless` transparent window re-draws all of it manually.
 - **Onboarding is a solid card, not a glass surface.** Transparent `borderless` window; `OnboardingView`
   draws a `windowBackgroundColor` rounded rect + border + SwiftUI shadow in a ~32pt inset container.
-- **Popup/bubble shadows render inside the panel.** Keep ≥16pt SwiftUI padding around bar/bubble
-  content (12pt info bubbles); shadows clip at the panel edge otherwise. Never re-enable
+- **Popup/bubble shadows render inside the panel.** Keep ≥16pt SwiftUI padding around bar/canvas
+  content (12pt info cards); shadows clip at the panel edge otherwise. Never re-enable
   window/panel `hasShadow`.
 - **`PopupPreview` is a static visual, never a live registry snapshot.** Fixed canonical actions
   (Search/Copy/Cut/Paste/Services) + `alwaysShowAISparkles: true`; passes its own `PopupHoverState()`

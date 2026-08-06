@@ -364,9 +364,9 @@ A malformed regex **enables** the action (defensive — a bad manifest never hid
 
 - `copy-result` — a paste/copy outcome becomes `.copy`.
 - `paste-result` — a copy/paste outcome becomes `.paste`.
-- `show-result` — a copy/paste outcome is rendered as a result bubble with Paste/Copy footer actions.
+- `show-result` — a copy/paste outcome is rendered as a content canvas with Paste/Copy footer actions.
 - `none` — collapse any result to success.
-- `default` — unchanged. (Runtime presentations — bubble/status/configuration/keyPress/shortcut/
+- `default` — unchanged. (Runtime presentations — content canvas/status/configuration/keyPress/shortcut/
   sequence/keepVisible — always pass through regardless of `after`.)
 
 `stayVisible: true` wraps the (normalized) result in `.keepVisible` so the popup **stays open**
@@ -433,16 +433,17 @@ Side effects (each appends an effect; multiple effects run as a `.sequence` in c
 - `openclip.runShortcut(name)`
 - `openclip.notify(title, body)`
 - `openclip.showStatus(message, style)` — style `"success"`|`"error"`|`"info"` (else `"info"`)
-- `openclip.showBubble({ title, icon, subtitle, body, emphasis, rows, footer })`
+- `openclip.showContent({ title, icon, subtitle, body, emphasis, rows, footer })`
   - `emphasis`: `"info"`|`"menu"` (default `"result"`)
   - `rows`: `[{ type: "text", value: "..." }]`
   - `footer`: `["paste","copy"]` presets, or objects `{ title, icon, action: "paste"|"copy", value }`
+  - renders an inline content canvas on the popup (`.content` mode)
 - `openclip.keepVisible()` — wraps the resolved result so the popup stays open
 - `openclip.requireConfiguration({ reason, missing: ["optID"] })` — open config sheet for this action
 
 Deterministic resolution order (`OpenClipJSHost.run`): **JS exception → `.showStatus(error)`** (JS
 throws never propagate as Swift errors); else `requireConfiguration` → `openConfiguration`;
-`showBubble` → `showBubble`; `showStatus` with no other effects → `showStatus`; effects →
+`showContent` → `showContent`; `showStatus` with no other effects → `showStatus`; effects →
 single/`sequence`; function string return → `copy`; else `success`. `keepVisible()` wraps the final
 result unconditionally.
 
@@ -467,7 +468,7 @@ result unconditionally.
 | `.openURL(URL)` | open the URL |
 | `.showServices(String)` | macOS share picker on the text |
 | `.notify(title:, body:)` | post a notification (best-effort; needs authorization) |
-| `.showBubble(BubbleContent)` | result bubble; **keeps popup open** |
+| `.showContent(PopupContent)` | inline content canvas; **keeps popup open** |
 | `.showStatus(StatusFeedback)` | transient status; **keeps popup open** |
 | `.openConfiguration(ConfigurationRequest)` | hide popup, open the action's config sheet |
 | `.keepVisible(ActionResult)` | perform inner result but never dismiss |
@@ -476,7 +477,7 @@ result unconditionally.
 | `.runShortcut(name:, input:)` | run a Shortcuts shortcut with input |
 | `.none` | no effect |
 
-Dismissal: `.showBubble`/`.showStatus`/`.keepVisible` keep the popup open; `.sequence` dismisses
+Dismissal: `.showContent`/`.showStatus`/`.keepVisible` keep the popup open; `.sequence` dismisses
 only when non-empty and all items dismiss; everything else (including `.openConfiguration`)
 dismisses.
 
@@ -488,7 +489,7 @@ A script command may emit one JSON object on stdout (all fields optional except 
 { "type": "paste", "value": "text" }                                  // .paste
 { "type": "copy",  "value": "text" }                                  // .copy
 { "type": "openURL", "value": "https://..." }                         // .openURL
-{ "type": "showBubble", "title": "T", "body": "B", "footer": ["paste","copy"] }  // .showBubble
+{ "type": "showContent", "title": "T", "body": "B", "footer": ["paste","copy"] }  // .showContent
 { "type": "status", "message": "Done", "style": "success" }           // "success"|"error"|"info"
 { "type": "keepVisible", "effect": { "type": "paste", "value": "x" } }// .keepVisible(recursive)
 { "type": "configure", "reason": "...", "missing": ["opt"] }          // .openConfiguration
@@ -633,7 +634,7 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 - JS surface/resolution: `Sources/OpenClip/Actions/OpenClipJSHost.swift`.
 - Effect execution: `Sources/OpenClip/Platform/Effects/ActionResultHandler.swift`.
 - Result model: `Sources/Core/Actions/ActionResult.swift` (+ `ActionResultAdapter.swift`,
-  `BubbleContent.swift`, `StatusFeedback.swift`, `ConfigurationRequest.swift`).
+  `PopupContent.swift`, `StatusFeedback.swift`, `ConfigurationRequest.swift`).
 - Visibility/required options: `Sources/Core/Actions/ActionVisibility.swift`, `ExtensionActionRules.swift`.
 - Options storage: `Sources/Core/Settings/ActionOptionStore.swift`, `SettingKey.swift`,
   `Sources/OpenClip/Platform/Extensions/KeychainActionOptionStore.swift`.

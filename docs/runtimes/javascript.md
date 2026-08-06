@@ -34,7 +34,7 @@ interface OpenClipBridge {
   runShortcut(name: string): void;       // Runs a macOS Shortcut (requires /usr/bin/shortcuts)
   notify(title: string, body: string): void;
   showStatus(message: string, style?: string): void; // style: "success" | "error" | "info"
-  showBubble(payload: object): void;     // See below
+  showContent(payload: object): void;  // See below
   keepVisible(): void;                   // Keep the popup open after the result
   requireConfiguration(payload: object): void; // { reason?: string, missing?: string[] }
 }
@@ -44,9 +44,10 @@ Modifier names accepted by `keyPress`: `command`/`cmd`, `shift`, `option`/`alt`,
 `control`/`ctrl`. The key is a macOS virtual-key name (QWERTY/ANSI layout is assumed), e.g.
 letters `a`–`z`, digits `0`–`9`, or named keys like `return`, `space`, `escape`.
 
-`showBubble` accepts an object with optional `title`, `icon`, `subtitle`, `body`, `emphasis`
+`showContent` accepts an object with optional `title`, `icon`, `subtitle`, `body`, `emphasis`
 (`"info"` | `"menu"` | default `"result"`), `rows` (`[{type:"text", value}]`), and `footer`
-(`"paste"`/`"copy"` presets or `{title, icon, action: "paste"|"copy", value}` objects).
+(`"paste"`/`"copy"` presets or `{title, icon, action: "paste"|"copy", value}` objects). It renders
+an inline content canvas on the popup panel (`.content` mode) — never a separate floating panel.
 
 ## Options & Preference Integration
 
@@ -117,7 +118,7 @@ throws `Script timed out after N seconds` after `Constants.scriptTimeout` (30 s;
 `OpenClipJSHost.run` resolves the outcome in a deterministic order:
 
 1. `requireConfiguration(...)` → `.openConfiguration`.
-2. `showBubble(...)` → `.showBubble`.
+2. `showContent(...)` → `.showContent`.
 3. `showStatus(...)` (with no effects) → `.showStatus`.
 4. Effects (paste/copy/cut/openURL/keyPress/runShortcut/notify) → single `.paste`/`.copy`/etc, or
    `.sequence` of them when multiple were called.

@@ -62,7 +62,7 @@ Supported `type` values:
 - `"paste"` → `ActionResult.paste(value)` (replaces selection in target application).
 - `"copy"` → `ActionResult.copy(value)` (copies text to system clipboard).
 - `"openURL"` → `ActionResult.openURL(URL)` (opens URL in default browser; URL parsed from `value`).
-- `"showBubble"` → result bubble (`title`, `body`, `footer`: `"paste"`/`"copy"` presets).
+- `"showContent"` → content canvas (`title`, `body`, `footer`: `"paste"`/`"copy"` presets); renders inline on the popup.
 - `"status"` → `ActionResult.showStatus` (`message`, `style`: `"success"`/`"error"`/`"info"`).
 - `"keepVisible"` → wraps a nested `effect` payload so the popup stays open.
 - `"configure"` → `ActionResult.openConfiguration` (`reason`, `missing: [optionID]`).
