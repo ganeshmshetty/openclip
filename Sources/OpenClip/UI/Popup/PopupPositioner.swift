@@ -26,6 +26,21 @@ public struct PopupPositioner: Sendable {
         )
     }
 
+    /// Horizontal origin that centers a popup of the given width on the release X, clamped to the
+    /// screen's padding-inset edges. Used for both initial placement and re-centering on resize so a
+    /// width change (search palette, pagination) never drifts the bar off the cursor.
+    public static func centeredX(releaseX: CGFloat, width: CGFloat, screenBounds: CGRect) -> CGFloat {
+        let padding: CGFloat = Constants.popupPadding
+
+        // --- Clamp popup width so a too-wide popup never overflows the right edge ---
+        let maxPopupWidth = max(0, screenBounds.width - 2 * padding)
+        let popupWidth = max(0, min(width, maxPopupWidth))
+
+        // --- Horizontal: center on release X, clamp to edges ---
+        var x = releaseX - popupWidth / 2
+        return max(screenBounds.minX + padding, min(x, screenBounds.maxX - popupWidth - padding))
+    }
+
     /// Place the popup near the mouse-release point.
     ///
     /// Vertical rule:
@@ -45,8 +60,7 @@ public struct PopupPositioner: Sendable {
         let popupWidth = max(0, min(popupSize.width, maxPopupWidth))
 
         // --- Horizontal: center on release X, clamp to edges ---
-        var x = releasePoint.x - popupWidth / 2
-        x = max(screenBounds.minX + padding, min(x, screenBounds.maxX - popupWidth - padding))
+        let x = centeredX(releaseX: releasePoint.x, width: popupWidth, screenBounds: screenBounds)
 
         // --- Vertical Direction Check ---
         // macOS screen coords: Y increases upwards (0 is bottom of screen).
