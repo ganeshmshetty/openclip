@@ -66,6 +66,11 @@ areas; stale debt notes are worse than none.
 - **Search mode suspends popup dismissal.** The distance auto-dismiss and the key/scroll dismissals
   in `handleEvent` are skipped while `modeStore.mode == .search` (`PopupWindowController.swift:544,564,572`),
   so typing with the mouse elsewhere doesn't close the palette.
+- **The floating bubble panel is gone; content renders inline.** The second `PopupPanel` (and its
+  `showBubble`/`hideBubble`/`bubbleBlocksDismiss` machinery) was removed — all action/AI/hover/status
+  content renders inside the single panel via `.content` mode (`PopupModeStore`) + `PopupContentView`.
+  `PopupContentView` still renders `.info` emphasis for JS-emitted info cards; `StatusBadgeModel`
+  remains a shared singleton (the canvas corner-badge path).
 - **`MathEvaluator` replaced crash-prone `NSExpression`.** `CalculateAction` used to run
   `NSExpression(format:)`, which throws an **uncaught Objective-C exception** on malformed selection
   text like `+` or `1+` (crash). The pure-Swift `MathEvaluator` (`Sources/Core/Actions/MathEvaluator.swift`)
