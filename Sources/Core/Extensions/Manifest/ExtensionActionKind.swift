@@ -18,6 +18,29 @@ public enum ExtensionActionKind: String, Codable, Sendable, Equatable {
     case shortcut
     case group
 
+    /// Every raw `type` string (normalized lowercase) the host recognizes, used by manifest
+    /// validation to reject unknown/unsupported kinds instead of the lenient `.url` fallback.
+    public static let recognizedTypeStrings: Set<String> = [
+        "url", "urltemplate",
+        "js", "javascript",
+        "applescript",
+        "shellinline", "shell",
+        "scriptfile", "script",
+        "textsnippet", "snippet", "text",
+        "websearch", "web", "search",
+        "keypress", "keys",
+        "service", "servicemenu",
+        "shortcut", "keyboardshortcut",
+        "group", "subactions"
+    ]
+
+    /// Whether `rawType` names a recognized action kind (case-insensitive). Absent values are
+    /// treated as recognized because they default to `.url`.
+    public static func isRecognized(rawType: String?) -> Bool {
+        guard let rawType, !rawType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return true }
+        return recognizedTypeStrings.contains(rawType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
     public init(rawType: String) {
         switch rawType.lowercased() {
         case "url", "urltemplate":
