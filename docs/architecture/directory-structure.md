@@ -40,7 +40,9 @@ Sources/
 │   │   ├── ExtensionsModels.swift            # Store models & DTOs
 │   │   ├── Manifest/                         # Extension manifest structures
 │   │   │   ├── ExtensionActionKind.swift     # Normalized extension kind enum
-│   │   │   └── ExtensionManifest.swift       # Extension manifest decoder
+│   │   │   ├── ExtensionManifest.swift       # Extension manifest decoder
+│   │   │   ├── ExtensionManifestStore.swift  # Manifest file locate/read/write (shared home)
+│   │   │   └── ManifestValidation.swift      # Manifest validation pass + empty capability gate + fingerprint record
 │       │   ├── OpenClipSnippetParser.swift       # Standalone snippet header parser (nonisolated, pure text); body mode ends only at `#` header keys, `//` lines stay body
 │   │   ├── ScriptAction.swift                # Executable script action
 │   │   └── ShellProcessRunner.swift          # Shared subprocess executor + 30s watchdog; hosts TimeoutFlag/OnceGate; maps stdout JSON via ShellResultMapper

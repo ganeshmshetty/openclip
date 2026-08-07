@@ -283,7 +283,10 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         // script that can't be read must not register as an empty action.
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: scriptURL.path, isDirectory: &isDirectory),
-              !isDirectory.boolValue else { return nil }
+              !isDirectory.boolValue else {
+            Log.factory.error("No runnable content for \(actionId, privacy: .public): script file missing at \(scriptURL.path, privacy: .public)")
+            return nil
+        }
 
         switch ext {
         case "js":

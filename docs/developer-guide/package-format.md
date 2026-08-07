@@ -68,6 +68,13 @@ OpenClip decodes extension metadata via [`ExtensionMetadata`](../../Sources/Core
 | `name` | String | `Name` | Display name of the extension package. |
 | `actions` | Array / Object | `action`, `Actions` | List of action definitions (or single action object). |
 | `options` | Array | `Options` | Optional array of user-configurable settings. |
+| `version` | String | — | Declared package version; recorded in the validation log line, not used for loading. |
+| `capabilities` | Array | — | Declared runtime capabilities. The known set is **empty** on day one, so any non-empty value rejects the manifest. Reserved. |
+
+Manifests are **validated** on load (`ManifestValidator`): unknown action kinds, missing required
+fields (`keyPress`/`shortcutName`/`subActions`/executable payload), and any declared capability
+reject the package, which is then logged (category `extensions`) rather than silently skipped. See
+[`docs/architecture/extensions.md`](../architecture/extensions.md).
 
 ### Action Object (`ExtensionActionMetadata`)
 
@@ -76,7 +83,7 @@ OpenClip decodes extension metadata via [`ExtensionMetadata`](../../Sources/Core
 | `id` | String | Unique action identifier. If omitted, generated as `<manifest.id>.action.<index>`. |
 | `title` | String | Display title presented in UI surfaces. |
 | `icon` | String | Icon definition. Accepts `symbol:sf_symbol_name`, local filename (`icon.png`), or URL. |
-| `type` | String | Runtime kind (case-insensitive): `"url"` (default), `"javascript"` (`"js"`), `"applescript"`, `"shell"` (`"shellinline"`), `"script"` (`"scriptfile"`), `"textSnippet"` (`"snippet"`/`"text"`), `"webSearch"` (`"web"`/`"search"`), `"keyPress"` (`"keys"`), `"service"` (`"servicemenu"`), `"shortcut"` (`"keyboardshortcut"`), `"group"` (`"subactions"`). Unknown values default to `"url"`. |
+| `type` | String | Runtime kind (case-insensitive): `"url"` (default when absent), `"javascript"` (`"js"`), `"applescript"`, `"shell"` (`"shellinline"`), `"script"` (`"scriptfile"`), `"textSnippet"` (`"snippet"`/`"text"`), `"webSearch"` (`"web"`/`"search"`), `"keyPress"` (`"keys"`), `"service"` (`"servicemenu"`), `"shortcut"` (`"keyboardshortcut"`), `"group"` (`"subactions"`). **Unknown values reject the manifest** at load. |
 | `script` | String | Path to script file relative to extension directory (defaults to `main.js`). |
 | `scriptCode` | String | Inline script code string (used when code is embedded directly in manifest/snippet). |
 | `async` | Boolean | Optional. For `type: "javascript"` only: runs the script asynchronously, enabling a `fetch()` polyfill and awaiting the entry function's returned promise. Default `false` (legacy synchronous mode). |

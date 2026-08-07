@@ -54,6 +54,8 @@ OpenClip enforces strict single-responsibility subsystems. Read what's relevant 
 - **Text selection & retrieval** (incl. clipboard fallback) — `docs/architecture/text-selection.md`
 - **Action-search palette** (search catalog/matcher, popup mode state machine, scoped key
   exception) — `Sources/Core/Actions/ActionSearch.swift`, `Sources/OpenClip/UI/Popup/PopupSearchView.swift`
+- **Extension trust & validation** (manifest validation pass, empty capability gate, runtime
+  privilege tiers, load-failure surfacing) — `docs/architecture/extensions.md`
 - **Logging** (single `Log` surface, category table, filtering workflow) — `docs/logging.md`
 
 ---

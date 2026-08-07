@@ -48,6 +48,61 @@ final class ExtensionManagerTests: XCTestCase {
     }
     
     @MainActor
+    func testLoadManifestRejectsUnknownActionKind() async throws {
+        let extDir = tempDir.appendingPathComponent("bad_kind.openclipext")
+        try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
+
+        let manifestPath = extDir.appendingPathComponent("openclip.json")
+        let manifestContent = """
+        {
+            "identifier": "com.test.badkind",
+            "name": "Bad Kind",
+            "actions": [
+                {
+                    "title": "Mistyped",
+                    "type": "banana",
+                    "url": "https://example.com/{query}"
+                }
+            ]
+        }
+        """
+        try manifestContent.write(to: manifestPath, atomically: true, encoding: .utf8)
+
+        let manager = ExtensionManager.shared
+        await manager.loadExtensions(from: tempDir)
+
+        XCTAssertEqual(manager.loadedActions.count, 0, "Unknown action kind must reject the whole package, not silently load as url")
+    }
+
+    @MainActor
+    func testLoadManifestRejectsDeclaredCapability() async throws {
+        let extDir = tempDir.appendingPathComponent("declared_cap.openclipext")
+        try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
+
+        let manifestPath = extDir.appendingPathComponent("openclip.json")
+        let manifestContent = """
+        {
+            "identifier": "com.test.cap",
+            "name": "Cap",
+            "capabilities": ["network"],
+            "actions": [
+                {
+                    "title": "URL",
+                    "type": "url",
+                    "url": "https://example.com/{query}"
+                }
+            ]
+        }
+        """
+        try manifestContent.write(to: manifestPath, atomically: true, encoding: .utf8)
+
+        let manager = ExtensionManager.shared
+        await manager.loadExtensions(from: tempDir)
+
+        XCTAssertEqual(manager.loadedActions.count, 0, "Any declared capability is outside the empty known set and must reject the manifest")
+    }
+
+    @MainActor
     func testLoadManifestExtension() async throws {
         let extDir = tempDir.appendingPathComponent("manifest_ext.openclipext")
         try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)

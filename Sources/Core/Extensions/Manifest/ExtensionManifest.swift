@@ -220,12 +220,27 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
     public let name: String
     public let actions: [ExtensionActionMetadata]
     public let options: [ExtensionOptionMetadata]?
+    /// Declared package version (e.g. `"1.0.0"`). Ignored by the loader except for validation
+    /// bookkeeping (`ManifestValidationRecord.declaredVersion`).
+    public let version: String?
+    /// Declared runtime capabilities. The host's known-capability set is **empty** on day one, so
+    /// any non-empty list rejects the manifest at load time (see `ManifestCapabilityGate`).
+    public let capabilities: [String]?
     
-    public init(identifier: String, name: String, actions: [ExtensionActionMetadata], options: [ExtensionOptionMetadata]? = nil) {
+    public init(
+        identifier: String,
+        name: String,
+        actions: [ExtensionActionMetadata],
+        options: [ExtensionOptionMetadata]? = nil,
+        version: String? = nil,
+        capabilities: [String]? = nil
+    ) {
         self.identifier = identifier
         self.name = name
         self.actions = actions
         self.options = options
+        self.version = version
+        self.capabilities = capabilities
     }
     
     public init(from decoder: Decoder) throws {
@@ -245,6 +260,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         }
         self.options = try container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .options)
             ?? container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .legacyOptions)
+        self.version = try container.decodeIfPresent(String.self, forKey: .version)
+        self.capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -253,6 +270,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         try container.encode(name, forKey: .name)
         try container.encode(actions, forKey: .actions)
         try container.encodeIfPresent(options, forKey: .options)
+        try container.encodeIfPresent(version, forKey: .version)
+        try container.encodeIfPresent(capabilities, forKey: .capabilities)
     }
     
     enum CodingKeys: String, CodingKey {
@@ -266,6 +285,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         case legacyActions = "Actions"
         case options = "options"
         case legacyOptions = "Options"
+        case version = "version"
+        case capabilities = "capabilities"
     }
 }
 

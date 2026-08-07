@@ -39,8 +39,14 @@ The loader decodes `~/.openclip/extensions/<dir>/openclip.json` (legacy names `m
   // REQUIRED. Display name of the package. Aliases: "Name".
   "name": "Word Tools",
 
-  // OPTIONAL (ignored by the loader). "version" is parsed only by the GUI writer model.
+  // OPTIONAL. Declared package version. "version" is not used for loading; it is recorded in the
+  // validation log line (e.g. "Loaded extension manifest <id> (v1.0.1, schema 2, ...)").
   "version": "1.0.0",
+
+  // OPTIONAL. Declared runtime capabilities. The host's known-capability set is EMPTY on day one,
+  // so any non-empty list here REJECTS the manifest at load time. Reserved for future use; do not
+  // write it yet.
+  "capabilities": [],
 
   // REQUIRED. Either an ARRAY of action objects ("actions"),
   // or a SINGLE action object ("action"). Alias: "Actions".
@@ -67,8 +73,10 @@ Option values are keyed by this final action id at runtime.
 
 ## 3. Action kinds (`type`)
 
-`type` is normalized case-insensitively (`ExtensionActionKind.init(rawType:)`). Unknown/absent
-values default to `url`. Recognized inputs for each kind:
+`type` is normalized case-insensitively (`ExtensionActionKind.init(rawType:)`); absent values
+default to `url`. **Unknown/unsupported `type` strings now reject the whole package at load**
+(via the manifest validation pass, `ManifestValidator`), instead of silently routing as `url`.
+Recognized inputs for each kind:
 
 | Kind | Accepted `type` strings | Runtime action |
 | :--- | :--- | :--- |
@@ -582,17 +590,19 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 
 ### Common failure modes
 
-- **Bad/invalid manifest = silently skipped.** A manifest that fails to decode
-  (`JSONDecoder.decode(ExtensionMetadata.self)`) is dropped **with no error shown** — the loader
-  returns an empty action list and the scan continues. A typo in a key name, a missing `identifier`,
-  or malformed JSON therefore looks like "my extension isn't there". Verify JSON with a linter and
-  confirm the action id resolves per §2.
+- **Bad/invalid manifest = rejected and logged.** A manifest that fails to decode (malformed JSON,
+  missing `identifier`/`name`) or fails validation (an unknown `type`, a `keypress`/`shortcut`
+  missing its required field, an empty `group`, any `capabilities` entry) is **dropped as a whole**
+  — the loader returns an empty action list, the scan continues, and the reason is logged under the
+  `extensions` category (`log stream --predicate 'category == "extensions"'`). A typo in a key
+  name or malformed JSON therefore looks like "my extension isn't there" — check the log.
 - **Missing script file.** A `url`/`scriptCode`-less action that names a `script` file that doesn't
-  exist (or is a directory / unreadable) is **not registered** at all.
+  exist (or is a directory / unreadable) is **not registered** at all, and the drop is logged
+  (`factory` category).
 - **Wrong `type`.** `type: "script"` with inline `scriptCode` is treated as a shell
   (`shell`/`shellinline`); to get JS you must use `"js"`/`"javascript"` (inline) or an actual
-  `.js` file. Unused keys are ignored, not an error — that's why a bad `type` silently routes
-  elsewhere.
+  `.js` file. Unused keys are ignored, not an error — but an **unknown** `type` string rejects the
+  package.
 - **`requiresSelection` gating.** With no `requirements` the default requires a non-blank selection;
   a selected-empty/app with no selection won't show the action. Set
   `requirements.requiresSelection: false` for always-on actions.
