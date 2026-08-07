@@ -108,6 +108,14 @@ until the promise settles. A watchdog (`TimeoutFlag`, mirroring the `ShellProces
 throws `Script timed out after N seconds` after `Constants.scriptTimeout` (30 s; tests override via
 `Request.timeout`).
 
+**Synchronous evaluations are capped.** A CPU-bound synchronous script cannot be interrupted
+(`JSVirtualMachine.invalidate` no longer exists), so a stuck sync script would permanently park a
+cooperative-pool thread. `OpenClipJSHost` refuses new synchronous evaluations once
+`Constants.maxConcurrentSyncScriptEvaluations` (4) are in flight — logging at `.error` and
+throwing — so thread accumulation stays bounded. Async evaluations are not gated: the watchdog +
+promise pump loop bounds them instead. (Residual: an async-mode script with a top-level
+*synchronous* infinite loop still blocks inside `evaluateScript`; see `known-debt.md`.)
+
 > **Compiler landmine:** inside the `Task.detached` closure, static members must be referenced by
 > the explicit type name (`OpenClipJSHost.execute(...)`), never `Self.execute(...)`. `Self.x` in a
 > detached-task closure trips a Swift 6 region-based-isolation checker bug (`"pattern that the

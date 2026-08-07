@@ -41,7 +41,7 @@ Sources/
 │   │   ├── Manifest/                         # Extension manifest structures
 │   │   │   ├── ExtensionActionKind.swift     # Normalized extension kind enum
 │   │   │   └── ExtensionManifest.swift       # Extension manifest decoder
-│   │   ├── OpenClipSnippetParser.swift       # Standalone snippet header parser (currently @MainActor); body mode ends only at `#` header keys, `//` lines stay body
+│       │   ├── OpenClipSnippetParser.swift       # Standalone snippet header parser (nonisolated, pure text); body mode ends only at `#` header keys, `//` lines stay body
 │   │   ├── ScriptAction.swift                # Executable script action
 │   │   └── ShellProcessRunner.swift          # Shared subprocess executor + 30s watchdog; hosts TimeoutFlag/OnceGate; maps stdout JSON via ShellResultMapper
 │   ├── Rules/                                # App-specific policy rules
@@ -75,6 +75,7 @@ Sources/
     ├── AppDelegate.swift                     # Reads isAppEnabled / hasCompletedOnboarding via UserDefaults.standard
     ├── OpenClipApp.swift                     # SwiftUI App Entrypoint
     ├── Platform/                             # macOS Platform Services
+    │   ├── AppleScriptRunner.swift           # Bounded off-main AppleScript executor (killable osascript subprocess via ShellProcessRunner)
     │   ├── BuiltinActions/                   # AppKit platform actions (Services, Finder)
     │   ├── Effects/
     │   │   └── ActionResultHandler.swift     # Platform side-effects handler

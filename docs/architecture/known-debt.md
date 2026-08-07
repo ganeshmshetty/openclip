@@ -35,7 +35,9 @@ areas; stale debt notes are worse than none.
 - **Shell runtimes share one executor.** `ScriptAction` script files and `CustomAction.shellScript`
   both run through `ShellProcessRunner` (one watchdog; `TimeoutFlag`/`OnceGate` live in
   `ShellProcessRunner.swift`) and translate stdout JSON via `ShellResultMapper`; `NSUserNotification`
-  is gone (`.notify` is handled by the effect door via `UNUserNotificationCenter`).
+  is gone (`.notify` is handled by the effect door via `UNUserNotificationCenter`). AppleScript
+  joins the same executor via `AppleScriptRunner` (osascript subprocess), so no code runs
+  `NSAppleScript` in-process anymore.
 - **`ActionResultAdapter.apply` is the single after/stayVisible translator.** Runtimes return raw
   results; each extension runtime's `perform` applies `rules.after`/`rules.stayVisible` via the
   adapter. `OpenClipJSHost.run` returns only raw results; async JS runs are guarded by the
@@ -45,8 +47,6 @@ areas; stale debt notes are worse than none.
 
 - **One legacy `switch action.id` fallback** remains in `ActionCustomizationManager.tableIcon()`
   (~`ActionCustomizationManager.swift:101`). Treat it as debt, not a pattern — don't add more.
-- **`OpenClipSnippetParser` is annotated `@MainActor`** (it should be a pure text parser). Removing
-  that is planned, not done.
 
 ## Action-Search Palette & Popup Growth
 
@@ -90,6 +90,21 @@ areas; stale debt notes are worse than none.
   passes `modifiers: []`. Don't build logic that assumes modifier keys reach actions.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
+
+## Concurrency
+
+- **Residual non-interruptible paths (documented, bounded).** Three spots remain that a hostile
+  or hung target can make block a cooperative-pool thread for up to `Constants.scriptTimeout`:
+  (1) `MacTextRetriever.strategyAXMenuCopy` fires an unstructured `Task.detached` AXPress that the
+  0.15 s pasteboard poll does not kill — the detached task finishes on its own; (2) an async-mode
+  JS script with a top-level *synchronous* infinite loop blocks inside `evaluateScript`, which the
+  watchdog pump loop never reaches (the sync-evaluation gate covers only `isAsync == false`);
+  (3) `withMutedAlertVolume`'s volume-restore is fire-and-forget (deliberate — it must not block
+  the Cmd+C return). All three are bounded (a leaked thread is eventually reaped), never
+  main-actor-blocking.
+- **AX direct read is deadline-capped.** `strategyAXDirect` races against
+  `Constants.axReadTimeout` (0.5 s) via the `OnceResume` once-gate; an unresponsive app returns
+  `nil` to the retrieval chain instead of hanging the popup.
 
 ## Test Isolation
 

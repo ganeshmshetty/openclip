@@ -37,7 +37,9 @@ public final class ExtensionManager: Sendable {
     public func loadExtensions(from url: URL = Constants.extensionsDirectory) async {
         let factory = self.actionFactory
         let actions = await Task.detached {
-            return await Self.scanDirectory(url, factory: factory)
+            // Reference the type by name (not `Self`) — `Self.X` inside a Task.detached closure
+            // trips a Swift 6 region-based-isolation checker bug.
+            return await ExtensionManager.scanDirectory(url, factory: factory)
         }.value
         for oldAction in self.loadedActions {
             onUnregister?(oldAction.id)
@@ -76,12 +78,14 @@ public final class ExtensionManager: Sendable {
             try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
             defer { try? fm.removeItem(at: stagingDir) }
 
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-            process.arguments = ["-q", sourceURL.path, "-d", stagingDir.path]
-            try process.run()
-            process.waitUntilExit()
-
+            // Unzip via the shared async subprocess runner — never `waitUntilExit` on the main
+            // actor. Non-zero exit throws here (unzip failure surfaces instead of a silent empty
+            // staging dir).
+            _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+                executableURL: URL(fileURLWithPath: "/usr/bin/unzip"),
+                arguments: ["-q", sourceURL.path, "-d", stagingDir.path],
+                environment: [:]
+            ))
             // Find the .openclipext folder within the staging dir (zip may contain it at root)
             let stagedItems = (try? fm.contentsOfDirectory(at: stagingDir, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
             let packageURL = stagedItems.first {

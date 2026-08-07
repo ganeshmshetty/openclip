@@ -126,8 +126,23 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     /// 1. Focused UI element
     /// 2. Hit-test element under mouse cursor (`AXUIElementCopyElementAtPosition`)
     /// 3. Ancestor hierarchy walk (up to 4 levels)
+    ///
+    /// Races the read against `Constants.axReadTimeout` (the pasteboard deadline pattern): AX
+    /// attribute reads can block indefinitely when the frontmost app is unresponsive, so the
+    /// deadline watchdog resumes the caller with `nil` and the still-running AX task is abandoned
+    /// rather than letting selection retrieval hang the popup.
     private func strategyAXDirect() async -> TextResult? {
         return await withCheckedContinuation { continuation in
+            let resume = OnceResume<TextResult?>()
+
+            // Deadline watchdog: cancel the wait after axReadTimeout so an unresponsive target app
+            // can never wedge the popup. The AX read itself keeps running off-main and its own
+            // resume becomes a no-op through the once-gate.
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(Constants.axReadTimeout * 1_000_000_000))
+                resume.resume(continuation, with: nil)
+            }
+
             Task.detached {
                 let systemWide = AXUIElementCreateSystemWide()
                 
@@ -138,14 +153,14 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                     let focusedElement = focusedRef as! AXUIElement
                     if let result = self.extractTextAndBounds(from: focusedElement) {
                         Log.selection.debug("AX strategy: success from focused element (\(result.text.count) chars)")
-                        continuation.resume(returning: result)
+                        resume.resume(continuation, with: result)
                         return
                     }
                     
                     // Try ancestors of focused element (up to 4 levels)
                     if let ancestorResult = self.extractFromAncestors(element: focusedElement, maxDepth: 4) {
                         Log.selection.debug("AX strategy: success from focused element ancestor (\(ancestorResult.text.count) chars)")
-                        continuation.resume(returning: ancestorResult)
+                        resume.resume(continuation, with: ancestorResult)
                         return
                     }
                 }
@@ -157,21 +172,21 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                        let hitElement {
                         if let result = self.extractTextAndBounds(from: hitElement) {
                             Log.selection.debug("AX strategy: success from cursor hit-test element (\(result.text.count) chars)")
-                            continuation.resume(returning: result)
+                            resume.resume(continuation, with: result)
                             return
                         }
                         
                         // Try ancestors of hit-test element (up to 4 levels)
                         if let ancestorResult = self.extractFromAncestors(element: hitElement, maxDepth: 4) {
                             Log.selection.debug("AX strategy: success from cursor hit-test ancestor (\(ancestorResult.text.count) chars)")
-                            continuation.resume(returning: ancestorResult)
+                            resume.resume(continuation, with: ancestorResult)
                             return
                         }
                     }
                 }
                 
                 Log.selection.debug("AX strategy: all direct AX resolution attempts exhausted")
-                continuation.resume(returning: nil)
+                resume.resume(continuation, with: nil)
             }
         }
     }
@@ -387,21 +402,39 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     }
 
     /// Run an AppleScript on a background thread with a timeout and return its string output.
+    /// The evaluation itself runs as a killable osascript subprocess (AppleScriptRunner); the
+    /// caller-side deadline lets the popup move on while the subprocess is reaped by its own
+    /// watchdog.
     private func runAppleScript(_ source: String, timeout: TimeInterval = 0.2) async -> String? {
-        await withTaskGroup(of: String?.self) { group in
-            group.addTask {
-                guard let script = NSAppleScript(source: source) else { return nil }
-                var error: NSDictionary?
-                let result = script.executeAndReturnError(&error)
-                return error == nil ? result.stringValue : nil
+        await withCheckedContinuation { continuation in
+            let resume = OnceResume<String?>()
+            Task {
+                let result = try? await AppleScriptRunner.shared.run(source)
+                resume.resume(continuation, with: result)
             }
-            group.addTask {
+            Task {
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                return nil
+                resume.resume(continuation, with: nil)
             }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
         }
+    }
+}
+
+/// Guarantees a `CheckedContinuation` is resumed exactly once when two or more racing producers
+/// (a worker and a deadline watchdog) may both try to settle it. Mirrors the TimeoutFlag/OnceGate
+/// lock-guarded pattern used across the runtimes.
+private final class OnceResume<T: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var resumed = false
+
+    func resume(_ continuation: CheckedContinuation<T, Never>, with value: T) {
+        lock.lock()
+        if resumed {
+            lock.unlock()
+            return
+        }
+        resumed = true
+        lock.unlock()
+        continuation.resume(returning: value)
     }
 }
