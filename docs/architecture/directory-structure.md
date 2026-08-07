@@ -14,14 +14,12 @@ Sources/
 │   │   ├── ActionResult.swift                # Action result value types
 │   │   ├── ActionResultAdapter.swift         # Single after/stayVisible translator for extension runtime results
 │   │   ├── ActionCustomizationManager.swift  # User action overrides (title/icon); delegates I/O to SettingsStore
-│   │   ├── ActionPresentation.swift          # Presentation styling generator
 │   │   ├── ActionRegistry.swift              # Storage, ordering, and transform default-on/off policy
 │   │   ├── ActionSearch.swift                # Popup mode enum + pure substring matcher for the action-search palette
 │   │   ├── GroupAction.swift                 # Pure group-row action (chrome .showSubActions); perform → .none
 │   │   ├── KeyPressSpec.swift                # Key-press spec ("mod+mod+key") parsed from manifest keyPress
 │   │   ├── PopupContent.swift                 # Popup content canvas value-type model (rows/options/emphasis)
 │   │   ├── Builtin/                          # Core builtin actions (Copy, Cut, Paste, etc.)
-│   │   │   └── TransformTextAction.swift     # TransformCase enum & transform implementations (default-on/off policy lives in TransformCase.defaultDisabledActionIDs; isRelevant(for:) drives menu smart-filtering)
 │   │   ├── BuiltinRegistry.swift             # Default builtin actions catalog
 │   │   ├── ConfigurableAction.swift          # Configurable action protocol (preferenceIconName)
 │   │   ├── Custom/                           # Custom action draft DTO
@@ -53,7 +51,6 @@ Sources/
 │   │   ├── AppIdentifying.swift
 │   │   ├── Constants.swift                   # Timing thresholds, key codes, settings keys, scriptTimeout
 │   │   ├── SelectionContext.swift
-│   │   ├── SelectionCoordinator.swift
 │   │   ├── SelectionMonitoring.swift
 │   │   └── TextRetrieving.swift
 │   ├── Settings/                             # Settings subsystem
@@ -74,7 +71,6 @@ Sources/
     │   ├── OpenClipJSHost.swift              # JS bridge (openclip.*) + effect resolver + .openConfiguration short-circuit support
     │   └── ShortcutAction.swift              # type: "shortcut" runtime → .runShortcut(name:input:)
     ├── App/
-    │   └── AppServices.swift                 # UI-facing composition root
     ├── AppDelegate.swift                     # Reads isAppEnabled / hasCompletedOnboarding via UserDefaults.standard
     ├── OpenClipApp.swift                     # SwiftUI App Entrypoint
     ├── Platform/                             # macOS Platform Services

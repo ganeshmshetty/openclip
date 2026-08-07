@@ -8,6 +8,7 @@ final class ActionCoordinatorStartupTests: XCTestCase {
     
     override func setUp() async throws {
         try await super.setUp()
+        TestIsolation.reset()
         ExtensionManager.shared.actionFactory = DefaultActionFactory()
     }
     

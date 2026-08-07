@@ -74,7 +74,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 
 OpenClip enforces a strict single-responsibility architecture divided across **Core Architectural Subsystems**:
 1. **Settings Subsystem** — [`SettingsStore`](../Sources/Core/Settings/SettingsStore.swift) (Typed `SettingKey` access; a few legacy `UserDefaults.standard` sites remain in the App target).
-2. **Action Presentation** — [`ActionPresentation`](../Sources/Core/Actions/ActionPresentation.swift) (Surface-tailored icon and title resolution).
+2. **Action Presentation** — [`ActionCustomizationManager`](../Sources/Core/Actions/ActionCustomizationManager.swift) (Surface-tailored icon and title resolution).
 3. **Action Chrome Policy** — [`ActionChrome`](../Sources/Core/Actions/ActionChrome.swift) (UI policy metadata without type checking).
 4. **Action Factory** — [`DefaultActionFactory`](../Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift) (Action creation from manifests/snippets).
 5. **Action Result Handler** — [`ActionResultHandler`](../Sources/OpenClip/Platform/Effects/ActionResultHandler.swift) (Platform side-effects, pasteboard, and key events).

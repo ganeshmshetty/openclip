@@ -9,21 +9,30 @@ The text selection subsystem is responsible for detecting user text selection ev
 The subsystem consists of three primary components:
 
 ```
-+------------------------+ +---------------------+ +----------------------+
-| MacSelectionMonitor | ---> | SelectionCoordinator| ---> | ActionCoordinator |
-| (Global Mouse/AX Event)| | (Context Assembly) | | (Action Resolution) |
-+------------------------+ +---------------------+ +----------------------+
- | |
- v v
-+------------------------+ +---------------------+
-| MacTextRetriever | | AppRule / Engine |
-| (AX / Safari / Cmd+C) | | (Per-App Policy) |
-+------------------------+ +---------------------+
++------------------------+   +---------------------+
+| MacSelectionMonitor |-->| RuleEngine |
+| (Global Mouse/AX Event)|   | (Per-App Policy) |
++------------------------+   +---------------------+
+ |                |
+ | builds         v
+ |          +---------------------+
+ |          | SelectionContext |
+ |          +---------------------+
+ v                |
++------------------------+      |
+| MacTextRetriever |      |
+| (AX / Safari / Cmd+C) |      |
++------------------------+      |
+                        v
+             +-----------------------+
+             | onSelection callback |
+             | (PopupWindowController) |
+             +-----------------------+
 ```
 
 1. **[`MacSelectionMonitor`](../../Sources/OpenClip/Platform/MacSelectionMonitor.swift)**: Listens for mouse release events (`leftMouseUp`) or keyboard shortcuts.
 2. **[`MacTextRetriever`](../../Sources/OpenClip/Platform/MacTextRetriever.swift)**: Implements [`TextRetrieving`](../../Sources/Core/Selection/TextRetrieving.swift) to extract selected text from the active frontmost application.
-3. **[`SelectionCoordinator`](../../Sources/Core/Selection/SelectionCoordinator.swift)**: Receives raw selection context events, applies app rules, and notifies subscriber callbacks (such as `PopupWindowController`).
+3. **Context assembly**: `MacSelectionMonitor` resolves app rules via [`RuleEngine`](../../Sources/Core/Rules/RuleEngine.swift), builds a [`SelectionContext`](../../Sources/Core/Selection/SelectionContext.swift), and notifies subscriber callbacks (such as `PopupWindowController`).
 
 ---
 

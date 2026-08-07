@@ -36,7 +36,7 @@ flowchart TD
 ```swift
 @MainActor
 public func loadInitialState() async {
- // 1. Register Core Builtin Actions (Copy, Cut, Paste, Define, Search, Transform)
+ // 1. Register Core Builtin Actions (Copy, Cut, Paste, Define, Search, Calculate)
  let coreBuiltins = BuiltinRegistry.makeCoreBuiltins()
  registry.register(builtIns: coreBuiltins)
 
@@ -98,8 +98,6 @@ When selected text is detected, `ActionCoordinator.resolveActions(for:)` convert
 
 1. **Disabled Actions Check**:
  - Queries `SettingKey.disabledActionIDs` from `SettingsStore`.
- - Evaluates `SettingKey.isTransformGroupEnabled`. If `isTransformGroupEnabled` is `false`, `"builtin.transform"` is added to disabled IDs.
- - Applies the default disabled transform cases from `TransformCase.defaultDisabledActionIDs`.
 
 2. **Disabled Package Check**:
  - Queries `SettingKey.disabledPackages` from `SettingsStore`. Any action whose `action.chrome.source` is `.extensionPkg(packageID:)` with a disabled packageID is filtered out (whole-package disable).
@@ -112,20 +110,29 @@ When selected text is detected, `ActionCoordinator.resolveActions(for:)` convert
 
 ```swift
 public func availableActions(for context: ActionContext) -> [any Action] {
- let defaultDisabledSubActions = TransformCase.defaultDisabledActionIDs
-
- let configuredDisabled = settingsStore.get(.disabledActionIDs)
- var disabledIDs = configuredDisabled.isEmpty ? Set(defaultDisabledSubActions) : configuredDisabled
- if !settingsStore.get(.isTransformGroupEnabled) {
-  disabledIDs.insert("builtin.transform")
- }
+ let disabledIDs = settingsStore.get(.disabledActionIDs)
  let disabledPackages = settingsStore.get(.disabledPackages)
 
- return actions.filter { action in
+ func passes(_ action: any Action) -> Bool {
+  if case .ai = action.chrome.source { return false }        // AI presets never flood the bar
+  if context.selection.isClipboardFallback && action.chrome.requiresLiveSelection { return false }
   if disabledIDs.contains(action.id) { return false }
   if case .extensionPkg(let packageID) = action.chrome.source, disabledPackages.contains(packageID) { return false }
   if context.selection.appPolicy.denyFormatting && action.isFormatting { return false }
   return action.isEnabled(for: context)
+ }
+
+ // Group sub-actions are reachable only through their group's sub-menu, so a disabled
+ // (or otherwise not-visible) group row hides its sub-actions entirely.
+ let groupRowIDs = actions.filter { $0.chrome.popupBehavior == .showSubActions }.map { $0.id }
+ let enabledGroupIDs = Set(
+  actions.filter { $0.chrome.popupBehavior == .showSubActions }.filter(passes).map { $0.id }
+ )
+ return actions.filter { action in
+  guard passes(action) else { return false }
+  if let groupID = groupRowIDs.first(where: { action.id.hasPrefix($0 + ".") }),
+     !enabledGroupIDs.contains(groupID) { return false }
+  return true
  }
 }
 ```

@@ -93,6 +93,12 @@ public final class ActionRegistry: ObservableObject, Sendable {
     public func unregister(actionID: String) {
         actions.removeAll(where: { $0.id == actionID })
     }
+
+    /// Clears all registered actions. Test-isolation hook so the shared singleton does not leak
+    /// state across test cases.
+    public func reset() {
+        actions = []
+    }
     
     public func availableActions(for context: ActionContext) -> [any Action] {
         let disabledIDs = settingsStore.get(.disabledActionIDs)

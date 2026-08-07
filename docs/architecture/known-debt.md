@@ -80,8 +80,9 @@ areas; stale debt notes are worse than none.
   duplicate the title, so `PopupSearchView.rowIcon` falls back to `ConfigurableAction.preferenceIconName`
   (`PopupSearchView.swift:214`); Iconify-format symbols (`prefix:name`) render via `AnyIconView`
   matching the bar (`:230`).
-- **Search sizing constants:** `Constants.searchMaxHeight` (176), `searchMaxRows` (3),
-  `searchResultRowHeight` (32) — `Sources/Core/Selection/Constants.swift:23`.
+- **Search sizing constants:** `Constants.searchMaxRows` (5), `searchResultRowHeight` (32),
+  `searchPeekRowFraction` (0.5), `searchMaxHeight` (240) —
+  `Sources/Core/Selection/Constants.swift:23`.
 
 ## Unused / Latent
 
@@ -89,3 +90,16 @@ areas; stale debt notes are worse than none.
   passes `modifiers: []`. Don't build logic that assumes modifier keys reach actions.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
+
+## Test Isolation
+
+- **Shared reset for the app singletons:** `Tests/OpenClipTests/TestIsolation.swift` centralizes
+  `TestIsolation.reset()` — clears `ActionRegistry.shared`, `ActionCustomizationManager.shared`,
+  `RuleEngine.shared`, and `ExtensionManager.shared` (loaded actions, `onRegister`/`onUnregister`
+  callbacks, and factory). The singleton-touching test classes call it in `setUp()`, so the suite is
+  order-independent. `ActionCoordinator.shared` needs no explicit reset: it mirrors the registry's
+  `@Published` state, which `ActionRegistry.reset()` clears.
+- **Tests must wire what they read.** A test that expects loaded extensions to land in the shared
+  registry must set `ExtensionManager.shared.onRegister` itself (see
+  `GoldenExtensionPlatformTests.setUp`) rather than relying on wiring left behind by an earlier
+  test class. Keep using `TestIsolation.reset()` rather than cross-class state.

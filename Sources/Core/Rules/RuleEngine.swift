@@ -134,4 +134,10 @@ public final class RuleEngine: ObservableObject, Sendable {
     }
     
     public static let defaultRules: [AppRule] = DefaultAppRules.catalog
+
+    /// Clears user-defined rules, returning the engine to its default state. Test-isolation hook
+    /// so the shared singleton does not leak rules across test cases.
+    public func reset() {
+        userRules = []
+    }
 }

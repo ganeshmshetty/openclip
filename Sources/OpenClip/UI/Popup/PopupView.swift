@@ -590,7 +590,7 @@ public struct PopupView: View {
 
         switch action.gesturePolicy.singleClick {
         case .openSubActions:
-            // Group rows (extension groups + the builtin transform group) open a scoped palette of
+            // Group rows (extension groups) open a scoped palette of
             // their children instead of a hover preview strip. The controller resolves the SearchScope.
             Button {
                 onEnteredScopedSearch?(action)
