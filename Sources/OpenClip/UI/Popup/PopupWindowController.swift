@@ -127,6 +127,9 @@ public class PopupWindowController {
         // Placement is fixed; any subsequent content-driven width change (search palette,
         // pagination) must re-center rather than drift off the cursor.
         panel.recenterXOnResize = true
+        // The hover preview strip renders above the bar when the popup sits low on screen, so its
+        // growth must pin the bottom edge too — same anchor rule as search/content mode.
+        panel.pinBottomEdgeOnResize = cardAbove
         panel.orderFront(nil)
         
         setupMonitors()
@@ -207,6 +210,10 @@ public class PopupWindowController {
         modeStore.scope = nil
         modeStore.mode = .actions
         panel?.allowsKey = false
+        // Return to the bar keeps the field-anchoring rule active for hover-preview/banner growth
+        // (strip renders above the bar when the popup sits low), so set it explicitly rather than
+        // leaving the search-mode value behind. Cleared by show()/hide() before placement.
+        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         if NSApp.isActive {
             previousFrontmostApp?.activate(options: [.activateAllWindows])
         }
@@ -522,9 +529,14 @@ public class PopupWindowController {
             return
         }
 
-        NSCursor.arrow.set()
         let y = contentView.isFlipped ? contentPoint.y : contentView.bounds.height - contentPoint.y
-        PopupHoverState.shared.location = CGPoint(x: contentPoint.x, y: y)
+        let point = CGPoint(x: contentPoint.x, y: y)
+        // The global monitor fires on every mouse move even when the pointer hasn't crossed a new
+        // pixel boundary; `@Published` emits on every assignment, so skip identical locations to
+        // keep the `.onReceive` hit-tests from re-running at event-monitor rate.
+        guard point != PopupHoverState.shared.location else { return }
+        NSCursor.arrow.set()
+        PopupHoverState.shared.location = point
     }
     
     @objc private func appDidDeactivate() {

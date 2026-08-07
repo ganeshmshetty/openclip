@@ -20,12 +20,19 @@ public struct ActionSearchIndex: Sendable {
     public let title: String
     public let keywords: String
     public let action: any Action
+    /// Pre-normalized (lowercased) search fields so `ActionSearch.search` never lowercases per
+    /// catalog item per call — the index is built once per palette entry, so the cost lands
+    /// there instead of on the per-keystroke hot path.
+    let normalizedTitle: String
+    let normalizedKeywords: String
 
     public init(id: String, title: String, keywords: String, action: any Action) {
         self.id = id
         self.title = title
         self.keywords = keywords
         self.action = action
+        self.normalizedTitle = title.lowercased()
+        self.normalizedKeywords = keywords.lowercased()
     }
 }
 
@@ -37,13 +44,12 @@ public enum ActionSearch {
         let normalized = trimmed.lowercased()
 
         let scored: [(offset: Int, item: ActionSearchIndex, score: Int)] = items.enumerated().compactMap { offset, item in
-            let title = item.title.lowercased()
             let score: Int
-            if title.hasPrefix(normalized) {
+            if item.normalizedTitle.hasPrefix(normalized) {
                 score = 2
-            } else if title.contains(normalized) {
+            } else if item.normalizedTitle.contains(normalized) {
                 score = 1
-            } else if item.keywords.lowercased().contains(normalized) {
+            } else if item.normalizedKeywords.contains(normalized) {
                 score = 0
             } else {
                 return nil

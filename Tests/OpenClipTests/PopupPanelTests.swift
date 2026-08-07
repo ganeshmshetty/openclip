@@ -107,6 +107,20 @@ final class PopupPanelTests: XCTestCase {
                        "popup bottom edge moved by \(searchFrame.minY - barFrame.minY)pt entering search mode")
     }
 
+    /// A fresh show near the bottom of the screen (card above the cursor) must arm the bottom-edge
+    /// pin immediately: the hover preview strip renders above the bar, so its growth has to push up,
+    /// not shove the bar down off the cursor. Previously only enterSearch() armed the pin, so the
+    /// first hover preview after opening the popup was mis-anchored.
+    func testShowArmsBottomEdgePinForResultsAbove() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150))
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        XCTAssertTrue(panel.pinBottomEdgeOnResize,
+                      "bottom-edge pin should be armed for a card-above popup")
+    }
+
     /// Entering search swaps the (variable-width) actions bar for the fixed 280pt palette. The
     /// hosting view auto-resizes the panel top-anchored, preserving origin.x, so without horizontal
     /// re-anchoring the popup's center would drift off the cursor. The bar's center must stay fixed.
