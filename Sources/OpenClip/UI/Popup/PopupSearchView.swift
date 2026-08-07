@@ -55,13 +55,14 @@ public struct PopupSearchView: View {
     /// The precomputed search index for this palette session: scoped children when scoped, the
     /// full catalog otherwise. Built once in `init` (and on scope changes via `rebuildSearchIndex`)
     /// instead of on every body evaluation — indexing walks the whole catalog resolving titles +
-    /// keywords, so it must not re-run for every keystroke/hover. Body evaluation only re-runs
-    /// `ActionSearch.search(query, in: searchIndex)`, which is cheap.
+    /// keywords, so it must not re-run for every keystroke/hover.
     @State private var searchIndex: [ActionSearchIndex] = []
 
-    private var results: [ActionSearchIndex] {
-        ActionSearch.search(query, in: searchIndex)
-    }
+    /// The ranked results for the current `query`. Stored, not computed: body evaluation reads
+    /// `results` several times per pass (count, viewport height, the row ForEach) and re-evaluates
+    /// on hover/selection moves too — a computed property would re-run the full filter+sort on
+    /// every one of those reads. Recomputed exactly once per query change (and per scope rebuild).
+    @State private var results: [ActionSearchIndex] = []
 
     private var visibleResultCount: Int {
         min(results.count, Constants.searchMaxRows)
@@ -94,8 +95,11 @@ public struct PopupSearchView: View {
         self.onExitScope = onExitScope
         self.onRunAI = onRunAI
         // Index once at entry: the palette is recreated on every search entry (mode + scope
-        // transition together), so the current catalog/scope are captured here.
-        _searchIndex = State(initialValue: Self.buildIndex(catalog: catalog, scope: scope))
+        // transition together), so the current catalog/scope are captured here. The initial query
+        // is empty, so the ranked results are just the full index in order.
+        let initialIndex = Self.buildIndex(catalog: catalog, scope: scope)
+        _searchIndex = State(initialValue: initialIndex)
+        _results = State(initialValue: initialIndex)
     }
 
     public var body: some View {
@@ -116,6 +120,9 @@ public struct PopupSearchView: View {
         }
         .onReceive(hoverState.$location) { location in
             updateHoveredTarget(for: location)
+        }
+        .onChange(of: query) { _, newValue in
+            results = ActionSearch.search(newValue, in: searchIndex)
         }
         .onChange(of: scope?.parent.id) { _, _ in
             rebuildSearchIndex()
@@ -339,7 +346,9 @@ public struct PopupSearchView: View {
     /// palette entry (init), so this is a defensive guard for scope transitions that keep
     /// `.search` mounted. The catalog is captured at entry; the palette is ephemeral.
     private func rebuildSearchIndex() {
-        searchIndex = Self.buildIndex(catalog: catalog, scope: scope)
+        let index = Self.buildIndex(catalog: catalog, scope: scope)
+        searchIndex = index
+        results = ActionSearch.search(query, in: index)
     }
 
     private static func searchKeywords(for action: any Action) -> String {
