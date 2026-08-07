@@ -2,10 +2,10 @@
 // OpenClip
 //
 // Parses OpenClip script snippet headers into extension and action metadata structures without UI dependencies.
-// Note: currently annotated @MainActor; making it fully nonisolated is planned.
+// Pure text parsing + action construction, so it is intentionally nonisolated — extension scanning
+// must run off the main actor.
 import Foundation
 
-@MainActor
 public struct OpenClipSnippetParser: Sendable {
     public static func parseSnippetMetadata(snippet: String) -> (manifest: ExtensionMetadata, actionMetadata: ExtensionActionMetadata)? {
         let lines = snippet.components(separatedBy: .newlines)
