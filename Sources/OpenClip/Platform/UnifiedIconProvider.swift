@@ -91,19 +91,9 @@ public final class UnifiedIconProvider: ObservableObject, Sendable {
             // SF Symbol matches (local, instant)
             let sfMatches = sfSymbols.filter { $0.id.contains(lower) }.prefix(30)
 
-            // Iconify search API — palette=false gives only monochrome icons
-            var iconifyMatches: [IconEntry] = []
-            if let url = URL(string: "https://api.iconify.design/search?query=\(trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? trimmed)&limit=80&palette=false"),
-               let data = try? Data(contentsOf: url),
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let icons = json["icons"] as? [String] {
-                // icons are in "prefix:name" format — perfect, use directly
-                iconifyMatches = icons.map { iconId in
-                    let parts = iconId.split(separator: ":", maxSplits: 1)
-                    let label = parts.count == 2 ? String(parts[1]).replacingOccurrences(of: "-", with: " ").capitalized : iconId
-                    return IconEntry(id: iconId, name: label, library: "Iconify")
-                }
-            }
+            // Iconify search API — palette=false gives only monochrome icons. The network call +
+            // JSON parse run off the main actor (nonisolated helper); results merge back below.
+            let iconifyMatches = await Self.fetchIconifySearchResults(query: trimmed)
 
             guard !Task.isCancelled else { return }
 
@@ -117,5 +107,26 @@ public final class UnifiedIconProvider: ObservableObject, Sendable {
     /// Default icons shown when search is empty (first 160 SF Symbols)
     public var defaultIcons: [IconEntry] {
         Array(sfSymbols.prefix(160))
+    }
+
+    /// Queries the Iconify search API off the main actor and returns flat "prefix:name" entries.
+    /// `nonisolated` runs on the cooperative thread pool, so the network I/O and JSON parse never
+    /// block the UI — the caller merges results back via `MainActor.run`. `[IconEntry]` is Sendable,
+    /// so it crosses the actor boundary without a box.
+    private nonisolated static func fetchIconifySearchResults(query: String) async -> [IconEntry] {
+        guard let url = URL(string: "https://api.iconify.design/search?query=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query)&limit=80&palette=false") else {
+            return []
+        }
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let icons = json["icons"] as? [String] else {
+            return []
+        }
+        // icons are in "prefix:name" format — perfect, use directly
+        return icons.map { iconId in
+            let parts = iconId.split(separator: ":", maxSplits: 1)
+            let label = parts.count == 2 ? String(parts[1]).replacingOccurrences(of: "-", with: " ").capitalized : iconId
+            return IconEntry(id: iconId, name: label, library: "Iconify")
+        }
     }
 }

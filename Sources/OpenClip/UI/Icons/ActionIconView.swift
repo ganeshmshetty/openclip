@@ -38,7 +38,7 @@ public struct ActionIconView: View {
             }
             .frame(width: size, height: size)
         case .local(let url):
-            if let nsImage = NSImage(contentsOfFile: url.path) {
+            if let nsImage = LocalIconCache.shared.image(for: url) {
                 Image(nsImage: nsImage)
                     .resizable()
                     .scaledToFit()
