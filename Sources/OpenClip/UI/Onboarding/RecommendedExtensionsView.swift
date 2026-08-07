@@ -167,7 +167,11 @@ private struct RecommendedExtensionRow: View {
                 Button(role: .destructive, action: {
                     if let action = matchingInstalledAction {
                         Task {
-                            try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                            do {
+                                try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                            } catch {
+                                Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
+                            }
                             await MainActor.run {
                                 NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
                             }

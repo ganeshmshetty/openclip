@@ -80,6 +80,7 @@ public enum ActionVisibility {
                 return (false, noMatch)
             } catch {
                 // Defensive: a malformed regex must not hide an action (legacy URL behavior).
+                Log.coordinator.debug("Malformed enablement regex treated as non-matching: \(error.localizedDescription)")
                 return (true, noMatch)
             }
         }

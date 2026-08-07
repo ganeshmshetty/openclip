@@ -269,6 +269,7 @@ struct IconifySVGView: View {
         do {
             (data, _) = try await URLSession.shared.data(from: url)
         } catch {
+            Log.icons.debug("Failed to download icon '\(iconId)': \(error.localizedDescription)")
             return nil
         }
 

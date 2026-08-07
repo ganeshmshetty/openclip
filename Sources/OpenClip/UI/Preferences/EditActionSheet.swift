@@ -261,6 +261,7 @@ public struct EditActionSheet: View {
             packageID = action.id
         }
         guard let items = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) else {
+            Log.factory.error("Failed to read extensions directory at \(directory.path, privacy: .public)")
             return nil
         }
         let manifestNames = [Constants.manifestFileName, Constants.legacyManifestFileName, "Config.json"]
@@ -455,7 +456,7 @@ public struct EditActionSheet: View {
             let data = try encoder.encode(updatedManifest)
             try data.write(to: state.manifestURL, options: .atomic)
         } catch {
-            print("Failed to save action manifest: \(error)")
+            Log.factory.error("Failed to save action manifest: \(error.localizedDescription)")
             saveAlertMessage = "Failed to save the action manifest: \(error.localizedDescription)"
             showingSaveAlert = true
             return false

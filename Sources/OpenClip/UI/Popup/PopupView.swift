@@ -635,7 +635,7 @@ public struct PopupView: View {
                             let result = try await action.perform(performContext)
                             onResult(result)
                         } catch {
-                            print("Action failed: \(error)")
+                            Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
                             // Decision 9: a thrown perform error surfaces uniformly as an error status
                             // and the popup stays.
                             onResult(.showStatus(StatusFeedback(error: error)))

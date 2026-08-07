@@ -6,7 +6,6 @@ import AppKit
 import ApplicationServices
 import Foundation
 import Core
-import os
 
 // MARK: - MacTextRetriever
 
@@ -15,8 +14,6 @@ import os
 /// 2. Safari JS selection read (Safari AX can be delayed).
 /// Apps explicitly opted-in via `grabPasteboard` policy use a Cmd+C keystroke fallback.
 internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
-
-    private let logger = Logger(subsystem: "com.openclip", category: "MacTextRetriever")
 
     internal init() {}
 
@@ -59,19 +56,18 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
     /// Perform AXPress on Edit -> Copy in the application's AX menu bar.
     private func strategyAXMenuCopy(for app: AppIdentity) async -> String? {
-        let logger = self.logger
-        logger.debug("AX Menu Copy strategy: attempting Edit -> Copy via AXPress for \(app.bundleIdentifier ?? "unknown")")
+        Log.selection.debug("AX Menu Copy strategy: attempting Edit -> Copy via AXPress for \(app.bundleIdentifier ?? "unknown")")
         return await fetchPasteboardText(timeout: 0.15) {
             Task.detached {
                 guard let runningApp = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == app.bundleIdentifier }) ?? NSWorkspace.shared.frontmostApplication else {
-                    logger.debug("AX Menu Copy: running app unavailable")
+                    Log.selection.debug("AX Menu Copy: running app unavailable")
                     return
                 }
                 let appElement = AXUIElementCreateApplication(runningApp.processIdentifier)
                 var menuBarRef: CFTypeRef?
                 guard AXUIElementCopyAttributeValue(appElement, kAXMenuBarAttribute as CFString, &menuBarRef) == .success,
                       let menuBarRef, CFGetTypeID(menuBarRef) == AXUIElementGetTypeID() else {
-                    logger.debug("AX Menu Copy: could not obtain menu bar")
+                    Log.selection.debug("AX Menu Copy: could not obtain menu bar")
                     return
                 }
                 let menuBar = menuBarRef as! AXUIElement
@@ -99,7 +95,7 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                                     if AXUIElementCopyAttributeValue(copyCandidate, kAXTitleAttribute as CFString, &copyTitleRef) == .success,
                                        let copyTitle = copyTitleRef as? String, copyTitle.localizedCaseInsensitiveContains("Copy") {
                                         let pressErr = AXUIElementPerformAction(copyCandidate, kAXPressAction as CFString)
-                                        logger.debug("AX Menu Copy: performed AXPress on Copy (result: \(pressErr.rawValue))")
+                                        Log.selection.debug("AX Menu Copy: performed AXPress on Copy (result: \(pressErr.rawValue))")
                                         return
                                     }
                                 }
@@ -132,7 +128,7 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     /// 3. Ancestor hierarchy walk (up to 4 levels)
     private func strategyAXDirect() async -> TextResult? {
         return await withCheckedContinuation { continuation in
-            Task.detached { [logger] in
+            Task.detached {
                 let systemWide = AXUIElementCreateSystemWide()
                 
                 // 1. Try focused UI element
@@ -141,14 +137,14 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                    let focusedRef, CFGetTypeID(focusedRef) == AXUIElementGetTypeID() {
                     let focusedElement = focusedRef as! AXUIElement
                     if let result = self.extractTextAndBounds(from: focusedElement) {
-                        logger.debug("AX strategy: success from focused element (\(result.text.count) chars)")
+                        Log.selection.debug("AX strategy: success from focused element (\(result.text.count) chars)")
                         continuation.resume(returning: result)
                         return
                     }
                     
                     // Try ancestors of focused element (up to 4 levels)
                     if let ancestorResult = self.extractFromAncestors(element: focusedElement, maxDepth: 4) {
-                        logger.debug("AX strategy: success from focused element ancestor (\(ancestorResult.text.count) chars)")
+                        Log.selection.debug("AX strategy: success from focused element ancestor (\(ancestorResult.text.count) chars)")
                         continuation.resume(returning: ancestorResult)
                         return
                     }
@@ -160,21 +156,21 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                     if AXUIElementCopyElementAtPosition(systemWide, Float(mouseLocation.x), Float(mouseLocation.y), &hitElement) == .success,
                        let hitElement {
                         if let result = self.extractTextAndBounds(from: hitElement) {
-                            logger.debug("AX strategy: success from cursor hit-test element (\(result.text.count) chars)")
+                            Log.selection.debug("AX strategy: success from cursor hit-test element (\(result.text.count) chars)")
                             continuation.resume(returning: result)
                             return
                         }
                         
                         // Try ancestors of hit-test element (up to 4 levels)
                         if let ancestorResult = self.extractFromAncestors(element: hitElement, maxDepth: 4) {
-                            logger.debug("AX strategy: success from cursor hit-test ancestor (\(ancestorResult.text.count) chars)")
+                            Log.selection.debug("AX strategy: success from cursor hit-test ancestor (\(ancestorResult.text.count) chars)")
                             continuation.resume(returning: ancestorResult)
                             return
                         }
                     }
                 }
                 
-                logger.debug("AX strategy: all direct AX resolution attempts exhausted")
+                Log.selection.debug("AX strategy: all direct AX resolution attempts exhausted")
                 continuation.resume(returning: nil)
             }
         }
@@ -254,7 +250,7 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     /// Mutes the system beep so an empty-selection Copy is silent.
     /// Saves and restores all pasteboard items around the operation.
     private func strategyKeyboardShortcut() async -> String? {
-        logger.debug("Keyboard strategy: sending Cmd+C")
+        Log.selection.debug("Keyboard strategy: sending Cmd+C")
         return await fetchPasteboardText(timeout: 0.5) {
             Task {
                 await self.withMutedAlertVolume {
@@ -307,7 +303,7 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         }
 
         guard pasteboard.changeCount != initialChangeCount else {
-            logger.debug("Pasteboard strategy: timed out waiting for change")
+            Log.selection.debug("Pasteboard strategy: timed out waiting for change")
             // Restore immediately since we never changed anything meaningful
             restorePasteboard(pasteboard, items: savedItems)
             return nil
@@ -318,11 +314,11 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
         // Instantly restore original pasteboard contents within 15 ms so clipboard monitors
         // (like Paste app) see original items restored before their debounce handler fires.
-        Task { @MainActor [logger] in
+        Task { @MainActor in
             try? await Task.sleep(nanoseconds: 15_000_000) // 15 ms
             if NSPasteboard.general.changeCount == changeCountAfterCopy {
                 self.restorePasteboard(NSPasteboard.general, items: savedItems)
-                logger.debug("Pasteboard strategy: original contents restored in 15 ms")
+                Log.selection.debug("Pasteboard strategy: original contents restored in 15 ms")
             }
         }
 
@@ -368,14 +364,14 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         
         if let result = await runAppleScript(muteScript), let vol = Int(result) {
             originalVolume = vol
-            logger.debug("Beep suppression: muted alert volume (was \(vol))")
+            Log.selection.debug("Beep suppression: muted alert volume (was \(vol))")
         }
         
         let result = await operation()
         
         // Restore volume asynchronously without blocking the return
         if let vol = originalVolume, vol > 0 {
-            Task.detached { [logger] in
+            Task.detached {
                 try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0s delay
                 let restoreScript = """
                 tell application "System Events"
@@ -383,7 +379,7 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                 end tell
                 """
                 _ = await self.runAppleScript(restoreScript)
-                logger.debug("Beep suppression: restored alert volume to \(vol)")
+                Log.selection.debug("Beep suppression: restored alert volume to \(vol)")
             }
         }
         

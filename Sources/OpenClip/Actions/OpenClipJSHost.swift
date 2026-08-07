@@ -376,6 +376,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
                let object = try? JSONSerialization.jsonObject(with: data) {
                 return object
             }
+            Log.js.debug("response.json() received non-JSON body")
             contextBox.context.exception = jsError("Invalid JSON response", in: contextBox.context)
             return NSNull()
         }

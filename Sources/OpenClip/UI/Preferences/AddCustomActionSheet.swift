@@ -155,7 +155,7 @@ public struct AddCustomActionSheet: View {
                 try CustomActionManifestWriter.write(action: newAction)
                 await ExtensionManager.shared.loadExtensions()
             } catch {
-                print("Failed to write custom action manifest: \(error)")
+                Log.factory.error("Failed to write custom action manifest: \(error.localizedDescription)")
             }
             dismiss()
         }

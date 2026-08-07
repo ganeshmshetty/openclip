@@ -4,6 +4,7 @@
 // Checks and prompts for required macOS Accessibility permissions necessary for text retrieval and event monitoring.
 import AppKit
 import ApplicationServices
+import Core
 
 /// Centralized manager for macOS system accessibility permissions.
 /// Uses a continuous async polling loop (not Timer) to reliably detect
@@ -63,7 +64,11 @@ public final class PermissionManager: ObservableObject {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
         process.arguments = ["reset", "Accessibility", "com.openclip.OpenClip"]
-        try? process.run()
+        do {
+            try process.run()
+        } catch {
+            Log.permissions.error("Failed to launch tccutil reset for Accessibility permission: \(error.localizedDescription)")
+        }
         process.waitUntilExit()
         
         relaunchApp()
