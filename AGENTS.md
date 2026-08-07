@@ -63,7 +63,22 @@ OpenClip enforces strict single-responsibility subsystems. Read what's relevant 
 These change behavior — keep them.
 
 - **Accept dependencies, don't create them.** Core types needing settings accept `SettingsStore`
-  in `init` (default `DefaultSettingsStore.shared`); tests inject a fake store.
+  in `init` (default `DefaultSettingsStore.shared`); tests inject a fake store (the shared
+  `MemorySettingsStore` test double, or `DefaultSettingsStore(userDefaults: suiteName)`). Builtins
+  (`SearchAction`/`CalendarAction`/`CalculateAction`) take the store through
+  `BuiltinRegistry.makeCoreBuiltins(settingsStore:)`; `ActionCoordinator` has a real constructor
+  (`registry`/`ruleEngine`/`extensionManager`/`settingsStore`, defaulting to `.shared`), and
+  `loadInitialState(extensionsDirectory:rulesURL:)` so tests never touch the real
+  `~/.openclip` directory.
+- **`Action` display resolution takes an explicit presenter.** The `Action` protocol extension
+  resolves customized titles/icons via `displayTitle(using:)`/`displayIcon(using:)` against an
+  injected `ActionPresenting` (production: `ActionCustomizationManager.shared`) — never a hidden
+  singleton inside the domain extension. Views own a `presenter:` property defaulting to the shared
+  manager.
+- **`isAppEnabled` has a single owner.** Reads/writes go through
+  `DefaultSettingsStore.shared.get/set(.isAppEnabled)` (the one key string is
+  `SettingKey.isAppEnabled`). Status bar, hotkey gate, and Preferences toggle all route through it;
+  the Preferences toggle syncs via the `OpenClipEnabledStateChanged` notification.
 - **No `ActionRegistry.shared` in Core domain.** Only `ActionCoordinator` touches the registry
   directly. `ExtensionManager` reports via `onRegister`/`onUnregister` callbacks wired in
   `ActionCoordinator.loadInitialState()`. The JSON manifest is the only canonical action
@@ -167,9 +182,11 @@ These change behavior — keep them.
    `TestIsolation.reset()` (in `Tests/OpenClipTests/TestIsolation.swift`) from `setUp()`, and must
    wire any shared state it reads (e.g. `ExtensionManager.shared.onRegister`) itself rather than
    relying on leaks from an earlier test class. `ActionCoordinator.shared` needs no reset (it
-   mirrors the registry's `@Published` state).
- 8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
-    hang in automated sessions, so wrap it in a 60 s timeout (`timeout -k 10 60 ./scripts/test.sh`).
+   mirrors the registry's `@Published` state). Store-backed behavior must be tested through the
+   shared `MemorySettingsStore` test double (or a per-test `DefaultSettingsStore(userDefaults:
+   suiteName)`) — never by writing `UserDefaults.standard` or the real preferences domain.
+8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
+   hang in automated sessions, so wrap it in a 60 s timeout (`timeout -k 10 60 ./scripts/test.sh`).
  9. **Log through `Log`, never `print()`.** Every log message goes through a category on the single
     `Log` enum (`Sources/Core/Log.swift`, category table in `docs/logging.md`) — never a raw
     `Logger(subsystem:category:)` or `print()`. Levels: `.notice` lifecycle, `.error` failures,

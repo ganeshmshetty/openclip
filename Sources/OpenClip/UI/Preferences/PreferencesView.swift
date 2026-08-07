@@ -243,9 +243,15 @@ private struct ConfigurationSheetItem: Identifiable {
 
 @MainActor
 struct GeneralTab: View {
-    @AppStorage(Constants.isAppEnabledKey) private var isAppEnabled: Bool = true
+    /// Backed by the settings store — the single owner of `isAppEnabled`. Seeded at init and kept
+    /// in sync with external changes (status-bar toggle) via the shared state-changed notification.
+    @State private var isAppEnabled: Bool
     @ObservedObject private var launchManager = LaunchAtLoginManager.shared
     @ObservedObject private var permissionManager = PermissionManager.shared
+
+    init() {
+        _isAppEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isAppEnabled))
+    }
     
     var body: some View {
         Form {
@@ -272,7 +278,11 @@ struct GeneralTab: View {
                         .labelsHidden()
                         .accessibilityLabel("Enable OpenClip")
                         .onChange(of: isAppEnabled) { _, newValue in
+                            DefaultSettingsStore.shared.set(.isAppEnabled, value: newValue)
                             NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
+                        }
+                        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenClipEnabledStateChanged"))) { notification in
+                            isAppEnabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
                         }
                 }
                 .padding(.vertical, 4)

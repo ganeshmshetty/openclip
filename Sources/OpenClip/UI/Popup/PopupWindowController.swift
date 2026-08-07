@@ -290,15 +290,15 @@ public class PopupWindowController {
                   self.modeStore.mode == .actions else { return }
 
             let icon: String? = {
-                if case .symbol(let name) = action.displayIcon { return name }
+                if case .symbol(let name) = action.displayIcon(using: ActionCustomizationManager.shared) { return name }
                 return nil
             }()
             let line = await (action as? any PreviewProviding)?.previewLine(for: actionContext)
 
             self.modeStore.preview = PopupContent(
-                title: action.displayTitle,
+                title: action.displayTitle(using: ActionCustomizationManager.shared),
                 icon: icon,
-                subtitle: line ?? action.displayTitle,
+                subtitle: line ?? action.displayTitle(using: ActionCustomizationManager.shared),
                 emphasis: .info
             )
         }

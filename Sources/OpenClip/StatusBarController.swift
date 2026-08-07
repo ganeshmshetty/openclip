@@ -36,7 +36,7 @@ class StatusBarController {
     private func setupMenu() {
         let menu = NSMenu()
         
-        let isEnabled = UserDefaults.standard.object(forKey: Constants.isAppEnabledKey) as? Bool ?? true
+        let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
         let toggleItem = NSMenuItem(
             title: isEnabled ? "Disable OpenClip" : "Enable OpenClip",
             action: #selector(toggleEnabled),
@@ -62,15 +62,15 @@ class StatusBarController {
     }
     
     @objc private func toggleEnabled() {
-        let current = UserDefaults.standard.object(forKey: Constants.isAppEnabledKey) as? Bool ?? true
+        let current = DefaultSettingsStore.shared.get(.isAppEnabled)
         let newStatus = !current
-        UserDefaults.standard.set(newStatus, forKey: Constants.isAppEnabledKey)
+        DefaultSettingsStore.shared.set(.isAppEnabled, value: newStatus)
         updateStatusItem(isEnabled: newStatus)
         NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newStatus)
     }
     
     @objc private func handleStateChanged(_ notification: Notification) {
-        let isEnabled = (notification.object as? Bool) ?? (UserDefaults.standard.object(forKey: Constants.isAppEnabledKey) as? Bool ?? true)
+        let isEnabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
         updateStatusItem(isEnabled: isEnabled)
     }
     

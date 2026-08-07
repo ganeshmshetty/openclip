@@ -22,7 +22,11 @@ public struct SearchAction: ConfigurableAction {
         ]
     }
     
-    public init() {}
+    private let settingsStore: any SettingsStore
+
+    public init(settingsStore: any SettingsStore = DefaultSettingsStore.shared) {
+        self.settingsStore = settingsStore
+    }
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -37,7 +41,7 @@ public struct SearchAction: ConfigurableAction {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let query = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let template = DefaultSettingsStore.shared.get(.searchURL)
+        let template = settingsStore.get(.searchURL)
         let targetTemplate = template.isEmpty ? "https://www.google.com/search?q={query}" : template
         
         if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed) {

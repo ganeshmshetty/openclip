@@ -11,16 +11,24 @@ areas; stale debt notes are worse than none.
 
 - The typed settings abstraction is `SettingsStore` + `SettingKey<T>` (see `Sources/Core/Settings/`).
   New settings code must route through it.
-- **Current reality:** `UserDefaults.standard` is still called directly in ~12 App-target call
-  sites: `AppDelegate` ×2, `StatusBarController` ×4, `AIServiceManager` ×2, `OnboardingView` ×1,
-  `LaunchAtLoginManager` ×3. Migrating these is ongoing — **don't add new ones.**
+- **Current reality:** `UserDefaults.standard` is still called directly in ~8 App-target call
+  sites: `AppDelegate` ×1 (onboarding flag), `AIServiceManager` ×2 (keychain migration),
+  `OnboardingView` ×1, `LaunchAtLoginManager` ×4 (startAtLogin fallback + persistence). Plus the
+  AI-config/theme `@AppStorage` surface (`AIServiceManager`, `ActionConfigSheet`, popup theme,
+  `completionCopyToClipboard`, `startAtLogin`). Migrating these is ongoing — **don't add new ones.**
 - **Secrets live in the Keychain, not UserDefaults.** Sensitive credentials (the cloud AI API key)
   must use `KeychainStore` (generic-password `SecItem` wrapper, `kSecAttrAccessibleAfterFirstUnlock`).
   `AIServiceManager.cloudAPIKey` is `@Published`, backed by `KeychainStore` (account `aiCloudAPIKey`);
   do not convert it back to `@AppStorage`. A one-time migration reads the old `UserDefaults`
   `"aiCloudAPIKey"` key, then deletes it.
-- **Builtin actions** (`CalculateAction`, `CalendarAction`, `SearchAction`) read
-  `DefaultSettingsStore.shared` directly — they don't accept an injected `SettingsStore` today.
+- **`isAppEnabled` is consolidated** onto `SettingKey.isAppEnabled` — status bar, hotkey gate, and
+  the Preferences toggle all read/write through `DefaultSettingsStore`. Builtin store-backed actions
+  (`CalculateAction`, `CalendarAction`, `SearchAction`) accept an injected `SettingsStore` via
+  `BuiltinRegistry.makeCoreBuiltins(settingsStore:)`.
+- **`ActionConfigSheet` still binds raw keys** (`@AppStorage("action.search.url")`,
+  `@AppStorage("action.calculate.mode")`, `"action.calculate.useText"`) that duplicate `SettingKey`
+  names. Functionally consistent (same underlying keys), but the config sheets are a Phase-5
+  consolidation target.
 - **Dynamic action option keys** (`JavaScriptAction`, `AppleScriptAction`): the target pattern is
   `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. The JS
   path already reads through the injected `optionStore` (`OpenClipJSHost` reads options read-only via
@@ -118,6 +126,16 @@ areas; stale debt notes are worse than none.
   registry must set `ExtensionManager.shared.onRegister` itself (see
   `GoldenExtensionPlatformTests.setUp`) rather than relying on wiring left behind by an earlier
   test class. Keep using `TestIsolation.reset()` rather than cross-class state.
+- **Store-backed behavior tests via `MemorySettingsStore`.** The shared in-memory test double
+  (`Tests/OpenClipTests/MemorySettingsStore.swift`) replaces `UserDefaults.standard` mutation in
+  `CalculateActionTests`, `ActionRegistryTests`, `GoldenExtensionPlatformTests`, and
+  `ActionCustomizationTests`. Prefer it (or `DefaultSettingsStore(userDefaults: suiteName)`) over
+  writing the real preferences domain.
+- **Deliberate live-integration tests remain (documented):** `TextRetrieverTests` writes the real
+  system clipboard (restores afterward; no pasteboard seam exists), `KeychainActionOptionStoreTests`
+  hits the real macOS Keychain (UUID-unique accounts, deleted in tearDown), and
+  `ScriptAction*Tests`/`ActionResultHandlerTests` spawn real subprocesses in temp dirs. These are
+  bounded, self-restoring integration checks — leave them unless a real seam is added.
 
 ## Logging
 

@@ -43,15 +43,28 @@ public extension Action {
 
     @MainActor
     func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
-    
+
+    /// Resolves the user-customized display title through an explicit presenter. The presenter is a
+    /// parameter (never a hidden process-wide singleton) so display resolution is decoupled from the
+    /// customization singleton and injectable in tests and previews.
     @MainActor
-    var displayTitle: String {
-        ActionCustomizationManager.shared.displayTitle(for: self)
+    func displayTitle(using presenter: any ActionPresenting) -> String {
+        presenter.displayTitle(for: self)
     }
-    
+
+    /// Resolves the user-customized display icon through an explicit presenter (see above).
     @MainActor
-    var displayIcon: ActionIcon {
-        ActionCustomizationManager.shared.popupIcon(for: self)
+    func displayIcon(using presenter: any ActionPresenting) -> ActionIcon {
+        presenter.popupIcon(for: self)
     }
+}
+
+/// Resolves the display title/icon of an action as surfaced in UI, honoring any user overrides.
+/// `ActionCustomizationManager` is the production conformer; callers pass the presenter explicitly
+/// rather than letting the `Action` protocol extension reach for a singleton.
+@MainActor
+public protocol ActionPresenting: Sendable {
+    func displayTitle(for action: any Action) -> String
+    func popupIcon(for action: any Action) -> ActionIcon
 }
 

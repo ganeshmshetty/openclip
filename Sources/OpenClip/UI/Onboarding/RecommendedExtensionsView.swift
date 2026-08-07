@@ -123,7 +123,7 @@ private struct RecommendedExtensionRow: View {
         ActionCoordinator.shared.actions.first { action in
             let actID = action.id.lowercased()
             let itemID = item.id.lowercased()
-            let actTitle = action.displayTitle.lowercased()
+            let actTitle = action.displayTitle(using: ActionCustomizationManager.shared).lowercased()
             let itemName = item.name.lowercased()
             return actID.hasPrefix(itemID) || itemID.hasPrefix(actID) || actTitle == itemName
         }

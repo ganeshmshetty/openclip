@@ -14,33 +14,46 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     
     @Published public private(set) var actions: [any Action] = []
     
-    private let registry = ActionRegistry.shared
-    private let ruleEngine = RuleEngine.shared
-    private let extensionManager = ExtensionManager.shared
+    private let registry: ActionRegistry
+    private let ruleEngine: RuleEngine
+    private let extensionManager: ExtensionManager
+    private let settingsStore: any SettingsStore
     private var cancellables = Set<AnyCancellable>()
     
-    internal init() {
+    internal init(
+        registry: ActionRegistry = .shared,
+        ruleEngine: RuleEngine = .shared,
+        extensionManager: ExtensionManager = .shared,
+        settingsStore: any SettingsStore = DefaultSettingsStore.shared
+    ) {
+        self.registry = registry
+        self.ruleEngine = ruleEngine
+        self.extensionManager = extensionManager
+        self.settingsStore = settingsStore
         registry.$actions
             .assign(to: &$actions)
     }
     
-    public func loadInitialState() async {
+    public func loadInitialState(
+        extensionsDirectory: URL = Constants.extensionsDirectory,
+        rulesURL: URL = Constants.rulesFileURL
+    ) async {
         // Wire the extension manager to the registry through callbacks — it never touches
-        // ActionRegistry.shared directly.
-        ExtensionManager.shared.onRegister = { [registry] action in
+        // ActionRegistry directly.
+        extensionManager.onRegister = { [registry] action in
             registry.register(action: action)
         }
-        ExtensionManager.shared.onUnregister = { [registry] actionID in
+        extensionManager.onUnregister = { [registry] actionID in
             registry.unregister(actionID: actionID)
         }
 
         // 1. Core builtins
-        let coreBuiltins = BuiltinRegistry.makeCoreBuiltins()
+        let coreBuiltins = BuiltinRegistry.makeCoreBuiltins(settingsStore: settingsStore)
         registry.register(builtIns: coreBuiltins)
         
         // 2. Disk extensions (manifests, standalone scripts, snippets) & app rules
-        await ruleEngine.loadRules(from: Constants.rulesFileURL)
-        await extensionManager.loadExtensions()
+        await ruleEngine.loadRules(from: rulesURL)
+        await extensionManager.loadExtensions(from: extensionsDirectory)
     }
     
     public func resolveActions(for context: ActionContext) -> [any Action] {

@@ -13,16 +13,23 @@ public final class LaunchAtLoginManager: ObservableObject {
     
     @Published public var isEnabled: Bool {
         didSet {
-            updateServiceStatus(isEnabled)
+            apply(isEnabled)
         }
     }
     
+    /// Injectable login-item updater. The default registers/unregisters via SMAppService; tests
+    /// inject a recording no-op so toggling never touches the real login-items registry. Assigned
+    /// before `isEnabled` (whose `didSet` calls it) — the observer does not fire during init.
+    private let apply: (Bool) -> Void
+
     private init() {
-        if #available(macOS 13.0, *) {
-            self.isEnabled = (SMAppService.mainApp.status == .enabled)
-        } else {
-            self.isEnabled = UserDefaults.standard.bool(forKey: Constants.startAtLoginKey)
-        }
+        self.apply = LaunchAtLoginManager.updateServiceStatus
+        self.isEnabled = LaunchAtLoginManager.readCurrentStatus()
+    }
+
+    internal init(apply: @escaping (Bool) -> Void) {
+        self.apply = apply
+        self.isEnabled = LaunchAtLoginManager.readCurrentStatus()
     }
     
     public func syncStatus() {
@@ -34,7 +41,15 @@ public final class LaunchAtLoginManager: ObservableObject {
         }
     }
     
-    private func updateServiceStatus(_ enabled: Bool) {
+    private static func readCurrentStatus() -> Bool {
+        if #available(macOS 13.0, *) {
+            return (SMAppService.mainApp.status == .enabled)
+        } else {
+            return UserDefaults.standard.bool(forKey: Constants.startAtLoginKey)
+        }
+    }
+
+    private static func updateServiceStatus(_ enabled: Bool) {
         if #available(macOS 13.0, *) {
             do {
                 if enabled {

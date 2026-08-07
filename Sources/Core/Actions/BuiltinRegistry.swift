@@ -8,15 +8,15 @@ import Foundation
 /// Core (AppKit-free) builtin actions. AppDelegate appends platform-specific ones.
 public enum BuiltinRegistry {
     @MainActor
-    public static func makeCoreBuiltins() -> [any Action] {
+    public static func makeCoreBuiltins(settingsStore: any SettingsStore = DefaultSettingsStore.shared) -> [any Action] {
         let actions: [any Action] = [
-            SearchAction(),
+            SearchAction(settingsStore: settingsStore),
             DefineAction(),
-            CalendarAction(),
+            CalendarAction(settingsStore: settingsStore),
             CopyAction(),
             CutAction(),
             PasteAction(),
-            CalculateAction()
+            CalculateAction(settingsStore: settingsStore)
         ]
         return actions
     }

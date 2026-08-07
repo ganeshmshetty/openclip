@@ -23,7 +23,11 @@ public struct CalendarAction: ConfigurableAction {
         ]
     }
 
-    public init() {}
+    private let settingsStore: any SettingsStore
+
+    public init(settingsStore: any SettingsStore = DefaultSettingsStore.shared) {
+        self.settingsStore = settingsStore
+    }
 
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -39,7 +43,7 @@ public struct CalendarAction: ConfigurableAction {
             return .failure(NSError(domain: Constants.actionErrorDomain, code: Constants.actionErrorCode, userInfo: nil))
         }
         
-        let provider = DefaultSettingsStore.shared.get(.calendarProvider)
+        let provider = settingsStore.get(.calendarProvider)
         if provider == "google" {
             return .openURL(makeGoogleCalendarURL(title: text, startDate: date))
         } else {

@@ -34,7 +34,7 @@ public struct ActionOverride: Codable, Sendable, Equatable {
 }
 
 @MainActor
-public final class ActionCustomizationManager: ObservableObject, Sendable {
+public final class ActionCustomizationManager: ObservableObject, ActionPresenting, Sendable {
     public static let shared = ActionCustomizationManager()
     
     @Published public private(set) var overrides: [String: ActionOverride] = [:]
