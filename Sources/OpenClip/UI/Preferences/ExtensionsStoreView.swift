@@ -26,6 +26,8 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             self.extensions.append(contentsOf: response.extensions)
             self.totalPages = response.totalPages
             self.currentPage += 1
+        } else {
+            Log.extensions.warning("Failed to fetch extension store page \(self.currentPage) for query '\(self.searchQuery)'")
         }
     }
     
@@ -233,7 +235,11 @@ public struct InstalledExtensionsView: View {
 
     private func uninstallExtension(actionID: String) {
         Task {
-            try? await ExtensionManager.shared.uninstallExtension(actionID: actionID)
+            do {
+                try await ExtensionManager.shared.uninstallExtension(actionID: actionID)
+            } catch {
+                Log.extensions.error("Failed to uninstall extension '\(actionID, privacy: .public)': \(error.localizedDescription)")
+            }
             await MainActor.run {
                 NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
             }
@@ -321,7 +327,11 @@ struct ExtensionCardView: View {
                     Button(role: .destructive, action: {
                         if let action = matchingInstalledAction {
                             Task {
-                                try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                                do {
+                                    try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                                } catch {
+                                    Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
+                                }
                                 await MainActor.run {
                                     showSuccess = false
                                     NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)

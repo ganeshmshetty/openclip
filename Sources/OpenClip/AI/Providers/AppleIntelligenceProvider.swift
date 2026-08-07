@@ -4,6 +4,7 @@
 // Implements AI processing capabilities using local Apple Intelligence system features.
 import Foundation
 import AppKit
+import Core
 
 #if canImport(FoundationModels)
 import FoundationModels
@@ -32,7 +33,9 @@ public final class AppleIntelligenceProvider: AIProvider {
                     return content
                 }
             } catch {
-                // Model session fallback
+                // Model session fallback: log at notice since the on-device path is attempted first
+                // and the fallback (raw input) is user-visible.
+                Log.ai.notice("Apple Intelligence model session unavailable; falling back to raw input: \(error.localizedDescription)")
             }
         }
         #endif

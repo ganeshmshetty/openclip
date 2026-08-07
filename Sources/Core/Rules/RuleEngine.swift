@@ -3,7 +3,6 @@
 //
 // Evaluates active selection contexts against application rules to determine if OpenClip actions should be enabled or suppressed.
 import Foundation
-import os
 import Combine
 
 public struct RuleEngineConfig: Codable, Sendable {
@@ -16,8 +15,6 @@ public final class RuleEngine: ObservableObject, Sendable {
     
     @Published public private(set) var userRules: [AppRule] = []
     
-    private let logger = Logger(subsystem: "com.openclip", category: "RuleEngine")
-    
     // The fully expanded rules list used for evaluation
     private var effectiveRules: [AppRule] {
         RuleEngine.expandRules(Self.defaultRules + userRules)
@@ -27,16 +24,16 @@ public final class RuleEngine: ObservableObject, Sendable {
     }
     
     public func loadRules(from url: URL) async {
-        let logger = self.logger
+        let logger = Log.settings
         let loadedRules = await Task.detached { () -> [AppRule]? in
             do {
                 let data = try Data(contentsOf: url)
                 let decoder = JSONDecoder()
                 let config = try decoder.decode(RuleEngineConfig.self, from: data)
-                logger.info("Successfully loaded \(config.rules.count) rules from \(url.path)")
+                logger.info("Successfully loaded \(config.rules.count) rules from \(url.path, privacy: .public)")
                 return config.rules
             } catch {
-                logger.error("Failed to load rules from \(url.path): \(error.localizedDescription)")
+                logger.error("Failed to load rules from \(url.path, privacy: .public): \(error.localizedDescription)")
                 return nil
             }
         }.value
@@ -51,9 +48,9 @@ public final class RuleEngine: ObservableObject, Sendable {
         do {
             let data = try JSONEncoder().encode(config)
             try data.write(to: url)
-            logger.info("Successfully saved \(self.userRules.count) rules to \(url.path)")
+            Log.settings.info("Successfully saved \(self.userRules.count) rules to \(url.path, privacy: .public)")
         } catch {
-            logger.error("Failed to save rules to \(url.path): \(error.localizedDescription)")
+            Log.settings.error("Failed to save rules to \(url.path, privacy: .public): \(error.localizedDescription)")
         }
     }
     

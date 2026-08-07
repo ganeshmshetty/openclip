@@ -6,6 +6,7 @@ view; this is the detailed per-file map.
 ```text
 Sources/
 ├── Core/                                     # Domain Logic (Pure Swift Target)
+│   ├── Log.swift                             # Single Log enum: per-subsystem os.Logger categories (see docs/logging.md)
 │   ├── Actions/
 │   │   ├── Action.swift                      # Action protocol
 │   │   ├── ActionChrome.swift                # UI metadata policy enum

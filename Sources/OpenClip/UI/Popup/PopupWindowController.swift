@@ -415,7 +415,7 @@ public class PopupWindowController {
                 self?.handleEvent(event)
             }
         } else {
-            print("[Popup] Accessibility permission unavailable; using local hover tracking.")
+            Log.presentation.notice("Accessibility permission unavailable; using local hover tracking.")
         }
         
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in

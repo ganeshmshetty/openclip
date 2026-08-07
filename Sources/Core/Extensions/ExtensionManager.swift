@@ -216,6 +216,7 @@ public final class ExtensionManager: Sendable {
                     }
                 }
             } catch {
+                Log.extensions.error("Failed to load extension from \(itemURL.path, privacy: .public): \(error.localizedDescription)")
                 continue
             }
         }

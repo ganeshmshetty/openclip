@@ -81,6 +81,7 @@ public struct CalendarAction: ConfigurableAction {
             try icsContent.write(to: fileURL, atomically: true, encoding: .utf8)
             return fileURL
         } catch {
+            Log.resultHandler.error("Failed to write .ics calendar event: \(error.localizedDescription)")
             return nil
         }
     }

@@ -4,6 +4,7 @@
 // Manages AI service provider selection, API credentials, and invocation of AI text processing actions.
 import Foundation
 import SwiftUI
+import Core
 
 extension Notification.Name {
     /// Posted by `AIServiceManager` after the AI preset list has been written, so observers
@@ -34,7 +35,7 @@ public final class AIServiceManager: ObservableObject {
                     // Keychain writes can fail (e.g. keychain locked, ACL mismatch). Don't leave the
                     // observable value claiming a key that won't survive restart — revert so the
                     // caller/UI can see the change was not persisted.
-                    print("[AIServiceManager] Failed to persist cloud API key to Keychain; reverting value.")
+                    Log.settings.error("Failed to persist cloud API key to Keychain; reverting value.")
                     cloudAPIKey = oldValue
                 }
             }
@@ -78,17 +79,22 @@ public final class AIServiceManager: ObservableObject {
 
     public var presets: [AIActionPreset] {
         get {
-            guard !actionPresetsJSON.isEmpty,
-                  let data = actionPresetsJSON.data(using: .utf8),
-                  let decoded = try? JSONDecoder().decode([AIActionPreset].self, from: data) else {
-                return Self.defaultPresets
-            }
+guard !actionPresetsJSON.isEmpty,
+              let data = actionPresetsJSON.data(using: .utf8) else {
+            return Self.defaultPresets
+        }
+        if let decoded = try? JSONDecoder().decode([AIActionPreset].self, from: data) {
             return decoded
+        }
+        Log.ai.error("Failed to decode saved AI action presets; using defaults")
+        return Self.defaultPresets
         }
         set {
             if let data = try? JSONEncoder().encode(newValue),
                let str = String(data: data, encoding: .utf8) {
                 actionPresetsJSON = str
+            } else {
+                Log.ai.error("Failed to encode AI action presets for persistence")
             }
             // Posted after the value above has committed, so observers always read the fresh list
             // (objectWillChange fires before @AppStorage lands). AIActionSync keeps the registered

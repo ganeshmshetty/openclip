@@ -287,7 +287,10 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
 
         switch ext {
         case "js":
-            guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else { return nil }
+            guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else {
+                Log.factory.error("Failed to read JS script file at \(scriptURL.path, privacy: .public)")
+                return nil
+            }
             return JavaScriptAction(
                 id: actionId,
                 title: title,
@@ -300,7 +303,10 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 isAsync: metadata.isAsync ?? false
             )
         case "applescript", "scpt":
-            guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else { return nil }
+            guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else {
+                Log.factory.error("Failed to read AppleScript file at \(scriptURL.path, privacy: .public)")
+                return nil
+            }
             return AppleScriptAction(
                 id: actionId,
                 title: title,

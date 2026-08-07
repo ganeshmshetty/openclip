@@ -54,6 +54,7 @@ OpenClip enforces strict single-responsibility subsystems. Read what's relevant 
 - **Text selection & retrieval** (incl. clipboard fallback) — `docs/architecture/text-selection.md`
 - **Action-search palette** (search catalog/matcher, popup mode state machine, scoped key
   exception) — `Sources/Core/Actions/ActionSearch.swift`, `Sources/OpenClip/UI/Popup/PopupSearchView.swift`
+- **Logging** (single `Log` surface, category table, filtering workflow) — `docs/logging.md`
 
 ---
 
@@ -167,14 +168,20 @@ These change behavior — keep them.
    wire any shared state it reads (e.g. `ExtensionManager.shared.onRegister`) itself rather than
    relying on leaks from an earlier test class. `ActionCoordinator.shared` needs no reset (it
    mirrors the registry's `@Published` state).
-8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
-   hang in automated sessions, so wrap it in a 60 s timeout (`timeout -k 10 60 ./scripts/test.sh`).
-9. **Popup must never be key — except the scoped action-search exception.** `PopupPanel.allowsKey`
-   enables key status only in search mode, with focus forced via `focusSearchField()` on the next
-   run-loop turn (a `@FocusState`-in-onAppear request is silently dropped on macOS); on exit/hide,
-   `previousFrontmostApp` is re-activated. No other `canBecomeKey`/`canBecomeMain`/`makeKey()`;
-   keyboard dismissal runs through the global (AX) event monitor only — observation-only, so
-   keystrokes stay in the source app.
+ 8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
+    hang in automated sessions, so wrap it in a 60 s timeout (`timeout -k 10 60 ./scripts/test.sh`).
+ 9. **Log through `Log`, never `print()`.** Every log message goes through a category on the single
+    `Log` enum (`Sources/Core/Log.swift`, category table in `docs/logging.md`) — never a raw
+    `Logger(subsystem:category:)` or `print()`. Levels: `.notice` lifecycle, `.error` failures,
+    `.fault` only for subprocess crashes/invariant violations. Privacy: text/clipboard/extension
+    data stays default-private; only ids and URLs get `privacy: .public`. Never log in hot paths
+    (per-mouse-move hover, high-frequency view bodies).
+10. **Popup must never be key — except the scoped action-search exception.** `PopupPanel.allowsKey`
+    enables key status only in search mode, with focus forced via `focusSearchField()` on the next
+    run-loop turn (a `@FocusState`-in-onAppear request is silently dropped on macOS); on exit/hide,
+    `previousFrontmostApp` is re-activated. No other `canBecomeKey`/`canBecomeMain`/`makeKey()`;
+    keyboard dismissal runs through the global (AX) event monitor only — observation-only, so
+    keystrokes stay in the source app.
 
 ---
 
