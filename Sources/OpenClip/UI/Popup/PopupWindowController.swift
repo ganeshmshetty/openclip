@@ -24,6 +24,8 @@ public class PopupWindowController {
     private var cardAbove = false
     /// Popup display mode (actions bar ↔ search palette), observed by PopupView.
     public let modeStore = PopupModeStore()
+    /// Records action usage for search recency ranking.
+    private let usageStore = ActionUsageStore()
     /// Frontmost app before search mode made the panel key; reactivated on exit/hide.
     private var previousFrontmostApp: NSRunningApplication?
 
@@ -117,6 +119,9 @@ public class PopupWindowController {
             },
             onEnteredScopedSearch: { [weak self] action in
                 self?.enterScopedSearch(for: action)
+            },
+            onActionPerformed: { [weak self] actionID in
+                self?.usageStore.record(actionID)
             }
         )
         panel.contentView = NSHostingView(rootView: rootView)

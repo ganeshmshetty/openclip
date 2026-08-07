@@ -31,6 +31,8 @@ public struct PopupView: View {
     /// Opens a scoped palette for a bar row's sub-actions (group rows via `.openSubActions` and the
     /// AI Tools launcher): the controller resolves + owns the SearchScope and enters search mode.
     public let onEnteredScopedSearch: (@MainActor (any Action) -> Void)?
+    /// Called when an action is actually run (bar / palette / AI), so the controller can record usage.
+    public let onActionPerformed: (@MainActor (String) -> Void)?
     /// True when this is a static preview — hover tracking is disabled entirely so the
     /// preview never reacts to (or leaks into) the real popup's shared hover state.
     private let isStatic: Bool
@@ -105,7 +107,8 @@ public struct PopupView: View {
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
         onAIResult: (@MainActor (String, Bool) -> Void)? = nil,
         onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
-        onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil
+        onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil,
+        onActionPerformed: (@MainActor (String) -> Void)? = nil
     ) {
         self.actions = actions
         self.context = context
@@ -117,6 +120,7 @@ public struct PopupView: View {
         self.onContentOutcome = onContentOutcome
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
+        self.onActionPerformed = onActionPerformed
         self.isStatic = isStatic
         self.hoverState = hoverState
         self._modeStore = ObservedObject(wrappedValue: modeStore)
@@ -378,6 +382,7 @@ public struct PopupView: View {
             context: context,
             resultsAbove: modeStore.searchResultsAbove,
             scope: modeStore.scope,
+            usageRecency: ActionUsageStore.shared.recency,
             onResult: onResult,
             onExit: onExitSearch,
             onExitScope: {
@@ -385,10 +390,12 @@ public struct PopupView: View {
                 onExitSearch()
             },
             onRunAI: { actionID in
+                onActionPerformed?(actionID)
                 guard let preset = aiManager.preset(forActionID: actionID) else { return }
                 onExitSearch()
                 runAIPreset(prompt: preset.prompt)
-            }
+            },
+            onActionPerformed: onActionPerformed
         )
     }
 
@@ -617,6 +624,7 @@ public struct PopupView: View {
                 Button {
                     Task {
                         do {
+                            onActionPerformed?(action.id)
                             // Match plumbing (approach A): re-run the shared visibility evaluator for
                             // this action and thread the match into the perform context so placeholders
                             // and env vars see the same match that enabled the row.
