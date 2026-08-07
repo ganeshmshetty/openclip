@@ -26,6 +26,11 @@ struct MockAction: Action {
 }
 
 final class ActionRegistryTests: XCTestCase {
+    override func setUp() async throws {
+        try await super.setUp()
+        await MainActor.run { TestIsolation.reset() }
+    }
+
     @MainActor
     func testActionRegistrationAndAvailability() {
         let registry = ActionRegistry.shared

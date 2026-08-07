@@ -15,6 +15,7 @@ private struct CustomizationMockAction: Action {
 final class ActionCustomizationTests: XCTestCase {
     override func setUp() {
         super.setUp()
+        TestIsolation.reset()
         ActionCustomizationManager.shared.resetOverride(for: "mock.test")
     }
     

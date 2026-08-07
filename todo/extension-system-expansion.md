@@ -1525,7 +1525,7 @@ Build + listed tests green.
 | Edit | `Sources/Core/Actions/ActionRegistry.swift` | Core — `availableActions` filters disabled packages (package ID from `action.chrome.source`) |
 | Edit | `Sources/OpenClip/UI/Preferences/PreferencesView.swift` | App — package-level toggle per extension group (only when package has ≥2 actions) + per-row toggles |
 | Edit | `Sources/Core/Extensions/OpenClipSnippetParser.swift` | Core — retain fold-in; **no new header keys** |
-| Edit | `Tests/OpenClipTests/CustomActionManagerTests.swift` | Tests — rewrite against the manifest writer |
+| Edit | `Tests/OpenClipTests/CustomActionManifestWriterTests.swift` | Tests — rewrite against the manifest writer |
 
 > **Gotchas 2 & 3:** GUI-created actions become `source: .extensionPkg`, so the trash path must
 > switch to `ExtensionManager.uninstallExtension` (Gotcha 2); enumerate the 3 `CustomActionManager`

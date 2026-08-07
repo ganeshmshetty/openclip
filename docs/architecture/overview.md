@@ -12,7 +12,7 @@ The codebase is split into two primary targets:
 OpenClip Workspace
 ├── Core (Framework / Swift Package)
 │ ├── Pure domain models (Action, ActionChrome, ActionResult, SelectionContext)
-│ ├── Selection detection contracts (TextRetrieving, SelectionMonitoring, SelectionCoordinator)
+│ ├── Selection detection contracts (TextRetrieving, SelectionMonitoring)
 │ ├── Central action catalog & ordering (ActionRegistry, ActionCoordinator)
 │ ├── Action-search matcher & popup mode (ActionSearch)
 │ ├── Strongly-typed settings engine (SettingsStore, SettingKey)
@@ -25,7 +25,7 @@ OpenClip Workspace
  ├── Platform side-effect handler (ActionResultHandler)
  ├── Action factory implementation (DefaultActionFactory)
  ├── macOS selection monitor (MacSelectionMonitor, MacTextRetriever)
- └── App Composition Root (AppServices, AppDelegate)
+ └── App Composition Root (AppDelegate)
 ```
 
 ### Core Target Constraints
@@ -41,7 +41,7 @@ OpenClip enforces a single entry point for each cross-cutting concern. Bypassing
 
 ```mermaid
 graph TD
- UI[UI Surface / PopupView] -->|1. Action Presentation| AP[ActionPresentation]
+ UI[UI Surface / PopupView] -->|1. Action Presentation| ACM[ActionCustomizationManager]
  UI -->|2. Action Chrome Policy| AC[ActionChrome]
  ACoord[ActionCoordinator] -->|6. Action Coordinator & Composition| AR[ActionRegistry]
  AF[DefaultActionFactory] -->|4. Action Factory| Action[Action Instance]
@@ -54,9 +54,9 @@ graph TD
 - **Mechanism**: Operates via strongly-typed [`SettingKey<T>`](../../Sources/Core/Settings/SettingKey.swift) instances.
 - **Strict Rule**: Zero direct `UserDefaults.standard` calls anywhere in `Sources/`. All access goes through `SettingsStore` in Core via dependency injection or `DefaultSettingsStore.shared` in the App target. (Note: ~13 App-target call sites still use `UserDefaults.standard` directly; migrating them is an ongoing effort — do not add new ones.) Secrets (e.g. the cloud AI API key) live in the Keychain via `KeychainStore`, never UserDefaults.
 
-### 2. Action Presentation — [`ActionPresentation`](../../Sources/Core/Actions/ActionPresentation.swift)
+### 2. Action Presentation — [`ActionCustomizationManager`](../../Sources/Core/Actions/ActionCustomizationManager.swift)
 - **Responsibility**: Resolves display titles and icons for specific UI surfaces (`.popup` or `.table`).
-- **Mechanism**: `ActionPresentation.shared.presented(action, surface:)` queries user customizations via `ActionCustomizationManager` and falls back to action defaults.
+- **Mechanism**: `ActionCustomizationManager.presented(action, surface:)` queries user customizations and falls back to action defaults; `ActionPresentationModel` carries the resolved title/icon.
 - **Strict Rule**: UI code never computes display icons using type checks or string matches. Preferences table icons delegate to `ConfigurableAction.preferenceIconName`.
 
 ### 3. Action Chrome Policy — [`ActionChrome`](../../Sources/Core/Actions/ActionChrome.swift)
@@ -88,8 +88,7 @@ graph TD
 1. **Accept dependencies, don't create them**: Core types accept `SettingsStore` in `init(settingsStore:)` with default fallback. (Current builtin actions read `DefaultSettingsStore.shared` directly — see §1 above.)
 2. **No `ActionRegistry.shared` inside domain managers**: Domain managers report registration changes through `onRegister`/`onUnregister` callbacks wired by `ActionCoordinator`. Only `ActionCoordinator` touches the registry directly.
 3. **No `switch action.id` string matching in UI**: Display formatting relies on `ConfigurableAction.preferenceIconName` and `ActionChrome`. (One legacy `switch action.id` block remains in `ActionCustomizationManager.tableIcon`.)
-4. **Transform Policy Centralization**: Default-on/off transform actions live on `TransformCase.defaultDisabledActionIDs`.
-5. **Pure Snippet Parsing**: `OpenClipSnippetParser` is a pure string parser with no UI or `@MainActor` ties. (Note: it is currently annotated `@MainActor`.)
-6. **Pure Layout Math**: `PopupPositioner` is a pure static struct for computing panel coordinates and edge clamping.
-7. **Static previews don't share live state**: `PopupPreview` hardcodes a canonical action set and passes its own `PopupHoverState()` + `isStatic: true` to `PopupView`, so it never reflects — or leaks hover into — the real popup.
-8. **Standard windows unless a chrome-less card is the goal**: Preferences uses standard window chrome (`hiddenTitleBar`/`fullSizeContentView`) with `.glassSurface` content; onboarding is a `.borderless` transparent window that re-draws the card, border, and shadow manually.
+4. **Pure Snippet Parsing**: `OpenClipSnippetParser` is a pure string parser with no UI or `@MainActor` ties. (Note: it is currently annotated `@MainActor`.)
+5. **Pure Layout Math**: `PopupPositioner` is a pure static struct for computing panel coordinates and edge clamping.
+6. **Static previews don't share live state**: `PopupPreview` hardcodes a canonical action set and passes its own `PopupHoverState()` + `isStatic: true` to `PopupView`, so it never reflects — or leaks hover into — the real popup.
+7. **Standard windows unless a chrome-less card is the goal**: Preferences uses standard window chrome (`hiddenTitleBar`/`fullSizeContentView`) with `.glassSurface` content; onboarding is a `.borderless` transparent window that re-draws the card, border, and shadow manually.
