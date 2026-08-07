@@ -66,6 +66,9 @@ public struct PopupView: View {
     /// `hoverState.$location` via `.onReceive`, so `@State hoveredTarget` changes only when the
     /// hit-test result actually changes.
     private let hoverState: PopupHoverState
+    /// Resolves user-customized action titles/icons (composition-injected, defaults to the shared
+    /// customization manager — never a hidden singleton reference inside the Action extension).
+    private let presenter: any ActionPresenting
     /// The mode this bar observes: the real popup uses the store injected by
     /// PopupWindowController; the static preview passes a throwaway store.
     @ObservedObject private var modeStore: PopupModeStore
@@ -96,6 +99,7 @@ public struct PopupView: View {
         context: ActionContext,
         initialAICardAboveBar: Bool = false,
         hoverState: PopupHoverState = .shared,
+        presenter: any ActionPresenting = ActionCustomizationManager.shared,
         isStatic: Bool = false,
         modeStore: PopupModeStore = PopupModeStore(),
         onEnterSearch: @escaping @MainActor () -> Void = {},
@@ -123,6 +127,7 @@ public struct PopupView: View {
         self.onActionPerformed = onActionPerformed
         self.isStatic = isStatic
         self.hoverState = hoverState
+        self.presenter = presenter
         self._modeStore = ObservedObject(wrappedValue: modeStore)
         self.onEnterSearch = onEnterSearch
         self.onExitSearch = onExitSearch
@@ -570,11 +575,11 @@ public struct PopupView: View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
         let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
 
-        let labelView = iconView(for: action.displayIcon)
+        let labelView = iconView(for: action.displayIcon(using: presenter))
             .font(.system(size: 13, weight: .medium))
             .foregroundColor(isHovered ? .white : restForeground)
             .padding(.horizontal, {
-                if case .text = action.displayIcon { return 7.0 }
+                if case .text = action.displayIcon(using: presenter) { return 7.0 }
                 return 0.0
             }())
             .frame(minWidth: buttonWidth, minHeight: 28)
@@ -598,8 +603,8 @@ public struct PopupView: View {
                 labelView
             }
             .buttonStyle(.plain)
-            .help(action.displayTitle)
-            .accessibilityLabel(action.displayTitle)
+            .help(action.displayTitle(using: presenter))
+            .accessibilityLabel(action.displayTitle(using: presenter))
             .popupHoverTarget(.action(index))
             .onHover { isHovering in
                 useLocalHoverFallback(for: .action(index), isHovering: isHovering)
@@ -615,7 +620,7 @@ public struct PopupView: View {
                 }
                 .buttonStyle(.plain)
                 .applyContentTooltip(for: action, fallback: action.title)
-                .accessibilityLabel(action.displayTitle)
+                .accessibilityLabel(action.displayTitle(using: presenter))
                 .popupHoverTarget(.action(index))
                 .onHover { isHovering in
                     useLocalHoverFallback(for: .action(index), isHovering: isHovering)
@@ -646,7 +651,7 @@ public struct PopupView: View {
                 }
                 .buttonStyle(.plain)
                 .applyContentTooltip(for: action, fallback: action.title)
-                .accessibilityLabel(action.displayTitle)
+                .accessibilityLabel(action.displayTitle(using: presenter))
                 .popupHoverTarget(.action(index))
                 .onHover { isHovering in
                     useLocalHoverFallback(for: .action(index), isHovering: isHovering)

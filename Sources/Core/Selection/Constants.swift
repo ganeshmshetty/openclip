@@ -31,7 +31,6 @@ public enum Constants {
     public static let bubbleHoverDelayNanoseconds: UInt64 = 400_000_000
     /// Delay before the long-press result bubble fires (600ms).
     public static let bubbleLongPressNanoseconds: UInt64 = 600_000_000
-    public static let isAppEnabledKey: String = "isAppEnabled"
     public static let maxURLScanLength: Int = 2000
     public static let actionErrorDomain: String = "OpenClip.ActionError"
     public static let actionErrorCode: Int = 1

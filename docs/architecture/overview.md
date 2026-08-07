@@ -31,7 +31,13 @@ OpenClip Workspace
 ### Core Target Constraints
 - **Zero AppKit / SwiftUI UI dependencies** in `Sources/Core/Actions/` or `Sources/Core/Settings/`.
 - **Pure Swift Types**: Value types, protocols, and decoupled services.
-- **Dependency Injection (target)**: Core components requiring settings should accept a `SettingsStore` instance during initialization (defaulting to `DefaultSettingsStore.shared`). Note: builtin actions (`CalculateAction`, `CalendarAction`, `SearchAction`) currently read `DefaultSettingsStore.shared` directly rather than via an injected store.
+- **Dependency Injection**: Core components requiring settings accept a `SettingsStore` instance
+  during initialization (defaulting to `DefaultSettingsStore.shared`). Builtin actions
+  (`SearchAction`, `CalendarAction`, `CalculateAction`) take the store via
+  `BuiltinRegistry.makeCoreBuiltins(settingsStore:)`; `ActionCoordinator` takes
+  `registry`/`ruleEngine`/`extensionManager`/`settingsStore` in `init` (default `.shared`).
+  Display title/icon resolution goes through an injected `ActionPresenting`, never a hidden
+  singleton inside the `Action` protocol extension.
 
 ---
 
@@ -52,7 +58,7 @@ graph TD
 ### 1. Settings Subsystem — [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift)
 - **Responsibility**: Centralized persistence and retrieval of application settings.
 - **Mechanism**: Operates via strongly-typed [`SettingKey<T>`](../../Sources/Core/Settings/SettingKey.swift) instances.
-- **Strict Rule**: Zero direct `UserDefaults.standard` calls anywhere in `Sources/`. All access goes through `SettingsStore` in Core via dependency injection or `DefaultSettingsStore.shared` in the App target. (Note: ~13 App-target call sites still use `UserDefaults.standard` directly; migrating them is an ongoing effort — do not add new ones.) Secrets (e.g. the cloud AI API key) live in the Keychain via `KeychainStore`, never UserDefaults.
+- **Strict Rule**: Zero direct `UserDefaults.standard` calls anywhere in `Sources/`. All access goes through `SettingsStore` in Core via dependency injection or `DefaultSettingsStore.shared` in the App target. (Note: ~8 App-target call sites still use `UserDefaults.standard` directly, plus the AI-config/theme `@AppStorage` surface; migrating them is an ongoing effort — do not add new ones.) Secrets (e.g. the cloud AI API key) live in the Keychain via `KeychainStore`, never UserDefaults.
 
 ### 2. Action Presentation — [`ActionCustomizationManager`](../../Sources/Core/Actions/ActionCustomizationManager.swift)
 - **Responsibility**: Resolves display titles and icons for specific UI surfaces (`.popup` or `.table`).
@@ -85,7 +91,7 @@ graph TD
 
 ## Key Design Guidelines
 
-1. **Accept dependencies, don't create them**: Core types accept `SettingsStore` in `init(settingsStore:)` with default fallback. (Current builtin actions read `DefaultSettingsStore.shared` directly — see §1 above.)
+1. **Accept dependencies, don't create them**: Core types accept `SettingsStore` in `init(settingsStore:)` with default fallback (see §1 above); `ActionCoordinator` and the builtin builder take their collaborators in `init`.
 2. **No `ActionRegistry.shared` inside domain managers**: Domain managers report registration changes through `onRegister`/`onUnregister` callbacks wired by `ActionCoordinator`. Only `ActionCoordinator` touches the registry directly.
 3. **No `switch action.id` string matching in UI**: Display formatting relies on `ConfigurableAction.preferenceIconName` and `ActionChrome`. (One legacy `switch action.id` block remains in `ActionCustomizationManager.tableIcon`.)
 4. **Pure Snippet Parsing**: `OpenClipSnippetParser` is a pure string parser with no UI or `@MainActor` ties. (Note: it is currently annotated `@MainActor`.)

@@ -268,20 +268,16 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         XCTAssertTrue(availableNonMatching.contains(where: { $0.id == "com.golden.shell.action" }))
         XCTAssertFalse(availableNonMatching.contains(where: { $0.id == "com.golden.url.action" }), "URL action with regex should be filtered out when regex doesn't match")
         
-        // Disabled action filtering via UserDefaults
-        let disabledKey = Constants.disabledActionIDsKey
-        let oldDisabled = UserDefaults.standard.stringArray(forKey: disabledKey)
-        UserDefaults.standard.set(["com.golden.js.action"], forKey: disabledKey)
-        defer {
-            if let oldDisabled {
-                UserDefaults.standard.set(oldDisabled, forKey: disabledKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: disabledKey)
-            }
-        }
-        
-        let availableWithDisabled = registry.availableActions(for: sampleContext)
+        // Disabled action filtering via an isolated registry + memory store (no real preferences
+        // touched): same four actions on a fresh registry, one disabled in the store.
+        let disabledStore = MemorySettingsStore()
+        let isolatedRegistry = ActionRegistry(settingsStore: disabledStore)
+        isolatedRegistry.register(builtIns: [jsAction, asAction, shAction, urlAction])
+        disabledStore.set(.disabledActionIDs, value: Set(["com.golden.js.action"]))
+
+        let availableWithDisabled = isolatedRegistry.availableActions(for: sampleContext)
         XCTAssertFalse(availableWithDisabled.contains(where: { $0.id == "com.golden.js.action" }), "Disabled action should be filtered out by registry")
+        XCTAssertTrue(availableWithDisabled.contains(where: { $0.id == "com.golden.shell.action" }), "Enabled actions in the same registry remain available")
     }
 
     /// Exit criterion: a JS extension calling openclip.showContent(...) produces a `.showContent`

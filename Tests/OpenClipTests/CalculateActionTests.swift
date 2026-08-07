@@ -24,8 +24,7 @@ final class CalculateActionTests: XCTestCase {
     
     @MainActor
     func testCalculateActionExecution() async throws {
-        UserDefaults.standard.removeObject(forKey: "action.calculate.mode")
-        let action = CalculateAction()
+        let action = CalculateAction(settingsStore: MemorySettingsStore())
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "100 * 2.5", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
@@ -96,8 +95,7 @@ final class CalculateActionTests: XCTestCase {
 
     @MainActor
     func testModuloExpressionEvaluates() async throws {
-        UserDefaults.standard.removeObject(forKey: "action.calculate.mode")
-        let action = CalculateAction()
+        let action = CalculateAction(settingsStore: MemorySettingsStore())
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "5 % 2", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
@@ -114,8 +112,7 @@ final class CalculateActionTests: XCTestCase {
 
     @MainActor
     func testUnaryMinusAndParenthesesEvaluate() async throws {
-        UserDefaults.standard.removeObject(forKey: "action.calculate.mode")
-        let action = CalculateAction()
+        let action = CalculateAction(settingsStore: MemorySettingsStore())
         let app = AppIdentity(NSRunningApplication.current)
         let cases: [(input: String, expected: String)] = [
             ("-5", "-5"),

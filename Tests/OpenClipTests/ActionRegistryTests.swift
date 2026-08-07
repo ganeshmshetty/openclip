@@ -94,20 +94,13 @@ final class ActionRegistryTests: XCTestCase {
     
     @MainActor
     func testDisabledActionsAreFiltered() {
-        let registry = ActionRegistry.shared
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
         
         let action = MockAction(id: "mock.disabled.test", shouldBeEnabled: true)
         registry.register(action: action)
         
-        let oldDisabled = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey)
-        UserDefaults.standard.set(["mock.disabled.test"], forKey: Constants.disabledActionIDsKey)
-        defer {
-            if let oldDisabled {
-                UserDefaults.standard.set(oldDisabled, forKey: Constants.disabledActionIDsKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: Constants.disabledActionIDsKey)
-            }
-        }
+        store.set(.disabledActionIDs, value: Set(["mock.disabled.test"]))
         
         let selection = SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
         let context = ActionContext(selection: selection, modifiers: [])
@@ -118,7 +111,8 @@ final class ActionRegistryTests: XCTestCase {
     
     @MainActor
     func testDisabledPackageHidesAllPackageActions() {
-        let registry = ActionRegistry.shared
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
         
         let packageID = "com.test.pkg"
         let pkgChrome = ActionChrome(
@@ -131,15 +125,7 @@ final class ActionRegistryTests: XCTestCase {
         let a2 = MockAction(id: "\(packageID).action.2", shouldBeEnabled: true, chrome: pkgChrome)
         registry.register(builtIns: [a1, a2])
         
-        let oldDisabled = UserDefaults.standard.stringArray(forKey: "disabledPackages")
-        UserDefaults.standard.set([packageID], forKey: "disabledPackages")
-        defer {
-            if let oldDisabled {
-                UserDefaults.standard.set(oldDisabled, forKey: "disabledPackages")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "disabledPackages")
-            }
-        }
+        store.set(.disabledPackages, value: Set([packageID]))
         
         let selection = SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
         let context = ActionContext(selection: selection, modifiers: [])
@@ -151,7 +137,8 @@ final class ActionRegistryTests: XCTestCase {
 
     @MainActor
     func testDisabledGroupRowHidesItsSubActions() {
-        let registry = ActionRegistry.shared
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
         let groupID = "mock.group"
         let groupChrome = ActionChrome(
             badge: .none,
@@ -164,15 +151,7 @@ final class ActionRegistryTests: XCTestCase {
         let subB = MockAction(id: "\(groupID).b", shouldBeEnabled: true)
         registry.register(builtIns: [group, subA, subB])
 
-        let oldDisabled = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey)
-        UserDefaults.standard.set([groupID], forKey: Constants.disabledActionIDsKey)
-        defer {
-            if let oldDisabled {
-                UserDefaults.standard.set(oldDisabled, forKey: Constants.disabledActionIDsKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: Constants.disabledActionIDsKey)
-            }
-        }
+        store.set(.disabledActionIDs, value: Set([groupID]))
 
         let selection = SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
         let context = ActionContext(selection: selection, modifiers: [])
@@ -185,7 +164,8 @@ final class ActionRegistryTests: XCTestCase {
 
     @MainActor
     func testEnabledGroupRowKeepsSubActionsAvailable() {
-        let registry = ActionRegistry.shared
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
         let groupID = "mock.group.visible"
         let groupChrome = ActionChrome(
             badge: .none,
@@ -197,15 +177,7 @@ final class ActionRegistryTests: XCTestCase {
         let sub = MockAction(id: "\(groupID).x", shouldBeEnabled: true)
         registry.register(builtIns: [group, sub])
 
-        let oldDisabled = UserDefaults.standard.stringArray(forKey: Constants.disabledActionIDsKey)
-        UserDefaults.standard.removeObject(forKey: Constants.disabledActionIDsKey)
-        defer {
-            if let oldDisabled {
-                UserDefaults.standard.set(oldDisabled, forKey: Constants.disabledActionIDsKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: Constants.disabledActionIDsKey)
-            }
-        }
+        store.set(.disabledActionIDs, value: Set([]))
 
         let selection = SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
         let context = ActionContext(selection: selection, modifiers: [])

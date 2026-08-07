@@ -188,7 +188,7 @@ public struct InstalledExtensionsView: View {
                     ForEach(installedExtensionActions, id: \.id) { action in
                         HStack(spacing: 12) {
                             ZStack {
-                                ActionIconView(icon: action.displayIcon, size: 16)
+                                ActionIconView(icon: action.displayIcon(using: ActionCustomizationManager.shared), size: 16)
                                     .foregroundColor(.accentColor)
                             }
                             .frame(width: 36, height: 36)
@@ -196,7 +196,7 @@ public struct InstalledExtensionsView: View {
                             .cornerRadius(8)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(action.displayTitle)
+                                Text(action.displayTitle(using: ActionCustomizationManager.shared))
                                     .font(.system(size: 13, weight: .semibold))
 
                                 switch action.chrome.badge {
@@ -259,7 +259,7 @@ struct ExtensionCardView: View {
         ActionCoordinator.shared.actions.first { action in
             let actID = action.id.lowercased()
             let itemID = item.id.lowercased()
-            let actTitle = action.displayTitle.lowercased()
+            let actTitle = action.displayTitle(using: ActionCustomizationManager.shared).lowercased()
             let itemName = item.name.lowercased()
             return actID.hasPrefix(itemID) || itemID.hasPrefix(actID) || actTitle == itemName
         }

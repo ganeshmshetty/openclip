@@ -48,6 +48,9 @@ public struct PopupSearchView: View {
     /// observing the whole object re-evaluates the entire palette body per mouse move. Only
     /// `hoverState.$location` is subscribed to via `.onReceive`.
     private let hoverState = PopupHoverState.shared
+    /// Resolves user-customized action titles/icons (composition-injected, defaults to the shared
+    /// customization manager — never a hidden singleton reference inside the Action extension).
+    private let presenter: any ActionPresenting
     @State private var hoverFrames: [SearchHoverTarget: CGRect] = [:]
     @State private var hoveredTarget: SearchHoverTarget?
 
@@ -85,6 +88,7 @@ public struct PopupSearchView: View {
         catalog: [any Action],
         context: ActionContext,
         resultsAbove: Bool,
+        presenter: any ActionPresenting = ActionCustomizationManager.shared,
         scope: SearchScope? = nil,
         usageRecency: [String: Int] = [:],
         onResult: @escaping @MainActor (ActionResult) -> Void,
@@ -96,6 +100,7 @@ public struct PopupSearchView: View {
         self.catalog = catalog
         self.context = context
         self.resultsAbove = resultsAbove
+        self.presenter = presenter
         self.scope = scope
         self.usageRecency = usageRecency
         self.onResult = onResult
@@ -106,7 +111,7 @@ public struct PopupSearchView: View {
         // Index once at entry: the palette is recreated on every search entry (mode + scope
         // transition together), so the current catalog/scope are captured here. The initial query
         // is empty, so the ranked results are just the full index in order.
-        let initialIndex = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency)
+        let initialIndex = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency, presenter: presenter)
         _searchIndex = State(initialValue: initialIndex)
         _results = State(initialValue: initialIndex)
     }
@@ -144,7 +149,7 @@ public struct PopupSearchView: View {
     private var searchFieldRow: some View {
         HStack(spacing: 8) {
             searchIcon
-            TextField(scope == nil ? "Search all actions" : "Search within \(scope?.parent.displayTitle ?? "")", text: $query)
+            TextField(scope == nil ? "Search all actions" : "Search within \(scope?.parent.displayTitle(using: presenter) ?? "")", text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
@@ -340,12 +345,12 @@ public struct PopupSearchView: View {
 
     /// Indexes the palette's candidates (scoped children when scoped, the full catalog otherwise)
     /// once per palette entry. Runs only when the catalog/scope inputs change, never per body eval.
-    private static func buildIndex(catalog: [any Action], scope: SearchScope?, usageRecency: [String: Int]) -> [ActionSearchIndex] {
+    private static func buildIndex(catalog: [any Action], scope: SearchScope?, usageRecency: [String: Int], presenter: any ActionPresenting) -> [ActionSearchIndex] {
         let candidates = scope?.children ?? catalog
         return candidates.map { action in
             ActionSearchIndex(
                 id: action.id,
-                title: action.displayTitle,
+                title: action.displayTitle(using: presenter),
                 keywords: Self.searchKeywords(for: action),
                 action: action,
                 usageRecency: usageRecency[action.id] ?? 0
@@ -357,7 +362,7 @@ public struct PopupSearchView: View {
     /// palette entry (init), so this is a defensive guard for scope transitions that keep
     /// `.search` mounted. The catalog is captured at entry; the palette is ephemeral.
     private func rebuildSearchIndex() {
-        let index = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency)
+        let index = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency, presenter: presenter)
         searchIndex = index
         results = ActionSearch.search(query, in: index)
     }
@@ -377,14 +382,14 @@ public struct PopupSearchView: View {
     /// resolve symbol-first (custom override, then the action's SF Symbol preference), matching the
     /// preferences table.
     private func rowIcon(for action: any Action) -> ActionIcon {
-        switch action.displayIcon {
+        switch action.displayIcon(using: presenter) {
         case .symbol, .url, .local:
-            return action.displayIcon
+            return action.displayIcon(using: presenter)
         case .text:
             if let configurable = action as? any ConfigurableAction {
                 return .symbol(configurable.preferenceIconName)
             }
-            return action.displayIcon
+            return action.displayIcon(using: presenter)
         }
     }
 
