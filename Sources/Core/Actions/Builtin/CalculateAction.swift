@@ -13,7 +13,11 @@ public struct CalculateAction: ConfigurableAction, ResultContentProviding {
     public let preferenceIconName = "equal.circle"
     public let icon = ActionIcon.symbol("equal.circle")
     
-    public init() {}
+    private let settingsStore: any SettingsStore
+
+    public init(settingsStore: any SettingsStore = DefaultSettingsStore.shared) {
+        self.settingsStore = settingsStore
+    }
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -32,7 +36,7 @@ public struct CalculateAction: ConfigurableAction, ResultContentProviding {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if let result = evaluateExpression(text) {
             let resultString = formatResult(result)
-            let mode = DefaultSettingsStore.shared.get(.calculateMode)
+            let mode = settingsStore.get(.calculateMode)
 
             
             switch mode {

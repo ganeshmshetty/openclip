@@ -13,39 +13,30 @@ private struct CustomizationMockAction: Action {
 
 @MainActor
 final class ActionCustomizationTests: XCTestCase {
-    override func setUp() {
-        super.setUp()
-        TestIsolation.reset()
-        ActionCustomizationManager.shared.resetOverride(for: "mock.test")
-    }
-    
-    override func tearDown() {
-        ActionCustomizationManager.shared.resetOverride(for: "mock.test")
-        super.tearDown()
-    }
-    
     func testDefaultTitleAndIconFallback() {
+        let manager = ActionCustomizationManager(settingsStore: MemorySettingsStore())
         let action = CustomizationMockAction()
-        XCTAssertEqual(action.displayTitle, "Default Title")
-        XCTAssertEqual(action.displayIcon, .symbol("star"))
+        XCTAssertEqual(action.displayTitle(using: manager), "Default Title")
+        XCTAssertEqual(action.displayIcon(using: manager), .symbol("star"))
     }
     
     func testCustomTitleAndIconOverrides() {
+        let manager = ActionCustomizationManager(settingsStore: MemorySettingsStore())
         let action = CustomizationMockAction()
         
         // Set custom title and custom symbol icon
-        ActionCustomizationManager.shared.setOverride(for: "mock.test", title: "Custom Title", symbol: "heart.fill", text: nil)
-        XCTAssertEqual(action.displayTitle, "Custom Title")
-        XCTAssertEqual(action.displayIcon, .symbol("heart.fill"))
+        manager.setOverride(for: "mock.test", title: "Custom Title", symbol: "heart.fill", text: nil)
+        XCTAssertEqual(action.displayTitle(using: manager), "Custom Title")
+        XCTAssertEqual(action.displayIcon(using: manager), .symbol("heart.fill"))
         
         // Set custom text/emoji icon
-        ActionCustomizationManager.shared.setOverride(for: "mock.test", title: "Custom Title", symbol: nil, text: "❤️")
-        XCTAssertEqual(action.displayTitle, "Custom Title")
-        XCTAssertEqual(action.displayIcon, .text("❤️"))
+        manager.setOverride(for: "mock.test", title: "Custom Title", symbol: nil, text: "❤️")
+        XCTAssertEqual(action.displayTitle(using: manager), "Custom Title")
+        XCTAssertEqual(action.displayIcon(using: manager), .text("❤️"))
         
         // Reset override
-        ActionCustomizationManager.shared.resetOverride(for: "mock.test")
-        XCTAssertEqual(action.displayTitle, "Default Title")
-        XCTAssertEqual(action.displayIcon, .symbol("star"))
+        manager.resetOverride(for: "mock.test")
+        XCTAssertEqual(action.displayTitle(using: manager), "Default Title")
+        XCTAssertEqual(action.displayIcon(using: manager), .symbol("star"))
     }
 }
