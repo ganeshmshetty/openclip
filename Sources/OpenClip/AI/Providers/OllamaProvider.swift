@@ -20,7 +20,7 @@ public final class OllamaProvider: AIProvider {
     public func process(prompt: String, text: String) async throws -> String {
         let input = try AIRequestSupport.requireNonEmptyText(text)
         let instruction = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        let systemHeader = "You are an inline text editing tool. Perform the requested task on the user's text and wrap your final result inside <result>...</result> tags."
+        let systemHeader = AIRequestSupport.systemPrompt
         let fullPrompt = instruction.isEmpty ? "\(systemHeader)\n\nText: \(input)" : "\(systemHeader)\n\nTask: \(instruction)\nText: \(input)"
 
         guard let url = URL(string: "\(baseURL)/api/generate") else {

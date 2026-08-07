@@ -64,12 +64,15 @@ Sources/
     │   ├── AIProvider.swift
     │   ├── AIServiceManager.swift            # cloudAPIKey is Keychain-backed (@Published), other prefs via @AppStorage
     │   └── Providers/                        # Apple Intelligence, Cloud, Ollama, BrowserRedirect
+    │       ├── CloudAPIProvider.swift        # OpenAI-compatible / Anthropic / Gemini cloud chat
+    │       └── CloudAPIProviderDTOs.swift    # Codable chat request/response payloads for the cloud APIs
     ├── Actions/                              # Runtime actions requiring AppKit/JavaScript
     │   ├── AppleScriptAction.swift
     │   ├── JavaScriptAction.swift            # Manifests JS actions; short-circuits to .openConfiguration when a required option is unresolved, else delegates to OpenClipJSHost (options via injected ActionOptionReading)
     │   ├── KeyPressAction.swift              # type: "keyPress" runtime → .keyPress(KeyPressSpec)
     │   ├── NamedServiceAction.swift          # type: "service" runtime → .showServices(text)
     │   ├── OpenClipJSHost.swift              # JS bridge (openclip.*) + effect resolver + .openConfiguration short-circuit support
+    │   ├── OpenClipJSHostSupport.swift       # Threading/support boxes for the JS host (TimeoutFlag, gate, JS context/value/runloop boxes, promise state)
     │   └── ShortcutAction.swift              # type: "shortcut" runtime → .runShortcut(name:input:)
     ├── App/
     ├── AppDelegate.swift                     # Reads isAppEnabled / hasCompletedOnboarding via UserDefaults.standard
@@ -90,6 +93,7 @@ Sources/
     │   ├── LaunchAtLoginManager.swift        # Login item manager
     │   ├── MacSelectionMonitor.swift         # Global accessibility monitor
     │   ├── MacTextRetriever.swift            # AX selection read + Safari JS; grabPasteboard apps use Cmd+C fallback
+    │   ├── OnceResume.swift                  # Exactly-once continuation resume gate (AX read + AppleScript deadline races)
     │   └── PermissionManager.swift           # Accessibility permission manager
     ├── StatusBarController.swift             # Reads/writes isAppEnabled via UserDefaults.standard
     └── UI/                                   # User Interface (SwiftUI & AppKit Panels)
@@ -113,13 +117,23 @@ Sources/
         │   ├── PopupThemeModel.swift           # Theme resolution: category (classic/glass) + shared appearance → tokens/colorScheme
         │   ├── PopupThemeSelector.swift        # Theme control: two rows (Classic|Glass, then System/Light/Dark); storage popupTheme + popupThemeColor
         │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode / content-canvas branch + ⌘ affordance)
-        │   └── PopupWindowController.swift   # Window lifecycle + mode state machine (bar/search/content) + hover/long-press timers
+        │   ├── PopupWindowController.swift   # Window lifecycle + mode state machine (bar/search/content) + hover/long-press timers
+        │   ├── PopupHoverSupport.swift         # Shared popup hover-state singleton + hover-target/frame preference keys (bar)
+        │   ├── SearchHoverSupport.swift        # Search-palette hover-target/frame preference keys
+        │   └── CanvasHoverSupport.swift        # Content-canvas hover-target/frame preference keys
         └── Preferences/                      # Settings & preferences views
             ├── ActionAppearanceFields.swift
             ├── AddCustomActionSheet.swift
             ├── AIConfigureForm.swift           # Shared AI engine/provider form (Preferences AI tab + onboarding AI step)
+            ├── ActionsTabView.swift            # Actions tab: reorderable list + ActionRowView/PackageHeaderRowView + add/install controls
+            ├── AboutTabView.swift              # About tab: app icon/name/version
+            ├── AppearanceTabView.swift         # Appearance tab: popup preview + theme selector
             ├── DynamicActionConfigView.swift
             ├── EditActionSheet.swift
-            ├── ExtensionsStoreView.swift
+            ├── ExtensionCardView.swift         # Store grid card for a single extension listing
+            ├── ExtensionInstallPanel.swift     # Shared "Install File…" NSOpenPanel presenter
+            ├── ExtensionsStoreView.swift       # Extension store browser (ViewModel + ExtensionStoreView)
+            ├── GeneralTabView.swift            # General tab: enable toggle, hotkey, start-at-login, permissions
+            ├── InstalledExtensionsView.swift   # Installed extensions sub-tab with per-row uninstall
             └── PreferencesView.swift
 ```

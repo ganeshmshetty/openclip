@@ -198,7 +198,7 @@ final class ActionRegistryTests: XCTestCase {
         )
         let group = MockAction(id: "mock.searchgroup", shouldBeEnabled: true, chrome: groupChrome)
         let sub = MockAction(id: "mock.searchgroup.a", shouldBeEnabled: true)
-        let completion = MockAction(id: "builtin.completion", shouldBeEnabled: true)
+        let completion = MockAction(id: "builtin.completion", shouldBeEnabled: true, chrome: ActionChrome(popupBehavior: .provideCompletions))
         let disabled = MockAction(id: "mock.searchdisabled", shouldBeEnabled: false)
         let normal = MockAction(id: "mock.searchnormal", shouldBeEnabled: true)
         registry.register(builtIns: [group, sub, completion, disabled, normal])
@@ -235,7 +235,7 @@ final class ActionRegistryTests: XCTestCase {
     func testAIToolsLauncherInBarExcludedFromPalette() {
         let registry = ActionRegistry()
         let launcher = MockAction(id: "builtin.aiTools", shouldBeEnabled: true, chrome: ActionChrome(launchesAI: true))
-        let completion = MockAction(id: "builtin.completion", shouldBeEnabled: true)
+        let completion = MockAction(id: "builtin.completion", shouldBeEnabled: true, chrome: ActionChrome(popupBehavior: .provideCompletions))
         let normal = MockAction(id: "mock.normal", shouldBeEnabled: true)
         registry.register(builtIns: [launcher, completion, normal])
 

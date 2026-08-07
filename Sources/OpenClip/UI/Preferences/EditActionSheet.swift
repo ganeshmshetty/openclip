@@ -37,12 +37,7 @@ public struct EditActionSheet: View {
     @State private var replaceSelection: Bool = true
     
     // Manifest-backed state: the target action lives in an extension manifest package.
-    struct ManifestEditState {
-        let manifestURL: URL
-        let manifest: ExtensionMetadata
-        let targetIndex: Int
-    }
-    @State private var manifestState: ManifestEditState?
+    @State private var manifestState: LocatedManifest?
     @State private var logicEditable: Bool = false
     // True when a non-builtin action has no locatable manifest (standalone script file), so the
     // sheet must stay read-only instead of dropping edits on Save.
@@ -56,8 +51,7 @@ public struct EditActionSheet: View {
     }
     
     private var isBuiltin: Bool {
-        if case .builtin = action.chrome.source { return true }
-        return false
+        ActionIdentity.isBuiltin(action)
     }
 
     /// Banner text when the sheet was opened because the action needs configuration. Falls back to a
@@ -248,38 +242,13 @@ public struct EditActionSheet: View {
     }
     
     // MARK: - Manifest lookup
-    
+
     /// Locates the manifest package whose identifier matches the action's chrome source (or, as a
     /// fallback for stray `.custom` actions, its id) and returns the target action's edit state.
     /// Only directory-backed manifest packages are considered; a standalone script file with the
     /// same identifier returns nil, which the sheet treats as a read-only, uneditable action.
-    static func locateManifest(for action: any Action, in directory: URL = Constants.extensionsDirectory) -> ManifestEditState? {
-        let packageID: String
-        if case .extensionPkg(let pid) = action.chrome.source {
-            packageID = pid
-        } else {
-            packageID = action.id
-        }
-        guard let items = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) else {
-            Log.factory.error("Failed to read extensions directory at \(directory.path, privacy: .public)")
-            return nil
-        }
-        let manifestNames = [Constants.manifestFileName, Constants.legacyManifestFileName, "Config.json"]
-        for item in items {
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: item.path, isDirectory: &isDir), isDir.boolValue else { continue }
-            for name in manifestNames {
-                let manifestURL = item.appendingPathComponent(name)
-                guard let data = try? Data(contentsOf: manifestURL),
-                      let manifest = try? JSONDecoder().decode(ExtensionMetadata.self, from: data),
-                      manifest.identifier == packageID else { continue }
-                for (index, meta) in manifest.actions.enumerated()
-                where ExtensionManager.uniformActionID(metadata: meta, manifest: manifest, index: index) == action.id {
-                    return ManifestEditState(manifestURL: manifestURL, manifest: manifest, targetIndex: index)
-                }
-            }
-        }
-        return nil
+    static func locateManifest(for action: any Action, in directory: URL = Constants.extensionsDirectory) -> LocatedManifest? {
+        ExtensionManifestStore.locateManifest(for: action, in: directory)
     }
     
     // MARK: - State loading
@@ -451,10 +420,7 @@ public struct EditActionSheet: View {
         )
         
         do {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let data = try encoder.encode(updatedManifest)
-            try data.write(to: state.manifestURL, options: .atomic)
+            try ExtensionManifestStore.writeManifest(updatedManifest, to: state.manifestURL)
         } catch {
             Log.factory.error("Failed to save action manifest: \(error.localizedDescription)")
             saveAlertMessage = "Failed to save the action manifest: \(error.localizedDescription)"

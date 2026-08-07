@@ -37,8 +37,8 @@ public struct PopupContentView: View {
 
     @ObservedObject public var statusBadgeModel: StatusBadgeModel = .shared
 
-    @AppStorage("popupTheme") private var selectedTheme: String = "classic"
-    @AppStorage("popupThemeColor") private var themeColor: String = "system"
+    @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
+    @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
     @Environment(\.colorScheme) private var colorScheme
 
     /// Hover follows the same mechanism as the search palette and the bar: the AX global-mouse
@@ -453,33 +453,5 @@ public struct PopupContentView: View {
 
     private var rowsContent: [ContentRow] {
         content.rows
-    }
-}
-
-/// Hover targets within the content canvas chrome (currently just the Esc keycap).
-private enum CanvasHoverTarget: Hashable {
-    case esc
-}
-
-private struct CanvasHoverFramePreferenceKey: PreferenceKey {
-    static let defaultValue: [CanvasHoverTarget: CGRect] = [:]
-
-    static func reduce(value: inout [CanvasHoverTarget: CGRect], nextValue: () -> [CanvasHoverTarget: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
-    }
-}
-
-private extension View {
-    /// Registers the receiver's frame in the popup's named hover space so the location-driven
-    /// hit test can resolve it (same pattern as the bar and search palette).
-    func canvasHoverTarget(_ target: CanvasHoverTarget) -> some View {
-        background {
-            GeometryReader { proxy in
-                Color.clear.preference(
-                    key: CanvasHoverFramePreferenceKey.self,
-                    value: [target: proxy.frame(in: .named("popupHoverSpace"))]
-                )
-            }
-        }
     }
 }

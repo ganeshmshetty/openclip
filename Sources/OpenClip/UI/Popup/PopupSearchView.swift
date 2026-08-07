@@ -37,8 +37,8 @@ public struct PopupSearchView: View {
     /// selection changes leave it false so hovering the edge of a row never shifts the list.
     @State private var scrollSelectionOnKeyboard = false
 
-    @AppStorage("popupTheme") private var selectedTheme: String = "classic"
-    @AppStorage("popupThemeColor") private var themeColor: String = "system"
+    @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
+    @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
     @Environment(\.colorScheme) private var colorScheme
 
     /// Hover follows the same mechanism as the bar: the AX global-mouse location hit-tested
@@ -223,32 +223,8 @@ public struct PopupSearchView: View {
     }
 
     /// Render an action's icon (symbol / iconify / url / local / text) at field size.
-    @ViewBuilder private func actionIcon(_ action: any Action) -> some View {
-        switch action.icon {
-        case .symbol(let name):
-            if name.contains(":") {
-                AnyIconView(iconId: name)
-                    .frame(width: 14, height: 14)
-            } else {
-                Image(systemName: name).font(.system(size: 14))
-            }
-        case .url(let url):
-            AsyncImage(url: url) { phase in
-                if let image = phase.image {
-                    image.resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
-                } else {
-                    Image(systemName: "circle.dashed")
-                }
-            }
-        case .local(let url):
-            if let nsImage = LocalIconCache.shared.image(for: url) {
-                Image(nsImage: nsImage).resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
-            } else {
-                Image(systemName: "exclamationmark.triangle")
-            }
-        case .text(let text):
-            Text(text).font(.system(size: 13, weight: .medium))
-        }
+    private func actionIcon(_ action: any Action) -> some View {
+        ActionIconView(icon: action.icon, size: 14)
     }
 
     private var resultsList: some View {
@@ -322,7 +298,7 @@ public struct PopupSearchView: View {
         let action = results[selectedIndex].action
         // AI preset actions render their result in the popup's AI card (same flow as the Sparkles
         // toolbar), so route them there instead of through `perform`.
-        if case .ai = action.chrome.source {
+        if ActionIdentity.isAIPreset(action) {
             onRunAI(action.id)
             return
         }
@@ -369,7 +345,7 @@ public struct PopupSearchView: View {
 
     private static func searchKeywords(for action: any Action) -> String {
         var parts = [action.title]
-        if case .extensionPkg(let packageID) = action.chrome.source {
+        if let packageID = ActionIdentity.extensionPackageID(of: action) {
             parts.append(packageID)
         }
         if case .extensionPkg(let packageID) = action.chrome.badge {
@@ -382,45 +358,20 @@ public struct PopupSearchView: View {
     /// resolve symbol-first (custom override, then the action's SF Symbol preference), matching the
     /// preferences table.
     private func rowIcon(for action: any Action) -> ActionIcon {
-        switch action.displayIcon(using: presenter) {
+        let resolved = action.displayIcon(using: presenter)
+        switch resolved {
         case .symbol, .url, .local:
-            return action.displayIcon(using: presenter)
+            return resolved
         case .text:
             if let configurable = action as? any ConfigurableAction {
                 return .symbol(configurable.preferenceIconName)
             }
-            return action.displayIcon(using: presenter)
+            return resolved
         }
     }
 
-    @ViewBuilder
     private func iconView(for icon: ActionIcon) -> some View {
-        switch icon {
-        case .symbol(let name):
-            if name.contains(":") {
-                // Iconify format "prefix:name" — render via SDWebImage + SVGCoder (matches the bar).
-                AnyIconView(iconId: name)
-                    .frame(width: 14, height: 14)
-            } else {
-                Image(systemName: name)
-            }
-        case .text(let text):
-            Text(text).font(.system(size: 11))
-        case .url(let url):
-            AsyncImage(url: url) { phase in
-                if let image = phase.image {
-                    image.resizable().aspectRatio(contentMode: .fit)
-                } else {
-                    Image(systemName: "circle.dashed")
-                }
-            }
-        case .local(let url):
-            if let nsImage = LocalIconCache.shared.image(for: url) {
-                Image(nsImage: nsImage).resizable().aspectRatio(contentMode: .fit)
-            } else {
-                Image(systemName: "exclamationmark.triangle")
-            }
-        }
+        ActionIconView(icon: icon, size: 14)
     }
 
     private func badgeText(for action: any Action) -> String? {
@@ -430,7 +381,7 @@ public struct PopupSearchView: View {
         case .custom: return "custom"
         case .extensionPkg(let id): return id
         case .none:
-            if case .extensionPkg = action.chrome.source { return "extension" }
+            if ActionIdentity.isExtension(action) { return "extension" }
             return nil
         }
     }
@@ -463,32 +414,6 @@ public struct PopupSearchView: View {
             }
         } else if hoveredTarget == target {
             hoveredTarget = nil
-        }
-    }
-}
-
-private enum SearchHoverTarget: Hashable {
-    case row(Int)
-    case esc
-}
-
-private struct SearchHoverFramePreferenceKey: PreferenceKey {
-    static let defaultValue: [SearchHoverTarget: CGRect] = [:]
-
-    static func reduce(value: inout [SearchHoverTarget: CGRect], nextValue: () -> [SearchHoverTarget: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
-    }
-}
-
-private extension View {
-    func searchHoverTarget(_ target: SearchHoverTarget) -> some View {
-        background {
-            GeometryReader { proxy in
-                Color.clear.preference(
-                    key: SearchHoverFramePreferenceKey.self,
-                    value: [target: proxy.frame(in: .named("popupHoverSpace"))]
-                )
-            }
         }
     }
 }

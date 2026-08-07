@@ -81,7 +81,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
     }
 
     /// One side-effecting JS call, kept in call order for `.sequence` resolution.
-    fileprivate enum Effect: Sendable {
+    enum Effect: Sendable {
         case paste(String)
         case copy(String)
         case cut(String)
@@ -695,107 +695,3 @@ public final class OpenClipJSHost: @unchecked Sendable {
     private static let syncEvaluationGate = SyncEvaluationGate(capacity: Constants.maxConcurrentSyncScriptEvaluations)
 }
 
-/// Thread-safe flag set by the watchdog when the execution budget is exceeded (mirrors the
-/// TimeoutFlag pattern in ShellProcessRunner).
-private final class TimeoutFlag: @unchecked Sendable {
-    private let lock = NSLock()
-    private var timedOut = false
-
-    func markTimedOut() {
-        lock.lock()
-        defer { lock.unlock() }
-        timedOut = true
-    }
-
-    var isTimedOut: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return timedOut
-    }
-}
-
-/// Bounds the number of concurrent synchronous JS evaluations. A stuck sync script holds its slot
-/// forever (it cannot be interrupted), so `tryEnter` refuses new evaluations once the cap is
-/// reached instead of leaking more cooperative-pool threads.
-private final class SyncEvaluationGate: @unchecked Sendable {
-    private let lock = NSLock()
-    private let capacity: Int
-    private var inFlight = 0
-
-    init(capacity: Int) {
-        self.capacity = capacity
-    }
-
-    func tryEnter() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        guard inFlight < capacity else { return false }
-        inFlight += 1
-        return true
-    }
-
-    func leave() {
-        lock.lock()
-        defer { lock.unlock() }
-        inFlight -= 1
-    }
-
-    var inFlightCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return inFlight
-    }
-}
-
-/// Boxes the JS context so the fetch completion handler can hand it back to the JS thread's
-/// runloop. The context is only ever *used* on the JS thread.
-private final class JSContextBox: @unchecked Sendable {
-    let context: JSContext
-    init(_ context: JSContext) { self.context = context }
-}
-
-/// Boxes a JSValue so a `@Sendable` URLSession completion can hand it back to the JS thread's
-/// runloop without the compiler rejecting a non-Sendable capture. The value is only ever *used* on
-/// the JS thread (inside the CFRunLoopPerformBlock).
-private final class JSValueBox: @unchecked Sendable {
-    let value: JSValue
-    init(_ value: JSValue) { self.value = value }
-}
-
-private final class RunLoopBox: @unchecked Sendable {
-    let runLoop: CFRunLoop
-    init(_ runLoop: CFRunLoop) { self.runLoop = runLoop }
-}
-
-/// Mutable evaluation state written by the JS effect blocks and read back on the host thread. Boxed
-/// so the `@convention(block)` closures capture a Sendable reference instead of a non-Sendable local
-/// `var` — the region-based isolation checker rejects the direct capture inside a `Task.detached`
-/// region.
-private final class CollectedBox: @unchecked Sendable {
-    var value: OpenClipJSHost.Collected
-    init() { self.value = OpenClipJSHost.Collected() }
-}
-
-/// Call-ordered side effects collected from the JS effect blocks (mirrors CollectedBox rationale).
-private final class EffectsBox: @unchecked Sendable {
-    var value: [OpenClipJSHost.Effect]
-    init() { self.value = [] }
-}
-
-/// Settled by the promise bridge on the JS thread (via `openclip.__resolve`/`__reject`) and read by
-/// the host's pump loop on that same thread.
-private final class PromiseState: @unchecked Sendable {
-    private(set) var isSettled = false
-    private(set) var resolvedValue: JSValue?
-    private(set) var rejectedValue: JSValue?
-
-    func resolve(_ value: JSValue) {
-        resolvedValue = value
-        isSettled = true
-    }
-
-    func reject(_ error: JSValue) {
-        rejectedValue = error
-        isSettled = true
-    }
-}

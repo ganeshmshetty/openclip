@@ -142,11 +142,9 @@ public final class ExtensionManager: Sendable {
 
             if isDir.boolValue {
                 // Read manifest identifier directly — generated action IDs are "<identifier>.action.<n>"
-                let manifestCandidates = ["openclip.json", "manifest.json", "Config.json"]
-                for fname in manifestCandidates {
+                for fname in ExtensionManifestStore.candidateFileNames {
                     let manifestURL = itemURL.appendingPathComponent(fname)
-                    if let data = try? Data(contentsOf: manifestURL),
-                       let meta = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) {
+                    if let meta = ExtensionManifestStore.readManifest(at: manifestURL) {
                         // actionID starts with manifest identifier at a component boundary
                         // (e.g. "com.openclip.applemusic.action.0" vs "com.openclip.applemusic"),
                         // so com.foo never matches com.foobar.
@@ -187,18 +185,10 @@ public final class ExtensionManager: Sendable {
                 
                 if isDirectory {
                     // Check for native openclip.json, manifest.json, or Config.json inside .openclipext package
-                    let openclipManifest = itemURL.appendingPathComponent("openclip.json")
-                    let legacyManifest = itemURL.appendingPathComponent("manifest.json")
-                    let jsonConfigURL = itemURL.appendingPathComponent("Config.json")
-                    
-                    if fileManager.fileExists(atPath: openclipManifest.path) {
-                        let actions = await loadManifestExtension(manifestURL: openclipManifest, directoryURL: itemURL, factory: factory)
-                        newActions.append(contentsOf: actions)
-                    } else if fileManager.fileExists(atPath: legacyManifest.path) {
-                        let actions = await loadManifestExtension(manifestURL: legacyManifest, directoryURL: itemURL, factory: factory)
-                        newActions.append(contentsOf: actions)
-                    } else if fileManager.fileExists(atPath: jsonConfigURL.path) {
-                        let actions = await loadManifestExtension(manifestURL: jsonConfigURL, directoryURL: itemURL, factory: factory)
+                    let manifestFile = ExtensionManifestStore.manifestFileURL(in: itemURL)
+
+                    if let manifestFile {
+                        let actions = await loadManifestExtension(manifestURL: manifestFile, directoryURL: itemURL, factory: factory)
                         newActions.append(contentsOf: actions)
                     } else {
                         // Scan directory for standalone executable scripts
@@ -229,8 +219,7 @@ public final class ExtensionManager: Sendable {
     }
     
     nonisolated private static func loadManifestExtension(manifestURL: URL, directoryURL: URL, factory: (any ActionFactory)? = nil) async -> [any Action] {
-        guard let data = try? Data(contentsOf: manifestURL) else { return [] }
-        guard let manifest = try? JSONDecoder().decode(ExtensionMetadata.self, from: data) else { return [] }
+        guard let manifest = ExtensionManifestStore.readManifest(at: manifestURL) else { return [] }
         
         var actions: [any Action] = []
         for (index, actionMeta) in manifest.actions.enumerated() {
