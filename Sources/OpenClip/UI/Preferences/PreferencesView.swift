@@ -65,10 +65,8 @@ public struct PreferencesView: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Top spacing so the window traffic lights (close/minimize/expand)
                 // float seamlessly over the sidebar without covering the first tab item.
-                // 23pt + the 7pt button padding aligns the first tab's text with the
-                // detail header's 30pt top padding while clearing the traffic lights.
                 Spacer()
-                    .frame(height: 23)
+                    .frame(height: 36)
                 
                 ForEach(PreferenceTab.allCases, id: \.self) { tab in
                     Button(action: {
@@ -166,7 +164,7 @@ public struct PreferencesView: View {
                 }
                 .frame(maxWidth: Self.detailContentMaxWidth)
                 .frame(maxWidth: .infinity)
-                .padding(.top, 30)
+                .padding(.top, 36)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
                 
@@ -207,7 +205,8 @@ public struct PreferencesView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .glassSurface(.regular, cornerRadius: 0)
+        .ignoresSafeArea(.all, edges: .top)
+        .background(Color(NSColor.windowBackgroundColor))
         .frame(minWidth: 760, idealWidth: 860, minHeight: 640, idealHeight: 720)
         .onAppear { loadDisabledState() }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledState() }
@@ -376,7 +375,8 @@ struct GeneralTab: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 12)
         .onAppear { permissionManager.startMonitoring() }
         .onDisappear { permissionManager.stopMonitoring() }
     }
@@ -385,11 +385,10 @@ struct GeneralTab: View {
 @MainActor
 struct AppearanceTab: View {
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 16) {
             PopupPreview()
 
             PopupThemeSelector()
-                .padding(.horizontal, 10)
 
             Spacer()
         }
@@ -406,6 +405,9 @@ struct ActionsTab: View {
     let onOpenAI: () -> Void
     @State private var showingAddActionSheet = false
     @ObservedObject private var coordinator = ActionCoordinator.shared
+    /// Single observation site for action presentation (title/icon) customizations. Rows no longer
+    /// subscribe to `ActionCustomizationManager.shared` directly — they receive resolved values.
+    @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     
     /// Row model for the grouped actions list: multi-action extension packages get a package
     /// header row (with a whole-package toggle) before their actions; single-action packages and
@@ -485,7 +487,12 @@ struct ActionsTab: View {
                         case .packageHeader(let packageID, let title):
                             PackageHeaderRowView(packageID: packageID, title: title, disabledPackages: $disabledPackages)
                         case .action(let action):
-                            ActionRowView(action: action, disabledActionIDs: $disabledActionIDs, onOpenAI: onOpenAI)
+                            ActionRowView(
+                                action: action,
+                                presentationModel: presentationModel(for: action),
+                                isEnabled: enabledBinding(for: action),
+                                onOpenAI: onOpenAI
+                            )
                         }
                     }
                     .onMove(perform: moveRows)
@@ -527,6 +534,48 @@ struct ActionsTab: View {
         }
     }
     
+    /// Resolves a row's title/icon from `ActionCustomizationManager` — the single observation site
+    /// for customizations. Passed to rows as a value so they never subscribe to the shared manager.
+    private func presentationModel(for action: any Action) -> ActionPresentationModel {
+        customizationManager.presented(action, surface: .table)
+    }
+
+    /// Scoped enabled binding for a row, built from the row's single source of truth:
+    /// - AI Tools launcher → `AIServiceManager.isAIEnabled` (shared with the AI tab toggle)
+    /// - AI preset rows → the preset's `isEnabled`
+    /// - everything else → `disabledActionIDs`
+    /// Reading the singletons inside the binding — rather than via `@ObservedObject` on every row —
+    /// keeps rows off the shared observation fan-out: a `Toggle` reflects its own live value without
+    /// re-rendering every row when an unrelated setting changes.
+    private func enabledBinding(for action: any Action) -> Binding<Bool> {
+        if action.chrome.launchesAI {
+            return Binding(
+                get: { AIServiceManager.shared.isAIEnabled },
+                set: { AIServiceManager.shared.isAIEnabled = $0 }
+            )
+        }
+        if case .ai = action.chrome.source {
+            return Binding(
+                get: { AIServiceManager.shared.preset(forActionID: action.id)?.isEnabled ?? false },
+                set: { enabled in
+                    guard var preset = AIServiceManager.shared.preset(forActionID: action.id) else { return }
+                    preset.isEnabled = enabled
+                    AIServiceManager.shared.updatePreset(preset)
+                }
+            )
+        }
+        return Binding(
+            get: { !disabledActionIDs.contains(action.id) },
+            set: { enabled in
+                if enabled {
+                    disabledActionIDs.remove(action.id)
+                } else {
+                    disabledActionIDs.insert(action.id)
+                }
+            }
+        )
+    }
+
     private func openInstallExtensionPanel() {
         let panel = NSOpenPanel()
         panel.title = "Select Extension to Install"
@@ -565,15 +614,20 @@ struct ActionsTab: View {
 @MainActor
 struct ActionRowView: View {
     let action: any Action
-    @Binding var disabledActionIDs: Set<String>
+    /// Resolved title/icon for this row, computed once by `ActionsTab` from
+    /// `ActionCustomizationManager` and passed down as a value — this row never subscribes to the
+    /// shared manager, so it only re-renders when its own presentation actually changes.
+    let presentationModel: ActionPresentationModel
+    /// Scoped, live binding from the parent (`ActionsTab`): AI manager for AI rows,
+    /// `disabledActionIDs` otherwise. No per-row `@ObservedObject` on shared singletons.
+    let isEnabled: Binding<Bool>
     /// Opens the AI tab (AI Tools launcher rows); nil for rows without a nav gear.
     let onOpenAI: (() -> Void)?
-    @ObservedObject private var customizationManager = ActionCustomizationManager.shared
-    @ObservedObject private var aiManager = AIServiceManager.shared
 
-    init(action: any Action, disabledActionIDs: Binding<Set<String>>, onOpenAI: (() -> Void)? = nil) {
+    init(action: any Action, presentationModel: ActionPresentationModel, isEnabled: Binding<Bool>, onOpenAI: (() -> Void)? = nil) {
         self.action = action
-        self._disabledActionIDs = disabledActionIDs
+        self.presentationModel = presentationModel
+        self.isEnabled = isEnabled
         self.onOpenAI = onOpenAI
     }
 
@@ -592,40 +646,7 @@ struct ActionRowView: View {
         action.chrome.launchesAI
     }
 
-    var isEnabled: Binding<Bool> {
-        if isAITools {
-            return Binding<Bool>(
-                get: { aiManager.isAIEnabled },
-                set: { aiManager.isAIEnabled = $0 }
-            )
-        }
-        if isAI {
-            return Binding<Bool>(
-                get: { aiManager.preset(forActionID: action.id)?.isEnabled ?? false },
-                set: { enabled in
-                    guard var preset = aiManager.preset(forActionID: action.id) else { return }
-                    preset.isEnabled = enabled
-                    aiManager.updatePreset(preset)
-                }
-            )
-        }
-        return Binding<Bool>(
-            get: { !disabledActionIDs.contains(action.id) },
-            set: { enabled in
-                if enabled {
-                    disabledActionIDs.remove(action.id)
-                } else {
-                    disabledActionIDs.insert(action.id)
-                }
-            }
-        )
-    }
-    
     @State private var showingConfigSheet = false
-    
-    private var presentationModel: ActionPresentationModel {
-        ActionCustomizationManager.shared.presented(action, surface: .table)
-    }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -674,7 +695,7 @@ struct ActionRowView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.small)
-                    .accessibilityLabel("Enable \(action.displayTitle)")
+                    .accessibilityLabel("Enable \(presentationModel.title)")
                 
                 // Edit / Configure Button. AI Tools launcher rows get a gear that opens the AI tab
                 // (where `isAIEnabled` lives); AI preset rows get none; everything else edits via sheet.

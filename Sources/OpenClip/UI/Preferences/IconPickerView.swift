@@ -246,21 +246,33 @@ struct IconifySVGView: View {
             }
         }
         .task(id: iconId) {
-            image = await fetchSVGImage(iconId: iconId)
+            if let box = await fetchSVGImage(iconId: iconId) {
+                image = box.image
+            }
         }
     }
 
-    private func fetchSVGImage(iconId: String) async -> NSImage? {
-        if let cached = await IconSVGCache.shared.get(iconId) { return cached }
+    /// Fetches and decodes an Iconify SVG entirely off the main actor: `nonisolated` runs on the
+    /// cooperative thread pool, `URLSession` performs the network I/O without blocking the UI, and
+    /// the SVG decode (synchronous CPU work) also happens off-main. Previously `Data(contentsOf:)`
+    /// blocked the main thread for the whole fetch on the view's main-actor task.
+    private nonisolated func fetchSVGImage(iconId: String) async -> IconImageBox? {
+        if let cached = await IconSVGCache.shared.get(iconId) { return IconImageBox(image: cached) }
 
         let parts = iconId.split(separator: ":", maxSplits: 1)
         guard parts.count == 2,
-              let url = URL(string: "https://api.iconify.design/\(parts[0])/\(parts[1]).svg"),
-              let data = try? Data(contentsOf: url) else {
+              let url = URL(string: "https://api.iconify.design/\(parts[0])/\(parts[1]).svg") else {
             return nil
         }
 
-        // Use SDImageSVGCoder to decode raw SVG data into an NSImage
+        let data: Data
+        do {
+            (data, _) = try await URLSession.shared.data(from: url)
+        } catch {
+            return nil
+        }
+
+        // Use SDImageSVGCoder to decode raw SVG data into an NSImage (off the main actor)
         guard let decoded = SDImageSVGCoder.shared.decodedImage(with: data, options: nil) else {
             return nil
         }
@@ -268,11 +280,18 @@ struct IconifySVGView: View {
         // Set as template so AppKit / SwiftUI renders it as a white vector mask
         decoded.isTemplate = true
         await IconSVGCache.shared.set(iconId, image: decoded)
-        return decoded
+        return IconImageBox(image: decoded)
     }
 }
 
 // MARK: - Icon Cache Actor
+
+/// Boxes a decoded icon so it can cross the actor boundary after off-main decoding. `NSImage` is
+/// not `Sendable`, but the image is fully decoded off-main and only handed to the main-actor view
+/// to render, so this transfer is safe.
+private struct IconImageBox: @unchecked Sendable {
+    let image: NSImage
+}
 
 actor IconSVGCache {
     static let shared = IconSVGCache()

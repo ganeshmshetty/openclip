@@ -64,6 +64,7 @@ public class PopupWindowController {
         // A fresh show is an intentional placement: never re-anchor it (stale search-mode pinning
         // must not correct the new frame). enterSearch() re-enables pinning for growth.
         panel.pinBottomEdgeOnResize = false
+        panel.recenterXOnResize = false
 
         // Pre-compute card direction from real screen position
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
@@ -123,6 +124,9 @@ public class PopupWindowController {
         panel.contentView?.layoutSubtreeIfNeeded()
         let size = sanitizedPopupSize(panel.contentView?.fittingSize)
         positionPanel(panel, size: size, for: context)
+        // Placement is fixed; any subsequent content-driven width change (search palette,
+        // pagination) must re-center rather than drift off the cursor.
+        panel.recenterXOnResize = true
         panel.orderFront(nil)
         
         setupMonitors()
@@ -318,7 +322,8 @@ public class PopupWindowController {
     /// Resize the bar/search panel, keeping the field's edge fixed so entering search mode never
     /// jumps the popup. With results below the field the field is at the palette top (anchor the top
     /// edge, grow down); with results above the field the field is at the palette bottom (anchor the
-    /// bottom edge, grow up).
+    /// bottom edge, grow up). Horizontal re-centering is handled by PopupPanel.setFrame
+    /// (`recenterXOnResize`), which is the single funnel the hosting view's auto-resize also uses.
     private func resizePanel(to proposedSize: CGSize) {
         guard let panel, panel.isVisible else { return }
         var size = sanitizedPopupSize(proposedSize)
@@ -331,21 +336,14 @@ public class PopupWindowController {
         size.height = min(size.height, Constants.searchMaxHeight)
         let current = panel.frame.size
         if abs(current.width - size.width) < 1, abs(current.height - size.height) < 1 { return }
-        // Keep the popup centered on the cursor's release X across width changes (search palette,
-        // pagination) so the bar never drifts left/right of the cursor.
-        let x = PopupPositioner.centeredX(
-            releaseX: currentContext?.cursorPosition.x ?? panel.frame.midX,
-            width: size.width,
-            screenBounds: screenBounds
-        )
         if modeStore.searchResultsAbove {
             // Field at the palette bottom: keep the bottom edge fixed, grow upward.
-            panel.setFrame(CGRect(x: x, y: panel.frame.minY,
+            panel.setFrame(CGRect(x: panel.frame.minX, y: panel.frame.minY,
                                   width: size.width, height: size.height), display: true)
         } else {
             // Field at the palette top: keep the top edge fixed, grow downward.
             let newOriginY = panel.frame.maxY - size.height
-            panel.setFrame(CGRect(x: x, y: newOriginY,
+            panel.setFrame(CGRect(x: panel.frame.minX, y: newOriginY,
                                   width: size.width, height: size.height), display: true)
         }
     }

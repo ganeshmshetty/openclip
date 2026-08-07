@@ -58,9 +58,12 @@ public struct PopupView: View {
     @AppStorage("completionCopyToClipboard") private var completionCopyToClipboard: Bool = false
     
     @State private var currentPage = 0
-    /// The hover state this bar observes. The real popup uses the shared instance; the
-    /// static preview passes its own so the two never affect each other.
-    @ObservedObject private var hoverState: PopupHoverState
+    /// The hover state this bar reads. Deliberately *not* `@ObservedObject`: `location` publishes at
+    /// event-monitor rate on every mouse move, and observing the whole object re-evaluates the entire
+    /// body tree per move. Instead the view holds it unobserved and subscribes only to
+    /// `hoverState.$location` via `.onReceive`, so `@State hoveredTarget` changes only when the
+    /// hit-test result actually changes.
+    private let hoverState: PopupHoverState
     /// The mode this bar observes: the real popup uses the store injected by
     /// PopupWindowController; the static preview passes a throwaway store.
     @ObservedObject private var modeStore: PopupModeStore
@@ -76,12 +79,16 @@ public struct PopupView: View {
     /// Captured once when the popup appears — never re-read from mouse location to avoid jitter.
     @State private var aiCardAboveBar: Bool = false
     @State private var glowOffset: CGFloat = -1.0
+    /// Completions are computed exactly once per show — the selection text is fixed for this view's
+    /// lifetime — and cached, so NSSpellChecker dictionary work never runs inside `body`.
+    @State private var cachedCompletions: [String]
 
     private let buttonWidth: CGFloat = 36
     private let chevronWidth: CGFloat = 26
     private let pageSize = 7
 
 
+    @MainActor
     public init(
         actions: [any Action],
         context: ActionContext,
@@ -111,21 +118,26 @@ public struct PopupView: View {
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
         self.isStatic = isStatic
-        self._hoverState = ObservedObject(wrappedValue: hoverState)
+        self.hoverState = hoverState
         self._modeStore = ObservedObject(wrappedValue: modeStore)
         self.onEnterSearch = onEnterSearch
         self.onExitSearch = onExitSearch
         self._aiCardAboveBar = State(initialValue: initialAICardAboveBar)
+        self._cachedCompletions = State(initialValue: Self.resolveCompletions(actions: actions, context: context))
     }
 
-    private var availableCompletions: [String] {
+    /// Resolves the inline completion words once per show (the selection text never changes for the
+    /// view's lifetime), so the bar can derive `hasCompletions`/`inCompletionMode` from a single
+    /// cached value instead of re-running NSSpellChecker work on every body evaluation.
+    @MainActor
+    private static func resolveCompletions(actions: [any Action], context: ActionContext) -> [String] {
         guard let provider = actions.first(where: { $0 is any WordCompletionProviding }) as? any WordCompletionProviding,
               provider.isEnabled(for: context) else { return [] }
         return provider.fetchCompletions(for: context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     private var hasCompletions: Bool {
-        return !availableCompletions.isEmpty
+        return !cachedCompletions.isEmpty
     }
 
     private var inCompletionMode: Bool {
@@ -432,7 +444,7 @@ public struct PopupView: View {
             }
             
             // Horizontal Completion Word Items
-            let list = availableCompletions
+            let list = cachedCompletions
             ForEach(Array(list.enumerated()), id: \.offset) { index, word in
                 let isLast = index == list.count - 1
                 let isHovered = hoveredTarget == .completion(index)
@@ -476,6 +488,7 @@ public struct PopupView: View {
             // the paged actions so it always sits at the far-right edge on every page.
             let isHovered = hoveredTarget == .search
             let affordanceForeground = PopupThemeModel.restForeground(for: effectiveTheme)
+            let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
             Button {
                 onEnterSearch()
             } label: {
@@ -484,6 +497,15 @@ public struct PopupView: View {
                     .foregroundColor(isHovered ? .white : affordanceForeground)
                     .frame(width: buttonWidth, height: 28)
                     .background(isHovered ? Color.accentColor : Color.clear)
+                    // Pagination chevrons sit between the last action and this glyph; without a
+                    // divider the command icon would appear glued to the chevrons.
+                    .overlay(alignment: .leading) {
+                        if (hasLeftChevron || hasRightChevron) && !isHovered {
+                            Rectangle()
+                                .fill(dividerColor)
+                                .frame(width: 0.6, height: 28)
+                        }
+                    }
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -627,7 +649,11 @@ public struct PopupView: View {
 
     @ViewBuilder
     private func chevronButton(systemImage: String, label: String, action: @escaping () -> Void) -> some View {
-        let isHovered = hoveredTarget == .chevron
+        // Each chevron gets its own hover target keyed by its glyph, so hovering the
+        // pagination right/left chevrons never highlights the completion-mode up chevron
+        // (or the completion toggle) and vice-versa.
+        let target: PopupHoverTarget = .chevron(systemImage)
+        let isHovered = hoveredTarget == target
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
@@ -638,9 +664,9 @@ public struct PopupView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
-        .popupHoverTarget(.chevron)
+        .popupHoverTarget(target)
         .onHover { isHovering in
-            useLocalHoverFallback(for: .chevron, isHovering: isHovering)
+            useLocalHoverFallback(for: target, isHovering: isHovering)
         }
     }
 
@@ -715,7 +741,7 @@ public struct PopupView: View {
                 }
             }
         case .local(let url):
-            if let nsImage = NSImage(contentsOf: url) {
+            if let nsImage = LocalIconCache.shared.image(for: url) {
                 Image(nsImage: nsImage).resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
             } else {
                 Image(systemName: "exclamationmark.triangle")
@@ -740,7 +766,7 @@ public final class PopupHoverState: ObservableObject {
 private enum PopupHoverTarget: Hashable {
     case action(Int)
     case completion(Int)
-    case chevron
+    case chevron(String)
     case search
 }
 
