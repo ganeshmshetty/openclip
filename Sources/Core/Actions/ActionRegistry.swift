@@ -65,8 +65,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     }
 
     private func builtinSource(_ action: any Action) -> Bool {
-        if case .builtin = action.chrome.source { return true }
-        return false
+        ActionIdentity.isBuiltin(action)
     }
     
     public func moveActions(from source: IndexSet, to destination: Int) {
@@ -108,7 +107,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
             // AI preset actions are never bar rows: the reorderable `builtin.aiTools` action
             // (chrome.launchesAI) is the popup's AI entry, so presets must not flood the
             // paginated bar even when enabled.
-            if case .ai = action.chrome.source {
+            if ActionIdentity.isAIPreset(action) {
                 return false
             }
             // Clipboard fallback is not a live selection: Copy/Cut (and any future action that
@@ -121,7 +120,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
             }
             // Whole-package disable: an action whose chrome source names a disabled package
             // is hidden before per-action visibility runs.
-            if case .extensionPkg(let packageID) = action.chrome.source, disabledPackages.contains(packageID) {
+            if let packageID = ActionIdentity.extensionPackageID(of: action), disabledPackages.contains(packageID) {
                 return false
             }
             if context.selection.appPolicy.denyFormatting && action.isFormatting {
@@ -158,7 +157,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     /// context, or group filtering — sub-actions appear individually, flat. Group rows remain
     /// (their sub-actions are now reachable directly from the palette).
     public var searchCatalog: [any Action] {
-        actions.filter { !$0.chrome.launchesAI && $0.id != "builtin.completion" }
+        actions.filter { !$0.chrome.launchesAI && !ActionIdentity.isCompletionPseudoAction($0) }
     }
 }
 

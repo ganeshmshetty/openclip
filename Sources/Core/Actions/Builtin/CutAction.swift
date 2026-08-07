@@ -7,7 +7,6 @@ import Foundation
 public struct CutAction: ConfigurableAction {
     public let id = "builtin.cut"
     public let title = "Cut"
-    public let configurationViewID = "builtin.cut"
     public let preferenceIconName = "scissors"
     public let icon = ActionIcon.text("Cut")
     

@@ -37,8 +37,8 @@ public struct PopupView: View {
     /// preview never reacts to (or leaks into) the real popup's shared hover state.
     private let isStatic: Bool
 
-    @AppStorage("popupTheme") private var selectedTheme: String = "classic"
-    @AppStorage("popupThemeColor") private var themeColor: String = "system"
+    @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
+    @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
     @Environment(\.colorScheme) private var colorScheme
 
     private var themeCategory: PopupThemeModel.Category {
@@ -57,7 +57,7 @@ public struct PopupView: View {
         return PopupThemeModel.classicToken(appearance: themeColor, systemIsDark: colorScheme == .dark)
     }
     
-    @AppStorage("completionCopyToClipboard") private var completionCopyToClipboard: Bool = false
+    @AppStorage(SettingKey.completionCopyToClipboard.name) private var completionCopyToClipboard: Bool = SettingKey.completionCopyToClipboard.defaultValue
     
     @State private var currentPage = 0
     /// The hover state this bar reads. Deliberately *not* `@ObservedObject`: `location` publishes at
@@ -153,17 +153,19 @@ public struct PopupView: View {
         return hasCompletions && isShowingCompletions
     }
 
-    /// Group row IDs (chrome stamps `.showSubActions`); sub-actions live under `\(groupID).\(subID)`.
-    private var groupIDs: [String] {
-        actions.compactMap { $0.chrome.popupBehavior == .showSubActions ? $0.id : nil }
-    }
-
-    /// Bar rows: everything except the inline completion pseudo-action and any group sub-action.
-    /// Sub-action membership follows the ID-prefix convention (no parentGroupID marker).
+    /// Bar rows: everything except the inline completion pseudo-action and any action that some
+    /// `SubActionProviding` row resolves as a child (group sub-actions, AI presets). Membership is
+    /// resolver/protocol-driven — the view never re-derives id-prefix conventions.
     private var displayActions: [any Action] {
-        actions.filter { action in
-            guard action.id != "builtin.completion" else { return false }
-            return !groupIDs.contains { action.id.hasPrefix($0 + ".") }
+        let resolver = SubActionResolver()
+        let subActionIDs = Set(
+            actions.flatMap { parent in
+                resolver.subActions(of: parent, in: actions).map(\.id)
+            }
+        )
+        return actions.filter { action in
+            guard !ActionIdentity.isCompletionPseudoAction(action) else { return false }
+            return !subActionIDs.contains(action.id)
         }
     }
 
@@ -763,62 +765,5 @@ public struct PopupView: View {
             Text(text)
                 .font(.system(size: 13, weight: .medium))
         }
-    }
-}
-
-@MainActor
-public final class PopupHoverState: ObservableObject {
-    public static let shared = PopupHoverState()
-
-    @Published public var location: CGPoint?
-    @Published public var usesGlobalMouseMonitoring = false
-
-    public init() {}
-}
-
-private enum PopupHoverTarget: Hashable {
-    case action(Int)
-    case completion(Int)
-    case chevron(String)
-    case search
-}
-
-private struct PopupHoverFramePreferenceKey: PreferenceKey {
-    static let defaultValue: [PopupHoverTarget: CGRect] = [:]
-
-    static func reduce(value: inout [PopupHoverTarget: CGRect], nextValue: () -> [PopupHoverTarget: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
-    }
-}
-
-private struct PopupContentSizePreferenceKey: PreferenceKey {
-    static let defaultValue: CGSize = .zero
-
-    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
-        value = nextValue()
-    }
-}
-
-private extension View {
-    func popupHoverTarget(_ target: PopupHoverTarget) -> some View {
-        background {
-            GeometryReader { proxy in
-                Color.clear.preference(
-                    key: PopupHoverFramePreferenceKey.self,
-                    value: [target: proxy.frame(in: .named("popupHoverSpace"))]
-                )
-            }
-        }
-    }
-
-    /// Uses the OS `.help()` tooltip unless the action has a hover preview, in which case the
-    /// preview strip replaces it (avoids double tooltips on PreviewProviding actions).
-    @MainActor
-    func applyContentTooltip(for action: any Action, fallback: String) -> some View {
-        let usesPreviewStrip = action.gesturePolicy.hoverPreview
-        if usesPreviewStrip {
-            return AnyView(self.help(""))
-        }
-        return AnyView(self.help(fallback))
     }
 }

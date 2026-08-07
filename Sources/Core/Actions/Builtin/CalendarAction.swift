@@ -8,7 +8,6 @@ public struct CalendarAction: ConfigurableAction {
     public let id = "builtin.calendar"
     public let title = "Add Event"
     public let icon = ActionIcon.symbol("calendar.badge.plus")
-    public let configurationViewID = "builtin.calendar"
     public let preferenceIconName = "calendar.badge.plus"
 
     public var actionOptions: [ExtensionOption] {

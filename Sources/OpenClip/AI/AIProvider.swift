@@ -69,6 +69,11 @@ enum AIRequestSupport {
     /// Seconds before network AI calls time out.
     static let timeoutInterval: TimeInterval = 30
 
+    /// System role/instruction every provider receives: perform the requested edit on the user's
+    /// text and wrap the final result in `<result>...</result>` tags (which `extractResultText`
+    /// strips). Defined once so the cloud and local providers can't drift.
+    static let systemPrompt = "You are an inline text editing tool. Perform the requested task on the user's text and wrap your final result inside <result>...</result> tags."
+
     /// Query-value encoding that escapes `&`, `=`, `?`, etc. (stricter than `.urlQueryAllowed`).
     static var queryValueAllowed: CharacterSet {
         Constants.queryValueAllowed

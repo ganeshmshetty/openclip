@@ -54,7 +54,7 @@ public struct GroupAction: Action, SubActionProviding {
     public func subActions(in catalog: [any Action]) -> [any Action] {
         catalog.filter { action in
             guard action.id != self.id, action.id.hasPrefix(self.id + ".") else { return false }
-            return !action.chrome.launchesAI && action.id != "builtin.completion"
+            return !action.chrome.launchesAI && !ActionIdentity.isCompletionPseudoAction(action)
         }
     }
 }

@@ -11,11 +11,10 @@ areas; stale debt notes are worse than none.
 
 - The typed settings abstraction is `SettingsStore` + `SettingKey<T>` (see `Sources/Core/Settings/`).
   New settings code must route through it.
-- **Current reality:** `UserDefaults.standard` is still called directly in ~8 App-target call
-  sites: `AppDelegate` ×1 (onboarding flag), `AIServiceManager` ×2 (keychain migration),
-  `OnboardingView` ×1, `LaunchAtLoginManager` ×4 (startAtLogin fallback + persistence). Plus the
-  AI-config/theme `@AppStorage` surface (`AIServiceManager`, `ActionConfigSheet`, popup theme,
-  `completionCopyToClipboard`, `startAtLogin`). Migrating these is ongoing — **don't add new ones.**
+- **AI-config `@AppStorage` surface remains** (`AIServiceManager` keys), and `completionCopyToClipboard`
+  / `startAtLogin` / popup theme still read via `@AppStorage`, but the theme keys (`popupTheme`,
+  `popupThemeColor`) now reference `SettingKey` definitions instead of raw literals. Migrating to
+  `SettingsStore` is ongoing — **don't add new direct call sites.**
 - **Secrets live in the Keychain, not UserDefaults.** Sensitive credentials (the cloud AI API key)
   must use `KeychainStore` (generic-password `SecItem` wrapper, `kSecAttrAccessibleAfterFirstUnlock`).
   `AIServiceManager.cloudAPIKey` is `@Published`, backed by `KeychainStore` (account `aiCloudAPIKey`);
@@ -25,10 +24,11 @@ areas; stale debt notes are worse than none.
   the Preferences toggle all read/write through `DefaultSettingsStore`. Builtin store-backed actions
   (`CalculateAction`, `CalendarAction`, `SearchAction`) accept an injected `SettingsStore` via
   `BuiltinRegistry.makeCoreBuiltins(settingsStore:)`.
-- **`ActionConfigSheet` still binds raw keys** (`@AppStorage("action.search.url")`,
-  `@AppStorage("action.calculate.mode")`, `"action.calculate.useText"`) that duplicate `SettingKey`
-  names. Functionally consistent (same underlying keys), but the config sheets are a Phase-5
-  consolidation target.
+- **`ActionConfigSheet` is gone** (dead code — zero presenting call sites; its `useText` keys were
+  write-only). Removing it also dropped the only UI that wrote `SettingKey.searchURL` /
+  `SettingKey.calculateMode`; the actions still read those keys (defaults apply), so a future
+  Preferences surface for search-engine / calculate-result-mode would restore configurability.
+  `ConfigurableAction` keeps only `preferenceIconName` (used by `tableIcon`/`rowIcon` icon fallback).
 - **Dynamic action option keys** (`JavaScriptAction`, `AppleScriptAction`): the target pattern is
   `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. The JS
   path already reads through the injected `optionStore` (`OpenClipJSHost` reads options read-only via
@@ -53,8 +53,9 @@ areas; stale debt notes are worse than none.
 
 ## Presentation / Rule Holes
 
-- **One legacy `switch action.id` fallback** remains in `ActionCustomizationManager.tableIcon()`
-  (~`ActionCustomizationManager.swift:101`). Treat it as debt, not a pattern — don't add more.
+- **No `switch action.id` fallback remains.** `ActionCustomizationManager.tableIcon()` resolves via
+  `ConfigurableAction.preferenceIconName` — the legacy block is gone. Keep it that way: never add
+  id-string switches in presentation.
 
 ## Action-Search Palette & Popup Growth
 
@@ -85,9 +86,10 @@ areas; stale debt notes are worse than none.
   returns nil (never traps) and properly supports `%` modulo. Regression coverage in
   `Tests/OpenClipTests/CalculateActionTests.swift`.
 - **Search rows render icons strictly `[icon | text]`.** A `.text` icon in the icon column would
-  duplicate the title, so `PopupSearchView.rowIcon` falls back to `ConfigurableAction.preferenceIconName`
-  (`PopupSearchView.swift:214`); Iconify-format symbols (`prefix:name`) render via `AnyIconView`
-  matching the bar (`:230`).
+  duplicate the title, so `PopupSearchView.rowIcon` falls back to `ConfigurableAction.preferenceIconName`; all four
+  `ActionIcon` cases render through the shared `ActionIconView` (`Sources/OpenClip/UI/Icons/ActionIconView.swift`),
+  including Iconify-format symbols (`prefix:name`). The popup bar keeps its own `iconView(for:)`
+  (`PopupView.swift`) because text icons there need natural width + horizontal padding, not a fixed frame.
 - **Search sizing constants:** `Constants.searchMaxRows` (5), `searchResultRowHeight` (32),
   `searchPeekRowFraction` (0.5), `searchMaxHeight` (240) —
   `Sources/Core/Selection/Constants.swift:23`.

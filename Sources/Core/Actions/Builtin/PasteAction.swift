@@ -7,7 +7,6 @@ import Foundation
 public struct PasteAction: ConfigurableAction {
     public let id = "builtin.paste"
     public let title = "Paste"
-    public let configurationViewID = "builtin.paste"
     public let preferenceIconName = "doc.on.clipboard"
     public let icon = ActionIcon.text("Paste")
     

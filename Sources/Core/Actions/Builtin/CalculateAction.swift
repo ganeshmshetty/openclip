@@ -9,7 +9,6 @@ import Foundation
 public struct CalculateAction: ConfigurableAction, ResultContentProviding {
     public let id = "builtin.calculate"
     public var title: String { "Calculate" }
-    public let configurationViewID = "builtin.calculate"
     public let preferenceIconName = "equal.circle"
     public let icon = ActionIcon.symbol("equal.circle")
     
