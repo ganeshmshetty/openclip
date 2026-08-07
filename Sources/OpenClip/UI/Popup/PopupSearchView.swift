@@ -24,6 +24,11 @@ public struct PopupSearchView: View {
     public let scope: SearchScope?
     /// Called when the user drops the current scope (Esc with an empty query) back to the full list.
     public let onExitScope: @MainActor () -> Void
+    /// Recency counters (action ID → MRU counter) captured at palette entry; breaks ties below
+    /// match quality. Constant for the palette session. See `ActionUsageStore`.
+    public let usageRecency: [String: Int]
+    /// Called when an action is actually run, so the controller can record usage.
+    public let onActionPerformed: (@MainActor (String) -> Void)?
 
     @State private var query = ""
     @State private var selectedIndex = 0
@@ -81,23 +86,27 @@ public struct PopupSearchView: View {
         context: ActionContext,
         resultsAbove: Bool,
         scope: SearchScope? = nil,
+        usageRecency: [String: Int] = [:],
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onExit: @escaping @MainActor () -> Void,
         onExitScope: @escaping @MainActor () -> Void = {},
-        onRunAI: @escaping @MainActor (String) -> Void = { _ in }
+        onRunAI: @escaping @MainActor (String) -> Void = { _ in },
+        onActionPerformed: (@MainActor (String) -> Void)? = nil
     ) {
         self.catalog = catalog
         self.context = context
         self.resultsAbove = resultsAbove
         self.scope = scope
+        self.usageRecency = usageRecency
         self.onResult = onResult
         self.onExit = onExit
         self.onExitScope = onExitScope
         self.onRunAI = onRunAI
+        self.onActionPerformed = onActionPerformed
         // Index once at entry: the palette is recreated on every search entry (mode + scope
         // transition together), so the current catalog/scope are captured here. The initial query
         // is empty, so the ranked results are just the full index in order.
-        let initialIndex = Self.buildIndex(catalog: catalog, scope: scope)
+        let initialIndex = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency)
         _searchIndex = State(initialValue: initialIndex)
         _results = State(initialValue: initialIndex)
     }
@@ -312,6 +321,7 @@ public struct PopupSearchView: View {
             onRunAI(action.id)
             return
         }
+        onActionPerformed?(action.id)
         Task { @MainActor in
             do {
                 // Same match plumbing as the bar's perform path: thread the visibility match into
@@ -330,14 +340,15 @@ public struct PopupSearchView: View {
 
     /// Indexes the palette's candidates (scoped children when scoped, the full catalog otherwise)
     /// once per palette entry. Runs only when the catalog/scope inputs change, never per body eval.
-    private static func buildIndex(catalog: [any Action], scope: SearchScope?) -> [ActionSearchIndex] {
+    private static func buildIndex(catalog: [any Action], scope: SearchScope?, usageRecency: [String: Int]) -> [ActionSearchIndex] {
         let candidates = scope?.children ?? catalog
         return candidates.map { action in
             ActionSearchIndex(
                 id: action.id,
                 title: action.displayTitle,
                 keywords: Self.searchKeywords(for: action),
-                action: action
+                action: action,
+                usageRecency: usageRecency[action.id] ?? 0
             )
         }
     }
@@ -346,7 +357,7 @@ public struct PopupSearchView: View {
     /// palette entry (init), so this is a defensive guard for scope transitions that keep
     /// `.search` mounted. The catalog is captured at entry; the palette is ephemeral.
     private func rebuildSearchIndex() {
-        let index = Self.buildIndex(catalog: catalog, scope: scope)
+        let index = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency)
         searchIndex = index
         results = ActionSearch.search(query, in: index)
     }
