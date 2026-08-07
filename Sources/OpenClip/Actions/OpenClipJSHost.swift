@@ -110,6 +110,24 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
     public func run(_ request: Request) async throws -> ActionResult {
         let session = self.session
+
+        // Synchronous evaluations cannot be interrupted once started (JSVirtualMachine.invalidate is
+        // gone in modern SDKs), so a CPU-bound sync script permanently parks a cooperative-pool
+        // thread. Cap in-flight sync evaluations and refuse new ones at the cap, logging at .error.
+        // Async evaluations are NOT gated — the watchdog + promise pump loop bounds them.
+        let gate = OpenClipJSHost.syncEvaluationGate
+        if !request.isAsync {
+            guard gate.tryEnter() else {
+                Log.js.error("Refusing synchronous JS evaluation for action \(request.actionID, privacy: .public): \(gate.inFlightCount) in-flight sync evaluations at cap")
+                throw NSError(
+                    domain: Constants.actionErrorDomain,
+                    code: Int(Constants.actionErrorCode) + 2,
+                    userInfo: [NSLocalizedDescriptionKey: "Too many in-flight script evaluations; another script may be stuck."]
+                )
+            }
+            defer { gate.leave() }
+        }
+
         // Note: reference static members via the explicit type name, not `Self` — `Self.X` inside a
         // Task.detached closure triggers a Swift 6 region-based-isolation checker bug ("pattern that
         // the region-based isolation checker does not understand how to check").
@@ -672,6 +690,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
                 code: Int(Constants.actionErrorCode) + 1,
                 userInfo: [NSLocalizedDescriptionKey: "Script timed out after \(Int(seconds)) seconds"])
     }
+
+    /// Bounds in-flight synchronous evaluations across the whole host (all instances).
+    private static let syncEvaluationGate = SyncEvaluationGate(capacity: Constants.maxConcurrentSyncScriptEvaluations)
 }
 
 /// Thread-safe flag set by the watchdog when the execution budget is exceeded (mirrors the
@@ -690,6 +711,39 @@ private final class TimeoutFlag: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return timedOut
+    }
+}
+
+/// Bounds the number of concurrent synchronous JS evaluations. A stuck sync script holds its slot
+/// forever (it cannot be interrupted), so `tryEnter` refuses new evaluations once the cap is
+/// reached instead of leaking more cooperative-pool threads.
+private final class SyncEvaluationGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private let capacity: Int
+    private var inFlight = 0
+
+    init(capacity: Int) {
+        self.capacity = capacity
+    }
+
+    func tryEnter() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard inFlight < capacity else { return false }
+        inFlight += 1
+        return true
+    }
+
+    func leave() {
+        lock.lock()
+        defer { lock.unlock() }
+        inFlight -= 1
+    }
+
+    var inFlightCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return inFlight
     }
 }
 

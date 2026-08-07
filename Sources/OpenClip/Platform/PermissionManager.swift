@@ -61,17 +61,20 @@ public final class PermissionManager: ObservableObject {
 
     /// Reset TCC permission database entry for OpenClip if macOS TCC is caching a stale signature.
     public func resetTCCAndRelaunch() {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-        process.arguments = ["reset", "Accessibility", "com.openclip.OpenClip"]
-        do {
-            try process.run()
-        } catch {
-            Log.permissions.error("Failed to launch tccutil reset for Accessibility permission: \(error.localizedDescription)")
+        // Run tccutil asynchronously — never `waitUntilExit` on the main actor. The app relaunches
+        // regardless so TCC re-evaluates the running binary.
+        Task {
+            do {
+                _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+                    executableURL: URL(fileURLWithPath: "/usr/bin/tccutil"),
+                    arguments: ["reset", "Accessibility", "com.openclip.OpenClip"],
+                    environment: [:]
+                ))
+            } catch {
+                Log.permissions.error("Failed to run tccutil reset for Accessibility permission: \(error.localizedDescription)")
+            }
+            relaunchApp()
         }
-        process.waitUntilExit()
-        
-        relaunchApp()
     }
 
     /// Relaunch the app so macOS TCC registers the new permission for the running process.

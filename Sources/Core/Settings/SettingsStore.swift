@@ -14,6 +14,11 @@ public protocol SettingsStore: AnyObject, Sendable {
 public final class DefaultSettingsStore: SettingsStore, @unchecked Sendable {
     public static let shared = DefaultSettingsStore()
     private let userDefaults: UserDefaults
+    // Combine's PassthroughSubject is not thread-safe: `set` may be called from any thread, so all
+    // sends are serialized under `lock`. UserDefaults itself is thread-safe, so `get`/`set` reads
+    // and writes stay unlocked. Do not call `set` from within a `publisher` subscriber (the lock is
+    // non-recursive and the send synchronously invokes subscribers).
+    private let lock = NSLock()
     private let subject = PassthroughSubject<String, Never>()
 
     public init(userDefaults: UserDefaults = .standard) {
@@ -37,7 +42,9 @@ public final class DefaultSettingsStore: SettingsStore, @unchecked Sendable {
         } else {
             userDefaults.set(value, forKey: key.name)
         }
+        lock.lock()
         subject.send(key.name)
+        lock.unlock()
     }
 
     public func publisher<T>(for key: SettingKey<T>) -> AnyPublisher<T, Never> {

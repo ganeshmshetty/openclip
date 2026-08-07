@@ -76,6 +76,7 @@
 		525E21DA64B3EB439A493E1C /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = A589B0B4E6EC4ACB11944E7D /* SDWebImageSwiftUI */; };
 		52BEF3963FD28FB56E10A235 /* PopupThemeSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81EC3C5F8E4224A4395D314 /* PopupThemeSelector.swift */; };
 		57A9F680F5AF294AAB1B57B9 /* ActionCoordinatorStartupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F2DA7AE2DE334E1A769A2E /* ActionCoordinatorStartupTests.swift */; };
+		5855A29EBF520A06EC21B4CE /* AppleScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99CB584EDBA193B0B3B8A5BB /* AppleScriptRunner.swift */; };
 		589E69527B1AD912FFEF303B /* CalculateAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905AC1128EFCA584DF52AD70 /* CalculateAction.swift */; };
 		58BE8C7D2BB07D46627FA771 /* AITab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309A0ED1613CEB1CF46AFBF8 /* AITab.swift */; };
 		5AA5CDF7845BD9FB36EFFB09 /* ActionSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65E34CA0C5B5A4407209D9F7 /* ActionSearch.swift */; };
@@ -360,6 +361,7 @@
 		95F4335DD4C3C026D8A6AEBA /* TextPlaceholderEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextPlaceholderEngineTests.swift; sourceTree = "<group>"; };
 		962ABA3EFF448F3AB8D26A91 /* ActionConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionConfigSheet.swift; sourceTree = "<group>"; };
 		96CB15CCD795EB9FACAB9904 /* KeychainActionOptionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainActionOptionStore.swift; sourceTree = "<group>"; };
+		99CB584EDBA193B0B3B8A5BB /* AppleScriptRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptRunner.swift; sourceTree = "<group>"; };
 		9ACC606EEF879A9BCA003756 /* ContextualFilteringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextualFilteringTests.swift; sourceTree = "<group>"; };
 		A2EA847B6CB570918B4952D1 /* SubActionResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubActionResolverTests.swift; sourceTree = "<group>"; };
 		A4569F410A617490B0538051 /* TextRetrieving.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRetrieving.swift; sourceTree = "<group>"; };
@@ -516,6 +518,7 @@
 			isa = PBXGroup;
 			children = (
 				BCD2E8E311CD870FA0E955A9 /* AppIdentifying+NSRunningApplication.swift */,
+				99CB584EDBA193B0B3B8A5BB /* AppleScriptRunner.swift */,
 				4D47BAB3F6C14A0AB8D0B870 /* HotkeyManager.swift */,
 				86C9A6B8F1602DED59E0237E /* InstalledAppsScanner.swift */,
 				D179CAE4E0DEF1AD2D31D7DE /* KeychainStore.swift */,
@@ -1138,6 +1141,7 @@
 				7265AF347B73B7E61A597E30 /* AppRulesTab.swift in Sources */,
 				7EDDECF89D21D258E5A00C01 /* AppleIntelligenceProvider.swift in Sources */,
 				2116EFB8D2B6EBA137F5193B /* AppleScriptAction.swift in Sources */,
+				5855A29EBF520A06EC21B4CE /* AppleScriptRunner.swift in Sources */,
 				116E1189C24B6BA4A4BEF8B0 /* BrowserRedirectProvider.swift in Sources */,
 				852D201010BC7079F239A3E2 /* CloudAPIProvider.swift in Sources */,
 				3165370D30624071D8F6E1A4 /* CompletionAction.swift in Sources */,

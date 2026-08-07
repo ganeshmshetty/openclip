@@ -93,6 +93,18 @@ public enum Constants {
     /// preventing a hanging script from leaving the popup spinning forever.
     public static let scriptTimeout: TimeInterval = 30
 
+    /// Hard deadline (seconds) for the direct accessibility text-read path. AXUIElement attribute
+    /// reads can block indefinitely when the frontmost app is unresponsive; the retrieval chain
+    /// races the read against this deadline (mirroring the pasteboard poll deadlines) so the popup
+    /// never hangs on selection retrieval.
+    public static let axReadTimeout: TimeInterval = 0.5
+
+    /// Cap on in-flight synchronous JS evaluations. A CPU-bound synchronous script cannot be
+    /// interrupted in modern JavaScriptCore (JSVirtualMachine.invalidate is gone), so each stuck
+    /// script permanently parks a cooperative-pool thread; refusing new synchronous evaluations
+    /// once this many are in flight keeps thread accumulation bounded.
+    public static let maxConcurrentSyncScriptEvaluations: Int = 4
+
     /// Guards against zip-slip path traversal: true only when `destinationURL`
     /// resolves to a path equal to or strictly inside `baseDirectory`.
     ///

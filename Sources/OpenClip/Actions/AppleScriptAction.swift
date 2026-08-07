@@ -1,8 +1,11 @@
 // AppleScriptAction.swift
 // OpenClip
 //
-// Implements action execution for AppleScript snippets and files using macOS NSAppleScript automation.
-// Enablement and match resolution delegate to the shared ActionVisibility evaluator when rules are attached.
+// Implements action execution for AppleScript snippets and files. Scripts run as killable
+// `osascript` subprocesses via AppleScriptRunner (a bounded off-main strategy) so a hung
+// `tell application` cannot park a cooperative-pool thread; the watchdog reaps it at
+// Constants.scriptTimeout. Enablement and match resolution delegate to the shared ActionVisibility
+// evaluator when rules are attached.
 import Foundation
 import Core
 
@@ -79,19 +82,12 @@ public struct AppleScriptAction: ConfigurableAction {
         \(scriptWithVars)
         """
         
-        return await Task.detached {
-            var errorDict: NSDictionary?
-            if let scriptObject = NSAppleScript(source: fullScript) {
-                let output = scriptObject.executeAndReturnError(&errorDict)
-                if let error = errorDict {
-                    let msg = error[NSAppleScript.errorMessage] as? String ?? "AppleScript error"
-                    return .failure(NSError(domain: "AppleScriptAction", code: 1, userInfo: [NSLocalizedDescriptionKey: msg]))
-                }
-                if let str = output.stringValue, !str.isEmpty {
-                    return .copy(str)
-                }
-            }
-            return .success
-        }.value
+        do {
+            let output = try await AppleScriptRunner.shared.run(fullScript)
+            return output.isEmpty ? .success : .copy(output)
+        } catch {
+            Log.resultHandler.error("AppleScript action \(id, privacy: .public) failed: \(error.localizedDescription)")
+            return .failure(NSError(domain: "AppleScriptAction", code: 1, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]))
+        }
     }
 }
