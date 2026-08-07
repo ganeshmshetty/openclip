@@ -48,7 +48,7 @@ public final class LaunchAtLoginManager: ObservableObject {
                 }
                 UserDefaults.standard.set(enabled, forKey: Constants.startAtLoginKey)
             } catch {
-                print("SMAppService failed to update launch at login status: \(error)")
+                Log.settings.error("SMAppService failed to update launch at login status: \(error.localizedDescription)")
             }
         } else {
             UserDefaults.standard.set(enabled, forKey: Constants.startAtLoginKey)

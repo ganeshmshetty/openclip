@@ -4,6 +4,7 @@
 // Provides unified icon fetching and caching for SF Symbols, open-source icon sets, and SVG images.
 import Foundation
 import SwiftUI
+import Core
 
 public struct IconEntry: Identifiable, Sendable, Hashable {
     /// Iconify format: "prefix:name" e.g. "lucide:zap", OR a plain SF Symbol name e.g. "star.fill"
@@ -120,6 +121,7 @@ public final class UnifiedIconProvider: ObservableObject, Sendable {
         guard let (data, _) = try? await URLSession.shared.data(from: url),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let icons = json["icons"] as? [String] else {
+            Log.icons.warning("Iconify search for '\(query)' returned no usable results")
             return []
         }
         // icons are in "prefix:name" format — perfect, use directly

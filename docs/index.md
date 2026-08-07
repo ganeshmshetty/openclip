@@ -49,6 +49,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Action Coordinator & Registry](architecture/action-coordinator.md) — Central wiring, callback mechanics, and ordering policy.
 - [Text Selection Subsystem](architecture/text-selection.md) — AX monitoring, `MacTextRetriever`, and non-destructive selection handling.
 - [Popup Panel & Positioning Math](architecture/popup-window.md) — `PopupPanel`, static layout math in `PopupPositioner`, and window lifecycle management.
+- [Logging](logging.md) — the single `Log` surface, category table, and per-subsystem filtering workflow.
 
 ### Developer Guide
 - [AGENTS.md — Authoring & Packaging Extensions](developer-guide/AGENTS.md) — **Start here.** Self-contained v2 guide: manifest schema, all action kinds, options, requirements, groups, and the result surface.

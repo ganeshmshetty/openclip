@@ -674,7 +674,11 @@ struct ActionRowView: View {
                     // removing the package/folder that produced the action's id.
                     Button(action: {
                         Task {
-                            try? await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                            do {
+                                try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                            } catch {
+                                Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
+                            }
                         }
                     }) {
                         Image(systemName: "trash")

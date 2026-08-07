@@ -28,10 +28,10 @@ public final class RemoteExtensionInstaller: Sendable {
     ]
     
     public func installFromRemoteURL(_ downloadURL: URL, extensionID: String) async throws -> [any Action] {
-        print("[OpenClip RemoteInstaller] Starting installation for '\(extensionID)'. Initial API URL: \(downloadURL)")
-        
+        Log.extensions.notice("Starting installation for extension '\(extensionID, privacy: .public)'. Initial API URL: \(downloadURL, privacy: .public)")
+
         guard Self.isAllowedSource(downloadURL) else {
-            print("[OpenClip RemoteInstaller] Host not in allowlist: \(downloadURL.host ?? "unknown")")
+            Log.extensions.error("Host not in allowlist: \(downloadURL.host ?? "unknown", privacy: .public)")
             throw NSError(domain: "RemoteExtensionInstaller", code: 400, userInfo: [NSLocalizedDescriptionKey: "Download host is not in the allowed list"])
         }
         
@@ -50,7 +50,7 @@ public final class RemoteExtensionInstaller: Sendable {
         guard await checkURLExists(downloadURL, session: session) else {
             throw NSError(domain: "RemoteExtensionInstaller", code: 404, userInfo: [NSLocalizedDescriptionKey: "Download URL is not reachable: \(downloadURL.absoluteString)"])
         }
-        print("[OpenClip RemoteInstaller] Downloading verified package from: \(downloadURL)")
+        Log.extensions.notice("Downloading verified package from \(downloadURL, privacy: .public)")
         
         let (tempLocalURL, response) = try await session.download(from: downloadURL)
         guard Self.isAllowedResponse(response, allowedHosts: Self.allowedDownloadHosts) else {
@@ -67,7 +67,7 @@ public final class RemoteExtensionInstaller: Sendable {
         
         defer { try? FileManager.default.removeItem(at: zipTempURL) }
         let installedActions = try await ExtensionManager.shared.installExtension(from: zipTempURL)
-        print("[OpenClip RemoteInstaller] Successfully installed extension '\(extensionID)'. Total actions added: \(installedActions.count)")
+        Log.extensions.notice("Successfully installed extension '\(extensionID, privacy: .public)'. Total actions added: \(installedActions.count)")
         return installedActions
     }
     
@@ -89,9 +89,17 @@ public final class RemoteExtensionInstaller: Sendable {
     private nonisolated func checkURLExists(_ url: URL, session: URLSession) async -> Bool {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
-        guard let (_, response) = try? await session.data(for: request),
-              let http = response as? HTTPURLResponse else { return false }
-        return http.statusCode == 200 && Self.isAllowedResponse(response, allowedHosts: Self.allowedDownloadHosts)
+        do {
+            let (_, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                Log.extensions.error("HEAD check for \(url, privacy: .public) returned a non-HTTP response")
+                return false
+            }
+            return http.statusCode == 200 && Self.isAllowedResponse(response, allowedHosts: Self.allowedDownloadHosts)
+        } catch {
+            Log.extensions.error("HEAD check failed for \(url, privacy: .public): \(error.localizedDescription)")
+            return false
+        }
     }
 }
 

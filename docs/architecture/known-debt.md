@@ -103,3 +103,13 @@ areas; stale debt notes are worse than none.
   registry must set `ExtensionManager.shared.onRegister` itself (see
   `GoldenExtensionPlatformTests.setUp`) rather than relying on wiring left behind by an earlier
   test class. Keep using `TestIsolation.reset()` rather than cross-class state.
+
+## Logging
+
+- **Single `Log` surface is in.** `Sources/Core/Log.swift` owns every `os.Logger` category
+  (`settings`, `presentation`, `chrome`, `factory`, `coordinator`, `result-handler`, `shell`, `js`,
+  `selection`, `extensions`, `ai`, `permissions`, `icons`); all `print()` calls are gone. See
+  `docs/logging.md` for the category table and filtering workflow.
+- **Level budget is conservative.** Most messages are `.notice`/`.error`; `.debug` is used for
+  defensive parses and transient network hiccups (filtered out by default in Console).
+- **`chrome` category is reserved but unused** — no popup-window-chrome code logs yet.

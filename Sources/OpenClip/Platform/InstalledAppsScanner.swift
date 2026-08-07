@@ -4,6 +4,7 @@
 // Scans installed macOS applications in system directories to populate application selection interfaces.
 import AppKit
 import Foundation
+import Core
 
 public struct InstalledAppInfo: Identifiable, Sendable, Hashable {
     public var id: String { bundleIdentifier }
@@ -46,7 +47,10 @@ public final class InstalledAppsScanner: ObservableObject {
                 at: dirURL,
                 includingPropertiesForKeys: [.isApplicationKey],
                 options: [.skipsHiddenFiles]
-            ) else { continue }
+            ) else {
+                Log.settings.debug("Could not read installed-apps directory \(dir)")
+                continue
+            }
             
             for fileURL in contents {
                 if fileURL.pathExtension == "app" {

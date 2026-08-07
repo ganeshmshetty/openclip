@@ -115,7 +115,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard alert.runModal() == .alertFirstButtonReturn else { continue }
             
             Task { @MainActor in
-                _ = try? await RemoteExtensionInstaller.shared.installFromRemoteURL(downloadURL, extensionID: extID)
+                do {
+                    _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(downloadURL, extensionID: extID)
+                } catch {
+                    Log.extensions.error("Failed to install extension '\(extID, privacy: .public)' from \(downloadURL, privacy: .public): \(error.localizedDescription)")
+                }
             }
         }
     }
