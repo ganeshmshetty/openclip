@@ -40,8 +40,19 @@ public enum ExtensionManifestStore {
 
     /// Decodes an `ExtensionMetadata` manifest from a file URL, or nil when unreadable/unparseable.
     public static func readManifest(at url: URL) -> ExtensionMetadata? {
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(ExtensionMetadata.self, from: data)
+        try? decodeManifest(at: url)
+    }
+
+    /// Decodes an `ExtensionMetadata` manifest from a file URL, surfacing read/decode failures so
+    /// the loader can log them instead of silently skipping the package.
+    public static func decodeManifest(at url: URL) throws -> ExtensionMetadata {
+        try decodeManifest(from: Data(contentsOf: url))
+    }
+
+    /// Decodes an `ExtensionMetadata` manifest from raw data, so a caller that already holds the
+    /// bytes (e.g. the loader, which also fingerprints them) decodes exactly what it fingerprinted.
+    public static func decodeManifest(from data: Data) throws -> ExtensionMetadata {
+        try JSONDecoder().decode(ExtensionMetadata.self, from: data)
     }
 
     /// Encodes and atomically writes a manifest. The stable formatting (pretty-printed, sorted
