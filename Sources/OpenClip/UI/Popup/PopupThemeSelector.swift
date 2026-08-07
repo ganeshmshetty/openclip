@@ -13,11 +13,12 @@
 // keeps the shared appearance ("system"/"light"/"dark") used by both categories.
 // Legacy values of "popupTheme" resolve via PopupThemeModel.category(fromStored:).
 import SwiftUI
+import Core
 
 @MainActor
 struct PopupThemeSelector: View {
-    @AppStorage("popupTheme") private var theme: String = "classic"
-    @AppStorage("popupThemeColor") private var themeColor: String = "system"
+    @AppStorage(SettingKey.popupTheme.name) private var theme: String = SettingKey.popupTheme.defaultValue
+    @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
 
     private struct AppearanceOption: Identifiable {
         let label: String

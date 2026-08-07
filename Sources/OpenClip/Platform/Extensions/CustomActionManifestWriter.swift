@@ -56,10 +56,7 @@ public struct CustomActionManifestWriter: Sendable {
         let packageDir = directoryURL.appendingPathComponent(action.id)
         try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
         let manifestURL = packageDir.appendingPathComponent(Constants.manifestFileName)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(metadata(for: action))
-        try data.write(to: manifestURL, options: .atomic)
+        try ExtensionManifestStore.writeManifest(metadata(for: action), to: manifestURL)
         return manifestURL
     }
 }

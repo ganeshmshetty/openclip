@@ -35,7 +35,7 @@ thread-safe across instances. Running each script as a killable subprocess keeps
 cooperative-thread pool free: the watchdog terminates the subprocess at `Constants.scriptTimeout`,
 so a stuck script can never wedge a thread forever. Callers that need a tighter budget (e.g. the
 beep-suppression mute, 0.2 s) race the subprocess against their own deadline via a once-resume
-gate (`OnceResume` in `MacTextRetriever.swift`); the subprocess is reaped by its own watchdog.
+gate (`OnceResume` in `Platform/OnceResume.swift`); the subprocess is reaped by its own watchdog.
 
 `MacTextRetriever` (Safari JS selection read, beep suppression) and `AppleScriptAction` both route
 through `AppleScriptRunner`. The two short-timeout helpers in `MacTextRetriever` use

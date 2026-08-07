@@ -16,7 +16,6 @@ public struct JavaScriptAction: ConfigurableAction {
     public let id: String
     public let title: String
     public let icon: ActionIcon
-    public let configurationViewID: String
     public let preferenceIconName: String
     public let scriptCode: String
     public let actionOptions: [ExtensionOption]
@@ -40,7 +39,6 @@ public struct JavaScriptAction: ConfigurableAction {
         self.id = id
         self.title = title
         self.icon = icon
-        self.configurationViewID = id
         self.preferenceIconName = switch icon {
         case .symbol(let name): name
         case .local(let url): url.lastPathComponent

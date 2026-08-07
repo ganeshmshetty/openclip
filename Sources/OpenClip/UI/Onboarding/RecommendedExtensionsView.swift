@@ -15,11 +15,7 @@ public struct RecommendedExtensionsView: View {
     public init() {}
 
     private var installedExtensionCount: Int {
-        coordinator.actions.filter { action in
-            if case .extensionPkg = action.chrome.badge { return true }
-            if case .extensionPkg = action.chrome.source { return true }
-            return false
-        }.count
+        coordinator.actions.filter { ActionIdentity.isExtension($0) }.count
     }
 
     private var recommended: [ExtensionItem] {

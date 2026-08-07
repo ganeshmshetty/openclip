@@ -7,7 +7,6 @@ import Foundation
 public struct CopyAction: ConfigurableAction {
     public let id = "builtin.copy"
     public let title = "Copy"
-    public let configurationViewID = "builtin.copy"
     public let preferenceIconName = "doc.on.doc"
     public let icon = ActionIcon.text("Copy")
     
