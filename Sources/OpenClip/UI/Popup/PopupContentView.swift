@@ -44,8 +44,10 @@ public struct PopupContentView: View {
     /// Hover follows the same mechanism as the search palette and the bar: the AX global-mouse
     /// location hit-tested against registered frames (instant), with an `.onHover` fallback when
     /// global monitoring is unavailable — matching the command-palette hover, not SwiftUI's
-    /// delayed `.onHover`-only path.
-    @ObservedObject private var hoverState = PopupHoverState.shared
+    /// delayed `.onHover`-only path. Deliberately *not* `@ObservedObject`: `location` publishes at
+    /// event-monitor rate, and observing the whole object re-evaluates the entire card body per
+    /// mouse move. Only `hoverState.$location` is subscribed to via `.onReceive`.
+    private let hoverState = PopupHoverState.shared
     @State private var hoverFrames: [CanvasHoverTarget: CGRect] = [:]
     @State private var hoveredTarget: CanvasHoverTarget?
 

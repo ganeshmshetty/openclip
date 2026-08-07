@@ -104,7 +104,7 @@ class StatusBarController {
         let window = NSWindow(contentViewController: controller)
         window.title = "OpenClip Preferences"
         window.setContentSize(NSSize(width: 860, height: 720))
-        window.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.center()

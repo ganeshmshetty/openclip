@@ -107,6 +107,28 @@ final class PopupPanelTests: XCTestCase {
                        "popup bottom edge moved by \(searchFrame.minY - barFrame.minY)pt entering search mode")
     }
 
+    /// Entering search swaps the (variable-width) actions bar for the fixed 280pt palette. The
+    /// hosting view auto-resizes the panel top-anchored, preserving origin.x, so without horizontal
+    /// re-anchoring the popup's center would drift off the cursor. The bar's center must stay fixed.
+    func testSearchModeKeepsHorizontalCenterFixed() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let cursor = CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200)
+        let controller = try shownPanel(for: cursor)
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        pump(0.3)
+        let barCenter = panel.frame.midX
+        XCTAssertGreaterThan(barCenter, 0)
+
+        controller.enterSearch()
+        waitForSearchResize(panel, barHeight: panel.frame.height)
+        let searchCenter = panel.frame.midX
+
+        XCTAssertEqual(searchCenter, barCenter, accuracy: 1.0,
+                       "popup center moved \(searchCenter - barCenter)pt entering search mode")
+    }
+
     /// Exiting search (Escape) must return the bar to the field's spot, not jump it to the palette
     /// top. Results-above case: the field sat at the palette bottom, so the bar's bottom edge must
     /// equal the original bar's bottom edge.

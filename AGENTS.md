@@ -129,14 +129,19 @@ These change behavior — keep them.
 - **`PopupPreview` is a static visual, never a live registry snapshot.** Fixed canonical actions
   (Search/Copy/Cut/Paste/Services) + `alwaysShowAISparkles: true`; passes its own `PopupHoverState()`
   and `isStatic: true` so it never touches the real popup's hover state. Don't reconnect to the registry.
-- **Hover state = one shared singleton + an opt-in static mode.** Real popup observes
+- **Hover state = one shared singleton + an opt-in static mode.** Real popup uses
   `PopupHoverState.shared`; any other `PopupView` gets its own `hoverState:` + `isStatic: true`
-  (early-return in `updateHoveredTarget`/`useLocalHoverFallback`).
+  (early-return in `updateHoveredTarget`/`useLocalHoverFallback`). Views must hold `hoverState` as
+  an unobserved stored property and subscribe only via `.onReceive(hoverState.$location)` — never
+  `@ObservedObject`, because `location` publishes on every mouse move and observing the whole
+  object re-evaluates the entire body tree per move.
 - **Content-driven panel growth re-anchors in `PopupPanel.setFrame`.** The hosting view auto-resizes
   the panel top-anchored with no controller callback (`onContentSizeChange`/`sizingOptions` have no
   effect on this auto-resize); `pinBottomEdgeOnResize` keeps the bottom edge fixed so search results
-  above the field don't shove the popup off the cursor. `show(for:)`/`hide()` clear the pin — don't
-  work around the auto-resize with preference keys or resize callbacks.
+  above the field don't shove the popup off the cursor, and `recenterXOnResize` keeps the horizontal
+  center fixed so a narrower search palette / shorter pagination page doesn't drift the bar off the
+  cursor. `show(for:)`/`hide()` clear both — don't work around the auto-resize with preference keys or
+  resize callbacks.
 - **Shortcut with no selection falls back to the clipboard.** `HotkeyManager` reads the pasteboard
   and sets `isClipboardFallback`; the full catalog then acts on the clipboard text except Copy/Cut,
   which `ActionChrome.requiresLiveSelection` + the registry gate drop (no live selection).

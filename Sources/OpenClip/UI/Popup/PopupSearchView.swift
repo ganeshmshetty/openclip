@@ -28,6 +28,9 @@ public struct PopupSearchView: View {
     @State private var query = ""
     @State private var selectedIndex = 0
     @FocusState private var isFocused: Bool
+    /// Set by keyboard selection moves so `.onChange` auto-scrolls the list; hover-driven
+    /// selection changes leave it false so hovering the edge of a row never shifts the list.
+    @State private var scrollSelectionOnKeyboard = false
 
     @AppStorage("popupTheme") private var selectedTheme: String = "classic"
     @AppStorage("popupThemeColor") private var themeColor: String = "system"
@@ -36,7 +39,10 @@ public struct PopupSearchView: View {
     /// Hover follows the same mechanism as the bar: the AX global-mouse location hit-tested
     /// against registered frames (instant), with an `.onHover` fallback when global monitoring
     /// is unavailable. This avoids SwiftUI's delayed hover for the palette's small targets.
-    @ObservedObject private var hoverState = PopupHoverState.shared
+    /// Deliberately *not* `@ObservedObject`: `location` publishes at event-monitor rate, and
+    /// observing the whole object re-evaluates the entire palette body per mouse move. Only
+    /// `hoverState.$location` is subscribed to via `.onReceive`.
+    private let hoverState = PopupHoverState.shared
     @State private var hoverFrames: [SearchHoverTarget: CGRect] = [:]
     @State private var hoveredTarget: SearchHoverTarget?
 
@@ -46,21 +52,12 @@ public struct PopupSearchView: View {
         return PopupThemeModel.classicToken(appearance: themeColor, systemIsDark: colorScheme == .dark)
     }
 
-    /// When scoped, only the parent's resolved children are candidates for matching/search.
-    private var scopedChildren: [any Action]? {
-        scope.map { $0.children }
-    }
-
-    private var searchIndex: [ActionSearchIndex] {
-        (scopedChildren ?? catalog).map { action in
-            ActionSearchIndex(
-                id: action.id,
-                title: action.displayTitle,
-                keywords: searchKeywords(for: action),
-                action: action
-            )
-        }
-    }
+    /// The precomputed search index for this palette session: scoped children when scoped, the
+    /// full catalog otherwise. Built once in `init` (and on scope changes via `rebuildSearchIndex`)
+    /// instead of on every body evaluation — indexing walks the whole catalog resolving titles +
+    /// keywords, so it must not re-run for every keystroke/hover. Body evaluation only re-runs
+    /// `ActionSearch.search(query, in: searchIndex)`, which is cheap.
+    @State private var searchIndex: [ActionSearchIndex] = []
 
     private var results: [ActionSearchIndex] {
         ActionSearch.search(query, in: searchIndex)
@@ -96,6 +93,9 @@ public struct PopupSearchView: View {
         self.onExit = onExit
         self.onExitScope = onExitScope
         self.onRunAI = onRunAI
+        // Index once at entry: the palette is recreated on every search entry (mode + scope
+        // transition together), so the current catalog/scope are captured here.
+        _searchIndex = State(initialValue: Self.buildIndex(catalog: catalog, scope: scope))
     }
 
     public var body: some View {
@@ -116,6 +116,9 @@ public struct PopupSearchView: View {
         }
         .onReceive(hoverState.$location) { location in
             updateHoveredTarget(for: location)
+        }
+        .onChange(of: scope?.parent.id) { _, _ in
+            rebuildSearchIndex()
         }
         .onAppear {
             isFocused = true
@@ -217,7 +220,7 @@ public struct PopupSearchView: View {
                 }
             }
         case .local(let url):
-            if let nsImage = NSImage(contentsOf: url) {
+            if let nsImage = LocalIconCache.shared.image(for: url) {
                 Image(nsImage: nsImage).resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
             } else {
                 Image(systemName: "exclamationmark.triangle")
@@ -239,6 +242,8 @@ public struct PopupSearchView: View {
             }
             .frame(height: resultsViewportHeight)
             .onChange(of: selectedIndex) { _, newValue in
+                guard scrollSelectionOnKeyboard else { return }
+                scrollSelectionOnKeyboard = false
                 guard newValue < results.count else { return }
                 proxy.scrollTo(results[newValue].id)
             }
@@ -247,7 +252,9 @@ public struct PopupSearchView: View {
 
     @ViewBuilder
     private func resultRow(item: ActionSearchIndex, index: Int) -> some View {
-        let isSelected = index == selectedIndex || hoveredTarget == .row(index)
+        // Hover moves the selection (Spotlight-style), so exactly one row is highlighted:
+        // `selectedIndex` is updated by the hover path before this is recomputed.
+        let isSelected = index == selectedIndex
         Button {
             selectedIndex = index
             runSelected()
@@ -283,7 +290,10 @@ public struct PopupSearchView: View {
 
     private func moveSelection(by delta: Int) {
         guard !results.isEmpty else { return }
-        selectedIndex = min(max(selectedIndex + delta, 0), results.count - 1)
+        let newIndex = min(max(selectedIndex + delta, 0), results.count - 1)
+        guard newIndex != selectedIndex else { return }
+        scrollSelectionOnKeyboard = true
+        selectedIndex = newIndex
     }
 
     private func runSelected() {
@@ -311,7 +321,28 @@ public struct PopupSearchView: View {
         }
     }
 
-    private func searchKeywords(for action: any Action) -> String {
+    /// Indexes the palette's candidates (scoped children when scoped, the full catalog otherwise)
+    /// once per palette entry. Runs only when the catalog/scope inputs change, never per body eval.
+    private static func buildIndex(catalog: [any Action], scope: SearchScope?) -> [ActionSearchIndex] {
+        let candidates = scope?.children ?? catalog
+        return candidates.map { action in
+            ActionSearchIndex(
+                id: action.id,
+                title: action.displayTitle,
+                keywords: Self.searchKeywords(for: action),
+                action: action
+            )
+        }
+    }
+
+    /// Rebuilds the index when the scope changes in place. The view is normally recreated per
+    /// palette entry (init), so this is a defensive guard for scope transitions that keep
+    /// `.search` mounted. The catalog is captured at entry; the palette is ephemeral.
+    private func rebuildSearchIndex() {
+        searchIndex = Self.buildIndex(catalog: catalog, scope: scope)
+    }
+
+    private static func searchKeywords(for action: any Action) -> String {
         var parts = [action.title]
         if case .extensionPkg(let packageID) = action.chrome.source {
             parts.append(packageID)
@@ -359,7 +390,7 @@ public struct PopupSearchView: View {
                 }
             }
         case .local(let url):
-            if let nsImage = NSImage(contentsOf: url) {
+            if let nsImage = LocalIconCache.shared.image(for: url) {
                 Image(nsImage: nsImage).resizable().aspectRatio(contentMode: .fit)
             } else {
                 Image(systemName: "exclamationmark.triangle")
@@ -382,13 +413,17 @@ public struct PopupSearchView: View {
     // MARK: - Hover (same location-based mechanism as the bar)
 
     /// The hovered target is derived from the shared mouse location, hit-tested against the
-    /// frames each row/esc registers in the popup's named coordinate space.
+    /// frames each row/esc registers in the popup's named coordinate space. Hovering a row
+    /// moves the keyboard selection to it so the highlight follows the mouse.
     private func updateHoveredTarget(for location: CGPoint?) {
         let target = location.flatMap { point in
             hoverFrames.first(where: { $0.value.contains(point) })?.key
         }
         guard target != hoveredTarget else { return }
         hoveredTarget = target
+        if case .row(let index) = target, index < results.count {
+            selectedIndex = index
+        }
     }
 
     /// Local `.onHover` fallback used only when the AX global mouse monitor is unavailable;
@@ -398,6 +433,9 @@ public struct PopupSearchView: View {
         if isHovering {
             guard hoveredTarget != target else { return }
             hoveredTarget = target
+            if case .row(let index) = target, index < results.count {
+                selectedIndex = index
+            }
         } else if hoveredTarget == target {
             hoveredTarget = nil
         }

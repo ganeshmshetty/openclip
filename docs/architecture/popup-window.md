@@ -173,6 +173,12 @@ The `NSHostingView` auto-resizes the panel **top-anchored** when its SwiftUI con
    cursor. The pin is set by `enterSearch`/`enterContent` (when `searchResultsAbove`) and **stays
    active through the search→bar collapse**, so the bar returns to the field's spot (Esc no longer
    jumps the popup); `show(for:)` and `hide()` clear it before intentional placement.
+3. **Horizontal re-centering** lives with the y-pin in `PopupPanel.setFrame`, not the controller:
+   while `recenterXOnResize` is set (armed by `show(for:)` right after placement, cleared before a
+   fresh placement), a width change keeps the panel centered on its current `midX` instead of the
+   hosting view's top-left-anchored default — so swapping to the 280pt search palette or a shorter
+   pagination page never drifts the bar off the cursor. `PopupPositioner.centeredX` clamps the
+   initial placement; resize only preserves the existing center.
 
 Behavioral contract is pinned by `Tests/OpenClipTests/PopupPanelTests.swift` (top/bottom edge fixed
 on enter, bar returns to position on exit, panel key + field first-responder on re-entry).
