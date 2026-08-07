@@ -6,8 +6,9 @@ final class ExtensionManagerTests: XCTestCase {
     var tempDir: URL!
     var sourceDir: URL!
     
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
+        await MainActor.run { TestIsolation.reset() }
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         sourceDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)

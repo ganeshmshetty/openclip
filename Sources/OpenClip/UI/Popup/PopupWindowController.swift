@@ -108,9 +108,7 @@ public class PopupWindowController {
             onContentSizeChange: { [weak self] size in
                 self?.resizePanel(to: size)
             },
-            onAIStateChange: { [weak self] active, _ in
-                self?.isAIOverlayActive = active
-            },
+                        onAIStateChange: { _, _ in },
             onAIResult: { [weak self] text, isError in
                 self?.showAIContent(text: text, isError: isError)
             },
@@ -379,7 +377,6 @@ public class PopupWindowController {
     }
     
     public func hide() {
-        isAIOverlayActive = false
         statusDismissTask?.cancel()
         statusDismissTask = nil
         currentStatusBadge = nil
@@ -461,8 +458,6 @@ public class PopupWindowController {
         }
         NotificationCenter.default.removeObserver(self)
     }
-    
-    private var isAIOverlayActive: Bool = false
 
     private func handleEvent(_ event: NSEvent) {
         if isMenuTracking { return }
@@ -604,14 +599,6 @@ public class PopupWindowController {
             try? await Task.sleep(nanoseconds: statusBubbleDurationNanoseconds)
             guard !Task.isCancelled else { return }
             self.modeStore.statusBanner = nil
-        }
-    }
-
-    private func statusSymbol(for style: StatusFeedback.Style) -> String {
-        switch style {
-        case .success: return "checkmark.circle.fill"
-        case .error: return "exclamationmark.triangle.fill"
-        case .info: return "info.circle.fill"
         }
     }
 

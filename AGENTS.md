@@ -91,7 +91,7 @@ These change behavior — keep them.
   `AIToolsAction`'s enable state is single-sourced to `isAIEnabled`, shared by the AI-tab and
   Actions-tab toggles; `launchesAI` actions are excluded from `searchCatalog`.
 - **Group sub-actions open a scoped palette, not a floating panel.** Extension groups (`GroupAction` + registry
-  entries id-prefixed `\(groupID).\\(subID)`) and the builtin transform group render as normal bar
+  entries id-prefixed `\(groupID).\\(subID)`) render as normal bar
   rows (`chrome.popupBehavior == .showSubActions` → `gesturePolicy.singleClick == .openSubActions`);
   a click calls `PopupWindowController.enterScopedSearch(for:)`, which resolves children via the Core
   `SubActionResolver` over `searchCatalog` and enters the palette with `modeStore.scope =
@@ -161,6 +161,12 @@ These change behavior — keep them.
 5. **Data-driven UI:** use `action.chrome`, `ConfigurableAction.preferenceIconName`,
    `Action.gesturePolicy` — never Swift type checks (`is ScriptAction`) or `switch action.id`.
 6. **Update file-level doc comments** when a file's responsibilities change.
+7. **Test isolation:** any test class touching the app singletons (`ActionRegistry.shared`,
+   `RuleEngine.shared`, `ExtensionManager.shared`, `ActionCustomizationManager.shared`) must call
+   `TestIsolation.reset()` (in `Tests/OpenClipTests/TestIsolation.swift`) from `setUp()`, and must
+   wire any shared state it reads (e.g. `ExtensionManager.shared.onRegister`) itself rather than
+   relying on leaks from an earlier test class. `ActionCoordinator.shared` needs no reset (it
+   mirrors the registry's `@Published` state).
 8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
    hang in automated sessions, so wrap it in a 60 s timeout (`timeout -k 10 60 ./scripts/test.sh`).
 9. **Popup must never be key — except the scoped action-search exception.** `PopupPanel.allowsKey`

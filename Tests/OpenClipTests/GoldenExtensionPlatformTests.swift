@@ -48,11 +48,18 @@ final class GoldenExtensionPlatformTests: XCTestCase {
     @MainActor
     override func setUp() async throws {
         try await super.setUp()
+        TestIsolation.reset()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         optionStore = MemoryOptionStore()
         ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
+        // Make this test self-contained: mirror the production callback wiring
+        // (ActionCoordinator.loadInitialState) so loaded extensions register into the shared
+        // registry here rather than depending on state leaked from an earlier test class.
+        ExtensionManager.shared.onRegister = { [registry = ActionRegistry.shared] action in
+            registry.register(action: action)
+        }
     }
 
     @MainActor

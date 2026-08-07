@@ -23,6 +23,16 @@ public final class ExtensionManager: Sendable {
     public var actionFactory: (any ActionFactory)?
     
     private init() {}
+
+    /// Clears loaded actions and wiring (callbacks, factory), returning the manager to its
+    /// pristine state. Test-isolation hook so the shared singleton does not leak loaded actions,
+    /// registration callbacks, or a stale factory across test cases.
+    public func reset() {
+        loadedActions = []
+        onRegister = nil
+        onUnregister = nil
+        actionFactory = nil
+    }
     
     public func loadExtensions(from url: URL = Constants.extensionsDirectory) async {
         let factory = self.actionFactory

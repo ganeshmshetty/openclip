@@ -5,8 +5,9 @@ import XCTest
 final class CustomActionManifestWriterTests: XCTestCase {
     var tempDir: URL!
     
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
+        await MainActor.run { TestIsolation.reset() }
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     }

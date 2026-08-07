@@ -3,6 +3,11 @@ import XCTest
 
 @MainActor
 final class ActionCoordinatorTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        TestIsolation.reset()
+    }
+
     func testActionCoordinatorResolvesActionsForContext() async {
         let coordinator = ActionCoordinator.shared
         await coordinator.loadInitialState()

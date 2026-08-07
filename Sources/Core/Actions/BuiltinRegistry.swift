@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Constructs and provides the catalog of core AppKit-free builtin actions available in OpenClip.
-// Instantiates default actions including text search, definitions, date calculations, clipboard operations, and case transformations.
+// Instantiates default actions including text search, definitions, date calculations, and clipboard operations.
 import Foundation
 
 /// Core (AppKit-free) builtin actions. AppDelegate appends platform-specific ones.

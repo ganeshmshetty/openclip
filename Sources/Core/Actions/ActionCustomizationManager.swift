@@ -83,6 +83,14 @@ public final class ActionCustomizationManager: ObservableObject, Sendable {
         overrides.removeValue(forKey: actionID)
         saveOverrides()
     }
+
+    /// Clears all user overrides and re-syncs from settings. Test-isolation hook so the shared
+    /// singleton does not leak customizations across test cases.
+    public func reset() {
+        overrides = [:]
+        saveOverrides()
+        loadOverrides()
+    }
     
     // MARK: - Centralized Presentation Resolvers
 
