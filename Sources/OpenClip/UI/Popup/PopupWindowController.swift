@@ -343,7 +343,7 @@ public class PopupWindowController {
         let maxWidth = max(0, screenBounds.width - Constants.popupPadding * 2)
         size.width = min(size.width, maxWidth)
         // Cap the search palette height so a long result list scrolls instead of stretching off-screen.
-        size.height = min(size.height, Constants.searchMaxHeight)
+        size.height = min(size.height, Constants.popupMaxHeight)
         let current = panel.frame.size
         if abs(current.width - size.width) < 1, abs(current.height - size.height) < 1 { return }
         if modeStore.searchResultsAbove {
