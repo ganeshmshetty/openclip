@@ -97,6 +97,7 @@
 		6B40A0FD70FC637EF0736DDC /* ActionResultHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D67EF0F01017315F0E775B /* ActionResultHandler.swift */; };
 		6B6EB24072E6FDB50051E1F5 /* OpenClipSnippetParser+DefaultFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2880EA47FA384B00CFAD2877 /* OpenClipSnippetParser+DefaultFactory.swift */; };
 		6BDAAEBA357BE286266250A6 /* ExtensionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 336067B05C52B87CD8C9DA9F /* ExtensionManager.swift */; };
+		6C0A84E5FBA0A6351EB6A07E /* CanvasScripting.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2FF8914139A6092D49B8447 /* CanvasScripting.swift */; };
 		6EC03FC169D6016DF45D4632 /* DefineAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB70EAE4A67E1C59A1977A8D /* DefineAction.swift */; };
 		701B65DCD6E9E9A69A6C7C13 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2582277236A4342581920E66 /* Assets.xcassets */; };
 		714F641630B8C17979890D5C /* ExtensionsAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208E1DDA96B874A04C415CE2 /* ExtensionsAPIClient.swift */; };
@@ -149,6 +150,7 @@
 		9A5AB557F078A06A470B696F /* OpenClipSnippetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0433AD358F1B636910C66094 /* OpenClipSnippetParser.swift */; };
 		9A7F163119972B733595F05C /* TextPlaceholderEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F4335DD4C3C026D8A6AEBA /* TextPlaceholderEngineTests.swift */; };
 		9A8000B4F562A79A1B636061 /* ActionResultAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 364218FC07B793D119A1CE17 /* ActionResultAdapterTests.swift */; };
+		9AA9D684992383A0E55B9461 /* CanvasScriptingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD450B5A7E8695E2310B5885 /* CanvasScriptingTests.swift */; };
 		9B2C92B98C80BB5FCC596CC3 /* ExtensionsStoreIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA880751E87F795D5A87C8F /* ExtensionsStoreIntegrationTests.swift */; };
 		9CB33DC0C4D4EE40DBF182AF /* ManifestValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C647642DA3D59197DDF60F5 /* ManifestValidation.swift */; };
 		A0FB8CDFC556B5B10CED023B /* MathEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37B15A81CCA6D36DF0183BA /* MathEvaluator.swift */; };
@@ -449,11 +451,13 @@
 		D4A106241D07C43ED6F7226F /* OllamaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaProvider.swift; sourceTree = "<group>"; };
 		D719D2B6B3F32C056AED329D /* CalculateActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculateActionTests.swift; sourceTree = "<group>"; };
 		D9FE4B50AD5CCA0A39301667 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
+		DD450B5A7E8695E2310B5885 /* CanvasScriptingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasScriptingTests.swift; sourceTree = "<group>"; };
 		DDF25B7CA70822AE323518F8 /* MemorySettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsStore.swift; sourceTree = "<group>"; };
 		DECAB4B5213F632283318CD6 /* SelectionMonitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionMonitoring.swift; sourceTree = "<group>"; };
 		DFEE1DAE171FE965EB13F090 /* PopupPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPanelTests.swift; sourceTree = "<group>"; };
 		E21F7917E14860EA903D0552 /* AppRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRule.swift; sourceTree = "<group>"; };
 		E28D2543D3CDDD042BAE74FF /* KeychainActionOptionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainActionOptionStoreTests.swift; sourceTree = "<group>"; };
+		E2FF8914139A6092D49B8447 /* CanvasScripting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasScripting.swift; sourceTree = "<group>"; };
 		E4A5A16510BF970D4F778BA8 /* PopupGesturePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupGesturePolicy.swift; sourceTree = "<group>"; };
 		E4EE0D2C6FF196DA2CFCF327 /* RelevanceProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelevanceProviding.swift; sourceTree = "<group>"; };
 		E54AEEA54ADE3106E777F448 /* ActionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionResult.swift; sourceTree = "<group>"; };
@@ -553,6 +557,7 @@
 			children = (
 				2FEAFE7DEB581D420E14ACEE /* CanvasComponent.swift */,
 				0D4606168DCA1610D0A5DA69 /* CanvasLimits.swift */,
+				E2FF8914139A6092D49B8447 /* CanvasScripting.swift */,
 				FE1D831B55492DA861E3705B /* CanvasSessionState.swift */,
 			);
 			path = Canvas;
@@ -888,6 +893,7 @@
 				3E47D4C3D096CE979274DCDA /* BuiltinRegistryTests.swift */,
 				D719D2B6B3F32C056AED329D /* CalculateActionTests.swift */,
 				3E08FED7F112DAA180913833 /* CanvasComponentTests.swift */,
+				DD450B5A7E8695E2310B5885 /* CanvasScriptingTests.swift */,
 				9D690B960D87A061EAF5F723 /* CanvasSessionStateTests.swift */,
 				F57DE788CBA4CC8756F96012 /* CanvasTreeValidatorTests.swift */,
 				0CF97DDF5B196383416AB162 /* CompletionActionTests.swift */,
@@ -1084,6 +1090,7 @@
 				764A674CF2C3A6DECA9CE0CF /* BuiltinRegistryTests.swift in Sources */,
 				B3E4DEAEC23EBE3A801E2964 /* CalculateActionTests.swift in Sources */,
 				F2F110A60253C2F942DAD457 /* CanvasComponentTests.swift in Sources */,
+				9AA9D684992383A0E55B9461 /* CanvasScriptingTests.swift in Sources */,
 				72FBDF8955E2E15B5849EF5C /* CanvasSessionStateTests.swift in Sources */,
 				ECE012E196595B20CFEB8BB8 /* CanvasTreeValidatorTests.swift in Sources */,
 				6715AE5F11FE111A1668090C /* CompletionActionTests.swift in Sources */,
@@ -1157,6 +1164,7 @@
 				998C035B69CC6C290A1403CE /* CalendarAction.swift in Sources */,
 				7D7D67098C3B0DD05F043CA9 /* CanvasComponent.swift in Sources */,
 				B73F0B75DAED2042F5A5D3C9 /* CanvasLimits.swift in Sources */,
+				6C0A84E5FBA0A6351EB6A07E /* CanvasScripting.swift in Sources */,
 				9819BDBF27BA0AA06DE24076 /* CanvasSessionState.swift in Sources */,
 				F771AE634BA65CAA36353E65 /* ConfigurableAction.swift in Sources */,
 				4ED90C4E3724281438D25FEF /* ConfigurationRequest.swift in Sources */,
