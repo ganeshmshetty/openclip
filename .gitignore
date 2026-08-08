@@ -1,6 +1,5 @@
 spec/
 reference/
-.superpowers/
 docs/superpowers/
 superpowers/
 .build/
@@ -13,7 +12,6 @@ DerivedData/
 *.patch
 *.orig
 .worktrees/
-
 .commandcode/
-
 codebase_bundle.xml
+graphify-out/
