@@ -27,10 +27,22 @@ final class PopupKeyModeTests: XCTestCase {
     func testShowCapturesFrontmostAppOnce() throws {
         let controller = try shownController()
         defer { controller.hide() }
-        XCTAssertNotNil(controller.previousFrontmostApp, "show must capture the source app")
-        let captured = controller.previousFrontmostApp
+        // The capture guard in show(for:) skips when OpenClip itself is frontmost (the test host
+        // during xcodebuild test) or when no app is frontmost (headless CI), so previousFrontmostApp
+        // may be nil here. The non-nil capture claim only holds when a non-OpenClip app is frontmost.
+        if let frontmost = NSWorkspace.shared.frontmostApplication,
+           frontmost.bundleIdentifier != Bundle.main.bundleIdentifier {
+            XCTAssertEqual(controller.previousFrontmostApp, frontmost,
+                           "show must capture the frontmost source app")
+        }
+        // Capture-once holds in every environment: re-entry must never re-capture.
+        let capturedAtShow = controller.previousFrontmostApp
         controller.enterSearch()
-        XCTAssertEqual(controller.previousFrontmostApp, captured, "re-entry must not re-capture")
+        XCTAssertEqual(controller.previousFrontmostApp, capturedAtShow, "re-entry must not re-capture")
+        controller.exitSearch()
+        controller.enterSearch()
+        XCTAssertEqual(controller.previousFrontmostApp, capturedAtShow,
+                       "re-entry after exit must not re-capture")
     }
 
     func testKeyedPanelNeverStoresOpenClip() throws {
