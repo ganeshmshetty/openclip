@@ -64,11 +64,7 @@ public class PopupWindowController {
         // Skip the capture while OpenClip itself is frontmost (e.g. a preference window, or a mid-
         // session re-show): storing ourselves makes the later re-activation a no-op that loses the real
         // source app. Search re-entry and content↔search hops must never re-capture, either.
-        if previousFrontmostApp == nil,
-           let app = NSWorkspace.shared.frontmostApplication,
-           app.bundleIdentifier != Bundle.main.bundleIdentifier {
-            previousFrontmostApp = app
-        }
+        captureFrontmostAppIfNeeded()
 
         let actionContext = ActionContext(selection: context, modifiers: [])
         currentActionContext = actionContext
@@ -168,6 +164,17 @@ public class PopupWindowController {
         }
     }
 
+    /// Records the app that was frontmost before the panel made itself key (search, or later the
+    /// interactive canvas). Captures only when no session value exists yet — mid-session re-entry must
+    /// keep the original source app — and only when that app is not OpenClip itself. Used by show(for:)
+    /// (session start) and enterKeyMode() (direct key entry); hide() is the only thing that clears it.
+    private func captureFrontmostAppIfNeeded() {
+        guard previousFrontmostApp == nil,
+              let app = NSWorkspace.shared.frontmostApplication,
+              app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+        previousFrontmostApp = app
+    }
+
     /// Makes the panel key (a scoped, user-initiated exception to the never-key rule) so a key
     /// component can receive typing. A nonactivating panel can become key without activating this
     /// app, so the source app stays active throughout. Captures the frontmost app only when no
@@ -175,11 +182,7 @@ public class PopupWindowController {
     /// must keep the original source app — and only when that app is not OpenClip itself.
     private func enterKeyMode() {
         guard let panel, panel.isVisible else { return }
-        if previousFrontmostApp == nil,
-           let app = NSWorkspace.shared.frontmostApplication,
-           app.bundleIdentifier != Bundle.main.bundleIdentifier {
-            previousFrontmostApp = app
-        }
+        captureFrontmostAppIfNeeded()
         panel.allowsKey = true
         panel.makeKeyAndOrderFront(nil)
     }
