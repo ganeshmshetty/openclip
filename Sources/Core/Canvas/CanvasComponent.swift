@@ -112,6 +112,11 @@ public struct CanvasEvent: Sendable, Equatable {
 public struct CanvasSize: Sendable, Equatable {
     public var width: Double
     public var height: Double
+
+    public init(width: Double, height: Double) {
+        self.width = width
+        self.height = height
+    }
 }
 
 public struct CanvasStackProps: Sendable, Equatable {
@@ -239,7 +244,7 @@ public struct CanvasListItem: Sendable, Equatable {
     }
 }
 
-/// A `list` section: an optional header plus its item (spec §7 list sections). v1 ships on
+/// A `list` section: an optional header plus its items (spec §7 list sections). v1 ships on
 /// `Canvas`-built/simple lists as a single implicit section; the header renders when non-nil.
 public struct CanvasListSection: Sendable, Equatable {
     public var id: String?
