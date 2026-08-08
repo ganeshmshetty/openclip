@@ -25,8 +25,9 @@ public enum Constants {
     /// Fraction of an extra result row shown beyond `searchMaxRows` so the next action peeks,
     /// hinting that the list scrolls.
     public static let searchPeekRowFraction: CGFloat = 0.5
-    /// Height cap for the popup panel while in search mode (field row + 5 result rows + padding).
-    public static let searchMaxHeight: CGFloat = 240
+    /// Shared height cap for the popup panel (search palette field + result rows, and the canvas
+    /// body). The code value 240 wins over any stale comment.
+    public static let popupMaxHeight: CGFloat = 240
     /// Delay before the hover info bubble appears (400ms).
     public static let bubbleHoverDelayNanoseconds: UInt64 = 400_000_000
     /// Delay before the long-press result bubble fires (600ms).
