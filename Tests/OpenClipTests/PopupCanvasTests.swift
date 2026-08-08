@@ -135,4 +135,93 @@ final class PopupCanvasTests: XCTestCase {
         XCTAssertEqual(StatusBadgeModel.shared.currentStatusBadge?.message, "Done",
                        "status with a canvas open surfaces as a corner badge")
     }
+
+    private func keyDown(_ keyCode: UInt16) -> NSEvent? {
+        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                         windowNumber: 0, context: nil, characters: "x",
+                         charactersIgnoringModifiers: "x", isARepeat: false, keyCode: keyCode)
+    }
+
+    private func scrollEvent() -> NSEvent? {
+        guard let cg = CGEvent(scrollWheelEvent2Source: nil, units: .pixel,
+                               wheelCount: 1, wheel1: 5, wheel2: 0, wheel3: 0) else { return nil }
+        return NSEvent(cgEvent: cg)
+    }
+
+    func testNonEscKeystrokeInContentModeDoesNotDismiss() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+        controller.handleActionResult(.showContent(makeResultContent()))
+        let panel = try visiblePanel()
+
+        controller.handleEvent(try XCTUnwrap(keyDown(7))) // 'x'
+
+        XCTAssertTrue(panel.isVisible, "a non-Esc key in content mode must not dismiss")
+        XCTAssertEqual(controller.modeStore.mode, .content)
+    }
+
+    func testEscInContentModeCollapsesToBar() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+        controller.handleActionResult(.showContent(makeResultContent()))
+        let panel = try visiblePanel()
+
+        controller.handleEvent(try XCTUnwrap(keyDown(53))) // Esc
+
+        XCTAssertTrue(panel.isVisible, "Esc in content collapses, never hides")
+        XCTAssertEqual(controller.modeStore.mode, .actions)
+    }
+
+    func testKeystrokeInActionsModeDismisses() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        controller.handleEvent(try XCTUnwrap(keyDown(7)))
+
+        XCTAssertFalse(panel.isVisible, "actions mode: any keystroke dismisses")
+    }
+
+    func testKeystrokeInSearchModeIsIgnored() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+        controller.enterSearch()
+        let panel = try visiblePanel()
+
+        controller.handleEvent(try XCTUnwrap(keyDown(7)))
+
+        XCTAssertTrue(panel.isVisible)
+        XCTAssertEqual(controller.modeStore.mode, .search)
+    }
+
+    func testScrollWheelSuspendedInContentAndSearch() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        controller.handleActionResult(.showContent(makeResultContent()))
+        controller.handleEvent(try XCTUnwrap(scrollEvent()))
+        XCTAssertTrue(panel.isVisible, "scroll must not dismiss a content canvas")
+
+        controller.exitContent()
+        controller.enterSearch()
+        controller.handleEvent(try XCTUnwrap(scrollEvent()))
+        XCTAssertTrue(panel.isVisible, "scroll must not dismiss search mode")
+    }
+
+    func testScrollWheelInActionsModeDismisses() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        controller.handleEvent(try XCTUnwrap(scrollEvent()))
+
+        XCTAssertFalse(panel.isVisible, "scroll away from an actions-mode popup dismisses")
+    }
 }

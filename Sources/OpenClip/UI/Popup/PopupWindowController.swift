@@ -4,9 +4,10 @@
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
 // Owns the popup mode state machine (actions bar ↔ action-search palette ↔ content canvas): search
 // mode makes the panel key (a scoped exception to the never-key rule) and restores focus to the
-// previous app on exit; content mode renders action/AI results inline on the panel and stays non-key
-// today; the interactive canvas (Task 14) will make the panel key and reuse
-// enterKeyMode()/exitKeyMode(), which are also the search-mode path. Also owns the hover-debounce
+// previous app on exit; content mode renders action/AI results inline on the panel, stays non-key
+// today (the content canvas blocks distance/scroll dismissal and non-Esc keys), and the interactive
+// canvas (Task 14) will make the panel key and reuse enterKeyMode()/exitKeyMode(), which are also
+// the search-mode path. Also owns the hover-debounce
 // and long-press timers that feed the preview strip / result canvas per Action.gesturePolicy.
 // Implements the decision-8 ActionResult tree-walk (handleActionResult): presentation results render
 // here, leaf effects route to DefaultActionResultHandler, and dismissal is decided once via
@@ -36,11 +37,6 @@ public class PopupWindowController {
     private var longPressTask: Task<Void, Never>?
     private var hoveredAction: (any Action)?
     private var longPressFired = false
-    /// True while a blocking content canvas (.result/.menu) is open; suppresses distance dismissal.
-    private var contentBlocksDismiss: Bool {
-        modeStore.mode == .content && modeStore.content?.emphasis != .info
-    }
-
     /// Top-trailing status badge shown on the open content canvas (decision 10). Backed by the shared
     /// StatusBadgeModel so an already-mounted PopupContentView re-renders when a status arrives.
     private var currentStatusBadge: StatusFeedback? {
@@ -491,7 +487,7 @@ public class PopupWindowController {
         NotificationCenter.default.removeObserver(self)
     }
 
-    private func handleEvent(_ event: NSEvent) {
+    func handleEvent(_ event: NSEvent) {
         if isMenuTracking { return }
         
         switch event.type {
@@ -499,13 +495,9 @@ public class PopupWindowController {
             updatePopupHover(at: NSEvent.mouseLocation)
             let cursorLoc = NSEvent.mouseLocation
             // Distance dismissal suspends in search mode (typing elsewhere must not dismiss the
-            // palette) and while a blocking content canvas is open; it is active otherwise.
-            let distanceDismissActive: Bool = {
-                if modeStore.mode == .search { return false }
-                if modeStore.mode == .content { return modeStore.content?.emphasis != .info }
-                return true
-            }()
-            if distanceDismissActive, !contentBlocksDismiss, let panel = panel {
+            // palette) and while a content canvas is open (modal); it is active otherwise.
+            let distanceDismissActive = modeStore.mode != .search && modeStore.mode != .content
+            if distanceDismissActive, let panel = panel {
                 let frame = panel.frame
                 let dx = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
                 let dy = max(0, max(frame.minY - cursorLoc.y, cursorLoc.y - frame.maxY))
@@ -523,22 +515,21 @@ public class PopupWindowController {
                 hide()
             }
         case .scrollWheel:
-            // In search mode the wheel scrolls the results list (the panel is key).
-            if modeStore.mode == .search { break }
-            if !contentBlocksDismiss {
-                hide()
-            }
+            // Search mode scrolls the results list (panel key); a content canvas is modal and
+            // scrolls its own scrollable content, never dismisses.
+            if modeStore.mode == .search || modeStore.mode == .content { break }
+            hide()
         case .keyDown:
             // Actions mode: any keystroke (including Escape) dismisses the popup; the panel is
             // never key here, so keys land in the source app and are merely observed.
             // Search mode: keys go to the search field (panel is key); Escape is handled there.
-            // Content mode: Escape collapses the canvas back to the bar; any other key dismisses.
+            // Content mode: modal — Escape collapses the canvas to the bar; any other key is
+            // ignored (it belongs to the focused canvas component, or pre-Task-14 to the source
+            // app) and never dismisses.
             if modeStore.mode == .search { break }
             if modeStore.mode == .content {
                 if event.keyCode == 53 { // Esc
                     exitContent()
-                } else {
-                    hide()
                 }
                 return
             }
