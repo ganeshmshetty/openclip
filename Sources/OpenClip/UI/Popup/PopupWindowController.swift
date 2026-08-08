@@ -5,8 +5,9 @@
 // Owns the popup mode state machine (actions bar ↔ action-search palette ↔ content canvas): search
 // mode makes the panel key (a scoped exception to the never-key rule) and restores focus to the
 // previous app on exit; content mode renders action/AI results inline on the panel and stays non-key
-// (Esc is observed by the event monitors). Also owns the hover-debounce and long-press timers that
-// feed the preview strip / result canvas per Action.gesturePolicy.
+// today; the interactive canvas (Task 14) will make the panel key and reuse
+// enterKeyMode()/exitKeyMode(), which are also the search-mode path. Also owns the hover-debounce
+// and long-press timers that feed the preview strip / result canvas per Action.gesturePolicy.
 // Implements the decision-8 ActionResult tree-walk (handleActionResult): presentation results render
 // here, leaf effects route to DefaultActionResultHandler, and dismissal is decided once via
 // ActionResult.dismissesPopup.
@@ -26,8 +27,10 @@ public class PopupWindowController {
     public let modeStore = PopupModeStore()
     /// Records action usage for search recency ranking.
     private let usageStore = ActionUsageStore()
-    /// Frontmost app before search mode made the panel key; reactivated on exit/hide.
-    private var previousFrontmostApp: NSRunningApplication?
+    /// Frontmost app before the panel became key (search or, later, canvas); captured once per
+    /// session in show(for:), reactivated on exitKeyMode/hide, cleared only by hide(). Internal
+    /// for tests.
+    var previousFrontmostApp: NSRunningApplication?
 
     private var hoverDebounceTask: Task<Void, Never>?
     private var longPressTask: Task<Void, Never>?
@@ -56,7 +59,17 @@ public class PopupWindowController {
     public func show(for context: SelectionContext) {
         isMenuTracking = false
         currentContext = context
-        
+
+        // The source app is frontmost when the popup shows; capture it once for the whole session.
+        // Skip the capture while OpenClip itself is frontmost (e.g. a preference window, or a mid-
+        // session re-show): storing ourselves makes the later re-activation a no-op that loses the real
+        // source app. Search re-entry and content↔search hops must never re-capture, either.
+        if previousFrontmostApp == nil,
+           let app = NSWorkspace.shared.frontmostApplication,
+           app.bundleIdentifier != Bundle.main.bundleIdentifier {
+            previousFrontmostApp = app
+        }
+
         let actionContext = ActionContext(selection: context, modifiers: [])
         currentActionContext = actionContext
         let availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
@@ -155,20 +168,44 @@ public class PopupWindowController {
         }
     }
 
-/// Enter search mode, optionally scoped to a parent action's sub-actions: the panel becomes key
+    /// Makes the panel key (a scoped, user-initiated exception to the never-key rule) so a key
+    /// component can receive typing. A nonactivating panel can become key without activating this
+    /// app, so the source app stays active throughout. Captures the frontmost app only when no
+    /// session value exists yet — mid-session re-entry (search → bar → search, or content → search)
+    /// must keep the original source app — and only when that app is not OpenClip itself.
+    private func enterKeyMode() {
+        guard let panel, panel.isVisible else { return }
+        if previousFrontmostApp == nil,
+           let app = NSWorkspace.shared.frontmostApplication,
+           app.bundleIdentifier != Bundle.main.bundleIdentifier {
+            previousFrontmostApp = app
+        }
+        panel.allowsKey = true
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    /// Restores the never-key invariant and hands keyboard focus back to the source app. Deliberately
+    /// does NOT clear previousFrontmostApp: only hide() ends the session, so the same source app is
+    /// re-activated on the next exit and re-used on the next enter.
+    private func exitKeyMode() {
+        panel?.allowsKey = false
+        if NSApp.isActive {
+            previousFrontmostApp?.activate(options: [.activateAllWindows])
+        }
+    }
+
+    /// Enter search mode, optionally scoped to a parent action's sub-actions: the panel becomes key
     /// (a scoped, user-initiated exception to the never-key rule) so the search field can receive
     /// typing. A nonactivating panel can become key without activating this app, so the source app
     /// stays active throughout.
     public func enterSearch(with scope: SearchScope? = nil) {
         guard panel?.isVisible == true else { return }
-        previousFrontmostApp = NSWorkspace.shared.frontmostApplication
         modeStore.scope = scope
         modeStore.mode = .search
-        panel?.allowsKey = true
         // Content-driven growth keeps the panel's bottom edge fixed (results render above the field,
         // so growth must extend upward); see PopupPanel.setFrame.
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
-        panel?.makeKeyAndOrderFront(nil)
+        enterKeyMode()
         // Explicitly make the search field first responder on the next run-loop turn. A @FocusState
         // request issued during the mode-change render can be silently dropped on macOS before the
         // panel has finished becoming key (worst on the click-path: the click that opened search).
@@ -212,15 +249,11 @@ public class PopupWindowController {
         guard modeStore.mode == .search else { return }
         modeStore.scope = nil
         modeStore.mode = .actions
-        panel?.allowsKey = false
         // Return to the bar keeps the field-anchoring rule active for hover-preview/banner growth
         // (strip renders above the bar when the popup sits low), so set it explicitly rather than
         // leaving the search-mode value behind. Cleared by show()/hide() before placement.
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
-        if NSApp.isActive {
-            previousFrontmostApp?.activate(options: [.activateAllWindows])
-        }
-        previousFrontmostApp = nil
+        exitKeyMode() // reactivates previousFrontmostApp but keeps it for the session
     }
 
     // MARK: - Content Canvas
@@ -389,8 +422,9 @@ public class PopupWindowController {
         longPressFired = false
         modeStore.mode = .actions
         modeStore.scope = nil
-        panel?.allowsKey = false
         panel?.pinBottomEdgeOnResize = false
+        exitKeyMode() // allowsKey=false + reactivate previousFrontmostApp
+        previousFrontmostApp = nil // hide() is the only thing that ends the key-mode session
         panel?.orderOut(nil)
         removeMonitors()
         currentContext = nil
@@ -398,11 +432,6 @@ public class PopupWindowController {
         hoveredAction = nil
         isMenuTracking = false
         PopupHoverState.shared.location = nil
-        // If making the panel key activated this app, hand focus back to the previous app.
-        if NSApp.isActive {
-            previousFrontmostApp?.activate(options: [.activateAllWindows])
-        }
-        previousFrontmostApp = nil
     }
     
     private func setupMonitors() {
