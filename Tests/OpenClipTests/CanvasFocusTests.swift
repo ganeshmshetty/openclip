@@ -41,6 +41,17 @@ final class CanvasFocusTests: XCTestCase {
         XCTAssertEqual(tree.firstInteractiveID(), "row2")
     }
 
+    func testFirstListItemWithIDWins() {
+        let tree: CanvasComponent = .list(CanvasListProps(), [
+            CanvasListSection(items: [
+                CanvasListItem(id: "row1", title: "a"),
+                CanvasListItem(id: "row2", title: "b")
+            ]),
+            CanvasListSection(items: [CanvasListItem(id: "row3", title: "c")])
+        ])
+        XCTAssertEqual(tree.firstInteractiveID(), "row1")
+    }
+
     func testLinkCountsAsInteractiveFallback() {
         let tree: CanvasComponent = .stack(CanvasStackProps(), [
             .text(CanvasTextProps(content: "static")),

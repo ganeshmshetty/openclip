@@ -37,8 +37,8 @@ public extension CanvasComponent {
             case .toggle(let props):
                 return props.id
             case .list(_, let sections):
-                for section in sections.reversed() {
-                    for item in section.items.reversed() {
+                for section in sections {
+                    for item in section.items {
                         if !item.disabled, let id = item.id { return id }
                     }
                 }
