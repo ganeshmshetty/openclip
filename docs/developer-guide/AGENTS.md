@@ -441,24 +441,133 @@ Side effects (each appends an effect; multiple effects run as a `.sequence` in c
 - `openclip.runShortcut(name)`
 - `openclip.notify(title, body)`
 - `openclip.showStatus(message, style)` — style `"success"`|`"error"`|`"info"` (else `"info"`)
-- `openclip.showContent({ title, icon, subtitle, body, emphasis, rows, footer })`
-  - `emphasis`: `"info"`|`"menu"` (default `"result"`)
-  - `rows`: `[{ type: "text", value: "..." }]`
-  - `footer`: `["paste","copy"]` presets, or objects `{ title, icon, action: "paste"|"copy", value }`
-  - renders an inline content canvas on the popup (`.content` mode)
+- `openclip.showContent(tree, { size })` — renders the given `h()` element tree as an inline
+  interactive canvas on the popup (`.content` mode). The optional `{ size: { width, height } }`
+  declares the canvas size once. See §7a for the full canvas authoring contract.
 - `openclip.keepVisible()` — wraps the resolved result so the popup stays open
 - `openclip.requireConfiguration({ reason, missing: ["optID"] })` — open config sheet for this action
 
 Deterministic resolution order (`OpenClipJSHost.run`): **JS exception → `.showStatus(error)`** (JS
 throws never propagate as Swift errors); else `requireConfiguration` → `openConfiguration`;
-`showContent` → `showContent`; `showStatus` with no other effects → `showStatus`; effects →
-single/`sequence`; function string return → `copy`; else `success`. `keepVisible()` wraps the final
-result unconditionally.
+`showContent` → `.showContent(CanvasComponent, CanvasHeader?)`; `showStatus` with no other effects
+→ `showStatus`; effects → single/`sequence`; function string return → `copy`; else `success`.
+`keepVisible()` wraps the final result unconditionally. Inside a canvas session (§7a) `showContent`
+never resolves to a result — it *replaces* the session's mounted tree (declaring the canvas size)
+for the next re-render, and effects never dismiss.
 
 > Execution runs on a background thread (never the `MainActor`); async scripts are guarded by a
 > 30-second watchdog (`Constants.scriptTimeout`, `TimeoutFlag` pattern) — a never-settling promise
 > surfaces as an error status. Note the resolution above: `showStatus` followed by an effect yields
 > the effect, not the status.
+
+---
+
+## 7a. Interactive canvases (`type: "canvas"`)
+
+A canvas is a **JS-only** action kind: `"type": "canvas"` with `scriptCode` (required — validation
+rejects a canvas without it) holding the canvas script; `"async": true` is optional (a canvas mount
+or dispatch whose promise never settles is killed by the same 30 s watchdog). There is no `output`
+key — a canvas never "returns" text; it *renders*.
+
+### Script contract
+
+```js
+const initialState = { count: 0 };   // optional; app-owned state seeds the session
+
+function ui(state, input) {          // REQUIRED — the only required export
+  return h('stack', {}, [
+    h('text', { content: 'Count: ' + state.count }),
+    h('button', { title: '+1', handler: 'increment' }),
+  ]);
+}
+
+const handlers = {                   // optional; named handlers receive (state, event, input)
+  increment(state, event, input) { return { ...state, count: state.count + 1 }; },
+  deliver(state, event, input)   { openclip.paste(event.value); return state; }
+};
+```
+
+- `ui(state, input)` is the **only required export**; it must return an `h()` element object (an
+  array return is wrapped in a vertical `stack`). It is called at mount (`ui(initialState, input)`)
+  and re-called after every handler (`ui(newState, input)`).
+- `handlers[name](state, event, input)` is optional. `state` is a **fresh JSON object** each call
+  (never the same object you returned); the handler returns the **new state** — not a new tree. The
+  render tree is produced by `ui(newState, input)` *after* the handler runs. `event` is
+  `{ kind, targetID, value, handler }` where `kind` is `"tap"` (button/listItem/link/toggle
+  activation), `"change"` (a committed value: a `textField` blur or submit, or a `toggle` flip —
+  never a per-keystroke event), or `"submit"` (a `textField` Enter).
+- A node whose `handler` is an **object** (`{ type: "paste", text: "..." }`) is a leaf effect
+  (H2) and never dispatches; a bare string `handler` names a `handlers` entry.
+
+### `h(type, props, children)` — component reference
+
+`h` returns `{ type, props, children }` element objects. The 11 component types:
+
+| type | props |
+| :--- | :--- |
+| `stack` | `orientation` (`"vertical"`/`"horizontal"`), `spacing`, `id` |
+| `divider` | `id` |
+| `spacer` | `minLength`, `id` |
+| `text` | `content`, `style` (`"title"`/`"body"`/`"caption"`/`"monospaced"`), `color` (`"primary"`/`"secondary"`/`"accent"`), `selectable`, `id` |
+| `icon` | `symbol` \| `iconify` \| `local` \| `url`, `size`, `id` |
+| `image` | `url` \| `local`, `cornerRadius`, `id` |
+| `button` | `title`, `icon`, `style` (`"accent"`/`"plain"`), `disabled`, `handler`, `id` |
+| `list` / `listItem` | `listItem`: `icon`, `title`, `subtitle`, `badge`, `disabled`, `handler`, `id` |
+| `textField` | `id` (**required**), `value`, `placeholder`, `onSubmit`, `onChange` |
+| `toggle` | `id` (**required**), `value`, `onToggle` |
+| `link` | `title`, `url` |
+
+Unknown types, missing required `id`s, and invalid link URLs drop the node (recovery is lenient
+per node); only structural violations — too many nodes/depth, too many list items, an over-long
+`text`, or a non-object root — reject the whole canvas with an error status.
+
+### The `openclip` bridge inside a canvas
+
+Read-only context: `openclip.input.text`, `openclip.input.matchedText` (both the selection),
+`openclip.options` / `openclip.option(id)` (resolved option values). Leaf effects
+(`paste`/`copy`/`cut`/`keyPress`/`runShortcut`/`openURL`/`showServices`/`notify`) are collected on
+each evaluation and run **without dismissing** — a canvas never hides the popup on its own.
+`keepVisible()` is a **no-op** inside a canvas (effects never dismiss). `showStatus(message, style)`
+surfaces on the **bar banner after collapse**, never inside the canvas. `showContent(tree, { size })`
+declares the canvas size **once** — `{ size: { width, height } }` clamped to the 220–360 width
+column and `Constants.popupMaxHeight` tall — and replaces the mounted tree for the next re-render.
+
+### State model
+
+- A `textField` commits on **submit (Enter) or blur**, never per keystroke; the committed value
+  fires the field's `onChange` handler as a `change` event (Enter fires `onSubmit` as a `submit`
+  event first).
+- A `toggle` commits the **already-flipped** value — the renderer flips it before the handler runs,
+  so `handlers` read post-flip state.
+
+### Example: interactive counter + textField form
+
+```js
+const initialState = { count: 0, name: '' };
+
+const handlers = {
+  increment(state)            { return { ...state, count: state.count + 1 }; },
+  updateName(state, event)    { return { ...state, name: event.value }; },
+  greet(state, event, input)  { openclip.notify('Hi ' + state.name, input); return state; }
+};
+
+function ui(state, input) {
+  return h('stack', { spacing: 8 }, [
+    h('text', { content: 'Count: ' + state.count, style: 'title' }),
+    h('button', { title: '+1', handler: 'increment' }),
+    h('textField', { id: 'name', value: state.name, placeholder: 'Your name',
+                     onChange: 'updateName' }),
+    h('button', { title: 'Greet', handler: 'greet', style: 'accent' }),
+  ]);
+}
+```
+
+### Behavior contract
+
+- **Esc collapses** the canvas to the bar (SwiftUI `.onKeyPress` on the canvas root/fields) —
+  click-outside and app deactivation **hide** the popup.
+- A mount/parse/watchdog **failure rejects the canvas**: the session is dropped, the panel
+  collapses to the bar, and the error surfaces as a status on the bar banner.
 
 ---
 
@@ -476,7 +585,7 @@ result unconditionally.
 | `.openURL(URL)` | open the URL |
 | `.showServices(String)` | macOS share picker on the text |
 | `.notify(title:, body:)` | post a notification (best-effort; needs authorization) |
-| `.showContent(PopupContent)` | inline content canvas; **keeps popup open** |
+| `.showContent(CanvasComponent, CanvasHeader?)` | render an interactive canvas tree; **keeps popup open** |
 | `.showStatus(StatusFeedback)` | transient status; **keeps popup open** |
 | `.openConfiguration(ConfigurationRequest)` | hide popup, open the action's config sheet |
 | `.keepVisible(ActionResult)` | perform inner result but never dismiss |
@@ -497,7 +606,6 @@ A script command may emit one JSON object on stdout (all fields optional except 
 { "type": "paste", "value": "text" }                                  // .paste
 { "type": "copy",  "value": "text" }                                  // .copy
 { "type": "openURL", "value": "https://..." }                         // .openURL
-{ "type": "showContent", "title": "T", "body": "B", "footer": ["paste","copy"] }  // .showContent
 { "type": "status", "message": "Done", "style": "success" }           // "success"|"error"|"info"
 { "type": "keepVisible", "effect": { "type": "paste", "value": "x" } }// .keepVisible(recursive)
 { "type": "configure", "reason": "...", "missing": ["opt"] }          // .openConfiguration
@@ -505,7 +613,9 @@ A script command may emit one JSON object on stdout (all fields optional except 
 
 Unknown `type` → `.success`. If stdout is **not** valid JSON, the plain text is **pasted**; empty
 stdout → `.success`. A non-zero exit (or hitting the 30 s watchdog) becomes an error status. These
-are the *only* script JSON `type` values the runtime accepts.
+are the *only* script JSON `type` values the runtime accepts. **`"showContent"` is not one of
+them** — a shell script cannot render a canvas, so a `"showContent"` type falls into the unknown
+branch and maps to `.success` (canvas rendering is JS-only, §7a).
 
 ---
 
@@ -644,7 +754,12 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 - JS surface/resolution: `Sources/OpenClip/Actions/OpenClipJSHost.swift`.
 - Effect execution: `Sources/OpenClip/Platform/Effects/ActionResultHandler.swift`.
 - Result model: `Sources/Core/Actions/ActionResult.swift` (+ `ActionResultAdapter.swift`,
-  `PopupContent.swift`, `StatusFeedback.swift`, `ConfigurationRequest.swift`).
+  `StatusFeedback.swift`, `ConfigurationRequest.swift`).
+- Canvas component model + limits: `Sources/Core/Canvas/` (`CanvasComponent.swift`,
+  `CanvasElementParser.swift`, `CanvasLimits.swift`, `CanvasScripting.swift`).
+- Canvas engine + JS bridge + manifest kind: `Sources/OpenClip/Actions/JavaScriptCanvasEngine.swift`,
+  `Sources/OpenClip/Actions/CanvasScriptBox.swift`, `Sources/OpenClip/Actions/JavaScriptCanvasAction.swift`.
+- Canvas renderer/session: `Sources/OpenClip/UI/Popup/CanvasSession*.swift`.
 - Visibility/required options: `Sources/Core/Actions/ActionVisibility.swift`, `ExtensionActionRules.swift`.
 - Options storage: `Sources/Core/Settings/ActionOptionStore.swift`, `SettingKey.swift`,
   `Sources/OpenClip/Platform/Extensions/KeychainActionOptionStore.swift`.

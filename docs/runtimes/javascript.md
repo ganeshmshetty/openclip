@@ -34,7 +34,7 @@ interface OpenClipBridge {
   runShortcut(name: string): void;       // Runs a macOS Shortcut (requires /usr/bin/shortcuts)
   notify(title: string, body: string): void;
   showStatus(message: string, style?: string): void; // style: "success" | "error" | "info"
-  showContent(payload: object): void;  // See below
+  showContent(tree: object, options?: { size?: { width: number; height: number } }): void; // See below
   keepVisible(): void;                   // Keep the popup open after the result
   requireConfiguration(payload: object): void; // { reason?: string, missing?: string[] }
 }
@@ -44,10 +44,14 @@ Modifier names accepted by `keyPress`: `command`/`cmd`, `shift`, `option`/`alt`,
 `control`/`ctrl`. The key is a macOS virtual-key name (QWERTY/ANSI layout is assumed), e.g.
 letters `a`–`z`, digits `0`–`9`, or named keys like `return`, `space`, `escape`.
 
-`showContent` accepts an object with optional `title`, `icon`, `subtitle`, `body`, `emphasis`
-(`"info"` | `"menu"` | default `"result"`), `rows` (`[{type:"text", value}]`), and `footer`
-(`"paste"`/`"copy"` presets or `{title, icon, action: "paste"|"copy", value}` objects). It renders
-an inline content canvas on the popup panel (`.content` mode) — never a separate floating panel.
+`showContent(tree, { size })` renders an element object from `h()` as an inline interactive canvas
+on the popup panel (`.content` mode) — never a separate floating panel. `tree` is a single `h()`
+element object (an array is wrapped in a vertical `stack`); the optional `{ size: { width, height } }`
+declares the canvas size once (clamped to the 220–360 width column / `Constants.popupMaxHeight`).
+The canned `title`/`body`/`footer`/`emphasis` keys are gone — the tree carries the content and the
+canvas's chrome header comes from the running action. The full canvas authoring contract
+(`ui(state, input)` / `handlers`, state model, `keepVisible` no-op, status-after-collapse) is in
+§7a of `docs/developer-guide/AGENTS.md`.
 
 ## Options & Preference Integration
 
@@ -126,7 +130,10 @@ promise pump loop bounds them instead. (Residual: an async-mode script with a to
 `OpenClipJSHost.run` resolves the outcome in a deterministic order:
 
 1. `requireConfiguration(...)` → `.openConfiguration`.
-2. `showContent(...)` → `.showContent`.
+2. `showContent(...)` → `.showContent(CanvasComponent, CanvasHeader?)` — the `h()` element tree,
+   rendered as the inline canvas. Called *from inside* a canvas session it never resolves to a
+   result: it replaces the session's mounted tree (declaring the canvas size) for the next
+   re-render rather than dismissing.
 3. `showStatus(...)` (with no effects) → `.showStatus`.
 4. Effects (paste/copy/cut/openURL/keyPress/runShortcut/notify) → single `.paste`/`.copy`/etc, or
    `.sequence` of them when multiple were called.

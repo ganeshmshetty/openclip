@@ -118,9 +118,11 @@ These change behavior — keep them.
   hover sub-menu; membership is `SubActionProviding`-driven (`SubAction.swift`), never id switches.
 - **Content renders in the single popup canvas, never a floating panel.** Actions, AI results,
   long-press result cards, hover previews (inline `PopupPreviewStrip`), and status (inline auto-dismiss
-  banner / canvas corner badge) all render inside the one `PopupPanel`. `PopupContentView` is the only
-  content renderer. Content mode (`.content` on `PopupModeStore`) is **not** a key-window exception —
-  the panel stays non-key and Esc is observed by the global event monitor (observation-only).
+  banner, queued while a canvas is open and flushed onto the bar banner after collapse) all render
+  inside the one `PopupPanel`. `CanvasSessionView` (via `PopupContentView`'s successor) is the only
+  content renderer. Content mode (`.content` on `PopupModeStore`) is a key-window exception **like
+  search**: the panel becomes key via the same `enterKeyMode()` primitive, Esc collapses the canvas
+  to the bar via SwiftUI `.onKeyPress`, and the global event monitor stays observation-only.
 - **Gemini auth via the `x-goog-api-key` header only** — never `?key=` in the URL (leaks credentials).
 - **Glass stays apart from the color themes.** `PopupThemeSelector` has two rows: theme category
   (Classic | Glass) then appearance (System/Light/Dark). Storage: `popupTheme` ("classic"/"glass"),
@@ -195,12 +197,15 @@ These change behavior — keep them.
     `.fault` only for subprocess crashes/invariant violations. Privacy: text/clipboard/extension
     data stays default-private; only ids and URLs get `privacy: .public`. Never log in hot paths
     (per-mouse-move hover, high-frequency view bodies).
-10. **Popup must never be key — except the scoped action-search exception.** `PopupPanel.allowsKey`
-    enables key status only in search mode, with focus forced via `focusSearchField()` on the next
-    run-loop turn (a `@FocusState`-in-onAppear request is silently dropped on macOS); on exit/hide,
-    `previousFrontmostApp` is re-activated. No other `canBecomeKey`/`canBecomeMain`/`makeKey()`;
-    keyboard dismissal runs through the global (AX) event monitor only — observation-only, so
-    keystrokes stay in the source app.
+10. **Popup must never be key — except the two scoped key-mode exceptions.** `PopupPanel.allowsKey`
+    enables key status in action-search and canvas-content modes, both routed through the shared
+    `enterKeyMode()`/`exitKeyMode()` primitives (Task 14): `enterSearch()` for the search field,
+    `armCanvas`/`armMountedSession` for a canvas, with focus forced on the next run-loop turn
+    (`focusSearchField()`/`canvasSessionController.requestFocus` — a `@FocusState`-in-onAppear
+    request is silently dropped on macOS); on exit/hide, `previousFrontmostApp` is re-activated and
+    only `hide()` clears it. No other `canBecomeKey`/`canBecomeMain`/`makeKey()`; keyboard dismissal
+    runs through the global (AX) event monitor only — observation-only, so keystrokes stay in the
+    source app (in content mode Esc and all keys belong to the focused SwiftUI canvas component).
 
 ---
 
