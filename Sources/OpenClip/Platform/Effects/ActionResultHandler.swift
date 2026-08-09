@@ -11,6 +11,12 @@ import Core
 public protocol ActionResultHandler: Sendable {
     @MainActor
     func handle(_ result: ActionResult, in view: NSView?) async throws
+    /// Executes a leaf effect with its side-effect body but never asks the presenter to dismiss
+    /// the popup. Canvas-session effects use this door (Task 13): dismissal lives in the
+    /// controller's top-level decision, never inside the effect handler, so this is the "effect
+    /// door that never hides". Non-throwing — a thrown error is swallowed and logged.
+    @MainActor
+    func handleWithoutDismissal(_ result: ActionResult, in view: NSView?) async
 }
 
 @MainActor
@@ -23,6 +29,22 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
 
 
     public func handle(_ result: ActionResult, in view: NSView? = nil) async throws {
+        try await execute(result, in: view)
+    }
+
+    public func handleWithoutDismissal(_ result: ActionResult, in view: NSView? = nil) async {
+        do {
+            try await execute(result, in: view)
+        } catch {
+            // Never rethrow into the canvas door: the presenter already suppresses dismissal and a
+            // throw would fall back to the legacy error-status path. Log instead.
+            Log.resultHandler.error("canvas effect failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// The single side-effect body shared by `handle` (throws) and `handleWithoutDismissal`
+    /// (swallows). Deliberately no dismissal step — hiding is decided by the presenter, never here.
+    private func execute(_ result: ActionResult, in view: NSView?) async throws {
         switch result {
         case .copy(let text):
             let pasteboard = NSPasteboard.general
@@ -76,7 +98,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         case .showContent, .showStatus, .openConfiguration, .sequence:
             break
         case .keepVisible(let inner):
-            try await handle(inner, in: view)
+            try await execute(inner, in: view)
 
         // Keyboard execution: keyPress posts a synthetic keystroke; runShortcut launches the
         // shortcuts CLI under the shared subprocess watchdog (thrown errors surface as a status).

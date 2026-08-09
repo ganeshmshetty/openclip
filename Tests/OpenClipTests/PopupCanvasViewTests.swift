@@ -50,7 +50,7 @@ final class PopupCanvasViewTests: XCTestCase {
         let store = PopupModeStore()
         let bar = measuredSize(store: store)
 
-        store.preview = PopupContent(title: "Calc", subtitle: "2 + 2 = 4", emphasis: .info)
+        store.preview = .text(CanvasTextProps(content: "2 + 2 = 4", style: .caption))
         let expanded = measuredSize(store: store)
 
         XCTAssertGreaterThan(expanded.height, bar.height, "preview strip should grow the popup")
