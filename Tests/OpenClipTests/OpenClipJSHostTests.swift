@@ -137,8 +137,8 @@ final class OpenClipJSHostTests: XCTestCase {
     func testShowContentReturnsElementTree() async throws {
         let script = "openclip.showContent(h('stack', {}, [h('text', { content: 'Hello' }), h('button', { title: 'Paste', handler: 'x' })]));"
         let result = try await host.run(makeRequest(script: script))
-        guard case .showContentTree(let root, nil) = result else {
-            return XCTFail("Expected .showContentTree, got \(result)")
+        guard case .showContent(let root, nil) = result else {
+            return XCTFail("Expected .showContent, got \(result)")
         }
         guard case .stack(_, let children) = root else {
             return XCTFail("Expected stack root, got \(root)")

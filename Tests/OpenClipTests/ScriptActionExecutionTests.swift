@@ -105,11 +105,11 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
 
-    func testScriptActionShowContentJSONReturnsShowContent() async throws {
+    func testScriptActionShowContentJSONFallsThroughToSuccess() async throws {
         let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("content_test_\(UUID().uuidString).sh")
         let scriptContent = """
         #!/bin/bash
-        echo '{"type":"showContent","title":"T","body":"Body","footer":["paste","copy"]}'
+        echo '{"type":"showContent","title":"T","body":"Body"}'
         """
         try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
@@ -117,23 +117,8 @@ final class ScriptActionExecutionTests: XCTestCase {
         let action = ScriptAction(id: "test.content", title: "Content", icon: .symbol("terminal"), scriptURL: tempScript)
         let result = try await action.perform(ActionContext(selectedText: "SampleInput"))
 
-        guard case .showContent(let content) = result else {
-            return XCTFail("Expected .showContent, got \(result)")
-        }
-        XCTAssertEqual(content.title, "T")
-        XCTAssertEqual(content.rows.count, 1)
-        guard case .text(let rowText) = content.rows[0] else {
-            return XCTFail("Expected text row")
-        }
-        XCTAssertEqual(rowText, "Body")
-        XCTAssertEqual(content.footer.count, 2)
-        XCTAssertEqual(content.footer[0].title, "Paste")
-        guard case .perform(.paste("Body")) = content.footer[0].outcome else {
-            return XCTFail("Expected Paste footer performing .paste(Body)")
-        }
-        XCTAssertEqual(content.footer[1].title, "Copy")
-        guard case .perform(.copy("Body")) = content.footer[1].outcome else {
-            return XCTFail("Expected Copy footer performing .copy(Body)")
+        guard case .success = result else {
+            return XCTFail("Expected .success for shell showContent, got \(result)")
         }
 
         try? FileManager.default.removeItem(at: tempScript)

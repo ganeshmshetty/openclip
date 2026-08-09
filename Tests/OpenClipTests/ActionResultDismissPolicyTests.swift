@@ -4,10 +4,6 @@ import XCTest
 final class ActionResultDismissPolicyTests: XCTestCase {
     private struct DummyError: Error {}
 
-    private func makeContent() -> PopupContent {
-        PopupContent(title: "Test", rows: [.text("hi")], emphasis: .info)
-    }
-
     // MARK: - Dismiss-policy matrix (decision 8)
 
     func testOpenConfigurationDismisses() {
@@ -20,7 +16,8 @@ final class ActionResultDismissPolicyTests: XCTestCase {
     }
 
     func testSequenceDismissesOnlyWhenAllItemsDismiss() {
-        XCTAssertFalse(ActionResult.sequence([.copy("x"), .showContent(makeContent())]).dismissesPopup)
+        let tree = CanvasComponent.text(CanvasTextProps(content: "hi"))
+        XCTAssertFalse(ActionResult.sequence([.copy("x"), .showContent(tree, nil)]).dismissesPopup)
         XCTAssertTrue(ActionResult.sequence([.copy("x"), .paste("y")]).dismissesPopup)
         // An empty sequence never dismisses.
         XCTAssertFalse(ActionResult.sequence([]).dismissesPopup)
@@ -37,14 +34,15 @@ final class ActionResultDismissPolicyTests: XCTestCase {
     }
 
     func testPresentationResultsKeepPopup() {
-        XCTAssertFalse(ActionResult.showContent(makeContent()).dismissesPopup)
+        let tree = CanvasComponent.text(CanvasTextProps(content: "hi"))
+        XCTAssertFalse(ActionResult.showContent(tree, nil).dismissesPopup)
         XCTAssertFalse(ActionResult.showStatus(.init(message: "ok", style: .success)).dismissesPopup)
         XCTAssertFalse(ActionResult.showStatus(.init(message: "boom", style: .error)).dismissesPopup)
     }
 
     func testCanvasTreeDoesNotDismiss() {
         let tree = CanvasComponent.text(CanvasTextProps(content: "hi"))
-        XCTAssertFalse(ActionResult.showContentTree(tree, nil).dismissesPopup)
+        XCTAssertFalse(ActionResult.showContent(tree, nil).dismissesPopup)
     }
 
     func testCanvasMountDoesNotDismiss() {

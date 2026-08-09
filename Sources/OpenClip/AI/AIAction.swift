@@ -41,7 +41,7 @@ public struct AIAction: Action {
         guard let preset = preset(), !context.selection.text.isEmpty else { return .success }
         let provider = AIServiceManager.shared.currentProvider
         let response = try await provider.process(prompt: preset.prompt, text: context.selection.text)
-        return .keepVisible(.showContentTree(
+        return .keepVisible(.showContent(
             Canvas.build {
                 Canvas.text(response)
                 Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(response)))

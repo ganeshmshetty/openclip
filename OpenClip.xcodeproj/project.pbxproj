@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		009933AA82D52C05A9F5432E /* PopupContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362BDEA948E0CD410D93FDB /* PopupContent.swift */; };
 		016ACDECE2BC05DB5A380F65 /* CustomAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8DAACCC7C82CE7BB96D5F0D /* CustomAction.swift */; };
 		02AF81963047538ADE0363F5 /* RuleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E8EC4414979D75CE50BA12 /* RuleEngine.swift */; };
 		02DEE5ADB21D74B0CE5C31EA /* AIToolsActionSubActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AB2405B7995F2DC5F45C474 /* AIToolsActionSubActionTests.swift */; };
@@ -213,7 +212,6 @@
 		DF8D4D6ADC91E929BB3F3920 /* LaunchAtLoginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43600D5250056CDB41C7FDF4 /* LaunchAtLoginManager.swift */; };
 		DF95994A3E7B2927482ED7FE /* CanvasHoverSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7393A0B0B0F80FAE4B02049D /* CanvasHoverSupport.swift */; };
 		E08C252C9ADA79A930825C1E /* OpenClipApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 871B6048B7968E61FCB53537 /* OpenClipApp.swift */; };
-		E0DE167272C53D7B9D149B25 /* LegacyContentBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C1AEE41B5887F14C1999B1 /* LegacyContentBridge.swift */; };
 		E1F16F682F37ADD22910279F /* KeychainActionOptionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96CB15CCD795EB9FACAB9904 /* KeychainActionOptionStore.swift */; };
 		E244F9820F80DF2366723420 /* CanvasFocus.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2F41667D839F3F2EB4CA85 /* CanvasFocus.swift */; };
 		E27BC38183CE54F6073EC02F /* AppFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 750ADA88A976EEF10B2481E2 /* AppFilter.swift */; };
@@ -383,7 +381,6 @@
 		5BFF66BC8C0CB6DBE2EEC671 /* PopupPositionerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPositionerTests.swift; sourceTree = "<group>"; };
 		5CA2E8ED39FAF909162A8023 /* ActionVisibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionVisibility.swift; sourceTree = "<group>"; };
 		6129D3E6F351430FA57265B6 /* MacSelectionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSelectionMonitor.swift; sourceTree = "<group>"; };
-		6362BDEA948E0CD410D93FDB /* PopupContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupContent.swift; sourceTree = "<group>"; };
 		65E34CA0C5B5A4407209D9F7 /* ActionSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionSearch.swift; sourceTree = "<group>"; };
 		65E687A10246C0EFE5F744DA /* BrowserRedirectProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserRedirectProvider.swift; sourceTree = "<group>"; };
 		6A9596443229B1173DAB2434 /* ExtensionsStoreViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsStoreViewTests.swift; sourceTree = "<group>"; };
@@ -454,7 +451,6 @@
 		B0ACC75077CD6CBA3991371E /* GroupAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupAction.swift; sourceTree = "<group>"; };
 		B0D6647CFD7D6335D40B4D59 /* ExtensionActionKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionActionKind.swift; sourceTree = "<group>"; };
 		B43E5D5739492C708E36DE7B /* ActionRequirements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionRequirements.swift; sourceTree = "<group>"; };
-		B4C1AEE41B5887F14C1999B1 /* LegacyContentBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyContentBridge.swift; sourceTree = "<group>"; };
 		B603C28D161A795066B85A89 /* LaunchAtLoginManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManagerTests.swift; sourceTree = "<group>"; };
 		B704F280421B7F41B35BB7C9 /* ExtensionsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsModels.swift; sourceTree = "<group>"; };
 		B7057F1EDC97680EC5B78A83 /* PopupSearchScopeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupSearchScopeTests.swift; sourceTree = "<group>"; };
@@ -662,7 +658,6 @@
 				57710A37C91F764DCA2DE86D /* CanvasSession.swift */,
 				7E8E01F85364968F0D0ADE6C /* CanvasSessionController.swift */,
 				3EBC77323776465D52516362 /* CanvasSessionView.swift */,
-				B4C1AEE41B5887F14C1999B1 /* LegacyContentBridge.swift */,
 				A088DDC9F9B0BD52F785ACCB /* PopupHoverSupport.swift */,
 				4D84ADC2CA427D8FDF571902 /* PopupModeStore.swift */,
 				087F3A6593D8726BD84CF1F1 /* PopupPanel.swift */,
@@ -835,7 +830,6 @@
 				C37B15A81CCA6D36DF0183BA /* MathEvaluator.swift */,
 				0287D4C35BF5F5C6196903B7 /* MenuDecoratedAction.swift */,
 				0F4DAB73B13C780B669746CE /* ModifierFlags.swift */,
-				6362BDEA948E0CD410D93FDB /* PopupContent.swift */,
 				E4A5A16510BF970D4F778BA8 /* PopupGesturePolicy.swift */,
 				E4EE0D2C6FF196DA2CFCF327 /* RelevanceProviding.swift */,
 				41C2087EC2EAF26637FDE391 /* ResultContentProviding.swift */,
@@ -1271,7 +1265,6 @@
 				DEEE0BCFD9DB9C3754D01774 /* ModifierFlags.swift in Sources */,
 				9A5AB557F078A06A470B696F /* OpenClipSnippetParser.swift in Sources */,
 				49C06EBA5B3FD035E51BA83A /* PasteAction.swift in Sources */,
-				009933AA82D52C05A9F5432E /* PopupContent.swift in Sources */,
 				9A2D80A4B886275B2DE42AD0 /* PopupGesturePolicy.swift in Sources */,
 				48E13E6683E70A84BFFD52D4 /* RelevanceProviding.swift in Sources */,
 				F948C76DB1B365FF05D9FAC3 /* ResultContentProviding.swift in Sources */,
@@ -1345,7 +1338,6 @@
 				E1F16F682F37ADD22910279F /* KeychainActionOptionStore.swift in Sources */,
 				9755C620A8AB9388B2E35889 /* KeychainStore.swift in Sources */,
 				DF8D4D6ADC91E929BB3F3920 /* LaunchAtLoginManager.swift in Sources */,
-				E0DE167272C53D7B9D149B25 /* LegacyContentBridge.swift in Sources */,
 				33956B07A3C1A2972BEEC22E /* LiquidGlass.swift in Sources */,
 				F90A545EAD5C3F1F1578C757 /* LocalIconCache.swift in Sources */,
 				09A58930CFE1B6C771AAF8D4 /* MacSelectionMonitor.swift in Sources */,
