@@ -116,6 +116,7 @@
 		72FBDF8955E2E15B5849EF5C /* CanvasSessionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D690B960D87A061EAF5F723 /* CanvasSessionStateTests.swift */; };
 		75FF6A183690E816A427676C /* ActionRequirements.swift in Sources */ = {isa = PBXBuildFile; fileRef = B43E5D5739492C708E36DE7B /* ActionRequirements.swift */; };
 		764A674CF2C3A6DECA9CE0CF /* BuiltinRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E47D4C3D096CE979274DCDA /* BuiltinRegistryTests.swift */; };
+		7670B0ED2E1A300C9175C4E8 /* DebugLogReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C906535DA3B4188B0B017332 /* DebugLogReader.swift */; };
 		76E559C066D1B00D899DB613 /* TextRetrieving.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4569F410A617490B0538051 /* TextRetrieving.swift */; };
 		785CC3424C3E3086FBD4CDF3 /* Notification.Name+OpenClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAFA881C470BEA4B3000898B /* Notification.Name+OpenClip.swift */; };
 		7878CD338A5EBA4516C7FBCC /* DebugLogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26AA38CCEB64711C1129F135 /* DebugLogEntry.swift */; };
@@ -495,6 +496,7 @@
 		C5D5D2263A84CD1657679210 /* ShellProcessRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellProcessRunner.swift; sourceTree = "<group>"; };
 		C5FC00AC73CC488DBF7F7240 /* SearchAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchAction.swift; sourceTree = "<group>"; };
 		C81EC3C5F8E4224A4395D314 /* PopupThemeSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupThemeSelector.swift; sourceTree = "<group>"; };
+		C906535DA3B4188B0B017332 /* DebugLogReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogReader.swift; sourceTree = "<group>"; };
 		C9B13094FEDF487CD5EE929B /* ActionOptionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionOptionStoreTests.swift; sourceTree = "<group>"; };
 		CA08C27DF325BEA21486A673 /* OpenClipJSHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipJSHost.swift; sourceTree = "<group>"; };
 		CAFA881C470BEA4B3000898B /* Notification.Name+OpenClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Notification.Name+OpenClip.swift"; sourceTree = "<group>"; };
@@ -840,6 +842,7 @@
 				26AA38CCEB64711C1129F135 /* DebugLogEntry.swift */,
 				9F04245B4F0896E4AFD3B9BC /* DebugLogFilter.swift */,
 				E4EF53D5A01CA2A1884F414D /* DebugLogLevel.swift */,
+				C906535DA3B4188B0B017332 /* DebugLogReader.swift */,
 			);
 			path = DebugLogging;
 			sourceTree = "<group>";
@@ -1381,6 +1384,7 @@
 				7878CD338A5EBA4516C7FBCC /* DebugLogEntry.swift in Sources */,
 				D23A87BBDBBFB5CC70C2E219 /* DebugLogFilter.swift in Sources */,
 				E3B5093C79B8927F75486FCD /* DebugLogLevel.swift in Sources */,
+				7670B0ED2E1A300C9175C4E8 /* DebugLogReader.swift in Sources */,
 				9582FE0FF3EC9B0A9756B790 /* DefaultActionFactory.swift in Sources */,
 				A4B07F7C0AA32D61F32510D5 /* DynamicActionConfigView.swift in Sources */,
 				1D0D54B9C418294BBBFE4941 /* EditActionSheet.swift in Sources */,
