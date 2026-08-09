@@ -25,6 +25,16 @@ public indirect enum ActionResult: Sendable {
 
     /// Render a content canvas on the popup panel. Keeps the popup open.
     case showContent(PopupContent)
+    /// Render an interactive component tree on the popup panel (spec §7). The optional header is the
+    /// running action's chrome title/icon; nil falls back to the controller's current-action header.
+    /// Keeps the popup open. (Legacy `.showContent(PopupContent)` is deleted in Task 21.)
+    case showContentTree(CanvasComponent, CanvasHeader?)
+    /// Mount a scripting canvas session (spec §5.2): the engine evaluates the mount request, arms
+    /// the session, and the tree re-renders via `.dispatch`. Keeps the popup open.
+    /// Transient dead case until Task 24: no producer emits `.showCanvas` before the JS canvas
+    /// producer (Task 24). Declared now for ecosystem completeness (exhaustive switches + the
+    /// Task 21 final shape enumerate it); the first producer arms it in Task 24.
+    case showCanvas(CanvasMountRequest, CanvasHeader)
     /// Surface a transient status (success/error/info) as a banner or corner badge. Keeps the popup open.
     case showStatus(StatusFeedback)
     /// Hide the popup and ask the user to configure the named action (opens Preferences → EditActionSheet).
@@ -54,7 +64,7 @@ extension ActionResult {
     /// item dismisses. Everything else (leaf effects, `.openConfiguration`) dismisses.
     public var dismissesPopup: Bool {
         switch self {
-        case .keepVisible, .showContent, .showStatus:
+        case .keepVisible, .showContent, .showContentTree, .showCanvas, .showStatus:
             return false
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)
