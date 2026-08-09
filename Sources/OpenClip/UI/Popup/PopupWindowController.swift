@@ -310,6 +310,24 @@ public class PopupWindowController {
         }
     }
 
+    /// The running action's chrome title/icon for a canvas whose producer left the header nil.
+    private func currentHeaderFromAction() -> CanvasHeader {
+        if let hoveredAction {
+            return CanvasHeader(
+                title: hoveredAction.displayTitle(using: ActionCustomizationManager.shared),
+                icon: hoveredAction.icon.symbolName
+            )
+        }
+        return CanvasHeader(title: "", icon: nil)
+    }
+
+    /// Arms a scripting session. Dormant until Task 24 — no producer emits `.showCanvas` before the
+    /// JS canvas producer; the engine is injected here (replaced by JavaScriptCanvasEngine in Task 23)
+    /// and the stub surfaces a mount error that collapses + shows the error banner.
+    private func mountCanvas(request: CanvasMountRequest, header: CanvasHeader) {
+        canvasSessionController.mount(request, scripting: UnavailableCanvasEngine(), header: header)
+    }
+
     /// Test access to the private arm path: mirrors exactly what enterContent/showAIContent do, so
     /// tests can arm an arbitrary native or scripted tree without going through the legacy bridge.
     /// `preferredSize` forwards the §7.1 fixed session size (nil → fitting-size column). Internal
@@ -654,6 +672,10 @@ public class PopupWindowController {
         switch result {
         case .showContent(let content):
             enterContent(content)
+        case .showContentTree(let tree, let header):
+            armCanvas(tree: tree, header: header ?? currentHeaderFromAction())
+        case .showCanvas(let request, let header): // no-op/unused until Task 24 (first producer)
+            mountCanvas(request: request, header: header)
         case .showStatus(let feedback):
             presentStatus(feedback)
         case .openConfiguration(let request):

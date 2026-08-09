@@ -42,6 +42,16 @@ final class ActionResultDismissPolicyTests: XCTestCase {
         XCTAssertFalse(ActionResult.showStatus(.init(message: "boom", style: .error)).dismissesPopup)
     }
 
+    func testCanvasTreeDoesNotDismiss() {
+        let tree = CanvasComponent.text(CanvasTextProps(content: "hi"))
+        XCTAssertFalse(ActionResult.showContentTree(tree, nil).dismissesPopup)
+    }
+
+    func testCanvasMountDoesNotDismiss() {
+        let request = CanvasMountRequest(input: "x", scriptCode: "const ui = () => h('text', {});")
+        XCTAssertFalse(ActionResult.showCanvas(request, CanvasHeader(title: "T", icon: nil)).dismissesPopup)
+    }
+
     // MARK: - Decision 9: errors surface as .showStatus(.error) and the popup stays
 
     func testErrorStatusKeepsPopup() {
