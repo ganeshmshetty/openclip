@@ -311,11 +311,34 @@ public class PopupWindowController {
     }
 
     /// Test access to the private arm path: mirrors exactly what enterContent/showAIContent do, so
-    /// tests can arm an arbitrary native tree without going through the legacy bridge. `preferredSize`
-    /// forwards the §7.1 fixed session size (nil → fitting-size column). Internal because armCanvas is
-    /// private; not production API.
-    func armCanvasForTesting(tree: CanvasComponent, header: CanvasHeader, preferredSize: CanvasSize? = nil) {
-        armCanvas(tree: tree, header: header, preferredSize: preferredSize)
+    /// tests can arm an arbitrary native or scripted tree without going through the legacy bridge.
+    /// `preferredSize` forwards the §7.1 fixed session size (nil → fitting-size column). Internal
+    /// because armCanvas is private; not production API.
+    func armCanvasForTesting(
+        tree: CanvasComponent,
+        header: CanvasHeader,
+        preferredSize: CanvasSize? = nil,
+        scripting: (any CanvasScripting)? = nil,
+        state: CanvasSessionState = CanvasSessionState()
+    ) {
+        let session = CanvasSession(
+            header: header,
+            input: currentActionContext?.selection.text ?? "",
+            preferredSize: preferredSize,
+            scripting: scripting,
+            isAsync: false,
+            tree: tree,
+            state: state
+        )
+        canvasSessionController.replace(with: session)
+        modeStore.content = session
+        modeStore.mode = .content
+        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        enterKeyMode()
+        Task { @MainActor in
+            await Task.yield()
+            canvasSessionController.requestFocus(session.tree.firstInteractiveID())
+        }
     }
 
     /// Collapses the content canvas back to the actions bar. Never hides the popup. Clears the
