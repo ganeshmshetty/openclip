@@ -6,11 +6,6 @@ import Core
 @MainActor
 final class PopupKeyModeTests: XCTestCase {
 
-    override func setUp() {
-        super.setUp()
-        StatusBadgeModel.shared.currentStatusBadge = nil
-    }
-
     private func shownController() throws -> PopupWindowController {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let controller = PopupWindowController()

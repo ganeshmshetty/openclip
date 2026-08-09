@@ -6,11 +6,6 @@ import Core
 @MainActor
 final class PopupCanvasTests: XCTestCase {
 
-    override func setUp() {
-        super.setUp()
-        StatusBadgeModel.shared.currentStatusBadge = nil
-    }
-
     private func shownController(for cursor: CGPoint) throws -> PopupWindowController {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let controller = PopupWindowController()
@@ -62,8 +57,8 @@ final class PopupCanvasTests: XCTestCase {
         controller.handleActionResult(.showContent(makeResultContent()))
 
         XCTAssertEqual(controller.modeStore.mode, .content)
-        XCTAssertEqual(controller.modeStore.content?.title, "AI Result")
-        XCTAssertTrue(controller.modeStore.content?.emphasis == .result)
+        XCTAssertEqual(controller.modeStore.content?.header.title, "AI Result")
+        XCTAssertNil(controller.modeStore.content?.scripting, "bridged content is a native session")
 
         let deadline = Date().addingTimeInterval(3.0)
         while Date() < deadline && panel.frame.height <= barHeight + 1 {
@@ -120,7 +115,7 @@ final class PopupCanvasTests: XCTestCase {
         XCTAssertNil(controller.modeStore.content, "status must not open a canvas")
     }
 
-    func testStatusBadgeWithOpenCanvas() throws {
+    func testStatusWithOpenCanvasQueuesUntilCollapse() throws {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
         defer { controller.hide() }
@@ -132,8 +127,10 @@ final class PopupCanvasTests: XCTestCase {
         controller.handleActionResult(.showStatus(StatusFeedback(message: "Done", style: .info)))
 
         XCTAssertNil(controller.modeStore.statusBanner, "status with a canvas open must not show a banner")
-        XCTAssertEqual(StatusBadgeModel.shared.currentStatusBadge?.message, "Done",
-                       "status with a canvas open surfaces as a corner badge")
+
+        controller.exitContent()
+        XCTAssertEqual(controller.modeStore.statusBanner?.message, "Done",
+                       "a queued status surfaces on the bar banner after the canvas collapses")
     }
 
     private func keyDown(_ keyCode: UInt16) -> NSEvent? {

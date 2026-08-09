@@ -3,7 +3,7 @@
 //
 // Renders the main floating action bar popup view presenting available actions, transform menus,
 // inline completion buttons, the action-search palette, and the inline content canvas (which
-// replaces the bar with an action/AI result card in content mode).
+// replaces the bar with the live CanvasSessionView in content mode).
 import SwiftUI
 import AppKit
 import CoreGraphics
@@ -26,6 +26,13 @@ public struct PopupView: View {
     /// Called when the user taps a canvas footer/menu option. The controller owns the
     /// paste→dismiss vs. collapse-to-bar decision (old bubble UX preserved).
     public let onContentOutcome: @MainActor (ContentOutcome) -> Void
+    /// Canvas session events (e.g. a node handler dispatch) routed to the controller's
+    /// CanvasSessionController. Defaulted to a no-op so the static preview compiles unchanged.
+    public let onCanvasEvent: @MainActor (CanvasEvent) -> Void
+    /// Canvas leaf effects (e.g. a rendered `.button`/`.link` activation) routed to the
+    /// controller's keep-open effect door. Defaulted to a no-op so the static preview compiles
+    /// unchanged.
+    public let onCanvasEffect: @MainActor (CanvasEffect) -> Void
     /// Called when the hovered action changes (nil when nothing hovered). Drives the hover preview strip.
     public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
     /// Opens a scoped palette for a bar row's sub-actions (group rows via `.openSubActions` and the
@@ -106,6 +113,8 @@ public struct PopupView: View {
         onExitSearch: @escaping @MainActor () -> Void = {},
         onExitContent: @escaping @MainActor () -> Void = {},
         onContentOutcome: @escaping @MainActor (ContentOutcome) -> Void = { _ in },
+        onCanvasEvent: @escaping @MainActor (CanvasEvent) -> Void = { _ in },
+        onCanvasEffect: @escaping @MainActor (CanvasEffect) -> Void = { _ in },
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
@@ -122,6 +131,8 @@ public struct PopupView: View {
         self.onAIResult = onAIResult
         self.onExitContent = onExitContent
         self.onContentOutcome = onContentOutcome
+        self.onCanvasEvent = onCanvasEvent
+        self.onCanvasEffect = onCanvasEffect
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
         self.onActionPerformed = onActionPerformed
@@ -225,15 +236,16 @@ public struct PopupView: View {
         }
     }
 
-    /// The content canvas: renders action/AI results inline on the popup panel in place of the bar.
+    /// The content canvas: renders the live canvas session inline on the popup panel in place of the bar.
     @ViewBuilder
     private var contentCanvas: some View {
-        if let content = modeStore.content {
-            PopupContentView(
-                content: content,
-                onBack: { onExitContent() },
-                onOutcome: onContentOutcome,
-                searchResultsAbove: modeStore.searchResultsAbove
+        if let session = modeStore.content {
+            CanvasSessionView(
+                session: session,
+                searchResultsAbove: modeStore.searchResultsAbove,
+                onExitContent: { onExitContent() },
+                onEvent: onCanvasEvent,
+                onEffect: onCanvasEffect
             )
         }
     }
@@ -373,11 +385,11 @@ public struct PopupView: View {
     private var actionsStack: some View {
         VStack(spacing: 0) {
             if let preview = modeStore.preview, modeStore.searchResultsAbove {
-                PopupPreviewStrip(content: preview)
+                PopupPreviewStrip(component: preview)
             }
             actionsHStack
             if let preview = modeStore.preview, !modeStore.searchResultsAbove {
-                PopupPreviewStrip(content: preview)
+                PopupPreviewStrip(component: preview)
             }
         }
     }
