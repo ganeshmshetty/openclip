@@ -67,6 +67,19 @@ final class PopupCanvasTests: XCTestCase {
         XCTAssertGreaterThan(panel.frame.height, barHeight, "canvas should grow the panel")
     }
 
+    func testShowContentTreeArmsSession() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+        let tree = CanvasComponent.stack(.init(), [
+            .text(CanvasTextProps(content: "hello")),
+            .button(CanvasButtonProps(title: "Go", handler: .effect(.copy("hello"))))
+        ])
+        controller.handleActionResult(.showContentTree(tree, CanvasHeader(title: "T", icon: nil)))
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        XCTAssertNil(controller.modeStore.content?.scripting, "tree results arm a native session")
+    }
+
     func testExitContentReturnsToActionsAndShrinksPanel() throws {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))

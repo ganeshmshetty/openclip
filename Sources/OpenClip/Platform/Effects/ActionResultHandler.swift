@@ -128,7 +128,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
 
         // Presentation/flow results are presenter-owned (PopupWindowController). The handler treats
         // them as no-ops so the switch stays exhaustive without crashing when one is routed here.
-        case .showContent, .showStatus, .openConfiguration, .sequence:
+        case .showContent, .showContentTree, .showCanvas, .showStatus, .openConfiguration, .sequence:
             break
         case .keepVisible(let inner):
             try await execute(inner, in: view)
