@@ -314,6 +314,9 @@ public class PopupWindowController {
         do {
             try CanvasTreeValidator.validate(session.tree)
         } catch {
+            // exitContent() (via failCanvas) is a no-op while content mode is unset, so the mounted
+            // session would otherwise leak — clear it before collapsing via failCanvas.
+            canvasSessionController.clear()
             failCanvas(error)
             return
         }
@@ -743,25 +746,48 @@ public class PopupWindowController {
 
     /// A keyboard-delivered effect (.paste/.cut/.keyPress/.simulatePaste) is posted via CGEvent to the
     /// frontmost key window — which is the canvas itself while key. Resign key, activate the source app,
-    /// post, then restore key + refocus when the canvas stays open (§7).
+    /// post, then restore key + refocus when the canvas stays open (§7). The effect is only delivered
+    /// when a source app was captured and is actually frontmost after the activation wait; otherwise the
+    /// post would go to the wrong window, so we surface a status error and restore the canvas instead.
     private func deliverKeyboardEffect(_ effect: CanvasEffect) async {
         let wasKey = panel?.allowsKey == true
-        let wasContent = modeStore.mode == .content
         if wasKey {
             panel?.allowsKey = false
+            var activationSucceeded = false
             if let targetApp = previousFrontmostApp {
                 targetApp.activate(options: [.activateAllWindows])
                 let deadline = Date().addingTimeInterval(0.15)
                 while NSWorkspace.shared.frontmostApplication != targetApp, Date() < deadline {
                     try? await Task.sleep(nanoseconds: 10_000_000)
                 }
+                activationSucceeded = NSWorkspace.shared.frontmostApplication == targetApp
+            }
+            guard activationSucceeded else {
+                presentStatus(StatusFeedback(error: KeyboardEffectDeliveryError.activationFailed))
+                restoreCanvasKeyState()
+                return
             }
         }
         await handleEffect(effect.asActionResult).value
-        if wasKey, modeStore.mode == .content, canvasSessionController.session != nil, panel?.isVisible == true {
-            panel?.allowsKey = true
-            panel?.makeKeyAndOrderFront(nil)
-            canvasSessionController.refocus()
+        if wasKey {
+            restoreCanvasKeyState()
+        }
+    }
+
+    /// Re-activates the canvas's key state after a keyboard-delivered effect, but only when the canvas
+    /// is still open in content mode (a collapsed canvas — Esc/hide — must not regain key status).
+    private func restoreCanvasKeyState() {
+        guard modeStore.mode == .content, canvasSessionController.session != nil, panel?.isVisible == true else { return }
+        panel?.allowsKey = true
+        panel?.makeKeyAndOrderFront(nil)
+        canvasSessionController.refocus()
+    }
+
+    private enum KeyboardEffectDeliveryError: LocalizedError {
+        case activationFailed
+
+        var errorDescription: String? {
+            "Could not deliver the keyboard effect: the source app could not be activated"
         }
     }
 

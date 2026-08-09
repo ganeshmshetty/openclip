@@ -12,6 +12,13 @@ final class MemorySettingsStore: SettingsStore, @unchecked Sendable {
     private let lock = NSLock()
     private var values: [String: Any] = [:]
     private let subject = PassthroughSubject<String, Never>()
+    /// Serializes each value write with its notification, so a concurrent setter can never publish a
+    /// value it didn't write. Distinct from `lock` (which guards the values dictionary): notifications
+    /// are queued under `notificationLock` and drained with the lock released, so a synchronous
+    /// subscriber that calls `get` or `set` during delivery never deadlocks.
+    private let notificationLock = NSLock()
+    private var pendingNotifications: [String] = []
+    private var isDelivering = false
 
     func get<T>(_ key: SettingKey<T>) -> T {
         lock.lock()
@@ -23,7 +30,30 @@ final class MemorySettingsStore: SettingsStore, @unchecked Sendable {
         lock.lock()
         values[key.name] = value
         lock.unlock()
-        subject.send(key.name)
+        notificationLock.lock()
+        pendingNotifications.append(key.name)
+        notificationLock.unlock()
+        deliverPendingNotifications()
+    }
+
+    /// Drains `pendingNotifications` FIFO, holding `notificationLock` only between sends — never during
+    /// `subject.send`. The `isDelivering` flag makes re-entrant `set`s from a subscriber safe: they
+    /// enqueue and return, and the in-flight drain picks the new item up in order.
+    private func deliverPendingNotifications() {
+        notificationLock.lock()
+        guard !isDelivering else {
+            notificationLock.unlock()
+            return
+        }
+        isDelivering = true
+        while !pendingNotifications.isEmpty {
+            let name = pendingNotifications.removeFirst()
+            notificationLock.unlock()
+            subject.send(name)
+            notificationLock.lock()
+        }
+        isDelivering = false
+        notificationLock.unlock()
     }
 
     func publisher<T>(for key: SettingKey<T>) -> AnyPublisher<T, Never> {

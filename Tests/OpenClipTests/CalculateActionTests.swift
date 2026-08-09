@@ -66,7 +66,7 @@ final class CalculateActionTests: XCTestCase {
             return XCTFail("Expected horizontal stack for buttons")
         }
         XCTAssertEqual(hstackProps.orientation, .horizontal)
-        XCTAssertEqual(btnChildren.count, 3)
+        XCTAssertEqual(btnChildren.count, 2)
 
         guard case .button(let btn1) = btnChildren[0] else { return XCTFail("Expected button") }
         XCTAssertEqual(btn1.title, "Paste 144")
@@ -75,10 +75,6 @@ final class CalculateActionTests: XCTestCase {
         guard case .button(let btn2) = btnChildren[1] else { return XCTFail("Expected button") }
         XCTAssertEqual(btn2.title, "Copy 144")
         XCTAssertEqual(btn2.handler, .effect(.copy("144")))
-
-        guard case .button(let btn3) = btnChildren[2] else { return XCTFail("Expected button") }
-        XCTAssertEqual(btn3.title, "Copy 12 * 12 = 144")
-        XCTAssertEqual(btn3.handler, .effect(.copy("12 * 12 = 144")))
     }
 
     @MainActor

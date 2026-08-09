@@ -25,8 +25,32 @@ enum TestIsolation {
     /// Serializes tests accessing shared process-wide gates/locks (e.g. `OpenClipJSHost.syncEvaluationGate`).
     public actor GateSerializer {
         public static let shared = GateSerializer()
+
+        private var locked = false
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+
+        /// Runs `body` exclusively, in FIFO arrival order: each call waits for the preceding holder to
+        /// finish (success or error), executes `body` with no concurrent holder, then hands the gate to
+        /// the next waiter — or unlocks it when none are queued. `body` is invoked directly so async
+        /// `rethrows` semantics are preserved.
         public func serialize<T: Sendable>(_ body: @Sendable () async throws -> T) async rethrows -> T {
-            try await body()
+            if locked {
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    waiters.append(continuation)
+                }
+            }
+            locked = true
+            defer { release() }
+            return try await body()
+        }
+
+        /// Hands the gate to the next FIFO waiter, or unlocks it when none are queued.
+        private func release() {
+            if waiters.isEmpty {
+                locked = false
+            } else {
+                waiters.removeFirst().resume()
+            }
         }
     }
 }

@@ -311,6 +311,34 @@ final class CanvasSessionLifecycleTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.statusBanner?.message, "Mount failed")
     }
 
+    func testMountedTreeValidationFailureClearsSession() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+
+        // An invalid tree (duplicate sibling ids) that the engine "mounts" successfully — validation
+        // then fails in armMountedSession, which must clear the mounted session (exitContent() is a
+        // no-op while content mode is unset).
+        let dupTree = CanvasComponent.stack(CanvasStackProps(), [
+            .text(CanvasTextProps(id: "dup", content: "first")),
+            .text(CanvasTextProps(id: "dup", content: "second"))
+        ])
+        let fake = GatedScripting()
+        fake.mountResult = CanvasMountResult(state: CanvasSessionState(), tree: dupTree)
+
+        controller.canvasSessionController.mount(
+            CanvasMountRequest(input: "sel"),
+            scripting: fake,
+            header: CanvasHeader(title: "Invalid")
+        )
+        fake.release()
+        pump()
+
+        XCTAssertNil(controller.canvasSessionController.session, "mounted-tree validation failure must clear the session")
+        XCTAssertEqual(controller.modeStore.mode, .actions, "validation failure must not enter content mode")
+        XCTAssertEqual(controller.modeStore.statusBanner?.style, .error)
+    }
+
     func testStatusWhileCanvasOpenSurfacesAfterCollapse() throws {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))

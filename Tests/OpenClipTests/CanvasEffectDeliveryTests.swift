@@ -70,6 +70,11 @@ final class CanvasEffectDeliveryTests: XCTestCase {
         let controller = try shownController(with: recordingHandler)
         defer { controller.hide() }
 
+        // The test host is the foreground app under xcodebuild, and captureFrontmostAppIfNeeded
+        // skips capturing the app itself — so set a target whose activation succeeds so the effect
+        // is delivered (the new activation-gated contract).
+        controller.previousFrontmostApp = NSRunningApplication.current
+
         let tree = Canvas.build {
             Canvas.button("Paste", id: "b1", handler: .effect(.paste("hello")))
         }
@@ -159,6 +164,8 @@ final class CanvasEffectDeliveryTests: XCTestCase {
         let controller = try shownController(with: defaultHandler)
         defer { controller.hide() }
 
+        controller.previousFrontmostApp = NSRunningApplication.current
+
         let tree = Canvas.build {
             Canvas.text("Poster Test")
         }
@@ -200,5 +207,38 @@ final class CanvasEffectDeliveryTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.mode, .actions)
         let panel = try visiblePanel()
         XCTAssertFalse(panel.allowsKey, "exitContent during effect must not restore key status")
+    }
+
+    func testKeyboardEffectWithoutTargetAppShowsStatusError() throws {
+        let recordingHandler = RecordingActionResultHandler()
+        let controller = try shownController(with: recordingHandler)
+        defer { controller.hide() }
+
+        let tree = Canvas.build {
+            Canvas.button("Paste", id: "b1", handler: .effect(.paste("hello")))
+        }
+        controller.armCanvasForTesting(tree: tree, header: CanvasHeader(title: "Delivery Test"))
+        pump()
+        controller.previousFrontmostApp = nil
+
+        let originalOnEffects = controller.canvasSessionController.onEffects
+        controller.canvasSessionController.onEffects = { effects in
+            originalOnEffects?(effects)
+        }
+
+        controller.canvasSessionController.onEffects?([.paste("hello")])
+        pump(0.5)
+
+        let handledPaste = recordingHandler.handledResults.contains(where: { actionResult in
+            if case .paste(let val) = actionResult.effectForHandler {
+                return val == "hello"
+            }
+            return false
+        })
+
+        XCTAssertFalse(handledPaste, "keyboard effect must not be delivered when no source app was captured")
+        XCTAssertEqual(controller.modeStore.mode, .content, "canvas must stay open in content mode after activation failure")
+        let panel = try visiblePanel()
+        XCTAssertTrue(panel.allowsKey, "canvas key state must be restored after activation failure")
     }
 }

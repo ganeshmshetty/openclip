@@ -31,11 +31,36 @@ enum KeychainStore {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
-        _ = SecItemDelete(query as CFDictionary)
-        var addQuery = query
-        addQuery[kSecValueData as String] = data
-        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        return SecItemAdd(addQuery as CFDictionary, nil) == errSecSuccess
+        let updateAttributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+        ]
+
+        let updateStatus = SecItemUpdate(query as CFDictionary, updateAttributes as CFDictionary)
+        if updateStatus == errSecSuccess { return true }
+        if updateStatus == errSecItemNotFound {
+            var addQuery = query
+            addQuery[kSecValueData as String] = data
+            addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            return SecItemAdd(addQuery as CFDictionary, nil) == errSecSuccess
+        }
+        // SecItemUpdate cannot retarget kSecAttrAccessible of an existing item; it fails with
+        // errSecParam (accessibility migration) — replace it, restoring the prior credential if the
+        // replacement fails so the old value is never lost to a delete-before-successful-replace.
+        guard updateStatus == errSecParam else { return false }
+        let previous = get(account: account, service: service)
+        guard SecItemDelete(query as CFDictionary) == errSecSuccess else { return false }
+        var replaceQuery = query
+        replaceQuery[kSecValueData as String] = data
+        replaceQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        if SecItemAdd(replaceQuery as CFDictionary, nil) == errSecSuccess { return true }
+        if let previous {
+            var restoreQuery = query
+            restoreQuery[kSecValueData as String] = Data(previous.utf8)
+            restoreQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            return SecItemAdd(restoreQuery as CFDictionary, nil) == errSecSuccess
+        }
+        return false
     }
 
 
