@@ -61,4 +61,117 @@ public enum CanvasScriptBox {
             return nil
         }
     }
+
+    /// Registers the `openclip` bridge object and side-effect functions on the context.
+    public static func installCanvasBridge(
+        in context: JSContext,
+        input: String,
+        optionValues: [String: JSONValue],
+        effectsBox: CanvasEffectsBox,
+        keepVisibleBox: CanvasKeepVisibleBox
+    ) {
+        let openclip: JSValue
+        if let existing = context.objectForKeyedSubscript("openclip"), !existing.isUndefined, !existing.isNull, existing.isObject {
+            openclip = existing
+        } else {
+            openclip = JSValue(newObjectIn: context)!
+        }
+
+        // Input object
+        let inputObj = JSValue(newObjectIn: context)!
+        inputObj.setObject(input, forKeyedSubscript: "text" as NSString)
+        inputObj.setObject(input, forKeyedSubscript: "matchedText" as NSString)
+        openclip.setObject(inputObj, forKeyedSubscript: "input" as NSString)
+
+        // Options
+        var optionsDict: [String: Any] = [:]
+        for (key, val) in optionValues {
+            optionsDict[key] = jsonValueToRawObject(val)
+        }
+        openclip.setObject(optionsDict, forKeyedSubscript: "options" as NSString)
+
+        // Effects
+        let copyBlock: @convention(block) (String) -> Void = { text in
+            effectsBox.value.append(.copy(text))
+        }
+        let pasteBlock: @convention(block) (String) -> Void = { text in
+            effectsBox.value.append(.paste(text))
+        }
+        let cutBlock: @convention(block) (String) -> Void = { text in
+            effectsBox.value.append(.cut(text))
+        }
+        let simulatePasteBlock: @convention(block) () -> Void = {
+            effectsBox.value.append(.simulatePaste)
+        }
+        let openURLBlock: @convention(block) (String) -> Void = { urlString in
+            if let url = URL(string: urlString) {
+                effectsBox.value.append(.openURL(url))
+            }
+        }
+        let keyPressBlock: @convention(block) (String, NSArray?) -> Void = { key, modifiers in
+            let mods = mapModifiers(modifiers)
+            effectsBox.value.append(.keyPress(KeyPressSpec(key: key, modifiers: mods)))
+        }
+        let runShortcutBlock: @convention(block) (String, String?) -> Void = { name, inputOverride in
+            effectsBox.value.append(.runShortcut(name: name, input: inputOverride ?? input))
+        }
+        let showServicesBlock: @convention(block) (String) -> Void = { text in
+            effectsBox.value.append(.showServices(text))
+        }
+        let notifyBlock: @convention(block) (String, String) -> Void = { title, body in
+            effectsBox.value.append(.notify(title: title, body: body))
+        }
+        let keepVisibleBlock: @convention(block) () -> Void = {
+            keepVisibleBox.value = true
+        }
+
+        openclip.setObject(copyBlock, forKeyedSubscript: "copy" as NSString)
+        openclip.setObject(pasteBlock, forKeyedSubscript: "paste" as NSString)
+        openclip.setObject(cutBlock, forKeyedSubscript: "cut" as NSString)
+        openclip.setObject(simulatePasteBlock, forKeyedSubscript: "simulatePaste" as NSString)
+        openclip.setObject(openURLBlock, forKeyedSubscript: "openURL" as NSString)
+        openclip.setObject(keyPressBlock, forKeyedSubscript: "keyPress" as NSString)
+        openclip.setObject(runShortcutBlock, forKeyedSubscript: "runShortcut" as NSString)
+        openclip.setObject(showServicesBlock, forKeyedSubscript: "showServices" as NSString)
+        openclip.setObject(notifyBlock, forKeyedSubscript: "notify" as NSString)
+        openclip.setObject(keepVisibleBlock, forKeyedSubscript: "keepVisible" as NSString)
+
+        context.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
+        context.evaluateScript("openclip.option = function(id) { return openclip.options[id]; };")
+    }
+
+    public static func jsonValueToRawObject(_ json: JSONValue) -> Any {
+        switch json {
+        case .string(let s): return s
+        case .number(let n): return n
+        case .bool(let b): return b
+        case .null: return NSNull()
+        case .array(let arr): return arr.map(jsonValueToRawObject)
+        case .object(let dict): return dict.mapValues(jsonValueToRawObject)
+        }
+    }
+
+    private static func mapModifiers(_ modifiers: NSArray?) -> [KeyPressSpec.KeyModifier] {
+        guard let modifiers else { return [] }
+        return modifiers.compactMap { element in
+            guard let raw = element as? String else { return nil }
+            switch raw.lowercased() {
+            case "command": return .command
+            case "shift": return .shift
+            case "option": return .option
+            case "control": return .control
+            default: return nil
+            }
+        }
+    }
+}
+
+public final class CanvasEffectsBox: @unchecked Sendable {
+    public var value: [CanvasEffect] = []
+    public init() {}
+}
+
+public final class CanvasKeepVisibleBox: @unchecked Sendable {
+    public var value: Bool = false
+    public init() {}
 }

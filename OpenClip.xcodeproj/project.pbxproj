@@ -57,7 +57,6 @@
 		3AF0B64A9CA529B87AF60C5C /* MenuDecoratedAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0287D4C35BF5F5C6196903B7 /* MenuDecoratedAction.swift */; };
 		3B2A2D89FA04D2CEE87C117E /* SearchHoverSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82CA57F3B19ABD7C1FADC2C8 /* SearchHoverSupport.swift */; };
 		3B367A7B4C49C2F54DB9FAD4 /* ScriptActionExecutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA4CE0EEDB520B882DB1A0CD /* ScriptActionExecutionTests.swift */; };
-		3C56C394BB1F4F97E34F048E /* UnavailableCanvasEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C580111C2CB8BD144AA4AF7 /* UnavailableCanvasEngine.swift */; };
 		3CFA6606D2D7ADE239AC70D8 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEF62694D77470DE4E2262E6 /* OnboardingView.swift */; };
 		3D24BB72EB42ACBAB7B26FC9 /* CopyAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B0960E3A7EF80331F08063 /* CopyAction.swift */; };
 		3D5FA5DD6B43DAB73D609A56 /* SubAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D592F9A6C10CBFA62064607 /* SubAction.swift */; };
@@ -196,6 +195,7 @@
 		C1E4029C7E5627815F845383 /* ContextualFilteringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACC606EEF879A9BCA003756 /* ContextualFilteringTests.swift */; };
 		C25FB276103A8CB85C7D2AE7 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5462DE3FBF349954799E6C00 /* AIProvider.swift */; };
 		C2E344F59CE4265FB2648377 /* AppearanceTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0EAB528D9EBD847813A9281 /* AppearanceTabView.swift */; };
+		C4901E1AF85525634B340114 /* JavaScriptCanvasEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE1C404EF7FA9B5F3A1597A /* JavaScriptCanvasEngineTests.swift */; };
 		C54EA6972708DC6B6083AF66 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 69201994E9CE6C7F2CDED2F0 /* KeyboardShortcuts */; };
 		C63E6C48A533FAF5D6C89CA6 /* ActionUsageStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE52A2746613B843A8CD5AB5 /* ActionUsageStoreTests.swift */; };
 		C85F042BF73B07FCBDEC234A /* BuiltinActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4F2434073F85AB2FC61E746 /* BuiltinActionsTests.swift */; };
@@ -227,6 +227,7 @@
 		E94E8E1A91416CA1E54B9BFD /* MultiActionExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8898F579917FE375DDEE7778 /* MultiActionExtensionTests.swift */; };
 		EAAF9D96BDB11164BE3EFA95 /* PopupKeyModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E326FBD9CF1196253E71CDA1 /* PopupKeyModeTests.swift */; };
 		EB0DB3A8EC936D90D0D35D98 /* DefineActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BCD81A735F9A377FDE4DB32 /* DefineActionTests.swift */; };
+		EB83C48537C03BEC347C0A99 /* JavaScriptCanvasEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83F59189F77BC9B5A645387A /* JavaScriptCanvasEngine.swift */; };
 		EBBDD5144B39E9622CA4F910 /* BuiltinRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B31769AC6C38931924A68F4 /* BuiltinRegistry.swift */; };
 		EBE9FB46AD56F10020544D24 /* SelectionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F741E6F7B6D8F5B61A13F0F /* SelectionContext.swift */; };
 		ECE012E196595B20CFEB8BB8 /* CanvasTreeValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F57DE788CBA4CC8756F96012 /* CanvasTreeValidatorTests.swift */; };
@@ -410,6 +411,7 @@
 		7FF20DB76BDB47222A26CBAC /* AIProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProviderTests.swift; sourceTree = "<group>"; };
 		82321CCDFB4EDE96ABB905F7 /* CompletionAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionAction.swift; sourceTree = "<group>"; };
 		82CA57F3B19ABD7C1FADC2C8 /* SearchHoverSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHoverSupport.swift; sourceTree = "<group>"; };
+		83F59189F77BC9B5A645387A /* JavaScriptCanvasEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptCanvasEngine.swift; sourceTree = "<group>"; };
 		85A5FABB1C8498A80FF08806 /* CanvasSessionViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasSessionViewTests.swift; sourceTree = "<group>"; };
 		85CB0D7F545A74562723950E /* RevealInFinderAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevealInFinderAction.swift; sourceTree = "<group>"; };
 		86C9A6B8F1602DED59E0237E /* InstalledAppsScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledAppsScanner.swift; sourceTree = "<group>"; };
@@ -419,7 +421,6 @@
 		8ADB336B80C0380A45B5042F /* ExtensionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionCardView.swift; sourceTree = "<group>"; };
 		8B521F6AE4BA6FD8516E8A1B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8B661E6EEBB238748D4D892E /* NewExtensionKindTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewExtensionKindTests.swift; sourceTree = "<group>"; };
-		8C580111C2CB8BD144AA4AF7 /* UnavailableCanvasEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnavailableCanvasEngine.swift; sourceTree = "<group>"; };
 		8CB9BA0577EDDA7E174755C2 /* OpenClipJSHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipJSHostTests.swift; sourceTree = "<group>"; };
 		8D592F9A6C10CBFA62064607 /* SubAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubAction.swift; sourceTree = "<group>"; };
 		8E8782CDF24448F374DA0038 /* ActionOptionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionOptionStore.swift; sourceTree = "<group>"; };
@@ -494,6 +495,7 @@
 		DD450B5A7E8695E2310B5885 /* CanvasScriptingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasScriptingTests.swift; sourceTree = "<group>"; };
 		DDF25B7CA70822AE323518F8 /* MemorySettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsStore.swift; sourceTree = "<group>"; };
 		DECAB4B5213F632283318CD6 /* SelectionMonitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionMonitoring.swift; sourceTree = "<group>"; };
+		DEE1C404EF7FA9B5F3A1597A /* JavaScriptCanvasEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptCanvasEngineTests.swift; sourceTree = "<group>"; };
 		DFEE1DAE171FE965EB13F090 /* PopupPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPanelTests.swift; sourceTree = "<group>"; };
 		E21F7917E14860EA903D0552 /* AppRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRule.swift; sourceTree = "<group>"; };
 		E28D2543D3CDDD042BAE74FF /* KeychainActionOptionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainActionOptionStoreTests.swift; sourceTree = "<group>"; };
@@ -674,7 +676,6 @@
 				F42C959E23FBB018FD815BBD /* PopupView.swift */,
 				BB70FC227E05CD8269458C89 /* PopupWindowController.swift */,
 				82CA57F3B19ABD7C1FADC2C8 /* SearchHoverSupport.swift */,
-				8C580111C2CB8BD144AA4AF7 /* UnavailableCanvasEngine.swift */,
 			);
 			path = Popup;
 			sourceTree = "<group>";
@@ -771,6 +772,7 @@
 				5471C526A3CC3251CAC63D74 /* AppleScriptAction.swift */,
 				7EB1F6943C0589D41FF0BB71 /* CanvasScriptBox.swift */,
 				58D8C54121CAFC913E8B4110 /* JavaScriptAction.swift */,
+				83F59189F77BC9B5A645387A /* JavaScriptCanvasEngine.swift */,
 				FDBF55EF6666202D0FAA8AA9 /* KeyPressAction.swift */,
 				509707D7B7F8F160B2C001BC /* NamedServiceAction.swift */,
 				CA08C27DF325BEA21486A673 /* OpenClipJSHost.swift */,
@@ -972,6 +974,7 @@
 				6A9596443229B1173DAB2434 /* ExtensionsStoreViewTests.swift */,
 				C0A5C800BE48C74A05B33DDA /* GoldenExtensionPlatformTests.swift */,
 				74377A23CADC86774742A0BD /* InstalledAppsScannerTests.swift */,
+				DEE1C404EF7FA9B5F3A1597A /* JavaScriptCanvasEngineTests.swift */,
 				E28D2543D3CDDD042BAE74FF /* KeychainActionOptionStoreTests.swift */,
 				B603C28D161A795066B85A89 /* LaunchAtLoginManagerTests.swift */,
 				31413D1B3A41341818B8B6F6 /* ManifestValidationTests.swift */,
@@ -1181,6 +1184,7 @@
 				F499E888422C2452E64E2F06 /* ExtensionsStoreViewTests.swift in Sources */,
 				2140964D90DA799B312DED49 /* GoldenExtensionPlatformTests.swift in Sources */,
 				28866ECB981E609DE49A0446 /* InstalledAppsScannerTests.swift in Sources */,
+				C4901E1AF85525634B340114 /* JavaScriptCanvasEngineTests.swift in Sources */,
 				480FB9506BF4CB2A1E7825A1 /* KeychainActionOptionStoreTests.swift in Sources */,
 				1C03F28FAA913021C9CA39D2 /* LaunchAtLoginManagerTests.swift in Sources */,
 				0875DA9C238F752BCDBB8EC9 /* ManifestValidationTests.swift in Sources */,
@@ -1342,6 +1346,7 @@
 				E61E4C2DC3230E70EA105D27 /* InstalledAppsScanner.swift in Sources */,
 				F2AE27E093E546BB9F84835F /* InstalledExtensionsView.swift in Sources */,
 				906E3948E1B975EE9BDA5AF3 /* JavaScriptAction.swift in Sources */,
+				EB83C48537C03BEC347C0A99 /* JavaScriptCanvasEngine.swift in Sources */,
 				F3E91A332408B9ABC60034A4 /* KeyPressAction.swift in Sources */,
 				E1F16F682F37ADD22910279F /* KeychainActionOptionStore.swift in Sources */,
 				9755C620A8AB9388B2E35889 /* KeychainStore.swift in Sources */,
@@ -1381,7 +1386,6 @@
 				8A479517E13803DE07593C74 /* ServicesAction.swift in Sources */,
 				9184DBBBBD2F0DE329DEAFA9 /* ShortcutAction.swift in Sources */,
 				4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */,
-				3C56C394BB1F4F97E34F048E /* UnavailableCanvasEngine.swift in Sources */,
 				94B3C1F1B49D3696A9059021 /* UnifiedIconProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
