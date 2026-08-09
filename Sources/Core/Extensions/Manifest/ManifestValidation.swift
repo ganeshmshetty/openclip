@@ -140,6 +140,10 @@ public struct ManifestValidator: Sendable {
             if isBlank(action.keyPress) {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("keyPress"), path: path))
             }
+        case .canvas:
+            if isBlank(action.scriptCode) {
+                issues.append(ManifestValidationIssue(kind: .missingRequiredField("scriptCode"), path: path))
+            }
         case .shortcut:
             if isBlank(action.shortcutName) {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("shortcutName"), path: path))
