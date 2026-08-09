@@ -24,19 +24,19 @@ public enum ActionResultAdapter {
             normalized = .copy(s)
         case (.pasteResult, .copy(let s)), (.pasteResult, .paste(let s)):
             normalized = .paste(s)
-        case (_, .showContent), (_, .showStatus), (_, .openConfiguration),
+        case (_, .showContent), (_, .showContentTree), (_, .showCanvas), (_, .showStatus), (_, .openConfiguration),
              (_, .keyPress), (_, .runShortcut), (_, .keepVisible), (_, .sequence):
             // Runtime presentations always win — pass through unchanged.
             normalized = raw
         case (.showResult, .copy(let s)), (.showResult, .paste(let s)):
-            normalized = .showContent(PopupContent(
-                title: title, icon: icon, rows: [.text(s)],
-                footer: [
-                    ContentOption(title: "Paste", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(s))),
-                    ContentOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(s)))
-                ],
-                emphasis: .result
-            ))
+            normalized = .showContentTree(
+                Canvas.build {
+                    Canvas.text(s)
+                    Canvas.button("Paste", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(s)))
+                    Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(s)))
+                },
+                CanvasHeader(title: title, icon: icon)
+            )
         case (.none, _):
             normalized = .success
         default:

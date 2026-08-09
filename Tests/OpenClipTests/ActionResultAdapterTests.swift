@@ -36,38 +36,50 @@ final class ActionResultAdapterTests: XCTestCase {
         }
     }
 
-    // MARK: - showResult → content card with Paste/Copy footer
+    // MARK: - showResult → component tree with Paste/Copy buttons
 
-    func testShowResultWrapsCopyInContent() {
+    func testShowResultWrapsCopyInContentTree() {
         let result = ActionResultAdapter.apply(raw: .copy("x"), after: .showResult, stayVisible: false, title: "My Title", icon: "doc.text")
-        guard case .showContent(let content) = result else {
-            return XCTFail("Expected .showContent, got \(result)")
+        guard case .showContentTree(let tree, let header) = result else {
+            return XCTFail("Expected .showContentTree, got \(result)")
         }
-        XCTAssertEqual(content.title, "My Title")
-        XCTAssertEqual(content.icon, "doc.text")
-        XCTAssertEqual(content.emphasis, .result)
-        XCTAssertEqual(content.rows.count, 1)
-        guard case .text(let rowText) = content.rows[0] else {
-            return XCTFail("Expected text row")
+        XCTAssertEqual(header?.title, "My Title")
+        XCTAssertEqual(header?.icon, "doc.text")
+        guard case .stack(_, let children) = tree else {
+            return XCTFail("Expected stack root node")
         }
-        XCTAssertEqual(rowText, "x")
-        XCTAssertEqual(content.footer.count, 2)
-        XCTAssertEqual(content.footer[0].title, "Paste")
-        guard case .perform(.paste("x")) = content.footer[0].outcome else {
-            return XCTFail("Expected Paste footer performing .paste(x)")
+        XCTAssertEqual(children.count, 3)
+        guard case .text(let textProps) = children[0] else {
+            return XCTFail("Expected text component")
         }
-        XCTAssertEqual(content.footer[1].title, "Copy")
-        guard case .perform(.copy("x")) = content.footer[1].outcome else {
-            return XCTFail("Expected Copy footer performing .copy(x)")
+        XCTAssertEqual(textProps.content, "x")
+
+        guard case .button(let pasteBtn) = children[1] else {
+            return XCTFail("Expected Paste button")
         }
+        XCTAssertEqual(pasteBtn.title, "Paste")
+        XCTAssertEqual(pasteBtn.icon, .symbol("arrow.triangle.2.circlepath"))
+        XCTAssertEqual(pasteBtn.handler, .effect(.paste("x")))
+
+        guard case .button(let copyBtn) = children[2] else {
+            return XCTFail("Expected Copy button")
+        }
+        XCTAssertEqual(copyBtn.title, "Copy")
+        XCTAssertEqual(copyBtn.icon, .symbol("doc.on.doc"))
+        XCTAssertEqual(copyBtn.handler, .effect(.copy("x")))
     }
 
-    func testShowResultWrapsPasteInContent() {
+    func testShowResultWrapsPasteInContentTree() {
         let result = ActionResultAdapter.apply(raw: .paste("x"), after: .showResult, stayVisible: false, title: "T", icon: nil)
-        guard case .showContent(let content) = result else {
-            return XCTFail("Expected .showContent, got \(result)")
+        guard case .showContentTree(let tree, let header) = result else {
+            return XCTFail("Expected .showContentTree, got \(result)")
         }
-        XCTAssertEqual(content.rows.count, 1)
+        XCTAssertEqual(header?.title, "T")
+        XCTAssertNil(header?.icon)
+        guard case .stack(_, let children) = tree else {
+            return XCTFail("Expected stack root node")
+        }
+        XCTAssertEqual(children.count, 3)
     }
 
     // MARK: - none collapses to success

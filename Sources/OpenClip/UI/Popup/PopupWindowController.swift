@@ -430,12 +430,18 @@ public class PopupWindowController {
         longPressTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: Constants.bubbleLongPressNanoseconds)
             guard !Task.isCancelled, self.hoveredAction?.id == targetAction.id else { return }
-            guard let content = await (targetAction as? any ResultContentProviding)?.makeContent(for: actionContext) else {
+            guard let tree = await (targetAction as? any ResultContentProviding)?.makeContent(for: actionContext) else {
                 return
             }
             guard !Task.isCancelled else { return }
             longPressFired = true
-            self.enterContent(content)
+            self.armCanvas(
+                tree: tree,
+                header: CanvasHeader(
+                    title: targetAction.displayTitle(using: ActionCustomizationManager.shared),
+                    icon: targetAction.icon.symbolName
+                )
+            )
         }
     }
     
