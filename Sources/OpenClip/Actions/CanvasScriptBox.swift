@@ -1,8 +1,10 @@
 // CanvasScriptBox.swift
 // OpenClip
 //
-// Pure JSContext glue for JavaScript extensions: registers the `h(type, props, children)` helper
-// and bridges JS element objects to Core's neutral `CanvasElementSpec` structure.
+// Pure JSContext glue for JavaScript extensions: registers the `h(type, props, children)` helper,
+// bridges JS element objects to Core's neutral `CanvasElementSpec` structure, and installs the
+// `openclip` canvas bridge (effects, keepVisible, showContent(tree, {size}), showStatus) into a
+// per-evaluation `CanvasBridgeCollector`.
 
 import Foundation
 import JavaScriptCore
@@ -62,13 +64,13 @@ public enum CanvasScriptBox {
         }
     }
 
-    /// Registers the `openclip` bridge object and side-effect functions on the context.
+    /// Registers the `openclip` bridge object and side-effect functions on the context. Every call
+    /// collects into the passed `CanvasBridgeCollector` (fresh per evaluation — never shared state).
     public static func installCanvasBridge(
         in context: JSContext,
         input: String,
         optionValues: [String: JSONValue],
-        effectsBox: CanvasEffectsBox,
-        keepVisibleBox: CanvasKeepVisibleBox
+        collector: CanvasBridgeCollector
     ) {
         let openclip: JSValue
         if let existing = context.objectForKeyedSubscript("openclip"), !existing.isUndefined, !existing.isNull, existing.isObject {
@@ -92,37 +94,62 @@ public enum CanvasScriptBox {
 
         // Effects
         let copyBlock: @convention(block) (String) -> Void = { text in
-            effectsBox.value.append(.copy(text))
+            collector.effects.append(.copy(text))
         }
         let pasteBlock: @convention(block) (String) -> Void = { text in
-            effectsBox.value.append(.paste(text))
+            collector.effects.append(.paste(text))
         }
         let cutBlock: @convention(block) (String) -> Void = { text in
-            effectsBox.value.append(.cut(text))
+            collector.effects.append(.cut(text))
         }
         let simulatePasteBlock: @convention(block) () -> Void = {
-            effectsBox.value.append(.simulatePaste)
+            collector.effects.append(.simulatePaste)
         }
         let openURLBlock: @convention(block) (String) -> Void = { urlString in
             if let url = URL(string: urlString) {
-                effectsBox.value.append(.openURL(url))
+                collector.effects.append(.openURL(url))
             }
         }
         let keyPressBlock: @convention(block) (String, NSArray?) -> Void = { key, modifiers in
             let mods = mapModifiers(modifiers)
-            effectsBox.value.append(.keyPress(KeyPressSpec(key: key, modifiers: mods)))
+            collector.effects.append(.keyPress(KeyPressSpec(key: key, modifiers: mods)))
         }
         let runShortcutBlock: @convention(block) (String, String?) -> Void = { name, inputOverride in
-            effectsBox.value.append(.runShortcut(name: name, input: inputOverride ?? input))
+            collector.effects.append(.runShortcut(name: name, input: inputOverride ?? input))
         }
         let showServicesBlock: @convention(block) (String) -> Void = { text in
-            effectsBox.value.append(.showServices(text))
+            collector.effects.append(.showServices(text))
         }
         let notifyBlock: @convention(block) (String, String) -> Void = { title, body in
-            effectsBox.value.append(.notify(title: title, body: body))
+            collector.effects.append(.notify(title: title, body: body))
         }
         let keepVisibleBlock: @convention(block) () -> Void = {
-            keepVisibleBox.value = true
+            collector.keepVisible = true
+        }
+
+        // showContent(tree, options?) — captures mountedTree + preferredSize
+        let showContentBlock: @convention(block) (JSValue, JSValue?) -> Void = { treeValue, options in
+            if let object = treeValue.toObject() as? [String: Any],
+               let spec = CanvasScriptBox.elementSpec(from: object) {
+                do {
+                    collector.mountedTree = try CanvasElementParser.parseTree(spec)
+                } catch {
+                    collector.parseError = CanvasJSRuntimeError.scriptException(error.localizedDescription)
+                }
+            } else {
+                collector.parseError = CanvasJSRuntimeError.scriptException("showContent payload rejected")
+            }
+            if let options, options.isObject, let size = options.objectForKeyedSubscript("size"), size.isObject {
+                let w = size.objectForKeyedSubscript("width")
+                let h = size.objectForKeyedSubscript("height")
+                if let w, !w.isUndefined, w.isNumber, let h, !h.isUndefined, h.isNumber {
+                    collector.preferredSize = CanvasSize(width: w.toDouble(), height: h.toDouble())
+                }
+            }
+        }
+        // showStatus(message, style?) — style defaults "info"
+        let showStatusBlock: @convention(block) (String, String?) -> Void = { message, style in
+            collector.status = StatusFeedback(message: message, style: CanvasScriptBox.mapStatusStyle(style ?? "info"))
         }
 
         openclip.setObject(copyBlock, forKeyedSubscript: "copy" as NSString)
@@ -135,6 +162,8 @@ public enum CanvasScriptBox {
         openclip.setObject(showServicesBlock, forKeyedSubscript: "showServices" as NSString)
         openclip.setObject(notifyBlock, forKeyedSubscript: "notify" as NSString)
         openclip.setObject(keepVisibleBlock, forKeyedSubscript: "keepVisible" as NSString)
+        openclip.setObject(showContentBlock, forKeyedSubscript: "showContent" as NSString)
+        openclip.setObject(showStatusBlock, forKeyedSubscript: "showStatus" as NSString)
 
         context.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
         context.evaluateScript("openclip.option = function(id) { return openclip.options[id]; };")
@@ -164,14 +193,27 @@ public enum CanvasScriptBox {
             }
         }
     }
+
+    /// Maps a JS status style string to the Core style (defaults to `.info`).
+    public static func mapStatusStyle(_ raw: String) -> StatusFeedback.Style {
+        switch raw.lowercased() {
+        case "success": return .success
+        case "error": return .error
+        case "info": return .info
+        default: return .info
+        }
+    }
 }
 
-public final class CanvasEffectsBox: @unchecked Sendable {
-    public var value: [CanvasEffect] = []
-    public init() {}
-}
-
-public final class CanvasKeepVisibleBox: @unchecked Sendable {
-    public var value: Bool = false
+/// Per-evaluation capture bag for everything the `openclip` canvas bridge collects: side-effect
+/// requests, the keepVisible flag, the showContent tree/size override, and a showStatus feedback.
+/// A fresh collector is created for every mount/dispatch evaluation (never shared/static state).
+public final class CanvasBridgeCollector: @unchecked Sendable {
+    public var effects: [CanvasEffect] = []
+    public var keepVisible: Bool = false
+    public var preferredSize: CanvasSize?
+    public var status: StatusFeedback?
+    public var mountedTree: CanvasComponent?
+    public var parseError: CanvasJSRuntimeError?
     public init() {}
 }
