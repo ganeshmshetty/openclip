@@ -98,6 +98,11 @@ public class PopupWindowController {
         canvasSessionController.onStatus = { [weak self] feedback in
             self?.presentStatus(feedback)
         }
+        // Mount success arms content mode + keys the panel exactly like armCanvas (audit gap fix):
+        // without this the `.showCanvas` path would mount a session the panel never shows.
+        canvasSessionController.onSessionArmed = { [weak self] session in
+            self?.armMountedSession(session)
+        }
 
         let rootView = PopupView(
             actions: availableActions,
@@ -294,6 +299,21 @@ public class PopupWindowController {
         }
     }
 
+    /// Arms a mounted scripting session: enters content mode and keys the panel exactly like
+    /// armCanvas, minus session construction — the session already exists (built by the engine's
+    /// mount) and lives on CanvasSessionController. Called from `show(for:)` via the
+    /// onSessionArmed callback; this is the `.showCanvas` path's only transition into content mode.
+    private func armMountedSession(_ session: CanvasSession) {
+        modeStore.content = session
+        modeStore.mode = .content
+        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        enterKeyMode()
+        Task { @MainActor in
+            await Task.yield()
+            canvasSessionController.requestFocus(session.tree.firstInteractiveID())
+        }
+    }
+
     /// The running action's chrome title/icon for a canvas whose producer left the header nil.
     private func currentHeaderFromAction() -> CanvasHeader {
         if let hoveredAction {
@@ -305,9 +325,9 @@ public class PopupWindowController {
         return CanvasHeader(title: "", icon: nil)
     }
 
-    /// Arms a scripting session. Dormant until Task 24 — no producer emits `.showCanvas` before the
-    /// JS canvas producer; the engine is injected here (replaced by JavaScriptCanvasEngine in Task 23)
-    /// and the stub surfaces a mount error that collapses + shows the error banner.
+    /// Arms a scripting session through the JS canvas engine. Mount success enters content mode and
+    /// keys the panel via the onSessionArmed → armMountedSession callback wired in show(for:); a
+    /// mount error surfaces through onSessionError → failCanvas (collapses + shows the error banner).
     private func mountCanvas(request: CanvasMountRequest, header: CanvasHeader) {
         canvasSessionController.mount(request, scripting: JavaScriptCanvasEngine(), header: header)
     }

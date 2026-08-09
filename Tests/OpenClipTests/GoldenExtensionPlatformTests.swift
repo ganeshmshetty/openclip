@@ -325,4 +325,65 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         }
         XCTAssertEqual(textProps.content, "Hello World")
     }
+
+    /// Exit criterion: a manifest `type: "canvas"` action loads through the full pipeline, `perform`
+    /// yields a `.showCanvas` mount request, and the REAL JavaScriptCanvasEngine serves ≥3 dispatches
+    /// from one compiled script — the counter climbs 1 → 2 → 3 (behavioral parity with the panel
+    /// e2e test, minus any panel/windowing).
+    @MainActor
+    func testCanvasCounterGoldenReusesCompiledScriptAcrossDispatches() async throws {
+        let canvasBundle = tempDir.appendingPathComponent("CanvasExt.openclipext")
+        try FileManager.default.createDirectory(at: canvasBundle, withIntermediateDirectories: true)
+        let canvasManifest = """
+        {
+            "identifier": "com.golden.canvas",
+            "name": "Canvas Golden Extension",
+            "actions": [
+                {
+                    "id": "com.golden.canvas.counter",
+                    "title": "Canvas Counter",
+                    "type": "canvas",
+                    "scriptCode": "const initialState = { count: 0 }; const handlers = { increment: (state) => ({ count: state.count + 1 }) }; const ui = (state) => h('button', { title: 'Count: ' + state.count, handler: 'increment' });"
+                }
+            ]
+        }
+        """
+        try canvasManifest.write(to: canvasBundle.appendingPathComponent("openclip.json"), atomically: true, encoding: .utf8)
+
+        await ExtensionManager.shared.loadExtensions(from: tempDir)
+        let loadedActions = ExtensionManager.shared.loadedActions
+
+        guard let action = loadedActions.first(where: { $0.id == "com.golden.canvas.counter" }) as? JavaScriptCanvasAction else {
+            XCTFail("Missing JavaScriptCanvasAction for com.golden.canvas.counter")
+            return
+        }
+
+        let result = try await action.perform(ActionContext(selectedText: "World"))
+        guard case .showCanvas(let request, let header) = result else {
+            return XCTFail("Expected .showCanvas, got \(result)")
+        }
+        XCTAssertEqual(header.title, "Canvas Counter")
+
+        // Drive the real engine directly (no panel): one mount + three dispatches.
+        let engine = JavaScriptCanvasEngine()
+        let mount = try await engine.mount(request)
+        XCTAssertEqual(buttonTitle(mount.tree), "Count: 0")
+
+        var state = mount.state
+        let expected = ["Count: 1", "Count: 2", "Count: 3"]
+        for (index, title) in expected.enumerated() {
+            let dispatch = try await engine.dispatch(CanvasDispatchRequest(
+                event: CanvasEvent(kind: .tap, handler: "increment"),
+                state: state
+            ))
+            XCTAssertEqual(buttonTitle(dispatch.tree), title,
+                           "dispatch \(index + 1) must re-render from the same compiled script")
+            state = dispatch.state
+        }
+    }
+
+    private func buttonTitle(_ tree: CanvasComponent?) -> String? {
+        if case .button(let props)? = tree { return props.title }
+        return nil
+    }
 }
