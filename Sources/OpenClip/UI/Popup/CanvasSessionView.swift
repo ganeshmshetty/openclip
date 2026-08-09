@@ -169,6 +169,7 @@ public struct CanvasSessionView: View {
         }
         .frame(minHeight: 40, maxHeight: Constants.popupMaxHeight - 36)
         .focusable()
+        .focusEffectDisabled()
         .focused($rootFocused)
         .onKeyPress(.escape) { onExitContent(); return .handled }
         .accessibilityElement(children: .contain)
