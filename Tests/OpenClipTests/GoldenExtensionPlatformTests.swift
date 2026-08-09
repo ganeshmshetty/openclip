@@ -302,7 +302,7 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         try jsManifest.write(to: jsBundle.appendingPathComponent("openclip.json"), atomically: true, encoding: .utf8)
         let jsCode = """
         function action(text, options) {
-            openclip.showContent({ title: "Processed", body: "Hello " + text, footer: ["paste", "copy"] });
+            openclip.showContent(h('stack', {}, [h('text', { content: 'Hello ' + text })]));
             return null;
         }
         """
@@ -317,23 +317,12 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         }
 
         let result = try await action.perform(ActionContext(selectedText: "World"))
-        guard case .showContent(let content) = result else {
-            return XCTFail("Expected .showContent, got \(result)")
+        guard case .showContentTree(let root, nil) = result else {
+            return XCTFail("Expected .showContentTree, got \(result)")
         }
-        XCTAssertEqual(content.title, "Processed")
-        XCTAssertEqual(content.rows.count, 1)
-        guard case .text(let rowText) = content.rows[0] else {
-            return XCTFail("Expected text row")
+        guard case .stack(_, let children) = root, children.count == 1, case .text(let textProps) = children[0] else {
+            return XCTFail("Expected stack with text child, got \(root)")
         }
-        XCTAssertEqual(rowText, "Hello World")
-        XCTAssertEqual(content.footer.count, 2)
-        XCTAssertEqual(content.footer[0].title, "Paste")
-        guard case .perform(.paste("Hello World")) = content.footer[0].outcome else {
-            return XCTFail("Expected Paste footer performing .paste(Hello World)")
-        }
-        XCTAssertEqual(content.footer[1].title, "Copy")
-        guard case .perform(.copy("Hello World")) = content.footer[1].outcome else {
-            return XCTFail("Expected Copy footer performing .copy(Hello World)")
-        }
+        XCTAssertEqual(textProps.content, "Hello World")
     }
 }
