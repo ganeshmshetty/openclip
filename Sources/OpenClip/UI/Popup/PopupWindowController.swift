@@ -95,6 +95,9 @@ public class PopupWindowController {
         canvasSessionController.onSessionError = { [weak self] error in
             self?.failCanvas(error)
         }
+        canvasSessionController.onStatus = { [weak self] feedback in
+            self?.presentStatus(feedback)
+        }
 
         let rootView = PopupView(
             actions: availableActions,

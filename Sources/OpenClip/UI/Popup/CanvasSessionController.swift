@@ -4,9 +4,11 @@
 // The owner of the single active content-canvas session (spec §5.1/§5.2). It serializes every
 // mount/dispatch through one MainActor task chain, writes the engine result back into the session
 // (`apply`), routes collected leaf effects to `onEffects` (never dismiss — in-session dismissal is
-// suppressed), and restores focus after submit/toggle/fallback rules (§4.2). A `generation` guard
-// discards the late result of a replaced/cleared session, and `mount` waits on the previous chain
-// so a rapid re-mount always wins over the earlier one. Focus lives in
+// suppressed), routes script-surfaced `showStatus` feedback to `onStatus` (the popup queues it for
+// the bar banner while the canvas is open), and restores focus after submit/toggle/fallback rules
+// (§4.2). The engine-declared `preferredSize` from `showContent` wins over the request value. A
+// `generation` guard discards the late result of a replaced/cleared session, and `mount` waits on
+// the previous chain so a rapid re-mount always wins over the earlier one. Focus lives in
 // CanvasSession.focusedComponentID so the renderer can re-apply it on the next run loop; the panel
 // is key in content mode (enterKeyMode) exactly like search.
 import Foundation
@@ -19,6 +21,8 @@ public final class CanvasSessionController {
     public var onEffects: (@MainActor ([CanvasEffect]) -> Void)?
     /// Mount/dispatch failure → presenter collapses.
     public var onSessionError: (@MainActor (Error) -> Void)?
+    /// Script-surfaced status feedback (openclip.showStatus) → presenter shows/queues it.
+    public var onStatus: (@MainActor (StatusFeedback) -> Void)?
     private var dispatchChain: Task<Void, Never>?
     private var generation = 0
 
@@ -51,7 +55,8 @@ public final class CanvasSessionController {
                 let result = try await scripting.mount(request)
                 guard self.generation == myGeneration else { return }
                 let session = CanvasSession(header: header, input: request.input,
-                                            preferredSize: request.preferredSize, scripting: scripting,
+                                            preferredSize: result.preferredSize ?? request.preferredSize,
+                                            scripting: scripting,
                                             isAsync: request.isAsync, tree: result.tree, state: result.state)
                 self.session = session
                 // No onEffects at mount: CanvasMountResult carries state+tree only (spec §5.2).
@@ -93,6 +98,9 @@ public final class CanvasSessionController {
                 guard self.generation == myGeneration, self.session?.id == session.id else { return }
                 session.apply(state: result.state, tree: result.tree)
                 self.onEffects?(result.effects)
+                if let status = result.status {
+                    self.onStatus?(status)
+                }
                 self.restoreFocus(after: event, in: session)
             } catch {
                 guard self.generation == myGeneration else { return }

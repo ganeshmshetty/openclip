@@ -10,8 +10,12 @@
 // (scriptCode) it must compile, the selection input, the producer-resolved optionValues (surfaced
 // to the JS context as openclip.options; JSONValue is defined in Task 2), the initial app-owned
 // state, and an optional preferredSize declared once at mount and fixed for the session.
-// CanvasDispatchRequest carries the event and the current state; the mount size stays fixed across
-// dispatches. Pure Core — the request structs are Sendable value types, no AppKit/SwiftUI.
+// CanvasMountResult adds the preferredSize the author actually declared via openclip.showContent
+// (overrides the request value when present); CanvasDispatchResult carries the status feedback a
+// handler surfaced via openclip.showStatus. Both fields are additive with defaults so existing init
+// call sites keep compiling. CanvasDispatchRequest carries the event and the current state; the
+// mount size stays fixed across dispatches. Pure Core — the request/result structs are Sendable
+// value types, no AppKit/SwiftUI.
 import Foundation
 
 public struct CanvasMountRequest: Sendable {
@@ -52,10 +56,12 @@ public struct CanvasDispatchRequest: Sendable {
 public struct CanvasMountResult: Sendable {
     public var state: CanvasSessionState
     public var tree: CanvasComponent
+    public var preferredSize: CanvasSize?
 
-    public init(state: CanvasSessionState, tree: CanvasComponent) {
+    public init(state: CanvasSessionState, tree: CanvasComponent, preferredSize: CanvasSize? = nil) {
         self.state = state
         self.tree = tree
+        self.preferredSize = preferredSize
     }
 }
 
@@ -63,11 +69,13 @@ public struct CanvasDispatchResult: Sendable {
     public var state: CanvasSessionState
     public var tree: CanvasComponent
     public var effects: [CanvasEffect]
+    public var status: StatusFeedback?
 
-    public init(state: CanvasSessionState, tree: CanvasComponent, effects: [CanvasEffect] = []) {
+    public init(state: CanvasSessionState, tree: CanvasComponent, effects: [CanvasEffect] = [], status: StatusFeedback? = nil) {
         self.state = state
         self.tree = tree
         self.effects = effects
+        self.status = status
     }
 }
 

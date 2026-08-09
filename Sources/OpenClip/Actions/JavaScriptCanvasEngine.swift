@@ -52,7 +52,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         let vm = self.virtualMachine
 
         return try await Task.detached {
-            try Self.executeMount(
+            try JavaScriptCanvasEngine.executeMount(
                 request: request,
                 virtualMachine: vm,
                 timeoutSeconds: timeoutSeconds,
@@ -77,7 +77,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         let vm = self.virtualMachine
 
         return try await Task.detached {
-            try Self.executeDispatch(
+            try JavaScriptCanvasEngine.executeDispatch(
                 request: request,
                 virtualMachine: vm,
                 timeoutSeconds: timeoutSeconds,
@@ -106,14 +106,12 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         }
 
         CanvasScriptBox.installH(in: jsContext)
-        let effectsBox = CanvasEffectsBox()
-        let keepVisibleBox = CanvasKeepVisibleBox()
+        let collector = CanvasBridgeCollector()
         CanvasScriptBox.installCanvasBridge(
             in: jsContext,
             input: request.input,
             optionValues: request.optionValues,
-            effectsBox: effectsBox,
-            keepVisibleBox: keepVisibleBox
+            collector: collector
         )
 
         let scriptCode = request.scriptCode
@@ -180,15 +178,23 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
             throw CanvasJSRuntimeError.scriptException("Failed to parse element spec")
         }
 
+        if let parseError = collector.parseError {
+            throw CanvasJSRuntimeError.scriptException(parseError.localizedDescription)
+        }
+
         let tree: CanvasComponent
-        do {
-            tree = try CanvasElementParser.parseTree(spec)
-        } catch {
-            throw CanvasJSRuntimeError.scriptException(error.localizedDescription)
+        if let mountedTree = collector.mountedTree {
+            tree = mountedTree
+        } else {
+            do {
+                tree = try CanvasElementParser.parseTree(spec)
+            } catch {
+                throw CanvasJSRuntimeError.scriptException(error.localizedDescription)
+            }
         }
 
         engine.sessionState = effectiveState
-        return CanvasMountResult(state: effectiveState, tree: tree)
+        return CanvasMountResult(state: effectiveState, tree: tree, preferredSize: collector.preferredSize)
     }
 
     // MARK: - Dispatch
@@ -211,14 +217,12 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         }
 
         CanvasScriptBox.installH(in: jsContext)
-        let effectsBox = CanvasEffectsBox()
-        let keepVisibleBox = CanvasKeepVisibleBox()
+        let collector = CanvasBridgeCollector()
         CanvasScriptBox.installCanvasBridge(
             in: jsContext,
             input: engine.sessionInput,
             optionValues: engine.sessionOptionValues,
-            effectsBox: effectsBox,
-            keepVisibleBox: keepVisibleBox
+            collector: collector
         )
 
         let scriptCode = engine.scriptCode
@@ -331,15 +335,23 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
             throw CanvasJSRuntimeError.scriptException("Failed to parse element spec")
         }
 
+        if let parseError = collector.parseError {
+            throw CanvasJSRuntimeError.scriptException(parseError.localizedDescription)
+        }
+
         let tree: CanvasComponent
-        do {
-            tree = try CanvasElementParser.parseTree(spec)
-        } catch {
-            throw CanvasJSRuntimeError.scriptException(error.localizedDescription)
+        if let mountedTree = collector.mountedTree {
+            tree = mountedTree
+        } else {
+            do {
+                tree = try CanvasElementParser.parseTree(spec)
+            } catch {
+                throw CanvasJSRuntimeError.scriptException(error.localizedDescription)
+            }
         }
 
         engine.sessionState = currentState
-        return CanvasDispatchResult(state: currentState, tree: tree, effects: effectsBox.value)
+        return CanvasDispatchResult(state: currentState, tree: tree, effects: collector.effects, status: collector.status)
     }
 
     private static func isPromiseLike(_ value: JSValue) -> Bool {
