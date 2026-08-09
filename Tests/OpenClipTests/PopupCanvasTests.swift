@@ -89,7 +89,7 @@ final class PopupCanvasTests: XCTestCase {
         XCTAssertLessThanOrEqual(panel.frame.height, barHeight + 1, "exit should shrink the panel back to the bar")
     }
 
-    func testContentModeKeepsPanelNonKey() throws {
+    func testContentModeMakesPanelKey() throws {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
         defer { controller.hide() }
@@ -99,8 +99,42 @@ final class PopupCanvasTests: XCTestCase {
         controller.handleActionResult(.showContent(makeResultContent()))
         pump()
 
-        XCTAssertFalse(panel.canBecomeKey, "content mode must preserve the never-key invariant (rule 9)")
-        XCTAssertFalse(panel.isKeyWindow)
+        XCTAssertTrue(panel.allowsKey, "content mode is key exactly like search (rule 10 exception)")
+        XCTAssertTrue(panel.isKeyWindow)
+        controller.exitContent()
+        pump()
+        XCTAssertFalse(panel.allowsKey, "collapse restores the never-key invariant")
+    }
+
+    func testEscFromFocusedTextFieldCollapsesCanvas() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+        controller.armCanvasForTesting(tree: .stack(.init(), [
+            .textField(CanvasTextFieldProps(id: "field", value: "x", onSubmit: nil)),
+            .button(CanvasButtonProps(title: "Go", handler: .effect(.paste("y"))))
+        ]), header: CanvasHeader(title: "Form", icon: nil))
+        let panel = try visiblePanel()
+        pump()
+
+        XCTAssertTrue(panel.allowsKey, "a canvas with a textField becomes key")
+        // M8: Esc collapse is owned by SwiftUI `.onKeyPress(.escape)` on the field/root, NOT the
+        // controller-level NSEvent monitor (removed in Task 14) — so drive the SwiftUI responder
+        // path: post the Esc keyDown into the keyed panel's key event pipeline. The event must
+        // carry the panel's real windowNumber — a panel windowNumber: 0 key event is ignored by
+        // SwiftUI's key handling (xcodebuild live check; plain panel.sendEvent was a no-op).
+        let escEvent = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                                                      timestamp: 0, windowNumber: panel.windowNumber, context: nil,
+                                                      characters: "\u{1B}", charactersIgnoringModifiers: "\u{1B}",
+                                                      isARepeat: false, keyCode: 53))
+        panel.sendEvent(escEvent)   // reaches the focused field's .onKeyPress(.escape) → onExitContent()
+        pump()
+        XCTAssertEqual(controller.modeStore.mode, .actions, "Esc collapses even from a focused textField")
+        // The never-key invariant collapse restores is `canBecomeKey == false`. `panel.isKeyWindow`
+        // isn't asserted here: under xcodebuild the test host is the foreground app, so nothing can
+        // take key status away from the panel after `exitKeyMode()` (production gives it to the
+        // source app via previousFrontmostApp.activate) and the panel is the app's sole window.
+        XCTAssertFalse(panel.canBecomeKey, "collapse restores the never-key invariant")
     }
 
     func testStatusBannerWithoutCanvas() throws {
@@ -156,19 +190,6 @@ final class PopupCanvasTests: XCTestCase {
 
         XCTAssertTrue(panel.isVisible, "a non-Esc key in content mode must not dismiss")
         XCTAssertEqual(controller.modeStore.mode, .content)
-    }
-
-    func testEscInContentModeCollapsesToBar() throws {
-        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
-        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
-        defer { controller.hide() }
-        controller.handleActionResult(.showContent(makeResultContent()))
-        let panel = try visiblePanel()
-
-        controller.handleEvent(try XCTUnwrap(keyDown(53))) // Esc
-
-        XCTAssertTrue(panel.isVisible, "Esc in content collapses, never hides")
-        XCTAssertEqual(controller.modeStore.mode, .actions)
     }
 
     func testKeystrokeInActionsModeDismisses() throws {
