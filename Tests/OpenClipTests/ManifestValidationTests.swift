@@ -121,7 +121,18 @@ final class ManifestValidationTests: XCTestCase {
             "actions": [{ "title": "Canvas", "type": "canvas" }]
         }
         """)
-        XCTAssertEqual(validator.validate(manifest), [ManifestValidationIssue(kind: .missingRequiredField("scriptCode"), path: "actions[0]")])
+        XCTAssertEqual(validator.validate(manifest), [ManifestValidationIssue(kind: .missingRequiredField("script/scriptCode"), path: "actions[0]")])
+    }
+
+    func testCanvasAcceptsScriptFile() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.filecanvas",
+            "name": "File Canvas",
+            "actions": [{ "title": "Canvas", "type": "canvas", "script": "main.js" }]
+        }
+        """)
+        XCTAssertEqual(validator.validate(manifest), [])
     }
 
     func testShortcutWithoutShortcutNameRejects() throws {
