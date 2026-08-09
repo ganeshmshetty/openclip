@@ -66,7 +66,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var paste: String?
         public var copy: String?
         public var cut: String?
-        public var content: PopupContent?
+        public var content: CanvasComponent?
+        public var isContentRejected: Bool
         public var status: StatusFeedback?
         public var configuration: ConfigurationRequest?
         public var keyPress: KeyPressSpec?
@@ -76,6 +77,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var returnValue: String?
 
         public init() {
+            self.isContentRejected = false
             self.keepVisible = false
         }
     }
@@ -218,7 +220,11 @@ public final class OpenClipJSHost: @unchecked Sendable {
             collected.value.status = StatusFeedback(message: message, style: Self.mapStatusStyle(style))
         }
         let showContentBlock: @convention(block) (JSValue) -> Void = { value in
-            collected.value.content = Self.parseContent(value)
+            if let parsed = Self.parseElementTree(value) {
+                collected.value.content = parsed
+            } else {
+                collected.value.isContentRejected = true
+            }
         }
         let keepVisibleBlock: @convention(block) () -> Void = {
             collected.value.keepVisible = true
@@ -505,7 +511,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
         if let configuration = collected.configuration {
             raw = .openConfiguration(configuration)
         } else if let content = collected.content {
-            raw = .showContent(content)
+            raw = .showContentTree(content, nil)
+        } else if collected.isContentRejected {
+            raw = .showStatus(StatusFeedback(message: "Canvas payload rejected.", style: .error))
         } else if let status = collected.status, effects.isEmpty {
             raw = .showStatus(status)
         } else if !effects.isEmpty {
@@ -566,6 +574,14 @@ public final class OpenClipJSHost: @unchecked Sendable {
         app.setObject(sourceApp.localizedName ?? "", forKeyedSubscript: "name")
         input.setObject(app, forKeyedSubscript: "app")
 
+        let hBlock: @convention(block) (String, Any?, Any?) -> Any = { type, props, children in
+            var element: [String: Any] = ["type": type]
+            if let props { element["props"] = props }
+            if let children { element["children"] = children }
+            return element
+        }
+        jsContext.setObject(hBlock, forKeyedSubscript: "h" as NSString)
+
         openclip.setObject(input, forKeyedSubscript: "input")
         openclip.setObject(options, forKeyedSubscript: "options")
         return openclip
@@ -615,66 +631,47 @@ public final class OpenClipJSHost: @unchecked Sendable {
         return ConfigurationRequest(actionID: actionID, reason: reason, missingOptionIDs: missing)
     }
 
-    private static func parseContent(_ value: JSValue) -> PopupContent {
-        guard value.isObject else { return PopupContent() }
-        let title = stringValue(value.objectForKeyedSubscript("title"))
-        let icon = stringValue(value.objectForKeyedSubscript("icon"))
-        let subtitle = stringValue(value.objectForKeyedSubscript("subtitle"))
-        let body = stringValue(value.objectForKeyedSubscript("body"))
+    /// Parses an h() element object (`{type, props, children}`) into a CanvasComponent tree.
+    private static func parseElementTree(_ value: JSValue) -> CanvasComponent? {
+        guard value.isObject,
+              let object = value.toObject() as? [String: Any],
+              let spec = CanvasElementSpecSpec(object: object),
+              let root = try? CanvasElementParser.parseTree(spec) else { return nil }
+        return root
+    }
 
-        var emphasis: ContentEmphasis = .result
-        if let raw = stringValue(value.objectForKeyedSubscript("emphasis")) {
-            switch raw.lowercased() {
-            case "info": emphasis = .info
-            case "menu": emphasis = .menu
-            default: emphasis = .result
+    private static func CanvasElementSpecSpec(object: [String: Any]) -> CanvasElementSpec? {
+        guard let type = object["type"] as? String else { return nil }
+        let props = (object["props"] as? [String: Any] ?? [:]).compactMapValues(Self.jsonValue(from:))
+        let rawChildren: [Any]
+        if let array = object["children"] as? [Any] {
+            rawChildren = array
+        } else if let dict = object["children"] as? [String: Any] {
+            rawChildren = [dict]
+        } else {
+            rawChildren = []
+        }
+        let children = rawChildren.compactMap { child -> CanvasElementSpec? in
+            guard let dict = child as? [String: Any] else { return nil }
+            return CanvasElementSpecSpec(object: dict)
+        }
+        return CanvasElementSpec(type: type, props: props, children: children)
+    }
+
+    private static func jsonValue(from value: Any) -> JSONValue? {
+        switch value {
+        case let s as String: return .string(s)
+        case let n as NSNumber:
+            if CFGetTypeID(n) == CFBooleanGetTypeID() {
+                return .bool(n.boolValue)
+            } else {
+                return .number(n.doubleValue)
             }
+        case let b as Bool: return .bool(b)
+        case let arr as [Any]: return .array(arr.compactMap(jsonValue(from:)))
+        case let dict as [String: Any]: return .object(dict.compactMapValues(jsonValue(from:)))
+        default: return nil
         }
-
-        var rows: [ContentRow] = []
-        if let rowsValue = value.objectForKeyedSubscript("rows"), rowsValue.isArray {
-            let array = rowsValue.toArray() ?? []
-            for element in array {
-                guard let row = element as? [String: Any],
-                      let type = row["type"] as? String, type == "text",
-                      let text = row["value"] as? String else { continue }
-                rows.append(.text(text))
-            }
-        }
-        if rows.isEmpty, let body, !body.isEmpty {
-            rows = [.text(body)]
-        }
-
-        var footer: [ContentOption] = []
-        if let footerValue = value.objectForKeyedSubscript("footer"), footerValue.isArray {
-            for element in footerValue.toArray() ?? [] {
-                if let preset = element as? String {
-                    switch preset.lowercased() {
-                    case "paste":
-                        footer.append(ContentOption(title: "Paste", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(body ?? ""))))
-                    case "copy":
-                        footer.append(ContentOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(body ?? ""))))
-                    default:
-                        break
-                    }
-                } else if let object = element as? [String: Any] {
-                    let optionTitle = object["title"] as? String ?? ""
-                    let optionIcon = object["icon"] as? String
-                    let action = (object["action"] as? String)?.lowercased()
-                    let optionValue = object["value"] as? String ?? body ?? ""
-                    switch action {
-                    case "paste":
-                        footer.append(ContentOption(title: optionTitle, icon: optionIcon, outcome: .perform(.paste(optionValue))))
-                    case "copy":
-                        footer.append(ContentOption(title: optionTitle, icon: optionIcon, outcome: .perform(.copy(optionValue))))
-                    default:
-                        break
-                    }
-                }
-            }
-        }
-
-        return PopupContent(title: title, icon: icon, subtitle: subtitle, rows: rows, footer: footer, emphasis: emphasis)
     }
 
     /// Captures the calling thread's CFRunLoop in a Sendable box. Kept as a helper so the raw CF
