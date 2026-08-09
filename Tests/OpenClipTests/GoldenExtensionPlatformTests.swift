@@ -317,8 +317,8 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         }
 
         let result = try await action.perform(ActionContext(selectedText: "World"))
-        guard case .showContentTree(let root, nil) = result else {
-            return XCTFail("Expected .showContentTree, got \(result)")
+        guard case .showContent(let root, nil) = result else {
+            return XCTFail("Expected .showContent, got \(result)")
         }
         guard case .stack(_, let children) = root, children.count == 1, case .text(let textProps) = children[0] else {
             return XCTFail("Expected stack with text child, got \(root)")

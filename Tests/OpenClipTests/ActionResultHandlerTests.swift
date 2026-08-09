@@ -17,8 +17,8 @@ final class ActionResultHandlerTests: XCTestCase {
     /// them as no-ops without crashing.
     func testHandlerIgnoresShowContent() async throws {
         let handler = DefaultActionResultHandler()
-        let content = PopupContent(title: "Test", rows: [.text("hi")], emphasis: .result)
-        try await handler.handle(.showContent(content), in: nil)
+        let tree = CanvasComponent.text(CanvasTextProps(content: "hi"))
+        try await handler.handle(.showContent(tree, nil), in: nil)
     }
 
     /// The `shortcut` effect routes through the shortcuts CLI under a watchdog. Only exercised when

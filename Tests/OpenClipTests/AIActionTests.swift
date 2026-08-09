@@ -25,8 +25,8 @@ final class AIActionTests: XCTestCase {
         let result = try await action.perform(context)
         
         guard case .keepVisible(let inner) = result,
-              case .showContentTree(let tree, let header) = inner else {
-            XCTFail("Expected .keepVisible(.showContentTree(...)), got \(result)")
+              case .showContent(let tree, let header) = inner else {
+            XCTFail("Expected .keepVisible(.showContent(...)), got \(result)")
             return
         }
         

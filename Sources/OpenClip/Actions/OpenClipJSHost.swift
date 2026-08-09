@@ -511,7 +511,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         if let configuration = collected.configuration {
             raw = .openConfiguration(configuration)
         } else if let content = collected.content {
-            raw = .showContentTree(content, nil)
+            raw = .showContent(content, nil)
         } else if collected.isContentRejected {
             raw = .showStatus(StatusFeedback(message: "Canvas payload rejected.", style: .error))
         } else if let status = collected.status, effects.isEmpty {

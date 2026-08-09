@@ -40,8 +40,8 @@ final class ActionResultAdapterTests: XCTestCase {
 
     func testShowResultWrapsCopyInContentTree() {
         let result = ActionResultAdapter.apply(raw: .copy("x"), after: .showResult, stayVisible: false, title: "My Title", icon: "doc.text")
-        guard case .showContentTree(let tree, let header) = result else {
-            return XCTFail("Expected .showContentTree, got \(result)")
+        guard case .showContent(let tree, let header) = result else {
+            return XCTFail("Expected .showContent, got \(result)")
         }
         XCTAssertEqual(header?.title, "My Title")
         XCTAssertEqual(header?.icon, "doc.text")
@@ -71,8 +71,8 @@ final class ActionResultAdapterTests: XCTestCase {
 
     func testShowResultWrapsPasteInContentTree() {
         let result = ActionResultAdapter.apply(raw: .paste("x"), after: .showResult, stayVisible: false, title: "T", icon: nil)
-        guard case .showContentTree(let tree, let header) = result else {
-            return XCTFail("Expected .showContentTree, got \(result)")
+        guard case .showContent(let tree, let header) = result else {
+            return XCTFail("Expected .showContent, got \(result)")
         }
         XCTAssertEqual(header?.title, "T")
         XCTAssertNil(header?.icon)
@@ -116,11 +116,11 @@ final class ActionResultAdapterTests: XCTestCase {
     // MARK: - presentations pass through untouched
 
     func testPresentationsPassThroughUnchanged() {
-        let content = ActionResultAdapter.apply(raw: .showContent(PopupContent(title: "B")), after: .copyResult, stayVisible: true, title: "T", icon: nil)
-        guard case .showContent(let content) = content else {
+        let content = ActionResultAdapter.apply(raw: .showContent(.text(CanvasTextProps(content: "B")), nil), after: .copyResult, stayVisible: true, title: "T", icon: nil)
+        guard case .showContent(let tree, _) = content, case .text(let props) = tree else {
             return XCTFail("Expected .showContent passthrough, got \(content)")
         }
-        XCTAssertEqual(content.title, "B")
+        XCTAssertEqual(props.content, "B")
 
         let status = ActionResultAdapter.apply(raw: .showStatus(StatusFeedback(message: "s", style: .info)), after: .pasteResult, stayVisible: false, title: "T", icon: nil)
         guard case .showStatus(let feedback) = status else {
@@ -187,7 +187,7 @@ final class ActionResultAdapterTests: XCTestCase {
     }
 
     func testStayVisibleDoesNotWrapPresentations() {
-        let content = ActionResultAdapter.apply(raw: .showContent(PopupContent(title: "B")), after: .default, stayVisible: true, title: "T", icon: nil)
+        let content = ActionResultAdapter.apply(raw: .showContent(.text(CanvasTextProps(content: "B")), nil), after: .default, stayVisible: true, title: "T", icon: nil)
         guard case .showContent = content else {
             return XCTFail("Expected unwrapped .showContent, got \(content)")
         }

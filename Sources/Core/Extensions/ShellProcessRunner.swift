@@ -46,14 +46,11 @@ final class ScriptJSONEffect: Decodable {
 struct ScriptJSONOutput: Decodable {
     let type: String
     let value: String?
-    let title: String?
-    let body: String?
     let message: String?
     let style: String?
     let missing: [String]?
     let reason: String?
     let effect: ScriptJSONEffect?
-    let footer: [String]?
 }
 
 /// Maps shell stdout JSON into an `ActionResult` (plan §6 protocol). Returns nil when the output
@@ -79,25 +76,6 @@ enum ShellResultMapper {
         case Constants.actionTypeOpenURL:
             guard let value = output.value, let url = URL(string: value) else { return .success }
             return .openURL(url)
-        case "showContent":
-            let body = output.body ?? ""
-            var footer: [ContentOption] = []
-            for preset in output.footer ?? [] {
-                switch preset.lowercased() {
-                case "paste":
-                    footer.append(ContentOption(title: "Paste", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(body))))
-                case "copy":
-                    footer.append(ContentOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(body))))
-                default:
-                    break
-                }
-            }
-            return .showContent(PopupContent(
-                title: output.title,
-                rows: body.isEmpty ? [] : [.text(body)],
-                footer: footer,
-                emphasis: .result
-            ))
         case "status":
             let style: StatusFeedback.Style
             switch output.style?.lowercased() {
