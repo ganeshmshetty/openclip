@@ -55,39 +55,18 @@ public struct CalculateAction: ConfigurableAction, ResultContentProviding {
     // MARK: - ResultContentProviding
 
     @MainActor
-    public func makeContent(for context: ActionContext) async -> PopupContent? {
+    public func makeContent(for context: ActionContext) async -> CanvasComponent? {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let result = evaluateExpression(text) else { return nil }
         let resultString = formatResult(result)
         let fullLine = "\(text) = \(resultString)"
 
-        return PopupContent(
-            title: "Calculate",
-            icon: preferenceIconName,
-            subtitle: fullLine,
-            rows: [.text(resultString)],
-            footer: [
-                ContentOption(
-                    title: "Paste \(resultString)",
-                    subtitle: "Replace selection with result",
-                    icon: "arrow.triangle.2.circlepath",
-                    outcome: .perform(.paste(resultString))
-                ),
-                ContentOption(
-                    title: "Copy \(resultString)",
-                    subtitle: "Copy result to clipboard",
-                    icon: "doc.on.doc",
-                    outcome: .perform(.copy(resultString))
-                ),
-                ContentOption(
-                    title: "Copy \(fullLine)",
-                    subtitle: "Copy expression and result",
-                    icon: "doc.on.doc.fill",
-                    outcome: .perform(.copy(fullLine))
-                )
-            ],
-            emphasis: .result
-        )
+        return Canvas.build {
+            Canvas.text(fullLine)
+            Canvas.button("Paste \(resultString)", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(resultString)))
+            Canvas.button("Copy \(resultString)", icon: .symbol("doc.on.doc"), handler: .effect(.copy(resultString)))
+            Canvas.button("Copy \(fullLine)", icon: .symbol("doc.on.doc.fill"), handler: .effect(.copy(fullLine)))
+        }
     }
     
     private func evaluateExpression(_ text: String) -> Double? {

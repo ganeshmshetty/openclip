@@ -13,8 +13,8 @@ public protocol PreviewProviding: Action {
     func previewLine(for context: ActionContext) async -> String?
 }
 
-/// Provides a full result card (title, body text, delivery options) shown on long-press.
+/// Provides a full result tree (title chrome + body + delivery options) shown on long-press.
 public protocol ResultContentProviding: Action {
     @MainActor
-    func makeContent(for context: ActionContext) async -> PopupContent?
+    func makeContent(for context: ActionContext) async -> CanvasComponent?
 }
