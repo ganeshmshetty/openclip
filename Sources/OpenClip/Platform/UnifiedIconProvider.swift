@@ -115,10 +115,17 @@ public final class UnifiedIconProvider: ObservableObject, Sendable {
     /// block the UI — the caller merges results back via `MainActor.run`. `[IconEntry]` is Sendable,
     /// so it crosses the actor boundary without a box.
     private nonisolated static func fetchIconifySearchResults(query: String) async -> [IconEntry] {
-        guard let url = URL(string: "https://api.iconify.design/search?query=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query)&limit=80&palette=false") else {
+        var components = URLComponents(string: "https://api.iconify.design/search")
+        components?.queryItems = [
+            URLQueryItem(name: "query", value: query),
+            URLQueryItem(name: "limit", value: "80"),
+            URLQueryItem(name: "palette", value: "false")
+        ]
+        guard let url = components?.url else {
             return []
         }
-        guard let (data, _) = try? await URLSession.shared.data(from: url),
+        let request = URLRequest(url: url, timeoutInterval: 10)
+        guard let (data, _) = try? await URLSession.shared.data(for: request),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let icons = json["icons"] as? [String] else {
             Log.icons.warning("Iconify search for '\(query)' returned no usable results")

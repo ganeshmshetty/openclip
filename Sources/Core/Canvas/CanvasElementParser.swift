@@ -12,7 +12,7 @@ import Foundation
 public enum CanvasElementParser {
     /// Parses a whole element tree, validating structural limits via CanvasTreeValidator.
     public static func parseTree(_ spec: CanvasElementSpec) throws -> CanvasComponent {
-        guard let node = parseElement(spec) else {
+        guard let node = parseElement(spec, depth: 0) else {
             throw CanvasParseError.nonObjectRoot
         }
         try CanvasTreeValidator.validate(node)
@@ -20,13 +20,14 @@ public enum CanvasElementParser {
     }
 
     /// Parses one element leniently. Returns nil to drop the node (spec §5.4 recovery).
-    static func parseElement(_ spec: CanvasElementSpec) -> CanvasComponent? {
+    static func parseElement(_ spec: CanvasElementSpec, depth: Int = 0) -> CanvasComponent? {
+        guard depth <= CanvasLimits.maxDepth else { return nil }
         let props = spec.props
         switch spec.type {
         case "stack":
             var children: [CanvasComponent] = []
             for childSpec in spec.children {
-                if let node = parseElement(childSpec) { children.append(node) }
+                if let node = parseElement(childSpec, depth: depth + 1) { children.append(node) }
             }
             let orientation: CanvasOrientation =
                 props.string("orientation") == "horizontal" ? .horizontal : .vertical
@@ -104,6 +105,7 @@ public enum CanvasElementParser {
             return .toggle(CanvasToggleProps(
                 id: id,
                 value: props.bool("value") ?? false,
+                disabled: props.bool("disabled") ?? false,
                 onToggle: parseHandler(in: props, key: "onToggle")
             ))
 

@@ -63,9 +63,10 @@ public struct CalculateAction: ConfigurableAction, ResultContentProviding {
 
         return Canvas.build {
             Canvas.text(fullLine)
-            Canvas.button("Paste \(resultString)", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(resultString)))
-            Canvas.button("Copy \(resultString)", icon: .symbol("doc.on.doc"), handler: .effect(.copy(resultString)))
-            Canvas.button("Copy \(fullLine)", icon: .symbol("doc.on.doc.fill"), handler: .effect(.copy(fullLine)))
+            Canvas.hstack(spacing: 6) {
+                Canvas.button("Paste \(resultString)", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(resultString)))
+                Canvas.button("Copy \(resultString)", icon: .symbol("doc.on.doc"), handler: .effect(.copy(resultString)))
+            }
         }
     }
     

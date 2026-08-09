@@ -245,6 +245,46 @@ final class ManifestValidationTests: XCTestCase {
         XCTAssertTrue(record.isValid)
     }
 
+    func testDuplicateOptionIdentifierRejectsManifest() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.dupoptions",
+            "name": "Dup Options",
+            "actions": [{
+                "title": "Canvas",
+                "type": "canvas",
+                "scriptCode": "const ui = () => h('text', {});",
+                "options": [
+                    { "identifier": "apiKey", "label": "Key 1", "type": "string" },
+                    { "identifier": "apiKey", "label": "Key 2", "type": "string" }
+                ]
+            }]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [ManifestValidationIssue(kind: .duplicateOptionIdentifier("apiKey"), path: "actions[0]")])
+    }
+
+    func testDuplicateTopLevelOptionIdentifierRejectsManifest() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.duptopleveloptions",
+            "name": "Dup Top-Level Options",
+            "options": [
+                { "identifier": "apiKey", "label": "Key 1", "type": "string" },
+                { "identifier": "apiKey", "label": "Key 2", "type": "string" }
+            ],
+            "actions": [{
+                "title": "Canvas",
+                "type": "canvas",
+                "scriptCode": "const ui = () => h('text', {});"
+            }]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [ManifestValidationIssue(kind: .duplicateOptionIdentifier("apiKey"), path: "options")])
+    }
+
     private func assertFingerprint(_ value: String, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertEqual(value.count, 64, "fingerprint must be 64 hex chars", file: file, line: line)
         XCTAssertTrue(value.allSatisfy { $0.isHexDigit }, "fingerprint must be hex", file: file, line: line)

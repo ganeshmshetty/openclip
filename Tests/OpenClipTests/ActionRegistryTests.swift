@@ -318,4 +318,18 @@ final class ActionRegistryTests: XCTestCase {
         XCTAssertTrue(builtins.first { $0.id == "builtin.paste" }?.chrome.requiresLiveSelection == false)
         XCTAssertTrue(builtins.first { $0.id == "builtin.search" }?.chrome.requiresLiveSelection == false)
     }
+
+    func testMemorySettingsStorePublisherReentrancyDoesNotDeadlock() {
+        let store = MemorySettingsStore()
+        let key = SettingKey<Set<String>>("test.reentrancy.key", defaultValue: [])
+        var received: Set<String>? = nil
+        let cancellable = store.publisher(for: key).sink { val in
+            received = store.get(key)
+        }
+        
+        store.set(key, value: Set(["item1"]))
+        XCTAssertEqual(received, Set(["item1"]))
+        _ = cancellable
+    }
 }
+

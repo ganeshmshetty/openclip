@@ -219,11 +219,12 @@ struct PopupThemeSelector: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(isSelected ? .accentColor : .secondary)
                 Text(label)
-                    .font(.system(size: 9))
+                    .font(.caption2)
                     .foregroundColor(isSelected ? .primary : .secondary)
             }
             .frame(width: tileWidth, height: tileHeight)
             .contentShape(Rectangle())
+            .accessibilityLabel(label)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(isSelected ? Color.primary.opacity(0.08) : Color.clear)

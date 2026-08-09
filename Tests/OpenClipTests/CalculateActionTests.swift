@@ -56,21 +56,27 @@ final class CalculateActionTests: XCTestCase {
         guard case .stack(_, let children) = tree else {
             return XCTFail("Expected stack root node")
         }
-        XCTAssertEqual(children.count, 4)
+        XCTAssertEqual(children.count, 2)
         guard case .text(let textProps) = children[0] else {
             return XCTFail("Expected text component")
         }
         XCTAssertEqual(textProps.content, "12 * 12 = 144")
 
-        guard case .button(let btn1) = children[1] else { return XCTFail("Expected button") }
+        guard case .stack(let hstackProps, let btnChildren) = children[1] else {
+            return XCTFail("Expected horizontal stack for buttons")
+        }
+        XCTAssertEqual(hstackProps.orientation, .horizontal)
+        XCTAssertEqual(btnChildren.count, 3)
+
+        guard case .button(let btn1) = btnChildren[0] else { return XCTFail("Expected button") }
         XCTAssertEqual(btn1.title, "Paste 144")
         XCTAssertEqual(btn1.handler, .effect(.paste("144")))
 
-        guard case .button(let btn2) = children[2] else { return XCTFail("Expected button") }
+        guard case .button(let btn2) = btnChildren[1] else { return XCTFail("Expected button") }
         XCTAssertEqual(btn2.title, "Copy 144")
         XCTAssertEqual(btn2.handler, .effect(.copy("144")))
 
-        guard case .button(let btn3) = children[3] else { return XCTFail("Expected button") }
+        guard case .button(let btn3) = btnChildren[2] else { return XCTFail("Expected button") }
         XCTAssertEqual(btn3.title, "Copy 12 * 12 = 144")
         XCTAssertEqual(btn3.handler, .effect(.copy("12 * 12 = 144")))
     }

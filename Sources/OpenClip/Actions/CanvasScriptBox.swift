@@ -12,32 +12,54 @@ import Core
 
 /// Pure JSContext glue: element-object bridging + the h() helper the canvas contract requires.
 public enum CanvasScriptBox {
-    /// Registers `h(type, props, children)` on the context (returns `{type, props, children}` objects).
+    /// Registers `h(type, props, ...children)` on the context (returns `{type, props, children}` objects).
     public static func installH(in context: JSContext) {
-        let hBlock: @convention(block) (String, Any?, Any?) -> Any = { type, props, children in
-            var element: [String: Any] = ["type": type]
-            if let props { element["props"] = props }
-            if let children { element["children"] = children }
-            return element
+        context.evaluateScript("""
+        function h(type, props) {
+            var children = Array.prototype.slice.call(arguments, 2);
+            var flatChildren;
+            if (children.length === 0) {
+                flatChildren = [];
+            } else if (children.length === 1) {
+                flatChildren = children[0];
+            } else {
+                flatChildren = children;
+            }
+            return {
+                type: type,
+                props: props || {},
+                children: flatChildren
+            };
         }
-        context.setObject(hBlock, forKeyedSubscript: "h" as NSString)
+        """)
     }
 
     /// Converts a bridged JS element object to the neutral Core spec; nil for a non-object root or invalid type.
-    public static func elementSpec(from object: [String: Any]) -> CanvasElementSpec? {
+    public static func elementSpec(from object: [String: Any], depth: Int = 0) -> CanvasElementSpec? {
+        guard depth <= CanvasLimits.maxDepth else { return nil }
         guard let type = object["type"] as? String else { return nil }
-        let props = (object["props"] as? [String: Any] ?? [:]).compactMapValues(Self.jsonValue(from:))
+        var props = (object["props"] as? [String: Any] ?? [:]).compactMapValues(Self.jsonValue(from:))
+
         let rawChildren: [Any]
         if let array = object["children"] as? [Any] {
             rawChildren = array
         } else if let dict = object["children"] as? [String: Any] {
             rawChildren = [dict]
+        } else if let str = object["children"] as? String, type == "text" {
+            if props["content"] == nil {
+                props["content"] = .string(str)
+            }
+            rawChildren = []
         } else {
             rawChildren = []
         }
-        let children = rawChildren.compactMap { child -> CanvasElementSpec? in
-            guard let dict = child as? [String: Any] else { return nil }
-            return elementSpec(from: dict)
+        var children: [CanvasElementSpec] = []
+        for child in rawChildren {
+            guard let dict = child as? [String: Any],
+                  let childSpec = elementSpec(from: dict, depth: depth + 1) else {
+                return nil
+            }
+            children.append(childSpec)
         }
         return CanvasElementSpec(type: type, props: props, children: children)
     }

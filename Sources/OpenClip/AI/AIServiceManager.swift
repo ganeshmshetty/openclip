@@ -3,8 +3,10 @@
 //
 // Manages AI service provider selection, API credentials, and invocation of AI text processing actions.
 import Foundation
+import os
 import SwiftUI
 import Core
+import os
 
 extension Notification.Name {
     /// Posted by `AIServiceManager` after the AI preset list has been written, so observers
@@ -77,17 +79,23 @@ public final class AIServiceManager: ObservableObject {
         AIActionPreset(id: "formal_tone", title: "Formal Tone", prompt: "Rewrite text in a professional and formal tone", isEnabled: false)
     ]
 
+    private static let presetDecodeFailureLogged = OSAllocatedUnfairLock(initialState: false)
+
     public var presets: [AIActionPreset] {
         get {
-guard !actionPresetsJSON.isEmpty,
-              let data = actionPresetsJSON.data(using: .utf8) else {
+            guard !actionPresetsJSON.isEmpty,
+                  let data = actionPresetsJSON.data(using: .utf8) else {
+                return Self.defaultPresets
+            }
+            if let decoded = try? JSONDecoder().decode([AIActionPreset].self, from: data) {
+                return decoded
+            }
+            Self.presetDecodeFailureLogged.withLock { alreadyLogged in
+                guard !alreadyLogged else { return }
+                alreadyLogged = true
+                Log.ai.error("Failed to decode saved AI action presets; using defaults")
+            }
             return Self.defaultPresets
-        }
-        if let decoded = try? JSONDecoder().decode([AIActionPreset].self, from: data) {
-            return decoded
-        }
-        Log.ai.error("Failed to decode saved AI action presets; using defaults")
-        return Self.defaultPresets
         }
         set {
             if let data = try? JSONEncoder().encode(newValue),

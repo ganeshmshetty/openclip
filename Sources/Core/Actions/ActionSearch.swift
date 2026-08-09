@@ -87,8 +87,8 @@ public enum ActionSearch {
     /// between matches incur a start + extension penalty. Computed over the optimal alignment
     /// with a small DP (titles are ~15 chars). Higher = tighter / better-anchored match.
     private static func fuzzyMatchScore(query: String, in text: String) -> Int? {
-        let q = Array(query.utf8)
-        let t = Array(text.utf8)
+        let q = Array(query.unicodeScalars)
+        let t = Array(text.unicodeScalars)
         let m = q.count
         let n = t.count
         guard m > 0, m <= n else { return nil }
@@ -104,8 +104,8 @@ public enum ActionSearch {
         func boundaryBonus(at j: Int) -> Int {
             if j == 0 { return bonusBoundary }
             let c = t[j - 1]
-            if c == 32 { return bonusBoundary }                 // " "
-            if c == 45 || c == 95 || c == 46 || c == 47 { return bonusDelimiter } // - _ . /
+            if c == " " { return bonusBoundary }
+            if c == "-" || c == "_" || c == "." || c == "/" { return bonusDelimiter }
             return 0
         }
 
@@ -117,12 +117,12 @@ public enum ActionSearch {
         }
 
         for i in 1..<m {
-            var prefixMax = sentinel   // max over k<j of (prev[k] + k*gapExtension)
+            var prefixMax = sentinel   // max over k<j of (prev[k] - k*gapExtension)
             for j in i..<n {
-                prefixMax = max(prefixMax, prev[j - 1] + (j - 1) * gapExtension)
+                prefixMax = max(prefixMax, prev[j - 1] - (j - 1) * gapExtension)
                 guard q[i] == t[j] else { continue }
                 let consecutive = prev[j - 1] + bonusConsecutive
-                let gapped = prefixMax - gapStart - (j - 2) * gapExtension
+                let gapped = prefixMax + gapStart + (j - 1) * gapExtension
                 curr[j] = scoreMatch + boundaryBonus(at: j) + max(consecutive, gapped)
             }
             swap(&prev, &curr)

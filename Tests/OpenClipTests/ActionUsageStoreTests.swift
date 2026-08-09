@@ -39,4 +39,12 @@ final class ActionUsageStoreTests: XCTestCase {
         store.reset()
         XCTAssertTrue(store.recency.isEmpty)
     }
+
+    func testRecordSurvivesCounterOverflow() {
+        userDefaults.set(["builtin.search": Int.max], forKey: "actionUsageRecency")
+        store = ActionUsageStore(settingsStore: DefaultSettingsStore(userDefaults: userDefaults))
+
+        store.record("builtin.copy")
+        XCTAssertEqual(store.recency, ["builtin.copy": 1], "counter at Int.max must reset rather than trap")
+    }
 }

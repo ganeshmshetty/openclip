@@ -25,8 +25,15 @@ public final class ActionUsageStore {
 
     /// Records one use of `actionID`, bumping its counter above every other action's.
     public func record(_ actionID: String) {
-        let next = (cached.values.max() ?? 0) + 1
-        cached[actionID] = next
+        let highest = cached.values.max() ?? 0
+        let (next, overflow) = highest.addingReportingOverflow(1)
+        if overflow {
+            // Persisted counter was at Int.max (e.g. corrupted/edited prefs) — a naive +1 would trap.
+            // Reset the map with the recorded action at the lowest counter.
+            cached = [actionID: 1]
+        } else {
+            cached[actionID] = next
+        }
         settingsStore.set(.actionUsageRecency, value: cached)
     }
 

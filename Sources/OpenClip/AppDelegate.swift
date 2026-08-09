@@ -118,7 +118,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 do {
                     _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(downloadURL, extensionID: extID)
                 } catch {
-                    Log.extensions.error("Failed to install extension '\(extID, privacy: .public)' from \(downloadURL, privacy: .public): \(error.localizedDescription)")
+                    Log.extensions.error("Failed to install extension '\(extID, privacy: .public)' from host \(host, privacy: .public): \(error.localizedDescription, privacy: .private)")
+                    let failure = NSAlert()
+                    failure.messageText = "Extension Install Failed"
+                    failure.informativeText = "OpenClip could not install \"\(extID)\": \(error.localizedDescription)"
+                    failure.alertStyle = .warning
+                    failure.runModal()
                 }
             }
         }

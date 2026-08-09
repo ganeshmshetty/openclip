@@ -11,9 +11,14 @@ import AppKit
 
 @MainActor
 final class LocalIconCache {
+    private final class Entry {
+        let image: NSImage?
+        init(_ image: NSImage?) { self.image = image }
+    }
+
     static let shared = LocalIconCache()
 
-    private let cache = NSCache<NSString, NSImage>()
+    private let cache = NSCache<NSString, Entry>()
 
     private init() {
         // Icons render at ~14-16pt; cap the count so a large catalog of custom icons can't grow
@@ -25,10 +30,10 @@ final class LocalIconCache {
     func image(for url: URL) -> NSImage? {
         let key = url.path as NSString
         if let cached = cache.object(forKey: key) {
-            return cached
+            return cached.image
         }
-        guard let image = NSImage(contentsOf: url) else { return nil }
-        cache.setObject(image, forKey: key)
+        let image = NSImage(contentsOf: url)
+        cache.setObject(Entry(image), forKey: key)
         return image
     }
 }

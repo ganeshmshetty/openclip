@@ -44,8 +44,10 @@ public struct AIAction: Action {
         return .keepVisible(.showContent(
             Canvas.build {
                 Canvas.text(response)
-                Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(response)))
-                Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(response)))
+                Canvas.hstack(spacing: 6) {
+                    Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(response)))
+                    Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(response)))
+                }
             },
             CanvasHeader(
                 title: displayTitle(using: ActionCustomizationManager.shared),

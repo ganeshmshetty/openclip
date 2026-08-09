@@ -45,6 +45,7 @@ public struct CanvasSessionView: View {
     /// field twice (a blur commit keeps the draft so the typed text stays visible until the
     /// engine's tree lands, so without the set the drop-after-commit pass would re-ship it).
     @State private var committedDrafts: Set<String> = []
+    @State private var measuredContentHeight: CGFloat = 0
     private let hoverState: PopupHoverState = .shared
 
     public init(
@@ -156,18 +157,40 @@ public struct CanvasSessionView: View {
     /// The scrollable canvas body. `.frame(maxHeight: Constants.popupMaxHeight - 36)`: the header
     /// chrome fills 36pt above the body scroll box; the panel's resizePanel still caps the whole
     /// surface at Constants.popupMaxHeight (240) — the single sizing funnel.
+    private var bodyContent: some View {
+        CanvasComponentView(
+            tree: session.tree,
+            focusID: $focusID,
+            fieldDrafts: $fieldDrafts,
+            onEvent: onEvent,
+            onEffect: onEffect,
+            onExitContent: onExitContent
+        )
+        .padding(12)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: CanvasContentSizeKey.self, value: proxy.size.height)
+            }
+        )
+    }
+
     private var bodyScroll: some View {
-        ScrollView(.vertical, showsIndicators: true) {
-            CanvasComponentView(
-                tree: session.tree,
-                focusID: $focusID,
-                fieldDrafts: $fieldDrafts,
-                onEvent: onEvent,
-                onEffect: onEffect,
-                onExitContent: onExitContent
-            )
+        let maxHeight = Constants.popupMaxHeight - 68
+        return Group {
+            if session.preferredSize == nil && measuredContentHeight > maxHeight {
+                ScrollView(.vertical, showsIndicators: true) {
+                    bodyContent
+                }
+                .frame(height: maxHeight)
+            } else {
+                bodyContent
+            }
         }
-        .frame(minHeight: 40, maxHeight: Constants.popupMaxHeight - 36)
+        .onPreferenceChange(CanvasContentSizeKey.self) { height in
+            if height > 0 {
+                measuredContentHeight = height
+            }
+        }
         .focusable()
         .focusEffectDisabled()
         .focused($rootFocused)
@@ -178,7 +201,9 @@ public struct CanvasSessionView: View {
     /// Width column from CanvasLimits, clamped to the screen's visible frame minus the popup's
     /// horizontal padding so a narrow display never exceeds it.
     private var clampedWidths: (min: CGFloat, ideal: CGFloat, max: CGFloat) {
-        guard let width = NSScreen.main?.visibleFrame.width else {
+        let mouseLocation = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first(where: { NSMouseInRect(mouseLocation, $0.frame, false) }) ?? NSScreen.main
+        guard let width = screen?.visibleFrame.width else {
             return (CanvasLimits.canvasMinWidth, CanvasLimits.canvasIdealWidth, CanvasLimits.canvasMaxWidth)
         }
         let available = width - 2 * Constants.popupPadding
@@ -299,6 +324,7 @@ struct CanvasSessionDraftPlan {
     static func plan(drafts: [String: String], committed: Set<String>, focused: String?,
                      tree: CanvasComponent) -> CanvasSessionDraftPlan {
         var result = CanvasSessionDraftPlan()
+        let fieldMap = tree.textFieldsByID()
         for id in drafts.keys {
             guard id != focused else {
                 result.survivingDrafts[id] = drafts[id]
@@ -306,7 +332,7 @@ struct CanvasSessionDraftPlan {
             }
             if !committed.contains(id),
                let value = drafts[id],
-               tree.canvasTextFieldProps(withID: id)?.onChange != nil {
+               fieldMap[id]?.onChange != nil {
                 result.commits.append(CanvasSessionDraftPlan.Commit(id: id, value: value))
             }
         }
@@ -319,16 +345,32 @@ struct CanvasSessionDraftPlan {
 /// Tree helper for the session view: resolves the `CanvasTextFieldProps` for a focus id so the
 /// blur commit can reach its `onChange` handler.
 fileprivate extension CanvasComponent {
-    private var canvasSubnodes: [CanvasComponent] {
-        if case .stack(_, let children) = self { return children }
-        return []
-    }
-
-    func canvasTextFieldProps(withID id: String) -> CanvasTextFieldProps? {
-        if case .textField(let props) = self, props.id == id { return props }
-        for child in canvasSubnodes {
-            if let found = child.canvasTextFieldProps(withID: id) { return found }
+    func textFieldsByID() -> [String: CanvasTextFieldProps] {
+        var map: [String: CanvasTextFieldProps] = [:]
+        func walk(_ node: CanvasComponent) {
+            switch node {
+            case .textField(let props):
+                map[props.id] = props
+            case .stack(_, let children):
+                for child in children { walk(child) }
+            default:
+                break
+            }
         }
-        return nil
+        walk(self)
+        return map
+    }
+}
+
+private struct CanvasContentSizeKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+fileprivate extension CanvasComponent {
+    func canvasTextFieldProps(withID id: String) -> CanvasTextFieldProps? {
+        textFieldsByID()[id]
     }
 }

@@ -76,6 +76,16 @@ public enum Canvas {
         .stack(props, content())
     }
 
+    public static func hstack(spacing: Double? = nil, id: String? = nil,
+                              @CanvasBuilder _ content: () -> [CanvasComponent]) -> CanvasComponent {
+        .stack(CanvasStackProps(id: id, orientation: .horizontal, spacing: spacing), content())
+    }
+
+    public static func vstack(spacing: Double? = nil, id: String? = nil,
+                              @CanvasBuilder _ content: () -> [CanvasComponent]) -> CanvasComponent {
+        .stack(CanvasStackProps(id: id, orientation: .vertical, spacing: spacing), content())
+    }
+
     public static func list(_ sections: [CanvasListSection], id: String? = nil) -> CanvasComponent {
         .list(CanvasListProps(id: id), sections)
     }
@@ -86,8 +96,8 @@ public enum Canvas {
                                         onSubmit: onSubmit, onChange: onChange))
     }
 
-    public static func toggle(_ id: String, value: Bool, onToggle: CanvasHandler? = nil) -> CanvasComponent {
-        .toggle(CanvasToggleProps(id: id, value: value, onToggle: onToggle))
+    public static func toggle(_ id: String, value: Bool, disabled: Bool = false, onToggle: CanvasHandler? = nil) -> CanvasComponent {
+        .toggle(CanvasToggleProps(id: id, value: value, disabled: disabled, onToggle: onToggle))
     }
 
     public static func link(_ title: String, url: URL, id: String? = nil) -> CanvasComponent {

@@ -67,4 +67,37 @@ final class CanvasScriptBoxTests: XCTestCase {
         XCTAssertEqual(CanvasScriptBox.jsonValue(from: NSNumber(value: false)), .bool(false))
         XCTAssertEqual(CanvasScriptBox.jsonValue(from: NSNumber(value: 42)), .number(42))
     }
+
+    func testHVariadicChildren() throws {
+        let context = try XCTUnwrap(JSContext())
+        CanvasScriptBox.installH(in: context)
+        let script = "h('stack', { orientation: 'horizontal' }, h('text', { content: 'one' }), h('text', { content: 'two' }))"
+        let value = try XCTUnwrap(context.evaluateScript(script))
+        let object = try XCTUnwrap(value.toObject() as? [String: Any])
+        let spec = try XCTUnwrap(CanvasScriptBox.elementSpec(from: object))
+        XCTAssertEqual(spec.children.count, 2)
+        XCTAssertEqual(spec.children[0].props["content"], .string("one"))
+        XCTAssertEqual(spec.children[1].props["content"], .string("two"))
+    }
+
+    func testHBareStringChildOnText() throws {
+        let context = try XCTUnwrap(JSContext())
+        CanvasScriptBox.installH(in: context)
+        let script = "h('text', null, 'hello world')"
+        let value = try XCTUnwrap(context.evaluateScript(script))
+        let object = try XCTUnwrap(value.toObject() as? [String: Any])
+        let spec = try XCTUnwrap(CanvasScriptBox.elementSpec(from: object))
+        XCTAssertEqual(spec.type, "text")
+        XCTAssertEqual(spec.props["content"], .string("hello world"))
+    }
+
+    func testElementSpecDepthBounded() {
+        var dict: [String: Any] = ["type": "stack"]
+        var current = dict
+        for _ in 0...CanvasLimits.maxDepth + 5 {
+            let next: [String: Any] = ["type": "stack", "children": [current]]
+            current = next
+        }
+        XCTAssertNil(CanvasScriptBox.elementSpec(from: current))
+    }
 }

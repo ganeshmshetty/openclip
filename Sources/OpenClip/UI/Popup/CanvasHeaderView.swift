@@ -73,6 +73,7 @@ public struct CanvasHeaderView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .focusEffectDisabled()
                 .help("Back (Esc)")
                 .accessibilityLabel("Back")
                 .canvasHoverTarget(.esc)

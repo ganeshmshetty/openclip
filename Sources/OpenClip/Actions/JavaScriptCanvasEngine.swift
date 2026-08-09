@@ -2,9 +2,10 @@
 // OpenClip
 //
 // In-process JavaScriptCore canvas engine implementing `CanvasScripting` (spec §5.2).
-// Session VM created once; script compiled once per session VM; fresh JSContext created per
-// evaluation (mount/dispatch) in that VM. Synchronous evaluation is bounded across the app via
-// `OpenClipJSHost.syncEvaluationGate`. Watchdog timeout flag bounds CPU runaway.
+// Session VM lazily initialized; fresh JSContext created per evaluation (mount/dispatch) in that VM.
+// Synchronous evaluation is bounded across the app via `OpenClipJSHost.syncEvaluationGate`.
+// Watchdog timeout flag checks deadline between steps. Note: JavaScriptCore does not support
+// synchronous script cancellation; a tight loop (e.g. while(true)) will block until thread exits.
 
 import Foundation
 import JavaScriptCore
@@ -17,23 +18,47 @@ public enum CanvasJSRuntimeError: Error, Sendable, Equatable {
 }
 
 public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable {
-    private let virtualMachine: JSVirtualMachine
-    private var scriptCode: String = ""
-    private var timeoutOverride: TimeInterval?
+    private let lock = NSLock()
+    private var _virtualMachine: JSVirtualMachine?
+    private var _scriptCode: String = ""
+    private var _timeoutOverride: TimeInterval?
 
     // Session cache across dispatches
-    private var sessionState: CanvasSessionState
-    private var sessionInput: String
-    private var sessionOptionValues: [String: JSONValue]
-    private var isAsync: Bool
+    private var _sessionState: CanvasSessionState
+    private var _sessionInput: String
+    private var _sessionOptionValues: [String: JSONValue]
+    private var _isAsync: Bool
+
+    public let virtualMachine: JSVirtualMachine = JSVirtualMachine()
 
     public init(timeout: TimeInterval? = nil) {
-        self.virtualMachine = JSVirtualMachine()
-        self.sessionState = CanvasSessionState()
-        self.sessionInput = ""
-        self.sessionOptionValues = [:]
-        self.isAsync = false
-        self.timeoutOverride = timeout
+        self._sessionState = CanvasSessionState()
+        self._sessionInput = ""
+        self._sessionOptionValues = [:]
+        self._isAsync = false
+        self._timeoutOverride = timeout
+    }
+
+    private func updateMountState(scriptCode: String, input: String, optionValues: [String: JSONValue], isAsync: Bool, state: CanvasSessionState) {
+        lock.withLock {
+            _scriptCode = scriptCode
+            _sessionInput = input
+            _sessionOptionValues = optionValues
+            _isAsync = isAsync
+            _sessionState = state
+        }
+    }
+
+    private func getDispatchInputs() -> (scriptCode: String, input: String, optionValues: [String: JSONValue]) {
+        lock.withLock {
+            (_scriptCode, _sessionInput, _sessionOptionValues)
+        }
+    }
+
+    private func updateDispatchState(_ state: CanvasSessionState) {
+        lock.withLock {
+            _sessionState = state
+        }
     }
 
     public func mount(_ request: CanvasMountRequest) async throws -> CanvasMountResult {
@@ -48,7 +73,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         }
         defer { gate.leave() }
 
-        let timeoutSeconds = self.timeoutOverride ?? Constants.scriptTimeout
+        let timeoutSeconds = self.lock.withLock { self._timeoutOverride } ?? Constants.scriptTimeout
         let vm = self.virtualMachine
 
         return try await Task.detached {
@@ -73,7 +98,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         }
         defer { gate.leave() }
 
-        let timeoutSeconds = self.timeoutOverride ?? Constants.scriptTimeout
+        let timeoutSeconds = self.lock.withLock { self._timeoutOverride } ?? Constants.scriptTimeout
         let vm = self.virtualMachine
 
         return try await Task.detached {
@@ -115,11 +140,6 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         )
 
         let scriptCode = request.scriptCode
-        engine.scriptCode = scriptCode
-        engine.sessionInput = request.input
-        engine.sessionOptionValues = request.optionValues
-        engine.isAsync = request.isAsync
-
         jsContext.evaluateScript(scriptCode)
 
         if timeoutFlag.isTimedOut {
@@ -127,6 +147,10 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         }
         if let exception = jsContext.exception {
             throw CanvasJSRuntimeError.scriptException(exception.toString() ?? "JavaScript exception")
+        }
+
+        if !collector.effects.isEmpty {
+            throw CanvasJSRuntimeError.scriptException("Effects are not allowed at mount time")
         }
 
         let setupSnippet = """
@@ -150,8 +174,10 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         }
         let effectiveState = CanvasSessionState(stateDict.compactMapValues(CanvasScriptBox.jsonValue(from:)))
 
-        let stateJS = JSValue(object: stateDict, in: jsContext)!
-        let inputJS = JSValue(object: request.input, in: jsContext)!
+        guard let stateJS = JSValue(object: stateDict, in: jsContext),
+              let inputJS = JSValue(object: request.input, in: jsContext) else {
+            throw CanvasJSRuntimeError.scriptException("Could not bridge state into JavaScript context")
+        }
 
         let uiResult = uiValue.call(withArguments: [stateJS, inputJS])
 
@@ -193,7 +219,13 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
             }
         }
 
-        engine.sessionState = effectiveState
+        engine.updateMountState(
+            scriptCode: scriptCode,
+            input: request.input,
+            optionValues: request.optionValues,
+            isAsync: request.isAsync,
+            state: effectiveState
+        )
         return CanvasMountResult(state: effectiveState, tree: tree, preferredSize: collector.preferredSize)
     }
 
@@ -216,16 +248,18 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
             throw CanvasJSRuntimeError.scriptException("Could not create JavaScript context")
         }
 
+        let inputs = engine.getDispatchInputs()
+
         CanvasScriptBox.installH(in: jsContext)
         let collector = CanvasBridgeCollector()
         CanvasScriptBox.installCanvasBridge(
             in: jsContext,
-            input: engine.sessionInput,
-            optionValues: engine.sessionOptionValues,
+            input: inputs.input,
+            optionValues: inputs.optionValues,
             collector: collector
         )
 
-        let scriptCode = engine.scriptCode
+        let scriptCode = inputs.scriptCode
         jsContext.evaluateScript(scriptCode)
 
         if timeoutFlag.isTimedOut {
@@ -254,15 +288,17 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
            !handlerFn.isUndefined, !handlerFn.isNull, handlerFn.isObject {
 
             let stateDict = currentState.values.mapValues(CanvasScriptBox.jsonValueToRawObject)
-            let stateJS = JSValue(object: stateDict, in: jsContext)!
             let eventDict: [String: Any] = [
                 "kind": request.event.kind.rawValue,
                 "handler": request.event.handler,
                 "value": request.event.value as Any,
                 "targetID": request.event.targetID as Any
             ]
-            let eventJS = JSValue(object: eventDict, in: jsContext)!
-            let inputJS = JSValue(object: engine.sessionInput, in: jsContext)!
+            guard let stateJS = JSValue(object: stateDict, in: jsContext),
+                  let eventJS = JSValue(object: eventDict, in: jsContext),
+                  let inputJS = JSValue(object: inputs.input, in: jsContext) else {
+                throw CanvasJSRuntimeError.scriptException("Could not bridge event data into JavaScript context")
+            }
 
             let handlerResult = handlerFn.call(withArguments: [stateJS, eventJS, inputJS])
 
@@ -282,8 +318,10 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
                     let rejectBlock: @convention(block) (JSValue) -> Void = { err in
                         promiseState.reject(err)
                     }
-                    let resJS = JSValue(object: resolveBlock, in: jsContext)!
-                    let rejJS = JSValue(object: rejectBlock, in: jsContext)!
+                    guard let resJS = JSValue(object: resolveBlock, in: jsContext),
+                          let rejJS = JSValue(object: rejectBlock, in: jsContext) else {
+                        throw CanvasJSRuntimeError.scriptException("Could not bridge promise callbacks into JavaScript context")
+                    }
                     handlerResult.invokeMethod("then", withArguments: [resJS, rejJS])
 
                     while !promiseState.isSettled {
@@ -308,8 +346,10 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
 
         // Re-render UI
         let newStateDict = currentState.values.mapValues(CanvasScriptBox.jsonValueToRawObject)
-        let newStateJS = JSValue(object: newStateDict, in: jsContext)!
-        let inputJS = JSValue(object: engine.sessionInput, in: jsContext)!
+        guard let newStateJS = JSValue(object: newStateDict, in: jsContext),
+              let inputJS = JSValue(object: inputs.input, in: jsContext) else {
+            throw CanvasJSRuntimeError.scriptException("Could not bridge updated state into JavaScript context")
+        }
         let uiResult = uiValue.call(withArguments: [newStateJS, inputJS])
 
         if timeoutFlag.isTimedOut {
@@ -350,7 +390,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
             }
         }
 
-        engine.sessionState = currentState
+        engine.updateDispatchState(currentState)
         return CanvasDispatchResult(state: currentState, tree: tree, effects: collector.effects, status: collector.status)
     }
 

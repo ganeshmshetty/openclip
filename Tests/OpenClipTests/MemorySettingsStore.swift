@@ -22,8 +22,8 @@ final class MemorySettingsStore: SettingsStore, @unchecked Sendable {
     func set<T>(_ key: SettingKey<T>, value: T) {
         lock.lock()
         values[key.name] = value
-        subject.send(key.name)
         lock.unlock()
+        subject.send(key.name)
     }
 
     func publisher<T>(for key: SettingKey<T>) -> AnyPublisher<T, Never> {

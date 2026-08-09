@@ -242,6 +242,7 @@ public struct PopupView: View {
                 onEvent: onCanvasEvent,
                 onEffect: onCanvasEffect
             )
+            .environment(\.colorScheme, effectiveColorScheme)
         }
     }
 

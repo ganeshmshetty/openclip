@@ -95,6 +95,12 @@ final class CanvasElementParserTests: XCTestCase {
         XCTAssertNil(props.handler, "an unbuildable effect object renders the node non-interactive")
     }
 
+    func testParsesToggleWithDisabled() throws {
+        let spec = element("toggle", ["id": .str("tog"), "value": .bol(true), "disabled": .bol(true)])
+        let tree = try CanvasElementParser.parseTree(spec)
+        XCTAssertEqual(tree, .toggle(CanvasToggleProps(id: "tog", value: true, disabled: true)))
+    }
+
     func testTextFieldWithoutIDDropped() throws {
         let spec = element("textField", ["value": .str("v")])
         XCTAssertThrowsError(try CanvasElementParser.parseTree(spec)) { error in

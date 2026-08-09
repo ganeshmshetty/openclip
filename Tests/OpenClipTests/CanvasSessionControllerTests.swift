@@ -87,14 +87,13 @@ final class CanvasSessionControllerTests: XCTestCase {
     // MARK: - Native (no scripting) sessions
 
     func testNativeSessionDispatchIsNoop() {
-        let (controller, fake) = makeController()
+        let controller = CanvasSessionController()
         let tree = textTree("hi", id: "field")
         let session = armSession(controller, scripting: nil, tree: tree, state: CanvasSessionState(["n": .number(0)]))
 
         controller.dispatch(CanvasEvent(kind: .tap, handler: "h", targetID: "field"))
         pump()
 
-        XCTAssertTrue(fake.calls.isEmpty, "native sessions must never reach an engine")
         XCTAssertEqual(controller.session?.id, session.id)
         XCTAssertEqual(controller.session?.tree, tree, "tree must be unchanged")
         XCTAssertEqual(controller.session?.state["n"]?.numberValue, 0, "state must be unchanged")

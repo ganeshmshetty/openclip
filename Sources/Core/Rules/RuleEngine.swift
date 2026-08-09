@@ -30,10 +30,10 @@ public final class RuleEngine: ObservableObject, Sendable {
                 let data = try Data(contentsOf: url)
                 let decoder = JSONDecoder()
                 let config = try decoder.decode(RuleEngineConfig.self, from: data)
-                logger.info("Successfully loaded \(config.rules.count) rules from \(url.path, privacy: .public)")
+                logger.info("Successfully loaded \(config.rules.count) rules from \(url.lastPathComponent, privacy: .public)")
                 return config.rules
             } catch {
-                logger.error("Failed to load rules from \(url.path, privacy: .public): \(error.localizedDescription)")
+                logger.error("Failed to load rules from \(url.lastPathComponent, privacy: .public): \(error.localizedDescription)")
                 return nil
             }
         }.value
@@ -48,9 +48,9 @@ public final class RuleEngine: ObservableObject, Sendable {
         do {
             let data = try JSONEncoder().encode(config)
             try data.write(to: url)
-            Log.settings.info("Successfully saved \(self.userRules.count) rules to \(url.path, privacy: .public)")
+            Log.settings.info("Successfully saved \(self.userRules.count) rules to \(url.lastPathComponent, privacy: .public)")
         } catch {
-            Log.settings.error("Failed to save rules to \(url.path, privacy: .public): \(error.localizedDescription)")
+            Log.settings.error("Failed to save rules to \(url.lastPathComponent, privacy: .public): \(error.localizedDescription)")
         }
     }
     

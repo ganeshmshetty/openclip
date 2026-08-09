@@ -113,7 +113,7 @@ public enum ActionVisibility {
         optionStore: any ActionOptionReading,
         actionID: String
     ) -> [String] {
-        let resolved = Dictionary(uniqueKeysWithValues: options.map { ($0.identifier, optionStore.stringValue(actionID: actionID, option: $0)) })
+        let resolved = Dictionary(options.map { ($0.identifier, optionStore.stringValue(actionID: actionID, option: $0)) }, uniquingKeysWith: { _, latest in latest })
         return missingRequiredOptions(requirements: requirements, resolvedOptions: resolved)
     }
 }

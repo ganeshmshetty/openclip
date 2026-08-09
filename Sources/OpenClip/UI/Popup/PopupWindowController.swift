@@ -278,6 +278,12 @@ public class PopupWindowController {
     /// exactly like search (rule 10 exception) so the canvas can receive typing; Esc and non-Esc
     /// keys are owned by SwiftUI (.onKeyPress/.focusable), never the controller monitor.
     private func armCanvas(tree: CanvasComponent, header: CanvasHeader, preferredSize: CanvasSize? = nil) {
+        do {
+            try CanvasTreeValidator.validate(tree)
+        } catch {
+            failCanvas(error)
+            return
+        }
         let session = CanvasSession(
             header: header,
             input: currentActionContext?.selection.text ?? "",
@@ -287,9 +293,10 @@ public class PopupWindowController {
             tree: tree
         )
         canvasSessionController.replace(with: session)
+        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        panel?.recenterXOnResize = true
         modeStore.content = session
         modeStore.mode = .content
-        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         enterKeyMode()
         // Focus the first interactive element (or the canvas root) on the next run-loop turn — a
         // @FocusState request issued during the mode-change render can be silently dropped on macOS.
@@ -304,9 +311,16 @@ public class PopupWindowController {
     /// mount) and lives on CanvasSessionController. Called from `show(for:)` via the
     /// onSessionArmed callback; this is the `.showCanvas` path's only transition into content mode.
     private func armMountedSession(_ session: CanvasSession) {
+        do {
+            try CanvasTreeValidator.validate(session.tree)
+        } catch {
+            failCanvas(error)
+            return
+        }
+        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        panel?.recenterXOnResize = true
         modeStore.content = session
         modeStore.mode = .content
-        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         enterKeyMode()
         Task { @MainActor in
             await Task.yield()
@@ -317,12 +331,11 @@ public class PopupWindowController {
     /// The running action's chrome title/icon for a canvas whose producer left the header nil.
     private func currentHeaderFromAction() -> CanvasHeader {
         if let hoveredAction {
-            return CanvasHeader(
-                title: hoveredAction.displayTitle(using: ActionCustomizationManager.shared),
-                icon: hoveredAction.icon.symbolName
-            )
+            let title = hoveredAction.displayTitle(using: ActionCustomizationManager.shared)
+            let icon = hoveredAction.icon.symbolName ?? "sparkles"
+            return CanvasHeader(title: title.isEmpty ? "AI Tools" : title, icon: icon)
         }
-        return CanvasHeader(title: "", icon: nil)
+        return CanvasHeader(title: "AI Tools", icon: "sparkles")
     }
 
     /// Arms a scripting session through the JS canvas engine. Mount success enters content mode and
@@ -343,6 +356,12 @@ public class PopupWindowController {
         scripting: (any CanvasScripting)? = nil,
         state: CanvasSessionState = CanvasSessionState()
     ) {
+        do {
+            try CanvasTreeValidator.validate(tree)
+        } catch {
+            failCanvas(error)
+            return
+        }
         let session = CanvasSession(
             header: header,
             input: currentActionContext?.selection.text ?? "",
@@ -353,9 +372,10 @@ public class PopupWindowController {
             state: state
         )
         canvasSessionController.replace(with: session)
+        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        panel?.recenterXOnResize = true
         modeStore.content = session
         modeStore.mode = .content
-        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         enterKeyMode()
         Task { @MainActor in
             await Task.yield()
@@ -380,8 +400,10 @@ public class PopupWindowController {
         let tree = Canvas.build {
             Canvas.text(text)
             if !isError {
-                Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(text)))
-                Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(text)))
+                Canvas.hstack(spacing: 6) {
+                    Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(text)))
+                    Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(text)))
+                }
             }
         }
         armCanvas(tree: tree, header: currentHeaderFromAction())
@@ -426,6 +448,7 @@ public class PopupWindowController {
         longPressTask?.cancel()
         longPressFired = false
 
+        guard modeStore.mode == .actions else { return }
         guard let hoveredAction, hoveredAction.gesturePolicy.longPress != nil,
               let actionContext = currentActionContext,
               let panel, panel.frame.contains(clickLocation) else { return }
@@ -689,6 +712,7 @@ public class PopupWindowController {
     /// Routes a leaf effect to DefaultActionResultHandler and surfaces any thrown error uniformly
     /// (decision 9): an error becomes a `.showStatus(.error)` and the popup stays. Returns the task
     /// so `deliverKeyboardEffect` can await the posted effect.
+    @discardableResult
     private func handleEffect(_ result: ActionResult) -> Task<Void, Never> {
         guard let effect = result.effectForHandler else { return Task {} }
         return Task { @MainActor in
@@ -725,10 +749,16 @@ public class PopupWindowController {
         let wasContent = modeStore.mode == .content
         if wasKey {
             panel?.allowsKey = false
-            previousFrontmostApp?.activate(options: [.activateAllWindows])
+            if let targetApp = previousFrontmostApp {
+                targetApp.activate(options: [.activateAllWindows])
+                let deadline = Date().addingTimeInterval(0.15)
+                while NSWorkspace.shared.frontmostApplication != targetApp, Date() < deadline {
+                    try? await Task.sleep(nanoseconds: 10_000_000)
+                }
+            }
         }
         await handleEffect(effect.asActionResult).value
-        if wasKey, wasContent, panel?.isVisible == true {
+        if wasKey, modeStore.mode == .content, canvasSessionController.session != nil, panel?.isVisible == true {
             panel?.allowsKey = true
             panel?.makeKeyAndOrderFront(nil)
             canvasSessionController.refocus()
@@ -739,6 +769,7 @@ public class PopupWindowController {
     private func failCanvas(_ error: Error) {
         Log.extensions.error("canvas session error: \(error.localizedDescription)")
         exitContent()          // clears the session; flushes pending status (which we then override)
+        statusDismissTask?.cancel()
         modeStore.statusBanner = StatusFeedback(error: error)
         startStatusDismissal()
     }

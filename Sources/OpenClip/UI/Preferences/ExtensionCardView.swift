@@ -13,14 +13,12 @@ struct ExtensionCardView: View {
     @State private var showSuccess = false
 
     private var matchingInstalledAction: (any Action)? {
-        // Generated action IDs are "<manifest.identifier>.action.<n>", store item.id is "<manifest.identifier>"
-        // So we match when the action.id starts with item.id (e.g. "com.openclip.applemusic.action.0" starts with "com.openclip.applemusic")
+        // Generated action IDs are "<manifest.identifier>.action.<n>"; store item.id is
+        // "<manifest.identifier>". Require the separator so unrelated shorter ids cannot match.
         ActionCoordinator.shared.actions.first { action in
             let actID = action.id.lowercased()
             let itemID = item.id.lowercased()
-            let actTitle = action.displayTitle(using: ActionCustomizationManager.shared).lowercased()
-            let itemName = item.name.lowercased()
-            return actID.hasPrefix(itemID) || itemID.hasPrefix(actID) || actTitle == itemName
+            return actID == itemID || actID.hasPrefix(itemID + ".")
         }
     }
 

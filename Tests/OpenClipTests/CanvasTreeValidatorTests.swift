@@ -49,6 +49,16 @@ final class CanvasTreeValidatorTests: XCTestCase {
         }
     }
 
+    func testDuplicateSiblingIDsRejected() {
+        let dupTree = CanvasComponent.stack(CanvasStackProps(), [
+            .text(CanvasTextProps(id: "dup", content: "first")),
+            .text(CanvasTextProps(id: "dup", content: "second"))
+        ])
+        XCTAssertThrowsError(try CanvasTreeValidator.validate(dupTree)) { error in
+            XCTAssertEqual(error as? CanvasParseError, .duplicateSiblingID("dup"))
+        }
+    }
+
     func testConstantsRenamed() {
         XCTAssertEqual(Constants.popupMaxHeight, 240)
     }
