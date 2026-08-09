@@ -134,29 +134,45 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "Copied")
     }
 
-    func testShowContentReturnsContentWithFooterPresets() async throws {
-        let script = "openclip.showContent({ title: 'T', body: 'Hello', footer: ['paste', 'copy'] });"
+    func testShowContentReturnsElementTree() async throws {
+        let script = "openclip.showContent(h('stack', {}, [h('text', { content: 'Hello' }), h('button', { title: 'Paste', handler: 'x' })]));"
         let result = try await host.run(makeRequest(script: script))
-        guard case .showContent(let content) = result else {
-            return XCTFail("Expected .showContent, got \(result)")
+        guard case .showContentTree(let root, nil) = result else {
+            return XCTFail("Expected .showContentTree, got \(result)")
         }
-        XCTAssertEqual(content.title, "T")
-        XCTAssertEqual(content.rows.count, 1)
-        guard case .text(let rowText) = content.rows[0] else {
-            return XCTFail("Expected a text row")
+        guard case .stack(_, let children) = root else {
+            return XCTFail("Expected stack root, got \(root)")
         }
-        XCTAssertEqual(rowText, "Hello")
-        XCTAssertEqual(content.footer.count, 2)
-        XCTAssertEqual(content.footer[0].title, "Paste")
-        guard case .perform(.paste(let pasteText)) = content.footer[0].outcome else {
-            return XCTFail("Expected paste footer outcome")
+        XCTAssertEqual(children.count, 2)
+        guard case .text(let textProps) = children[0] else {
+            return XCTFail("Expected text child")
         }
-        XCTAssertEqual(pasteText, "Hello")
-        XCTAssertEqual(content.footer[1].title, "Copy")
-        guard case .perform(.copy(let copyText)) = content.footer[1].outcome else {
-            return XCTFail("Expected copy footer outcome")
+        XCTAssertEqual(textProps.content, "Hello")
+        guard case .button(let buttonProps) = children[1] else {
+            return XCTFail("Expected button child")
         }
-        XCTAssertEqual(copyText, "Hello")
+        XCTAssertEqual(buttonProps.title, "Paste")
+        XCTAssertEqual(buttonProps.handler, .dispatch("x"))
+    }
+
+    func testShowContentRejectsMalformedElementTree() async throws {
+        let script = "openclip.showContent({ invalid: true });"
+        let result = try await host.run(makeRequest(script: script))
+        guard case .showStatus(let feedback) = result else {
+            return XCTFail("Expected .showStatus, got \(result)")
+        }
+        XCTAssertEqual(feedback.style, .error)
+        XCTAssertEqual(feedback.message, "Canvas payload rejected.")
+    }
+
+    func testCannedKeysNoLongerProduceContent() async throws {
+        let script = "openclip.showContent({ title: 'T', body: 'B' });"
+        let result = try await host.run(makeRequest(script: script))
+        guard case .showStatus(let feedback) = result else {
+            return XCTFail("Expected .showStatus, got \(result)")
+        }
+        XCTAssertEqual(feedback.style, .error)
+        XCTAssertEqual(feedback.message, "Canvas payload rejected.")
     }
 
     func testRequireConfigurationReturnsOpenConfiguration() async throws {
