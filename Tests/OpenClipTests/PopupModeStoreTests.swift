@@ -15,19 +15,26 @@ final class PopupModeStoreTests: XCTestCase {
 
     func testContentModeIsEquatableAndPublishes() {
         let store = PopupModeStore()
-        let content = PopupContent(title: "AI Result", rows: [.text("hi")], emphasis: .result)
-        store.content = content
+        let session = CanvasSession(
+            header: CanvasHeader(title: "AI Result", icon: "sparkles"),
+            input: "hi",
+            preferredSize: nil,
+            scripting: nil,
+            isAsync: false,
+            tree: .text(CanvasTextProps(content: "hi", style: .body))
+        )
+        store.content = session
         store.mode = .content
         XCTAssertEqual(store.mode, PopupMode.content)
-        XCTAssertEqual(store.content?.title, "AI Result")
+        XCTAssertEqual(store.content?.header.title, "AI Result")
         XCTAssertNotEqual(PopupMode.actions, PopupMode.content)
         XCTAssertNotEqual(PopupMode.search, PopupMode.content)
     }
 
     func testPreviewAndStatusPublish() {
         let store = PopupModeStore()
-        store.preview = PopupContent(title: "Calc", subtitle: "2 + 2 = 4", emphasis: .info)
-        XCTAssertEqual(store.preview?.emphasis, .info)
+        store.preview = .text(CanvasTextProps(content: "2 + 2 = 4", style: .caption))
+        XCTAssertNotNil(store.preview)
         store.statusBanner = StatusFeedback(message: "Copied", style: .success)
         XCTAssertEqual(store.statusBanner?.message, "Copied")
     }

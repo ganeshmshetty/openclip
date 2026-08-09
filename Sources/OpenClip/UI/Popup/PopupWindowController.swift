@@ -37,16 +37,17 @@ public class PopupWindowController {
     private var longPressTask: Task<Void, Never>?
     private var hoveredAction: (any Action)?
     private var longPressFired = false
-    /// Top-trailing status badge shown on the open content canvas (decision 10). Backed by the shared
-    /// StatusBadgeModel so an already-mounted PopupContentView re-renders when a status arrives.
-    private var currentStatusBadge: StatusFeedback? {
-        get { StatusBadgeModel.shared.currentStatusBadge }
-        set { StatusBadgeModel.shared.currentStatusBadge = newValue }
-    }
     /// Auto-dismiss timer for the non-blocking status info bubble.
     private var statusDismissTask: Task<Void, Never>?
     /// How long the non-blocking status info bubble stays up before auto-dismissing.
     private let statusBubbleDurationNanoseconds: UInt64 = 1_500_000_000
+    /// A status queued while a content canvas is open (.content mode). Flushed onto the bar banner
+    /// when the canvas collapses (exitContent) — a canvas open never shows a banner, and hide()
+    /// clears the queue so a dismissal never surfaces a stale banner.
+    private var pendingStatus: StatusFeedback?
+    /// Owns the single active content-canvas session; its collected effects and errors are wired in
+    /// show(for:) into the single canvas effect/error doors.
+    private let canvasSessionController = CanvasSessionController()
 
     private var isMenuTracking = false
     
@@ -83,6 +84,15 @@ public class PopupWindowController {
         modeStore.mode = .actions
         modeStore.searchResultsAbove = cardAbove
 
+        // Wire the canvas door once per session. Dispatch-collected effects AND view-driven effects
+        // (onCanvasEffect) both route into the single keep-open handleCanvasEffects path.
+        canvasSessionController.onEffects = { [weak self] effects in
+            self?.handleCanvasEffects(effects)
+        }
+        canvasSessionController.onSessionError = { [weak self] error in
+            self?.failCanvas(error)
+        }
+
         let rootView = PopupView(
             actions: availableActions,
             context: actionContext,
@@ -100,6 +110,14 @@ public class PopupWindowController {
                     self.exitContent()
                     self.handleActionResult(inner)
                 }
+            },
+            // Every canvas effect — dispatch-collected AND view-driven — is a keep-open effect: keyboard
+            // ones get deliverKeyboardEffect, leaf ones run without dismissal. Never handleEffect.
+            onCanvasEvent: { [weak self] event in
+                self?.canvasSessionController.dispatch(event)
+            },
+            onCanvasEffect: { [weak self] effect in
+                self?.handleCanvasEffects([effect])   // same door as dispatch-collected effects (§1, §6)
             },
             onResult: { [weak self] result in
                 guard let self else { return }
@@ -154,9 +172,7 @@ public class PopupWindowController {
         case .search:
             hide()
         case .content:
-            // Not reachable until Task 3 wires the canvas; hotkey collapses back to the bar.
-            modeStore.content = nil
-            modeStore.mode = .actions
+            exitContent()
         }
     }
 
@@ -257,21 +273,40 @@ public class PopupWindowController {
 
     // MARK: - Content Canvas
 
-    /// Opens the content canvas for a result: the panel transforms into the canvas (bar hidden,
-    /// like search mode). The panel stays non-key — Esc is observed by the event monitors.
+    /// Opens the content canvas for a legacy result: bridges the producer's PopupContent into a
+    /// native canvas tree (temporary — the bridge is deleted in Task 21) and arms the session. The
+    /// panel stays non-key — Task 14 makes it key.
     private func enterContent(_ content: PopupContent) {
         guard panel?.isVisible == true else { return }
-        modeStore.content = content
+        armCanvas(tree: LegacyContentBridge.tree(for: content),
+                  header: LegacyContentBridge.header(for: content))
+    }
+
+    /// Arms a native (non-scripting) canvas session and enters content mode. Task 14 makes it key.
+    private func armCanvas(tree: CanvasComponent, header: CanvasHeader, preferredSize: CanvasSize? = nil) {
+        let session = CanvasSession(
+            header: header,
+            input: currentActionContext?.selection.text ?? "",
+            preferredSize: preferredSize,
+            scripting: nil,               // native/static in v1; Task 17 routes .showCanvas through mount
+            isAsync: false,
+            tree: tree
+        )
+        canvasSessionController.replace(with: session)
+        modeStore.content = session
         modeStore.mode = .content
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
     }
 
-    /// Collapses the content canvas back to the actions bar. Never hides the popup.
+    /// Collapses the content canvas back to the actions bar. Never hides the popup. Clears the
+    /// session and flushes any status queued while the canvas was open onto the bar banner.
     public func exitContent() {
         guard modeStore.mode == .content else { return }
+        canvasSessionController.clear()
         modeStore.content = nil
         modeStore.mode = .actions
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        flushPendingStatus()
     }
 
     /// Renders the AI response (or error) as a content canvas with Replace/Copy delivery options.
@@ -321,18 +356,12 @@ public class PopupWindowController {
                   self.hoveredAction?.id == action.id,
                   self.modeStore.mode == .actions else { return }
 
-            let icon: String? = {
-                if case .symbol(let name) = action.displayIcon(using: ActionCustomizationManager.shared) { return name }
-                return nil
-            }()
             let line = await (action as? any PreviewProviding)?.previewLine(for: actionContext)
 
-            self.modeStore.preview = PopupContent(
-                title: action.displayTitle(using: ActionCustomizationManager.shared),
-                icon: icon,
-                subtitle: line ?? action.displayTitle(using: ActionCustomizationManager.shared),
-                emphasis: .info
-            )
+            // A single non-keyed text node per the confirmed hover-preview decision — hovering a bar
+            // row never steals focus, so the strip is a snapshot, never a session. The plain text
+            // node carries no icon (the old .info card's icon is gone with PopupContentView).
+            self.modeStore.preview = .text(CanvasTextProps(content: line ?? action.displayTitle(using: ActionCustomizationManager.shared), style: .caption))
         }
     }
 
@@ -411,7 +440,9 @@ public class PopupWindowController {
     public func hide() {
         statusDismissTask?.cancel()
         statusDismissTask = nil
-        currentStatusBadge = nil
+        canvasSessionController.clear()
+        // Never surface a banner after dismissal: a status queued while a canvas was open is dropped.
+        pendingStatus = nil
         modeStore.statusBanner = nil
         modeStore.content = nil
         modeStore.preview = nil
@@ -593,10 +624,11 @@ public class PopupWindowController {
     }
 
     /// Routes a leaf effect to DefaultActionResultHandler and surfaces any thrown error uniformly
-    /// (decision 9): an error becomes a `.showStatus(.error)` and the popup stays.
-    private func handleEffect(_ result: ActionResult) {
-        guard let effect = result.effectForHandler else { return }
-        Task { @MainActor in
+    /// (decision 9): an error becomes a `.showStatus(.error)` and the popup stays. Returns the task
+    /// so `deliverKeyboardEffect` can await the posted effect.
+    private func handleEffect(_ result: ActionResult) -> Task<Void, Never> {
+        guard let effect = result.effectForHandler else { return Task {} }
+        return Task { @MainActor in
             do {
                 try await resultHandler.handle(effect, in: panel?.contentView)
             } catch {
@@ -605,19 +637,77 @@ public class PopupWindowController {
         }
     }
 
-    /// Decision 10: surfaces a StatusFeedback. With no content canvas open, shows an auto-dismissing
-    /// (~1.5s) non-blocking banner; with a canvas already open, shows a top-trailing corner badge on
-    /// the open card instead.
+    /// Canvas leaf effects never dismiss the popup (§1, §6). Single door for dispatch-collected AND
+    /// view-driven canvas effects (onCanvasEffect routes here too): keyboard-delivered effects go
+    /// through deliverKeyboardEffect; every other leaf executes with dismissal suppressed — never
+    /// hide(). There is no legacy handleEffect path — see the onCanvasEffect wiring above.
+    private func handleCanvasEffects(_ effects: [CanvasEffect]) {
+        for effect in effects {
+            switch effect {
+            case .paste, .cut, .keyPress, .simulatePaste:
+                Task { await self.deliverKeyboardEffect(effect) }
+            default:
+                Task { @MainActor in
+                    await resultHandler.handleWithoutDismissal(effect.asActionResult, in: nil)
+                }
+            }
+        }
+    }
+
+    /// A keyboard-delivered effect (.paste/.cut/.keyPress/.simulatePaste) is posted via CGEvent to the
+    /// frontmost key window — which is the canvas itself while key. Resign key, activate the source app,
+    /// post, then restore key + refocus when the canvas stays open (§7).
+    private func deliverKeyboardEffect(_ effect: CanvasEffect) async {
+        let wasKey = panel?.allowsKey == true
+        let wasContent = modeStore.mode == .content
+        if wasKey {
+            panel?.allowsKey = false
+            previousFrontmostApp?.activate(options: [.activateAllWindows])
+        }
+        await handleEffect(effect.asActionResult).value
+        if wasKey, wasContent, panel?.isVisible == true {
+            panel?.allowsKey = true
+            panel?.makeKeyAndOrderFront(nil)
+            canvasSessionController.refocus()
+        }
+    }
+
+    /// Mount/dispatch failure (§11): collapse to the bar and show the error on the bar banner.
+    private func failCanvas(_ error: Error) {
+        Log.extensions.error("canvas session error: \(error.localizedDescription)")
+        exitContent()          // clears the session; flushes pending status (which we then override)
+        modeStore.statusBanner = StatusFeedback(error: error)
+        startStatusDismissal()
+    }
+
+    /// Surfaces a StatusFeedback: queues it while a content canvas is open (the canvas shows no
+    /// banner; the status is flushed onto the bar when the canvas collapses), otherwise shows an
+    /// auto-dismissing (~1.5s) non-blocking banner.
     private func presentStatus(_ feedback: StatusFeedback) {
         // Never surface a status if the popup isn't showing (e.g. a `.failure` result dismissed it
         // before the effect threw); otherwise a detached banner would float with no bar.
         guard panel?.isVisible == true else { return }
         if modeStore.mode == .content {
-            currentStatusBadge = feedback
+            pendingStatus = feedback
             return
         }
         statusDismissTask?.cancel()
         modeStore.statusBanner = feedback
+        startStatusDismissal()
+    }
+
+    /// Shows a queued (while-canvas-open) status on the bar banner exactly once, then clears the
+    /// queue. Called by exitContent() when the canvas collapses.
+    private func flushPendingStatus() {
+        guard let pendingStatus else { return }
+        self.pendingStatus = nil
+        statusDismissTask?.cancel()
+        modeStore.statusBanner = pendingStatus
+        startStatusDismissal()
+    }
+
+    /// Starts the auto-dismiss task for the current bar banner.
+    private func startStatusDismissal() {
         statusDismissTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: statusBubbleDurationNanoseconds)
             guard !Task.isCancelled else { return }

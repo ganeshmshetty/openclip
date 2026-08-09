@@ -18,10 +18,12 @@ public final class PopupModeStore: ObservableObject {
     @Published public var scope: SearchScope? = nil
     /// True when the popup sits low on screen and search results render above the field.
     @Published public var searchResultsAbove: Bool = false
-    /// The content canvas currently shown (only meaningful while `mode == .content`).
-    @Published public var content: PopupContent? = nil
-    /// The hover preview strip shown while `mode == .actions` (bar stays visible, panel grows).
-    @Published public var preview: PopupContent? = nil
+    /// The content canvas currently shown (only meaningful while `mode == .content`): a live
+    /// CanvasSession owned by CanvasSessionController.
+    @Published public var content: CanvasSession? = nil
+    /// The hover preview strip shown while `mode == .actions` (bar stays visible, panel grows):
+    /// a non-keyed text component snapshot (never a session, never enters key mode).
+    @Published public var preview: CanvasComponent? = nil
     /// A transient inline status banner (auto-dismissed by the controller).
     @Published public var statusBanner: StatusFeedback? = nil
 
