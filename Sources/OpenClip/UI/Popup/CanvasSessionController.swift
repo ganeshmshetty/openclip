@@ -10,7 +10,9 @@
 // `generation` guard discards the late result of a replaced/cleared session, and `mount` waits on
 // the previous chain so a rapid re-mount always wins over the earlier one. Focus lives in
 // CanvasSession.focusedComponentID so the renderer can re-apply it on the next run loop; the panel
-// is key in content mode (enterKeyMode) exactly like search.
+// is key in content mode (enterKeyMode) exactly like search. Mount success reports the armed
+// session via `onSessionArmed` so the presenter can enter content mode and key the panel — the
+// `.showCanvas` mount path's only transition into content mode.
 import Foundation
 import Core
 
@@ -23,6 +25,8 @@ public final class CanvasSessionController {
     public var onSessionError: (@MainActor (Error) -> Void)?
     /// Script-surfaced status feedback (openclip.showStatus) → presenter shows/queues it.
     public var onStatus: (@MainActor (StatusFeedback) -> Void)?
+    /// Mount success → presenter enters content mode and keys the panel (the `.showCanvas` path).
+    public var onSessionArmed: (@MainActor (CanvasSession) -> Void)?
     private var dispatchChain: Task<Void, Never>?
     private var generation = 0
 
@@ -60,6 +64,7 @@ public final class CanvasSessionController {
                                             isAsync: request.isAsync, tree: result.tree, state: result.state)
                 self.session = session
                 // No onEffects at mount: CanvasMountResult carries state+tree only (spec §5.2).
+                self.onSessionArmed?(session)
                 let firstInteractive = session.tree.firstInteractiveID()
                 Task { @MainActor in await Task.yield(); session.requestFocus(firstInteractive) }
             } catch {
