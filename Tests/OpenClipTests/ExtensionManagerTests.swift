@@ -180,4 +180,40 @@ final class ExtensionManagerTests: XCTestCase {
         try await manager.uninstallExtension(actionID: actionID, targetDir: tempDir)
         XCTAssertFalse(manager.loadedActions.contains(where: { $0.id == actionID }))
     }
+
+    @MainActor
+    func testUninstallUnknownActionThrowsNotFoundAndKeepsRegistry() async throws {
+        let extDir = sourceDir.appendingPathComponent("Keepable.openclipext")
+        try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
+        let manifestPath = extDir.appendingPathComponent("manifest.json")
+        let manifestContent = """
+        {
+            "Identifier": "com.test.keepable",
+            "Name": "Keepable Extension",
+            "Actions": [
+                {
+                    "Title": "Keepable Action",
+                    "URL": "https://google.com/search?q={text}"
+                }
+            ]
+        }
+        """
+        try manifestContent.write(to: manifestPath, atomically: true, encoding: .utf8)
+
+        let manager = ExtensionManager.shared
+        let installed = try await manager.installExtension(from: extDir, targetDir: tempDir)
+        let actionID = try XCTUnwrap(installed.first?.id)
+
+        // Unknown actionID must throw before touching registry state.
+        do {
+            try await manager.uninstallExtension(actionID: "com.test.doesnotexist.action.0", targetDir: tempDir)
+            XCTFail("Expected not-found error for unknown actionID")
+        } catch {
+            let nsError = error as NSError
+            XCTAssertEqual(nsError.domain, "ExtensionManager")
+            XCTAssertEqual(nsError.code, 404)
+        }
+        XCTAssertTrue(manager.loadedActions.contains(where: { $0.id == actionID }), "registry must be unchanged when nothing was removed")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: extDir.path), "extension must still be on disk")
+    }
 }

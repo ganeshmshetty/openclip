@@ -28,18 +28,25 @@ final class OnceResume<T: Sendable>: @unchecked Sendable {
 }
 
 /// A thread-safe reference container for a `Task` to allow cross-isolation task cancellation.
+/// Tracks cancellation even before a task is registered: a task registered after `cancel()` has
+/// been called is cancelled immediately, so a deadline-triggered cancel is never lost to a
+/// registration race (exec/timeout worker pairs in MacTextRetriever).
 final class TaskBox: @unchecked Sendable {
     private let lock = NSLock()
     private var task: Task<Void, Never>?
+    private var isCancelled = false
 
     func set(_ task: Task<Void, Never>) {
         lock.lock()
         self.task = task
+        let shouldCancel = isCancelled
         lock.unlock()
+        if shouldCancel { task.cancel() }
     }
 
     func cancel() {
         lock.lock()
+        isCancelled = true
         let t = task
         lock.unlock()
         t?.cancel()

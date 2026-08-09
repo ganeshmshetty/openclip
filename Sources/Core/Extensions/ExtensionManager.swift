@@ -125,11 +125,9 @@ public final class ExtensionManager: Sendable {
     /// Uninstalls an extension by removing its directory or file from ~/.openclip/extensions.
     /// Matches the extension folder by reading the manifest identifier, which is the prefix of generated action IDs.
     public func uninstallExtension(actionID: String, targetDir: URL = Constants.extensionsDirectory) async throws {
-        onUnregister?(actionID)
-        loadedActions.removeAll(where: { $0.id == actionID })
-
         let fm = FileManager.default
-        guard let items = try? fm.contentsOfDirectory(at: targetDir, includingPropertiesForKeys: [.isDirectoryKey]) else { return }
+        let items = try fm.contentsOfDirectory(at: targetDir, includingPropertiesForKeys: [.isDirectoryKey])
+        var removed = false
 
         for itemURL in items {
             // Skip hidden/staging dirs
@@ -163,10 +161,18 @@ public final class ExtensionManager: Sendable {
             }
 
             if matched {
-                try? fm.removeItem(at: itemURL)
+                try fm.removeItem(at: itemURL)
+                removed = true
                 break
             }
         }
+
+        guard removed else {
+            throw NSError(domain: "ExtensionManager", code: 404,
+                          userInfo: [NSLocalizedDescriptionKey: "No extension found for action \(actionID)."])
+        }
+        onUnregister?(actionID)
+        loadedActions.removeAll(where: { $0.id == actionID })
         await loadExtensions(from: targetDir)
     }
     

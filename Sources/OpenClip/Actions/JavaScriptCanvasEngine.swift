@@ -226,6 +226,11 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
             isAsync: request.isAsync,
             state: effectiveState
         )
+
+        if !collector.effects.isEmpty {
+            throw CanvasJSRuntimeError.scriptException("Effects are not allowed at mount time")
+        }
+
         return CanvasMountResult(state: effectiveState, tree: tree, preferredSize: collector.preferredSize)
     }
 

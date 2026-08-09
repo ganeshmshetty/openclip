@@ -60,7 +60,7 @@ public enum CanvasTreeValidator {
                 let itemCount = sections.reduce(0) { $0 + $1.items.count }
                 if itemCount > CanvasLimits.maxListItems { throw CanvasParseError.tooManyListItems }
                 totalListItems += itemCount
-                if totalListItems > CanvasLimits.maxNodes { throw CanvasParseError.tooManyNodes }
+                if nodeCount + totalListItems > CanvasLimits.maxNodes { throw CanvasParseError.tooManyNodes }
                 for section in sections {
                     for item in section.items {
                         if let id = item.id, !id.isEmpty {

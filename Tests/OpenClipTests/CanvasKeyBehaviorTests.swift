@@ -294,22 +294,33 @@ final class CanvasKeyBehaviorTests: XCTestCase {
     }
 
     func testToggleRejectedChangeDoesNotDiverge() throws {
+        let scripting = GatedScripting()
+        scripting.error = NSError(domain: "CanvasKeyBehaviorTests", code: 1,
+                                  userInfo: [NSLocalizedDescriptionKey: "handler rejected the change"])
         let controller = try shownController()
         defer { controller.hide() }
 
-        let tree = Canvas.build {
+        let initialTree = Canvas.build {
             Canvas.toggle("t1", value: false)
         }
 
-        controller.armCanvasForTesting(tree: tree, header: CanvasHeader(title: "Toggle Test"))
-        pump()
-
-        let session = try XCTUnwrap(controller.canvasSessionController.session)
-        XCTAssertEqual(session.state.bool("t1"), false)
+        let session = CanvasSession(
+            header: CanvasHeader(title: "Toggle Test"),
+            input: "test",
+            preferredSize: nil,
+            scripting: scripting,
+            isAsync: false,
+            tree: initialTree,
+            state: CanvasSessionState(["t1": .bool(false)])
+        )
+        controller.canvasSessionController.replace(with: session)
 
         controller.canvasSessionController.dispatch(CanvasEvent(kind: .change, handler: "onToggle", value: "true", targetID: "t1"))
+        scripting.release()
         pump()
 
-        XCTAssertEqual(controller.canvasSessionController.session?.state.bool("t1"), true, "Pre-flip must update session state to true")
+        // The pre-flip commits the new value into session state before the (rejecting) handler runs,
+        // so the held session's state never diverges from the UI — even though the change is rejected.
+        XCTAssertEqual(session.state.bool("t1"), true, "Pre-flip must update session state to true")
     }
 }
