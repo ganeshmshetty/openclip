@@ -306,7 +306,7 @@ public class PopupWindowController {
     /// JS canvas producer; the engine is injected here (replaced by JavaScriptCanvasEngine in Task 23)
     /// and the stub surfaces a mount error that collapses + shows the error banner.
     private func mountCanvas(request: CanvasMountRequest, header: CanvasHeader) {
-        canvasSessionController.mount(request, scripting: UnavailableCanvasEngine(), header: header)
+        canvasSessionController.mount(request, scripting: JavaScriptCanvasEngine(), header: header)
     }
 
     /// Test access to the private arm path: mirrors exactly what enterContent/showAIContent do, so
