@@ -58,6 +58,13 @@ final class CanvasEffectDeliveryTests: XCTestCase {
         RunLoop.current.run(until: Date().addingTimeInterval(duration))
     }
 
+    private func visiblePanel() throws -> PopupPanel {
+        guard let panel = NSApp.windows.first(where: { $0 is PopupPanel && $0.isVisible }) as? PopupPanel else {
+            throw XCTSkip("popup panel did not appear")
+        }
+        return panel
+    }
+
     func testKeyboardEffectResignsActivatesPostsRestores() throws {
         let recordingHandler = RecordingActionResultHandler()
         let controller = try shownController(with: recordingHandler)
@@ -168,5 +175,30 @@ final class CanvasEffectDeliveryTests: XCTestCase {
 
         XCTAssertFalse(poster.postedKeys.isEmpty, "DefaultActionResultHandler paste must post key via injected KeyboardEventPosting seam")
         XCTAssertEqual(poster.postedKeys.first?.keyCode, Constants.vVirtualKey, "paste must post Cmd+V (vVirtualKey)")
+    }
+
+    func testEscDuringKeyboardEffectDoesNotRestoreKey() throws {
+        let recordingHandler = RecordingActionResultHandler()
+        let controller = try shownController(with: recordingHandler)
+        defer { controller.hide() }
+
+        let tree = Canvas.build {
+            Canvas.button("Paste", id: "b1", handler: .effect(.paste("hello")))
+        }
+        controller.armCanvasForTesting(tree: tree, header: CanvasHeader(title: "Delivery Test"))
+        pump()
+
+        let originalOnEffects = controller.canvasSessionController.onEffects
+        controller.canvasSessionController.onEffects = { effects in
+            originalOnEffects?(effects)
+        }
+
+        controller.canvasSessionController.onEffects?([.paste("hello")])
+        controller.exitContent()
+        pump(0.5)
+
+        XCTAssertEqual(controller.modeStore.mode, .actions)
+        let panel = try visiblePanel()
+        XCTAssertFalse(panel.allowsKey, "exitContent during effect must not restore key status")
     }
 }

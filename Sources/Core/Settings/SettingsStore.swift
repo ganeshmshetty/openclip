@@ -16,9 +16,9 @@ public final class DefaultSettingsStore: SettingsStore, @unchecked Sendable {
     private let userDefaults: UserDefaults
     // Combine's PassthroughSubject is not thread-safe: `set` may be called from any thread, so all
     // sends are serialized under `lock`. UserDefaults itself is thread-safe, so `get`/`set` reads
-    // and writes stay unlocked. Do not call `set` from within a `publisher` subscriber (the lock is
-    // non-recursive and the send synchronously invokes subscribers).
-    private let lock = NSLock()
+    // and writes stay unlocked. Using a recursive lock allows subscribers to call `set` during
+    // notification dispatch without deadlocking.
+    private let lock = NSRecursiveLock()
     private let subject = PassthroughSubject<String, Never>()
 
     public init(userDefaults: UserDefaults = .standard) {

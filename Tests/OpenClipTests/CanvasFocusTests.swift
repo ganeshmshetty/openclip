@@ -28,6 +28,14 @@ final class CanvasFocusTests: XCTestCase {
         XCTAssertEqual(tree.firstInteractiveID(), "tog")
     }
 
+    func testDisabledToggleSkipped() {
+        let tree: CanvasComponent = .stack(CanvasStackProps(), [
+            .toggle(CanvasToggleProps(id: "tog", value: false, disabled: true)),
+            .link(CanvasLinkProps(id: "lnk", title: "Docs", url: URL(string: "https://x")!))
+        ])
+        XCTAssertEqual(tree.firstInteractiveID(), "lnk")
+    }
+
     func testNilWhenNoFocusable() {
         let tree: CanvasComponent = .stack(CanvasStackProps(), [.text(CanvasTextProps(content: "static"))])
         XCTAssertNil(tree.firstInteractiveID())

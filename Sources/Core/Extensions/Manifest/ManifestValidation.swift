@@ -21,6 +21,8 @@ public struct ManifestValidationIssue: Sendable, Equatable {
         case missingRequiredField(String)
         /// The manifest declares a capability outside the host's known set.
         case unknownCapability(String)
+        /// An action's option identifier is defined more than once.
+        case duplicateOptionIdentifier(String)
     }
 
     public let kind: Kind
@@ -41,6 +43,8 @@ extension ManifestValidationIssue: CustomStringConvertible {
             return "\(path): missing required field \"\(field)\""
         case .unknownCapability(let name):
             return "\(path): unknown capability \"\(name)\""
+        case .duplicateOptionIdentifier(let identifier):
+            return "\(path): duplicate option identifier \"\(identifier)\""
         }
     }
 }
@@ -105,6 +109,9 @@ public struct ManifestValidator: Sendable {
     /// Validates `manifest`, returning every issue found (empty when it passes).
     public func validate(_ manifest: ExtensionMetadata) -> [ManifestValidationIssue] {
         var issues = capabilityGate.validate(manifest)
+        if let options = manifest.options {
+            issues.append(contentsOf: validateOptions(options, path: "options"))
+        }
         for (index, action) in manifest.actions.enumerated() {
             issues.append(contentsOf: validateAction(action, path: "actions[\(index)]"))
         }
@@ -156,6 +163,23 @@ public struct ManifestValidator: Sendable {
             // factory deterministically drops the action — a schema error, so reject the manifest.
             if [action.url, action.script, action.scriptCode].allSatisfy(isBlank) {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("url/script/scriptCode"), path: path))
+            }
+        }
+        if let options = action.options {
+            issues.append(contentsOf: validateOptions(options, path: path))
+        }
+        return issues
+    }
+
+    private func validateOptions(_ options: [ExtensionOptionMetadata], path: String) -> [ManifestValidationIssue] {
+        var issues: [ManifestValidationIssue] = []
+        var seenIdentifiers = Set<String>()
+        for option in options {
+            let id = option.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+            if seenIdentifiers.contains(id) {
+                issues.append(ManifestValidationIssue(kind: .duplicateOptionIdentifier(id), path: path))
+            } else {
+                seenIdentifiers.insert(id)
             }
         }
         return issues

@@ -277,4 +277,39 @@ final class CanvasKeyBehaviorTests: XCTestCase {
 
         XCTAssertEqual(controller.canvasSessionController.session?.focusedComponentID, "enabledField", "disabled node must be skipped for initial focus")
     }
+
+    func testDisabledToggleSkippedForInitialFocus() throws {
+        let controller = try shownController()
+        defer { controller.hide() }
+
+        let tree = Canvas.build {
+            Canvas.toggle("tog1", value: false, disabled: true)
+            Canvas.button("Enabled Button", id: "btn1")
+        }
+
+        controller.armCanvasForTesting(tree: tree, header: CanvasHeader(title: "Disabled Toggle"))
+        pump()
+
+        XCTAssertEqual(controller.canvasSessionController.session?.focusedComponentID, "btn1", "disabled toggle must be skipped for initial focus")
+    }
+
+    func testToggleRejectedChangeDoesNotDiverge() throws {
+        let controller = try shownController()
+        defer { controller.hide() }
+
+        let tree = Canvas.build {
+            Canvas.toggle("t1", value: false)
+        }
+
+        controller.armCanvasForTesting(tree: tree, header: CanvasHeader(title: "Toggle Test"))
+        pump()
+
+        let session = try XCTUnwrap(controller.canvasSessionController.session)
+        XCTAssertEqual(session.state.bool("t1"), false)
+
+        controller.canvasSessionController.dispatch(CanvasEvent(kind: .change, handler: "onToggle", value: "true", targetID: "t1"))
+        pump()
+
+        XCTAssertEqual(controller.canvasSessionController.session?.state.bool("t1"), true, "Pre-flip must update session state to true")
+    }
 }

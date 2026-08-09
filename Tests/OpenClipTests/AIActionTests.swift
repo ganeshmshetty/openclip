@@ -38,23 +38,30 @@ final class AIActionTests: XCTestCase {
             return
         }
         
-        XCTAssertEqual(children.count, 3)
+        XCTAssertEqual(children.count, 2)
         guard case .text(let textProps) = children[0] else {
             XCTFail("Expected text component at index 0")
             return
         }
         XCTAssertFalse(textProps.content.isEmpty)
         
-        guard case .button(let replaceBtn) = children[1] else {
-            XCTFail("Expected button at index 1")
+        guard case .stack(let hstackProps, let btnChildren) = children[1] else {
+            XCTFail("Expected horizontal stack for buttons at index 1")
+            return
+        }
+        XCTAssertEqual(hstackProps.orientation, .horizontal)
+        XCTAssertEqual(btnChildren.count, 2)
+        
+        guard case .button(let replaceBtn) = btnChildren[0] else {
+            XCTFail("Expected Replace button at index 0 of horizontal stack")
             return
         }
         XCTAssertEqual(replaceBtn.title, "Replace")
         XCTAssertEqual(replaceBtn.icon, CanvasIconSource.symbol("arrow.triangle.2.circlepath"))
         XCTAssertEqual(replaceBtn.handler, CanvasHandler.effect(.paste(textProps.content)))
         
-        guard case .button(let copyBtn) = children[2] else {
-            XCTFail("Expected button at index 2")
+        guard case .button(let copyBtn) = btnChildren[1] else {
+            XCTFail("Expected Copy button at index 1 of horizontal stack")
             return
         }
         XCTAssertEqual(copyBtn.title, "Copy")

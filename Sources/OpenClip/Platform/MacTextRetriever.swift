@@ -134,16 +134,19 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     private func strategyAXDirect() async -> TextResult? {
         return await withCheckedContinuation { continuation in
             let resume = OnceResume<TextResult?>()
+            let timeoutTask = TaskBox()
+            let workerTask = TaskBox()
 
             // Deadline watchdog: cancel the wait after axReadTimeout so an unresponsive target app
-            // can never wedge the popup. The AX read itself keeps running off-main and its own
-            // resume becomes a no-op through the once-gate.
-            Task {
+            // can never wedge the popup.
+            timeoutTask.set(Task {
                 try? await Task.sleep(nanoseconds: UInt64(Constants.axReadTimeout * 1_000_000_000))
-                resume.resume(continuation, with: nil)
-            }
+                if resume.resume(continuation, with: nil) {
+                    workerTask.cancel()
+                }
+            })
 
-            Task.detached {
+            workerTask.set(Task.detached {
                 let systemWide = AXUIElementCreateSystemWide()
                 
                 // 1. Try focused UI element
@@ -153,14 +156,18 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                     let focusedElement = focusedRef as! AXUIElement
                     if let result = self.extractTextAndBounds(from: focusedElement) {
                         Log.selection.debug("AX strategy: success from focused element (\(result.text.count) chars)")
-                        resume.resume(continuation, with: result)
+                        if resume.resume(continuation, with: result) {
+                            timeoutTask.cancel()
+                        }
                         return
                     }
                     
                     // Try ancestors of focused element (up to 4 levels)
                     if let ancestorResult = self.extractFromAncestors(element: focusedElement, maxDepth: 4) {
                         Log.selection.debug("AX strategy: success from focused element ancestor (\(ancestorResult.text.count) chars)")
-                        resume.resume(continuation, with: ancestorResult)
+                        if resume.resume(continuation, with: ancestorResult) {
+                            timeoutTask.cancel()
+                        }
                         return
                     }
                 }
@@ -172,22 +179,28 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                        let hitElement {
                         if let result = self.extractTextAndBounds(from: hitElement) {
                             Log.selection.debug("AX strategy: success from cursor hit-test element (\(result.text.count) chars)")
-                            resume.resume(continuation, with: result)
+                            if resume.resume(continuation, with: result) {
+                                timeoutTask.cancel()
+                            }
                             return
                         }
                         
                         // Try ancestors of hit-test element (up to 4 levels)
                         if let ancestorResult = self.extractFromAncestors(element: hitElement, maxDepth: 4) {
                             Log.selection.debug("AX strategy: success from cursor hit-test ancestor (\(ancestorResult.text.count) chars)")
-                            resume.resume(continuation, with: ancestorResult)
+                            if resume.resume(continuation, with: ancestorResult) {
+                                timeoutTask.cancel()
+                            }
                             return
                         }
                     }
                 }
                 
                 Log.selection.debug("AX strategy: all direct AX resolution attempts exhausted")
-                resume.resume(continuation, with: nil)
-            }
+                if resume.resume(continuation, with: nil) {
+                    timeoutTask.cancel()
+                }
+            })
         }
     }
 
@@ -408,14 +421,21 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     private func runAppleScript(_ source: String, timeout: TimeInterval = 0.2) async -> String? {
         await withCheckedContinuation { continuation in
             let resume = OnceResume<String?>()
-            Task {
+            let execTask = TaskBox()
+            let timeoutTask = TaskBox()
+
+            execTask.set(Task {
                 let result = try? await AppleScriptRunner.shared.run(source)
-                resume.resume(continuation, with: result)
-            }
-            Task {
+                if resume.resume(continuation, with: result) {
+                    timeoutTask.cancel()
+                }
+            })
+            timeoutTask.set(Task {
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                resume.resume(continuation, with: nil)
-            }
+                if resume.resume(continuation, with: nil) {
+                    execTask.cancel()
+                }
+            })
         }
     }
 }

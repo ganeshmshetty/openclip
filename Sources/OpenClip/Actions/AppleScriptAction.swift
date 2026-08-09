@@ -84,7 +84,7 @@ public struct AppleScriptAction: ConfigurableAction {
             let output = try await AppleScriptRunner.shared.run(fullScript)
             return output.isEmpty ? .success : .copy(output)
         } catch {
-            Log.resultHandler.error("AppleScript action \(id, privacy: .public) failed: \(error.localizedDescription)")
+            Log.resultHandler.error("AppleScript action \(id, privacy: .public) failed: \(error.localizedDescription, privacy: .private)")
             return .failure(NSError(domain: "AppleScriptAction", code: 1, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]))
         }
     }

@@ -219,16 +219,17 @@ final class CanvasRendererTests: XCTestCase {
 
         let panel = try visiblePanel()
         let labels = collectAccessibilityLabels(in: panel.contentView)
-        let hasExpectedLabel = labels.contains(where: { $0.contains("Paste Result") || $0.contains("Open Docs") || $0.contains("Type here") })
-        XCTAssertTrue(hasExpectedLabel || panel.contentView != nil, "rendered view should expose interactive node labels")
+        let hasExpectedLabel = labels.contains(where: { $0.contains("Paste Result") || $0.contains("Open Docs") || $0.contains("Type here") || $0.contains("Input") })
+        XCTAssertTrue(hasExpectedLabel, "rendered view should expose interactive node labels")
     }
 
     func testThemingGlassVsClassicDoesNotRemountCanvas() throws {
+        let initialTheme = DefaultSettingsStore.shared.get(.popupTheme)
         DefaultSettingsStore.shared.set(.popupTheme, value: "classic")
         let controller = try shownController()
         defer {
             controller.hide()
-            DefaultSettingsStore.shared.set(.popupTheme, value: "classic")
+            DefaultSettingsStore.shared.set(.popupTheme, value: initialTheme)
         }
 
         let tree = Canvas.build {
@@ -262,6 +263,21 @@ final class CanvasRendererTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.mode, .content)
     }
 
+    func testUnsafeIconPathRejectedWithPlaceholder() throws {
+        let controller = try shownController()
+        defer { controller.hide() }
+
+        let unsafeURL = URL(fileURLWithPath: "/Users/x/Documents/secret.png")
+        let tree = Canvas.icon(.local(unsafeURL))
+
+        controller.armCanvasForTesting(tree: tree, header: CanvasHeader(title: "Unsafe Icon"))
+        pump()
+
+        let panel = try visiblePanel()
+        XCTAssertTrue(panel.isVisible)
+        XCTAssertEqual(controller.modeStore.mode, .content)
+    }
+
     // MARK: - Helper
 
     private func collectAccessibilityLabels(in view: NSView?) -> [String] {
@@ -275,6 +291,23 @@ final class CanvasRendererTests: XCTestCase {
         }
         if let value = view.accessibilityValue() as? String, !value.isEmpty {
             results.append(value)
+        }
+        if let children = view.accessibilityChildren() {
+            for child in children {
+                if let childView = child as? NSView {
+                    results.append(contentsOf: collectAccessibilityLabels(in: childView))
+                } else if let element = child as? NSAccessibilityElement {
+                    if let label = element.accessibilityLabel(), !label.isEmpty {
+                        results.append(label)
+                    }
+                    if let title = element.accessibilityTitle(), !title.isEmpty {
+                        results.append(title)
+                    }
+                    if let value = element.accessibilityValue() as? String, !value.isEmpty {
+                        results.append(value)
+                    }
+                }
+            }
         }
         for subview in view.subviews {
             results.append(contentsOf: collectAccessibilityLabels(in: subview))

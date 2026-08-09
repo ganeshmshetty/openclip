@@ -137,6 +137,7 @@ public struct PopupSearchView: View {
         }
         .onChange(of: query) { _, newValue in
             results = ActionSearch.search(newValue, in: searchIndex)
+            selectedIndex = 0
         }
         .onChange(of: scope?.parent.id) { _, _ in
             rebuildSearchIndex()
@@ -341,6 +342,7 @@ public struct PopupSearchView: View {
         let index = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency, presenter: presenter)
         searchIndex = index
         results = ActionSearch.search(query, in: index)
+        selectedIndex = 0
     }
 
     private static func searchKeywords(for action: any Action) -> String {

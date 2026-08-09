@@ -84,10 +84,8 @@ final class CanvasEndToEndTests: XCTestCase {
     }
 
     private func visiblePanel() throws -> PopupPanel {
-        guard let panel = NSApp.windows.first(where: { $0 is PopupPanel && $0.isVisible }) as? PopupPanel else {
-            throw XCTSkip("popup panel did not appear")
-        }
-        return panel
+        let panel = NSApp.windows.first(where: { $0 is PopupPanel && $0.isVisible }) as? PopupPanel
+        return try XCTUnwrap(panel, "popup panel did not appear")
     }
 
     /// Async pump: sleeps the test method so the controller's serialized mount/dispatch task chain
@@ -129,12 +127,11 @@ final class CanvasEndToEndTests: XCTestCase {
     /// Performs the fixture counter action and hands its `.showCanvas` result to the controller.
     /// The controller must reach `.content` after the mount's onSessionArmed → armMountedSession.
     private func armCounter(on controller: PopupWindowController) async throws {
-        guard let canvasAction = canvasCounterAction() else {
-            throw XCTSkip("canvas.counter should resolve as a JavaScriptCanvasAction")
-        }
+        let canvasAction = try XCTUnwrap(canvasCounterAction(), "canvas.counter should resolve as a JavaScriptCanvasAction")
         let result = try await canvasAction.perform(makeContext())
         guard case .showCanvas(let request, let header) = result else {
-            throw XCTSkip("Expected .showCanvas, got \(result)")
+            XCTFail("Expected .showCanvas, got \(result)")
+            return
         }
         controller.handleActionResult(.showCanvas(request, header))
         await pump()

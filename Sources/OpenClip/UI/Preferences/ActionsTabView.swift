@@ -288,6 +288,11 @@ struct ActionRowView: View {
                                 try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
                             } catch {
                                 Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
+                                let failure = NSAlert()
+                                failure.messageText = "Uninstall Failed"
+                                failure.informativeText = "OpenClip could not uninstall extension: \(error.localizedDescription)"
+                                failure.alertStyle = .warning
+                                failure.runModal()
                             }
                         }
                     }) {

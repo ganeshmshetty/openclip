@@ -641,5 +641,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
     /// Bounds in-flight synchronous evaluations across the whole host (all instances).
     static let syncEvaluationGate = SyncEvaluationGate(capacity: Constants.maxConcurrentSyncScriptEvaluations)
+
+    /// Declared slot count for synchronous script evaluation gating.
+    public static var syncEvaluationSlotCount: Int {
+        syncEvaluationGate.capacity
+    }
 }
 

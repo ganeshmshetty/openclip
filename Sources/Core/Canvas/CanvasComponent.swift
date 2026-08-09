@@ -278,11 +278,13 @@ public struct CanvasTextFieldProps: Sendable, Equatable {
 public struct CanvasToggleProps: Sendable, Equatable {
     public var id: String
     public var value: Bool
+    public var disabled: Bool
     public var onToggle: CanvasHandler?
 
-    public init(id: String, value: Bool, onToggle: CanvasHandler? = nil) {
+    public init(id: String, value: Bool, disabled: Bool = false, onToggle: CanvasHandler? = nil) {
         self.id = id
         self.value = value
+        self.disabled = disabled
         self.onToggle = onToggle
     }
 }
@@ -314,3 +316,22 @@ public enum CanvasComponent: Sendable, Equatable {
     case toggle(CanvasToggleProps)
     case link(CanvasLinkProps)
 }
+
+extension CanvasComponent {
+    public var id: String? {
+        switch self {
+        case .stack(let p, _): return p.id
+        case .divider(let p): return p.id
+        case .spacer(let p): return p.id
+        case .text(let p): return p.id
+        case .icon(let p): return p.id
+        case .image(let p): return p.id
+        case .button(let p): return p.id
+        case .list(let p, _): return p.id
+        case .textField(let p): return p.id
+        case .toggle(let p): return p.id
+        case .link(let p): return p.id
+        }
+    }
+}
+

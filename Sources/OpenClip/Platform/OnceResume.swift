@@ -13,14 +13,35 @@ final class OnceResume<T: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
     private var resumed = false
 
-    func resume(_ continuation: CheckedContinuation<T, Never>, with value: T) {
+    @discardableResult
+    func resume(_ continuation: CheckedContinuation<T, Never>, with value: T) -> Bool {
         lock.lock()
         if resumed {
             lock.unlock()
-            return
+            return false
         }
         resumed = true
         lock.unlock()
         continuation.resume(returning: value)
+        return true
+    }
+}
+
+/// A thread-safe reference container for a `Task` to allow cross-isolation task cancellation.
+final class TaskBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var task: Task<Void, Never>?
+
+    func set(_ task: Task<Void, Never>) {
+        lock.lock()
+        self.task = task
+        lock.unlock()
+    }
+
+    func cancel() {
+        lock.lock()
+        let t = task
+        lock.unlock()
+        t?.cancel()
     }
 }

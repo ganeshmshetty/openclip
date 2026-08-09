@@ -91,8 +91,12 @@ public final class CanvasSessionController {
             // updates (a counter tapped twice must reach count 2, not 1).
             if event.kind == .change, let id = event.targetID {
                 if session.tree.isToggleNodeID(id) {
-                    let flipped = !(session.state.bool(id) ?? false)
-                    session.state.values[id] = .bool(flipped)
+                    if let val = event.value, let b = Bool(val) {
+                        session.state.values[id] = .bool(b)
+                    } else {
+                        let flipped = !(session.state.bool(id) ?? false)
+                        session.state.values[id] = .bool(flipped)
+                    }
                 } else if session.tree.isTextFieldNodeID(id) {
                     session.state.values[id] = .string(event.value ?? "")
                 }

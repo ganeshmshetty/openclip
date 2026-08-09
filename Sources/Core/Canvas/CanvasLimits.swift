@@ -11,7 +11,7 @@ import CoreGraphics
 public enum CanvasLimits {
     /// Max nodes in a canvas tree (spec §5.3).
     public static let maxNodes = 512
-    /// Max nesting depth: each nested `stack` or `list` adds one level (spec §5.3).
+    /// Max nesting depth: each nested `stack` adds one level (spec §5.3).
     public static let maxDepth = 32
     /// Max list items per `list` node (spec §5.3, confirmed 2026-08-08).
     public static let maxListItems = 64
@@ -31,26 +31,44 @@ public enum CanvasParseError: Error, Equatable {
     case tooManyListItems
     case textTooLong
     case nonObjectRoot
+    case duplicateSiblingID(String)
 }
 
 public enum CanvasTreeValidator {
     /// Validates the whole tree against CanvasLimits. Throws CanvasParseError on the first violation.
     public static func validate(_ tree: CanvasComponent) throws {
         var nodeCount = 0
+        var totalListItems = 0
         func walk(_ node: CanvasComponent, depth: Int) throws {
             nodeCount += 1
             if nodeCount > CanvasLimits.maxNodes { throw CanvasParseError.tooManyNodes }
             if depth > CanvasLimits.maxDepth { throw CanvasParseError.depthExceeded }
             switch node {
             case .stack(_, let children):
+                var siblingIDs = Set<String>()
                 for child in children {
+                    if let id = child.id, !id.isEmpty {
+                        if siblingIDs.contains(id) { throw CanvasParseError.duplicateSiblingID(id) }
+                        siblingIDs.insert(id)
+                    }
                     try walk(child, depth: depth + 1)
                 }
             case .text(let props):
                 if props.content.count > CanvasLimits.maxTextLength { throw CanvasParseError.textTooLong }
             case .list(_, let sections):
+                var itemIDs = Set<String>()
                 let itemCount = sections.reduce(0) { $0 + $1.items.count }
                 if itemCount > CanvasLimits.maxListItems { throw CanvasParseError.tooManyListItems }
+                totalListItems += itemCount
+                if totalListItems > CanvasLimits.maxNodes { throw CanvasParseError.tooManyNodes }
+                for section in sections {
+                    for item in section.items {
+                        if let id = item.id, !id.isEmpty {
+                            if itemIDs.contains(id) { throw CanvasParseError.duplicateSiblingID(id) }
+                            itemIDs.insert(id)
+                        }
+                    }
+                }
             case .divider(_), .spacer(_), .icon(_), .image(_), .button(_), .textField(_), .toggle(_), .link(_):
                 break
             }
