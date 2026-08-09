@@ -574,13 +574,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         app.setObject(sourceApp.localizedName ?? "", forKeyedSubscript: "name")
         input.setObject(app, forKeyedSubscript: "app")
 
-        let hBlock: @convention(block) (String, Any?, Any?) -> Any = { type, props, children in
-            var element: [String: Any] = ["type": type]
-            if let props { element["props"] = props }
-            if let children { element["children"] = children }
-            return element
-        }
-        jsContext.setObject(hBlock, forKeyedSubscript: "h" as NSString)
+        CanvasScriptBox.installH(in: jsContext)
 
         openclip.setObject(input, forKeyedSubscript: "input")
         openclip.setObject(options, forKeyedSubscript: "options")
@@ -635,43 +629,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
     private static func parseElementTree(_ value: JSValue) -> CanvasComponent? {
         guard value.isObject,
               let object = value.toObject() as? [String: Any],
-              let spec = CanvasElementSpecSpec(object: object),
+              let spec = CanvasScriptBox.elementSpec(from: object),
               let root = try? CanvasElementParser.parseTree(spec) else { return nil }
         return root
-    }
-
-    private static func CanvasElementSpecSpec(object: [String: Any]) -> CanvasElementSpec? {
-        guard let type = object["type"] as? String else { return nil }
-        let props = (object["props"] as? [String: Any] ?? [:]).compactMapValues(Self.jsonValue(from:))
-        let rawChildren: [Any]
-        if let array = object["children"] as? [Any] {
-            rawChildren = array
-        } else if let dict = object["children"] as? [String: Any] {
-            rawChildren = [dict]
-        } else {
-            rawChildren = []
-        }
-        let children = rawChildren.compactMap { child -> CanvasElementSpec? in
-            guard let dict = child as? [String: Any] else { return nil }
-            return CanvasElementSpecSpec(object: dict)
-        }
-        return CanvasElementSpec(type: type, props: props, children: children)
-    }
-
-    private static func jsonValue(from value: Any) -> JSONValue? {
-        switch value {
-        case let s as String: return .string(s)
-        case let n as NSNumber:
-            if CFGetTypeID(n) == CFBooleanGetTypeID() {
-                return .bool(n.boolValue)
-            } else {
-                return .number(n.doubleValue)
-            }
-        case let b as Bool: return .bool(b)
-        case let arr as [Any]: return .array(arr.compactMap(jsonValue(from:)))
-        case let dict as [String: Any]: return .object(dict.compactMapValues(jsonValue(from:)))
-        default: return nil
-        }
     }
 
     /// Captures the calling thread's CFRunLoop in a Sendable box. Kept as a helper so the raw CF
