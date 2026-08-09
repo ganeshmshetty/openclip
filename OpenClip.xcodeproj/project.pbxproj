@@ -122,6 +122,7 @@
 		7DCB8C6B19898E54CF61B1AD /* AppIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D7A473B890B4C97C343497A /* AppIcon.swift */; };
 		7E44D09AC94810898D6E5D1D /* PopupWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB70FC227E05CD8269458C89 /* PopupWindowController.swift */; };
 		7EDDECF89D21D258E5A00C01 /* AppleIntelligenceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38E0B09A0FCBBCF4C67A0FFF /* AppleIntelligenceProvider.swift */; };
+		810EA944D8C1E9ED8C0A02B2 /* CanvasEffectDeliveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF0737CB0D99B2E51E09BC35 /* CanvasEffectDeliveryTests.swift */; };
 		8338B9836EE4705E1F77FABF /* ExtensionInstallPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B089BADD4537CE2BF5489A37 /* ExtensionInstallPanel.swift */; };
 		84A19D69965D8FE1825442E5 /* MacTextRetriever.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B1ED5E66BD010DECBA31B69 /* MacTextRetriever.swift */; };
 		84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */; };
@@ -169,6 +170,7 @@
 		A4B07F7C0AA32D61F32510D5 /* DynamicActionConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3675FDD7BC06CF3B3CBDA003 /* DynamicActionConfigView.swift */; };
 		A4E5C8D67CA65BB32559291A /* DefaultAppRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 074DF8EB3340407D7E993ED7 /* DefaultAppRules.swift */; };
 		A571B116559543251679E39F /* ExtensionManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 704D6BE45F2AF94603F2FA07 /* ExtensionManifest.swift */; };
+		A5FBEC3A88D42EFDB87CBDD4 /* CanvasKeyBehaviorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 322B280ADFDD3875933DB9CA /* CanvasKeyBehaviorTests.swift */; };
 		A68E3E6C2500AB9707C47DBD /* ActionChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108E36CD124AAFD86FD11118 /* ActionChrome.swift */; };
 		AA4C8F95DCFD439591C9FA05 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E803385A2D8E9D1D257F00 /* Constants.swift */; };
 		AAF9DA41A33E375946EFC9B4 /* CanvasSessionControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7648069FD7564E25B7EE4C3E /* CanvasSessionControllerTests.swift */; };
@@ -195,6 +197,7 @@
 		C85F042BF73B07FCBDEC234A /* BuiltinActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4F2434073F85AB2FC61E746 /* BuiltinActionsTests.swift */; };
 		CB0F2118E3D0E7195D500A5D /* OpenClipSnippetParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3359F30EB7FC15DFC02A4D9B /* OpenClipSnippetParserTests.swift */; };
 		CB1DDD42F8CFEBA4535BF2A6 /* ActionOptionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E8782CDF24448F374DA0038 /* ActionOptionStore.swift */; };
+		CD0B22D1593347D57F5580A8 /* CanvasRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4118F3A1007C1553E62F421A /* CanvasRendererTests.swift */; };
 		CD5229C8D915490717880715 /* ExtensionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADB336B80C0380A45B5042F /* ExtensionCardView.swift */; };
 		CE759FD419A671CB23C175B8 /* DefaultActionFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301144A424F615703BABA2D0 /* DefaultActionFactoryTests.swift */; };
 		D7E40768967837E0BB3D1F89 /* CustomActionManifestWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9206ED1D9BA1DDBC6B15C384 /* CustomActionManifestWriterTests.swift */; };
@@ -329,6 +332,7 @@
 		309A0ED1613CEB1CF46AFBF8 /* AITab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AITab.swift; sourceTree = "<group>"; };
 		30E6ABB38EB5BC9DD5A41259 /* ActionResultDismissPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionResultDismissPolicyTests.swift; sourceTree = "<group>"; };
 		31413D1B3A41341818B8B6F6 /* ManifestValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManifestValidationTests.swift; sourceTree = "<group>"; };
+		322B280ADFDD3875933DB9CA /* CanvasKeyBehaviorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasKeyBehaviorTests.swift; sourceTree = "<group>"; };
 		3359F30EB7FC15DFC02A4D9B /* OpenClipSnippetParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipSnippetParserTests.swift; sourceTree = "<group>"; };
 		336067B05C52B87CD8C9DA9F /* ExtensionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionManager.swift; sourceTree = "<group>"; };
 		36016F74951C9B2E0CAA6894 /* AboutTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutTabView.swift; sourceTree = "<group>"; };
@@ -344,6 +348,7 @@
 		3E47D4C3D096CE979274DCDA /* BuiltinRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltinRegistryTests.swift; sourceTree = "<group>"; };
 		3EBC77323776465D52516362 /* CanvasSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasSessionView.swift; sourceTree = "<group>"; };
 		40BC7280676281FD11450DF2 /* ActionFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionFactory.swift; sourceTree = "<group>"; };
+		4118F3A1007C1553E62F421A /* CanvasRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasRendererTests.swift; sourceTree = "<group>"; };
 		41C2087EC2EAF26637FDE391 /* ResultContentProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultContentProviding.swift; sourceTree = "<group>"; };
 		4284E18DE06D8BB8FF933E15 /* ActionAppearanceFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionAppearanceFields.swift; sourceTree = "<group>"; };
 		43600D5250056CDB41C7FDF4 /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
@@ -455,6 +460,7 @@
 		BA944AA0BF898427FF2F4784 /* PopupGesturePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupGesturePolicyTests.swift; sourceTree = "<group>"; };
 		BB70FC227E05CD8269458C89 /* PopupWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupWindowController.swift; sourceTree = "<group>"; };
 		BCD2E8E311CD870FA0E955A9 /* AppIdentifying+NSRunningApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppIdentifying+NSRunningApplication.swift"; sourceTree = "<group>"; };
+		BF0737CB0D99B2E51E09BC35 /* CanvasEffectDeliveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasEffectDeliveryTests.swift; sourceTree = "<group>"; };
 		BFAE9387022DAE9253AC0D77 /* PopupThemeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupThemeModel.swift; sourceTree = "<group>"; };
 		C0A5C800BE48C74A05B33DDA /* GoldenExtensionPlatformTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenExtensionPlatformTests.swift; sourceTree = "<group>"; };
 		C0B0960E3A7EF80331F08063 /* CopyAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyAction.swift; sourceTree = "<group>"; };
@@ -933,8 +939,11 @@
 				D719D2B6B3F32C056AED329D /* CalculateActionTests.swift */,
 				3E08FED7F112DAA180913833 /* CanvasComponentTests.swift */,
 				77007AEBE3B80E6F4C4005B7 /* CanvasDSLTests.swift */,
+				BF0737CB0D99B2E51E09BC35 /* CanvasEffectDeliveryTests.swift */,
 				7A0C7FC9B2992013C071E3A7 /* CanvasElementParserTests.swift */,
 				133A289EFFF17146101F9940 /* CanvasFocusTests.swift */,
+				322B280ADFDD3875933DB9CA /* CanvasKeyBehaviorTests.swift */,
+				4118F3A1007C1553E62F421A /* CanvasRendererTests.swift */,
 				DD450B5A7E8695E2310B5885 /* CanvasScriptingTests.swift */,
 				7648069FD7564E25B7EE4C3E /* CanvasSessionControllerTests.swift */,
 				9D690B960D87A061EAF5F723 /* CanvasSessionStateTests.swift */,
@@ -1136,8 +1145,11 @@
 				B3E4DEAEC23EBE3A801E2964 /* CalculateActionTests.swift in Sources */,
 				F2F110A60253C2F942DAD457 /* CanvasComponentTests.swift in Sources */,
 				55EEA6C94251B36DC54C8A74 /* CanvasDSLTests.swift in Sources */,
+				810EA944D8C1E9ED8C0A02B2 /* CanvasEffectDeliveryTests.swift in Sources */,
 				4A9DD44087E861CED439F8B0 /* CanvasElementParserTests.swift in Sources */,
 				8F5E6960D871448D7E4CD67A /* CanvasFocusTests.swift in Sources */,
+				A5FBEC3A88D42EFDB87CBDD4 /* CanvasKeyBehaviorTests.swift in Sources */,
+				CD0B22D1593347D57F5580A8 /* CanvasRendererTests.swift in Sources */,
 				9AA9D684992383A0E55B9461 /* CanvasScriptingTests.swift in Sources */,
 				AAF9DA41A33E375946EFC9B4 /* CanvasSessionControllerTests.swift in Sources */,
 				72FBDF8955E2E15B5849EF5C /* CanvasSessionStateTests.swift in Sources */,
