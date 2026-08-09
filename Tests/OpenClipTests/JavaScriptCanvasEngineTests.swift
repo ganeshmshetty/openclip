@@ -343,4 +343,65 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
         }
         XCTAssertEqual(props.content, "Val: 42")
     }
+
+    // 16. showContent(tree, {size}) captures preferredSize + overrides the mounted tree
+    func testShowContentProvidesPreferredSize() async throws {
+        let script = "const ui = () => { openclip.showContent(h('text', { content: 'x' }), { size: { width: 340, height: 220 } }); return h('text', { content: 'y' }); };"
+        let engine = JavaScriptCanvasEngine()
+        let mountRes = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
+
+        XCTAssertEqual(mountRes.preferredSize, CanvasSize(width: 340, height: 220))
+        guard case .text(let props) = mountRes.tree else {
+            return XCTFail("Expected text root")
+        }
+        XCTAssertEqual(props.content, "x", "showContent'd tree must override the ui() return")
+    }
+
+    // 17. showContent without a size → preferredSize stays nil, tree still the showContent'd leaf
+    func testShowContentWithoutSize() async throws {
+        let script = "const ui = () => { openclip.showContent(h('text', { content: 'y' })); return h('text', { content: 'z' }); };"
+        let engine = JavaScriptCanvasEngine()
+        let mountRes = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
+
+        XCTAssertNil(mountRes.preferredSize)
+        guard case .text(let props) = mountRes.tree else {
+            return XCTFail("Expected text root")
+        }
+        XCTAssertEqual(props.content, "y", "showContent'd tree must override the ui() return")
+    }
+
+    // 18. showStatus during dispatch surfaces on the dispatch result, state unchanged
+    func testStatusDuringDispatchSurfaces() async throws {
+        let script = """
+        const handlers = {
+            done: (state) => { openclip.showStatus('Done', 'info'); return state; }
+        };
+        const ui = () => h('button', { title: 'Go', handler: 'done' });
+        """
+        let engine = JavaScriptCanvasEngine()
+        let mountRes = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
+
+        let dispatchRes = try await engine.dispatch(CanvasDispatchRequest(
+            event: CanvasEvent(kind: .tap, handler: "done"),
+            state: mountRes.state
+        ))
+        XCTAssertEqual(dispatchRes.status, StatusFeedback(message: "Done", style: .info))
+        XCTAssertEqual(dispatchRes.state, mountRes.state, "showStatus must not change state")
+    }
+
+    // 19. Rejected showContent payload fails the mount with a scriptException
+    func testShowContentRejectedTreeThrows() async throws {
+        let script = "const ui = () => { openclip.showContent('not-an-object'); return h('text', { content: 'ok' }); };"
+        let engine = JavaScriptCanvasEngine()
+        do {
+            _ = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
+            XCTFail("Expected mount to throw due to rejected showContent tree")
+        } catch let error as CanvasJSRuntimeError {
+            if case .scriptException = error {
+                // Expected
+            } else {
+                XCTFail("Expected scriptException, got \(error)")
+            }
+        }
+    }
 }

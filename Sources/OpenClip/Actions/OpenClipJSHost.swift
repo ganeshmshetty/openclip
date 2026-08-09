@@ -217,7 +217,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             effects.value.append(.notify(title: title, body: message))
         }
         let showStatusBlock: @convention(block) (String, String) -> Void = { message, style in
-            collected.value.status = StatusFeedback(message: message, style: Self.mapStatusStyle(style))
+            collected.value.status = StatusFeedback(message: message, style: CanvasScriptBox.mapStatusStyle(style))
         }
         let showContentBlock: @convention(block) (JSValue) -> Void = { value in
             if let parsed = Self.parseElementTree(value) {
@@ -593,15 +593,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
             case "control": return .control
             default: return nil
             }
-        }
-    }
-
-    private static func mapStatusStyle(_ raw: String) -> StatusFeedback.Style {
-        switch raw.lowercased() {
-        case "success": return .success
-        case "error": return .error
-        case "info": return .info
-        default: return .info
         }
     }
 

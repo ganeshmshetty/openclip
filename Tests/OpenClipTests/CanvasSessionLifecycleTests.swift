@@ -160,6 +160,45 @@ final class CanvasSessionLifecycleTests: XCTestCase {
         XCTAssertTrue(controller.isVisible, "panel must remain visible")
     }
 
+    func testMountPreferredSizeFallsBackToRequest() {
+        let controller = CanvasSessionController()
+        let fake = GatedScripting()
+        let requested = CanvasSize(width: 300, height: 180)
+        fake.mountResult = CanvasMountResult(state: CanvasSessionState(), tree: textTree("Fallback"), preferredSize: nil)
+        controller.mount(CanvasMountRequest(input: "in", preferredSize: requested), scripting: fake, header: CanvasHeader(title: "Size"))
+        pump()
+        fake.release()
+        pump()
+        XCTAssertEqual(controller.session?.preferredSize, requested, "request-declared size used when the script declares none")
+
+        let controller2 = CanvasSessionController()
+        let fake2 = GatedScripting()
+        fake2.mountResult = CanvasMountResult(state: CanvasSessionState(), tree: textTree("Declared"), preferredSize: CanvasSize(width: 420, height: 260))
+        controller2.mount(CanvasMountRequest(input: "in", preferredSize: requested), scripting: fake2, header: CanvasHeader(title: "Size"))
+        pump()
+        fake2.release()
+        pump()
+        XCTAssertEqual(controller2.session?.preferredSize, CanvasSize(width: 420, height: 260), "engine-declared size wins over the request value")
+    }
+
+    func testDispatchStatusRoutedToOnStatus() {
+        let controller = CanvasSessionController()
+        let fake = GatedScripting()
+        var received: [StatusFeedback] = []
+        controller.onStatus = { received.append($0) }
+
+        let session = CanvasSession(header: CanvasHeader(title: "S"), input: "s", preferredSize: nil, scripting: fake, isAsync: false, tree: textTree("S"))
+        controller.replace(with: session)
+
+        fake.dispatchResults = [CanvasDispatchResult(state: CanvasSessionState(), tree: textTree("S2"), status: StatusFeedback(message: "Saved", style: .success))]
+        controller.dispatch(CanvasEvent(kind: .tap, handler: "h", targetID: "btn"))
+        pump()
+        fake.release()
+        pump()
+
+        XCTAssertEqual(received, [StatusFeedback(message: "Saved", style: .success)])
+    }
+
     // MARK: - Step 2: Integration tests (controller + panel)
 
     func testScriptedDispatchReRendersPanelAndKeepsCanvasOpen() throws {
