@@ -48,20 +48,26 @@ final class ActionResultAdapterTests: XCTestCase {
         guard case .stack(_, let children) = tree else {
             return XCTFail("Expected stack root node")
         }
-        XCTAssertEqual(children.count, 3)
+        XCTAssertEqual(children.count, 2)
         guard case .text(let textProps) = children[0] else {
             return XCTFail("Expected text component")
         }
         XCTAssertEqual(textProps.content, "x")
 
-        guard case .button(let pasteBtn) = children[1] else {
+        guard case .stack(let hstackProps, let buttons) = children[1] else {
+            return XCTFail("Expected horizontal button stack at index 1")
+        }
+        XCTAssertEqual(hstackProps.orientation, .horizontal)
+        XCTAssertEqual(buttons.count, 2)
+
+        guard case .button(let pasteBtn) = buttons[0] else {
             return XCTFail("Expected Paste button")
         }
         XCTAssertEqual(pasteBtn.title, "Paste")
         XCTAssertEqual(pasteBtn.icon, .symbol("arrow.triangle.2.circlepath"))
         XCTAssertEqual(pasteBtn.handler, .effect(.paste("x")))
 
-        guard case .button(let copyBtn) = children[2] else {
+        guard case .button(let copyBtn) = buttons[1] else {
             return XCTFail("Expected Copy button")
         }
         XCTAssertEqual(copyBtn.title, "Copy")
@@ -79,7 +85,12 @@ final class ActionResultAdapterTests: XCTestCase {
         guard case .stack(_, let children) = tree else {
             return XCTFail("Expected stack root node")
         }
-        XCTAssertEqual(children.count, 3)
+        XCTAssertEqual(children.count, 2)
+        guard case .stack(let hstackProps, let buttons) = children[1] else {
+            return XCTFail("Expected horizontal button stack at index 1")
+        }
+        XCTAssertEqual(hstackProps.orientation, .horizontal)
+        XCTAssertEqual(buttons.count, 2)
     }
 
     // MARK: - none collapses to success

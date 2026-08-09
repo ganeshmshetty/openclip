@@ -38,7 +38,10 @@ final class AIActionTests: XCTestCase {
             return
         }
         
-        XCTAssertEqual(children.count, 2)
+        guard children.count == 2 else {
+            XCTFail("Expected stack to have 2 children, got \(children.count)")
+            return
+        }
         guard case .text(let textProps) = children[0] else {
             XCTFail("Expected text component at index 0")
             return
@@ -50,7 +53,10 @@ final class AIActionTests: XCTestCase {
             return
         }
         XCTAssertEqual(hstackProps.orientation, .horizontal)
-        XCTAssertEqual(btnChildren.count, 2)
+        guard btnChildren.count == 2 else {
+            XCTFail("Expected horizontal stack to have 2 children, got \(btnChildren.count)")
+            return
+        }
         
         guard case .button(let replaceBtn) = btnChildren[0] else {
             XCTFail("Expected Replace button at index 0 of horizontal stack")

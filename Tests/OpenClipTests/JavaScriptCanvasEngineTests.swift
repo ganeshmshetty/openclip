@@ -434,4 +434,20 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
             }
         }
     }
+
+    // 21. Effects emitted during UI evaluation are rejected at mount time
+    func testMountTimeEffectsInUIFunctionRejected() async throws {
+        let script = "const ui = () => { openclip.copy('from ui'); return h('text', { content: 'ok' }); };"
+        let engine = JavaScriptCanvasEngine()
+        do {
+            _ = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
+            XCTFail("Expected mount to throw when effects are emitted during UI evaluation")
+        } catch let error as CanvasJSRuntimeError {
+            if case .scriptException(let msg) = error {
+                XCTAssertTrue(msg.contains("Effects are not allowed at mount time"))
+            } else {
+                XCTFail("Expected scriptException, got \(error)")
+            }
+        }
+    }
 }
