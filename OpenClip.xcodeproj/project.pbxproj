@@ -76,6 +76,7 @@
 		4A9DD44087E861CED439F8B0 /* CanvasElementParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0C7FC9B2992013C071E3A7 /* CanvasElementParserTests.swift */; };
 		4AB80D47D3E30B72061B9910 /* CutAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56934780251D06C70C9D3172 /* CutAction.swift */; };
 		4B02DF82BA5A3B961C1BE2C5 /* GeneralTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F63399A1C7D78E9E1667DF /* GeneralTabView.swift */; };
+		4C292689D2C7C7564D4D9AFF /* DebugLogCommandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F292704F06603C30BB2C77 /* DebugLogCommandTests.swift */; };
 		4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */; };
 		4C7A369633219B87FC717CF6 /* DebugLogBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D3417470E254AA1CA970D2 /* DebugLogBufferTests.swift */; };
 		4D95DD2D804C916472C1A427 /* DebugLogEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867F5FE32483EEF1ED7B18D1 /* DebugLogEntryTests.swift */; };
@@ -152,6 +153,7 @@
 		9184DBBBBD2F0DE329DEAFA9 /* ShortcutAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A163C53F04A4C519139CFE7 /* ShortcutAction.swift */; };
 		92345C4B7E3325E66D6776D2 /* StatusFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = A85D6B583DAD8DA3E981C226 /* StatusFeedback.swift */; };
 		926C459D71E49552DDA18213 /* ExtensionActionKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D6647CFD7D6335D40B4D59 /* ExtensionActionKind.swift */; };
+		931B92B8A515EEC2054DB01D /* DebugLogCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = A574D624ED260AC9A43E5D22 /* DebugLogCommand.swift */; };
 		931C4F5EE750BAEDE698CEA9 /* ExtensionsAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AF4CBDEB80089C9FBCE3836 /* ExtensionsAPITests.swift */; };
 		9465A89C30C536C4B5E5897A /* PopupModeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D84ADC2CA427D8FDF571902 /* PopupModeStore.swift */; };
 		9495A826AD2E0BB4ED448280 /* TextRetrieverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49648502F040834635BBD8ED /* TextRetrieverTests.swift */; };
@@ -466,6 +468,7 @@
 		A499A7D45439C4B1FF8B836B /* CanvasEndToEndTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasEndToEndTests.swift; sourceTree = "<group>"; };
 		A4A87CFA084BCF3B940A37EC /* ActionResultHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionResultHandlerTests.swift; sourceTree = "<group>"; };
 		A4F2434073F85AB2FC61E746 /* BuiltinActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltinActionsTests.swift; sourceTree = "<group>"; };
+		A574D624ED260AC9A43E5D22 /* DebugLogCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogCommand.swift; sourceTree = "<group>"; };
 		A7BBC1C9D5BC350A1DE3769D /* InstalledExtensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledExtensionsView.swift; sourceTree = "<group>"; };
 		A85D6B583DAD8DA3E981C226 /* StatusFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusFeedback.swift; sourceTree = "<group>"; };
 		A8DAACCC7C82CE7BB96D5F0D /* CustomAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomAction.swift; sourceTree = "<group>"; };
@@ -510,6 +513,7 @@
 		CD6C339B374DBE3884DA21E9 /* UnifiedIconProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedIconProvider.swift; sourceTree = "<group>"; };
 		CE52A2746613B843A8CD5AB5 /* ActionUsageStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionUsageStoreTests.swift; sourceTree = "<group>"; };
 		CEE41531ACE74639DE1C5CB4 /* RemoteExtensionInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteExtensionInstaller.swift; sourceTree = "<group>"; };
+		D0F292704F06603C30BB2C77 /* DebugLogCommandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogCommandTests.swift; sourceTree = "<group>"; };
 		D179CAE4E0DEF1AD2D31D7DE /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		D30E9B1A09FFEE44BC1A5793 /* AppPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPickerSheet.swift; sourceTree = "<group>"; };
 		D33B3004A90DD3BE1E64DD30 /* ExtensionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionManagerTests.swift; sourceTree = "<group>"; };
@@ -843,6 +847,7 @@
 			isa = PBXGroup;
 			children = (
 				CC5159546A774B9BA999BA54 /* DebugLogBuffer.swift */,
+				A574D624ED260AC9A43E5D22 /* DebugLogCommand.swift */,
 				26AA38CCEB64711C1129F135 /* DebugLogEntry.swift */,
 				9F04245B4F0896E4AFD3B9BC /* DebugLogFilter.swift */,
 				E4EF53D5A01CA2A1884F414D /* DebugLogLevel.swift */,
@@ -1007,6 +1012,7 @@
 				29B9F196EE9D3082CCEA29E2 /* CustomActionDraftTests.swift */,
 				9206ED1D9BA1DDBC6B15C384 /* CustomActionManifestWriterTests.swift */,
 				57D3417470E254AA1CA970D2 /* DebugLogBufferTests.swift */,
+				D0F292704F06603C30BB2C77 /* DebugLogCommandTests.swift */,
 				867F5FE32483EEF1ED7B18D1 /* DebugLogEntryTests.swift */,
 				B826FB17017910B8919BF18F /* DebugLogFilterTests.swift */,
 				28C251D684663DDC867A7E7C /* DebugLogStoreTests.swift */,
@@ -1223,6 +1229,7 @@
 				FD6DE7EA993732CE74D6331B /* CustomActionDraftTests.swift in Sources */,
 				D7E40768967837E0BB3D1F89 /* CustomActionManifestWriterTests.swift in Sources */,
 				4C7A369633219B87FC717CF6 /* DebugLogBufferTests.swift in Sources */,
+				4C292689D2C7C7564D4D9AFF /* DebugLogCommandTests.swift in Sources */,
 				4D95DD2D804C916472C1A427 /* DebugLogEntryTests.swift in Sources */,
 				B7BFA2A49A47859753B93E6F /* DebugLogFilterTests.swift in Sources */,
 				B65680000C72C06585A1B730 /* DebugLogStoreTests.swift in Sources */,
@@ -1388,6 +1395,7 @@
 				3165370D30624071D8F6E1A4 /* CompletionAction.swift in Sources */,
 				29DC7732228424F98AEF1665 /* CustomActionManifestWriter.swift in Sources */,
 				413311B67A8C50E83B81F602 /* DebugLogBuffer.swift in Sources */,
+				931B92B8A515EEC2054DB01D /* DebugLogCommand.swift in Sources */,
 				7878CD338A5EBA4516C7FBCC /* DebugLogEntry.swift in Sources */,
 				D23A87BBDBBFB5CC70C2E219 /* DebugLogFilter.swift in Sources */,
 				E3B5093C79B8927F75486FCD /* DebugLogLevel.swift in Sources */,
