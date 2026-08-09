@@ -6,9 +6,9 @@
 // (`apply`), routes collected leaf effects to `onEffects` (never dismiss — in-session dismissal is
 // suppressed), and restores focus after submit/toggle/fallback rules (§4.2). A `generation` guard
 // discards the late result of a replaced/cleared session, and `mount` waits on the previous chain
-// so a rapid re-mount always wins over the earlier one. The popup stays non-key except the scoped
-// action-search exception; focus lives in CanvasSession.focusedComponentID so the renderer can
-// re-apply it on the next run loop without making the window key.
+// so a rapid re-mount always wins over the earlier one. Focus lives in
+// CanvasSession.focusedComponentID so the renderer can re-apply it on the next run loop; the panel
+// is key in content mode (enterKeyMode) exactly like search.
 import Foundation
 import Core
 
