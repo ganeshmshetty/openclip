@@ -371,27 +371,16 @@ public class PopupWindowController {
         flushPendingStatus()
     }
 
-    /// Renders the AI response (or error) as a content canvas with Replace/Copy delivery options.
+    /// Renders the AI response (or error) as a canvas with Replace/Copy delivery options.
     private func showAIContent(text: String, isError: Bool) {
-        let content = PopupContent(
-            title: isError ? "AI Error" : "AI Result",
-            icon: isError ? "exclamationmark.triangle" : "sparkles",
-            rows: [.text(text)],
-            footer: isError ? [] : [
-                ContentOption(
-                    title: "Replace",
-                    icon: "arrow.triangle.2.circlepath",
-                    outcome: .perform(.paste(text))
-                ),
-                ContentOption(
-                    title: "Copy",
-                    icon: "doc.on.doc",
-                    outcome: .perform(.copy(text))
-                )
-            ],
-            emphasis: .result
-        )
-        enterContent(content)
+        let tree = Canvas.build {
+            Canvas.text(text)
+            if !isError {
+                Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(text)))
+                Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(text)))
+            }
+        }
+        armCanvas(tree: tree, header: currentHeaderFromAction())
     }
 
     // MARK: - Hover Preview
