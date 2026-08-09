@@ -2,12 +2,14 @@
 // OpenClip
 //
 // Defines normalized action kind types supported by extension manifests, such as URL templates, scripts, JavaScript handlers,
-// text snippets, web search, and schema-only kinds (keyPress, service, shortcut, group) whose runtimes land in Phase 8.
+// text snippets, web search, the canvas kind (JS-only, evaluates via JavaScriptCanvasEngine), and schema-only kinds
+// (keyPress, service, shortcut, group) whose runtimes land in Phase 8.
 import Foundation
 
 public enum ExtensionActionKind: String, Codable, Sendable, Equatable {
     case url
     case js
+    case canvas
     case applescript
     case shellInline
     case scriptFile
@@ -23,6 +25,7 @@ public enum ExtensionActionKind: String, Codable, Sendable, Equatable {
     public static let recognizedTypeStrings: Set<String> = [
         "url", "urltemplate",
         "js", "javascript",
+        "canvas",
         "applescript",
         "shellinline", "shell",
         "scriptfile", "script",
@@ -47,6 +50,8 @@ public enum ExtensionActionKind: String, Codable, Sendable, Equatable {
             self = .url
         case "js", "javascript":
             self = .js
+        case "canvas":
+            self = .canvas
         case "applescript":
             self = .applescript
         case "shellinline", "shell":

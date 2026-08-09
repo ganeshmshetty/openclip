@@ -6,6 +6,8 @@ final class ExtensionManifestTests: XCTestCase {
     func testExtensionActionKindNormalization() {
         XCTAssertEqual(ExtensionActionKind(rawType: "url"), .url)
         XCTAssertEqual(ExtensionActionKind(rawType: "js"), .js)
+        XCTAssertEqual(ExtensionActionKind(rawType: "canvas"), .canvas)
+        XCTAssertTrue(ExtensionActionKind.isRecognized(rawType: "canvas"))
         XCTAssertEqual(ExtensionActionKind(rawType: "applescript"), .applescript)
         XCTAssertEqual(ExtensionActionKind(rawType: "shellInline"), .shellInline)
         XCTAssertEqual(ExtensionActionKind(rawType: "scriptFile"), .scriptFile)
