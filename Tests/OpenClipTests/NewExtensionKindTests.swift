@@ -94,6 +94,75 @@ final class NewExtensionKindTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
+    // MARK: - canvas
+
+    @MainActor
+    func testFactoryRoutesCanvasToJavaScriptCanvasAction() async throws {
+        let factory = DefaultActionFactory()
+        let scriptCode = "const ui = () => h('text', {});"
+        let meta = ExtensionActionMetadata(title: "Canvas", icon: "symbol(paintbrush)", type: "canvas", scriptCode: scriptCode, isAsync: true)
+        let manifest = ExtensionMetadata(identifier: "com.test.canvas", name: "Canvas Test", actions: [meta])
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
+        guard let canvas = action as? JavaScriptCanvasAction else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("Expected JavaScriptCanvasAction, got \(String(describing: action))")
+        }
+        XCTAssertEqual(canvas.id, "com.test.canvas.action.0")
+        XCTAssertEqual(canvas.title, "Canvas")
+        XCTAssertEqual(canvas.icon, .symbol("paintbrush"))
+        XCTAssertEqual(canvas.scriptCode, scriptCode)
+        XCTAssertTrue(canvas.isAsync)
+
+        let result = try await canvas.perform(makeContext(text: "hello"))
+        guard case .showCanvas(let request, let header) = result else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("Expected .showCanvas result, got \(result)")
+        }
+        XCTAssertEqual(request.scriptCode, scriptCode)
+        XCTAssertEqual(request.input, "hello")
+        XCTAssertEqual(request.optionValues, [:])
+        XCTAssertEqual(header.title, "Canvas")
+        XCTAssertEqual(header.icon, "paintbrush")
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    @MainActor
+    func testCanvasActionMissingRequiredOptionsReturnsConfiguration() async throws {
+        let factory = DefaultActionFactory()
+        let meta = ExtensionActionMetadata(
+            title: "Canvas",
+            type: "canvas",
+            scriptCode: "const ui = () => h('text', {});",
+            requirements: ActionRequirements(requiredOptions: ["prefix"]),
+            options: [ExtensionOptionMetadata(identifier: "prefix", label: "Prefix", type: "string")]
+        )
+        let manifest = ExtensionMetadata(identifier: "com.test.canvasopt", name: "Canvas Opt Test", actions: [meta])
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
+        guard let canvas = action as? JavaScriptCanvasAction else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("Expected JavaScriptCanvasAction, got \(String(describing: action))")
+        }
+
+        let result = try await canvas.perform(makeContext(text: "hello"))
+        guard case .openConfiguration(let config) = result else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("Expected .openConfiguration result, got \(result)")
+        }
+        XCTAssertEqual(config.actionID, "com.test.canvasopt.action.0")
+        XCTAssertEqual(config.missingOptionIDs, ["prefix"])
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
     // MARK: - KeyPressSpec parsing
 
     func testKeyPressSpecManifestParsing() {

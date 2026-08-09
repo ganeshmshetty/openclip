@@ -19,6 +19,7 @@ final class ManifestValidationTests: XCTestCase {
                 { "title": "URL", "type": "url", "url": "https://example.com/{query}" },
                 { "title": "Web", "type": "websearch", "url": "https://example.com/{query}" },
                 { "title": "JS", "type": "js", "scriptCode": "function action(t){return t}" },
+                { "title": "Canvas", "type": "canvas", "scriptCode": "const ui = () => h('text', {});" },
                 { "title": "AppleScript", "type": "applescript", "scriptCode": "return text" },
                 { "title": "Shell", "type": "shell", "scriptCode": "echo hi" },
                 { "title": "Script file", "type": "scriptfile", "script": "main.sh" },
@@ -110,6 +111,17 @@ final class ManifestValidationTests: XCTestCase {
         }
         """)
         XCTAssertEqual(validator.validate(manifest), [ManifestValidationIssue(kind: .missingRequiredField("keyPress"), path: "actions[0]")])
+    }
+
+    func testCanvasRequiresScriptCode() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.badcanvas",
+            "name": "Bad Canvas",
+            "actions": [{ "title": "Canvas", "type": "canvas" }]
+        }
+        """)
+        XCTAssertEqual(validator.validate(manifest), [ManifestValidationIssue(kind: .missingRequiredField("scriptCode"), path: "actions[0]")])
     }
 
     func testShortcutWithoutShortcutNameRejects() throws {

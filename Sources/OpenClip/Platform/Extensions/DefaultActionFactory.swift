@@ -238,6 +238,18 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         if let scriptCode = metadata.scriptCode, !scriptCode.isEmpty {
             let typeStr = (metadata.type ?? "").lowercased()
             switch typeStr {
+            case "canvas":
+                return JavaScriptCanvasAction(
+                    id: actionId,
+                    title: title,
+                    icon: icon,
+                    scriptCode: scriptCode,
+                    options: options,
+                    chrome: extensionChrome,
+                    optionStore: optionStore,
+                    rules: rules,
+                    isAsync: metadata.isAsync ?? false
+                )
             case "js", "javascript":
                 return JavaScriptAction(
                     id: actionId,
@@ -293,6 +305,19 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else {
                 Log.factory.error("Failed to read JS script file at \(scriptURL.path, privacy: .public)")
                 return nil
+            }
+            if metadata.type?.lowercased() == "canvas" {
+                return JavaScriptCanvasAction(
+                    id: actionId,
+                    title: title,
+                    icon: icon,
+                    scriptCode: code,
+                    options: options,
+                    chrome: extensionChrome,
+                    optionStore: optionStore,
+                    rules: rules,
+                    isAsync: metadata.isAsync ?? false
+                )
             }
             return JavaScriptAction(
                 id: actionId,
