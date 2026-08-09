@@ -20,6 +20,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindowController: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        switch DebugLogCommand.parse(CommandLine.arguments) {
+        case .showHelp:
+            print(DebugLogCommand.usage)
+            exit(0)
+        case .usageError(let message):
+            FileHandle.standardError.write(Data("error: \(message)\n\n\(DebugLogCommand.usage)\n".utf8))
+            exit(2)
+        case .dumpLogs(let options):
+            runDumpLogsCommand(options)
+            return
+        case .none:
+            break
+        }
+
+        DebugLogStore.shared.start()
+
         // Register SVG coder
         let svgCoder = SDImageSVGCoder.shared
         SDImageCodersManager.shared.addCoder(svgCoder)
@@ -78,6 +94,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.statusBarController?.showPreferences()
         }
         onboardingWindowController?.showWindow(nil)
+    }
+
+    /// Runs the app in `--dump-logs` mode: start the store, run the normal startup action load
+    /// (this is where extension load/rejection lines are logged), wait the collect window, print
+    /// the filtered snapshot, and exit.
+    private func runDumpLogsCommand(_ options: DebugLogCommand.DumpOptions) {
+        DebugLogStore.shared.start()
+
+        Task {
+            ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: KeychainActionOptionStore())
+            await ActionCoordinator.shared.loadInitialState()
+            ActionCoordinator.shared.register(action: CompletionAction())
+            ActionCoordinator.shared.register(action: OpenURLAction())
+            ActionCoordinator.shared.register(action: ServicesAction())
+            ActionCoordinator.shared.register(action: RevealInFinderAction())
+        }
+
+        Task {
+            try? await Task.sleep(for: .seconds(options.collectSeconds))
+            let entries = DebugLogStore.shared.entries(matching: options.filter)
+            print("OpenClip log dump (\(entries.count) entr\(entries.count == 1 ? "y" : "ies"))")
+            for entry in entries {
+                print(DebugLogCommand.formattedLine(entry))
+            }
+            exit(0)
+        }
     }
 
     public nonisolated static func parseDeepLinkURL(_ url: URL) -> [String: String]? {
