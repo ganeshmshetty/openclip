@@ -516,7 +516,7 @@ private extension View {
     @ViewBuilder
     func applyFocusID(_ id: String?, _ focusID: FocusState<String?>.Binding) -> some View {
         if let id {
-            self.focusable().focused(focusID, equals: id)
+            self.focusable().focusEffectDisabled().focused(focusID, equals: id)
         } else {
             self
         }
