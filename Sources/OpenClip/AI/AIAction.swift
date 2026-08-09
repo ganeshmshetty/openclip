@@ -41,16 +41,17 @@ public struct AIAction: Action {
         guard let preset = preset(), !context.selection.text.isEmpty else { return .success }
         let provider = AIServiceManager.shared.currentProvider
         let response = try await provider.process(prompt: preset.prompt, text: context.selection.text)
-        return .keepVisible(.showContent(PopupContent(
-            title: "AI Result",
-            icon: "sparkles",
-            rows: [.text(response)],
-            footer: [
-                ContentOption(title: "Replace", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste(response))),
-                ContentOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy(response)))
-            ],
-            emphasis: .result
-        )))
+        return .keepVisible(.showContentTree(
+            Canvas.build {
+                Canvas.text(response)
+                Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(response)))
+                Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(response)))
+            },
+            CanvasHeader(
+                title: displayTitle(using: ActionCustomizationManager.shared),
+                icon: icon.symbolName
+            )
+        ))
     }
 
     @MainActor
