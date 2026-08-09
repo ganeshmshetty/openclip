@@ -132,6 +132,27 @@ final class NewExtensionKindTests: XCTestCase {
     }
 
     @MainActor
+    func testFactoryRoutesCanvasScriptFileToJavaScriptCanvasAction() async throws {
+        let factory = DefaultActionFactory()
+        let scriptCode = "const ui = () => h('text', { content: 'file canvas' });"
+        let meta = ExtensionActionMetadata(title: "File Canvas", script: "main.js", type: "canvas")
+        let manifest = ExtensionMetadata(identifier: "com.test.filecanvas", name: "File Canvas Test", actions: [meta])
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        try scriptCode.write(to: tempDir.appendingPathComponent("main.js"), atomically: true, encoding: .utf8)
+
+        let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
+        guard let canvas = action as? JavaScriptCanvasAction else {
+            return XCTFail("Expected JavaScriptCanvasAction, got \(String(describing: action))")
+        }
+        XCTAssertEqual(canvas.id, "com.test.filecanvas.action.0")
+        XCTAssertEqual(canvas.title, "File Canvas")
+        XCTAssertEqual(canvas.scriptCode, scriptCode)
+    }
+
+    @MainActor
     func testCanvasActionMissingRequiredOptionsReturnsConfiguration() async throws {
         let factory = DefaultActionFactory()
         let meta = ExtensionActionMetadata(

@@ -148,8 +148,10 @@ public struct ManifestValidator: Sendable {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("keyPress"), path: path))
             }
         case .canvas:
-            if isBlank(action.scriptCode) {
-                issues.append(ManifestValidationIssue(kind: .missingRequiredField("scriptCode"), path: path))
+            // Canvas actions carry their JS payload either inline as `scriptCode` or as a `.js`
+            // script file (`script`), mirroring `DefaultActionFactory` — reject only when both are blank.
+            if !hasExecutablePayload([action.script, action.scriptCode]) {
+                issues.append(ManifestValidationIssue(kind: .missingRequiredField("script/scriptCode"), path: path))
             }
         case .shortcut:
             if isBlank(action.shortcutName) {
@@ -161,7 +163,7 @@ public struct ManifestValidator: Sendable {
         default:
             // Every other runnable kind needs at least one executable payload. Without any, the
             // factory deterministically drops the action — a schema error, so reject the manifest.
-            if [action.url, action.script, action.scriptCode].allSatisfy(isBlank) {
+            if !hasExecutablePayload([action.url, action.script, action.scriptCode]) {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("url/script/scriptCode"), path: path))
             }
         }
@@ -187,6 +189,13 @@ public struct ManifestValidator: Sendable {
 
     private func isBlank(_ value: String?) -> Bool {
         value?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+    }
+
+    /// Whether at least one candidate payload field carries non-blank content. Kinds that run from
+    /// a payload (inline `scriptCode`, `script` file, `url`) reject a manifest only when *all* of
+    /// their candidate fields are blank.
+    private func hasExecutablePayload(_ fields: [String?]) -> Bool {
+        !fields.allSatisfy(isBlank)
     }
 
     private static func sha256Hex(_ data: Data) -> String {
