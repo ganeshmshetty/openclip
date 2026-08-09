@@ -46,12 +46,15 @@ public class PopupWindowController {
     /// clears the queue so a dismissal never surfaces a stale banner.
     private var pendingStatus: StatusFeedback?
     /// Owns the single active content-canvas session; its collected effects and errors are wired in
-    /// show(for:) into the single canvas effect/error doors.
-    private let canvasSessionController = CanvasSessionController()
+    /// show(for:) into the single canvas effect/error doors. Internal (not private) so the renderer/
+    /// key-behavior tests can reach the session (state/tree/focus) — production uses the default.
+    var canvasSessionController = CanvasSessionController()
 
     private var isMenuTracking = false
-    
-    public init() { }
+
+    public init(resultHandler: ActionResultHandler = DefaultActionResultHandler()) {
+        self.resultHandler = resultHandler
+    }
     
     public func show(for context: SelectionContext) {
         isMenuTracking = false
@@ -308,10 +311,11 @@ public class PopupWindowController {
     }
 
     /// Test access to the private arm path: mirrors exactly what enterContent/showAIContent do, so
-    /// tests can arm an arbitrary native tree without going through the legacy bridge. Internal
-    /// because armCanvas is private; not production API.
-    func armCanvasForTesting(tree: CanvasComponent, header: CanvasHeader) {
-        armCanvas(tree: tree, header: header)
+    /// tests can arm an arbitrary native tree without going through the legacy bridge. `preferredSize`
+    /// forwards the §7.1 fixed session size (nil → fitting-size column). Internal because armCanvas is
+    /// private; not production API.
+    func armCanvasForTesting(tree: CanvasComponent, header: CanvasHeader, preferredSize: CanvasSize? = nil) {
+        armCanvas(tree: tree, header: header, preferredSize: preferredSize)
     }
 
     /// Collapses the content canvas back to the actions bar. Never hides the popup. Clears the
@@ -615,7 +619,8 @@ public class PopupWindowController {
         }
     }
     
-    private let resultHandler: ActionResultHandler = DefaultActionResultHandler()
+    /// Settable in `init` so the effect-delivery tests can inject a recording handler.
+    var resultHandler: ActionResultHandler
 
     // MARK: - Decision 8: ActionResult Tree-Walk
 

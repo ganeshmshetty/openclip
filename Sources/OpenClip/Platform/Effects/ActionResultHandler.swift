@@ -19,12 +19,45 @@ public protocol ActionResultHandler: Sendable {
     func handleWithoutDismissal(_ result: ActionResult, in view: NSView?) async
 }
 
+/// Physical-key posting seam (Task 15): `DefaultActionResultHandler` posts keystrokes through an
+/// injected `KeyboardEventPosting` (production default `SessionEventTapPoster` emits the real
+/// `CGEvent`), so tests can assert `deliverKeyboardEffect`'s resign→activate→post→restore ordering
+/// with a recording poster instead of a real key.
+public protocol KeyboardEventPosting: Sendable {
+    @MainActor
+    func postKey(keyCode: CGKeyCode, flags: CGEventFlags)
+}
+
+/// The production poster: posts a synthetic key (down + up) to the session event tap — the same
+/// `CGEvent` sequence the effect handler always emitted.
+@MainActor
+public struct SessionEventTapPoster: KeyboardEventPosting {
+    public init() {}
+
+    public func postKey(keyCode: CGKeyCode, flags: CGEventFlags) {
+        let src = CGEventSource(stateID: .combinedSessionState)
+        src?.setLocalEventsFilterDuringSuppressionState([.permitLocalMouseEvents, .permitSystemDefinedEvents],
+                                                       state: .eventSuppressionStateSuppressionInterval)
+        let resolvedFlags = CGEventFlags(rawValue: flags.rawValue | 0x000008)
+        if let keydown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true),
+           let keyup = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false) {
+            keydown.flags = resolvedFlags
+            keyup.flags = resolvedFlags
+            keydown.post(tap: .cgSessionEventTap)
+            keyup.post(tap: .cgSessionEventTap)
+        }
+    }
+}
+
 @MainActor
 public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     private let settingsStore: SettingsStore
+    private let keyboardPoster: KeyboardEventPosting
 
-    public init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
+    public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
+                keyboardPoster: KeyboardEventPosting = SessionEventTapPoster()) {
         self.settingsStore = settingsStore
+        self.keyboardPoster = keyboardPoster
     }
 
 
@@ -170,17 +203,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     }
 
     private func postKey(keyCode: CGKeyCode, flags: CGEventFlags) {
-        let src = CGEventSource(stateID: .combinedSessionState)
-        src?.setLocalEventsFilterDuringSuppressionState([.permitLocalMouseEvents, .permitSystemDefinedEvents], state: .eventSuppressionStateSuppressionInterval)
-
-        let resolvedFlags = CGEventFlags(rawValue: flags.rawValue | 0x000008)
-        if let keydown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true),
-           let keyup = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false) {
-            keydown.flags = resolvedFlags
-            keyup.flags = resolvedFlags
-            keydown.post(tap: .cgSessionEventTap)
-            keyup.post(tap: .cgSessionEventTap)
-        }
+        keyboardPoster.postKey(keyCode: keyCode, flags: flags)
     }
 
     /// Runs a registered Shortcuts.app shortcut via the `shortcuts` CLI. The process runs through
