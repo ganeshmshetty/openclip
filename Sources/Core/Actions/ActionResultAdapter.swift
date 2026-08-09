@@ -4,7 +4,7 @@
 // The single declarative `after`/`stayVisible` translator (plan §6, decision 7). Runtimes return
 // only raw runtime results; the factory's attached `rules` (after/stayVisible) are applied here
 // ONCE at the end of each runtime's perform. `copyResult`/`pasteResult` override leaf copy/paste,
-// `showResult` wraps a string outcome in a PopupContent card, `none` collapses any result to
+// `showResult` wraps a string outcome in a component tree card, `none` collapses any result to
 // success, runtime presentations always pass through untouched, and `stayVisible` wraps in
 // `.keepVisible` only when the normalized result would otherwise dismiss. Pure Core — no
 // AppKit/SwiftUI.
@@ -24,12 +24,12 @@ public enum ActionResultAdapter {
             normalized = .copy(s)
         case (.pasteResult, .copy(let s)), (.pasteResult, .paste(let s)):
             normalized = .paste(s)
-        case (_, .showContent), (_, .showContentTree), (_, .showCanvas), (_, .showStatus), (_, .openConfiguration),
+        case (_, .showContent), (_, .showCanvas), (_, .showStatus), (_, .openConfiguration),
              (_, .keyPress), (_, .runShortcut), (_, .keepVisible), (_, .sequence):
             // Runtime presentations always win — pass through unchanged.
             normalized = raw
         case (.showResult, .copy(let s)), (.showResult, .paste(let s)):
-            normalized = .showContentTree(
+            normalized = .showContent(
                 Canvas.build {
                     Canvas.text(s)
                     Canvas.button("Paste", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(s)))

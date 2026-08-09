@@ -104,16 +104,6 @@ public class PopupWindowController {
             onEnterSearch: { [weak self] in self?.enterSearch() },
             onExitSearch: { [weak self] in self?.exitSearch() },
             onExitContent: { [weak self] in self?.exitContent() },
-            onContentOutcome: { [weak self] outcome in
-                guard let self, case .perform(let inner) = outcome else { return }
-                if case .paste = inner {
-                    self.handleActionResult(inner)
-                    self.hide()
-                } else {
-                    self.exitContent()
-                    self.handleActionResult(inner)
-                }
-            },
             // Every canvas effect — dispatch-collected AND view-driven — is a keep-open effect: keyboard
             // ones get deliverKeyboardEffect, leaf ones run without dismissal. Never handleEffect.
             onCanvasEvent: { [weak self] event in
@@ -275,15 +265,6 @@ public class PopupWindowController {
     }
 
     // MARK: - Content Canvas
-
-    /// Opens the content canvas for a legacy result: bridges the producer's PopupContent into a
-    /// native canvas tree (temporary — the bridge is deleted in Task 21) and arms the session. The
-    /// canvas is key (enterKeyMode) so a focused field can take typing and Esc can reach SwiftUI.
-    private func enterContent(_ content: PopupContent) {
-        guard panel?.isVisible == true else { return }
-        armCanvas(tree: LegacyContentBridge.tree(for: content),
-                  header: LegacyContentBridge.header(for: content))
-    }
 
     /// Arms a native (non-scripting) canvas session and enters content mode, making the panel key
     /// exactly like search (rule 10 exception) so the canvas can receive typing; Esc and non-Esc
@@ -665,9 +646,7 @@ public class PopupWindowController {
     /// decided once on the top-level result via `dismissesPopup`.
     func handleActionResult(_ result: ActionResult) {
         switch result {
-        case .showContent(let content):
-            enterContent(content)
-        case .showContentTree(let tree, let header):
+        case .showContent(let tree, let header):
             armCanvas(tree: tree, header: header ?? currentHeaderFromAction())
         case .showCanvas(let request, let header): // no-op/unused until Task 24 (first producer)
             mountCanvas(request: request, header: header)

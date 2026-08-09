@@ -31,17 +31,13 @@ final class PopupCanvasTests: XCTestCase {
         RunLoop.current.run(until: Date().addingTimeInterval(duration))
     }
 
-    private func makeResultContent() -> PopupContent {
-        PopupContent(
-            title: "AI Result",
-            icon: "sparkles",
-            rows: [.text("The answer.")],
-            footer: [
-                ContentOption(title: "Replace", icon: "arrow.triangle.2.circlepath", outcome: .perform(.paste("The answer."))),
-                ContentOption(title: "Copy", icon: "doc.on.doc", outcome: .perform(.copy("The answer.")))
-            ],
-            emphasis: .result
-        )
+    private func makeResultTree() -> (CanvasComponent, CanvasHeader) {
+        let tree = Canvas.build {
+            Canvas.text("The answer.")
+            Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste("The answer.")))
+            Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy("The answer.")))
+        }
+        return (tree, CanvasHeader(title: "AI Result", icon: "sparkles"))
     }
 
     func testShowContentEntersContentModeAndGrowsPanel() throws {
@@ -54,7 +50,8 @@ final class PopupCanvasTests: XCTestCase {
         let barHeight = panel.frame.height
         XCTAssertGreaterThan(barHeight, 0)
 
-        controller.handleActionResult(.showContent(makeResultContent()))
+        let (tree, header) = makeResultTree()
+        controller.handleActionResult(.showContent(tree, header))
 
         XCTAssertEqual(controller.modeStore.mode, .content)
         XCTAssertEqual(controller.modeStore.content?.header.title, "AI Result")
@@ -75,7 +72,7 @@ final class PopupCanvasTests: XCTestCase {
             .text(CanvasTextProps(content: "hello")),
             .button(CanvasButtonProps(title: "Go", handler: .effect(.copy("hello"))))
         ])
-        controller.handleActionResult(.showContentTree(tree, CanvasHeader(title: "T", icon: nil)))
+        controller.handleActionResult(.showContent(tree, CanvasHeader(title: "T", icon: nil)))
         XCTAssertEqual(controller.modeStore.mode, .content)
         XCTAssertNil(controller.modeStore.content?.scripting, "tree results arm a native session")
     }
@@ -89,7 +86,8 @@ final class PopupCanvasTests: XCTestCase {
         pump()
         let barHeight = panel.frame.height
 
-        controller.handleActionResult(.showContent(makeResultContent()))
+        let (tree, header) = makeResultTree()
+        controller.handleActionResult(.showContent(tree, header))
         controller.exitContent()
 
         XCTAssertEqual(controller.modeStore.mode, .actions)
@@ -109,7 +107,8 @@ final class PopupCanvasTests: XCTestCase {
         let panel = try visiblePanel()
 
         pump()
-        controller.handleActionResult(.showContent(makeResultContent()))
+        let (tree, header) = makeResultTree()
+        controller.handleActionResult(.showContent(tree, header))
         pump()
 
         XCTAssertTrue(panel.allowsKey, "content mode is key exactly like search (rule 10 exception)")
@@ -168,7 +167,8 @@ final class PopupCanvasTests: XCTestCase {
         defer { controller.hide() }
 
         pump()
-        controller.handleActionResult(.showContent(makeResultContent()))
+        let (tree1, header1) = makeResultTree()
+        controller.handleActionResult(.showContent(tree1, header1))
         XCTAssertNil(controller.modeStore.statusBanner, "canvas must clear any prior banner")
 
         controller.handleActionResult(.showStatus(StatusFeedback(message: "Done", style: .info)))
@@ -196,7 +196,8 @@ final class PopupCanvasTests: XCTestCase {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
         defer { controller.hide() }
-        controller.handleActionResult(.showContent(makeResultContent()))
+        let (tree2, header2) = makeResultTree()
+        controller.handleActionResult(.showContent(tree2, header2))
         let panel = try visiblePanel()
 
         controller.handleEvent(try XCTUnwrap(keyDown(7))) // 'x'
@@ -235,7 +236,8 @@ final class PopupCanvasTests: XCTestCase {
         defer { controller.hide() }
         let panel = try visiblePanel()
 
-        controller.handleActionResult(.showContent(makeResultContent()))
+        let (tree3, header3) = makeResultTree()
+        controller.handleActionResult(.showContent(tree3, header3))
         controller.handleEvent(try XCTUnwrap(scrollEvent()))
         XCTAssertTrue(panel.isVisible, "scroll must not dismiss a content canvas")
 

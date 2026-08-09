@@ -23,9 +23,6 @@ public struct PopupView: View {
     public let onAIResult: (@MainActor (String, Bool) -> Void)?
     /// Called when the content canvas should collapse back to the bar (back chevron).
     public let onExitContent: @MainActor () -> Void
-    /// Called when the user taps a canvas footer/menu option. The controller owns the
-    /// paste→dismiss vs. collapse-to-bar decision (old bubble UX preserved).
-    public let onContentOutcome: @MainActor (ContentOutcome) -> Void
     /// Canvas session events (e.g. a node handler dispatch) routed to the controller's
     /// CanvasSessionController. Defaulted to a no-op so the static preview compiles unchanged.
     public let onCanvasEvent: @MainActor (CanvasEvent) -> Void
@@ -112,7 +109,6 @@ public struct PopupView: View {
         onEnterSearch: @escaping @MainActor () -> Void = {},
         onExitSearch: @escaping @MainActor () -> Void = {},
         onExitContent: @escaping @MainActor () -> Void = {},
-        onContentOutcome: @escaping @MainActor (ContentOutcome) -> Void = { _ in },
         onCanvasEvent: @escaping @MainActor (CanvasEvent) -> Void = { _ in },
         onCanvasEffect: @escaping @MainActor (CanvasEffect) -> Void = { _ in },
         onResult: @escaping @MainActor (ActionResult) -> Void,
@@ -130,7 +126,6 @@ public struct PopupView: View {
         self.onAIStateChange = onAIStateChange
         self.onAIResult = onAIResult
         self.onExitContent = onExitContent
-        self.onContentOutcome = onContentOutcome
         self.onCanvasEvent = onCanvasEvent
         self.onCanvasEffect = onCanvasEffect
         self.onHoveredActionChanged = onHoveredActionChanged

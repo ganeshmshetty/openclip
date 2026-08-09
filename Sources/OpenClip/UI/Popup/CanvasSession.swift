@@ -7,7 +7,7 @@
 // CanvasSessionController — the session itself never dispatches, writes state, or mutates the
 // tree; state/tree write-back flows through `apply(state:tree:)` and is driven exclusively by the
 // controller after a serialized dispatch. `scripting == nil` marks a native/static session (e.g.
-// `.showContentTree`) whose dispatches are no-ops in v1.
+// `.showContent`) whose dispatches are no-ops in v1.
 //
 // Focus is renderer-facing state: `focusedComponentID` is the id the renderer should focus (nil =
 // canvas root) and `focusGeneration` bumps on every `requestFocus` call so the renderer re-applies
@@ -26,7 +26,7 @@ public final class CanvasSession: ObservableObject {
     public let input: String
     /// Fixed for the session; nil → fitting-size.
     public let preferredSize: CanvasSize?
-    /// nil for native/static sessions (.showContentTree) whose dispatches are no-ops in v1.
+    /// nil for native/static sessions (.showContent) whose dispatches are no-ops in v1.
     public let scripting: (any CanvasScripting)?
     public let isAsync: Bool
     @Published public var tree: CanvasComponent
