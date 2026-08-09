@@ -62,13 +62,12 @@ Supported `type` values:
 - `"paste"` → `ActionResult.paste(value)` (replaces selection in target application).
 - `"copy"` → `ActionResult.copy(value)` (copies text to system clipboard).
 - `"openURL"` → `ActionResult.openURL(URL)` (opens URL in default browser; URL parsed from `value`).
-- `"showContent"` → content canvas (`title`, `body`, `footer`: `"paste"`/`"copy"` presets); renders inline on the popup.
 - `"status"` → `ActionResult.showStatus` (`message`, `style`: `"success"`/`"error"`/`"info"`).
 - `"keepVisible"` → wraps a nested `effect` payload so the popup stays open.
 - `"configure"` → `ActionResult.openConfiguration` (`reason`, `missing: [optionID]`).
 
-Unknown or malformed JSON falls through to plain-text handling; a decoded-but-unknown `type`
-maps to `.success`.
+`"showContent"` is **not** accepted — shell scripts cannot render a canvas (canvas rendering is
+JS-only, `type: "canvas"`); a decoded-but-unknown `type` maps to `.success`.
 
 ### Mode 2: Plain Text Output Fallback
 

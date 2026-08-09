@@ -67,19 +67,25 @@ areas; stale debt notes are worse than none.
   never shoves the popup. The pin stays active through the search→bar collapse (Esc no longer jumps
   the popup) and is cleared by `show(for:)` (`PopupWindowController.swift:69`) and `hide()`
   (`:464`) before intentional placement.
-- **Search mode is the scoped key exception to the never-key rule.** `PopupPanel.allowsKey`
-  enables `canBecomeKey` only in search mode (`PopupPanel.swift:15,34`). A `@FocusState`-in-onAppear
-  request is silently dropped on macOS, so focus is forced via `focusSearchField()` on the next
-  run-loop turn (`PopupWindowController.swift:161`); `previousFrontmostApp` is captured on
-  `enterSearch` (`:145`) and re-activated on `exitSearch`/`hide`.
-- **Search mode suspends popup dismissal.** The distance auto-dismiss and the key/scroll dismissals
-  in `handleEvent` are skipped while `modeStore.mode == .search` (`PopupWindowController.swift:544,564,572`),
-  so typing with the mouse elsewhere doesn't close the palette.
+- **Search and content modes are the two key exceptions to the never-key rule.** `PopupPanel.allowsKey`
+  enables `canBecomeKey`/`canBecomeMain` in both modes (`PopupPanel.swift:19`), routed through the
+  same `enterKeyMode()`/`exitKeyMode()` primitives (`PopupWindowController.swift:196,206`). A
+  `@FocusState`-in-onAppear request is silently dropped on macOS, so search forces focus via
+  `focusSearchField()` on the next run-loop turn (`PopupWindowController.swift:245`) and the canvas
+  focuses its first interactive component via `canvasSessionController.requestFocus`;
+  `previousFrontmostApp` is captured once per session (on `show(for:)`/`enterKeyMode`, never
+  re-captured mid-session) and re-activated on `exitKeyMode`/`hide`.
+- **Search and content modes suspend popup dismissal.** The distance auto-dismiss and the key/scroll
+  dismissals in `handleEvent` are skipped while `modeStore.mode == .search` or `.content`
+  (`PopupWindowController.swift:591,612,622`), so typing with the mouse elsewhere doesn't close the
+  palette, and a canvas stays open until it is collapsed or the popup hides.
 - **The floating bubble panel is gone; content renders inline.** The second `PopupPanel` (and its
-  `showBubble`/`hideBubble`/`bubbleBlocksDismiss` machinery) was removed — all action/AI/hover/status
-  content renders inside the single panel via `.content` mode (`PopupModeStore`) + `PopupContentView`.
-  `PopupContentView` still renders `.info` emphasis for JS-emitted info cards; `StatusBadgeModel`
-  remains a shared singleton (the canvas corner-badge path).
+  `showBubble`/`hideBubble`/`bubbleBlocksDismiss` machinery) was removed — all action/AI/status
+  content renders inside the single panel via `.content` mode (`PopupModeStore`) + `CanvasSessionView`
+  (the interactive canvas renderer), and hover previews render in the inline `PopupPreviewStrip`.
+  `StatusBadgeModel` and the old `.info`/`.result`/`.menu` emphasis model are gone; a status emitted
+  while a canvas is open is **queued** (`pendingStatus`) and flushed onto the bar banner when the
+  canvas collapses (`exitContent()` → `flushPendingStatus()`).
 - **`MathEvaluator` replaced crash-prone `NSExpression`.** `CalculateAction` used to run
   `NSExpression(format:)`, which throws an **uncaught Objective-C exception** on malformed selection
   text like `+` or `1+` (crash). The pure-Swift `MathEvaluator` (`Sources/Core/Actions/MathEvaluator.swift`)
@@ -90,9 +96,9 @@ areas; stale debt notes are worse than none.
   `ActionIcon` cases render through the shared `ActionIconView` (`Sources/OpenClip/UI/Icons/ActionIconView.swift`),
   including Iconify-format symbols (`prefix:name`). The popup bar keeps its own `iconView(for:)`
   (`PopupView.swift`) because text icons there need natural width + horizontal padding, not a fixed frame.
-- **Search sizing constants:** `Constants.searchMaxRows` (5), `searchResultRowHeight` (32),
-  `searchPeekRowFraction` (0.5), `searchMaxHeight` (240) —
-  `Sources/Core/Selection/Constants.swift:23`.
+- **Popup sizing constants:** `Constants.searchMaxRows` (5), `searchResultRowHeight` (32),
+  `searchPeekRowFraction` (0.5), `Constants.popupMaxHeight` (240, the shared height cap for the
+  search palette and the canvas body) — `Sources/Core/Selection/Constants.swift:23`.
 
 ## Unused / Latent
 
