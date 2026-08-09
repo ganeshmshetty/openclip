@@ -7,8 +7,10 @@
 // surface ported from PopupContentView.cardContainer. Owns the renderer-facing focus plumbing —
 // `focusID`/`rootFocused` @FocusState re-applied from `session.focusedComponentID` on every
 // `focusGeneration` bump — the Esc key that exits content, and the text-field draft edit buffer
-// (drafts dropped for non-focused fields on every tree re-render; the field just left is committed
-// as a `.change` event on focus loss). Sizing follows §7.1: the width column min/ideal/max comes
+// (the field just left is committed as a `.change` event; drafts for non-focused fields are
+// dropped on every tree re-render, and a slow dispatch that moves focus can't lose the typed value
+// because the tree re-render flushes the field being left *before* dropping — drop-after-commit,
+// see `CanvasSessionDraftPlan`). Sizing follows §7.1: the width column min/ideal/max comes
 // from CanvasLimits clamped to the screen, the body scroll box is capped at
 // `Constants.popupMaxHeight - 36`, and a producer-set `preferredSize` is fixed for the session.
 import SwiftUI
@@ -38,6 +40,11 @@ public struct CanvasSessionView: View {
     /// Edit buffer for text-field drafts. Not a value store: the tree's `props.value` is
     /// authoritative after a dispatch; drafts exist only while a field is being edited.
     @State private var fieldDrafts: [String: String] = [:]
+    /// Fields whose draft was already flushed as a `.change` by the blur (`focusID`) handler in the
+    /// current update cycle. Prevents the racing tree re-render handler from committing the same
+    /// field twice (a blur commit keeps the draft so the typed text stays visible until the
+    /// engine's tree lands, so without the set the drop-after-commit pass would re-ship it).
+    @State private var committedDrafts: Set<String> = []
     private let hoverState: PopupHoverState = .shared
 
     public init(
@@ -70,20 +77,39 @@ public struct CanvasSessionView: View {
             .onChange(of: session.focusGeneration) { _, _ in
                 Task { @MainActor in await Task.yield(); applyFocus() }
             }
-            .onChange(of: session.tree) { _, _ in
-                // A dispatch re-render makes the tree authoritative: drop drafts for fields that
-                // are no longer the focus target so a changed value re-renders correctly (an
-                // external control updating a field's value must not show stale text). The focused
+            .onChange(of: session.tree) { oldTree, _ in
+                // Drop-after-commit for non-focused drafts. A dispatch re-render and a focus move
+                // can land in the same update cycle with no guaranteed `.onChange` ordering: if the
+                // tree publish is observed before the `@FocusState` flip, `focusID` already names
+                // the NEW target, and a plain drop here would delete the field we just left before
+                // the blur commit (`.onChange(of: focusID)`) ran — losing the typed value. So flush
+                // each non-focused draft as a `.change` before dropping it; the blur commit that may
+                // fire afterwards is then a no-op (its draft is gone). The handler is resolved
+                // against the OLD tree, which still owns the field being dropped. The still-focused
                 // field keeps its draft — in-progress typing survives an unrelated dispatch.
                 let focused = focusID
-                for id in Array(fieldDrafts.keys) where id != focused {
-                    fieldDrafts.removeValue(forKey: id)
+                let plan = CanvasSessionDraftPlan.plan(
+                    drafts: fieldDrafts,
+                    committed: committedDrafts,
+                    focused: focused,
+                    tree: oldTree
+                )
+                for commit in plan.commits {
+                    commitDraft(commit.id, value: commit.value, in: oldTree)
                 }
+                fieldDrafts = plan.survivingDrafts
+                committedDrafts.removeAll()
             }
             .onAppear { Task { @MainActor in await Task.yield(); applyFocus() } }
             .onChange(of: focusID) { old, _ in
-                // Commit the field we just left (blur-triggered change, never per-keystroke).
-                commitFocusedFieldIfNeeded(old: old)
+                // Commit the field we just left (blur-triggered change, never per-keystroke). The
+                // draft is kept so the typed text stays visible until the engine's tree lands (the
+                // tree re-render drop cleans it up later); `committedDrafts` stops a racing
+                // tree-change in the same update cycle from shipping the same value twice.
+                if let old {
+                    commitDraft(old, value: fieldDrafts[old], in: session.tree)
+                    committedDrafts.insert(old)
+                }
             }
     }
 
@@ -230,15 +256,63 @@ public struct CanvasSessionView: View {
         }
     }
 
-    /// Commits the text field we just left as a `.change` event (blur-triggered, never
-    /// per-keystroke). Nil `onChange` handlers fire no event; the draft already persists in the
-    /// edit buffer so the typed value stays visible.
-    private func commitFocusedFieldIfNeeded(old fieldID: String?) {
-        guard let fieldID, let draft = fieldDrafts[fieldID],
-              let handler = session.tree.canvasTextFieldProps(withID: fieldID)?.onChange else { return }
+    /// Ships a field's draft as a `.change` via the field's own `onChange` handler (blur-triggered,
+    /// never per-keystroke). Nil handler, unknown field, or absent draft → no-op.
+    private func commitDraft(_ fieldID: String, value draft: String?, in tree: CanvasComponent) {
+        guard let draft,
+              let handler = tree.canvasTextFieldProps(withID: fieldID)?.onChange else { return }
         routeCanvasHandler(handler, kind: .change, value: draft, targetID: fieldID,
                            onEvent: onEvent, onEffect: onEffect)
     }
+}
+
+// MARK: - Draft drop-after-commit planning
+
+/// Pure bookkeeping for the session's text-field draft edit buffer, extracted from
+/// `CanvasSessionView`'s `.onChange(of: session.tree)` handler (and its `@State`
+/// `committedDrafts`) so the drop-after-commit rule is unit-testable without hosting a SwiftUI
+/// view or racing two `.onChange` callbacks. A value type: `plan` both of the dispatch-path and
+/// the blur-only path through one place. The rule: before the non-focused drafts are dropped, the
+/// field being left is flushed as a `.change` (against the OLD tree, which still owns it), so a
+/// focus-moving dispatch can't lose the typed value; the still-focused field keeps its draft.
+struct CanvasSessionDraftPlan {
+    /// One field draft to ship as a `.change` (self-contained so the plan is `Equatable`-wise).
+    struct Commit: Equatable {
+        let id: String
+        let value: String
+    }
+
+    /// Drafts to ship as `.change` this pass.
+    var commits: [Commit] = []
+    /// The draft map after the pass — only the still-focused field's draft survives.
+    var survivingDrafts: [String: String] = [:]
+
+    /// Plans which drafts to flush-and-drop and which to survive for a tree re-render.
+    /// - Parameters:
+    ///   - drafts: the edit buffer at re-render time.
+    ///   - committed: fields whose draft was already flushed by the blur handler this cycle
+    ///     (they must NOT be committed a second time).
+    ///   - focused: the field currently owning focus (`focusID`).
+    ///   - tree: the tree being re-rendered away from — the dropped fields' `.onChange`
+    ///     handlers are resolved here, so a field that a dispatch removed still commits.
+    static func plan(drafts: [String: String], committed: Set<String>, focused: String?,
+                     tree: CanvasComponent) -> CanvasSessionDraftPlan {
+        var result = CanvasSessionDraftPlan()
+        for id in drafts.keys {
+            guard id != focused else {
+                result.survivingDrafts[id] = drafts[id]
+                continue
+            }
+            if !committed.contains(id),
+               let value = drafts[id],
+               tree.canvasTextFieldProps(withID: id)?.onChange != nil {
+                result.commits.append(CanvasSessionDraftPlan.Commit(id: id, value: value))
+            }
+        }
+        return result
+    }
+
+    var isEmpty: Bool { commits.isEmpty && survivingDrafts.isEmpty }
 }
 
 /// Tree helper for the session view: resolves the `CanvasTextFieldProps` for a focus id so the
