@@ -514,7 +514,7 @@ const handlers = {                   // optional; named handlers receive (state,
 | `button` | `title`, `icon`, `style` (`"accent"`/`"plain"`), `disabled`, `handler`, `id` |
 | `list` / `listItem` | `listItem`: `icon`, `title`, `subtitle`, `badge`, `disabled`, `handler`, `id` |
 | `textField` | `id` (**required**), `value`, `placeholder`, `onSubmit`, `onChange` |
-| `toggle` | `id` (**required**), `value`, `onToggle` |
+| `toggle` | `id` (**required**), `value`, `disabled`, `onToggle` |
 | `link` | `title`, `url` |
 
 Unknown types, missing required `id`s, and invalid link URLs drop the node (recovery is lenient

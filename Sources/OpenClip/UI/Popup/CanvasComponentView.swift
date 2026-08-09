@@ -295,8 +295,9 @@ private struct CanvasTree: View {
 // MARK: - Icon
 
 /// Resolves a `CanvasIconSource` through the app's existing icon pipeline: SF Symbol, Iconify
-/// "prefix:name" via `IconifySVGView`, a local file via `LocalIconCache`, or a remote URL via
-/// `AsyncImage` — `circle.dashed` while loading and `exclamationmark.triangle` on error.
+/// "prefix:name" via `IconifySVGView`, a local file via `LocalIconCache` (confined to the extension
+/// directory), or a remote URL via `AsyncImage` — `circle.dashed` while loading and
+/// `exclamationmark.triangle` on error or when a local path is outside the extension directory.
 @MainActor
 private struct CanvasIconView: View {
     let source: CanvasIconSource
@@ -318,7 +319,8 @@ private struct CanvasIconView: View {
             IconifySVGView(iconId: name)
                 .frame(width: size, height: size)
         case .local(let url):
-            if let nsImage = LocalIconCache.shared.image(for: url) {
+            if Constants.isPathSafe(destinationURL: url, baseDirectory: Constants.extensionsDirectory),
+               let nsImage = LocalIconCache.shared.image(for: url) {
                 Image(nsImage: nsImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -376,6 +378,7 @@ private struct CanvasButtonView: View {
         .disabled(props.disabled)
         .opacity(props.disabled ? 0.5 : 1)
         .applyFocusID(props.id, focusID)
+        .accessibilityLabel(props.title)
         .onHover { hovering in
             isHovered = hovering
         }
@@ -463,10 +466,15 @@ private struct CanvasToggleView: View {
         }))
         .toggleStyle(.switch)
         .controlSize(.mini)
+        .disabled(props.disabled)
+        .opacity(props.disabled ? 0.5 : 1)
         .applyFocusID(props.id, focusID)
-        .accessibilityLabel("Toggle \(props.id)")
+        .accessibilityLabel("Toggle")
         .onChange(of: props.value) { _, newValue in
             isOn = newValue
+        }
+        .task(id: props) {
+            isOn = props.value
         }
     }
 }

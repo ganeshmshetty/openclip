@@ -32,8 +32,10 @@ public enum ActionResultAdapter {
             normalized = .showContent(
                 Canvas.build {
                     Canvas.text(s)
-                    Canvas.button("Paste", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(s)))
-                    Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(s)))
+                    Canvas.hstack(spacing: 6) {
+                        Canvas.button("Paste", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(s)))
+                        Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(s)))
+                    }
                 },
                 CanvasHeader(title: title, icon: icon)
             )

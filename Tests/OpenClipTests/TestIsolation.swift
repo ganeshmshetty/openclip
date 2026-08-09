@@ -21,4 +21,12 @@ enum TestIsolation {
         RuleEngine.shared.reset()
         ExtensionManager.shared.reset()
     }
+
+    /// Serializes tests accessing shared process-wide gates/locks (e.g. `OpenClipJSHost.syncEvaluationGate`).
+    public actor GateSerializer {
+        public static let shared = GateSerializer()
+        public func serialize<T: Sendable>(_ body: @Sendable () async throws -> T) async rethrows -> T {
+            try await body()
+        }
+    }
 }

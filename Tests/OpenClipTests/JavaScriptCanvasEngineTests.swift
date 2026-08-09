@@ -189,13 +189,13 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
         }
     }
 
-    // 9. Watchdog timeout on mount
-    func testWatchdogTimeoutOnMount() async throws {
+    // 9. Promise UI rejected on mount
+    func testPromiseUIRejectedOnMount() async throws {
         let script = "const ui = () => new Promise(() => {});"
         let engine = JavaScriptCanvasEngine(timeout: 0.05)
         do {
             _ = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
-            XCTFail("Expected mount to throw due to watchdog timeout")
+            XCTFail("Expected mount to throw asyncNotSupported for promise returned by UI")
         } catch let error as CanvasJSRuntimeError {
             XCTAssertEqual(error, .asyncNotSupported)
         }
@@ -203,24 +203,30 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
 
     // 10. Sync cap respected
     func testSyncCapRespected() async throws {
-        let gate = OpenClipJSHost.syncEvaluationGate
-        var acquired = 0
-        while gate.tryEnter() {
-            acquired += 1
-        }
-        defer {
-            for _ in 0..<acquired {
-                gate.leave()
+        try await TestIsolation.GateSerializer.shared.serialize {
+            let gate = OpenClipJSHost.syncEvaluationGate
+            let maxSlots = OpenClipJSHost.syncEvaluationSlotCount
+            var acquired = 0
+            while acquired < maxSlots, gate.tryEnter() {
+                acquired += 1
             }
-        }
+            XCTAssertEqual(acquired, maxSlots, "Expected to drain every sync evaluation slot")
+            defer {
+                for _ in 0..<acquired {
+                    gate.leave()
+                }
+            }
 
-        let engine = JavaScriptCanvasEngine()
-        let script = "const ui = () => h('text', { content: 'hi' });"
-        do {
-            _ = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
-            XCTFail("Expected engine to refuse when sync evaluation gate is full")
-        } catch {
-            // Expected gate error
+            let engine = JavaScriptCanvasEngine()
+            let script = "const ui = () => h('text', { content: 'hi' });"
+            do {
+                _ = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
+                XCTFail("Expected engine to refuse when sync evaluation gate is full")
+            } catch let error as NSError {
+                XCTAssertEqual(error.domain, Constants.actionErrorDomain)
+                XCTAssertEqual(error.code, Int(Constants.actionErrorCode) + 2)
+                XCTAssertTrue(error.localizedDescription.contains("Too many in-flight script evaluations"))
+            }
         }
     }
 
@@ -270,6 +276,7 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
         };
         const ui = () => h('button', { title: 'Loop', handler: 'loop' });
         """
+        let initialInFlight = OpenClipJSHost.syncEvaluationGate.inFlightCount
         let engine = JavaScriptCanvasEngine(timeout: 0.05)
         let mountRes = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: badScript))
 
@@ -278,9 +285,16 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
                 event: CanvasEvent(kind: .tap, handler: "loop"),
                 state: mountRes.state
             ))
-        } catch {
-            // Expected timeout
+            XCTFail("Expected dispatch to throw watchdog timeout")
+        } catch let error as CanvasJSRuntimeError {
+            if case .scriptException(let msg) = error {
+                XCTAssertTrue(msg.contains("timed out"))
+            } else {
+                XCTFail("Expected scriptException, got \(error)")
+            }
         }
+
+        XCTAssertEqual(OpenClipJSHost.syncEvaluationGate.inFlightCount, initialInFlight, "Gate slot must be released after watchdog timeout")
 
         let goodScript = "const ui = () => h('text', { content: 'good' });"
         let goodEngine = JavaScriptCanvasEngine()
@@ -399,6 +413,22 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
         } catch let error as CanvasJSRuntimeError {
             if case .scriptException = error {
                 // Expected
+            } else {
+                XCTFail("Expected scriptException, got \(error)")
+            }
+        }
+    }
+
+    // 20. Mount-time side-effects thrown as scriptException
+    func testMountTimeEffectsRejected() async throws {
+        let script = "openclip.copy('illegal mount copy'); const ui = () => h('text', { content: 'ok' });"
+        let engine = JavaScriptCanvasEngine()
+        do {
+            _ = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
+            XCTFail("Expected mount to throw when side effects are requested at mount")
+        } catch let error as CanvasJSRuntimeError {
+            if case .scriptException(let msg) = error {
+                XCTAssertTrue(msg.contains("Effects are not allowed at mount time"))
             } else {
                 XCTFail("Expected scriptException, got \(error)")
             }

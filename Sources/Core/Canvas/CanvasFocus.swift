@@ -35,7 +35,7 @@ public extension CanvasComponent {
             case .button(let props):
                 if !props.disabled, let id = props.id { return id }
             case .toggle(let props):
-                return props.id
+                if !props.disabled { return props.id }
             case .list(_, let sections):
                 for section in sections {
                     for item in section.items {

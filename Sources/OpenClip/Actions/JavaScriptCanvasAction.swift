@@ -96,9 +96,9 @@ public struct JavaScriptCanvasAction: ConfigurableAction {
             ))
         }
 
-        let optionValues = Dictionary(uniqueKeysWithValues: actionOptions.map { option in
+        let optionValues = Dictionary(actionOptions.map { option in
             (option.identifier, JSONValue.string(optionStore.stringValue(actionID: id, option: option)))
-        })
+        }, uniquingKeysWith: { _, latest in latest })
         let request = CanvasMountRequest(
             initialState: CanvasSessionState(),
             input: context.selection.text,

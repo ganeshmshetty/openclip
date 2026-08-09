@@ -31,7 +31,7 @@ final class TimeoutFlag: @unchecked Sendable {
 /// reached instead of leaking more cooperative-pool threads.
 final class SyncEvaluationGate: @unchecked Sendable {
     private let lock = NSLock()
-    private let capacity: Int
+    let capacity: Int
     private var inFlight = 0
 
     init(capacity: Int) {

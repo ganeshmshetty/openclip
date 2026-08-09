@@ -19,7 +19,7 @@ public struct PopupPreviewStrip: View {
 
     public var body: some View {
         switch component {
-        case .text(let props):
+        case .text(let props)?:
             Text(props.content)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.primary)

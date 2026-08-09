@@ -45,7 +45,7 @@ public enum ExtensionActionKind: String, Codable, Sendable, Equatable {
     }
 
     public init(rawType: String) {
-        switch rawType.lowercased() {
+        switch rawType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
         case "url", "urltemplate":
             self = .url
         case "js", "javascript":

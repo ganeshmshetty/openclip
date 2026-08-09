@@ -102,4 +102,17 @@ final class ActionSearchTests: XCTestCase {
         let result = ActionSearch.search("look", in: items)
         XCTAssertEqual(result.map(\.id), ["a", "b"])
     }
+
+    func testNonASCIIAndUnicodeScalarMatching() {
+        let items = [
+            item("a", "Übersetzen"),
+            item("b", "Search"),
+            item("c", "翻訳ツール")
+        ]
+        let germanResult = ActionSearch.search("über", in: items)
+        XCTAssertEqual(germanResult.map(\.id), ["a"])
+
+        let cjkResult = ActionSearch.search("翻訳", in: items)
+        XCTAssertEqual(cjkResult.map(\.id), ["c"])
+    }
 }

@@ -163,6 +163,27 @@ final class NewExtensionKindTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
+    @MainActor
+    func testCanvasActionWithDuplicateOptionsHandlesDictionarySafely() async throws {
+        let scriptCode = "const ui = () => h('text', {});"
+        let dupOptions = [
+            ExtensionOption(identifier: "key", label: "Key 1", defaultValue: "val1"),
+            ExtensionOption(identifier: "key", label: "Key 2", defaultValue: "val2")
+        ]
+        let canvas = JavaScriptCanvasAction(
+            id: "com.test.dupcanvas",
+            title: "Dup Canvas",
+            scriptCode: scriptCode,
+            options: dupOptions
+        )
+
+        let result = try await canvas.perform(makeContext(text: "hello"))
+        guard case .showCanvas(let request, _) = result else {
+            return XCTFail("Expected .showCanvas result, got \(result)")
+        }
+        XCTAssertEqual(request.optionValues["key"], JSONValue.string("val2"))
+    }
+
     // MARK: - KeyPressSpec parsing
 
     func testKeyPressSpecManifestParsing() {
