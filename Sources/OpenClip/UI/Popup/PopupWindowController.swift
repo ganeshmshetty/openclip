@@ -4,10 +4,10 @@
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
 // Owns the popup mode state machine (actions bar ↔ action-search palette ↔ content canvas): search
 // mode makes the panel key (a scoped exception to the never-key rule) and restores focus to the
-// previous app on exit; content mode renders action/AI results inline on the panel, stays non-key
-// today (the content canvas blocks distance/scroll dismissal and non-Esc keys), and the interactive
-// canvas (Task 14) will make the panel key and reuse enterKeyMode()/exitKeyMode(), which are also
-// the search-mode path. Also owns the hover-debounce
+// previous app on exit; content mode renders action/AI results inline on the panel and — since
+// Task 14 — is also key, reusing the same enterKeyMode()/exitKeyMode() primitives as search, with
+// Esc and all other keys owned by the SwiftUI canvas (the controller-level key monitor stays
+// observation-only in content mode). Also owns the hover-debounce
 // and long-press timers that feed the preview strip / result canvas per Action.gesturePolicy.
 // Implements the decision-8 ActionResult tree-walk (handleActionResult): presentation results render
 // here, leaf effects route to DefaultActionResultHandler, and dismissal is decided once via
@@ -275,14 +275,16 @@ public class PopupWindowController {
 
     /// Opens the content canvas for a legacy result: bridges the producer's PopupContent into a
     /// native canvas tree (temporary — the bridge is deleted in Task 21) and arms the session. The
-    /// panel stays non-key — Task 14 makes it key.
+    /// canvas is key (enterKeyMode) so a focused field can take typing and Esc can reach SwiftUI.
     private func enterContent(_ content: PopupContent) {
         guard panel?.isVisible == true else { return }
         armCanvas(tree: LegacyContentBridge.tree(for: content),
                   header: LegacyContentBridge.header(for: content))
     }
 
-    /// Arms a native (non-scripting) canvas session and enters content mode. Task 14 makes it key.
+    /// Arms a native (non-scripting) canvas session and enters content mode, making the panel key
+    /// exactly like search (rule 10 exception) so the canvas can receive typing; Esc and non-Esc
+    /// keys are owned by SwiftUI (.onKeyPress/.focusable), never the controller monitor.
     private func armCanvas(tree: CanvasComponent, header: CanvasHeader, preferredSize: CanvasSize? = nil) {
         let session = CanvasSession(
             header: header,
@@ -296,6 +298,20 @@ public class PopupWindowController {
         modeStore.content = session
         modeStore.mode = .content
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        enterKeyMode()
+        // Focus the first interactive element (or the canvas root) on the next run-loop turn — a
+        // @FocusState request issued during the mode-change render can be silently dropped on macOS.
+        Task { @MainActor in
+            await Task.yield()
+            canvasSessionController.requestFocus(session.tree.firstInteractiveID())
+        }
+    }
+
+    /// Test access to the private arm path: mirrors exactly what enterContent/showAIContent do, so
+    /// tests can arm an arbitrary native tree without going through the legacy bridge. Internal
+    /// because armCanvas is private; not production API.
+    func armCanvasForTesting(tree: CanvasComponent, header: CanvasHeader) {
+        armCanvas(tree: tree, header: header)
     }
 
     /// Collapses the content canvas back to the actions bar. Never hides the popup. Clears the
@@ -306,6 +322,7 @@ public class PopupWindowController {
         modeStore.content = nil
         modeStore.mode = .actions
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        exitKeyMode()
         flushPendingStatus()
     }
 
@@ -554,15 +571,14 @@ public class PopupWindowController {
             // Actions mode: any keystroke (including Escape) dismisses the popup; the panel is
             // never key here, so keys land in the source app and are merely observed.
             // Search mode: keys go to the search field (panel is key); Escape is handled there.
-            // Content mode: modal — Escape collapses the canvas to the bar; any other key is
-            // ignored (it belongs to the focused canvas component, or pre-Task-14 to the source
-            // app) and never dismisses.
+            // Content mode: the canvas is key (Task 14) — Esc and every key belong to the focused
+            // SwiftUI component (.onKeyPress(.escape) on the root and each field calls
+            // onExitContent()), so the monitor stays observation-only here. Handling Esc a second
+            // time at the controller would double-fire on top of SwiftUI (M8).
             if modeStore.mode == .search { break }
             if modeStore.mode == .content {
-                if event.keyCode == 53 { // Esc
-                    exitContent()
-                }
-                return
+                return   // Esc + all keys belong to the canvas component (SwiftUI .onKeyPress);
+                         // the global monitor stays observation-only — do NOT handle Esc here (M8)
             }
             hide()
         default:
