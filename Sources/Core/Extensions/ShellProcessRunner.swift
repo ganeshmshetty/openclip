@@ -3,10 +3,12 @@
 //
 // Shared Core subprocess executor for one-shot shell runtimes (ScriptAction script files and
 // CustomAction.shellScript inline commands). Converges the two former watchdog implementations onto
-// ONE mechanism (Gotcha 8): a `Task.detached` sleep that marks a `TimeoutFlag`, closes the
-// stdout/stderr read ends (SIGPIPE to the process and any backgrounded children), terminates the
-// process, then `waitUntilExit()`; a timeout always surfaces as an error. Non-zero exits throw with
-// the stderr text, unifying the error policy across both shell runtimes (Gotcha 5).
+// ONE mechanism (Gotcha 8): a GCD timer marks a `TimeoutFlag`, terminates the process (hard-killing
+// it a moment later if it ignores the signal), and a timeout always surfaces as an error. Pipe
+// output is read through GCD readability handlers — never a blocking readToEnd() — so a stuck
+// child can't wedge a Swift cooperative thread, and stdin is seeded and closed synchronously so a
+// script reading stdin always sees EOF. Non-zero exits throw with the stderr text, unifying the
+// error policy across both shell runtimes (Gotcha 5).
 //
 // Also hosts the relocated `TimeoutFlag` (was `internal` in CustomAction.swift) and `OnceGate`
 // (was `private`; now `internal` and retained for future async JS host callbacks — plan §8), the
@@ -29,6 +31,52 @@ final class TimeoutFlag: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return timedOut
+    }
+}
+
+/// Accumulates a subprocess pipe's output through a GCD readability handler so no thread ever
+/// blocks on a pipe that a misbehaving child (or a grandchild that inherited the fd) refuses to
+/// close. `readabilityHandler` is dispatch-source backed, so it runs regardless of how loaded the
+/// Swift concurrency executor is, and the caller is never left holding a wedged reader.
+private final class PipeAccumulator: @unchecked Sendable {
+    private let handle: FileHandle
+    private let lock = NSLock()
+    private var buffer = Data()
+    private let eofGroup = DispatchGroup()
+
+    init(fileHandle: FileHandle) {
+        self.handle = fileHandle
+    }
+
+    func start() {
+        eofGroup.enter()
+        handle.readabilityHandler = { [weak self] fh in
+            guard let self else { return }
+            let chunk = fh.availableData
+            self.lock.lock()
+            if chunk.isEmpty {
+                self.handle.readabilityHandler = nil
+                self.lock.unlock()
+                self.eofGroup.leave()
+            } else {
+                self.buffer.append(chunk)
+                self.lock.unlock()
+            }
+        }
+    }
+
+    /// Drains pending output and closes the handle. Bounded: waits at most `grace` seconds for EOF
+    /// so a grandchild still holding the pipe can't block the caller indefinitely.
+    func finish(grace: TimeInterval = 2) {
+        _ = eofGroup.wait(timeout: .now() + grace)
+        handle.readabilityHandler = nil
+        try? handle.close()
+    }
+
+    var data: Data {
+        lock.lock()
+        defer { lock.unlock() }
+        return buffer
     }
 }
 
@@ -109,17 +157,22 @@ public enum ShellProcessRunner {
         public var environment: [String: String]
         /// Text written to the subprocess's stdin (then the pipe is closed). nil leaves stdin unseeded.
         public var stdinText: String?
+        /// Runtime budget before the watchdog kills the subprocess. Defaults to
+        /// `Constants.scriptTimeout` (30 s); tests override with a short value.
+        public var timeout: TimeInterval?
 
         public init(
             executableURL: URL,
             arguments: [String],
             environment: [String: String] = [:],
-            stdinText: String? = nil
+            stdinText: String? = nil,
+            timeout: TimeInterval? = nil
         ) {
             self.executableURL = executableURL
             self.arguments = arguments
             self.environment = environment
             self.stdinText = stdinText
+            self.timeout = timeout
         }
     }
 
@@ -143,61 +196,72 @@ public enum ShellProcessRunner {
             let stdInPipe = Pipe()
             process.standardInput = stdInPipe
 
+            // GCD-backed pipe readers: they never block a Swift cooperative thread, so a slow or
+            // stuck child can't wedge the concurrency pool the way blocking readToEnd() calls could.
+            let outReader = PipeAccumulator(fileHandle: stdOutPipe.fileHandleForReading)
+            let errReader = PipeAccumulator(fileHandle: stdErrPipe.fileHandleForReading)
+            outReader.start()
+            errReader.start()
+
             try process.run()
 
-            // Watchdog: kill the process if it exceeds the runtime budget so the popup never spins
-            // forever. Closing the stdout/stderr read ends sends SIGPIPE to every writer (the
-            // process and any backgrounded children that retained a pipe), unblocking the readers
-            // below even when a child outlives the shell. A watchdog kill is surfaced as a timeout
-            // error.
-            let timeoutFlag = TimeoutFlag()
-            let timeoutTask = Task.detached { [weak process] in
-                try? await Task.sleep(nanoseconds: UInt64(Constants.scriptTimeout * 1_000_000_000))
-                timeoutFlag.markTimedOut()
-                try? stdOutPipe.fileHandleForReading.close()
-                try? stdErrPipe.fileHandleForReading.close()
-                if process?.isRunning == true {
-                    process?.terminate()
-                }
-            }
-            defer { timeoutTask.cancel() }
+            // Move the child into its own process group so a watchdog kill can signal the whole tree
+            // (the script plus any grandchildren it spawned) rather than only the direct child. The
+            // child's pid becomes the group id; a failed setpgid is tolerated — the group signal just
+            // no-ops below.
+            setpgid(process.processIdentifier, process.processIdentifier)
 
-            let writeTask = Task.detached {
-                defer { try? stdInPipe.fileHandleForWriting.close() }
-                if let textData = invocation.stdinText?.data(using: .utf8) {
-                    do {
-                        try stdInPipe.fileHandleForWriting.write(contentsOf: textData)
-                    } catch {
-                        let nsErr = error as NSError
-                        if nsErr.domain == NSPOSIXErrorDomain && nsErr.code == Int(EPIPE) {
-                            return
-                        }
-                        throw error
+            // Watchdog on a GCD timer — independent of the Swift concurrency executor, so it always
+            // fires even if the cooperative pool is starved. Past the budget it terminates the
+            // process and hard-kills it shortly after if the signal was ignored, then releases the
+            // pipes. A watchdog kill surfaces as a timeout error. Armed before the stdin write below
+            // so an oversized write that blocks the child not reading still gets killed on budget.
+            let timeoutFlag = TimeoutFlag()
+            let budget = invocation.timeout ?? Constants.scriptTimeout
+            let watchdog = DispatchSource.makeTimerSource(queue: .global())
+            watchdog.schedule(deadline: .now() + budget, leeway: .milliseconds(50))
+            watchdog.setEventHandler { [weak process] in
+                timeoutFlag.markTimedOut()
+                guard let process, process.isRunning else { return }
+                let pid = process.processIdentifier
+                guard pid > 0 else { return }
+                // Signal the entire process group (SIGTERM) so grandchildren can't outlive the child
+                // and keep holding our pipes open.
+                let pgid = -pid
+                kill(pgid, SIGTERM)
+                // Hard-kill the group a moment later if the signal was ignored. Retain the Process and
+                // re-check it's still running so a recycled PID can't be signaled by accident.
+                DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+                    if process.isRunning {
+                        kill(pgid, SIGKILL)
                     }
                 }
             }
+            watchdog.resume()
 
-            let readOutTask = Task.detached {
-                try? stdOutPipe.fileHandleForReading.readToEnd()
+            // Seed stdin synchronously and close the write end, so a child script that reads stdin
+            // always sees EOF — it can never block forever waiting for input.
+            if let textData = invocation.stdinText?.data(using: .utf8) {
+                try? stdInPipe.fileHandleForWriting.write(contentsOf: textData)
             }
-            let readErrTask = Task.detached {
-                try? stdErrPipe.fileHandleForReading.readToEnd()
-            }
+            try? stdInPipe.fileHandleForWriting.close()
 
-            let outDataOpt = await readOutTask.value
-            let errDataOpt = await readErrTask.value
-            _ = try? await writeTask.value
+            defer {
+                watchdog.cancel()
+                outReader.finish()
+                errReader.finish()
+            }
 
             process.waitUntilExit()
 
             if timeoutFlag.isTimedOut {
                 throw NSError(domain: Constants.actionErrorDomain,
                               code: Int(Constants.actionErrorCode) + 1,
-                              userInfo: [NSLocalizedDescriptionKey: "Script timed out after \(Int(Constants.scriptTimeout)) seconds"])
+                              userInfo: [NSLocalizedDescriptionKey: "Script timed out after \(Int(budget)) seconds"])
             }
 
-            let outData = outDataOpt ?? Data()
-            let errData = errDataOpt ?? Data()
+            let outData = outReader.data
+            let errData = errReader.data
 
             if process.terminationStatus != 0 {
                 let errText = String(data: errData, encoding: .utf8) ?? ""

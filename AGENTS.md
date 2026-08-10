@@ -31,7 +31,7 @@ Prefer `scripts/` over raw `xcodebuild`/`xcodegen`:
 | Regenerate Xcode project after adding/deleting Swift files (MANDATORY) | `xcodegen generate` |
 | Build (Debug) + launch | `./scripts/dev_run.sh` |
 | Build (Release) + package `build/OpenClip.zip` | `./scripts/package_app.sh` |
-| Full test suite (can hang; wrap in a timeout) | `timeout -k 10 180 ./scripts/test.sh` |
+| Full test suite (deterministic; still wrap in a timeout) | `timeout -k 10 60 ./scripts/test.sh` |
 | Single test class | `./scripts/test.sh SettingsStoreTests` |
 | Clean DerivedData + build artifacts | `./scripts/clean.sh` |
 | Install a local extension/snippet into `~/.openclip/extensions` | `./scripts/install_extension.sh <path>` |
@@ -90,8 +90,12 @@ These change behavior — keep them.
   `action.chrome.badge`, `action.icon`. (One legacy block in `ActionCustomizationManager.tableIcon`.)
 - **`OpenClipSnippetParser` is a pure text parser** — no `@MainActor`/UI. (Currently `@MainActor`; removal planned.)
 - **Subprocess actions need a timeout watchdog** — terminate if past `Constants.scriptTimeout` (30 s).
-  Any new action that spawns a subprocess must follow. The JS runtime uses the same `TimeoutFlag`
-  pattern (flag + pump-loop check; `JSVirtualMachine.invalidate()` no longer exists in modern SDKs).
+  Any new action that spawns a subprocess must follow. `ShellProcessRunner`'s watchdog is a **GCD
+  timer** (never starved by the Swift concurrency pool) that terminates the process (SIGKILL grace),
+  and pipes are read via GCD `readabilityHandler` — never a blocking `readToEnd()` — with stdin
+  seeded and closed synchronously, so a stuck child can't wedge a cooperative thread or block the
+  suite. The JS runtime uses the same `TimeoutFlag` pattern (flag + pump-loop check;
+  `JSVirtualMachine.invalidate()` no longer exists in modern SDKs).
 - **Never `Self.<static>` inside a `Task.detached` closure** — it trips a Swift 6 region-based
   isolation checker bug (`"pattern that the region-based isolation checker does not understand how
   to check"`). Reference the type by name (`OpenClipJSHost.execute(...)`). See `docs/runtimes/javascript.md`.
@@ -189,8 +193,8 @@ These change behavior — keep them.
    mirrors the registry's `@Published` state). Store-backed behavior must be tested through the
    shared `MemorySettingsStore` test double (or a per-test `DefaultSettingsStore(userDefaults:
    suiteName)`) — never by writing `UserDefaults.standard` or the real preferences domain.
-8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
-   hang in automated sessions, so wrap it in a 180 s timeout (`timeout -k 10 180 ./scripts/test.sh`).
+8. **Always verify:** quick build gate first, then the full suite once at the end. The suite runs
+   deterministically (~45 s); still wrap it in a timeout (`timeout -k 10 60 ./scripts/test.sh`).
  9. **Log through `Log`, never `print()`.** Every log message goes through a category on the single
     `Log` enum (`Sources/Core/Log.swift`, category table in `docs/logging.md`) — never a raw
     `Logger(subsystem:category:)` or `print()`. Levels: `.notice` lifecycle, `.error` failures,

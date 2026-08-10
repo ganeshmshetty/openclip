@@ -9,7 +9,9 @@
 // CanvasMountRequest carries everything the engine needs to produce the initial tree: the source
 // (scriptCode) it must compile, the selection input, the producer-resolved optionValues (surfaced
 // to the JS context as openclip.options; JSONValue is defined in Task 2), the initial app-owned
-// state, and an optional preferredSize declared once at mount and fixed for the session.
+// state, the regex capture groups and source app identity from the action's match (surfaced to the
+// JS context as openclip.input.captures / openclip.input.app — the same input context the JS host
+// exposes), and an optional preferredSize declared once at mount and fixed for the session.
 // CanvasMountResult adds the preferredSize the author actually declared via openclip.showContent
 // (overrides the request value when present); CanvasDispatchResult carries the status feedback a
 // handler surfaced via openclip.showStatus. Both fields are additive with defaults so existing init
@@ -21,6 +23,10 @@ import Foundation
 public struct CanvasMountRequest: Sendable {
     public var initialState: CanvasSessionState
     public var input: String
+    /// Regex capture groups 1...n from the action's match (empty when no regex matched).
+    public var captures: [String]
+    /// Source app the selection came from; bridged as openclip.input.app.bundleID/.name.
+    public var sourceApp: AppIdentity?
     public var optionValues: [String: JSONValue]
     public var preferredSize: CanvasSize?
     public var scriptCode: String
@@ -29,6 +35,8 @@ public struct CanvasMountRequest: Sendable {
     public init(
         initialState: CanvasSessionState = CanvasSessionState(),
         input: String,
+        captures: [String] = [],
+        sourceApp: AppIdentity? = nil,
         optionValues: [String: JSONValue] = [:],
         preferredSize: CanvasSize? = nil,
         scriptCode: String = "",
@@ -36,6 +44,8 @@ public struct CanvasMountRequest: Sendable {
     ) {
         self.initialState = initialState
         self.input = input
+        self.captures = captures
+        self.sourceApp = sourceApp
         self.optionValues = optionValues
         self.preferredSize = preferredSize
         self.scriptCode = scriptCode

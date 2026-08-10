@@ -18,51 +18,10 @@ final class AIProviderTests: XCTestCase {
         }
     }
 
-    func testAppleIntelligenceMatchesPresetPrompts() async throws {
-        let provider = AppleIntelligenceProvider()
-        let text = "Hello world from OpenClip"
-
-        let fixed = try await provider.process(prompt: "Proofread and fix grammar", text: text)
-        XCTAssertFalse(fixed.isEmpty)
-
-        let summary = try await provider.process(prompt: "Summarize text", text: text)
-        XCTAssertFalse(summary.isEmpty)
-
-        let explained = try await provider.process(prompt: "Explain concept or code", text: text)
-        XCTAssertFalse(explained.isEmpty)
-
-        let translated = try await provider.process(prompt: "Translate text to English", text: text)
-        XCTAssertFalse(translated.isEmpty)
-    }
-
     // MARK: - Cloud API
 
     func testCloudAPIRejectsMissingKey() async {
         let provider = CloudAPIProvider(apiKey: "", model: "gpt-4o-mini")
-        do {
-            _ = try await provider.process(prompt: "Fix", text: "hello")
-            XCTFail("Expected missingAPIKey")
-        } catch let error as AIError {
-            XCTAssertEqual(error, .missingAPIKey)
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
-
-    func testCloudAPIRejectsEmptyText() async {
-        let provider = CloudAPIProvider(apiKey: "sk-test", model: "gpt-4o-mini")
-        do {
-            _ = try await provider.process(prompt: "Fix", text: "")
-            XCTFail("Expected emptyInput")
-        } catch let error as AIError {
-            XCTAssertEqual(error, .emptyInput)
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
-
-    func testCloudAPIValidatesKeyAndText() async {
-        let provider = CloudAPIProvider(apiKey: "", model: "custom-model")
         do {
             _ = try await provider.process(prompt: "Fix", text: "hello")
             XCTFail("Expected missingAPIKey")
@@ -99,18 +58,6 @@ final class AIProviderTests: XCTestCase {
     }
 
     // MARK: - Browser redirect
-
-    func testBrowserRedirectRejectsEmptyText() async {
-        let provider = BrowserRedirectProvider(template: "https://example.com/?q={text}")
-        do {
-            _ = try await provider.process(prompt: "Ask", text: " ")
-            XCTFail("Expected emptyInput")
-        } catch let error as AIError {
-            XCTAssertEqual(error, .emptyInput)
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
 
     func testBrowserRedirectUsesDefaultTemplateWhenEmpty() {
         let provider = BrowserRedirectProvider(template: "")

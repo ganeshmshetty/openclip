@@ -99,9 +99,12 @@ public struct JavaScriptCanvasAction: ConfigurableAction {
         let optionValues = Dictionary(actionOptions.map { option in
             (option.identifier, JSONValue.string(optionStore.stringValue(actionID: id, option: option)))
         }, uniquingKeysWith: { _, latest in latest })
+        let match = context.match ?? matchInfo(for: context)
         let request = CanvasMountRequest(
             initialState: CanvasSessionState(),
             input: context.selection.text,
+            captures: match?.captures ?? [],
+            sourceApp: context.selection.sourceApp,
             optionValues: optionValues,         // openclip.options in the bridge (empty → {})
             preferredSize: nil,                 // declared at runtime via openclip.showContent(tree, {size})
             scriptCode: scriptCode,

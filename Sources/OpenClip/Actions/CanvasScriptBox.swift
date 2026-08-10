@@ -3,8 +3,9 @@
 //
 // Pure JSContext glue for JavaScript extensions: registers the `h(type, props, children)` helper,
 // bridges JS element objects to Core's neutral `CanvasElementSpec` structure, and installs the
-// `openclip` canvas bridge (effects, keepVisible, showContent(tree, {size}), showStatus) into a
-// per-evaluation `CanvasBridgeCollector`.
+// `openclip` canvas bridge (read-only input context: text/matchedText/captures/app + resolved
+// options; effects, keepVisible, showContent(tree, {size}), showStatus) into a per-evaluation
+// `CanvasBridgeCollector`.
 
 import Foundation
 import JavaScriptCore
@@ -88,9 +89,14 @@ public enum CanvasScriptBox {
 
     /// Registers the `openclip` bridge object and side-effect functions on the context. Every call
     /// collects into the passed `CanvasBridgeCollector` (fresh per evaluation — never shared state).
+    /// `captures`/`sourceApp` surface the action's match to the script as
+    /// `openclip.input.captures` / `openclip.input.app.{bundleID,name}` (same shape as the JS host);
+    /// `input.text`/`input.matchedText` stay equal to the passed `input` string.
     public static func installCanvasBridge(
         in context: JSContext,
         input: String,
+        captures: [String],
+        sourceApp: AppIdentity?,
         optionValues: [String: JSONValue],
         collector: CanvasBridgeCollector
     ) {
@@ -105,6 +111,11 @@ public enum CanvasScriptBox {
         let inputObj = JSValue(newObjectIn: context)!
         inputObj.setObject(input, forKeyedSubscript: "text" as NSString)
         inputObj.setObject(input, forKeyedSubscript: "matchedText" as NSString)
+        inputObj.setObject(captures, forKeyedSubscript: "captures" as NSString)
+        let appObj = JSValue(newObjectIn: context)!
+        appObj.setObject(sourceApp?.bundleIdentifier ?? "", forKeyedSubscript: "bundleID" as NSString)
+        appObj.setObject(sourceApp?.localizedName ?? "", forKeyedSubscript: "name" as NSString)
+        inputObj.setObject(appObj, forKeyedSubscript: "app" as NSString)
         openclip.setObject(inputObj, forKeyedSubscript: "input" as NSString)
 
         // Options

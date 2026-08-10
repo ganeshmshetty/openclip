@@ -26,6 +26,8 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
     // Session cache across dispatches
     private var _sessionState: CanvasSessionState
     private var _sessionInput: String
+    private var _sessionCaptures: [String]
+    private var _sessionApp: AppIdentity?
     private var _sessionOptionValues: [String: JSONValue]
     private var _isAsync: Bool
 
@@ -34,24 +36,28 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
     public init(timeout: TimeInterval? = nil) {
         self._sessionState = CanvasSessionState()
         self._sessionInput = ""
+        self._sessionCaptures = []
+        self._sessionApp = nil
         self._sessionOptionValues = [:]
         self._isAsync = false
         self._timeoutOverride = timeout
     }
 
-    private func updateMountState(scriptCode: String, input: String, optionValues: [String: JSONValue], isAsync: Bool, state: CanvasSessionState) {
+    private func updateMountState(scriptCode: String, input: String, captures: [String], sourceApp: AppIdentity?, optionValues: [String: JSONValue], isAsync: Bool, state: CanvasSessionState) {
         lock.withLock {
             _scriptCode = scriptCode
             _sessionInput = input
+            _sessionCaptures = captures
+            _sessionApp = sourceApp
             _sessionOptionValues = optionValues
             _isAsync = isAsync
             _sessionState = state
         }
     }
 
-    private func getDispatchInputs() -> (scriptCode: String, input: String, optionValues: [String: JSONValue]) {
+    private func getDispatchInputs() -> (scriptCode: String, input: String, captures: [String], sourceApp: AppIdentity?, optionValues: [String: JSONValue]) {
         lock.withLock {
-            (_scriptCode, _sessionInput, _sessionOptionValues)
+            (_scriptCode, _sessionInput, _sessionCaptures, _sessionApp, _sessionOptionValues)
         }
     }
 
@@ -135,6 +141,8 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         CanvasScriptBox.installCanvasBridge(
             in: jsContext,
             input: request.input,
+            captures: request.captures,
+            sourceApp: request.sourceApp,
             optionValues: request.optionValues,
             collector: collector
         )
@@ -222,6 +230,8 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         engine.updateMountState(
             scriptCode: scriptCode,
             input: request.input,
+            captures: request.captures,
+            sourceApp: request.sourceApp,
             optionValues: request.optionValues,
             isAsync: request.isAsync,
             state: effectiveState
@@ -260,6 +270,8 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         CanvasScriptBox.installCanvasBridge(
             in: jsContext,
             input: inputs.input,
+            captures: inputs.captures,
+            sourceApp: inputs.sourceApp,
             optionValues: inputs.optionValues,
             collector: collector
         )

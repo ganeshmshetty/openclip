@@ -53,7 +53,7 @@ Sources/
 │   │   │   └── ManifestValidation.swift      # Manifest validation pass + empty capability gate + fingerprint record
 │       │   ├── OpenClipSnippetParser.swift       # Standalone snippet header parser (nonisolated, pure text); body mode ends only at `#` header keys, `//` lines stay body
 │   │   ├── ScriptAction.swift                # Executable script action
-│   │   └── ShellProcessRunner.swift          # Shared subprocess executor + 30s watchdog; hosts TimeoutFlag/OnceGate; maps stdout JSON via ShellResultMapper
+│   │   └── ShellProcessRunner.swift          # Shared subprocess executor; GCD-timer 30s watchdog + readabilityHandler reads (never blocks a thread); hosts TimeoutFlag/OnceGate; maps stdout JSON via ShellResultMapper
 │   ├── Rules/                                # App-specific policy rules
 │   │   ├── AppRule.swift                     # AppPolicyContext (5 active fields) + AppRule Codable model
 │   │   └── RuleEngine.swift
