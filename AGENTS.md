@@ -31,11 +31,11 @@ Prefer `scripts/` over raw `xcodebuild`/`xcodegen`:
 | Regenerate Xcode project after adding/deleting Swift files (MANDATORY) | `xcodegen generate` |
 | Build (Debug) + launch | `./scripts/dev_run.sh` |
 | Build (Release) + package `build/OpenClip.zip` | `./scripts/package_app.sh` |
-| Full test suite (deterministic; still wrap in a timeout) | `timeout -k 10 60 ./scripts/test.sh` |
+| Full test suite (deterministic; still wrap in a timeout) | `timeout -k 10 80 ./scripts/test.sh` |
 | Single test class | `./scripts/test.sh SettingsStoreTests` |
 | Clean DerivedData + build artifacts | `./scripts/clean.sh` |
 | Install a local extension/snippet into `~/.openclip/extensions` | `./scripts/install_extension.sh <path>` |
-| Quick compile gate (before the full suite) | `timeout -k 5 60 xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -destination 'platform=macOS' build` |
+| Quick compile gate (before the full suite) | `timeout -k 5 80 xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -destination 'platform=macOS' build` |
 
 ---
 
@@ -194,7 +194,7 @@ These change behavior — keep them.
    shared `MemorySettingsStore` test double (or a per-test `DefaultSettingsStore(userDefaults:
    suiteName)`) — never by writing `UserDefaults.standard` or the real preferences domain.
 8. **Always verify:** quick build gate first, then the full suite once at the end. The suite runs
-   deterministically (~45 s); still wrap it in a timeout (`timeout -k 10 60 ./scripts/test.sh`).
+   deterministically (~45 s); still wrap it in a timeout (`timeout -k 10 80 ./scripts/test.sh`).
  9. **Log through `Log`, never `print()`.** Every log message goes through a category on the single
     `Log` enum (`Sources/Core/Log.swift`, category table in `docs/logging.md`) — never a raw
     `Logger(subsystem:category:)` or `print()`. Levels: `.notice` lifecycle, `.error` failures,

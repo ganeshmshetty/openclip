@@ -30,7 +30,6 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
             if let text = await strategyKeyboardShortcut() {
                 return TextResult(text: text, bounds: nil)
             }
-            return nil
         }
 
         // Strategy 1: Accessibility direct read — instant, zero side-effects.
@@ -108,9 +107,9 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
     }
     
     private func strategySafariJS(for app: AppIdentity) async -> String? {
-        guard app.bundleIdentifier == "com.apple.Safari" else { return nil }
+        guard let bundleID = app.bundleIdentifier, DefaultAppRules.safariGroup.contains(bundleID) else { return nil }
         let script = """
-        tell application "Safari"
+        tell application id "\(bundleID)"
             if (count of documents) > 0 then
                 do JavaScript "window.getSelection().toString()" in front document
             end if
@@ -303,9 +302,9 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
     // MARK: - Shared Pasteboard Polling
 
-    /// Save the current pasteboard, perform `action`, poll every 5 ms up to `timeout`
+    /// Save the current pasteboard, perform `action`, poll every 2 ms up to `timeout`
     /// seconds for the change count to advance, read the new string, then restore the
-    /// original contents after 50 ms.
+    /// original contents after 15 ms.
     ///
     /// - Parameters:
     ///   - timeout: Maximum seconds to wait for the pasteboard change count to advance.
@@ -330,15 +329,15 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
             try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
         }
 
-        guard pasteboard.changeCount != initialChangeCount else {
-            Log.selection.debug("Pasteboard strategy: timed out waiting for change")
-            // Restore immediately since we never changed anything meaningful
+        let changeCountAfterCopy = pasteboard.changeCount
+        guard changeCountAfterCopy != initialChangeCount else {
+            Log.selection.debug("Pasteboard strategy: changeCount did not advance (initial: \(initialChangeCount), current: \(changeCountAfterCopy))")
+            // Restore immediately since our copy operation did not cleanly produce the change
             restorePasteboard(pasteboard, items: savedItems)
             return nil
         }
 
         let text = pasteboard.string(forType: .string)
-        let changeCountAfterCopy = pasteboard.changeCount
 
         // Instantly restore original pasteboard contents within 15 ms so clipboard monitors
         // (like Paste app) see original items restored before their debounce handler fires.

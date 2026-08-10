@@ -24,13 +24,13 @@ public enum JSONValue: Sendable, Equatable, Codable {
         return nil
     }
 
-    public var boolValue: Bool? {
-        if case .bool(let value) = self { return value }
+    public var numberValue: Double? {
+        if case .number(let value) = self { return value }
         return nil
     }
 
-    public var numberValue: Double? {
-        if case .number(let value) = self { return value }
+    public var boolValue: Bool? {
+        if case .bool(let value) = self { return value }
         return nil
     }
 
@@ -84,6 +84,10 @@ public struct CanvasSessionState: Sendable, Equatable, Codable {
 
     public func string(_ key: String) -> String? {
         values[key]?.stringValue
+    }
+
+    public func number(_ key: String) -> Double? {
+        values[key]?.numberValue
     }
 
     public func bool(_ key: String) -> Bool? {

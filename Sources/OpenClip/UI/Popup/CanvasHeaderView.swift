@@ -107,10 +107,9 @@ public struct CanvasHeaderView: View {
         hoveredTarget = target
     }
 
-    /// Local `.onHover` fallback used only when the AX global mouse monitor is unavailable;
-    /// otherwise the location-driven path above owns hover (instant, no SwiftUI hover delay).
+    /// Local `.onHover` fallback used whenever hover state updates (instant, reliable fallback).
     private func useLocalHoverFallback(for target: CanvasHoverTarget, isHovering: Bool) {
-        guard !isStatic, !hoverState.usesGlobalMouseMonitoring else { return }
+        guard !isStatic else { return }
         if isHovering {
             guard hoveredTarget != target else { return }
             hoveredTarget = target
