@@ -58,3 +58,30 @@ log show --predicate 'subsystem == "com.openclip"' --last 1h
 ```
 
 In Console.app: filter `subsystem == "com.openclip"`, then narrow by category.
+
+## In-process debug log (experimental)
+
+OpenClip keeps a small in-memory ring buffer of recent `com.openclip` entries in the App
+target (`DebugLogStore`, `Sources/OpenClip/Platform/DebugLogging/`) so agents and developers
+can read recent logs without Console.app. It is fed by reading the current process's own
+unified-log stream via `OSLogStore(scope: .currentProcessIdentifier)` — `Log` itself is
+untouched. Noteworthy behaviours:
+
+- **Readback requires a live process.** Entries are only readable while the owning process is
+  running; after it exits the unified log may not persist them (this is why `log show` after
+  process termination can print nothing). The CLI dump therefore captures the *current* process.
+- **Privacy is preserved.** `privacy: .public`/`.auto` values show in full; `.private` shows as
+  `<private>` — same as external tooling.
+
+### `--dump-logs` CLI
+
+Run the app binary directly (not via `dev_run.sh`):
+
+```sh
+"/path/to/OpenClip.app/Contents/MacOS/OpenClip" --dump-logs --category=extensions --level=error
+```
+
+Flags: `--category=`, `--level=`, `--count=`, `--collect=` (seconds, default 4), `--help`.
+It cold-launches the app, runs extension loading (so load/reject lines are produced), waits,
+then prints the last N lines to stdout and exits 0 (`2` on usage errors). This is the quickest
+agent check for "did my extension load or reject?".

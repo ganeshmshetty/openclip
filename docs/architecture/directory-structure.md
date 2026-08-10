@@ -107,7 +107,14 @@ Sources/
     │   ├── MacSelectionMonitor.swift         # Global accessibility monitor
     │   ├── MacTextRetriever.swift            # AX selection read + Safari JS; grabPasteboard apps use Cmd+C fallback
     │   ├── OnceResume.swift                  # Exactly-once continuation resume gate (AX read + AppleScript deadline races)
-    │   └── PermissionManager.swift           # Accessibility permission manager
+    │   ├── PermissionManager.swift           # Accessibility permission manager
+    │   └── DebugLogging/                             # In-process debug log store + --dump-logs CLI (App target)
+    │       ├── DebugLogEntry.swift                   # Captured log entry model + DebugLogLevel
+    │       ├── DebugLogBuffer.swift                  # Thread-safe capacity-capped ring buffer
+    │       ├── DebugLogReader.swift                  # LogReading protocol + OSLogStore-backed UnifiedLogReader
+    │       ├── DebugLogStore.swift                   # 1s background poller + .shared
+    │       ├── DebugLogFilter.swift                  # Pure category/level/count filter
+    │       └── DebugLogCommand.swift                 # --dump-logs arg parsing + line formatting
     ├── StatusBarController.swift             # Reads/writes isAppEnabled via UserDefaults.standard
     └── UI/                                   # User Interface (SwiftUI & AppKit Panels)
         ├── AppIcon.swift                     # App icon loaded from the bundle's AppIcon.icns (avoids the generic placeholder NSApp.applicationIconImage can return for LSUIElement apps)
