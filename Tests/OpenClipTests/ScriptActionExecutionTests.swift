@@ -195,4 +195,58 @@ final class ScriptActionExecutionTests: XCTestCase {
 
         try? FileManager.default.removeItem(at: tempDir)
     }
+
+    func testScriptActionNonZeroExitThrowsError() async throws {
+        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("fail_test_\(UUID().uuidString).sh")
+        let scriptContent = """
+        #!/bin/bash
+        echo "Some error" >&2
+        exit 1
+        """
+        try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
+
+        let action = ScriptAction(id: "test.fail", title: "Fail", icon: .symbol("terminal"), scriptURL: tempScript)
+        do {
+            _ = try await action.perform(ActionContext(selectedText: "hello"))
+            XCTFail("Expected script to throw an error due to non-zero exit code")
+        } catch {
+            let nsError = error as NSError
+            XCTAssertEqual(nsError.domain, Constants.actionErrorDomain)
+            XCTAssertEqual(nsError.code, 1)
+        }
+
+        try? FileManager.default.removeItem(at: tempScript)
+    }
+
+    /// A subprocess that never exits must be killed by the GCD watchdog at the invocation budget
+    /// instead of hanging the suite. Regression for the mid-suite hang where a blocked
+    /// `readToEnd()` plus a starved `Task.sleep` watchdog wedged the cooperative pool.
+    func testScriptActionWatchdogKillsNeverExitingScript() async throws {
+        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("hang_test_\(UUID().uuidString).sh")
+        let scriptContent = """
+        #!/bin/bash
+        exec sleep 60
+        """
+        try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
+
+        do {
+            _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+                executableURL: tempScript,
+                arguments: [],
+                environment: [:],
+                stdinText: nil,
+                timeout: 1.0
+            ))
+            XCTFail("Expected watchdog timeout")
+        } catch {
+            let nsError = error as NSError
+            XCTAssertEqual(nsError.domain, Constants.actionErrorDomain)
+            XCTAssertTrue(nsError.localizedDescription.contains("timed out"),
+                          "expected timeout error, got \(nsError.localizedDescription)")
+        }
+
+        try? FileManager.default.removeItem(at: tempScript)
+    }
 }

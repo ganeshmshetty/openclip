@@ -450,4 +450,55 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
             }
         }
     }
+
+    // 22. Regex captures + source app bridged into openclip.input at mount
+    func testCapturesAndSourceAppBridged() async throws {
+        let script = """
+        const ui = () => h('text', {
+            content: (openclip.input.captures[0] || '') + '|' +
+                     (openclip.input.captures[1] || '') + '|' +
+                     openclip.input.app.bundleID + '|' + openclip.input.app.name
+        });
+        """
+        let engine = JavaScriptCanvasEngine()
+        let mountRes = try await engine.mount(CanvasMountRequest(
+            input: "255",
+            captures: ["255", "ff"],
+            sourceApp: AppIdentity(bundleIdentifier: "com.example.editor", localizedName: "Example Editor"),
+            scriptCode: script
+        ))
+        guard case .text(let props) = mountRes.tree else {
+            return XCTFail("Expected text root")
+        }
+        XCTAssertEqual(props.content, "255|ff|com.example.editor|Example Editor")
+    }
+
+    // 23. Captures + source app persist across dispatch re-renders (session cache)
+    func testCapturesAndSourceAppPersistAcrossDispatch() async throws {
+        let script = """
+        const handlers = {
+            refresh: (state) => state
+        };
+        const ui = () => h('text', {
+            content: (openclip.input.captures[1] || '') + '|' + openclip.input.app.bundleID
+        });
+        """
+        let engine = JavaScriptCanvasEngine()
+        let mountReq = CanvasMountRequest(
+            input: "255",
+            captures: ["255", "ff"],
+            sourceApp: AppIdentity(bundleIdentifier: "com.example.editor", localizedName: "Example Editor"),
+            scriptCode: script
+        )
+        _ = try await engine.mount(mountReq)
+
+        let dispatchRes = try await engine.dispatch(CanvasDispatchRequest(
+            event: CanvasEvent(kind: .tap, handler: "refresh"),
+            state: CanvasSessionState()
+        ))
+        guard case .text(let props) = dispatchRes.tree else {
+            return XCTFail("Expected text root")
+        }
+        XCTAssertEqual(props.content, "ff|com.example.editor")
+    }
 }

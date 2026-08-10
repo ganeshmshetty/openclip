@@ -45,7 +45,10 @@ areas; stale debt notes are worse than none.
   `ShellProcessRunner.swift`) and translate stdout JSON via `ShellResultMapper`; `NSUserNotification`
   is gone (`.notify` is handled by the effect door via `UNUserNotificationCenter`). AppleScript
   joins the same executor via `AppleScriptRunner` (osascript subprocess), so no code runs
-  `NSAppleScript` in-process anymore.
+  `NSAppleScript` in-process anymore. Since the hang fix, the watchdog is a **GCD timer** (immune
+  to Swift-concurrency-pool starvation) and pipe output is read via GCD `readabilityHandler` (never
+  a blocking `readToEnd()`, so a stuck child can't permanently consume a cooperative thread), with
+  stdin seeded and closed synchronously so a script reading stdin always sees EOF.
 - **`ActionResultAdapter.apply` is the single after/stayVisible translator.** Runtimes return raw
   results; each extension runtime's `perform` applies `rules.after`/`rules.stayVisible` via the
   adapter. `OpenClipJSHost.run` returns only raw results; async JS runs are guarded by the
@@ -121,6 +124,14 @@ areas; stale debt notes are worse than none.
 - **AX direct read is deadline-capped.** `strategyAXDirect` races against
   `Constants.axReadTimeout` (0.5 s) via the `OnceResume` once-gate; an unresponsive app returns
   `nil` to the retrieval chain instead of hanging the popup.
+- **Subprocess pipe reads are non-blocking (hang fix).** `ShellProcessRunner` previously read stdout/
+  stderr with blocking `readToEnd()` tasks and a `Task.sleep` watchdog — both can be starved, so a
+  child (or grandchild) holding a pipe open could wedge the cooperative pool and hang the test
+  suite indefinitely (observed mid-suite in `ScriptActionTests.testScriptExecution`). The runner now
+  uses a GCD timer watchdog + GCD `readabilityHandler` reads + synchronous stdin close. This claim
+  covers only the pipe reads: `process.waitUntilExit()` still blocks its detached thread until the
+  child exits — bounded at `Constants.scriptTimeout`, when the watchdog kills the child and the wait
+  returns.
 
 ## Test Isolation
 
@@ -142,8 +153,15 @@ areas; stale debt notes are worse than none.
 - **Deliberate live-integration tests remain (documented):** `TextRetrieverTests` writes the real
   system clipboard (restores afterward; no pasteboard seam exists), `KeychainActionOptionStoreTests`
   hits the real macOS Keychain (UUID-unique accounts, deleted in tearDown), and
-  `ScriptAction*Tests`/`ActionResultHandlerTests` spawn real subprocesses in temp dirs. These are
+  `ScriptActionExecutionTests`/`ActionResultHandlerTests` spawn real subprocesses in temp dirs. These are
   bounded, self-restoring integration checks — leave them unless a real seam is added.
+- **Removed slow/flaky/environment-dependent tests:** the Apple Intelligence live-model tests
+  (`testAppleIntelligenceMatchesPresetPrompts`, `AIActionTests.testPerformReturnsContentTree`) made
+  real on-device `LanguageModelSession` calls; `CanvasEffectDeliveryTests` gated on real app
+  activation under xcodebuild (intermittent failures); `DebugLogEndToEndTests` polled `OSLogStore`
+  with multi-second sleeps; and `ScriptActionTests` duplicated `ScriptActionExecutionTests` (its
+  stdin-reading test was the observed hang point). Core validation tests for those paths remain
+  (pure validation, no live model/activation).
 
 ## Logging
 
