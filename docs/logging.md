@@ -39,7 +39,8 @@ Each subsystem owns a fixed `os.Logger` on `com.openclip`:
   `Log.extensions.error("Failed to load extension from <path>: <error>")`.
 - **Privacy:** anything touching selected text, clipboard content, or extension-authored data stays
   default-private. Only ids and URLs are marked `privacy: .public` (e.g.
-  `\(action.id, privacy: .public)`). Do not mark user text `.public`.
+  `\(action.id, privacy: .public)`). Do not mark user text `.public`. JS script `console.log` arguments
+  are redacted into structural metadata (`<string len=N>`, `<Object keys=[...]>`) before logging.
 - **No hot-path logging:** never log in per-mouse-move hover updates or high-frequency view bodies.
 
 ## Filtering workflow

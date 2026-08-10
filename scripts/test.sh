@@ -2,7 +2,7 @@
 # OpenClip Test Runner Script
 # Usage: ./scripts/test.sh [TestClassName]
 
-set -e
+set -eo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"

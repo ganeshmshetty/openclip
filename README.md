@@ -9,7 +9,7 @@
 [![macOS](https://img.shields.io/badge/macOS-14.0+-black?style=flat-square&logo=apple&logoColor=white)](https://support.apple.com/sonoma)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange?style=flat-square&logo=swift&logoColor=white)](https://www.swift.org)
 
-[Features](#features) • [Installation](#installation) • [Getting started](#getting-started) • [Extending](#extending-openclip) • [Building from source](#building-from-source) • [Documentation](#documentation)
+[Features](#features) • [Installation](#installation) • [Getting started](#getting-started) • [Extending](#extending-openclip) • [Building from source](#building-from-source) • [Documentation](#documentation) • [License](#license)
 
 </div>
 
@@ -36,7 +36,7 @@ search, definitions, your scripts, and extensions. A hotkey turns the popup into
 
 ## Installation
 
-1. Download the latest release (`.dmg` or `.zip`) from the [releases page](https://github.com/ganeshmshetty/openclip/releases).
+1. Download the latest release (`.zip`) from the [releases page](https://github.com/ganeshmshetty/openclip/releases).
 2. Drag `OpenClip.app` into your `/Applications` folder.
 3. Launch OpenClip and grant **Accessibility** permission when prompted:
 
@@ -114,7 +114,7 @@ or chained effects — from JSON emitted by a shell script.
 
 ## Building from source
 
-**Prerequisites:** macOS 14+, [Xcode 15+](https://apps.apple.com/us/app/xcode/id497799835), and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+**Prerequisites:** macOS 14+, [Xcode 16+](https://apps.apple.com/us/app/xcode/id497799835), and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
 ```bash
 git clone https://github.com/ganeshmshetty/openclip.git
@@ -150,3 +150,7 @@ The full technical documentation lives in the [`docs/`](docs/index.md) hub:
 - **Runtimes** — AppleScript, JavaScript, URL templates, and shell/Python execution (env vars, JSON effects, 30-second watchdog).
 - **User guide** — installation, preferences, app rules, and extension management.
 - **Logging** — the single `Log` surface and per-subsystem categories.
+
+## License
+
+OpenClip is released under the [MIT License](LICENSE). Copyright (c) 2026 Ganesh M and OpenClip Contributors.

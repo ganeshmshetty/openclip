@@ -96,19 +96,4 @@ final class BuiltinActionsTests: XCTestCase {
             XCTFail("Expected .cut result")
         }
     }
-    
-    @MainActor
-    func testServicesAction() async throws {
-        let action = ServicesAction()
-        let context = createMockContext(with: "test services")
-        
-        XCTAssertTrue(action.isEnabled(for: context))
-        
-        let result = try await action.perform(context)
-        if case .showServices(let text) = result {
-            XCTAssertEqual(text, "test services")
-        } else {
-            XCTFail("Expected .showServices result")
-        }
-    }
 }
