@@ -7,6 +7,27 @@ final class DebugLogCommandTests: XCTestCase {
         XCTAssertEqual(DebugLogCommand.parse(["OpenClip"]), .none)
     }
 
+    func testNonDoubleDashArgsAreIgnored() {
+        // Launcher/framework-owned args (e.g. XCTest's -NSTreatUnknownArgumentsAsOpen)
+        // must not abort a normal launch.
+        XCTAssertEqual(
+            DebugLogCommand.parse(["OpenClip", "-NSTreatUnknownArgumentsAsOpen", "NO"]),
+            .none
+        )
+    }
+
+    func testNegativeCountIsUsageError() {
+        guard case .usageError = DebugLogCommand.parse(["OpenClip", "--dump-logs", "--count=-5"]) else {
+            return XCTFail("expected usageError")
+        }
+    }
+
+    func testNonNumericCollectIsUsageError() {
+        guard case .usageError = DebugLogCommand.parse(["OpenClip", "--dump-logs", "--collect=abc"]) else {
+            return XCTFail("expected usageError")
+        }
+    }
+
     func testBareDumpDefaults() {
         guard case .dumpLogs(let opts) = DebugLogCommand.parse(["OpenClip", "--dump-logs"]) else {
             return XCTFail("expected dumpLogs")
