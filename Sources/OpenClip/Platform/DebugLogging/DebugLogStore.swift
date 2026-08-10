@@ -30,6 +30,7 @@ final class DebugLogStore: @unchecked Sendable {
     }
 
     func start() {
+        guard timer == nil else { return }
         let newTimer = DispatchSource.makeTimerSource(queue: queue)
         newTimer.schedule(deadline: .now() + pollInterval, repeating: pollInterval)
         newTimer.setEventHandler { [weak self] in
