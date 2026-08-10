@@ -128,3 +128,28 @@ Notes:
 - There is deliberately **no user-facing error UI** for a rejected manifest today; the package is
   simply not loaded and the reason is in the log. A future iteration may surface load failures in
   the Preferences → Extensions list.
+
+---
+
+## 7. Hot reload
+
+Extensions are **re-scanned at launch and on every change** without relaunching.
+
+`ExtensionsDirectoryWatcher` (`Sources/OpenClip/Platform/Extensions/ExtensionsDirectoryWatcher.swift`)
+polls `~/.openclip/extensions` on a background queue and reloads via the same
+`ExtensionManager.loadExtensions()` seam that startup uses. It is started by `AppDelegate` **after**
+`ActionCoordinator.loadInitialState()` returns, so the `onRegister`/`onUnregister` registry wiring is
+already in place before any watcher-triggered reload.
+
+Mechanism (poll-snapshot diff, not FSEvents — pure Foundation):
+
+- Each tick builds an `ExtensionsSnapshot`: a recursive fingerprint of the tree
+  (relative path → content modification date), skipping hidden files (`.install_staging_*`,
+  `.DS_Store`).
+- A reload fires only when **two consecutive ticks agree** that the tree changed. The settle window
+  keeps a reload from firing mid-copy while `cp -R`/download staging is still writing.
+- On fire it hops to the MainActor and calls `loadExtensions()`; failures surface exactly as they do
+  at startup (§6). Silent by design — a hot-reloaded rejection shows up in the log, not the UI.
+
+Latency: one tick per second, so a settled change appears within ~2 seconds. `stop()` cancels the
+timer (also used by tests; tests drive the settle logic synchronously via `pollOnce()`).
