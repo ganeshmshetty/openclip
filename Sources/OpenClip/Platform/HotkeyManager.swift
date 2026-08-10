@@ -15,6 +15,7 @@ extension KeyboardShortcuts.Name {
 public final class HotkeyManager {
     public static let shared = HotkeyManager()
     private let retriever = MacTextRetriever()
+    private var lastFallbackClipboard: (changeCount: Int, text: String)?
     
     private init() {}
     
@@ -47,11 +48,15 @@ public final class HotkeyManager {
                 // text as not-from-a-live-selection; the registry drops Copy/Cut (they require a
                 // real selection) and every other enabled action acts on the clipboard text.
                 var isClipboardFallback = false
-                if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                   let clipboard = NSPasteboard.general.string(forType: .string),
-                   !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    retrievedText = clipboard
-                    isClipboardFallback = true
+                if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let pasteboard = NSPasteboard.general
+                    let currentChangeCount = pasteboard.changeCount
+                    if let clipboard = pasteboard.string(forType: .string),
+                       !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        retrievedText = clipboard
+                        isClipboardFallback = true
+                        self.lastFallbackClipboard = (currentChangeCount, clipboard)
+                    }
                 }
                 
                 let context = SelectionContext(

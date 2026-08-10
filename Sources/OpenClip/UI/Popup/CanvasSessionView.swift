@@ -74,6 +74,7 @@ public struct CanvasSessionView: View {
 
     public var body: some View {
         surface
+            .coordinateSpace(name: "popupHoverSpace")
             .id(session.id)                                  // wholesale replace on new mount
             .onChange(of: session.focusGeneration) { _, _ in
                 Task { @MainActor in await Task.yield(); applyFocus() }
@@ -154,9 +155,9 @@ public struct CanvasSessionView: View {
         }
     }
 
-    /// The scrollable canvas body. `.frame(maxHeight: Constants.popupMaxHeight - 36)`: the header
-    /// chrome fills 36pt above the body scroll box; the panel's resizePanel still caps the whole
-    /// surface at Constants.popupMaxHeight (240) — the single sizing funnel.
+    /// The scrollable canvas body. `.frame(maxHeight: Constants.popupMaxHeight - Constants.canvasHeaderHeight)`:
+    /// the header chrome fills 33pt above/below the body scroll box; the panel's resizePanel still
+    /// caps the whole surface at Constants.popupMaxHeight (240) — the single sizing funnel.
     private var bodyContent: some View {
         CanvasComponentView(
             tree: session.tree,
@@ -175,7 +176,7 @@ public struct CanvasSessionView: View {
     }
 
     private var bodyScroll: some View {
-        let maxHeight = Constants.popupMaxHeight - 68
+        let maxHeight = Constants.popupMaxHeight - Constants.canvasHeaderHeight
         return Group {
             if session.preferredSize == nil && measuredContentHeight > maxHeight {
                 ScrollView(.vertical, showsIndicators: true) {
@@ -313,6 +314,10 @@ struct CanvasSessionDraftPlan {
     /// The draft map after the pass — only the still-focused field's draft survives.
     var survivingDrafts: [String: String] = [:]
 
+    var isEmpty: Bool {
+        commits.isEmpty && survivingDrafts.isEmpty
+    }
+
     /// Plans which drafts to flush-and-drop and which to survive for a tree re-render.
     /// - Parameters:
     ///   - drafts: the edit buffer at re-render time.
@@ -338,8 +343,6 @@ struct CanvasSessionDraftPlan {
         }
         return result
     }
-
-    var isEmpty: Bool { commits.isEmpty && survivingDrafts.isEmpty }
 }
 
 /// Tree helper for the session view: resolves the `CanvasTextFieldProps` for a focus id so the

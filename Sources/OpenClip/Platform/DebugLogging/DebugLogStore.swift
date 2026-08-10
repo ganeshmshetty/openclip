@@ -4,6 +4,9 @@
 // Polls the LogReading source on a background serial queue and accumulates entries
 // into a small ring buffer. Production instance: .shared (own-process unified-log
 // readback). No UI observes it today; the CLI and tests read snapshots directly.
+// Lifecycle: started ONLY by the --dump-logs CLI path (AppDelegate.runDumpLogsCommand).
+// Never start it in a normal app run — each poll is an OSLogStore scan that keeps
+// OSLogService.xpc churning CPU for the process's whole lifetime.
 import Foundation
 
 /// Background-collecting debug log store. `@unchecked Sendable` is sound:

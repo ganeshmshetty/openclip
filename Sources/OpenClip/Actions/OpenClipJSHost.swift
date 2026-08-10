@@ -113,28 +113,26 @@ public final class OpenClipJSHost: @unchecked Sendable {
     public func run(_ request: Request) async throws -> ActionResult {
         let session = self.session
 
-        // Synchronous evaluations cannot be interrupted once started (JSVirtualMachine.invalidate is
-        // gone in modern SDKs), so a CPU-bound sync script permanently parks a cooperative-pool
-        // thread. Cap in-flight sync evaluations and refuse new ones at the cap, logging at .error.
-        // Async evaluations are NOT gated — the watchdog + promise pump loop bounds them.
+        // Synchronous evaluations (and the top-level synchronous parsing/execution phase of async
+        // scripts) cannot be interrupted once started (JSVirtualMachine.invalidate is gone in modern
+        // SDKs), so a CPU-bound sync script permanently parks a cooperative-pool thread. Cap in-flight
+        // sync evaluations and refuse new ones at the cap, logging at .error.
         let gate = OpenClipJSHost.syncEvaluationGate
-        if !request.isAsync {
-            guard gate.tryEnter() else {
-                Log.js.error("Refusing synchronous JS evaluation for action \(request.actionID, privacy: .public): \(gate.inFlightCount) in-flight sync evaluations at cap")
-                throw NSError(
-                    domain: Constants.actionErrorDomain,
-                    code: Int(Constants.actionErrorCode) + 2,
-                    userInfo: [NSLocalizedDescriptionKey: "Too many in-flight script evaluations; another script may be stuck."]
-                )
-            }
-            defer { gate.leave() }
+        guard gate.tryEnter() else {
+            Log.js.error("Refusing JS evaluation for action \(request.actionID, privacy: .public): \(gate.inFlightCount) in-flight sync evaluations at cap")
+            throw NSError(
+                domain: Constants.actionErrorDomain,
+                code: Int(Constants.actionErrorCode) + 2,
+                userInfo: [NSLocalizedDescriptionKey: "Too many in-flight script evaluations; another script may be stuck."]
+            )
         }
 
         // Note: reference static members via the explicit type name, not `Self` — `Self.X` inside a
         // Task.detached closure triggers a Swift 6 region-based-isolation checker bug ("pattern that
         // the region-based isolation checker does not understand how to check").
         return try await Task.detached {
-            try OpenClipJSHost.execute(request, session: session)
+            defer { gate.leave() }
+            return try OpenClipJSHost.execute(request, session: session)
         }.value
     }
 
@@ -173,18 +171,23 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let collected = CollectedBox()
         let effects = EffectsBox()
         let promiseState = request.isAsync ? PromiseState() : nil
+        let fetchTasks = FetchTaskBox()
 
         // Read-only input context. Options are injected as a plain dictionary (values resolved via
         // the option store); `option(id)` is a functional form over the same dictionary.
         let optionsDict = optionValues(for: request)
-        let openclip = makeOpenClipObject(
+        guard let openclip = makeOpenClipObject(
             in: jsContext,
             text: text,
             matchedText: matchedText,
             captures: captures,
             sourceApp: request.context.selection.sourceApp,
             options: optionsDict
-        )
+        ) else {
+            throw NSError(domain: Constants.actionErrorDomain,
+                          code: Constants.actionErrorCode,
+                          userInfo: [NSLocalizedDescriptionKey: "Could not build openclip bridge object"])
+        }
 
         let pasteBlock: @convention(block) (String) -> Void = { value in
             collected.value.paste = value
@@ -246,7 +249,13 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(requireConfigurationBlock, forKeyedSubscript: "requireConfiguration" as NSString)
 
         if request.isAsync, let promiseState {
-            registerAsyncBridge(openclip: openclip, context: jsContext, promiseState: promiseState, session: session)
+            registerAsyncBridge(
+                openclip: openclip,
+                context: jsContext,
+                promiseState: promiseState,
+                session: session,
+                fetchTasks: fetchTasks
+            )
         }
 
         jsContext.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
@@ -259,6 +268,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let jsResult = jsContext.evaluateScript(wrappedScript)
 
         if timeoutFlag.isTimedOut {
+            fetchTasks.cancelAll()
             throw timeoutError(timeoutSeconds)
         }
 
@@ -271,6 +281,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         if request.isAsync, let promiseState {
             while !promiseState.isSettled {
                 if timeoutFlag.isTimedOut {
+                    fetchTasks.cancelAll()
                     throw timeoutError(timeoutSeconds)
                 }
                 CFRunLoopRunInMode(.defaultMode, 0.05, true)
@@ -305,7 +316,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip: JSValue,
         context: JSContext,
         promiseState: PromiseState,
-        session: URLSession
+        session: URLSession,
+        fetchTasks: FetchTaskBox
     ) {
         let resolveBlock: @convention(block) (JSValue) -> Void = { value in
             promiseState.resolve(value)
@@ -326,25 +338,36 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
         let nativeFetchBlock: @convention(block) (String, JSValue, JSValue, JSValue) -> Void = { urlString, options, resolve, reject in
             guard let url = URL(string: urlString) else {
-                reject.call(withArguments: [Self.jsError("Invalid URL: \(urlString)", in: context)])
+                guard let err = Self.jsError("Invalid URL: \(urlString)", in: context) else { return }
+                reject.call(withArguments: [err])
                 return
             }
             let request = Self.makeURLRequest(url: url, options: options)
             let resolveBox = JSValueBox(resolve)
             let rejectBox = JSValueBox(reject)
-            session.dataTask(with: request) { data, response, error in
+            var task: URLSessionDataTask?
+            task = session.dataTask(with: request) { data, response, error in
+                if let task {
+                    fetchTasks.remove(task)
+                }
                 let body = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 let errorMessage = error.map { "Fetch failed: \($0.localizedDescription)" }
                 CFRunLoopPerformBlock(runLoopBox.runLoop, CFRunLoopMode.defaultMode.rawValue) {
                     if let errorMessage {
-                        rejectBox.value.call(withArguments: [Self.jsError(errorMessage, in: contextBox.context)])
-                    } else {
-                        resolveBox.value.call(withArguments: [Self.fetchResponse(status: status, body: body, context: contextBox.context)])
+                        if let err = Self.jsError(errorMessage, in: contextBox.context) {
+                            rejectBox.value.call(withArguments: [err])
+                        }
+                    } else if let resp = Self.fetchResponse(status: status, body: body, context: contextBox.context) {
+                        resolveBox.value.call(withArguments: [resp])
                     }
                 }
                 CFRunLoopWakeUp(runLoopBox.runLoop)
-            }.resume()
+            }
+            if let task {
+                fetchTasks.add(task)
+                task.resume()
+            }
         }
         openclip.setObject(nativeFetchBlock, forKeyedSubscript: "__nativeFetch" as NSString)
     }
@@ -383,8 +406,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
     }
 
     /// Builds the JS response object: `{ status, ok, text(), json() }`.
-    private static func fetchResponse(status: Int, body: String, context: JSContext) -> JSValue {
-        let response = JSValue(newObjectIn: context)!
+    private static func fetchResponse(status: Int, body: String, context: JSContext) -> JSValue? {
+        guard let response = JSValue(newObjectIn: context) else { return nil }
         response.setObject(status, forKeyedSubscript: "status")
         response.setObject(status >= 200 && status < 300, forKeyedSubscript: "ok")
 
@@ -401,7 +424,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
                 return object
             }
             Log.js.debug("response.json() received non-JSON body")
-            contextBox.context.exception = jsError("Invalid JSON response", in: contextBox.context)
+            if let err = jsError("Invalid JSON response", in: contextBox.context) {
+                contextBox.context.exception = err
+            }
             return NSNull()
         }
         response.setObject(jsonBlock, forKeyedSubscript: "json")
@@ -409,12 +434,12 @@ public final class OpenClipJSHost: @unchecked Sendable {
     }
 
     /// Creates a JS `Error` value (falls back to a plain object if the Error constructor is gone).
-    private static func jsError(_ message: String, in context: JSContext) -> JSValue {
+    private static func jsError(_ message: String, in context: JSContext) -> JSValue? {
         if let errorConstructor = context.objectForKeyedSubscript("Error"),
            !errorConstructor.isUndefined, !errorConstructor.isNull {
             return errorConstructor.call(withArguments: [message])
         }
-        return JSValue(object: ["message": message], in: context)!
+        return JSValue(object: ["message": message], in: context)
     }
 
     /// True when a JS result is a promise-like (has a `then` function) that cannot be awaited in
@@ -561,15 +586,17 @@ public final class OpenClipJSHost: @unchecked Sendable {
         captures: [String],
         sourceApp: AppIdentity,
         options: [String: String]
-    ) -> JSValue {
-        let openclip = JSValue(newObjectIn: jsContext)!
+    ) -> JSValue? {
+        guard let openclip = JSValue(newObjectIn: jsContext),
+              let input = JSValue(newObjectIn: jsContext),
+              let app = JSValue(newObjectIn: jsContext) else {
+            return nil
+        }
 
-        let input = JSValue(newObjectIn: jsContext)!
         input.setObject(text, forKeyedSubscript: "text")
         input.setObject(matchedText, forKeyedSubscript: "matchedText")
         input.setObject(captures, forKeyedSubscript: "captures")
 
-        let app = JSValue(newObjectIn: jsContext)!
         app.setObject(sourceApp.bundleIdentifier ?? "", forKeyedSubscript: "bundleID")
         app.setObject(sourceApp.localizedName ?? "", forKeyedSubscript: "name")
         input.setObject(app, forKeyedSubscript: "app")

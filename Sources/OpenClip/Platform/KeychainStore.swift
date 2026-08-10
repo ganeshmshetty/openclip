@@ -8,8 +8,18 @@ import Security
 
 enum KeychainStore {
     private static let defaultService = "com.openclip.app"
+    private static let isRunningInTest: Bool = {
+        NSClassFromString("XCTestCase") != nil || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }()
+    private static let lock = NSLock()
+    private nonisolated(unsafe) static var _inMemoryStore: [String: String] = [:]
 
     static func get(account: String, service: String = defaultService) -> String? {
+        if isRunningInTest {
+            lock.lock()
+            defer { lock.unlock() }
+            return _inMemoryStore["\(service).\(account)"]
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -25,6 +35,12 @@ enum KeychainStore {
 
     @discardableResult
     static func set(_ value: String, account: String, service: String = defaultService) -> Bool {
+        if isRunningInTest {
+            lock.lock()
+            _inMemoryStore["\(service).\(account)"] = value
+            lock.unlock()
+            return true
+        }
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -66,6 +82,12 @@ enum KeychainStore {
 
     @discardableResult
     static func delete(account: String, service: String = defaultService) -> Bool {
+        if isRunningInTest {
+            lock.lock()
+            _inMemoryStore.removeValue(forKey: "\(service).\(account)")
+            lock.unlock()
+            return true
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

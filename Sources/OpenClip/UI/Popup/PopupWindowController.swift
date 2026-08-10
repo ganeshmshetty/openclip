@@ -81,8 +81,8 @@ public class PopupWindowController {
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let tempFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: CGSize(width: 320, height: 54), in: screenBounds)
-        cardAbove = tempFrame.minY < screenBounds.minY + 280
+            for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds)
+        cardAbove = tempFrame.minY < screenBounds.minY + Constants.cardAboveThreshold
 
         modeStore.mode = .actions
         modeStore.searchResultsAbove = cardAbove
@@ -123,7 +123,8 @@ public class PopupWindowController {
             onResult: { [weak self] result in
                 guard let self else { return }
                 // Decision 8: dismissal is decided once on the top-level result; the tree-walk never
-                // hides per-item.
+                // hides per-item. `hide()` runs before `handleActionResult` so `exitKeyMode()` reactivates
+                // the target source app before any synthetic keyboard events (.paste, .cut, etc.) are posted.
                 if result.dismissesPopup {
                     self.hide()
                 }
@@ -132,7 +133,7 @@ public class PopupWindowController {
             onContentSizeChange: { [weak self] size in
                 self?.resizePanel(to: size)
             },
-                        onAIStateChange: { _, _ in },
+            onAIStateChange: { _, _ in },
             onAIResult: { [weak self] text, isError in
                 self?.showAIContent(text: text, isError: isError)
             },
@@ -147,9 +148,15 @@ public class PopupWindowController {
             }
         )
         panel.contentView = NSHostingView(rootView: rootView)
-        
         panel.contentView?.layoutSubtreeIfNeeded()
         let size = sanitizedPopupSize(panel.contentView?.fittingSize)
+
+        // Compute card direction from real screen position using the actual rendered panel size.
+        let calculatedFrame = PopupPositioner.calculateFrame(
+            for: context, popupSize: size, in: screenBounds)
+        cardAbove = calculatedFrame.minY < screenBounds.minY + Constants.cardAboveThreshold
+        modeStore.searchResultsAbove = cardAbove
+
         positionPanel(panel, size: size, for: context)
         // Placement is fixed; any subsequent content-driven width change (search palette,
         // pagination) must re-center rather than drift off the cursor.
@@ -216,7 +223,9 @@ public class PopupWindowController {
     /// stays active throughout.
     public func enterSearch(with scope: SearchScope? = nil) {
         guard panel?.isVisible == true else { return }
-        modeStore.scope = scope
+        if modeStore.mode != .search || scope != nil {
+            modeStore.scope = scope
+        }
         modeStore.mode = .search
         // Content-driven growth keeps the panel's bottom edge fixed (results render above the field,
         // so growth must extend upward); see PopupPanel.setFrame.
@@ -480,18 +489,11 @@ public class PopupWindowController {
     /// Resize the bar/search panel, keeping the field's edge fixed so entering search mode never
     /// jumps the popup. With results below the field the field is at the palette top (anchor the top
     /// edge, grow down); with results above the field the field is at the palette bottom (anchor the
-    /// bottom edge, grow up). Horizontal re-centering is handled by PopupPanel.setFrame
-    /// (`recenterXOnResize`), which is the single funnel the hosting view's auto-resize also uses.
+    /// bottom edge, grow up). Horizontal re-centering and screen/height clamping are handled by
+    /// `PopupPanel.setFrame`, which is the single funnel the hosting view's auto-resize also uses.
     private func resizePanel(to proposedSize: CGSize) {
         guard let panel, panel.isVisible else { return }
-        var size = sanitizedPopupSize(proposedSize)
-        let screenBounds = panel.screen?.visibleFrame
-            ?? NSScreen.main?.visibleFrame
-            ?? NSRect(x: 0, y: 0, width: 800, height: 600)
-        let maxWidth = max(0, screenBounds.width - Constants.popupPadding * 2)
-        size.width = min(size.width, maxWidth)
-        // Cap the search palette height so a long result list scrolls instead of stretching off-screen.
-        size.height = min(size.height, Constants.popupMaxHeight)
+        let size = sanitizedPopupSize(proposedSize)
         let current = panel.frame.size
         if abs(current.width - size.width) < 1, abs(current.height - size.height) < 1 { return }
         if modeStore.searchResultsAbove {
@@ -540,6 +542,7 @@ public class PopupWindowController {
         modeStore.mode = .actions
         modeStore.scope = nil
         panel?.pinBottomEdgeOnResize = false
+        panel?.recenterXOnResize = false
         exitKeyMode() // allowsKey=false + reactivate previousFrontmostApp
         previousFrontmostApp = nil // hide() is the only thing that ends the key-mode session
         panel?.orderOut(nil)
@@ -777,10 +780,10 @@ public class PopupWindowController {
     /// Re-activates the canvas's key state after a keyboard-delivered effect, but only when the canvas
     /// is still open in content mode (a collapsed canvas — Esc/hide — must not regain key status).
     private func restoreCanvasKeyState() {
-        guard modeStore.mode == .content, canvasSessionController.session != nil, panel?.isVisible == true else { return }
+        guard modeStore.mode == .content, let session = canvasSessionController.session, panel?.isVisible == true else { return }
         panel?.allowsKey = true
         panel?.makeKeyAndOrderFront(nil)
-        canvasSessionController.refocus()
+        canvasSessionController.requestFocus(session.focusedComponentID ?? session.tree.firstInteractiveID())
     }
 
     private enum KeyboardEffectDeliveryError: LocalizedError {

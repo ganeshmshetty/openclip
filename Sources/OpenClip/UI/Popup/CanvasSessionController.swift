@@ -124,12 +124,6 @@ public final class CanvasSessionController {
         session?.requestFocus(id)
     }
 
-    /// Re-apply focus after a key-restore cycle: re-requests the current focus target, which bumps
-    /// the focus generation so the renderer re-applies on the next run loop.
-    public func refocus() {
-        session?.requestFocus(session?.focusedComponentID)
-    }
-
     /// Focus restore (§4.2): submit → re-focus targetID; change from a textField (blur) → skip;
     /// change from a toggle → keep focus on the toggle; missing target → firstInteractiveID.
     private func restoreFocus(after event: CanvasEvent, in session: CanvasSession) {

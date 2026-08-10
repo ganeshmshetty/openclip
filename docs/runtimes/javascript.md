@@ -114,11 +114,10 @@ throws `Script timed out after N seconds` after `Constants.scriptTimeout` (30 s;
 
 **Synchronous evaluations are capped.** A CPU-bound synchronous script cannot be interrupted
 (`JSVirtualMachine.invalidate` no longer exists), so a stuck sync script would permanently park a
-cooperative-pool thread. `OpenClipJSHost` refuses new synchronous evaluations once
-`Constants.maxConcurrentSyncScriptEvaluations` (4) are in flight — logging at `.error` and
-throwing — so thread accumulation stays bounded. Async evaluations are not gated: the watchdog +
-promise pump loop bounds them instead. (Residual: an async-mode script with a top-level
-*synchronous* infinite loop still blocks inside `evaluateScript`; see `known-debt.md`.)
+cooperative-pool thread. `OpenClipJSHost` refuses new synchronous evaluations (including the top-level
+synchronous evaluation phase of async scripts) once `Constants.maxConcurrentSyncScriptEvaluations` (4)
+are in flight — logging at `.error` and throwing — so thread accumulation stays bounded. (Once an async
+script enters its promise pump loop, the sync gate is released while the watchdog + pump loop bounds the async phase.)
 
 > **Compiler landmine:** inside the `Task.detached` closure, static members must be referenced by
 > the explicit type name (`OpenClipJSHost.execute(...)`), never `Self.execute(...)`. `Self.x` in a

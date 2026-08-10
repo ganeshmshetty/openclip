@@ -19,7 +19,6 @@ public enum CanvasJSRuntimeError: Error, Sendable, Equatable {
 
 public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable {
     private let lock = NSLock()
-    private var _virtualMachine: JSVirtualMachine?
     private var _scriptCode: String = ""
     private var _timeoutOverride: TimeInterval?
 

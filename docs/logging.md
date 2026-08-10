@@ -72,6 +72,9 @@ untouched. Noteworthy behaviours:
   process termination can print nothing). The CLI dump therefore captures the *current* process.
 - **Privacy is preserved.** `privacy: .public`/`.auto` values show in full; `.private` shows as
   `<private>` — same as external tooling.
+- **The store runs only during `--dump-logs`.** Normal app launches never start it: each poll is
+  an `OSLogStore` scan that keeps `OSLogService.xpc` burning double-digit CPU for the process's
+  whole lifetime. The `--dump-logs` path starts it, dumps, and exits.
 
 ### `--dump-logs` CLI
 

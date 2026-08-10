@@ -104,15 +104,25 @@ public enum CanvasScriptBox {
         if let existing = context.objectForKeyedSubscript("openclip"), !existing.isUndefined, !existing.isNull, existing.isObject {
             openclip = existing
         } else {
-            openclip = JSValue(newObjectIn: context)!
+            guard let created = JSValue(newObjectIn: context) else {
+                collector.parseError = CanvasJSRuntimeError.scriptException("Could not create openclip JSValue")
+                return
+            }
+            openclip = created
         }
 
         // Input object
-        let inputObj = JSValue(newObjectIn: context)!
+        guard let inputObj = JSValue(newObjectIn: context) else {
+            collector.parseError = CanvasJSRuntimeError.scriptException("Could not create input JSValue")
+            return
+        }
         inputObj.setObject(input, forKeyedSubscript: "text" as NSString)
         inputObj.setObject(input, forKeyedSubscript: "matchedText" as NSString)
         inputObj.setObject(captures, forKeyedSubscript: "captures" as NSString)
-        let appObj = JSValue(newObjectIn: context)!
+        guard let appObj = JSValue(newObjectIn: context) else {
+            collector.parseError = CanvasJSRuntimeError.scriptException("Could not create app JSValue")
+            return
+        }
         appObj.setObject(sourceApp?.bundleIdentifier ?? "", forKeyedSubscript: "bundleID" as NSString)
         appObj.setObject(sourceApp?.localizedName ?? "", forKeyedSubscript: "name" as NSString)
         inputObj.setObject(appObj, forKeyedSubscript: "app" as NSString)

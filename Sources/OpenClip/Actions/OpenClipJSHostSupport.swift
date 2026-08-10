@@ -95,19 +95,72 @@ final class EffectsBox: @unchecked Sendable {
 }
 
 /// Settled by the promise bridge on the JS thread (via `openclip.__resolve`/`__reject`) and read by
-/// the host's pump loop on that same thread.
+/// the host's pump loop on that same thread. Lock-guarded so property access across threads/closures is safe.
 final class PromiseState: @unchecked Sendable {
-    private(set) var isSettled = false
-    private(set) var resolvedValue: JSValue?
-    private(set) var rejectedValue: JSValue?
+    private let lock = NSLock()
+    private var _isSettled = false
+    private var _resolvedValue: JSValue?
+    private var _rejectedValue: JSValue?
+
+    var isSettled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _isSettled
+    }
+
+    var resolvedValue: JSValue? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _resolvedValue
+    }
+
+    var rejectedValue: JSValue? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _rejectedValue
+    }
 
     func resolve(_ value: JSValue) {
-        resolvedValue = value
-        isSettled = true
+        lock.lock()
+        defer { lock.unlock() }
+        guard !_isSettled else { return }
+        _resolvedValue = value
+        _isSettled = true
     }
 
     func reject(_ error: JSValue) {
-        rejectedValue = error
-        isSettled = true
+        lock.lock()
+        defer { lock.unlock() }
+        guard !_isSettled else { return }
+        _rejectedValue = error
+        _isSettled = true
+    }
+}
+
+/// Thread-safe container to track active URLSessionDataTasks so they can be cancelled on watchdog timeout.
+final class FetchTaskBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var tasks: [URLSessionDataTask] = []
+
+    func add(_ task: URLSessionDataTask) {
+        lock.lock()
+        defer { lock.unlock() }
+        tasks.append(task)
+    }
+
+    func remove(_ task: URLSessionDataTask) {
+        lock.lock()
+        defer { lock.unlock() }
+        tasks.removeAll(where: { $0 === task })
+    }
+
+    func cancelAll() {
+        lock.lock()
+        let currentTasks = tasks
+        tasks.removeAll()
+        lock.unlock()
+        for task in currentTasks {
+            task.cancel()
+        }
     }
 }
