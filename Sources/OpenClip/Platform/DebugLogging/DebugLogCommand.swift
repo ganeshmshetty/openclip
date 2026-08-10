@@ -56,9 +56,11 @@ enum DebugLogCommand {
                 default:
                     return .usageError("Unknown flag '\(arg)'")
                 }
-            } else {
+            } else if arg.hasPrefix("--") {
                 return .usageError("Unknown flag '\(arg)'")
             }
+            // else: ignore non-`--` arguments. Framework/launcher-owned args (e.g. XCTest's
+            // `-NSTreatUnknownArgumentsAsOpen`) must not abort a normal app launch.
             index += 1
         }
         return sawDump ? .dumpLogs(options) : .none
