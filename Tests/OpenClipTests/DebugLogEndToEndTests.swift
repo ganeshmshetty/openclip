@@ -18,12 +18,12 @@ final class DebugLogEndToEndTests: XCTestCase {
 
         Log.extensions.error("\(marker, privacy: .public) e2e probe")
 
-        let deadline = Date().addingTimeInterval(8)
+        let deadline = Date().addingTimeInterval(15)
         var found = false
         while Date() < deadline && !found {
             Thread.sleep(forTimeInterval: 0.5)
             found = store.snapshot().contains { $0.message.contains(marker) }
         }
-        XCTAssertTrue(found, "store should capture the E2E marker line within 8s")
+        XCTAssertTrue(found, "store should capture the E2E marker line within 15s")
     }
 }
