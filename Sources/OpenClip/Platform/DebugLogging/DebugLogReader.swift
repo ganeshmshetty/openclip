@@ -38,6 +38,7 @@ final class UnifiedLogReader: LogReading, @unchecked Sendable {
     }
 
     func read(after cursor: Date?, limit: Int) throws -> [DebugLogEntry] {
+        guard limit > 0 else { return [] }
         guard let store else { return [] }
         let position = store.position(date: cursor ?? .distantPast)
         let predicate = NSPredicate(format: "subsystem == %@", Log.subsystem)
