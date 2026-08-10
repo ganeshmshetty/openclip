@@ -79,11 +79,11 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
         try writeFile("manifest_ext.openclipext/openclip.json")
 
         watcher.pollOnce() // first differing tick
-        let count = await probe.settle()
+        let count = await probe.fire()
         XCTAssertEqual(count, 0, "A single differing tick must not fire yet")
 
         watcher.pollOnce() // second agreeing tick → settle
-        let countAfterSettle = await probe.settle()
+        let countAfterSettle = await probe.fire()
         XCTAssertEqual(countAfterSettle, 1)
     }
 
@@ -100,11 +100,11 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
 
         try writeFile("b.sh") // still mid-change
         watcher.pollOnce() // tick 2: pending slides forward, not settled
-        let count = await probe.settle()
+        let count = await probe.fire()
         XCTAssertEqual(count, 0)
 
         watcher.pollOnce() // tick 3: agrees with tick 2 → settle
-        let countAfterSettle = await probe.settle()
+        let countAfterSettle = await probe.fire()
         XCTAssertEqual(countAfterSettle, 1)
     }
 
@@ -118,7 +118,7 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
 
         watcher.pollOnce()
         watcher.pollOnce()
-        let count = await probe.settle()
+        let count = await probe.fire()
         XCTAssertEqual(count, 0)
     }
 
@@ -133,29 +133,72 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
         try writeFile("a.sh")
         watcher.pollOnce()
         watcher.pollOnce()
-        let count = await probe.settle()
+        let count = await probe.fire()
         XCTAssertEqual(count, 1)
 
         // Directory disappears wholesale — must not fire (would be a transient state).
         try FileManager.default.removeItem(at: tempDir)
         watcher.pollOnce()
-        let count2 = await probe.settle()
+        let count2 = await probe.fire()
         XCTAssertEqual(count2, 1)
     }
 
-    /// Counts reload invocations. `bump` is MainActor so reading the count after a
-    /// `Task.sleep(for: .milliseconds(50))` guarantees the reload Task has run.
+    @MainActor
+    func testWatcherRunsDeferredReloadAfterInFlightReloadCompletes() async throws {
+        let probe = ReloadProbe()
+        let watcher = ExtensionsDirectoryWatcher(reload: { await probe.bump() })
+        watcher.start(watching: tempDir, interval: 3600)
+        defer { watcher.stop() }
+        watcher.pollOnce()
+
+        try writeFile("a.sh")
+        watcher.pollOnce()
+        watcher.pollOnce() // settle → reload 1 starts, suspends in bump()
+
+        // Wait until reload 1 is genuinely in flight (bump suspended).
+        while probe.isInFlight == false {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        var count = await probe.fire()
+        XCTAssertEqual(count, 1)
+
+        // A change settles while reload 1 is still running — must not fire a second in parallel.
+        try writeFile("b.sh")
+        watcher.pollOnce()
+        watcher.pollOnce()
+        count = await probe.fire()
+        XCTAssertEqual(count, 1, "No parallel reload while one is in flight")
+
+        // Release reload 1; the deferred reload 2 must then fire exactly once.
+        probe.release()
+        let finalCount = await probe.fire()
+        XCTAssertEqual(finalCount, 2)
+        probe.release() // unblock any leftover suspended bump
+    }
+
+    /// Counts reload invocations, with an optional suspend gate for testing the reload
+    /// coalescing path. MainActor so tests read the count after a yield.
     @MainActor
     private final class ReloadProbe {
         private(set) var fireCount = 0
+        private var suspended: [CheckedContinuation<Void, Never>] = []
+        private(set) var isInFlight = false
 
         func bump() async {
             fireCount += 1
+            isInFlight = true
+            await withCheckedContinuation { suspended.append($0) }
+            isInFlight = false
         }
 
-        func settle() async -> Int {
+        func fire() async -> Int {
             try? await Task.sleep(for: .milliseconds(50))
             return fireCount
+        }
+
+        func release() {
+            suspended.forEach { $0.resume() }
+            suspended.removeAll()
         }
     }
 }

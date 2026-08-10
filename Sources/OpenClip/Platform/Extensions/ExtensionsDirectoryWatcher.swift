@@ -62,6 +62,8 @@ final class ExtensionsDirectoryWatcher: @unchecked Sendable {
     private var root: URL?
     private var lastSeen: ExtensionsSnapshot?
     private var pending: ExtensionsSnapshot?
+    private var reloadInFlight = false
+    private var needsReload = false
 
     init(reload: @escaping @MainActor () async -> Void) {
         self.reload = reload
@@ -126,9 +128,36 @@ final class ExtensionsDirectoryWatcher: @unchecked Sendable {
         // Two consecutive ticks agree on the changed tree → settled.
         lastSeen = current
         self.pending = nil
+        guard !reloadInFlight else {
+            // A reload is already running; remember that another is needed and run it once
+            // the in-flight one completes (see reloadCompleted). This keeps concurrent
+            // loadExtensions runs from racing the registry's register/unregister.
+            needsReload = true
+            return
+        }
         Log.extensions.notice("Extensions directory changed; reloading extensions")
-        Task { @MainActor in
-            await reload()
+        dispatchReload()
+    }
+
+    /// Starts a reload task on the MainActor. Called from `queue` so the in-flight flags stay confined.
+    private func dispatchReload() {
+        reloadInFlight = true
+        Task { @MainActor [weak self] in
+            await self?.reload()
+            self?.reloadCompleted()
+        }
+    }
+
+    /// Runs on the MainActor (after `reload`). Hops back to `queue` to clear the in-flight flag
+    /// and fire the deferred reload, if any change settled while the previous one was running.
+    private func reloadCompleted() {
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.reloadInFlight = false
+            guard self.needsReload else { return }
+            self.needsReload = false
+            Log.extensions.notice("Extensions directory changed while reloading; reloading again")
+            self.dispatchReload()
         }
     }
 }
