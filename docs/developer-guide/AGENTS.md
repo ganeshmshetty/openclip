@@ -684,12 +684,20 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 
 ## 10. Develop / iterate / test workflow
 
-1. **Author** the folder: `mkdir ~/my-ext.openclipext && nano ~/my-ext.openclipext/openclip.json`
+1. **Scaffold or author** the folder. To start from a known-valid template, run
+   `./scripts/new_extension.sh <Name> [--type canvas|js|group|url]` — it writes a reverse-DNS
+   `openclip.json` (+ `main.js` for canvas/js) into `Extensions/raw/<Name>.openclipext/` and runs
+   the validator before reporting success. To author by hand:
+   `mkdir ~/my-ext.openclipext && nano ~/my-ext.openclipext/openclip.json`
    (plus any `script.sh`/`main.js`/scripts it references, and optional local icon files).
 2. **Install** by copying into `~/.openclip/extensions`:
    `./scripts/install_extension.sh ~/my-ext.openclipext`
    (the script runs `cp -R` into `~/.openclip/extensions`; a `.zip` or standalone script file is
-   unpacked/copied accordingly if installed through the app's installer).
+   unpacked/copied accordingly if installed through the app's installer). Before copying, directory
+   and `.zip` sources are checked against the loader's manifest rules by
+   `scripts/validate_extension.sh` — the same rejects (unknown `type`, missing required field or
+   payload, bad/capability'd manifest, missing referenced script file) the app applies at load, so
+   an invalid package is **rejected here** (exit 1, nothing copied) instead of loading silently.
 3. **Reload**: the app scans `~/.openclip/extensions` at **startup** (`ActionCoordinator`
    `loadInitialState` → `ExtensionManager.loadExtensions`), so quit and relaunch OpenClip, or
    trigger a reload from the Preferences → Extensions UI (the in-app install/uninstall paths call
@@ -699,6 +707,11 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 5. **Iterate**: edit the folder and relaunch/reload; no build is needed.
 
 ### Common failure modes
+
+> `install_extension.sh`/`new_extension.sh` now surface most of these **before** the app loads them
+> (via `scripts/validate_extension.sh`), so a rejected install is typically caught at install time.
+> The load-time behavior below only applies to extensions that were never routed through the scripts
+> — or to failures the shell validator can't see (e.g. JS syntax errors, runtime kinds).
 
 - **Bad/invalid manifest = rejected and logged.** A manifest that fails to decode (malformed JSON,
   missing `identifier`/`name`) or fails validation (an unknown `type`, a `keypress`/`shortcut`
