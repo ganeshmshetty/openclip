@@ -109,9 +109,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: ServicesAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
-        }
-
-        Task {
             try? await Task.sleep(for: .seconds(options.collectSeconds))
             let entries = DebugLogStore.shared.entries(matching: options.filter)
             print("OpenClip log dump (\(entries.count) entr\(entries.count == 1 ? "y" : "ies"))")
