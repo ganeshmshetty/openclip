@@ -134,6 +134,33 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "Copied")
     }
 
+    // MARK: - Console shim
+
+    /// `console.log` must not throw a ReferenceError that breaks the action; it routes to Log.js
+    /// and the script still completes normally. Covers variadic args + object formatting.
+    func testConsoleLogShimDoesNotThrowAndActionSucceeds() async throws {
+        let result = try await host.run(makeRequest(script: """
+            console.log('hello', 42, { a: 1 });
+            function action() { return 'ok'; }
+            """))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "ok")
+    }
+
+    /// The console shim must also be installed for async scripts (fetch path).
+    func testConsoleLogShimWorksInAsyncScript() async throws {
+        let result = try await host.run(makeRequest(script: """
+            console.log('async start');
+            async function action() { return 'ok'; }
+            """, isAsync: true))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "ok")
+    }
+
     func testShowContentReturnsElementTree() async throws {
         let script = "openclip.showContent(h('stack', {}, [h('text', { content: 'Hello' }), h('button', { title: 'Paste', handler: 'x' })]));"
         let result = try await host.run(makeRequest(script: script))

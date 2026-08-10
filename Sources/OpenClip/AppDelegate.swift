@@ -64,7 +64,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             await ActionCoordinator.shared.loadInitialState()
             ActionCoordinator.shared.register(action: CompletionAction())
             ActionCoordinator.shared.register(action: OpenURLAction())
-            ActionCoordinator.shared.register(action: ServicesAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
             // Register each AI preset as an individual action (palette + Preferences → Actions).
             aiActionSync = AIActionSync.shared
@@ -88,7 +87,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         selectionMonitor = macMonitor
         
         let isGranted = PermissionManager.shared.isAccessibilityGranted
-        let completedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+        let completedOnboarding = DefaultSettingsStore.shared.get(.hasCompletedOnboarding)
         
         if !isGranted || !completedOnboarding {
             showOnboarding()
@@ -125,7 +124,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             await ActionCoordinator.shared.loadInitialState()
             ActionCoordinator.shared.register(action: CompletionAction())
             ActionCoordinator.shared.register(action: OpenURLAction())
-            ActionCoordinator.shared.register(action: ServicesAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
             try? await Task.sleep(for: .seconds(options.collectSeconds))
             let entries = DebugLogStore.shared.entries(matching: options.filter)

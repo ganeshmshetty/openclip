@@ -730,67 +730,18 @@ public class PopupWindowController {
         }
     }
 
-    /// Canvas leaf effects never dismiss the popup (§1, §6). Single door for dispatch-collected AND
-    /// view-driven canvas effects (onCanvasEffect routes here too): keyboard-delivered effects go
-    /// through deliverKeyboardEffect; every other leaf executes with dismissal suppressed — never
-    /// hide(). There is no legacy handleEffect path — see the onCanvasEffect wiring above.
+    /// Canvas leaf effects: if the effect dismisses the popup (.paste, .cut, .simulatePaste, .keyPress, etc.),
+    /// hide() first so exitKeyMode() reactivates the target app, then handle the result — matching search
+    /// and bar action execution. Non-dismissing effects (.copy, .keepVisible, etc.) execute without dismissal.
     private func handleCanvasEffects(_ effects: [CanvasEffect]) {
         for effect in effects {
-            switch effect {
-            case .paste, .cut, .keyPress, .simulatePaste:
-                Task { await self.deliverKeyboardEffect(effect) }
-            default:
-                Task { @MainActor in
-                    await resultHandler.handleWithoutDismissal(effect.asActionResult, in: nil)
-                }
+            let result = effect.asActionResult
+            if effect.dismissesPopup {
+                hide()
+                handleActionResult(result)
+            } else {
+                _ = handleEffect(result)
             }
-        }
-    }
-
-    /// A keyboard-delivered effect (.paste/.cut/.keyPress/.simulatePaste) is posted via CGEvent to the
-    /// frontmost key window — which is the canvas itself while key. Resign key, activate the source app,
-    /// post, then restore key + refocus when the canvas stays open (§7). The effect is only delivered
-    /// when a source app was captured and is actually frontmost after the activation wait; otherwise the
-    /// post would go to the wrong window, so we surface a status error and restore the canvas instead.
-    private func deliverKeyboardEffect(_ effect: CanvasEffect) async {
-        let wasKey = panel?.allowsKey == true
-        if wasKey {
-            panel?.allowsKey = false
-            var activationSucceeded = false
-            if let targetApp = previousFrontmostApp {
-                targetApp.activate(options: [.activateAllWindows])
-                let deadline = Date().addingTimeInterval(0.15)
-                while NSWorkspace.shared.frontmostApplication != targetApp, Date() < deadline {
-                    try? await Task.sleep(nanoseconds: 10_000_000)
-                }
-                activationSucceeded = NSWorkspace.shared.frontmostApplication == targetApp
-            }
-            guard activationSucceeded else {
-                presentStatus(StatusFeedback(error: KeyboardEffectDeliveryError.activationFailed))
-                restoreCanvasKeyState()
-                return
-            }
-        }
-        await handleEffect(effect.asActionResult).value
-        if wasKey {
-            restoreCanvasKeyState()
-        }
-    }
-
-    /// Re-activates the canvas's key state after a keyboard-delivered effect, but only when the canvas
-    /// is still open in content mode (a collapsed canvas — Esc/hide — must not regain key status).
-    private func restoreCanvasKeyState() {
-        guard modeStore.mode == .content, let session = canvasSessionController.session, panel?.isVisible == true else { return }
-        panel?.allowsKey = true
-        panel?.makeKeyAndOrderFront(nil)
-        canvasSessionController.requestFocus(session.focusedComponentID ?? session.tree.firstInteractiveID())
-    }
-
-    private enum KeyboardEffectDeliveryError: LocalizedError {
-        case activationFailed
-
-        var errorDescription: String? {
-            "Could not deliver the keyboard effect: the source app could not be activated"
         }
     }
 

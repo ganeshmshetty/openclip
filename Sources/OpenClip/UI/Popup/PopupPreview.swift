@@ -19,7 +19,6 @@ struct PopupPreview: View {
         CopyAction(),
         CutAction(),
         PasteAction(),
-        ServicesAction(),
         AIToolsAction()
     ]
 

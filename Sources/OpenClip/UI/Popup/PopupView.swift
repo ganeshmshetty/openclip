@@ -94,7 +94,7 @@ public struct PopupView: View {
 
     private let buttonWidth: CGFloat = 36
     private let chevronWidth: CGFloat = 26
-    private let barButtonHeight: CGFloat = 24
+    private let barButtonHeight: CGFloat = 26
     private let pageSize = 7
 
 

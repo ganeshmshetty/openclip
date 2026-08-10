@@ -173,6 +173,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let promiseState = request.isAsync ? PromiseState() : nil
         let fetchTasks = FetchTaskBox()
 
+        // Give scripts a global `console.log` before anything runs, so it routes to Log.js instead
+        // of throwing a ReferenceError that breaks the action.
+        installConsoleShim(in: jsContext, actionID: request.actionID)
+
         // Read-only input context. Options are injected as a plain dictionary (values resolved via
         // the option store); `option(id)` is a functional form over the same dictionary.
         let optionsDict = optionValues(for: request)
@@ -447,6 +451,50 @@ public final class OpenClipJSHost: @unchecked Sendable {
     private static func isPromiseLike(_ value: JSValue) -> Bool {
         guard value.isObject, let then = value.objectForKeyedSubscript("then") else { return false }
         return !then.isUndefined && !then.isNull && then.isObject
+    }
+
+    // MARK: - Console shim
+
+    /// Installs a global `console` object with a `log` method that routes to `Log.js`. Without this,
+    /// `console.log(...)` throws a `ReferenceError` that the JSContext surfaces as
+    /// `.showStatus(.error)` and breaks the action. To prevent leaking sensitive text, clipboard, or
+    /// extension data, arguments are redacted into non-sensitive metadata (type, length, object keys)
+    /// before forwarding to `Log.js`.
+    private static func installConsoleShim(in context: JSContext, actionID: String) {
+        guard let console = JSValue(newObjectIn: context) else { return }
+        let logBlock: @convention(block) (String) -> Void = { message in
+            Log.js.info("[console.log] action=\(actionID, privacy: .public) \(message)")
+        }
+        console.setObject(logBlock, forKeyedSubscript: "__log" as NSString)
+        context.setObject(console, forKeyedSubscript: "console" as NSString)
+        context.evaluateScript("""
+        console.log = function() {
+            function formatArg(v) {
+                if (v === null) return 'null';
+                if (v === undefined) return 'undefined';
+                var t = typeof v;
+                if (t === 'string') return '<string len=' + v.length + '>';
+                if (t === 'number') return '<number>';
+                if (t === 'boolean') return '<boolean>';
+                if (t === 'function') return '<function>';
+                if (Array.isArray(v)) return '<Array len=' + v.length + '>';
+                if (t === 'object') {
+                    try {
+                        var keys = Object.keys(v);
+                        return '<Object keys=[' + keys.join(', ') + ']>';
+                    } catch (e) {
+                        return '<Object>';
+                    }
+                }
+                return '<' + t + '>';
+            }
+            var parts = [];
+            for (var i = 0; i < arguments.length; i++) {
+                parts.push(formatArg(arguments[i]));
+            }
+            console.__log(parts.join(' '));
+        };
+        """)
     }
 
     private static let fetchPolyfillScript = """

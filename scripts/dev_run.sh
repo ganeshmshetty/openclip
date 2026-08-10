@@ -10,7 +10,7 @@ echo "⚡️ Building Debug build..."
 xcodegen
 xcodebuild -scheme OpenClip -configuration Debug -destination 'platform=macOS,arch=arm64' build > /dev/null
 
-APP_PATH="$(find /Users/ganesh/Library/Developer/Xcode/DerivedData/OpenClip-*/Build/Products/Debug -name "OpenClip.app" | head -n 1)"
+APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData/OpenClip-"*/Build/Products/Debug -name "OpenClip.app" | head -n 1)"
 
 if [ -z "$APP_PATH" ]; then
   echo "Error: Could not find built OpenClip.app in DerivedData"
