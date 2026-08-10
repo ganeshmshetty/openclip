@@ -19,6 +19,9 @@ public enum Constants {
     public static let popupOffset: CGFloat = 16.0
     public static let popupPadding: CGFloat = 8.0
     public static let popupDismissalDistance: CGFloat = 280.0
+    /// Vertical threshold (pt) from the bottom of the screen bounds below which the popup card
+    /// renders above the action bar instead of below (numerically equals `popupDismissalDistance`).
+    public static let cardAboveThreshold: CGFloat = 280.0
     /// Action-search palette sizing: visible result rows and result row height.
     public static let searchMaxRows: Int = 5
     public static let searchResultRowHeight: CGFloat = 32
@@ -28,6 +31,8 @@ public enum Constants {
     /// Shared height cap for the popup panel (search palette field + result rows, and the canvas
     /// body). The code value 240 wins over any stale comment.
     public static let popupMaxHeight: CGFloat = 240
+    /// Measured height of `CanvasHeaderView` (padding 8pt top/bottom + 16pt content height + 1pt hairline divider = 33pt).
+    public static let canvasHeaderHeight: CGFloat = 33.0
     /// Delay before the hover info bubble appears (400ms).
     public static let bubbleHoverDelayNanoseconds: UInt64 = 400_000_000
     /// Delay before the long-press result bubble fires (600ms).

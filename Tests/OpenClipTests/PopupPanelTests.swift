@@ -193,4 +193,26 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertTrue(isTextInputAgain,
                       "search field should be first responder after re-entry, got \(String(describing: panel.firstResponder))")
     }
+
+    func testSetFramePreservesTopEdgeWhenPinBottomEdgeOnResizeIsFalse() {
+        let panel = PopupPanel()
+        panel.pinBottomEdgeOnResize = false
+
+        // Initial frame setup
+        let initialFrame = NSRect(x: 100, y: 500, width: 200, height: 100)
+        panel.setFrame(initialFrame, display: false)
+        XCTAssertEqual(panel.frame.maxY, 600)
+
+        // Path 1: Top-anchored height change (height 250 is clamped to Constants.popupMaxHeight = 240, requested maxY is 600)
+        let heightOnlyChange = NSRect(x: 100, y: 350, width: 200, height: 250)
+        panel.setFrame(heightOnlyChange, display: false)
+        XCTAssertEqual(panel.frame.maxY, 600, "Height-only change must preserve requested top edge (maxY)")
+        XCTAssertEqual(panel.frame.height, Constants.popupMaxHeight)
+        XCTAssertEqual(panel.frame.origin.y, 600 - Constants.popupMaxHeight)
+
+        // Path 2: Repositioning to a new cursor location must respect the new requested origin.y
+        let repositionFrame = NSRect(x: 80, y: 100, width: 200, height: 100)
+        panel.setFrame(repositionFrame, display: false)
+        XCTAssertEqual(panel.frame.origin.y, 100, "Repositioning must place the panel at the requested origin.y")
+    }
 }

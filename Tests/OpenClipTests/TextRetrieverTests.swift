@@ -45,6 +45,27 @@ final class TextRetrieverTests: XCTestCase {
         
         try? await Task.sleep(nanoseconds: UInt64((Constants.pasteboardRestoreDelay + 0.1) * 1_000_000_000))
     }
+
+    @MainActor
+    func testGrabPasteboardPolicyAcceptsMultipleChangeCountIncrements() async throws {
+        let retriever = MacTextRetriever()
+        let currentApp = AppIdentity(NSRunningApplication.current)
+
+        Task {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString("MultiIncrementSelection", forType: .string)
+        }
+
+        let policy = AppPolicyContext(denyFormatting: false, denyProbe: false, denyPreprobe: false, grabPasteboard: true, assumePaste: false)
+
+        let text = await retriever.retrieveText(for: currentApp, policy: policy)
+
+        XCTAssertEqual(text, "MultiIncrementSelection", "MacTextRetriever should accept pasteboard updates where changeCount increases by more than 1")
+
+        try? await Task.sleep(nanoseconds: UInt64((Constants.pasteboardRestoreDelay + 0.1) * 1_000_000_000))
+    }
     
     func testTextResultInitialization() {
         let bounds = CGRect(x: 10, y: 20, width: 100, height: 50)

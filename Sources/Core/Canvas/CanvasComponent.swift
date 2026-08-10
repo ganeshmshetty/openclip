@@ -182,16 +182,11 @@ public struct CanvasImageProps: Sendable, Equatable {
     public var id: String?
     public var source: CanvasImageSource
     public var cornerRadius: Double?
-    /// Optional width/height pair bounding the rendered image in the column (spec §7.1). The
-    /// renderer (`03-session-renderer.md`, Task 12) caps oversized images to this. `CanvasSize`
-    /// is defined in this file.
-    public var size: CanvasSize?
 
-    public init(id: String? = nil, source: CanvasImageSource, cornerRadius: Double? = nil, size: CanvasSize? = nil) {
+    public init(id: String? = nil, source: CanvasImageSource, cornerRadius: Double? = nil) {
         self.id = id
         self.source = source
         self.cornerRadius = cornerRadius
-        self.size = size
     }
 }
 

@@ -12,6 +12,7 @@
 // swapping to the narrower search palette or a shorter pagination page never drifts it off the
 // cursor. Both flags are cleared by `show(for:)` before a fresh placement.
 import AppKit
+import Core
 
 @MainActor
 public class PopupPanel: NSPanel {
@@ -44,27 +45,34 @@ public class PopupPanel: NSPanel {
 
     /// The hosting view auto-resizes the panel window top-anchored when its SwiftUI content grows
     /// (e.g. entering search mode), with no callback to the controller — but every resize funnels
-    /// through `setFrame`, so intercept here and pin the anchored edge(s) before the frame is
-    /// displayed. Pure origin moves (repositioning) and the first placement (zero-sized frame) pass
-    /// through untouched.
+    /// through `setFrame`, so intercept here, clamp maximum width/height bounds, and pin the
+    /// anchored edge(s) before the frame is displayed. Pure origin moves (repositioning) and the
+    /// first placement (zero-sized frame) pass through untouched.
     override public func setFrame(_ frameRect: NSRect, display flag: Bool) {
-        if frame.width > 0, frameRect.width != frame.width {
-            var corrected = frameRect
-            // Preserve the horizontal center across width changes (search palette, pagination) so
-            // the popup stays under the cursor instead of drifting to the top-left anchor.
-            if recenterXOnResize {
-                corrected.origin.x = frame.midX - frameRect.width / 2
-            }
-            if pinBottomEdgeOnResize, frame.height > 0, frameRect.height != frame.height {
-                corrected.origin.y = frame.origin.y
-            }
-            super.setFrame(corrected, display: flag)
-        } else if pinBottomEdgeOnResize, frame.height > 0, frameRect.height != frame.height {
-            var corrected = frameRect
-            corrected.origin.y = frame.origin.y
-            super.setFrame(corrected, display: flag)
-        } else {
-            super.setFrame(frameRect, display: flag)
+        var clamped = frameRect
+        if let screenFrame = screen?.visibleFrame ?? NSScreen.main?.visibleFrame {
+            let maxWidth = max(0, screenFrame.width - Constants.popupPadding * 2)
+            clamped.size.width = min(clamped.size.width, maxWidth)
         }
+        clamped.size.height = min(clamped.size.height, Constants.popupMaxHeight)
+
+        // If height clamping altered the requested height, adjust origin.y to preserve the requested frame's top edge (maxY)
+        if clamped.height != frameRect.height, !pinBottomEdgeOnResize {
+            clamped.origin.y = frameRect.maxY - clamped.height
+        }
+
+        if frame.width > 0, recenterXOnResize, clamped.width != frame.width {
+            clamped.origin.x = frame.midX - clamped.width / 2
+        }
+
+        if frame.height > 0, recenterXOnResize, clamped.height != frame.height {
+            if pinBottomEdgeOnResize {
+                clamped.origin.y = frame.origin.y
+            } else {
+                clamped.origin.y = frame.maxY - clamped.height
+            }
+        }
+
+        super.setFrame(clamped, display: flag)
     }
 }

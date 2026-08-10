@@ -94,6 +94,7 @@ public struct PopupView: View {
 
     private let buttonWidth: CGFloat = 36
     private let chevronWidth: CGFloat = 26
+    private let barButtonHeight: CGFloat = 24
     private let pageSize = 7
 
 
@@ -517,7 +518,7 @@ public struct PopupView: View {
                 Image(systemName: "command")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(isHovered ? .white : affordanceForeground)
-                    .frame(width: buttonWidth, height: 28)
+                    .frame(width: buttonWidth, height: barButtonHeight)
                     .background(isHovered ? Color.accentColor : Color.clear)
                     // Pagination chevrons sit between the last action and this glyph; without a
                     // divider the command icon would appear glued to the chevrons.
@@ -525,7 +526,7 @@ public struct PopupView: View {
                         if (hasLeftChevron || hasRightChevron) && !isHovered {
                             Rectangle()
                                 .fill(dividerColor)
-                                .frame(width: 0.6, height: 28)
+                                .frame(width: 0.6, height: barButtonHeight)
                         }
                     }
                     .contentShape(Rectangle())
@@ -559,13 +560,13 @@ public struct PopupView: View {
                 .foregroundColor(isHovered ? .white : restForeground)
                 .frame(maxWidth: 140)
                 .padding(.horizontal, 10)
-                .frame(minWidth: buttonWidth, minHeight: 28)
+                .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
                 .background(isHovered ? Color.accentColor : Color.clear)
                 .overlay(alignment: .trailing) {
                     if showDivider && !isHovered {
                         Rectangle()
                             .fill(dividerColor)
-                            .frame(width: 0.6, height: 28)
+                            .frame(width: 0.6, height: barButtonHeight)
                     }
                 }
                 .contentShape(Rectangle())
@@ -592,13 +593,13 @@ public struct PopupView: View {
                 if case .text = action.displayIcon(using: presenter) { return 7.0 }
                 return 0.0
             }())
-            .frame(minWidth: buttonWidth, minHeight: 28)
+            .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
             .background(isHovered ? Color.accentColor : Color.clear)
             .overlay(alignment: .trailing) {
                 if showDivider && !isHovered {
                     Rectangle()
                         .fill(dividerColor)
-                        .frame(width: 0.6, height: 28)
+                        .frame(width: 0.6, height: barButtonHeight)
                 }
             }
             .contentShape(Rectangle())
@@ -681,7 +682,7 @@ public struct PopupView: View {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(isHovered ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
-                .frame(width: chevronWidth, height: 28)
+                .frame(width: chevronWidth, height: barButtonHeight)
                 .background(isHovered ? Color.accentColor : Color.clear)
                 .contentShape(Rectangle())
         }

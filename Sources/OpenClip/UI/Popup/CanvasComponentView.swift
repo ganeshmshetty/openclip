@@ -142,7 +142,7 @@ private struct CanvasTree: View {
                 .clipShape(RoundedRectangle(cornerRadius: props.cornerRadius ?? 0, style: .continuous))
         case .button(let props):
             CanvasButtonView(props: props, theme: theme, focusID: focusID,
-                             onEvent: onEvent, onEffect: onEffect)
+                             onEvent: onEvent, onEffect: onEffect, onExitContent: onExitContent)
         case .list(_, let sections):
             ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
                 VStack(alignment: .leading, spacing: 2) {
@@ -172,9 +172,9 @@ private struct CanvasTree: View {
                 onExitContent: onExitContent
             )
         case .toggle(let props):
-            CanvasToggleView(props: props, focusID: focusID, onEvent: onEvent, onEffect: onEffect)
+            CanvasToggleView(props: props, focusID: focusID, onEvent: onEvent, onEffect: onEffect, onExitContent: onExitContent)
         case .link(let props):
-            CanvasLinkView(props: props, focusID: focusID, onEffect: onEffect)
+            CanvasLinkView(props: props, focusID: focusID, onEffect: onEffect, onExitContent: onExitContent)
         }
     }
 
@@ -207,13 +207,8 @@ private struct CanvasTree: View {
     /// directory are rejected via `Constants.isPathSafe` and render the error placeholder.
     @ViewBuilder
     private func canvasImage(_ props: CanvasImageProps) -> some View {
-        if let size = props.size {
-            imageSource(props.source)
-                .frame(width: size.width, height: size.height)
-        } else {
-            imageSource(props.source)
-                .frame(maxWidth: .infinity)
-        }
+        imageSource(props.source)
+            .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -353,6 +348,7 @@ private struct CanvasButtonView: View {
     let focusID: FocusState<String?>.Binding
     let onEvent: (CanvasEvent) -> Void
     let onEffect: (CanvasEffect) -> Void
+    let onExitContent: () -> Void
     @State private var isHovered = false
 
     var body: some View {
@@ -378,6 +374,7 @@ private struct CanvasButtonView: View {
         .disabled(props.disabled)
         .opacity(props.disabled ? 0.5 : 1)
         .applyFocusID(props.id, focusID)
+        .onKeyPress(.escape) { onExitContent(); return .handled }
         .accessibilityLabel(props.title)
         .onHover { hovering in
             isHovered = hovering
@@ -442,17 +439,20 @@ private struct CanvasToggleView: View {
     let focusID: FocusState<String?>.Binding
     let onEvent: (CanvasEvent) -> Void
     let onEffect: (CanvasEffect) -> Void
+    let onExitContent: () -> Void
     /// Local state seeded from the tree's authoritative value for immediate tap feedback; resynced
     /// from `props.value` on every dispatch re-render so an external control flipping the toggle
     /// (e.g. a "select all" button) never leaves it stale.
     @State private var isOn: Bool
 
     init(props: CanvasToggleProps, focusID: FocusState<String?>.Binding,
-         onEvent: @escaping (CanvasEvent) -> Void, onEffect: @escaping (CanvasEffect) -> Void) {
+         onEvent: @escaping (CanvasEvent) -> Void, onEffect: @escaping (CanvasEffect) -> Void,
+         onExitContent: @escaping () -> Void) {
         self.props = props
         self.focusID = focusID
         self.onEvent = onEvent
         self.onEffect = onEffect
+        self.onExitContent = onExitContent
         _isOn = State(initialValue: props.value)
     }
 
@@ -469,6 +469,7 @@ private struct CanvasToggleView: View {
         .disabled(props.disabled)
         .opacity(props.disabled ? 0.5 : 1)
         .applyFocusID(props.id, focusID)
+        .onKeyPress(.escape) { onExitContent(); return .handled }
         .accessibilityLabel("Toggle")
         .onChange(of: props.value) { _, newValue in
             isOn = newValue
@@ -486,6 +487,7 @@ private struct CanvasLinkView: View {
     let props: CanvasLinkProps
     let focusID: FocusState<String?>.Binding
     let onEffect: (CanvasEffect) -> Void
+    let onExitContent: () -> Void
     @State private var isHovered = false
 
     var body: some View {
@@ -499,6 +501,7 @@ private struct CanvasLinkView: View {
         }
         .buttonStyle(.plain)
         .applyFocusID(props.id, focusID)
+        .onKeyPress(.escape) { onExitContent(); return .handled }
         .onHover { hovering in
             isHovered = hovering
         }

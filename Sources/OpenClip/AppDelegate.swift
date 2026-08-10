@@ -35,7 +35,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             break
         }
 
-        DebugLogStore.shared.start()
+        // DebugLogStore stays stopped in normal app runs: its 1s OSLogStore poll loop keeps
+        // OSLogService.xpc burning CPU for the app's whole lifetime. Only --dump-logs starts it
+        // (runDumpLogsCommand), where the process exits right after the dump.
 
         // Register SVG coder
         let svgCoder = SDImageSVGCoder.shared
