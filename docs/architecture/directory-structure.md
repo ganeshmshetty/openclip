@@ -109,7 +109,8 @@ Sources/
     │   ├── OnceResume.swift                  # Exactly-once continuation resume gate (AX read + AppleScript deadline races)
     │   ├── PermissionManager.swift           # Accessibility permission manager
     │   └── DebugLogging/                             # In-process debug log store + --dump-logs CLI (App target)
-    │       ├── DebugLogEntry.swift                   # Captured log entry model + DebugLogLevel
+    │       ├── DebugLogEntry.swift                   # Captured log entry model (timestamp/category/level/message)
+    │       ├── DebugLogLevel.swift                   # Severity level enum (values mirror OSLogEntryLog.Level)
     │       ├── DebugLogBuffer.swift                  # Thread-safe capacity-capped ring buffer
     │       ├── DebugLogReader.swift                  # LogReading protocol + OSLogStore-backed UnifiedLogReader
     │       ├── DebugLogStore.swift                   # 1s background poller + .shared

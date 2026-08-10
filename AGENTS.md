@@ -31,7 +31,7 @@ Prefer `scripts/` over raw `xcodebuild`/`xcodegen`:
 | Regenerate Xcode project after adding/deleting Swift files (MANDATORY) | `xcodegen generate` |
 | Build (Debug) + launch | `./scripts/dev_run.sh` |
 | Build (Release) + package `build/OpenClip.zip` | `./scripts/package_app.sh` |
-| Full test suite (can hang; wrap in a timeout) | `timeout -k 10 60 ./scripts/test.sh` |
+| Full test suite (can hang; wrap in a timeout) | `timeout -k 10 180 ./scripts/test.sh` |
 | Single test class | `./scripts/test.sh SettingsStoreTests` |
 | Clean DerivedData + build artifacts | `./scripts/clean.sh` |
 | Install a local extension/snippet into `~/.openclip/extensions` | `./scripts/install_extension.sh <path>` |
@@ -190,7 +190,7 @@ These change behavior — keep them.
    shared `MemorySettingsStore` test double (or a per-test `DefaultSettingsStore(userDefaults:
    suiteName)`) — never by writing `UserDefaults.standard` or the real preferences domain.
 8. **Always verify:** quick build gate first, then the full suite once at the end. The suite can
-   hang in automated sessions, so wrap it in a 60 s timeout (`timeout -k 10 60 ./scripts/test.sh`).
+   hang in automated sessions, so wrap it in a 180 s timeout (`timeout -k 10 180 ./scripts/test.sh`).
  9. **Log through `Log`, never `print()`.** Every log message goes through a category on the single
     `Log` enum (`Sources/Core/Log.swift`, category table in `docs/logging.md`) — never a raw
     `Logger(subsystem:category:)` or `print()`. Levels: `.notice` lifecycle, `.error` failures,
