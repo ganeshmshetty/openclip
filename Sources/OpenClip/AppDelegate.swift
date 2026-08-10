@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var selectionMonitor: (any SelectionMonitoring)?
     private var popupController: PopupWindowController?
     private var aiActionSync: AIActionSync?
+    private var extensionsWatcher: ExtensionsDirectoryWatcher?
 
     private var onboardingWindowController: OnboardingWindowController?
 
@@ -65,6 +66,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ActionCoordinator.shared.register(action: RevealInFinderAction())
             // Register each AI preset as an individual action (palette + Preferences → Actions).
             aiActionSync = AIActionSync.shared
+
+            // Watch ~/.openclip/extensions and reload on changes so extensions installed or
+            // edited outside the app (store installs, install_extension.sh, manifest edits)
+            // appear without relaunching. Started after loadInitialState so the
+            // onRegister/onUnregister registry wiring is already in place.
+            startExtensionWatcher()
         }
         
         // Setup selection monitor
@@ -94,6 +101,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.statusBarController?.showPreferences()
         }
         onboardingWindowController?.showWindow(nil)
+    }
+
+    /// Starts the extensions-directory watcher so extension changes are hot-reloaded without a relaunch.
+    private func startExtensionWatcher() {
+        let watcher = ExtensionsDirectoryWatcher {
+            await ExtensionManager.shared.loadExtensions(from: Constants.extensionsDirectory)
+        }
+        watcher.start(watching: Constants.extensionsDirectory)
+        extensionsWatcher = watcher
     }
 
     /// Runs the app in `--dump-logs` mode: start the store, run the normal startup action load
