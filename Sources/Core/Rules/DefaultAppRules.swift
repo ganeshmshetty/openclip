@@ -13,7 +13,8 @@ public enum DefaultAppRules: Sendable {
         "com.sublimetext.*",
         "notion.id",
         "md.obsidian",
-        "com.figma.Desktop"
+        "com.figma.Desktop",
+        "net.whatsapp.WhatsApp"
     ]
     
     public static let safariGroup: [String] = [

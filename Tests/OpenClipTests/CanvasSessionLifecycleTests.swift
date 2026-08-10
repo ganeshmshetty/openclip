@@ -153,7 +153,7 @@ final class CanvasSessionLifecycleTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.mode, .content)
         XCTAssertTrue(controller.isVisible)
 
-        controller.canvasSessionController.onEffects?([.paste("x")])
+        controller.canvasSessionController.onEffects?([.copy("x")])
         pump()
 
         XCTAssertEqual(controller.modeStore.mode, .content, "canvas should remain open after effect delivery")
@@ -234,6 +234,29 @@ final class CanvasSessionLifecycleTests: XCTestCase {
         defer { controller.hide() }
 
         let fake = GatedScripting()
+        fake.dispatchResults = [CanvasDispatchResult(state: CanvasSessionState(), tree: textTree("Done"), effects: [.copy("x")])]
+
+        controller.armCanvasForTesting(
+            tree: textTree("Start"),
+            header: CanvasHeader(title: "EffectTest"),
+            scripting: fake
+        )
+        pump()
+
+        controller.canvasSessionController.dispatch(CanvasEvent(kind: .tap, handler: "doCopy", targetID: "btn"))
+        fake.release()
+        pump()
+
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        XCTAssertTrue(controller.isVisible)
+    }
+
+    func testCanvasPasteEffectDismissesPopup() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownController(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+
+        let fake = GatedScripting()
         fake.dispatchResults = [CanvasDispatchResult(state: CanvasSessionState(), tree: textTree("Done"), effects: [.paste("x")])]
 
         controller.armCanvasForTesting(
@@ -247,8 +270,8 @@ final class CanvasSessionLifecycleTests: XCTestCase {
         fake.release()
         pump()
 
-        XCTAssertEqual(controller.modeStore.mode, .content)
-        XCTAssertTrue(controller.isVisible)
+        XCTAssertEqual(controller.modeStore.mode, .actions)
+        XCTAssertFalse(controller.isVisible)
     }
 
     func testEscCollapsesAndClearsSession() throws {

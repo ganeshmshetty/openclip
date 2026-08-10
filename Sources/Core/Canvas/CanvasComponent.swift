@@ -62,6 +62,16 @@ public enum CanvasEffect: Sendable, Equatable {
     case showServices(String)
     case notify(title: String, body: String)
 
+    /// Whether this canvas effect dismisses the popup window.
+    public var dismissesPopup: Bool {
+        switch self {
+        case .paste, .cut, .simulatePaste, .keyPress, .runShortcut:
+            return true
+        case .copy, .openURL, .showServices, .notify:
+            return false
+        }
+    }
+
     /// The leaf effect as an `ActionResult` for the existing effect door.
     public var asActionResult: ActionResult {
         switch self {

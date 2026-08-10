@@ -121,7 +121,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             }
 
         case .notify(let title, let body):
-            postNotification(title: title, body: body)
+            try await postNotification(title: title, body: body)
 
         case .simulatePaste:
             simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand)
@@ -148,19 +148,33 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         }
     }
 
-    /// Best-effort notification posting: only when the user granted notification authorization;
-    /// otherwise skip silently (never crash on an unprivileged call).
-    private func postNotification(title: String, body: String) {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
-                return
-            }
-            let content = UNMutableNotificationContent()
-            content.title = title
-            content.body = body
-            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-            UNUserNotificationCenter.current().add(request)
+    /// Posts a user notification via `UNUserNotificationCenter`. Requests authorization if status is
+    /// `.notDetermined` (first `notify` effect). If authorization is denied or fails, throws an error
+    /// so the presenter surfaces the denial via status feedback.
+    private func postNotification(title: String, body: String) async throws {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+
+        var isAuthorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+
+        if settings.authorizationStatus == .notDetermined {
+            let granted = try await center.requestAuthorization(options: [.alert, .sound])
+            isAuthorized = granted
         }
+
+        guard isAuthorized else {
+            throw NSError(
+                domain: Constants.actionErrorDomain,
+                code: Int(Constants.actionErrorCode),
+                userInfo: [NSLocalizedDescriptionKey: "Notification permission was denied. Enable notifications in System Settings."]
+            )
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        try await center.add(request)
     }
 
     private func backupPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem] {

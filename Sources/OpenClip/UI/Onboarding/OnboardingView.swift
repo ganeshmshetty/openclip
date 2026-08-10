@@ -7,6 +7,7 @@
 // window — a wizard is content, not navigation, so no Liquid Glass surface.
 import SwiftUI
 import AppKit
+import Core
 
 public enum OnboardingStep: Int, CaseIterable, Identifiable, Sendable {
     case welcome = 0
@@ -66,6 +67,7 @@ public struct OnboardingView: View {
                             }
                         }
                         Button {
+                            DefaultSettingsStore.shared.set(.hasCompletedOnboarding, value: true)
                             onComplete()
                         } label: {
                             Image(systemName: "xmark.circle.fill")
@@ -118,7 +120,7 @@ public struct OnboardingView: View {
 
                 Button {
                     if step == .finish {
-                        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+                        DefaultSettingsStore.shared.set(.hasCompletedOnboarding, value: true)
                         onComplete()
                     } else {
                         step = OnboardingStep(rawValue: step.rawValue + 1) ?? .finish

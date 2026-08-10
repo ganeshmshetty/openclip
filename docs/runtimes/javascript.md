@@ -12,6 +12,17 @@ and the host awaits the action's returned promise (or the promise an entry funct
 resolving. Without the flag, scripts run in the legacy synchronous mode described below and any
 promise-like return is ignored (never pasted as `[object Promise]`).
 
+## Console logging
+
+A global `console.log(...)` is available in every script (sync and async). It is variadic — e.g.
+`console.log('x', 42, { a: 1 })` — and redacts values into non-sensitive structural metadata (e.g.
+`<string len=1>`, `<number>`, `<Object keys=[a]>`) before producing a single log line.
+To adhere to OpenClip's privacy guidelines ("keep text, clipboard, and extension data private"), raw string
+contents and object property values are never logged verbatim.
+It routes to the app's `js` log category (`Log.js`), so it is a debugging aid rather than a runtime
+failure: without the shim, `console` was undefined and calling `console.log` threw a `ReferenceError`
+that broke the action. Filter it with `log stream --predicate 'subsystem == "com.openclip" && category == "js"'`.
+
 ## The `openclip` JS Object
 
 ```typescript

@@ -96,10 +96,10 @@ the bar is hidden and `PopupView.barContent` renders `CanvasSessionView` with th
   never steals focus. Status never renders in-canvas: it surfaces on the **bar banner after the
   canvas collapses**. `handleActionResult` is internal so tests drive the canvas directly.
 - **Canvas effects**: node effects (button/listItem/toggle `handler` values, `CanvasHandler.effect`)
-  route through `PopupView.onCanvasEffect` → `PopupWindowController.handleCanvasEffects` — the single
-  keep-open door shared by dispatch-collected and view-driven effects. Keyboard-delivered effects
-  (`.paste`/`.cut`/`.keyPress`/`.simulatePaste`) resign key, post to the frontmost app, then re-key
-  and refocus; every other leaf executes without dismissal. Canvas effects never dismiss the popup.
+  route through `PopupView.onCanvasEffect` → `PopupWindowController.handleCanvasEffects`. If an effect's
+  result dismisses the popup (`.paste`/`.cut`/`.keyPress`/`.simulatePaste`), `hide()` runs first so `exitKeyMode()`
+  reactivates the target source app before the synthetic event is posted — matching search and bar action
+  execution. Non-dismissing effects (`.copy`, `.keepVisible`, etc.) execute without dismissal.
 - **Status**: with no canvas open, a `StatusFeedback` shows as an inline auto-dismissing banner
   (`modeStore.statusBanner`, cleared after ~1.5s). While a canvas is open it is **queued**
   (`pendingStatus`) — the canvas shows no banner — and the queued status is flushed onto the bar
