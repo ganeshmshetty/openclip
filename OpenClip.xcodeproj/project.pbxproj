@@ -65,6 +65,7 @@
 		3FEF2518244D47458539CFE5 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9FE4B50AD5CCA0A39301667 /* Log.swift */; };
 		413311B67A8C50E83B81F602 /* DebugLogBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5159546A774B9BA999BA54 /* DebugLogBuffer.swift */; };
 		443FBAF2B8ED49563980FFB7 /* OnceResume.swift in Sources */ = {isa = PBXBuildFile; fileRef = 755F137CBA2F4725D29AFEE9 /* OnceResume.swift */; };
+		449AAB64A43F5F17DA9E20CC /* DebugLogEndToEndTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18CC0EC276B36A5EF03927F /* DebugLogEndToEndTests.swift */; };
 		4515E812499967C26560169C /* ActionFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40BC7280676281FD11450DF2 /* ActionFactory.swift */; };
 		451A360CBE2A6D1DE73FDD84 /* AIActionSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00905DBC16E0E2C4132A25AE /* AIActionSync.swift */; };
 		470BB95C626E3041E74CA19D /* RevealInFinderActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92591CBEAFDE51E7D4630274 /* RevealInFinderActionTests.swift */; };
@@ -525,6 +526,7 @@
 		DECAB4B5213F632283318CD6 /* SelectionMonitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionMonitoring.swift; sourceTree = "<group>"; };
 		DEE1C404EF7FA9B5F3A1597A /* JavaScriptCanvasEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptCanvasEngineTests.swift; sourceTree = "<group>"; };
 		DFEE1DAE171FE965EB13F090 /* PopupPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPanelTests.swift; sourceTree = "<group>"; };
+		E18CC0EC276B36A5EF03927F /* DebugLogEndToEndTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogEndToEndTests.swift; sourceTree = "<group>"; };
 		E21F7917E14860EA903D0552 /* AppRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRule.swift; sourceTree = "<group>"; };
 		E28D2543D3CDDD042BAE74FF /* KeychainActionOptionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainActionOptionStoreTests.swift; sourceTree = "<group>"; };
 		E2FF8914139A6092D49B8447 /* CanvasScripting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasScripting.swift; sourceTree = "<group>"; };
@@ -1013,6 +1015,7 @@
 				9206ED1D9BA1DDBC6B15C384 /* CustomActionManifestWriterTests.swift */,
 				57D3417470E254AA1CA970D2 /* DebugLogBufferTests.swift */,
 				D0F292704F06603C30BB2C77 /* DebugLogCommandTests.swift */,
+				E18CC0EC276B36A5EF03927F /* DebugLogEndToEndTests.swift */,
 				867F5FE32483EEF1ED7B18D1 /* DebugLogEntryTests.swift */,
 				B826FB17017910B8919BF18F /* DebugLogFilterTests.swift */,
 				28C251D684663DDC867A7E7C /* DebugLogStoreTests.swift */,
@@ -1230,6 +1233,7 @@
 				D7E40768967837E0BB3D1F89 /* CustomActionManifestWriterTests.swift in Sources */,
 				4C7A369633219B87FC717CF6 /* DebugLogBufferTests.swift in Sources */,
 				4C292689D2C7C7564D4D9AFF /* DebugLogCommandTests.swift in Sources */,
+				449AAB64A43F5F17DA9E20CC /* DebugLogEndToEndTests.swift in Sources */,
 				4D95DD2D804C916472C1A427 /* DebugLogEntryTests.swift in Sources */,
 				B7BFA2A49A47859753B93E6F /* DebugLogFilterTests.swift in Sources */,
 				B65680000C72C06585A1B730 /* DebugLogStoreTests.swift in Sources */,
