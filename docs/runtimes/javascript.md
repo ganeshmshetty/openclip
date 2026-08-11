@@ -1,7 +1,7 @@
 # JavaScript Action Runtime
 
-The JavaScript action runtime ([`OpenClipJSHost`](../../Sources/OpenClip/Actions/OpenClipJSHost.swift),
-reached via [`JavaScriptAction`](../../Sources/OpenClip/Actions/JavaScriptAction.swift)) executes
+The JavaScript action runtime ([`OpenClipJSHost`](../../Sources/OpenClip/Platform/Runtimes/OpenClipJSHost.swift),
+reached via [`JavaScriptAction`](../../Sources/OpenClip/Platform/Runtimes/JavaScriptAction.swift)) executes
 `type: "javascript"` extension scripts using macOS `JSContext` (JavaScriptCore). It injects a
 read-only `openclip` object into the global scope and resolves collected effects into an
 [`ActionResult`](../../Sources/Core/Actions/ActionResult.swift).

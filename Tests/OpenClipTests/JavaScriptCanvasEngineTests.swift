@@ -639,6 +639,32 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
         }
     }
 
+    // 28. A fire-and-forget fetch inside a handler does not block dispatch resolution
+    func testHandlerFireAndForgetFetchDoesNotBlockDispatch() async throws {
+        MockURLProtocol.requestHandler = { request in
+            throw URLError(.notConnectedToInternet)
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let script = """
+        const handlers = {
+            fire: (state) => {
+                openclip.fetch('https://api.example.com/items');
+                return { ...state, fired: true };
+            }
+        };
+        const ui = (state) => h('text', { content: 'fired: ' + (state.fired || 'no') });
+        """
+        let engine = JavaScriptCanvasEngine(session: mockedSession())
+        let mountRes = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script, isAsync: true))
+
+        let dispatchRes = try await engine.dispatch(CanvasDispatchRequest(
+            event: CanvasEvent(kind: .tap, handler: "fire"),
+            state: mountRes.state
+        ))
+        XCTAssertEqual(dispatchRes.state["fired"]?.boolValue, true)
+    }
+
     private func mockedSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [MockURLProtocol.self]

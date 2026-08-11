@@ -63,6 +63,12 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         }
     }
 
+    private func getIsAsync() -> Bool {
+        lock.withLock {
+            _isAsync
+        }
+    }
+
     private func updateDispatchState(_ state: CanvasSessionState) {
         lock.withLock {
             _sessionState = state
@@ -279,7 +285,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         )
 
         let fetchTasks = FetchTaskBox()
-        if engine._isAsync {
+        if engine.getIsAsync() {
             JSNativeFetch.installNativeFetch(in: jsContext, session: engine.session, fetchTasks: fetchTasks)
         }
         defer { fetchTasks.cancelAll() }

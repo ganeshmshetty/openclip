@@ -1,6 +1,6 @@
 # AppleScript Action Runtime
 
-The AppleScript action runtime ([`AppleScriptAction`](../../Sources/OpenClip/Actions/AppleScriptAction.swift)) allows OpenClip to automate macOS system applications (such as Safari, Finder, Mail, Notes, and Messages).
+The AppleScript action runtime ([`AppleScriptAction`](../../Sources/OpenClip/Platform/Runtimes/AppleScriptAction.swift)) allows OpenClip to automate macOS system applications (such as Safari, Finder, Mail, Notes, and Messages).
 
 ---
 
