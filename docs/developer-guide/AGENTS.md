@@ -464,7 +464,7 @@ for the next re-render, and effects never dismiss.
 
 ## 7a. Interactive canvases (`type: "canvas"`)
 
-A canvas is a **JS-only** action kind: `"type": "canvas"` with scriptCode (required — validation
+A canvas is a **JS-only** action kind: `"type": "canvas"` with `scriptCode` (required — validation
 rejects a canvas without it) holding the canvas script;
 `"async": true` is optional — it enables `openclip.fetch` in handlers (below); a canvas
 mount or dispatch whose promise never settles is killed by the same 30 s watchdog. There is no `output`
