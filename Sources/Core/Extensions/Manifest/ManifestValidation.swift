@@ -158,7 +158,8 @@ public struct ManifestValidator: Sendable {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("shortcutName"), path: path))
             }
         case .service:
-            // `serviceName` is accepted but currently unused; nothing is required.
+            // `serviceName` is optional; it identifies a sharing service (or service-menu name) to
+            // invoke. Nothing is required.
             break
         default:
             // Every other runnable kind needs at least one executable payload. Without any, the

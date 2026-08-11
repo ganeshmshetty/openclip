@@ -74,6 +74,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var shortcutName: String?
         public var keepVisible: Bool
         public var notification: (title: String, body: String)?
+        public var shareService: (identifier: String, text: String)?
         public var returnValue: String?
 
         public init() {
@@ -91,6 +92,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         case keyPress(KeyPressSpec)
         case runShortcut(name: String, input: String?)
         case notify(title: String, body: String)
+        case shareService(identifier: String, text: String)
     }
 
     /// Result of one JS evaluation: collected effects, any JS exception, and the value resolved from
@@ -229,6 +231,16 @@ public final class OpenClipJSHost: @unchecked Sendable {
             collected.value.notification = (title: title, body: message)
             effects.value.append(.notify(title: title, body: message))
         }
+        let shareServiceBlock: @convention(block) (String, String?) -> Void = { identifier, textOverride in
+            let cleanedInput: String
+            if let textOverride, textOverride != "undefined", textOverride != "null" {
+                cleanedInput = textOverride
+            } else {
+                cleanedInput = request.context.selection.text
+            }
+            collected.value.shareService = (identifier: identifier, text: cleanedInput)
+            effects.value.append(.shareService(identifier: identifier, text: cleanedInput))
+        }
         let showStatusBlock: @convention(block) (String, String?) -> Void = { message, style in
             collected.value.status = StatusFeedback(message: message, style: CanvasScriptBox.mapStatusStyle(style ?? "info"))
         }
@@ -253,6 +265,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(keyPressBlock, forKeyedSubscript: "keyPress" as NSString)
         openclip.setObject(runShortcutBlock, forKeyedSubscript: "runShortcut" as NSString)
         openclip.setObject(notifyBlock, forKeyedSubscript: "notify" as NSString)
+        openclip.setObject(shareServiceBlock, forKeyedSubscript: "shareService" as NSString)
         openclip.setObject(showStatusBlock, forKeyedSubscript: "showStatus" as NSString)
         openclip.setObject(showContentBlock, forKeyedSubscript: "showContent" as NSString)
         openclip.setObject(keepVisibleBlock, forKeyedSubscript: "keepVisible" as NSString)
@@ -504,6 +517,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         case .keyPress(let spec): return .keyPress(spec)
         case .runShortcut(let name, let inputOverride): return .runShortcut(name: name, input: inputOverride ?? input)
         case .notify(let title, let body): return .notify(title: title, body: body)
+        case .shareService(let identifier, let text): return .shareService(identifier: identifier, text: text)
         }
     }
 

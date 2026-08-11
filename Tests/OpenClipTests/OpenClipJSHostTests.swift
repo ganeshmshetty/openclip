@@ -347,6 +347,25 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(body, "Body")
     }
 
+    func testShareServiceEffectReturnsShareService() async throws {
+        let result = try await host.run(makeRequest(
+            script: "openclip.shareService('com.apple.Notes.SharingExtension');"))
+        guard case .shareService(let identifier, let text) = result else {
+            return XCTFail("Expected .shareService, got \(result)")
+        }
+        XCTAssertEqual(identifier, "com.apple.Notes.SharingExtension")
+        XCTAssertEqual(text, "hello") // falls back to selection text when no text given
+    }
+
+    func testShareServiceEffectWithExplicitText() async throws {
+        let result = try await host.run(makeRequest(
+            script: "openclip.shareService('com.apple.Notes.SharingExtension', 'custom');"))
+        guard case .shareService(_, let text) = result else {
+            return XCTFail("Expected .shareService, got \(result)")
+        }
+        XCTAssertEqual(text, "custom")
+    }
+
     func testMultipleEffectsSequenceInCallOrder() async throws {
         let script = "openclip.copy('a'); openclip.paste('b');"
         let result = try await host.run(makeRequest(script: script))
