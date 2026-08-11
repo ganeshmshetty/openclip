@@ -53,6 +53,13 @@ areas; stale debt notes are worse than none.
   results; each extension runtime's `perform` applies `rules.after`/`rules.stayVisible` via the
   adapter. `OpenClipJSHost.run` returns only raw results; async JS runs are guarded by the
   `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
+- **Canvas `fetch()` ships with a live-load gap.** `"async": true` canvas actions get
+  `openclip.fetch` in handlers via the shared `JSNativeFetch` bridge
+  (`Sources/OpenClip/Actions/JSNativeFetch.swift`, used by both `OpenClipJSHost` and
+  `JavaScriptCanvasEngine`). The canvas `isAsync` flag — previously stored but never read —
+  now gates dispatch-time fetch installation. Deferred: mount-time async rendering (async
+  `ui()` / a `beforeMount` hook) and a busy indicator for in-flight handler fetches; `ui()`
+  must stay synchronous.
 
 ## Presentation / Rule Holes
 

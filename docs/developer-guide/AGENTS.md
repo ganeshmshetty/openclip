@@ -464,9 +464,10 @@ for the next re-render, and effects never dismiss.
 
 ## 7a. Interactive canvases (`type: "canvas"`)
 
-A canvas is a **JS-only** action kind: `"type": "canvas"` with `scriptCode` (required — validation
-rejects a canvas without it) holding the canvas script; `"async": true` is optional (a canvas mount
-or dispatch whose promise never settles is killed by the same 30 s watchdog). There is no `output`
+A canvas is a **JS-only** action kind: `"type": "canvas"` with scriptCode (required — validation
+rejects a canvas without it) holding the canvas script;
+`"async": true` is optional — it enables `openclip.fetch` in handlers (below); a canvas
+mount or dispatch whose promise never settles is killed by the same 30 s watchdog. There is no `output`
 key — a canvas never "returns" text; it *renders*.
 
 ### Script contract
@@ -531,6 +532,13 @@ each evaluation and run **without dismissing** — a canvas never hides the popu
 surfaces on the **bar banner after collapse**, never inside the canvas. `showContent(tree, { size })`
 declares the canvas size **once** — `{ size: { width, height } }` clamped to the 220–360 width
 column and `Constants.popupMaxHeight` tall — and replaces the mounted tree for the next re-render.
+
+With `"async": true`, handlers may call `openclip.fetch(url, options)` — the same contract
+as JS actions: `options` = `{ method, headers, body }` (default GET); the response is
+`{ status, ok, text() → Promise<string>, json() → Promise<any> }`; network errors reject the
+handler's promise (surfaced as an error status), and a request that never settles is killed
+by the 30 s watchdog (in-flight tasks are cancelled). `ui()` stays synchronous — use fetch in
+handlers, never in `ui`/at mount; mount-time async rendering is not supported.
 
 ### State model
 
