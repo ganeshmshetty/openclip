@@ -163,7 +163,7 @@ final class ActionVisibilityTests: XCTestCase {
         XCTAssertEqual(result.match.captures, ["a", "b.com"])
     }
 
-    // MARK: - Regex match / negation
+    // MARK: - missingRequiredOptions (pure helper, never called from isEnabled)
 
     func testMissingRequiredOptionsReturnsEmptyValueIDs() {
         let requirements = ActionRequirements(requiredOptions: ["prefix", "suffix"])
