@@ -57,6 +57,12 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     }
     
     public func resolveActions(for context: ActionContext) -> [any Action] {
+        registry.availableActions(for: resolvedContext(for: context))
+    }
+
+    /// Resolves `context` against the app-rule engine: applies the formatting/paste policies to
+    /// the selection and returns the context used for availability filtering.
+    private func resolvedContext(for context: ActionContext) -> ActionContext {
         let bundleID = context.selection.sourceApp.bundleIdentifier ?? ""
         let policy = ruleEngine.resolvePolicies(for: bundleID)
         var updatedSelection = context.selection
@@ -72,8 +78,7 @@ public final class ActionCoordinator: ObservableObject, Sendable {
                 isClipboardFallback: context.selection.isClipboardFallback
             )
         }
-        let updatedContext = ActionContext(selection: updatedSelection, modifiers: context.modifiers)
-        return registry.availableActions(for: updatedContext)
+        return ActionContext(selection: updatedSelection, modifiers: context.modifiers)
     }
 
     /// Catalog for the action-search palette, filtered to actions that can perform given `context`.
