@@ -416,7 +416,9 @@ public struct EditActionSheet: View {
             identifier: state.manifest.identifier,
             name: state.manifest.name,
             actions: actions,
-            options: state.manifest.options
+            options: state.manifest.options,
+            version: state.manifest.version,
+            capabilities: state.manifest.capabilities
         )
         
         do {

@@ -38,9 +38,9 @@ struct PopupThemeSelector: View {
     private var trayHeight: CGFloat { 34 }
     private var trayContentHeight: CGFloat { trayHeight - 6 }
     private var segmentWidth: CGFloat { 72 }
-    private var tileWidth: CGFloat { 48 }
-    private var tileHeight: CGFloat { 36 }
-    private var tileTrayHeight: CGFloat { tileHeight + 6 }
+    private var tileWidth: CGFloat { 54 }
+    private var tileHeight: CGFloat { 48 }
+    private var tileTrayHeight: CGFloat { tileHeight + 8 }
 
     private var themeOptions: [AppearanceOption] {
         [
@@ -154,7 +154,7 @@ struct PopupThemeSelector: View {
         HStack(spacing: 0) {
             ForEach(options) { option in
                 if option.value != options[0].value {
-                    hairline(height: 24)
+                    hairline(height: 32)
                 }
                 tileButton(
                     label: option.label,
@@ -214,12 +214,12 @@ struct PopupThemeSelector: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(spacing: 2) {
+            VStack(spacing: 3) {
                 Image(systemName: icon)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(isSelected ? .accentColor : .secondary)
                 Text(label)
-                    .font(.caption2)
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundColor(isSelected ? .primary : .secondary)
             }
             .frame(width: tileWidth, height: tileHeight)
@@ -227,7 +227,7 @@ struct PopupThemeSelector: View {
             .accessibilityLabel(label)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isSelected ? Color.primary.opacity(0.08) : Color.clear)
+                    .fill(isSelected ? Color.primary.opacity(0.12) : Color.clear)
             )
         }
         .buttonStyle(.plain)

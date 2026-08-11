@@ -39,4 +39,27 @@ final class ActionResultHandlerTests: XCTestCase {
             // Expected: non-existent shortcut → non-zero exit → thrown error.
         }
     }
+
+    func testPasteResultHandlerSkipsRestoreIfChangeCountMoved() async throws {
+        let store = MemorySettingsStore()
+        store.set(.completionCopyToClipboard, value: false)
+        let handler = DefaultActionResultHandler(settingsStore: store)
+        
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("OriginalItem", forType: .string)
+
+        try await handler.handle(.paste("PastedText"), in: nil)
+
+        // User copies something new while sleep task is running
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("UserNewCopy", forType: .string)
+
+        // Wait for restore delay
+        try await Task.sleep(nanoseconds: UInt64((Constants.pasteboardRestoreDelay + 0.1) * 1_000_000_000))
+
+        // Ensure user's new copy was NOT overwritten by stale restore task
+        let currentText = NSPasteboard.general.string(forType: .string)
+        XCTAssertEqual(currentText, "UserNewCopy", "Pasteboard restore must be skipped when changeCount moved")
+    }
 }
+

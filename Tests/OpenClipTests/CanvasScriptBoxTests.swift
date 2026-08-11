@@ -80,6 +80,31 @@ final class CanvasScriptBoxTests: XCTestCase {
         XCTAssertEqual(spec.children[1].props["content"], .string("two"))
     }
 
+    /// Mixed static and nested/mapped child arrays must flatten into one flat child list, in order.
+    func testHFlattensNestedChildArrays() throws {
+        let context = try XCTUnwrap(JSContext())
+        CanvasScriptBox.installH(in: context)
+        let script = "h('stack', {}, h('text', { content: 'first' }), [h('text', { content: 'a' }), [h('text', { content: 'b' })]], h('text', { content: 'last' }))"
+        let value = try XCTUnwrap(context.evaluateScript(script))
+        let object = try XCTUnwrap(value.toObject() as? [String: Any])
+        let spec = try XCTUnwrap(CanvasScriptBox.elementSpec(from: object))
+        XCTAssertEqual(spec.children.count, 4)
+        XCTAssertEqual(spec.children.map { $0.props["content"] },
+                       [.string("first"), .string("a"), .string("b"), .string("last")])
+    }
+
+    /// `null`/`undefined` children (e.g. from conditional mapping) must be omitted, not reject the tree.
+    func testHOmitNullAndUndefinedChildren() throws {
+        let context = try XCTUnwrap(JSContext())
+        CanvasScriptBox.installH(in: context)
+        let script = "h('stack', {}, ['a','b','c'].map(function(i){ return i === 'b' ? null : h('text', { content: i }); }), [undefined])"
+        let value = try XCTUnwrap(context.evaluateScript(script))
+        let object = try XCTUnwrap(value.toObject() as? [String: Any])
+        let spec = try XCTUnwrap(CanvasScriptBox.elementSpec(from: object))
+        XCTAssertEqual(spec.children.count, 2)
+        XCTAssertEqual(spec.children.map { $0.props["content"] }, [.string("a"), .string("c")])
+    }
+
     func testHBareStringChildOnText() throws {
         let context = try XCTUnwrap(JSContext())
         CanvasScriptBox.installH(in: context)

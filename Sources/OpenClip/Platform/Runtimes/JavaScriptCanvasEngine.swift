@@ -25,6 +25,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
     // Session cache across dispatches
     private var _sessionState: CanvasSessionState
     private var _sessionInput: String
+    private var _sessionMatchedText: String
     private var _sessionCaptures: [String]
     private var _sessionApp: AppIdentity?
     private var _sessionOptionValues: [String: JSONValue]
@@ -38,6 +39,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         self.session = session
         self._sessionState = CanvasSessionState()
         self._sessionInput = ""
+        self._sessionMatchedText = ""
         self._sessionCaptures = []
         self._sessionApp = nil
         self._sessionOptionValues = [:]
@@ -45,10 +47,11 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         self._timeoutOverride = timeout
     }
 
-    private func updateMountState(scriptCode: String, input: String, captures: [String], sourceApp: AppIdentity?, optionValues: [String: JSONValue], isAsync: Bool, state: CanvasSessionState) {
+    private func updateMountState(scriptCode: String, input: String, matchedText: String?, captures: [String], sourceApp: AppIdentity?, optionValues: [String: JSONValue], isAsync: Bool, state: CanvasSessionState) {
         lock.withLock {
             _scriptCode = scriptCode
             _sessionInput = input
+            _sessionMatchedText = matchedText ?? input
             _sessionCaptures = captures
             _sessionApp = sourceApp
             _sessionOptionValues = optionValues
@@ -57,9 +60,9 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         }
     }
 
-    private func getDispatchInputs() -> (scriptCode: String, input: String, captures: [String], sourceApp: AppIdentity?, optionValues: [String: JSONValue]) {
+    private func getDispatchInputs() -> (scriptCode: String, input: String, matchedText: String, captures: [String], sourceApp: AppIdentity?, optionValues: [String: JSONValue]) {
         lock.withLock {
-            (_scriptCode, _sessionInput, _sessionCaptures, _sessionApp, _sessionOptionValues)
+            (_scriptCode, _sessionInput, _sessionMatchedText, _sessionCaptures, _sessionApp, _sessionOptionValues)
         }
     }
 
@@ -149,6 +152,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         CanvasScriptBox.installCanvasBridge(
             in: jsContext,
             input: request.input,
+            matchedText: request.matchedText,
             captures: request.captures,
             sourceApp: request.sourceApp,
             optionValues: request.optionValues,
@@ -238,6 +242,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         engine.updateMountState(
             scriptCode: scriptCode,
             input: request.input,
+            matchedText: request.matchedText,
             captures: request.captures,
             sourceApp: request.sourceApp,
             optionValues: request.optionValues,
@@ -278,6 +283,7 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
         CanvasScriptBox.installCanvasBridge(
             in: jsContext,
             input: inputs.input,
+            matchedText: inputs.matchedText,
             captures: inputs.captures,
             sourceApp: inputs.sourceApp,
             optionValues: inputs.optionValues,

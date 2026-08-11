@@ -88,15 +88,18 @@ struct ActionsTab: View {
         let actionDestination = actionIndices.prefix { $0.rowIndex < destination }.count
         coordinator.moveActions(from: actionSource, to: actionDestination)
     }
+
+    @State private var selectedRowID: String? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            List {
+            List(selection: $selectedRowID) {
                 Section {
                     ForEach(listRows) { row in
                         switch row {
                         case .packageHeader(let packageID, let title):
                             PackageHeaderRowView(packageID: packageID, title: title, disabledPackages: $disabledPackages)
+                                .tag(row.id)
                         case .action(let action):
                             ActionRowView(
                                 action: action,
@@ -104,6 +107,7 @@ struct ActionsTab: View {
                                 isEnabled: enabledBinding(for: action),
                                 onOpenAI: onOpenAI
                             )
+                            .tag(row.id)
                         }
                     }
                     .onMove(perform: moveRows)
@@ -259,29 +263,26 @@ struct ActionRowView: View {
     @State private var showingConfigSheet = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 10) {
             // Icon Column
             ZStack {
-                ActionIconView(icon: presentationModel.icon, size: 14)
+                ActionIconView(icon: presentationModel.icon, size: 12)
             }
-            .frame(width: 28, height: 28)
+            .frame(width: 22, height: 22)
             .background(Color.primary.opacity(0.06))
-            .cornerRadius(6)
+            .cornerRadius(5)
             
             // Title Column
             Text(presentationModel.title)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
 
             Spacer()
             
             // Right-aligned controls (Remove | Toggle | Gear)
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: 8) {
                 // Delete / Uninstall Button (if applicable)
                 switch action.chrome.source {
                 case .custom, .extensionPkg:
-                    // GUI-created custom actions live in manifest packages (source .extensionPkg),
-                    // and snippet-sourced custom actions are standalone files — both uninstall by
-                    // removing the package/folder that produced the action's id.
                     Button(action: {
                         Task {
                             do {
@@ -297,15 +298,14 @@ struct ActionRowView: View {
                         }
                     }) {
                         Image(systemName: "trash")
-                            .font(.system(size: 14))
+                            .font(.system(size: 12))
                             .foregroundColor(.red)
                     }
                     .buttonStyle(.plain)
-                    .frame(width: 24, height: 24)
+                    .frame(width: 20, height: 20)
                     .help("Uninstall Extension")
                     .accessibilityLabel("Uninstall Extension")
                 case .builtin, .ai:
-                    // AI preset rows are managed (and removed) in the AI tab, not here.
                     EmptyView()
                 }
 
@@ -313,20 +313,19 @@ struct ActionRowView: View {
                 Toggle("", isOn: isEnabled)
                     .labelsHidden()
                     .toggleStyle(.switch)
-                    .controlSize(.small)
+                    .controlSize(.mini)
                     .accessibilityLabel("Enable \(presentationModel.title)")
                 
-                // Edit / Configure Button. AI Tools launcher rows get a gear that opens the AI tab
-                // (where `isAIEnabled` lives); AI preset rows get none; everything else edits via sheet.
+                // Edit / Configure Button
                 if isAITools {
                     if let onOpenAI {
                         Button(action: onOpenAI) {
                             Image(systemName: "gearshape")
-                                .font(.system(size: 14))
+                                .font(.system(size: 12))
                                 .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 20, height: 20)
                         .help("Open AI settings")
                         .accessibilityLabel("Open AI settings")
                     }
@@ -335,11 +334,11 @@ struct ActionRowView: View {
                         showingConfigSheet = true
                     }) {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 14))
+                            .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .frame(width: 24, height: 24)
+                    .frame(width: 20, height: 20)
                     .help("Configure Action")
                     .accessibilityLabel("Configure Action")
                     .sheet(isPresented: $showingConfigSheet) {
@@ -348,7 +347,7 @@ struct ActionRowView: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 1)
     }
 }
 
@@ -373,11 +372,11 @@ struct PackageHeaderRowView: View {
     }
     
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 10) {
             Image(systemName: "shippingbox")
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundColor(.secondary)
-                .frame(width: 28, height: 28)
+                .frame(width: 22, height: 22)
             
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
@@ -388,9 +387,9 @@ struct PackageHeaderRowView: View {
             Toggle("", isOn: isEnabled)
                 .labelsHidden()
                 .toggleStyle(.switch)
-                .controlSize(.small)
+                .controlSize(.mini)
                 .accessibilityLabel("Enable \(title)")
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 1)
     }
 }

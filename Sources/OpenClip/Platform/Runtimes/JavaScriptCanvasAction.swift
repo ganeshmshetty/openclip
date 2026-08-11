@@ -97,12 +97,21 @@ public struct JavaScriptCanvasAction: ConfigurableAction {
         }
 
         let optionValues = Dictionary(actionOptions.map { option in
-            (option.identifier, JSONValue.string(optionStore.stringValue(actionID: id, option: option)))
+            let strVal = optionStore.stringValue(actionID: id, option: option)
+            let typedVal: JSONValue
+            if option.type == .boolean {
+                let lower = strVal.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                typedVal = .bool(lower == "true" || lower == "1")
+            } else {
+                typedVal = .string(strVal)
+            }
+            return (option.identifier, typedVal)
         }, uniquingKeysWith: { _, latest in latest })
         let match = context.match ?? matchInfo(for: context)
         let request = CanvasMountRequest(
             initialState: CanvasSessionState(),
             input: context.selection.text,
+            matchedText: match?.matchedText,
             captures: match?.captures ?? [],
             sourceApp: context.selection.sourceApp,
             optionValues: optionValues,         // openclip.options in the bridge (empty → {})

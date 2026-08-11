@@ -15,6 +15,8 @@ public struct InstalledExtensionsView: View {
         coordinator.actions.filter { ActionIdentity.isExtension($0) }
     }
 
+    @State private var selectedExtensionID: String? = nil
+
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -44,7 +46,7 @@ public struct InstalledExtensionsView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List {
+                List(selection: $selectedExtensionID) {
                     ForEach(installedExtensionActions, id: \.id) { action in
                         HStack(spacing: 12) {
                             ZStack {
@@ -84,6 +86,7 @@ public struct InstalledExtensionsView: View {
                             .tint(.red)
                         }
                         .padding(.vertical, 6)
+                        .tag(action.id)
                     }
                 }
                 .listStyle(.inset)

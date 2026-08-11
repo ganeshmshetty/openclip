@@ -53,6 +53,7 @@ public struct SessionEventTapPoster: KeyboardEventPosting {
 public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     private let settingsStore: SettingsStore
     private let keyboardPoster: KeyboardEventPosting
+    private var pendingRestoreTask: Task<Void, Never>?
 
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
                 keyboardPoster: KeyboardEventPosting = SessionEventTapPoster()) {
@@ -80,21 +81,26 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     private func execute(_ result: ActionResult, in view: NSView?) async throws {
         switch result {
         case .copy(let text):
+            pendingRestoreTask?.cancel()
+            pendingRestoreTask = nil
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setString(text, forType: .string)
 
         case .cut(let text):
+            pendingRestoreTask?.cancel()
+            pendingRestoreTask = nil
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setString(text, forType: .string)
             simulateKeyShortcut(keyCode: Constants.deleteVirtualKey, modifier: [])
 
         case .paste(let text):
+            pendingRestoreTask?.cancel()
+            pendingRestoreTask = nil
             let pasteboard = NSPasteboard.general
             let copyToClipboard = settingsStore.get(.completionCopyToClipboard)
 
-            
             if copyToClipboard {
                 pasteboard.clearContents()
                 pasteboard.setString(text, forType: .string)
@@ -103,11 +109,15 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 let savedItems = backupPasteboard(pasteboard)
                 pasteboard.clearContents()
                 pasteboard.setString(text, forType: .string)
+                let changeCountAfterSet = pasteboard.changeCount
                 simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand)
                 
-                Task { @MainActor in
+                pendingRestoreTask = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: UInt64(Constants.pasteboardRestoreDelay * 1_000_000_000))
-                    self.restorePasteboard(pasteboard, items: savedItems)
+                    guard !Task.isCancelled else { return }
+                    if pasteboard.changeCount == changeCountAfterSet {
+                        self.restorePasteboard(pasteboard, items: savedItems)
+                    }
                 }
             }
 

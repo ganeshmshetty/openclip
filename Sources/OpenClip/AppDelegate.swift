@@ -60,7 +60,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.setup(popupController: controller)
         
         Task {
-            ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: KeychainActionOptionStore())
+            let optionStore = KeychainActionOptionStore()
+            ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
+            ExtensionManager.shared.optionWriter = optionStore
             await ActionCoordinator.shared.loadInitialState()
             ActionCoordinator.shared.register(action: CompletionAction())
             ActionCoordinator.shared.register(action: OpenURLAction())
@@ -120,7 +122,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DebugLogStore.shared.start()
 
         Task {
-            ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: KeychainActionOptionStore())
+            let optionStore = KeychainActionOptionStore()
+            ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
+            ExtensionManager.shared.optionWriter = optionStore
             await ActionCoordinator.shared.loadInitialState()
             ActionCoordinator.shared.register(action: CompletionAction())
             ActionCoordinator.shared.register(action: OpenURLAction())
