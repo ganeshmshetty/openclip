@@ -130,6 +130,17 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
             }
 
+        case .shareService(let identifier, let text):
+            guard let service = NSSharingService(named: NSSharingService.Name(identifier)) else {
+                Log.resultHandler.error("Sharing service not found: \(identifier, privacy: .public)")
+                throw NSError(
+                    domain: Constants.actionErrorDomain,
+                    code: Int(Constants.actionErrorCode),
+                    userInfo: [NSLocalizedDescriptionKey: "Sharing service '\(identifier)' is not available on this system."]
+                )
+            }
+            service.perform(withItems: [text])
+
         case .notify(let title, let body):
             try await postNotification(title: title, body: body)
 

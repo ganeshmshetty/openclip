@@ -108,10 +108,14 @@ public struct AppleScriptAction: ConfigurableAction {
 
         let scriptWithVars = TextPlaceholderEngine.replacePlaceholders(in: appleScriptCode, context: escapedContext, urlEncode: false)
         
+        // Inject the selection as a top-level `property` rather than top-level `set` statements.
+        // AppleScript forbids combining top-level statements with an explicit `on run` handler
+        // (error -2752), so the old global/set preamble silently broke any script written with
+        // `on run ... end run`. A `property` declaration coexists with BOTH authoring styles.
+        // `OPENCLIP_TEXT` and `openclip_text` are the same identifier (AppleScript names are
+        // case-insensitive), so one property serves both names.
         let fullScript = """
-        global OPENCLIP_TEXT, openclip_text
-        set OPENCLIP_TEXT to "\(text)"
-        set openclip_text to "\(text)"
+        property OPENCLIP_TEXT : "\(text)"
         \(scriptWithVars)
         """
         

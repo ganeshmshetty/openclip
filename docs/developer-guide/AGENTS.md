@@ -154,10 +154,13 @@ a `Promise` (which the host awaits) and a `fetch(url, options)` polyfill is avai
 ```
 
 Inline via `scriptCode`, or file via `"script": "main.applescript"` (or `.scpt`). The script runs as
-NSAppleScript; the selection is injected as both `OPENCLIP_TEXT` and `openclip_text` globals, and
-`{text}`/`{query}`/`{matched}`/`{captureN}` placeholders are substituted (unencoded, §6b). A
-non-empty string the script returns becomes `.copy`. Errors become `.failure` (shown as an error
-status).
+an `osascript` subprocess; the selection is injected as a top-level `property OPENCLIP_TEXT`
+(accessible by the bare name `OPENCLIP_TEXT` — `openclip_text` is the same identifier, as
+AppleScript names are case-insensitive), and
+`{text}`/`{query}`/`{matched}`/`{captureN}` placeholders are substituted (unencoded, §6b). Both
+authoring styles are supported: bare top-level statements **or** an explicit `on run … end run`
+handler. A non-empty string the script returns becomes `.copy`. Errors become `.failure` (shown as
+an error status).
 
 ### 3d. shell (inline or file)
 
@@ -228,12 +231,16 @@ surfaces as an error status.
 {
   "title": "Share selection",
   "type": "service",
-  "serviceName": "Share Selection"
+  "serviceName": "com.apple.Notes.SharingExtension"
 }
 ```
 
-`serviceName` is **accepted but currently unused**; v1 maps the kind to the generic macOS **share
-picker** (`showServices`) on the selected text. Do not rely on `serviceName` behavior yet.
+`serviceName`, when set, is treated as a **sharing-service identifier** and invokes that service
+directly via `NSSharingService(named:)` — e.g. `com.apple.Notes.SharingExtension` opens the Notes
+**inline popup** with the selected text (the analogue of PopClip's `popclip.share`). If the name is
+not a registered sharing service it falls back to a service-menu service via `NSPerformService`
+(legacy service-menu names). Without `serviceName`, the kind maps to the generic macOS **share
+picker** (`showServices`) on the selected text. Nothing is required.
 
 ### 3i. group
 
@@ -440,6 +447,9 @@ Side effects (each appends an effect; multiple effects run as a `.sequence` in c
 - `openclip.keyPress(key, ["command","shift","option","control", ...])`
 - `openclip.runShortcut(name)`
 - `openclip.notify(title, body)`
+- `openclip.shareService(identifier, text?)` — invoke a specific macOS sharing service by its
+  identifier (e.g. `com.apple.Notes.SharingExtension` → the Notes inline popup). `text` defaults to
+  the selected text when omitted.
 - `openclip.showStatus(message, style)` — style `"success"`|`"error"`|`"info"` (else `"info"`)
 - `openclip.showContent(tree, { size })` — renders the given `h()` element tree as an inline
   interactive canvas on the popup (`.content` mode). The optional `{ size: { width, height } }`
@@ -594,6 +604,7 @@ function ui(state, input) {
 | `.paste(String)` | paste text (replaces selection / frontmost app) |
 | `.openURL(URL)` | open the URL |
 | `.showServices(String)` | macOS share picker on the text |
+| `.shareService(identifier:, text:)` | invoke a specific macOS sharing service by identifier (e.g. Notes inline popup) |
 | `.notify(title:, body:)` | post a notification (best-effort; needs authorization) |
 | `.showContent(CanvasComponent, CanvasHeader?)` | render an interactive canvas tree; **keeps popup open** |
 | `.showStatus(StatusFeedback)` | transient status; **keeps popup open** |
@@ -610,7 +621,8 @@ dismisses.
 
 ### 8a. Shell/script JSON protocol (`ShellResultMapper`)
 
-A script command may emit one JSON object on stdout (all fields optional except `type`):
+A script command may emit one JSON object on stdout (all fields optional except `type`, and
+except `shareService`'s `identifier`, which is required):
 
 ```jsonc
 { "type": "paste", "value": "text" }                                  // .paste
@@ -619,6 +631,7 @@ A script command may emit one JSON object on stdout (all fields optional except 
 { "type": "status", "message": "Done", "style": "success" }           // "success"|"error"|"info"
 { "type": "keepVisible", "effect": { "type": "paste", "value": "x" } }// .keepVisible(recursive)
 { "type": "configure", "reason": "...", "missing": ["opt"] }          // .openConfiguration
+{ "type": "shareService", "identifier": "com.apple.Notes.SharingExtension", "value": "text" } // .shareService — identifier REQUIRED
 ```
 
 Unknown `type` → `.success`. If stdout is **not** valid JSON, the plain text is **pasted**; empty
@@ -626,6 +639,10 @@ stdout → `.success`. A non-zero exit (or hitting the 30 s watchdog) becomes an
 are the *only* script JSON `type` values the runtime accepts. **`"showContent"` is not one of
 them** — a shell script cannot render a canvas, so a `"showContent"` type falls into the unknown
 branch and maps to `.success` (canvas rendering is JS-only, §7a).
+
+**`"shareService"` requires a non-empty `identifier`** — a missing/empty one maps to an **error**
+(failure status), never to `.success`. Its `value` is optional: the shared text falls back to
+`input` if present, else the empty string.
 
 ---
 

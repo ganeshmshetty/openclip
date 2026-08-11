@@ -107,6 +107,7 @@ struct ScriptJSONOutput: Decodable {
     let title: String?
     let body: String?
     let actions: [ScriptJSONEffect]?
+    let identifier: String?
 }
 
 /// Maps shell stdout JSON into an `ActionResult` (plan §6 protocol). Returns nil when the output
@@ -158,6 +159,15 @@ enum ShellResultMapper {
             let title = output.title ?? output.message ?? "OpenClip"
             let body = output.body ?? (output.title != nil ? output.message ?? "" : "")
             return .notify(title: title, body: body)
+        case "shareService", "share":
+            guard let identifier = output.identifier, !identifier.isEmpty else {
+                return .failure(NSError(
+                    domain: Constants.actionErrorDomain,
+                    code: Int(Constants.actionErrorCode),
+                    userInfo: [NSLocalizedDescriptionKey: "shareService requires a non-empty identifier"]
+                ))
+            }
+            return .shareService(identifier: identifier, text: output.value ?? output.input ?? "")
         case "sequence":
             guard let actions = output.actions, !actions.isEmpty else { return .success }
             let mappedResults = actions.map { map($0.value, actionID: actionID) }

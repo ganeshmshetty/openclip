@@ -286,6 +286,26 @@ final class ScriptActionExecutionTests: XCTestCase {
         }
     }
 
+    /// A script authored with an explicit `on run` handler must work: the runtime injects the
+    /// selection as a top-level `property` (which coexists with `on run`), not top-level `set`
+    /// statements (which AppleScript rejects with -2752). Regression for the Apple Music extension.
+    @MainActor
+    func testAppleScriptActionSupportsOnRunHandlerStyle() async throws {
+        let scriptCode = """
+        on run
+            return "AS:" & OPENCLIP_TEXT
+        end run
+        """
+        let action = AppleScriptAction(id: "test.applescript.onrun", title: "On Run", appleScriptCode: scriptCode)
+        let context = ActionContext(selectedText: "hello")
+        let result = try await action.perform(context)
+        if case .copy(let output) = result {
+            XCTAssertEqual(output, "AS:hello")
+        } else {
+            XCTFail("Expected .copy result for on-run script, got \(result)")
+        }
+    }
+
     @MainActor
     func testShellResultMapperParsesExpandedJSONProtocol() throws {
         let cutRes = ShellResultMapper.actionResult(from: "{\"type\":\"cut\",\"value\":\"clip\"}", actionID: "a")
@@ -306,6 +326,11 @@ final class ScriptActionExecutionTests: XCTestCase {
         guard case .notify(let title, let body) = notRes else { return XCTFail("Expected .notify") }
         XCTAssertEqual(title, "T")
         XCTAssertEqual(body, "B")
+
+        let shareRes = ShellResultMapper.actionResult(from: "{\"type\":\"shareService\",\"identifier\":\"com.apple.Notes.SharingExtension\",\"value\":\"hi\"}", actionID: "a")
+        guard case .shareService(let identifier, let text) = shareRes else { return XCTFail("Expected .shareService") }
+        XCTAssertEqual(identifier, "com.apple.Notes.SharingExtension")
+        XCTAssertEqual(text, "hi")
 
         let seqRes = ShellResultMapper.actionResult(from: "{\"type\":\"sequence\",\"actions\":[{\"type\":\"copy\",\"value\":\"1\"},{\"type\":\"paste\",\"value\":\"2\"}]}", actionID: "a")
         guard case .sequence(let sub) = seqRes else { return XCTFail("Expected .sequence") }
