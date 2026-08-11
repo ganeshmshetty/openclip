@@ -106,7 +106,7 @@ When selected text is detected, `ActionCoordinator.resolveActions(for:)` convert
  - If `context.selection.appPolicy.denyFormatting` is `true` (e.g. Terminal, IDEs), actions with `action.isFormatting == true` are filtered out.
 
 4. **Action Capability Check**:
- - Evaluates `action.isEnabled(for: context)`. For instance, script actions check for non-empty text, while URL template actions evaluate optional regex pattern matches (`regexPattern`).
+ - Evaluates `action.isEnabled(for: context)`. For instance, script actions check for non-empty text, while URL template actions evaluate optional regex pattern matches (`regexPattern`). Extension actions built by `DefaultActionFactory` carry `ExtensionActionRules` and delegate to `rules.resolveVisibility(for:)`, which also applies a manifest `requirements.expression` computed-visibility gate (a pure-Swift `ValidateExpression` DSL compiled once at load) after the regex first pass.
 
 ```swift
 public func availableActions(for context: ActionContext) -> [any Action] {
