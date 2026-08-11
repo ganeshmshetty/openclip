@@ -223,6 +223,54 @@ final class NewExtensionKindTests: XCTestCase {
         XCTAssertNil(KeyPressSpec(manifestString: "nonsense+key"))
     }
 
+    // MARK: - expression DSL compilation
+
+    @MainActor
+    func testFactoryCompilesExpressionIntoRulesAndGatesActions() async throws {
+        let factory = DefaultActionFactory()
+        let meta = ExtensionActionMetadata(
+            title: "Exp",
+            url: "https://example.com/?q={text}",
+            type: "url",
+            requirements: ActionRequirements(expression: "length(text) >= 5")
+        )
+        let manifest = ExtensionMetadata(identifier: "com.test.exp", name: "Exp Test", actions: [meta])
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
+        guard let urlAction = action as? URLTemplateAction else {
+            return XCTFail("Expected URLTemplateAction, got \(String(describing: action))")
+        }
+        XCTAssertNotNil(urlAction.rules?.compiledExpression)
+        XCTAssertTrue(urlAction.isEnabled(for: makeContext(text: "12345")))
+        XCTAssertFalse(urlAction.isEnabled(for: makeContext(text: "hi")))
+    }
+
+    @MainActor
+    func testFactoryMalformedExpressionFailsOpen() async throws {
+        let factory = DefaultActionFactory()
+        let meta = ExtensionActionMetadata(
+            title: "Bad",
+            url: "https://example.com/?q={text}",
+            type: "url",
+            requirements: ActionRequirements(expression: "isEmail(text) &&")
+        )
+        let manifest = ExtensionMetadata(identifier: "com.test.bad", name: "Bad Test", actions: [meta])
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
+        let urlAction = action as? URLTemplateAction
+        XCTAssertNotNil(urlAction)
+        XCTAssertNil(urlAction?.rules?.compiledExpression) // malformed -> nil -> behaves as today
+        XCTAssertTrue(urlAction?.isEnabled(for: makeContext(text: "anything")) == true)
+    }
+
     // MARK: - groups
 
     func testGroupFlattensToRowAndSubActions() async throws {
