@@ -216,7 +216,7 @@ public struct PopupSearchView: View {
             return AnyView(actionIcon(parent).foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme)))
         } else {
             return AnyView(
-                Image(systemName: "command")
+                Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
             )

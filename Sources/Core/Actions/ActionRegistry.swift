@@ -99,6 +99,29 @@ public final class ActionRegistry: ObservableObject, Sendable {
         actions = []
     }
     
+    /// Context gating shared by the bar and the search palette: can this action actually perform
+    /// against the current selection/app? Settings-disable state is deliberately out of scope here
+    /// (the bar applies it separately; the palette ignores it). Clipboard-fallback actions that
+    /// require a live selection and formatting actions under a deny-formatting app policy drop.
+    /// AI presets are treated as performable (a palette selection routes to the AI card regardless
+    /// of the enable toggle; the bar excludes presets by policy, not by ability).
+    private func canPerform(_ action: any Action, in context: ActionContext) -> Bool {
+        // AI presets are always performable from the palette: a selection routes to the AI
+        // card regardless of the preset's enable toggle, so they stay visible.
+        if ActionIdentity.isAIPreset(action) {
+            return true
+        }
+        // Clipboard fallback is not a live selection: Copy/Cut (and any future action that
+        // reads or mutates the real selection) must not act on text that was never selected.
+        if context.selection.isClipboardFallback && action.chrome.requiresLiveSelection {
+            return false
+        }
+        if context.selection.appPolicy.denyFormatting && action.isFormatting {
+            return false
+        }
+        return action.isEnabled(for: context)
+    }
+
     public func availableActions(for context: ActionContext) -> [any Action] {
         let disabledIDs = settingsStore.get(.disabledActionIDs)
         let disabledPackages = settingsStore.get(.disabledPackages)
@@ -110,11 +133,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
             if ActionIdentity.isAIPreset(action) {
                 return false
             }
-            // Clipboard fallback is not a live selection: Copy/Cut (and any future action that
-            // reads or mutates the real selection) must not act on text that was never selected.
-            if context.selection.isClipboardFallback && action.chrome.requiresLiveSelection {
-                return false
-            }
+            guard canPerform(action, in: context) else { return false }
             if disabledIDs.contains(action.id) {
                 return false
             }
@@ -123,10 +142,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
             if let packageID = ActionIdentity.extensionPackageID(of: action), disabledPackages.contains(packageID) {
                 return false
             }
-            if context.selection.appPolicy.denyFormatting && action.isFormatting {
-                return false
-            }
-            return action.isEnabled(for: context)
+            return true
         }
 
         // Group sub-actions are only reachable through their group's sub-menu. A group whose
@@ -152,12 +168,22 @@ public final class ActionRegistry: ObservableObject, Sendable {
         }
     }
 
-    /// The full registered catalog for the action-search palette: every registered action
-    /// regardless of enable state, minus the inline completion pseudo-action. No enable/disable,
-    /// context, or group filtering — sub-actions appear individually, flat. Group rows remain
-    /// (their sub-actions are now reachable directly from the palette).
-    public var searchCatalog: [any Action] {
-        actions.filter { !$0.chrome.launchesAI && !ActionIdentity.isCompletionPseudoAction($0) }
+    /// The registered catalog for the action-search palette, filtered to actions that can
+    /// actually perform given the current context. Settings-disabled actions (`.disabledActionIDs`,
+    /// `.disabledPackages`) stay visible — the palette is a full-catalog surface and a disabled row
+    /// can be re-enabled — but actions that cannot run against this context are dropped:
+    /// `isEnabled(for:)` failures (no selection, regex/app/expression gates), clipboard-fallback
+    /// actions that require a live selection, and formatting actions under a deny-formatting app
+    /// policy. Sub-actions appear individually, flat; group rows remain (their sub-actions are
+    /// reachable directly from the palette). `chrome.launchesAI` launchers and the inline
+    /// completion pseudo-action are always excluded.
+    public func searchCatalog(for context: ActionContext) -> [any Action] {
+        actions.filter { action in
+            if action.chrome.launchesAI || ActionIdentity.isCompletionPseudoAction(action) {
+                return false
+            }
+            return canPerform(action, in: context)
+        }
     }
 }
 

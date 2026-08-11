@@ -244,9 +244,10 @@ public class PopupWindowController {
     /// via `SubActionProviding` (core, id/`.ai`-driven); resolution happens here so the view never
     /// type-checks against the action catalog.
     private func enterScopedSearch(for action: any Action) {
+        guard let actionContext = currentActionContext else { return }
         let children = SubActionResolver().subActions(
             of: action,
-            in: ActionCoordinator.shared.searchCatalog
+            in: ActionCoordinator.shared.searchCatalog(for: actionContext)
         )
         enterSearch(with: SearchScope(parent: action, children: children))
     }
