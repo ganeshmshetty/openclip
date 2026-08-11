@@ -252,6 +252,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(keepVisibleBlock, forKeyedSubscript: "keepVisible" as NSString)
         openclip.setObject(requireConfigurationBlock, forKeyedSubscript: "requireConfiguration" as NSString)
 
+        jsContext.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
+        jsContext.evaluateScript("openclip.option = function(id) { return openclip.options[id]; }")
         if request.isAsync, let promiseState {
             registerAsyncBridge(
                 openclip: openclip,
@@ -260,12 +262,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
                 session: session,
                 fetchTasks: fetchTasks
             )
-        }
-
-        jsContext.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
-        jsContext.evaluateScript("openclip.option = function(id) { return openclip.options[id]; }")
-        if request.isAsync {
-            jsContext.evaluateScript(fetchPolyfillScript)
         }
 
         let wrappedScript = request.isAsync ? asyncWrappedScript(request.scriptCode) : syncWrappedScript(request.scriptCode)
@@ -313,9 +309,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
     // MARK: - Async bridge (fetch polyfill + promise settling)
 
-    /// Registers `openclip.__resolve` / `openclip.__reject` (promise settlement) and
-    /// `openclip.__nativeFetch` (the URLSession-backed fetch). The `openclip.fetch` polyfill is
-    /// evaluated separately, after the global `openclip` object is installed.
+    /// Registers `openclip.__resolve` / `openclip.__reject` (promise settlement) and installs the
+    /// shared URLSession-backed fetch bridge (`openclip.__nativeFetch` + the `openclip.fetch`
+    /// polyfill) via `JSNativeFetch.installNativeFetch`. The global `openclip` object must already
+    /// be installed in the context before this runs.
     private static func registerAsyncBridge(
         openclip: JSValue,
         context: JSContext,
@@ -332,118 +329,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(resolveBlock, forKeyedSubscript: "__resolve" as NSString)
         openclip.setObject(rejectBlock, forKeyedSubscript: "__reject" as NSString)
 
-        // All JS VM access must stay on the thread that created the context. The URLSession
-        // completion handler therefore only schedules work back onto that thread's CFRunLoop; the
-        // host's pump loop (CFRunLoopRunInMode) executes it on the JS thread.
-        let contextBox = JSContextBox(context)
-        // currentRunLoopBox keeps the CFRunLoopGetCurrent() call out of the detached task's
-        // @Sendable region (the region-based isolation checker rejects the raw CF type there).
-        let runLoopBox = currentRunLoopBox()
-
-        let nativeFetchBlock: @convention(block) (String, JSValue, JSValue, JSValue) -> Void = { urlString, options, resolve, reject in
-            guard let url = URL(string: urlString) else {
-                guard let err = Self.jsError("Invalid URL: \(urlString)", in: context) else { return }
-                reject.call(withArguments: [err])
-                return
-            }
-            let request = Self.makeURLRequest(url: url, options: options)
-            let resolveBox = JSValueBox(resolve)
-            let rejectBox = JSValueBox(reject)
-            var task: URLSessionDataTask?
-            task = session.dataTask(with: request) { data, response, error in
-                if let task {
-                    fetchTasks.remove(task)
-                }
-                let body = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
-                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-                let errorMessage = error.map { "Fetch failed: \($0.localizedDescription)" }
-                CFRunLoopPerformBlock(runLoopBox.runLoop, CFRunLoopMode.defaultMode.rawValue) {
-                    if let errorMessage {
-                        if let err = Self.jsError(errorMessage, in: contextBox.context) {
-                            rejectBox.value.call(withArguments: [err])
-                        }
-                    } else if let resp = Self.fetchResponse(status: status, body: body, context: contextBox.context) {
-                        resolveBox.value.call(withArguments: [resp])
-                    }
-                }
-                CFRunLoopWakeUp(runLoopBox.runLoop)
-            }
-            if let task {
-                fetchTasks.add(task)
-                task.resume()
-            }
-        }
-        openclip.setObject(nativeFetchBlock, forKeyedSubscript: "__nativeFetch" as NSString)
-    }
-
-    /// Builds a URLRequest from `fetch(url, options)`: method (default GET), optional headers
-    /// object, and an optional string body (JSON bodies via `JSON.stringify`).
-    private static func makeURLRequest(url: URL, options: JSValue) -> URLRequest {
-        var request = URLRequest(url: url)
-        request.timeoutInterval = Constants.scriptTimeout
-
-        let methodValue = options.objectForKeyedSubscript("method")
-        if let methodValue, !methodValue.isUndefined, !methodValue.isNull {
-            if let method = methodValue.toString(), !method.isEmpty {
-                request.httpMethod = method.uppercased()
-            }
-        } else {
-            request.httpMethod = "GET"
-        }
-
-        if let headersValue = options.objectForKeyedSubscript("headers"),
-           headersValue.isObject,
-           let headers = headersValue.toDictionary() {
-            for (key, value) in headers {
-                if let name = key as? String, let headerValue = value as? String {
-                    request.setValue(headerValue, forHTTPHeaderField: name)
-                }
-            }
-        }
-
-        if let bodyValue = options.objectForKeyedSubscript("body"),
-           !bodyValue.isUndefined, !bodyValue.isNull,
-           let body = bodyValue.toString(), !body.isEmpty {
-            request.httpBody = body.data(using: .utf8)
-        }
-        return request
-    }
-
-    /// Builds the JS response object: `{ status, ok, text(), json() }`.
-    private static func fetchResponse(status: Int, body: String, context: JSContext) -> JSValue? {
-        guard let response = JSValue(newObjectIn: context) else { return nil }
-        response.setObject(status, forKeyedSubscript: "status")
-        response.setObject(status >= 200 && status < 300, forKeyedSubscript: "ok")
-
-        let textBlock: @convention(block) () -> String = { body }
-        response.setObject(textBlock, forKeyedSubscript: "text")
-
-        // The json block escapes into JS, so it captures the context through a Sendable box rather
-        // than the raw non-Sendable JSContext (the region-based isolation checker rejects the direct
-        // capture inside a Task.detached region).
-        let contextBox = JSContextBox(context)
-        let jsonBlock: @convention(block) () -> Any = {
-            if let data = body.data(using: .utf8),
-               let object = try? JSONSerialization.jsonObject(with: data) {
-                return object
-            }
-            Log.js.debug("response.json() received non-JSON body")
-            if let err = jsError("Invalid JSON response", in: contextBox.context) {
-                contextBox.context.exception = err
-            }
-            return NSNull()
-        }
-        response.setObject(jsonBlock, forKeyedSubscript: "json")
-        return response
-    }
-
-    /// Creates a JS `Error` value (falls back to a plain object if the Error constructor is gone).
-    private static func jsError(_ message: String, in context: JSContext) -> JSValue? {
-        if let errorConstructor = context.objectForKeyedSubscript("Error"),
-           !errorConstructor.isUndefined, !errorConstructor.isNull {
-            return errorConstructor.call(withArguments: [message])
-        }
-        return JSValue(object: ["message": message], in: context)
+        JSNativeFetch.installNativeFetch(in: context, session: session, fetchTasks: fetchTasks)
     }
 
     /// True when a JS result is a promise-like (has a `then` function) that cannot be awaited in
@@ -496,14 +382,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
         };
         """)
     }
-
-    private static let fetchPolyfillScript = """
-    openclip.fetch = function(url, options) {
-        return new Promise(function(resolve, reject) {
-            openclip.__nativeFetch(String(url), options || {}, resolve, reject);
-        });
-    };
-    """
 
     /// Legacy synchronous wrapper — preserved shape: define action/main inside an IIFE and dispatch
     /// to whichever entry point the author provided (golden + option-store tests depend on this).
@@ -698,12 +576,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
               let spec = CanvasScriptBox.elementSpec(from: object),
               let root = try? CanvasElementParser.parseTree(spec) else { return nil }
         return root
-    }
-
-    /// Captures the calling thread's CFRunLoop in a Sendable box. Kept as a helper so the raw CF
-    /// value never appears inside a @Sendable closure body.
-    private static func currentRunLoopBox() -> RunLoopBox {
-        RunLoopBox(CFRunLoopGetCurrent())
     }
 
     // MARK: - Watchdog + threading helpers
