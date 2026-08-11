@@ -12,6 +12,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
     public var appsMode: AppsMode
     public var requiresSelection: Bool
     public var requiredOptions: [String]?
+    public var expression: String?
 
     public enum AppsMode: String, Codable, Sendable {
         case allow
@@ -24,7 +25,8 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         apps: [String]? = nil,
         appsMode: AppsMode = .allow,
         requiresSelection: Bool = true,
-        requiredOptions: [String]? = nil
+        requiredOptions: [String]? = nil,
+        expression: String? = nil
     ) {
         self.regex = regex
         self.regexNegated = regexNegated
@@ -32,6 +34,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         self.appsMode = appsMode
         self.requiresSelection = requiresSelection
         self.requiredOptions = requiredOptions
+        self.expression = expression
     }
 
     public init(from decoder: Decoder) throws {
@@ -46,6 +49,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
             ?? container.decodeIfPresent(Bool.self, forKey: .requiresSelectionDash) ?? true
         self.requiredOptions = try container.decodeIfPresent([String].self, forKey: .requiredOptions)
             ?? container.decodeIfPresent([String].self, forKey: .requiredOptionsDash)
+        self.expression = try container.decodeIfPresent(String.self, forKey: .expression)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -56,6 +60,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         try container.encodeIfPresent(appsMode, forKey: .appsMode)
         try container.encodeIfPresent(requiresSelection, forKey: .requiresSelection)
         try container.encodeIfPresent(requiredOptions, forKey: .requiredOptions)
+        try container.encodeIfPresent(expression, forKey: .expression)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -69,6 +74,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         case requiresSelectionDash = "requires-selection"
         case requiredOptions = "requiredOptions"
         case requiredOptionsDash = "required-options"
+        case expression
     }
 }
 
