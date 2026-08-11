@@ -17,6 +17,13 @@ public indirect enum ActionResult: Sendable {
     case paste(String)
     case showServices(String)
 
+    /// Invoke a specific macOS sharing service by its identifier (e.g.
+    /// `com.apple.Notes.SharingExtension`) with the given text — the sharing-extension analogue of
+    /// `popclip.share(...)`. Handled by the effect door via `NSSharingService(named:).perform`,
+    /// so Core and the JS host stay testable. Unlike `.showServices` (a picker), this targets the
+    /// service directly (e.g. opens the Notes inline popup) and dismisses the popup.
+    case shareService(identifier: String, text: String)
+
     /// Post a macOS user notification (title/body) via `UNUserNotificationCenter`. Handled by the
     /// effect door so Core and the JS host stay testable; best-effort (skipped if not authorized).
     case notify(title: String, body: String)
