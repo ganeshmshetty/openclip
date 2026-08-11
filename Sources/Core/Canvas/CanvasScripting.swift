@@ -23,6 +23,8 @@ import Foundation
 public struct CanvasMountRequest: Sendable {
     public var initialState: CanvasSessionState
     public var input: String
+    /// Substring matched by the action's requirements (nil / equals input if no regex).
+    public var matchedText: String?
     /// Regex capture groups 1...n from the action's match (empty when no regex matched).
     public var captures: [String]
     /// Source app the selection came from; bridged as openclip.input.app.bundleID/.name.
@@ -35,6 +37,7 @@ public struct CanvasMountRequest: Sendable {
     public init(
         initialState: CanvasSessionState = CanvasSessionState(),
         input: String,
+        matchedText: String? = nil,
         captures: [String] = [],
         sourceApp: AppIdentity? = nil,
         optionValues: [String: JSONValue] = [:],
@@ -44,6 +47,7 @@ public struct CanvasMountRequest: Sendable {
     ) {
         self.initialState = initialState
         self.input = input
+        self.matchedText = matchedText
         self.captures = captures
         self.sourceApp = sourceApp
         self.optionValues = optionValues

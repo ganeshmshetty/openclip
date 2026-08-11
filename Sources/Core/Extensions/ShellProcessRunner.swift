@@ -99,6 +99,14 @@ struct ScriptJSONOutput: Decodable {
     let missing: [String]?
     let reason: String?
     let effect: ScriptJSONEffect?
+    let key: String?
+    let modifiers: [String]?
+    let name: String?
+    let shortcutName: String?
+    let input: String?
+    let title: String?
+    let body: String?
+    let actions: [ScriptJSONEffect]?
 }
 
 /// Maps shell stdout JSON into an `ActionResult` (plan §6 protocol). Returns nil when the output
@@ -113,6 +121,19 @@ enum ShellResultMapper {
         return map(decoded, actionID: actionID)
     }
 
+    private static func mapModifiers(_ rawModifiers: [String]?) -> [KeyPressSpec.KeyModifier] {
+        guard let rawModifiers else { return [] }
+        return rawModifiers.compactMap { element in
+            switch element.lowercased() {
+            case "command", "cmd": return .command
+            case "shift": return .shift
+            case "option", "alt": return .option
+            case "control", "ctrl": return .control
+            default: return nil
+            }
+        }
+    }
+
     private static func map(_ output: ScriptJSONOutput, actionID: String) -> ActionResult {
         switch output.type {
         case Constants.actionTypePaste:
@@ -121,9 +142,34 @@ enum ShellResultMapper {
         case Constants.actionTypeCopy:
             guard let value = output.value else { return .success }
             return .copy(value)
-        case Constants.actionTypeOpenURL:
+        case "cut":
+            return .cut(output.value ?? "")
+        case Constants.actionTypeOpenURL, "url":
             guard let value = output.value, let url = URL(string: value) else { return .success }
             return .openURL(url)
+        case "keyPress", "keypress":
+            guard let key = output.key, !key.isEmpty else { return .success }
+            let modifiers = mapModifiers(output.modifiers)
+            return .keyPress(KeyPressSpec(key: key, modifiers: modifiers))
+        case "runShortcut", "shortcut":
+            guard let name = output.name ?? output.shortcutName, !name.isEmpty else { return .success }
+            return .runShortcut(name: name, input: output.input ?? output.value)
+        case "notify", "notification":
+            let title = output.title ?? output.message ?? "OpenClip"
+            let body = output.body ?? (output.title != nil ? output.message ?? "" : "")
+            return .notify(title: title, body: body)
+        case "sequence":
+            guard let actions = output.actions, !actions.isEmpty else { return .success }
+            let mappedResults = actions.map { map($0.value, actionID: actionID) }
+            return .sequence(mappedResults)
+        case "fail", "failure", "error":
+            let msg = output.message ?? output.reason ?? output.value ?? "Script reported failure"
+            let err = NSError(
+                domain: Constants.actionErrorDomain,
+                code: Int(Constants.actionErrorCode),
+                userInfo: [NSLocalizedDescriptionKey: msg]
+            )
+            return .failure(err)
         case "status":
             let style: StatusFeedback.Style
             switch output.style?.lowercased() {

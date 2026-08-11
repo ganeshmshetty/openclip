@@ -168,8 +168,10 @@ public struct OnboardingView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
 
+            Spacer(minLength: 16)
+
             Divider()
-                .padding(.vertical, 20)
+                .padding(.bottom, 20)
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
@@ -202,12 +204,6 @@ public struct OnboardingView: View {
                     }
                 }
             }
-
-            Spacer(minLength: 8)
-
-            Text("Runs 100% locally — no data leaves your Mac.")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
         }
     }
 

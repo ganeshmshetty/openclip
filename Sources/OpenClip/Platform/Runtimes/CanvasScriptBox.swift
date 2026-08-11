@@ -14,22 +14,37 @@ import Core
 /// Pure JSContext glue: element-object bridging + the h() helper the canvas contract requires.
 public enum CanvasScriptBox {
     /// Registers `h(type, props, ...children)` on the context (returns `{type, props, children}` objects).
+    /// Child arrays are flattened recursively and `null`/`undefined` children are omitted, so mixed
+    /// static and mapped children produce one flat child list. A single surviving child is unwrapped
+    /// (preserving the bare-string child that `elementSpec` maps to `content` for `text`).
     public static func installH(in context: JSContext) {
         context.evaluateScript("""
         function h(type, props) {
-            var children = Array.prototype.slice.call(arguments, 2);
-            var flatChildren;
-            if (children.length === 0) {
-                flatChildren = [];
-            } else if (children.length === 1) {
-                flatChildren = children[0];
+            var args = Array.prototype.slice.call(arguments, 2);
+            var flat = [];
+            function collect(list) {
+                for (var i = 0; i < list.length; i++) {
+                    var v = list[i];
+                    if (Array.isArray(v)) {
+                        collect(v);
+                    } else if (v !== null && v !== undefined) {
+                        flat.push(v);
+                    }
+                }
+            }
+            collect(args);
+            var children;
+            if (flat.length === 0) {
+                children = [];
+            } else if (flat.length === 1) {
+                children = flat[0];
             } else {
-                flatChildren = children;
+                children = flat;
             }
             return {
                 type: type,
                 props: props || {},
-                children: flatChildren
+                children: children
             };
         }
         """)
@@ -91,10 +106,11 @@ public enum CanvasScriptBox {
     /// collects into the passed `CanvasBridgeCollector` (fresh per evaluation — never shared state).
     /// `captures`/`sourceApp` surface the action's match to the script as
     /// `openclip.input.captures` / `openclip.input.app.{bundleID,name}` (same shape as the JS host);
-    /// `input.text`/`input.matchedText` stay equal to the passed `input` string.
+    /// `input.text` is the full text, `input.matchedText` is the matched substring.
     public static func installCanvasBridge(
         in context: JSContext,
         input: String,
+        matchedText: String? = nil,
         captures: [String],
         sourceApp: AppIdentity?,
         optionValues: [String: JSONValue],
@@ -116,8 +132,9 @@ public enum CanvasScriptBox {
             collector.parseError = CanvasJSRuntimeError.scriptException("Could not create input JSValue")
             return
         }
+        let effectiveMatchedText = matchedText ?? input
         inputObj.setObject(input, forKeyedSubscript: "text" as NSString)
-        inputObj.setObject(input, forKeyedSubscript: "matchedText" as NSString)
+        inputObj.setObject(effectiveMatchedText, forKeyedSubscript: "matchedText" as NSString)
         inputObj.setObject(captures, forKeyedSubscript: "captures" as NSString)
         guard let appObj = JSValue(newObjectIn: context) else {
             collector.parseError = CanvasJSRuntimeError.scriptException("Could not create app JSValue")
@@ -158,7 +175,8 @@ public enum CanvasScriptBox {
             collector.effects.append(.keyPress(KeyPressSpec(key: key, modifiers: mods)))
         }
         let runShortcutBlock: @convention(block) (String, String?) -> Void = { name, inputOverride in
-            collector.effects.append(.runShortcut(name: name, input: inputOverride ?? input))
+            let cleanedInput = (inputOverride == nil || inputOverride == "undefined" || inputOverride == "null") ? nil : inputOverride
+            collector.effects.append(.runShortcut(name: name, input: cleanedInput ?? input))
         }
         let showServicesBlock: @convention(block) (String) -> Void = { text in
             collector.effects.append(.showServices(text))

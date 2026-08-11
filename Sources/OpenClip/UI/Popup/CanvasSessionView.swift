@@ -149,9 +149,17 @@ public struct CanvasSessionView: View {
         )
         let bodyView = bodyScroll
         if searchResultsAbove {
-            VStack(spacing: 0) { bodyView; header }
+            VStack(spacing: 0) {
+                bodyView
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                header
+            }
         } else {
-            VStack(spacing: 0) { header; bodyView }
+            VStack(spacing: 0) {
+                header
+                bodyView
+                    .frame(maxHeight: .infinity, alignment: .top)
+            }
         }
     }
 
@@ -176,13 +184,15 @@ public struct CanvasSessionView: View {
     }
 
     private var bodyScroll: some View {
-        let maxHeight = Constants.popupMaxHeight - Constants.canvasHeaderHeight
+        let availableBodyHeight = session.preferredSize.map { min($0.height, Constants.popupMaxHeight) - Constants.canvasHeaderHeight }
+            ?? (Constants.popupMaxHeight - Constants.canvasHeaderHeight)
+        let needsScroll = measuredContentHeight > availableBodyHeight
         return Group {
-            if session.preferredSize == nil && measuredContentHeight > maxHeight {
+            if needsScroll {
                 ScrollView(.vertical, showsIndicators: true) {
                     bodyContent
                 }
-                .frame(height: maxHeight)
+                .frame(height: availableBodyHeight)
             } else {
                 bodyContent
             }

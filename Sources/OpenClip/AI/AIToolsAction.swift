@@ -14,7 +14,7 @@ public struct AIToolsAction: Action, SubActionProviding {
 
     public var id: String { "builtin.aiTools" }
     public var title: String { "AI Tools" }
-    public var icon: ActionIcon { .symbol("sparkles") }
+    public var icon: ActionIcon { .symbol(Constants.defaultAIIconSymbol) }
     public var chrome: ActionChrome {
         ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin, launchesAI: true)
     }

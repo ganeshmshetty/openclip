@@ -137,25 +137,53 @@ final class PromiseState: @unchecked Sendable {
     }
 }
 
+/// Boxes the stable `URLSessionDataTask.taskIdentifier` so the fetch completion can remove its own
+/// task without capturing a mutable reference across threads. The identifier is written on the JS
+/// thread before `resume()` and read back on the URLSession completion thread.
+final class TaskIdentifierBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _value = 0
+    var value: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return _value
+    }
+    func set(_ value: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        _value = value
+    }
+}
+
 /// Thread-safe container to track active URLSessionDataTasks so they can be cancelled on watchdog timeout.
+/// `cancelAll()` is terminal: once cancellation starts, any task added afterwards is cancelled
+/// immediately rather than being appended (so a task racing in during `cancelAll()` cannot escape
+/// cancellation).
 final class FetchTaskBox: @unchecked Sendable {
     private let lock = NSLock()
     private var tasks: [URLSessionDataTask] = []
+    private var cancelled = false
 
     func add(_ task: URLSessionDataTask) {
         lock.lock()
         defer { lock.unlock() }
+        if cancelled {
+            task.cancel()
+            return
+        }
         tasks.append(task)
     }
 
-    func remove(_ task: URLSessionDataTask) {
+    /// Removes the tracked task with the given stable `taskIdentifier`.
+    func remove(_ identifier: Int) {
         lock.lock()
         defer { lock.unlock() }
-        tasks.removeAll(where: { $0 === task })
+        tasks.removeAll(where: { $0.taskIdentifier == identifier })
     }
 
     func cancelAll() {
         lock.lock()
+        cancelled = true
         let currentTasks = tasks
         tasks.removeAll()
         lock.unlock()

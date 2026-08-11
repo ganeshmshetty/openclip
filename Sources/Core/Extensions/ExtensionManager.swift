@@ -21,6 +21,7 @@ public final class ExtensionManager: Sendable {
     
     public private(set) var loadedActions: [any Action] = []
     public var actionFactory: (any ActionFactory)?
+    public var optionWriter: (any ActionOptionWriting)?
     
     private init() {}
 
@@ -32,6 +33,7 @@ public final class ExtensionManager: Sendable {
         onRegister = nil
         onUnregister = nil
         actionFactory = nil
+        optionWriter = nil
     }
     
     public func loadExtensions(from url: URL = Constants.extensionsDirectory) async {
@@ -41,7 +43,12 @@ public final class ExtensionManager: Sendable {
             // trips a Swift 6 region-based-isolation checker bug.
             return await ExtensionManager.scanDirectory(url, factory: factory)
         }.value
-        for oldAction in self.loadedActions {
+        let newIDs = Set(actions.map { $0.id })
+        // Diff the previous vs refreshed action IDs. Only unregister IDs that are permanently gone;
+        // retained IDs are replaced in place via onRegister (register(action:)), so their
+        // .actionOrder entries survive the reload instead of being pruned by a full
+        // unregister-then-register cycle.
+        for oldAction in self.loadedActions where !newIDs.contains(oldAction.id) {
             onUnregister?(oldAction.id)
         }
         self.loadedActions = actions
@@ -73,8 +80,12 @@ public final class ExtensionManager: Sendable {
             try fm.copyItem(at: sourceURL, to: destinationURL)
         } else if sourceURL.pathExtension.lowercased() == "zip" {
             // Zip archive installation
-            // Unzip to a temp staging dir, then find the .openclipext folder inside and move it.
             let stagingDir = targetDir.appendingPathComponent(".install_staging_\(UUID().uuidString)")
+            
+            // 1. Validate entries for containment BEFORE extraction to prevent Zip-Slip
+            try await ExtensionManager.validateZipEntries(at: sourceURL, stagingDir: stagingDir)
+
+            // 2. Unzip to a temp staging dir, then find the .openclipext folder inside and move it.
             try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
             defer { try? fm.removeItem(at: stagingDir) }
 
@@ -149,6 +160,22 @@ public final class ExtensionManager: Sendable {
                         let actionIDPrefix = meta.identifier + "."
                         if actionID == meta.identifier || actionID.hasPrefix(actionIDPrefix) {
                             matched = true
+                            if let optionWriter {
+                                for (index, actionMeta) in meta.actions.enumerated() {
+                                    let id = ExtensionManager.uniformActionID(metadata: actionMeta, manifest: meta, index: index)
+                                    let options = (meta.options ?? []) + (actionMeta.options ?? [])
+                                    for optMeta in options {
+                                        let opt = ExtensionOption(
+                                            identifier: optMeta.identifier,
+                                            label: optMeta.label,
+                                            type: ExtensionOptionType(rawValue: optMeta.type) ?? .string,
+                                            defaultValue: optMeta.defaultValue,
+                                            options: optMeta.values
+                                        )
+                                        optionWriter.clearValue(actionID: id, option: opt)
+                                    }
+                                }
+                            }
                         }
                         break
                     }
@@ -367,5 +394,67 @@ public final class ExtensionManager: Sendable {
             return id.contains(".") ? id : "\(manifest.identifier).\(id)"
         }
         return "\(manifest.identifier).action.\(index)"
+    }
+
+    /// Validates all entry paths in a zip archive using `unzip -Z1` before extraction to prevent Zip-Slip vulnerabilities.
+    public static func validateZipEntries(at zipURL: URL, stagingDir: URL) async throws {
+        let listOutput = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+            executableURL: URL(fileURLWithPath: "/usr/bin/unzip"),
+            arguments: ["-Z1", zipURL.path],
+            environment: [:]
+        ))
+
+        let lines = listOutput.stdout.split(separator: "\n").map { $0.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) }
+        for entry in lines {
+            guard !entry.isEmpty else { continue }
+            if entry.hasPrefix("/") || entry.contains("../") || entry.contains("/..") || entry == ".." {
+                throw NSError(domain: "ExtensionManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Archive contains an unsafe entry path: \(entry)"])
+            }
+            let candidateURL = stagingDir.appendingPathComponent(entry)
+            guard Constants.isPathSafe(destinationURL: candidateURL, baseDirectory: stagingDir) else {
+                throw NSError(domain: "ExtensionManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Archive entry is outside staging directory: \(entry)"])
+            }
+        }
+
+        // Reject symbolic-link entries before extraction. A symlink created by the archive could
+        // be followed by a later entry (or by the install's own move) to write outside stagingDir.
+        let verboseOutput = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+            executableURL: URL(fileURLWithPath: "/usr/bin/unzip"),
+            arguments: ["-Z", "-v", zipURL.path],
+            environment: [:]
+        ))
+        if let symlinkName = firstSymlinkEntry(in: verboseOutput.stdout) {
+            throw NSError(domain: "ExtensionManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Archive contains a symbolic-link entry: \(symlinkName)"])
+        }
+    }
+
+    /// Scans `unzip -Z -v` output for the first entry whose Unix type bits mark a symbolic link
+    /// (`0o120000`, S_IFLNK). Each `Central directory entry #N:` block names its entry on the
+    /// following content line; the `Unix file attributes (<octal> octal)` line carries its mode.
+    private static func firstSymlinkEntry(in verboseOutput: String) -> String? {
+        var currentName: String?
+        for line in verboseOutput.split(separator: "\n", omittingEmptySubsequences: true) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("Central directory entry") {
+                currentName = nil
+            } else if trimmed.hasPrefix("Unix file attributes") {
+                guard let octal = unixModeOctal(from: trimmed) else { continue }
+                if octal & 0o170000 == 0o120000 {
+                    return currentName ?? "unknown"
+                }
+            } else if currentName == nil, !trimmed.isEmpty, !trimmed.hasPrefix("-") {
+                currentName = trimmed
+            }
+        }
+        return nil
+    }
+
+    /// Extracts the octal mode (e.g. `120777`) from a `Unix file attributes (120777 octal):` line.
+    private static func unixModeOctal(from attributeLine: String) -> Int? {
+        guard let open = attributeLine.firstIndex(of: "("),
+              let close = attributeLine[open...].firstIndex(of: ")") else { return nil }
+        let content = attributeLine[attributeLine.index(after: open)..<close]
+        let octal = content.split(separator: " ").first ?? content
+        return Int(octal, radix: 8)
     }
 }

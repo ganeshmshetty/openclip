@@ -19,10 +19,24 @@ if [ -z "$BUILT_APP" ]; then
     exit 1
 fi
 
+echo "Signing app bundle and embedded frameworks ad-hoc..."
+codesign --force --deep --sign - "$BUILT_APP"
+
 mkdir -p "$PROJECT_DIR/build"
 OUTPUT_ZIP="$PROJECT_DIR/build/OpenClip.zip"
+OUTPUT_DMG="$PROJECT_DIR/build/OpenClip.dmg"
 
 echo "Packaging $BUILT_APP into $OUTPUT_ZIP..."
 ditto -c -k --sequesterRsrc --keepParent "$BUILT_APP" "$OUTPUT_ZIP"
 
-echo "Release package created at: $OUTPUT_ZIP"
+echo "Packaging $BUILT_APP into $OUTPUT_DMG..."
+STAGING_DIR="$(mktemp -d)"
+trap 'rm -rf "$STAGING_DIR"' EXIT
+cp -R "$BUILT_APP" "$STAGING_DIR/"
+ln -s /Applications "$STAGING_DIR/Applications"
+hdiutil create -volname "OpenClip" -srcfolder "$STAGING_DIR" -ov -format UDZO "$OUTPUT_DMG" > /dev/null
+
+echo "Release packages created:"
+echo "  ZIP: $OUTPUT_ZIP"
+echo "  DMG: $OUTPUT_DMG"
+

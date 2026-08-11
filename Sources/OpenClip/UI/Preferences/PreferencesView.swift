@@ -19,7 +19,7 @@ enum PreferenceTab: String, CaseIterable, Hashable {
         case .general: return "gearshape.fill"
         case .appearance: return "paintbrush.fill"
         case .actions: return "bolt.horizontal.fill"
-        case .ai: return "sparkles"
+        case .ai: return Constants.defaultAIIconSymbol
         case .appRules: return "shield.checkerboard"
         case .about: return "info.circle.fill"
         }

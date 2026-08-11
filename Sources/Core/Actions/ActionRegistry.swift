@@ -91,6 +91,17 @@ public final class ActionRegistry: ObservableObject, Sendable {
     
     public func unregister(actionID: String) {
         actions.removeAll(where: { $0.id == actionID })
+        pruneActionOrder()
+    }
+
+    public func pruneActionOrder() {
+        let currentOrder = settingsStore.get(.actionOrder)
+        guard !currentOrder.isEmpty else { return }
+        let activeIDs = Set(actions.map { $0.id })
+        let prunedOrder = currentOrder.filter { activeIDs.contains($0) }
+        if prunedOrder != currentOrder {
+            settingsStore.set(.actionOrder, value: prunedOrder)
+        }
     }
 
     /// Clears all registered actions. Test-isolation hook so the shared singleton does not leak

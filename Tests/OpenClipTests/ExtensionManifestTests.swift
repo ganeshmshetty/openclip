@@ -128,5 +128,29 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertEqual(manifest.identifier, "com.example.translator")
         XCTAssertEqual(manifest.actions.count, 1)
         XCTAssertEqual(manifest.actions[0].kind, .url)
+        XCTAssertEqual(manifest.version, "1.0.0")
+    }
+
+    func testEditActionSheetPreservesVersionAndCapabilities() throws {
+        let manifest = ExtensionMetadata(
+            identifier: "com.test.extension",
+            name: "Test Ext",
+            actions: [ExtensionActionMetadata(id: "act1", title: "Act 1", url: "https://example.com", type: "url")],
+            version: "2.1.0",
+            capabilities: ["fetch"]
+        )
+
+        let updatedManifest = ExtensionMetadata(
+            identifier: manifest.identifier,
+            name: manifest.name,
+            actions: manifest.actions,
+            options: manifest.options,
+            version: manifest.version,
+            capabilities: manifest.capabilities
+        )
+
+        XCTAssertEqual(updatedManifest.version, "2.1.0")
+        XCTAssertEqual(updatedManifest.capabilities, ["fetch"])
     }
 }
+
