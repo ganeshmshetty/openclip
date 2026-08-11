@@ -310,4 +310,33 @@ final class ActionVisibilityTests: XCTestCase {
         let passing = ActionVisibility.isEnabled(requirements: nil, legacyRegex: nil, expression: attemptParse("isEmail(text)"), context: context)
         XCTAssertTrue(passing.enabled)
     }
+
+    func testResolveVisibilityCarriesCompiledExpression() {
+        let expression = try! ValidateExpression.parse("length(text) > 5").get()
+        let rules = ExtensionActionRules(
+            requirements: ActionRequirements(expression: "length(text) > 5"),
+            compiledExpression: expression
+        )
+        let short = ActionContext(selectedText: "hi")
+        let long = ActionContext(selectedText: "a longer selection")
+        XCTAssertFalse(rules.resolveVisibility(for: short).enabled)
+        XCTAssertTrue(rules.resolveVisibility(for: long).enabled)
+    }
+
+    func testResolveVisibilityWithoutExpressionDelegateToRegex() {
+        let rules = ExtensionActionRules(requirements: ActionRequirements(regex: "^[0-9]+$"))
+        XCTAssertTrue(rules.resolveVisibility(for: ActionContext(selectedText: "12345")).enabled)
+        XCTAssertFalse(rules.resolveVisibility(for: ActionContext(selectedText: "abc")).enabled)
+    }
+
+    func testRulesRoundTripDropsCompiledExpressionButKeepsSource() throws {
+        let rules = ExtensionActionRules(
+            requirements: ActionRequirements(expression: "isEmail(text)"),
+            compiledExpression: try! ValidateExpression.parse("isEmail(text)").get()
+        )
+        let data = try JSONEncoder().encode(rules)
+        let decoded = try JSONDecoder().decode(ExtensionActionRules.self, from: data)
+        XCTAssertEqual(decoded.requirements?.expression, "isEmail(text)")
+        XCTAssertNil(decoded.compiledExpression)
+    }
 }
