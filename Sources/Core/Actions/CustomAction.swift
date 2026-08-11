@@ -50,13 +50,13 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
         guard let rules else {
             return !context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
-        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).enabled
+        return rules.resolveVisibility(for: context).enabled
     }
 
     @MainActor
     public func matchInfo(for context: ActionContext) -> ActionMatchInfo? {
         guard let rules else { return nil }
-        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).match
+        return rules.resolveVisibility(for: context).match
     }
     
     @MainActor
