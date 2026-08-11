@@ -32,7 +32,10 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
 
     public let virtualMachine: JSVirtualMachine = JSVirtualMachine()
 
-    public init(timeout: TimeInterval? = nil) {
+    public let session: URLSession
+
+    public init(timeout: TimeInterval? = nil, session: URLSession = .shared) {
+        self.session = session
         self._sessionState = CanvasSessionState()
         self._sessionInput = ""
         self._sessionCaptures = []
@@ -274,6 +277,12 @@ public final class JavaScriptCanvasEngine: CanvasScripting, @unchecked Sendable 
             optionValues: inputs.optionValues,
             collector: collector
         )
+
+        let fetchTasks = FetchTaskBox()
+        if engine._isAsync {
+            JSNativeFetch.installNativeFetch(in: jsContext, session: engine.session, fetchTasks: fetchTasks)
+        }
+        defer { fetchTasks.cancelAll() }
 
         let scriptCode = inputs.scriptCode
         jsContext.evaluateScript(scriptCode)
