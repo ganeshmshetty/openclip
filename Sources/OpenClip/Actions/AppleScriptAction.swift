@@ -60,12 +60,12 @@ public struct AppleScriptAction: ConfigurableAction {
         guard let rules else {
             return !context.selection.text.isEmpty
         }
-        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).enabled
+        return rules.resolveVisibility(for: context).enabled
     }
 
     public func matchInfo(for context: ActionContext) -> ActionMatchInfo? {
         guard let rules else { return nil }
-        return ActionVisibility.isEnabled(requirements: rules.requirements, legacyRegex: rules.legacyRegex, context: context).match
+        return rules.resolveVisibility(for: context).match
     }
 
     public func perform(_ context: ActionContext) async throws -> ActionResult {
