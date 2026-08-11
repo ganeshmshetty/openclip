@@ -30,20 +30,26 @@ public struct URLTemplateAction: Action, Sendable {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        ActionVisibility.isEnabled(
-            requirements: rules?.requirements,
-            legacyRegex: rules?.legacyRegex ?? regexPattern,
-            context: context
-        ).enabled
+        guard let rules else {
+            return ActionVisibility.isEnabled(
+                requirements: nil,
+                legacyRegex: regexPattern,
+                context: context
+            ).enabled
+        }
+        return rules.resolveVisibility(for: context).enabled
     }
 
     @MainActor
     public func matchInfo(for context: ActionContext) -> ActionMatchInfo? {
-        ActionVisibility.isEnabled(
-            requirements: rules?.requirements,
-            legacyRegex: rules?.legacyRegex ?? regexPattern,
-            context: context
-        ).match
+        guard let rules else {
+            return ActionVisibility.isEnabled(
+                requirements: nil,
+                legacyRegex: regexPattern,
+                context: context
+            ).match
+        }
+        return rules.resolveVisibility(for: context).match
     }
     
     @MainActor

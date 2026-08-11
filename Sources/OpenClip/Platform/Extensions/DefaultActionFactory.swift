@@ -40,6 +40,23 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         )
     }
 
+    /// Compiles the manifest expression DSL once (parse-once-eval-many). On a parse failure the
+    /// expression is dropped and logged via Log.js: the action then behaves exactly as before the
+    /// DSL existed (defensive fail-open, mirroring the malformed-regex stance).
+    private func compiledExpression(for metadata: ExtensionActionMetadata, actionID: String) -> ValidateExpression? {
+        guard let source = metadata.requirements?.expression,
+              !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        switch ValidateExpression.parse(source) {
+        case .success(let expression):
+            return expression
+        case .failure(let error):
+            Log.js.error("Enablement expression parse failed for \(actionID, privacy: .public): \(error)")
+            return nil
+        }
+    }
+
     /// Merges per-action option overrides (`metadata.options`) onto the manifest-level defaults
     /// (`manifest.options`) by identifier. Manifest-level options keep their order; overrides
     /// replace matching identifiers in place, and identifiers unique to the action are appended
@@ -103,7 +120,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             requirements: metadata.requirements,
             legacyRegex: metadata.regex,
             after: .default,
-            stayVisible: metadata.stayVisible ?? false
+            stayVisible: metadata.stayVisible ?? false,
+            compiledExpression: compiledExpression(for: metadata, actionID: groupID)
         )
         let groupChrome = ActionChrome(
             badge: .extensionPkg(manifest.name),
@@ -167,7 +185,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             requirements: metadata.requirements,
             legacyRegex: metadata.regex,
             after: metadata.after ?? .default,
-            stayVisible: metadata.stayVisible ?? false
+            stayVisible: metadata.stayVisible ?? false,
+            compiledExpression: compiledExpression(for: metadata, actionID: actionId)
         )
         
         let extensionChrome = ActionChrome(
