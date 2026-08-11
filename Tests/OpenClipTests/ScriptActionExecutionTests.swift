@@ -249,4 +249,71 @@ final class ScriptActionExecutionTests: XCTestCase {
 
         try? FileManager.default.removeItem(at: tempScript)
     }
+
+    @MainActor
+    func testAppleScriptActionEscapesPlaceholdersWithQuotesAndBackslashes() async throws {
+        let scriptCode = """
+        return "{text}"
+        """
+        let action = AppleScriptAction(id: "test.applescript.escape", title: "Test AppleScript", appleScriptCode: scriptCode)
+        let inputWithQuotes = "Hello \"World\" \\ test"
+        let context = ActionContext(selectedText: inputWithQuotes)
+
+        let result = try await action.perform(context)
+        if case .copy(let output) = result {
+            XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), inputWithQuotes)
+        } else {
+            XCTFail("Expected .copy result containing returned text, got \(result)")
+        }
+    }
+
+    /// A multiline selection must be escaped to AppleScript's `\r`/`\n` string escapes so the
+    /// generated script is a valid string literal and the value round-trips.
+    @MainActor
+    func testAppleScriptActionEscapesMultilineSelection() async throws {
+        let scriptCode = """
+        return "{text}"
+        """
+        let action = AppleScriptAction(id: "test.applescript.multiline", title: "Test AppleScript", appleScriptCode: scriptCode)
+        let input = "line1\nline2\rline3"
+        let context = ActionContext(selectedText: input)
+
+        let result = try await action.perform(context)
+        if case .copy(let output) = result {
+            XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), input)
+        } else {
+            XCTFail("Expected .copy result containing multiline text, got \(result)")
+        }
+    }
+
+    @MainActor
+    func testShellResultMapperParsesExpandedJSONProtocol() throws {
+        let cutRes = ShellResultMapper.actionResult(from: "{\"type\":\"cut\",\"value\":\"clip\"}", actionID: "a")
+        guard case .cut(let text) = cutRes else { return XCTFail("Expected .cut") }
+        XCTAssertEqual(text, "clip")
+
+        let keyRes = ShellResultMapper.actionResult(from: "{\"type\":\"keyPress\",\"key\":\"c\",\"modifiers\":[\"command\"]}", actionID: "a")
+        guard case .keyPress(let spec) = keyRes else { return XCTFail("Expected .keyPress") }
+        XCTAssertEqual(spec.key, "c")
+        XCTAssertEqual(spec.modifiers, [.command])
+
+        let scRes = ShellResultMapper.actionResult(from: "{\"type\":\"runShortcut\",\"name\":\"MySc\",\"input\":\"txt\"}", actionID: "a")
+        guard case .runShortcut(let name, let input) = scRes else { return XCTFail("Expected .runShortcut") }
+        XCTAssertEqual(name, "MySc")
+        XCTAssertEqual(input, "txt")
+
+        let notRes = ShellResultMapper.actionResult(from: "{\"type\":\"notify\",\"title\":\"T\",\"body\":\"B\"}", actionID: "a")
+        guard case .notify(let title, let body) = notRes else { return XCTFail("Expected .notify") }
+        XCTAssertEqual(title, "T")
+        XCTAssertEqual(body, "B")
+
+        let seqRes = ShellResultMapper.actionResult(from: "{\"type\":\"sequence\",\"actions\":[{\"type\":\"copy\",\"value\":\"1\"},{\"type\":\"paste\",\"value\":\"2\"}]}", actionID: "a")
+        guard case .sequence(let sub) = seqRes else { return XCTFail("Expected .sequence") }
+        XCTAssertEqual(sub.count, 2)
+
+        let failRes = ShellResultMapper.actionResult(from: "{\"type\":\"fail\",\"message\":\"Broken\"}", actionID: "a")
+        guard case .failure(let err) = failRes else { return XCTFail("Expected .failure") }
+        XCTAssertEqual((err as NSError).localizedDescription, "Broken")
+    }
 }
+

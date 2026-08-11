@@ -28,7 +28,7 @@ struct AboutTab: View {
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 40)
-            
+
             Spacer()
         }
         .padding(20)

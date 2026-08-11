@@ -161,6 +161,21 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "ok")
     }
 
+    /// The internal `__log` callback must not stay reachable from extension scripts: only the
+    /// redacting `console.log` wrapper is exposed, so a script cannot log raw text directly.
+    func testConsoleLogShimRemovesRawLogAccess() async throws {
+        let result = try await host.run(makeRequest(script: """
+            var exposed = (typeof console.__log);
+            var throws = false;
+            try { console.__log('raw text'); } catch (e) { throws = (e instanceof TypeError); }
+            function action() { return exposed + '|' + throws; }
+            """))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "undefined|true")
+    }
+
     func testShowContentReturnsElementTree() async throws {
         let script = "openclip.showContent(h('stack', {}, [h('text', { content: 'Hello' }), h('button', { title: 'Paste', handler: 'x' })]));"
         let result = try await host.run(makeRequest(script: script))
@@ -257,6 +272,40 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "text|com.host.test|HostTestApp")
     }
 
+    func testTypedBooleanOptionsDeliveredAsNativeBooleans() async throws {
+        let boolOption = ExtensionOption(identifier: "debugMode", label: "Debug", type: .boolean, defaultValue: "true")
+        let strOption = ExtensionOption(identifier: "prefix", label: "Prefix", type: .string, defaultValue: "http")
+        let script = "return typeof openclip.options.debugMode === 'boolean' && openclip.options.debugMode === true ? 'bool-ok' : 'fail';"
+        let request = makeRequest(script: script, options: [boolOption, strOption])
+        let result = try await host.run(request)
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "bool-ok")
+    }
+
+    func testRunShortcutDefaultInput() async throws {
+        let script = "openclip.runShortcut('MyShortcut');"
+        let request = makeRequest(script: script)
+        let result = try await host.run(request)
+        guard case .runShortcut(let name, let input) = result else {
+            return XCTFail("Expected .runShortcut, got \(result)")
+        }
+        XCTAssertEqual(name, "MyShortcut")
+        XCTAssertEqual(input, "hello")
+    }
+
+    func testRunShortcutCustomInputOverride() async throws {
+        let script = "openclip.runShortcut('MyShortcut', 'custom override text');"
+        let request = makeRequest(script: script)
+        let result = try await host.run(request)
+        guard case .runShortcut(let name, let input) = result else {
+            return XCTFail("Expected .runShortcut, got \(result)")
+        }
+        XCTAssertEqual(name, "MyShortcut")
+        XCTAssertEqual(input, "custom override text")
+    }
+
     func testFunctionStringReturnBecomesCopy() async throws {
         let result = try await host.run(makeRequest(script: "function action() { return 'result'; }"))
         guard case .copy(let text) = result else {
@@ -323,6 +372,28 @@ final class OpenClipJSHostTests: XCTestCase {
             return XCTFail("Expected effect to win over status, got \(statusWithEffect)")
         }
         XCTAssertEqual(text, "c")
+    }
+
+    /// One-argument `showStatus` (no style) must default to `.info`, matching the optional-arg
+    /// contract used by the canvas bridge.
+    func testShowStatusDefaultsToInfoWhenStyleOmitted() async throws {
+        let result = try await host.run(makeRequest(script: "openclip.showStatus('Done');"))
+        guard case .showStatus(let feedback) = result else {
+            return XCTFail("Expected .showStatus, got \(result)")
+        }
+        XCTAssertEqual(feedback.message, "Done")
+        XCTAssertEqual(feedback.style, .info)
+    }
+
+    /// One-argument `keyPress` (no modifiers) must produce a spec with empty modifiers, matching
+    /// the optional-arg contract used by the canvas bridge.
+    func testKeyPressDefaultsToEmptyModifiersWhenOmitted() async throws {
+        let result = try await host.run(makeRequest(script: "openclip.keyPress('return');"))
+        guard case .keyPress(let spec) = result else {
+            return XCTFail("Expected .keyPress, got \(result)")
+        }
+        XCTAssertEqual(spec.key, "return")
+        XCTAssertEqual(spec.modifiers, [])
     }
 
     func testOptionsReadOnlyViaOptionStore() async throws {
@@ -465,6 +536,174 @@ final class OpenClipJSHostTests: XCTestCase {
             return XCTFail("Expected .copy, got \(result)")
         }
         XCTAssertEqual(text, "caught")
+    }
+
+    /// Non-http(s) schemes (e.g. `file://`) must be rejected before any network access, surfacing
+    /// through the promise rejection rather than reaching URLSession.
+    func testFetchRejectsUnsupportedScheme() async throws {
+        MockURLProtocol.requestHandler = { _ in
+            throw URLError(.unsupportedURL)
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let script = """
+        async function action() {
+            try {
+                await openclip.fetch('file:///etc/passwd');
+                return 'no-error';
+            } catch (e) {
+                return 'rejected';
+            }
+        }
+        """
+        let result = try await makeMockedHost().run(makeRequest(script: script, isAsync: true))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "rejected")
+        XCTAssertTrue(MockURLProtocol.capturedRequests.values.isEmpty,
+                      "unsupported scheme must not reach the network")
+    }
+
+    /// The scheme allowlist is case-insensitive, so uppercase `HTTPS://` still loads.
+    func testFetchAcceptsCaseInsensitiveHTTPScheme() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("ok".utf8))
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let script = """
+        async function action() {
+            const r = await openclip.fetch('HTTPS://example.com/up');
+            return r.status + ':' + await r.text();
+        }
+        """
+        let result = try await makeMockedHost().run(makeRequest(script: script, isAsync: true))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "200:ok")
+    }
+
+    /// Loopback destinations must be rejected before any network access, surfacing through the
+    /// promise rejection rather than reaching URLSession.
+    func testFetchRejectsDirectLoopback() async throws {
+        MockURLProtocol.requestHandler = { _ in
+            throw URLError(.unsupportedURL)
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let script = """
+        async function action() {
+            try {
+                await openclip.fetch('http://127.0.0.1/secret');
+                return 'no-error';
+            } catch (e) {
+                return 'rejected';
+            }
+        }
+        """
+        let result = try await makeMockedHost().run(makeRequest(script: script, isAsync: true))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "rejected")
+        XCTAssertTrue(MockURLProtocol.capturedRequests.values.isEmpty,
+                      "loopback destination must not reach the network")
+    }
+
+    /// A public URL that redirects to loopback must be intercepted and blocked before following, so
+    /// the promise resolves with the original redirect (302) and no loopback request is made.
+    func testFetchRejectsRedirectToLoopback() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 302,
+                httpVersion: nil,
+                headerFields: ["Location": "http://127.0.0.1/secret"]
+            )!
+            return (response, Data())
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let script = """
+        async function action() {
+            const r = await openclip.fetch('https://public.example.com/redirect');
+            return String(r.status);
+        }
+        """
+        let result = try await makeMockedHost().run(makeRequest(script: script, isAsync: true))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "302", "redirect to loopback must be aborted, leaving the original 3xx response")
+        XCTAssertTrue(MockURLProtocol.capturedRequests.values.allSatisfy { $0.url?.host == "public.example.com" },
+                      "redirect must not be followed to a loopback host")
+    }
+
+    /// `FetchTaskBox.remove` matches by stable task identifier: removing a task by id takes it out
+    /// of watchdog tracking, so a later `cancelAll` leaves it untouched while still cancelling the
+    /// tracked tasks.
+    func testFetchTaskBoxRemovesByIdentifier() {
+        let box = FetchTaskBox()
+        let session = URLSession(configuration: .ephemeral)
+        func makeTask() -> URLSessionDataTask {
+            session.dataTask(with: URLRequest(url: URL(string: "https://example.com/x")!))
+        }
+        let a = makeTask()
+        let b = makeTask()
+        let c = makeTask()
+        box.add(a)
+        box.add(b)
+        box.add(c)
+
+        box.remove(b.taskIdentifier)
+
+        box.cancelAll()
+        XCTAssertNotEqual(b.state, .canceling, "removed task must not be cancelled")
+        XCTAssertEqual(a.state, .canceling)
+        XCTAssertEqual(c.state, .canceling)
+    }
+
+    /// `add(_:)` racing with `cancelAll()` must never let a task escape cancellation: tasks added
+    /// before cancellation are cancelled by `cancelAll()`, tasks added after cancellation started are
+    /// cancelled immediately by `add(_:)`.
+    func testFetchTaskBoxAddConcurrentWithCancelAllCancelsAll() {
+        let box = FetchTaskBox()
+        let session = URLSession(configuration: .ephemeral)
+        let group = DispatchGroup()
+        let queue = DispatchQueue(label: "fetchbox.race", attributes: .concurrent)
+        let addLock = NSLock()
+        var added: [URLSessionDataTask] = []
+
+        let producerCount = 8
+        let perProducer = 100
+        for _ in 0..<producerCount {
+            queue.async(group: group) {
+                for _ in 0..<perProducer {
+                    let task = session.dataTask(with: URLRequest(url: URL(string: "https://example.com/x")!))
+                    addLock.lock()
+                    added.append(task)
+                    addLock.unlock()
+                    box.add(task)
+                }
+            }
+        }
+        queue.async(group: group) {
+            box.cancelAll()
+        }
+        group.wait()
+
+        addLock.lock()
+        let all = added
+        addLock.unlock()
+        XCTAssertEqual(all.count, producerCount * perProducer)
+        // Cancelled tasks end up in either `.canceling` or `.completed`; a task that escaped
+        // cancellation would still be `.suspended` (never resumed).
+        for task in all {
+            XCTAssertNotEqual(task.state, .suspended, "every added task must be cancelled, got \(task.state)")
+        }
     }
 
     // MARK: - Watchdog

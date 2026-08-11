@@ -142,6 +142,42 @@ final class ExtensionManagerTests: XCTestCase {
         XCTAssertNotNil(action)
         XCTAssertEqual(action?.title, "Action 1")
     }
+
+    @MainActor
+    func testReloadPreservesActionOrderForRetainedActionIDs() async throws {
+        let extDir = tempDir.appendingPathComponent("order_ext.openclipext")
+        try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
+        let manifestPath = extDir.appendingPathComponent("manifest.json")
+        let manifestContent = """
+        {
+            "identifier": "com.test.order",
+            "name": "Order Ext",
+            "actions": [
+                { "title": "Keep Me", "url": "https://example.com" }
+            ]
+        }
+        """
+        try manifestContent.write(to: manifestPath, atomically: true, encoding: .utf8)
+
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+        let manager = ExtensionManager.shared
+        manager.onRegister = { registry.register(action: $0) }
+        manager.onUnregister = { registry.unregister(actionID: $0) }
+
+        await manager.loadExtensions(from: tempDir)
+        let actionID = try XCTUnwrap(manager.loadedActions.first?.id)
+        store.set(.actionOrder, value: [actionID, "other.action"])
+
+        // Reload with the same extension still present: the ID is retained, so its .actionOrder
+        // entry must survive instead of being pruned by an unregister-then-register cycle.
+        await manager.loadExtensions(from: tempDir)
+
+        XCTAssertTrue(store.get(.actionOrder).contains(actionID),
+                      "reload must preserve .actionOrder for a retained action ID")
+        XCTAssertTrue(registry.actions.contains { $0.id == actionID },
+                      "retained action must remain registered after reload")
+    }
     
     @MainActor
     func testInstallAndUninstallExtension() async throws {
@@ -216,4 +252,110 @@ final class ExtensionManagerTests: XCTestCase {
         XCTAssertTrue(manager.loadedActions.contains(where: { $0.id == actionID }), "registry must be unchanged when nothing was removed")
         XCTAssertTrue(FileManager.default.fileExists(atPath: extDir.path), "extension must still be on disk")
     }
+
+    @MainActor
+    func testUninstallPurgesOptionsAndPrunesActionOrder() async throws {
+        let extDir = sourceDir.appendingPathComponent("Purgeable.openclipext")
+        try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
+        let manifestPath = extDir.appendingPathComponent("manifest.json")
+        let manifestContent = """
+        {
+            "identifier": "com.test.purgeable",
+            "name": "Purgeable Extension",
+            "options": [
+                { "identifier": "apiKey", "label": "API Key", "type": "secret" }
+            ],
+            "actions": [
+                { "id": "act1", "title": "Action 1", "url": "https://example.com" }
+            ]
+        }
+        """
+        try manifestContent.write(to: manifestPath, atomically: true, encoding: .utf8)
+
+        final class MockOptionWriter: ActionOptionWriting, @unchecked Sendable {
+            var cleared: [String] = []
+            func setStringValue(_ value: String, actionID: String, option: ExtensionOption) {}
+            func clearValue(actionID: String, option: ExtensionOption) {
+                cleared.append("\(actionID):\(option.identifier)")
+            }
+        }
+
+        let writer = MockOptionWriter()
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+
+        let manager = ExtensionManager.shared
+        manager.optionWriter = writer
+        manager.onRegister = { registry.register(action: $0) }
+        manager.onUnregister = { registry.unregister(actionID: $0) }
+
+        let installed = try await manager.installExtension(from: extDir, targetDir: tempDir)
+        let actionID = try XCTUnwrap(installed.first?.id)
+        XCTAssertTrue(registry.actions.contains { $0.id == actionID }, "onRegister must register the installed action")
+
+        store.set(.actionOrder, value: [actionID, "other.action"])
+
+        try await manager.uninstallExtension(actionID: actionID, targetDir: tempDir)
+
+        XCTAssertTrue(writer.cleared.contains("\(actionID):apiKey"), "optionWriter must clear configured options on uninstall")
+        XCTAssertFalse(store.get(.actionOrder).contains(actionID), "actionOrder must be pruned of uninstalled actionID")
+        XCTAssertFalse(registry.actions.contains { $0.id == actionID }, "onUnregister must unregister the action")
+    }
+
+    func testValidateZipEntriesAcceptsSafePaths() async throws {
+        let zipPath = tempDir.appendingPathComponent("valid.zip")
+        let sourceFile = tempDir.appendingPathComponent("payload.txt")
+        try "content".write(to: sourceFile, atomically: true, encoding: .utf8)
+
+        _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+            executableURL: URL(fileURLWithPath: "/usr/bin/zip"),
+            arguments: ["-q", "-j", zipPath.path, sourceFile.path],
+            environment: [:]
+        ))
+
+        let stagingDir = tempDir.appendingPathComponent("staging")
+        try await ExtensionManager.validateZipEntries(at: zipPath, stagingDir: stagingDir)
+    }
+
+    func testValidateZipEntriesRejectsTraversalPaths() async throws {
+        let zipPath = tempDir.appendingPathComponent("traversal.zip")
+
+        // The `zip` CLI strips `..` path components, so craft the traversal entry with python3's
+        // zipfile (python3 ships with Xcode CLT, which these tests already require for zip/unzip).
+        _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+            executableURL: URL(fileURLWithPath: "/usr/bin/python3"),
+            arguments: ["-c", "import zipfile,sys; zipfile.ZipFile(sys.argv[1], 'w').writestr('../payload.txt', 'content')", zipPath.path],
+            environment: [:]
+        ))
+
+        let stagingDir = tempDir.appendingPathComponent("staging")
+        do {
+            try await ExtensionManager.validateZipEntries(at: zipPath, stagingDir: stagingDir)
+            XCTFail("Expected validateZipEntries to throw for a traversal entry")
+        } catch let error as NSError {
+            XCTAssertTrue(error.localizedDescription.contains("unsafe entry path"),
+                          "Expected an unsafe-entry-path rejection, got: \(error.localizedDescription)")
+        }
+    }
+
+    func testValidateZipEntriesRejectsSymlinkEntries() async throws {
+        let zipPath = tempDir.appendingPathComponent("symlink.zip")
+
+        // The `zip` CLI strips symlinks, so craft a symbolic-link entry (S_IFLNK | 0777 mode) plus
+        // a later entry that writes through it, with python3's zipfile.
+        _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+            executableURL: URL(fileURLWithPath: "/usr/bin/python3"),
+            arguments: ["-c", "import zipfile,stat,sys; z=zipfile.ZipFile(sys.argv[1],'w'); zi=zipfile.ZipInfo('link'); zi.external_attr=(stat.S_IFLNK|0o777)<<16; zi.create_system=3; z.writestr(zi,'/etc/passwd'); z.writestr('link/pwned.txt','pwned'); z.close()", zipPath.path],
+            environment: [:]
+        ))
+
+        let stagingDir = tempDir.appendingPathComponent("staging")
+        do {
+            try await ExtensionManager.validateZipEntries(at: zipPath, stagingDir: stagingDir)
+            XCTFail("Expected validateZipEntries to throw for a symbolic-link entry")
+        } catch let error as NSError {
+            XCTAssertTrue(error.localizedDescription.contains("symbolic-link"), "Expected a symbolic-link rejection, got: \(error.localizedDescription)")
+        }
+    }
 }
+

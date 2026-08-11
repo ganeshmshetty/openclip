@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import Core
 @testable import OpenClip
 
@@ -71,27 +72,86 @@ final class NewExtensionKindTests: XCTestCase {
 
     // MARK: - service
 
-    func testFactoryRoutesServiceToNamedServiceAction() async throws {
-        let factory = DefaultActionFactory()
-        let meta = ExtensionActionMetadata(title: "Share", type: "service", serviceName: "Share Selection")
+    func testFactoryRoutesServiceToNamedServiceAction() async throws {        let factory = DefaultActionFactory()
+        let meta = ExtensionActionMetadata(title: "Share", type: "service", serviceName: "Look Up in Dictionary")
         let manifest = ExtensionMetadata(identifier: "com.test.service", name: "Service Test", actions: [meta])
 
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
-        guard let service = action as? NamedServiceAction else {
+        guard var service = action as? NamedServiceAction else {
             return XCTFail("Expected NamedServiceAction, got \(String(describing: action))")
         }
-        XCTAssertEqual(service.serviceName, "Share Selection")
+        XCTAssertEqual(service.serviceName, "Look Up in Dictionary")
 
-        let result = try await service.perform(makeContext(text: "text"))
-        guard case .showServices(let text) = result else {
-            return XCTFail("Expected .showServices result, got \(result)")
+        // 1. Successful NSPerformService returns .none
+        final class CalledBox: @unchecked Sendable { var value = false }
+        let box = CalledBox()
+        service.performService = { name, pboard in
+            box.value = true
+            XCTAssertEqual(name, "Look Up in Dictionary")
+            XCTAssertEqual(pboard.string(forType: .string), "selected text")
+            return true
         }
-        XCTAssertEqual(text, "text")
+        let result = try await service.perform(makeContext(text: "selected text"))
+        XCTAssertTrue(box.value)
+        guard case .none = result else {
+            return XCTFail("Expected .none result for successful service invocation, got \(result)")
+        }
+
+        // 2. Failed NSPerformService throws error
+        service.performService = { _, _ in false }
+        do {
+            _ = try await service.perform(makeContext(text: "text"))
+            XCTFail("Expected perform to throw when service fails")
+        } catch {
+            let nsErr = error as NSError
+            XCTAssertEqual(nsErr.domain, Constants.actionErrorDomain)
+        }
+
+        // 3. Unnamed service falls back to .showServices
+        let unnamedService = NamedServiceAction(id: "com.test.unnamed", title: "Unnamed", serviceName: nil)
+        let unnamedResult = try await unnamedService.perform(makeContext(text: "text"))
+        guard case .showServices(let text2) = unnamedResult else {
+            return XCTFail("Expected .showServices result, got \(unnamedResult)")
+        }
+        XCTAssertEqual(text2, "text")
 
         try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    // MARK: - service isolation
+
+    func testNamedServiceExecutionPreservesGlobalClipboard() async throws {
+        // Live integration: directly exercising the named-service flow must not touch
+        // NSPasteboard.general (which holds the user's real clipboard). Restore afterward.
+        let sentinel = "OpenClip-test-sentinel-\(UUID().uuidString)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(sentinel, forType: .string)
+
+        var service = NamedServiceAction(id: "com.test.isolated", title: "Service", serviceName: "com.apple.text.input")
+        final class SeenBox: @unchecked Sendable { var name = "" }
+        let seen = SeenBox()
+        service.performService = { name, pboard in
+            seen.name = pboard.name.rawValue
+            XCTAssertEqual(pboard.string(forType: .string), "selected text")
+            return true
+        }
+
+        do {
+            let result = try await service.perform(makeContext(text: "selected text"))
+            guard case .none = result else {
+                return XCTFail("Expected .none result, got \(result)")
+            }
+        } catch {
+            try? NSPasteboard.general.setString(sentinel, forType: .string)
+            return XCTFail("Expected perform to succeed, got \(error)")
+        }
+
+        XCTAssertFalse(seen.name.isEmpty)
+        XCTAssertNotEqual(seen.name, NSPasteboard.general.name.rawValue, "Service should receive an isolated pasteboard, not NSPasteboard.general")
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), sentinel, "Global clipboard must remain unchanged")
     }
 
     // MARK: - canvas

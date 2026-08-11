@@ -68,10 +68,45 @@ public struct AppleScriptAction: ConfigurableAction {
         return rules.resolveVisibility(for: context).match
     }
 
+    private static func escapeAppleScript(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\n", with: "\\n")
+    }
+
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let rawText = context.selection.text
-        let text = rawText.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        let scriptWithVars = TextPlaceholderEngine.replacePlaceholders(in: appleScriptCode, context: context, urlEncode: false)
+        let text = Self.escapeAppleScript(rawText)
+
+        let escapedSelection = SelectionContext(
+            text: Self.escapeAppleScript(context.selection.text),
+            sourceApp: context.selection.sourceApp,
+            cursorPosition: context.selection.cursorPosition,
+            mouseDownLocation: context.selection.mouseDownLocation,
+            selectionBounds: context.selection.selectionBounds,
+            timestamp: context.selection.timestamp,
+            appPolicy: context.selection.appPolicy,
+            isClipboardFallback: context.selection.isClipboardFallback
+        )
+
+        let escapedMatch = context.match.map { match in
+            ActionMatchInfo(
+                text: Self.escapeAppleScript(match.text),
+                matchedText: Self.escapeAppleScript(match.matchedText),
+                captures: match.captures.map { Self.escapeAppleScript($0) },
+                sourceBundleID: match.sourceBundleID
+            )
+        }
+
+        let escapedContext = ActionContext(
+            selection: escapedSelection,
+            modifiers: context.modifiers,
+            match: escapedMatch
+        )
+
+        let scriptWithVars = TextPlaceholderEngine.replacePlaceholders(in: appleScriptCode, context: escapedContext, urlEncode: false)
         
         let fullScript = """
         global OPENCLIP_TEXT, openclip_text

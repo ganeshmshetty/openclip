@@ -665,6 +665,22 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
         XCTAssertEqual(dispatchRes.state["fired"]?.boolValue, true)
     }
 
+    func testMatchedTextExposedToCanvasScript() async throws {
+        let script = "const ui = () => h('text', { content: openclip.input.matchedText });"
+        let engine = JavaScriptCanvasEngine()
+        let mountRes = try await engine.mount(CanvasMountRequest(
+            input: "Full text selection",
+            matchedText: "selection",
+            captures: ["selection"],
+            scriptCode: script
+        ))
+
+        guard case .text(let props) = mountRes.tree else {
+            return XCTFail("Expected text root")
+        }
+        XCTAssertEqual(props.content, "selection")
+    }
+
     private func mockedSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [MockURLProtocol.self]

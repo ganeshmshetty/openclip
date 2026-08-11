@@ -466,9 +466,11 @@ for the next re-render, and effects never dismiss.
 
 A canvas is a **JS-only** action kind: `"type": "canvas"` with `scriptCode` (required — validation
 rejects a canvas without it) holding the canvas script;
-`"async": true` is optional — it enables `openclip.fetch` in handlers (below); a canvas
-mount or dispatch whose promise never settles is killed by the same 30 s watchdog. There is no `output`
-key — a canvas never "returns" text; it *renders*.
+`"async": true` is optional — it enables `openclip.fetch` in handlers (below). `ui()` and
+mount-time rendering are synchronous, so a promise returned from `ui()` at mount or during a
+re-render is rejected immediately (`asyncNotSupported`); the 30 s watchdog applies only to async
+handler dispatches whose promise never settles (e.g. an `openclip.fetch` that never resolves).
+There is no `output` key — a canvas never "returns" text; it *renders*.
 
 ### Script contract
 

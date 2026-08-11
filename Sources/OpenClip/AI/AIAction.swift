@@ -19,7 +19,7 @@ public struct AIAction: Action {
 
     public var id: String { "ai.preset.\(presetID)" }
     public let title: String
-    public var icon: ActionIcon { .symbol("sparkles") }
+    public var icon: ActionIcon { .symbol(Constants.defaultAIIconSymbol) }
     public var chrome: ActionChrome {
         ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .ai)
     }

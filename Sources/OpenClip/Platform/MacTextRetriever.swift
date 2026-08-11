@@ -240,7 +240,8 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
                AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
                let rangeVal = rangeRef {
                 var cfRange = CFRange()
-                if AXValueGetValue(rangeVal as! AXValue, .cfRange, &cfRange),
+                if CFGetTypeID(rangeVal) == AXValueGetTypeID(),
+                   AXValueGetValue(rangeVal as! AXValue, .cfRange, &cfRange),
                    cfRange.length > 0,
                    cfRange.location >= 0,
                    cfRange.location + cfRange.length <= fullValue.count {
@@ -262,7 +263,8 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
             if AXUIElementCopyParameterizedAttributeValue(element, kAXBoundsForRangeParameterizedAttribute as CFString, rangeRef, &boundsRef) == .success,
                let boundsRef {
                 var rect = CGRect.zero
-                if AXValueGetValue(boundsRef as! AXValue, .cgRect, &rect) {
+                if CFGetTypeID(boundsRef) == AXValueGetTypeID(),
+                   AXValueGetValue(boundsRef as! AXValue, .cgRect, &rect) {
                     bounds = rect
                 }
             }

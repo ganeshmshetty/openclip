@@ -345,10 +345,10 @@ public class PopupWindowController {
     private func currentHeaderFromAction() -> CanvasHeader {
         if let hoveredAction {
             let title = hoveredAction.displayTitle(using: ActionCustomizationManager.shared)
-            let icon = hoveredAction.icon.symbolName ?? "sparkles"
+            let icon = hoveredAction.icon.symbolName ?? Constants.defaultAIIconSymbol
             return CanvasHeader(title: title.isEmpty ? "AI Tools" : title, icon: icon)
         }
-        return CanvasHeader(title: "AI Tools", icon: "sparkles")
+        return CanvasHeader(title: "AI Tools", icon: Constants.defaultAIIconSymbol)
     }
 
     /// Arms a scripting session through the JS canvas engine. Mount success enters content mode and

@@ -89,7 +89,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         case cut(String)
         case openURL(URL)
         case keyPress(KeyPressSpec)
-        case runShortcut(name: String)
+        case runShortcut(name: String, input: String?)
         case notify(title: String, body: String)
     }
 
@@ -210,21 +210,27 @@ public final class OpenClipJSHost: @unchecked Sendable {
             collected.value.openURL = url
             effects.value.append(.openURL(url))
         }
-        let keyPressBlock: @convention(block) (String, NSArray) -> Void = { key, modifiers in
+        let keyPressBlock: @convention(block) (String, NSArray?) -> Void = { key, modifiers in
             let spec = KeyPressSpec(key: key, modifiers: Self.mapModifiers(modifiers))
             collected.value.keyPress = spec
             effects.value.append(.keyPress(spec))
         }
-        let runShortcutBlock: @convention(block) (String) -> Void = { name in
+        let runShortcutBlock: @convention(block) (String, String?) -> Void = { name, inputOverride in
+            let cleanedInput: String?
+            if let inputOverride, inputOverride != "undefined", inputOverride != "null" {
+                cleanedInput = inputOverride
+            } else {
+                cleanedInput = nil
+            }
             collected.value.shortcutName = name
-            effects.value.append(.runShortcut(name: name))
+            effects.value.append(.runShortcut(name: name, input: cleanedInput))
         }
         let notifyBlock: @convention(block) (String, String) -> Void = { title, message in
             collected.value.notification = (title: title, body: message)
             effects.value.append(.notify(title: title, body: message))
         }
-        let showStatusBlock: @convention(block) (String, String) -> Void = { message, style in
-            collected.value.status = StatusFeedback(message: message, style: CanvasScriptBox.mapStatusStyle(style))
+        let showStatusBlock: @convention(block) (String, String?) -> Void = { message, style in
+            collected.value.status = StatusFeedback(message: message, style: CanvasScriptBox.mapStatusStyle(style ?? "info"))
         }
         let showContentBlock: @convention(block) (JSValue) -> Void = { value in
             if let parsed = Self.parseElementTree(value) {
@@ -354,32 +360,36 @@ public final class OpenClipJSHost: @unchecked Sendable {
         console.setObject(logBlock, forKeyedSubscript: "__log" as NSString)
         context.setObject(console, forKeyedSubscript: "console" as NSString)
         context.evaluateScript("""
-        console.log = function() {
-            function formatArg(v) {
-                if (v === null) return 'null';
-                if (v === undefined) return 'undefined';
-                var t = typeof v;
-                if (t === 'string') return '<string len=' + v.length + '>';
-                if (t === 'number') return '<number>';
-                if (t === 'boolean') return '<boolean>';
-                if (t === 'function') return '<function>';
-                if (Array.isArray(v)) return '<Array len=' + v.length + '>';
-                if (t === 'object') {
-                    try {
-                        var keys = Object.keys(v);
-                        return '<Object keys=[' + keys.join(', ') + ']>';
-                    } catch (e) {
-                        return '<Object>';
+        (function() {
+            var __consoleLog = console.__log;
+            delete console.__log;
+            console.log = function() {
+                function formatArg(v) {
+                    if (v === null) return 'null';
+                    if (v === undefined) return 'undefined';
+                    var t = typeof v;
+                    if (t === 'string') return '<string len=' + v.length + '>';
+                    if (t === 'number') return '<number>';
+                    if (t === 'boolean') return '<boolean>';
+                    if (t === 'function') return '<function>';
+                    if (Array.isArray(v)) return '<Array len=' + v.length + '>';
+                    if (t === 'object') {
+                        try {
+                            var keys = Object.keys(v);
+                            return '<Object keys=[' + keys.join(', ') + ']>';
+                        } catch (e) {
+                            return '<Object>';
+                        }
                     }
+                    return '<' + t + '>';
                 }
-                return '<' + t + '>';
-            }
-            var parts = [];
-            for (var i = 0; i < arguments.length; i++) {
-                parts.push(formatArg(arguments[i]));
-            }
-            console.__log(parts.join(' '));
-        };
+                var parts = [];
+                for (var i = 0; i < arguments.length; i++) {
+                    parts.push(formatArg(arguments[i]));
+                }
+                __consoleLog(parts.join(' '));
+            };
+        })();
         """)
     }
 
@@ -492,15 +502,21 @@ public final class OpenClipJSHost: @unchecked Sendable {
         case .cut(let text): return .cut(text)
         case .openURL(let url): return .openURL(url)
         case .keyPress(let spec): return .keyPress(spec)
-        case .runShortcut(let name): return .runShortcut(name: name, input: input)
+        case .runShortcut(let name, let inputOverride): return .runShortcut(name: name, input: inputOverride ?? input)
         case .notify(let title, let body): return .notify(title: title, body: body)
         }
     }
 
-    private static func optionValues(for request: Request) -> [String: String] {
-        var values: [String: String] = [:]
+    private static func optionValues(for request: Request) -> [String: Any] {
+        var values: [String: Any] = [:]
         for option in request.options {
-            values[option.identifier] = request.optionStore.stringValue(actionID: request.actionID, option: option)
+            let strVal = request.optionStore.stringValue(actionID: request.actionID, option: option)
+            if option.type == .boolean {
+                let lower = strVal.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                values[option.identifier] = (lower == "true" || lower == "1")
+            } else {
+                values[option.identifier] = strVal
+            }
         }
         return values
     }
@@ -511,7 +527,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         matchedText: String,
         captures: [String],
         sourceApp: AppIdentity,
-        options: [String: String]
+        options: [String: Any]
     ) -> JSValue? {
         guard let openclip = JSValue(newObjectIn: jsContext),
               let input = JSValue(newObjectIn: jsContext),
@@ -536,8 +552,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
     // MARK: - JS value parsing
 
-    private static func mapModifiers(_ modifiers: NSArray) -> [KeyPressSpec.KeyModifier] {
-        modifiers.compactMap { element in
+    private static func mapModifiers(_ modifiers: NSArray?) -> [KeyPressSpec.KeyModifier] {
+        guard let modifiers else { return [] }
+        return modifiers.compactMap { element in
             guard let raw = element as? String else { return nil }
             switch raw.lowercased() {
             case "command": return .command
