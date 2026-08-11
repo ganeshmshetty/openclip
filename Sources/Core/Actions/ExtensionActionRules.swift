@@ -15,16 +15,57 @@ public struct ExtensionActionRules: Codable, Sendable, Equatable {
     public let legacyRegex: String?
     public let after: ActionAfterBehavior
     public let stayVisible: Bool
+    /// Derived data: the requirements.expression source compiled once by DefaultActionFactory.
+    /// Skipped by Codable (decoded instances recompile via the factory); nil means no expression
+    /// gate, matching pre-DSL behavior.
+    public let compiledExpression: ValidateExpression?
 
     public init(
         requirements: ActionRequirements? = nil,
         legacyRegex: String? = nil,
         after: ActionAfterBehavior = .default,
-        stayVisible: Bool = false
+        stayVisible: Bool = false,
+        compiledExpression: ValidateExpression? = nil
     ) {
         self.requirements = requirements
         self.legacyRegex = legacyRegex
         self.after = after
         self.stayVisible = stayVisible
+        self.compiledExpression = compiledExpression
+    }
+
+    /// The shared enablement entry point for extension actions. All extension action structs
+    /// call this instead of reaching into ActionVisibility themselves.
+    @MainActor
+    public func resolveVisibility(for context: ActionContext) -> (enabled: Bool, match: ActionMatchInfo) {
+        ActionVisibility.isEnabled(
+            requirements: requirements,
+            legacyRegex: legacyRegex,
+            expression: compiledExpression,
+            context: context
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case requirements, legacyRegex, after, stayVisible
+    }
+
+    // compiledExpression is derived data; the source string survives inside requirements.expression
+    // and the factory recompiles it. Encode/decode the four declarative fields only.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.requirements = try container.decodeIfPresent(ActionRequirements.self, forKey: .requirements)
+        self.legacyRegex = try container.decodeIfPresent(String.self, forKey: .legacyRegex)
+        self.after = try container.decodeIfPresent(ActionAfterBehavior.self, forKey: .after) ?? .default
+        self.stayVisible = try container.decodeIfPresent(Bool.self, forKey: .stayVisible) ?? false
+        self.compiledExpression = nil
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(requirements, forKey: .requirements)
+        try container.encodeIfPresent(legacyRegex, forKey: .legacyRegex)
+        try container.encode(after, forKey: .after)
+        try container.encode(stayVisible, forKey: .stayVisible)
     }
 }
