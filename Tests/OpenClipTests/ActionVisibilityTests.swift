@@ -81,6 +81,16 @@ final class ActionVisibilityTests: XCTestCase {
         XCTAssertTrue(result.enabled)
     }
 
+    func testDecodedRequirementsExpressionSurvivesRoundTrip() throws {
+        let json = #"{"expression": "isEmail(text)"}"#.data(using: .utf8)!
+        let requirements = try JSONDecoder().decode(ActionRequirements.self, from: json)
+        XCTAssertEqual(requirements.expression, "isEmail(text)")
+
+        let data = try JSONEncoder().encode(requirements)
+        let roundTripped = try JSONDecoder().decode(ActionRequirements.self, from: data)
+        XCTAssertEqual(roundTripped.expression, "isEmail(text)")
+    }
+
     // MARK: - Regex match / negation
 
     func testRegexEnablesWhenMatches() {
@@ -148,7 +158,7 @@ final class ActionVisibilityTests: XCTestCase {
         XCTAssertEqual(result.match.captures, ["a", "b.com"])
     }
 
-    // MARK: - missingRequiredOptions (pure helper, never called from isEnabled)
+    // MARK: - Regex match / negation
 
     func testMissingRequiredOptionsReturnsEmptyValueIDs() {
         let requirements = ActionRequirements(requiredOptions: ["prefix", "suffix"])
