@@ -7,6 +7,12 @@ import JavaScriptCore
 @testable import OpenClip
 
 final class JavaScriptCanvasEngineTests: XCTestCase {
+    override func setUp() async throws {
+        try await super.setUp()
+        MockURLProtocol.requestHandler = nil
+        MockURLProtocol.capturedRequests.removeAll()
+    }
+
     // 1. Counter mount & dispatch
     func testSyncCounterMountAndDispatch() async throws {
         let script = """
@@ -500,5 +506,156 @@ final class JavaScriptCanvasEngineTests: XCTestCase {
             return XCTFail("Expected text root")
         }
         XCTAssertEqual(props.content, "ff|com.example.editor")
+    }
+
+    // 24. Async handler fetch resolves into state and re-renders (MockURLProtocol session)
+    func testHandlerFetchResolvesIntoStateAndRerenders() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("{\"title\":\"Open AI Alpha\"}".utf8))
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let script = """
+        const handlers = {
+            load: async (state) => {
+                const r = await openclip.fetch('https://api.example.com/items');
+                const j = await r.json();
+                return { ...state, title: j.title };
+            }
+        };
+        const ui = (state) => h('text', { content: 'Title: ' + (state.title || 'none') });
+        """
+        let engine = JavaScriptCanvasEngine(session: mockedSession())
+        let mountRes = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script, isAsync: true))
+
+        let dispatchRes = try await engine.dispatch(CanvasDispatchRequest(
+            event: CanvasEvent(kind: .tap, handler: "load"),
+            state: mountRes.state
+        ))
+        XCTAssertEqual(dispatchRes.state.string("title"), "Open AI Alpha")
+        guard case .text(let props) = dispatchRes.tree else {
+            return XCTFail("Expected text root")
+        }
+        XCTAssertEqual(props.content, "Title: Open AI Alpha")
+    }
+
+    // 25. Async handler POST fetch captures method/headers/body
+    func testHandlerFetchPOSTCapturesMethodHeadersAndBody() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 201, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let script = """
+        const handlers = {
+            submit: async (state, event, input) => {
+                const r = await openclip.fetch('https://api.example.com/items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ q: input })
+                });
+                return { ...state, status: r.status };
+            }
+        };
+        const ui = (state) => h('text', { content: 'Status: ' + (state.status || 'none') });
+        """
+        let engine = JavaScriptCanvasEngine(session: mockedSession())
+        let mountRes = try await engine.mount(CanvasMountRequest(input: "hi", scriptCode: script, isAsync: true))
+
+        let dispatchRes = try await engine.dispatch(CanvasDispatchRequest(
+            event: CanvasEvent(kind: .tap, handler: "submit"),
+            state: mountRes.state
+        ))
+        XCTAssertEqual(dispatchRes.state["status"]?.numberValue, 201)
+
+        let requests = MockURLProtocol.capturedRequests.values
+        XCTAssertEqual(requests.count, 1)
+        XCTAssertEqual(requests[0].httpMethod, "POST")
+        XCTAssertEqual(requests[0].value(forHTTPHeaderField: "Content-Type"), "application/json")
+        // URLSession moves an httpBody onto httpBodyStream before a URLProtocol sees the request.
+        let bodyData = requests[0].httpBody ?? Self.readStreamBody(requests[0])
+        XCTAssertEqual(bodyData.flatMap { String(data: $0, encoding: .utf8) }, "{\"q\":\"hi\"}")
+    }
+
+    // 26. Network error inside a handler fetch rejects the dispatch with a scriptException
+    func testHandlerFetchNetworkErrorRejectsDispatch() async throws {
+        MockURLProtocol.requestHandler = { _ in
+            throw URLError(.notConnectedToInternet)
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let script = """
+        const handlers = {
+            load: async (state) => {
+                await openclip.fetch('https://api.example.com/items');
+                return { ...state, reached: true };
+            }
+        };
+        const ui = () => h('button', { title: 'Go', handler: 'load' });
+        """
+        let engine = JavaScriptCanvasEngine(session: mockedSession())
+        let mountRes = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script, isAsync: true))
+
+        do {
+            _ = try await engine.dispatch(CanvasDispatchRequest(
+                event: CanvasEvent(kind: .tap, handler: "load"),
+                state: mountRes.state
+            ))
+            XCTFail("Expected dispatch to throw on rejected fetch")
+        } catch let error as CanvasJSRuntimeError {
+            if case .scriptException(let msg) = error {
+                XCTAssertTrue(msg.contains("Fetch failed"), "Expected rejection message, got \(msg)")
+            } else {
+                XCTFail("Expected scriptException, got \(error)")
+            }
+        }
+    }
+
+    // 27. A non-async canvas cannot call fetch (loud failure, matching JS actions)
+    func testCanvasWithoutAsyncCannotFetch() async throws {
+        let script = """
+        const handlers = {
+            bad: () => { openclip.fetch('https://example.com'); return {}; }
+        };
+        const ui = () => h('button', { title: 'Go', handler: 'bad' });
+        """
+        let engine = JavaScriptCanvasEngine() // isAsync false; fetch polyfill not installed
+        let mountRes = try await engine.mount(CanvasMountRequest(input: "test", scriptCode: script))
+
+        do {
+            _ = try await engine.dispatch(CanvasDispatchRequest(
+                event: CanvasEvent(kind: .tap, handler: "bad"),
+                state: mountRes.state
+            ))
+            XCTFail("Expected dispatch to throw when openclip.fetch is unavailable")
+        } catch let error as CanvasJSRuntimeError {
+            if case .scriptException(let msg) = error {
+                XCTAssertTrue(msg.contains("openclip.fetch"), "Expected ReferenceError, got \(msg)")
+            } else {
+                XCTFail("Expected scriptException, got \(error)")
+            }
+        }
+    }
+
+    private func mockedSession() -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        return URLSession(configuration: config)
+    }
+
+    private static func readStreamBody(_ request: URLRequest) -> Data? {
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return data
     }
 }
