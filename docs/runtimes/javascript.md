@@ -64,6 +64,9 @@ canvas's chrome header comes from the running action. The full canvas authoring 
 (`ui(state, input)` / `handlers`, state model, `keepVisible` no-op, status-after-collapse) is in
 §7a of `docs/developer-guide/AGENTS.md`.
 
+Async canvas actions (`"async": true`) get the same `fetch(url, options)` polyfill inside
+handlers as the non-canvas JS runtime above; `ui()` remains synchronous.
+
 ## Options & Preference Integration
 
 Extension options declared in the manifest are resolved through the injected option store
