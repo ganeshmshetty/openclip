@@ -73,6 +73,7 @@ public struct ValidateExpression: Sendable, Equatable {
         } catch {
             return .failure(.unexpectedToken(String(describing: error)))
         }
+        guard !tokens.isEmpty else { return .failure(.expectedExpression) }
         var parser = Parser(tokens: tokens)
         do {
             let node = try parser.parseExpression()
