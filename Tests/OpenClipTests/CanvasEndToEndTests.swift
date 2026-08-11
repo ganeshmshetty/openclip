@@ -95,7 +95,7 @@ final class CanvasEndToEndTests: XCTestCase {
     // MARK: - Tests
 
     func testCanvasActionInSearchCatalog() async throws {
-        XCTAssertTrue(coordinator.searchCatalog.contains { $0.id == "canvas.counter" },
+        XCTAssertTrue(coordinator.searchCatalog(for: makeContext()).contains { $0.id == "canvas.counter" },
                       "canvas action appears in the action-search palette catalog")
 
         guard let canvasAction = canvasCounterAction() else {

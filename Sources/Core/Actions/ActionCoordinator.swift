@@ -76,9 +76,11 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         return registry.availableActions(for: updatedContext)
     }
 
-    /// Full catalog for the action-search palette (all registered actions, enabled or not).
-    public var searchCatalog: [any Action] {
-        registry.searchCatalog
+    /// Catalog for the action-search palette, filtered to actions that can perform given `context`.
+    /// Settings-disabled actions remain visible; contextually-unable ones (no selection, regex/app
+    /// gate, clipboard fallback, formatting policy) are dropped.
+    public func searchCatalog(for context: ActionContext) -> [any Action] {
+        registry.searchCatalog(for: resolvedContext(for: context))
     }
     
     public func register(action: any Action) {

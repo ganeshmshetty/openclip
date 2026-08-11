@@ -496,7 +496,8 @@ public struct ValidateExpression: Sendable, Equatable {
                 case (.string(let a), .string(let b)): return a == b
                 case (.array(let a), .array(let b)): return a == b
                 default:
-                    // Fail closed on cross-type equality — distinct types are never equal.
+                    // Cross-type equality is a manifest authoring error, not a runtime value.
+                    // Surface it as an EvalError so the gate fails closed and the author sees why.
                     throw EvalError.typeMismatch("== requires operands of the same type")
                 }
             }
