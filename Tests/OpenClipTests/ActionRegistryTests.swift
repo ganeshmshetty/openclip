@@ -188,8 +188,9 @@ final class ActionRegistryTests: XCTestCase {
     }
 
     @MainActor
-    func testSearchCatalogIncludesAllAndExcludesOnlyCompletion() {
-        let registry = ActionRegistry()
+    func testSearchCatalogDropsContextuallyDisabledButKeepsSettingsDisabled() {
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
         let groupChrome = ActionChrome(
             badge: .none,
             rowStyle: .actionGroup,
@@ -199,15 +200,22 @@ final class ActionRegistryTests: XCTestCase {
         let group = MockAction(id: "mock.searchgroup", shouldBeEnabled: true, chrome: groupChrome)
         let sub = MockAction(id: "mock.searchgroup.a", shouldBeEnabled: true)
         let completion = MockAction(id: "builtin.completion", shouldBeEnabled: true, chrome: ActionChrome(popupBehavior: .provideCompletions))
-        let disabled = MockAction(id: "mock.searchdisabled", shouldBeEnabled: false)
+        // Contextually unable: `isEnabled(for:)` is false, so the palette must not offer it.
+        let contextuallyUnable = MockAction(id: "mock.searchdisabled", shouldBeEnabled: false)
+        // Settings-disabled (`.disabledActionIDs`): the palette is a full-catalog surface, so a
+        // row toggled off in Preferences still appears.
+        let settingsDisabled = MockAction(id: "mock.settingsdisabled", shouldBeEnabled: true)
         let normal = MockAction(id: "mock.searchnormal", shouldBeEnabled: true)
-        registry.register(builtIns: [group, sub, completion, disabled, normal])
+        registry.register(builtIns: [group, sub, completion, contextuallyUnable, settingsDisabled, normal])
+        store.set(.disabledActionIDs, value: Set(["mock.settingsdisabled"]))
 
-        let catalog = registry.searchCatalog
+        let selection = SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let catalog = registry.searchCatalog(for: ActionContext(selection: selection, modifiers: []))
 
         XCTAssertTrue(catalog.contains { $0.id == "mock.searchgroup" })
         XCTAssertTrue(catalog.contains { $0.id == "mock.searchgroup.a" })
-        XCTAssertTrue(catalog.contains { $0.id == "mock.searchdisabled" })
+        XCTAssertFalse(catalog.contains { $0.id == "mock.searchdisabled" })
+        XCTAssertTrue(catalog.contains { $0.id == "mock.settingsdisabled" })
         XCTAssertTrue(catalog.contains { $0.id == "mock.searchnormal" })
         XCTAssertFalse(catalog.contains { $0.id == "builtin.completion" })
     }
@@ -228,7 +236,7 @@ final class ActionRegistryTests: XCTestCase {
         // bar's entry point), but the palette still discovers them.
         XCTAssertFalse(available.contains { $0.id == "ai.preset.proofread" })
         XCTAssertTrue(available.contains { $0.id == "mock.normal" })
-        XCTAssertTrue(registry.searchCatalog.contains { $0.id == "ai.preset.proofread" })
+        XCTAssertTrue(registry.searchCatalog(for: context).contains { $0.id == "ai.preset.proofread" })
     }
 
     @MainActor
@@ -247,9 +255,9 @@ final class ActionRegistryTests: XCTestCase {
         // presets already cover AI there.
         XCTAssertTrue(available.contains { $0.id == "builtin.aiTools" })
         XCTAssertTrue(available.contains { $0.id == "mock.normal" })
-        XCTAssertFalse(registry.searchCatalog.contains { $0.id == "builtin.aiTools" })
-        XCTAssertFalse(registry.searchCatalog.contains { $0.id == "builtin.completion" })
-        XCTAssertTrue(registry.searchCatalog.contains { $0.id == "mock.normal" })
+        XCTAssertFalse(registry.searchCatalog(for: context).contains { $0.id == "builtin.aiTools" })
+        XCTAssertFalse(registry.searchCatalog(for: context).contains { $0.id == "builtin.completion" })
+        XCTAssertTrue(registry.searchCatalog(for: context).contains { $0.id == "mock.normal" })
     }
 
     @MainActor

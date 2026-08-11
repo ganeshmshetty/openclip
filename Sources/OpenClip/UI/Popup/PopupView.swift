@@ -394,7 +394,7 @@ public struct PopupView: View {
     @ViewBuilder
     private var searchContent: some View {
         PopupSearchView(
-            catalog: ActionCoordinator.shared.searchCatalog,
+            catalog: ActionCoordinator.shared.searchCatalog(for: context),
             context: context,
             resultsAbove: modeStore.searchResultsAbove,
             scope: modeStore.scope,
@@ -507,7 +507,7 @@ public struct PopupView: View {
                 chevronButton(systemImage: "chevron.right", label: "Next page") { currentPage += 1 }
             }
 
-            // Action-search affordance: command glyph (never the web-search magnifier). Kept outside
+            // Action-search affordance: magnifyingglass glyph. Kept outside
             // the paged actions so it always sits at the far-right edge on every page.
             let isHovered = hoveredTarget == .search
             let affordanceForeground = PopupThemeModel.restForeground(for: effectiveTheme)
@@ -515,7 +515,7 @@ public struct PopupView: View {
             Button {
                 onEnterSearch()
             } label: {
-                Image(systemName: "command")
+                Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(isHovered ? .white : affordanceForeground)
                     .frame(width: buttonWidth, height: barButtonHeight)
