@@ -772,14 +772,14 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
   `ExtensionActionKind.swift`, `ActionRequirements.swift`; loading in
   `Sources/Core/Extensions/ExtensionManager.swift`.
 - Kind→runtime routing + chrome + id rule: `Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift`.
-- JS surface/resolution: `Sources/OpenClip/Actions/OpenClipJSHost.swift`.
+- JS surface/resolution: `Sources/OpenClip/Platform/Runtimes/OpenClipJSHost.swift`.
 - Effect execution: `Sources/OpenClip/Platform/Effects/ActionResultHandler.swift`.
 - Result model: `Sources/Core/Actions/ActionResult.swift` (+ `ActionResultAdapter.swift`,
   `StatusFeedback.swift`, `ConfigurationRequest.swift`).
 - Canvas component model + limits: `Sources/Core/Canvas/` (`CanvasComponent.swift`,
   `CanvasElementParser.swift`, `CanvasLimits.swift`, `CanvasScripting.swift`).
-- Canvas engine + JS bridge + manifest kind: `Sources/OpenClip/Actions/JavaScriptCanvasEngine.swift`,
-  `Sources/OpenClip/Actions/CanvasScriptBox.swift`, `Sources/OpenClip/Actions/JavaScriptCanvasAction.swift`.
+- Canvas engine + JS bridge + manifest kind: `Sources/OpenClip/Platform/Runtimes/JavaScriptCanvasEngine.swift`,
+  `Sources/OpenClip/Platform/Runtimes/CanvasScriptBox.swift`, `Sources/OpenClip/Platform/Runtimes/JavaScriptCanvasAction.swift`.
 - Canvas renderer/session: `Sources/OpenClip/UI/Popup/CanvasSession*.swift`.
 - Visibility/required options: `Sources/Core/Actions/ActionVisibility.swift`, `ExtensionActionRules.swift`.
 - Options storage: `Sources/Core/Settings/ActionOptionStore.swift`, `SettingKey.swift`,

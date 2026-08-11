@@ -55,7 +55,7 @@ areas; stale debt notes are worse than none.
   `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
 - **Canvas `fetch()` ships with a live-load gap.** `"async": true` canvas actions get
   `openclip.fetch` in handlers via the shared `JSNativeFetch` bridge
-  (`Sources/OpenClip/Actions/JSNativeFetch.swift`, used by both `OpenClipJSHost` and
+  (`Sources/OpenClip/Platform/Runtimes/JSNativeFetch.swift`, used by both `OpenClipJSHost` and
   `JavaScriptCanvasEngine`). The canvas `isAsync` flag — previously stored but never read —
   now gates dispatch-time fetch installation. Deferred: mount-time async rendering (async
   `ui()` / a `beforeMount` hook) and a busy indicator for in-flight handler fetches; `ui()`
