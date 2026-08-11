@@ -3,8 +3,8 @@
 //
 // The shared visibility evaluator for extension actions. Pure: no UserDefaults, no AppKit, no
 // Keychain. Resolves declarative requirements in a fixed order (selection, app allow/deny,
-// regex/negated) and, when enabled, builds the ActionMatchInfo that perform-time placeholders
-// and shell env vars consume.
+// regex/negated, computed expression gate) and, when enabled, builds the ActionMatchInfo that
+// perform-time placeholders and shell env vars consume.
 import Foundation
 
 public enum ActionVisibility {
@@ -15,12 +15,17 @@ public enum ActionVisibility {
     ///    except actions that explicitly set `requiresSelection: false`.
     /// 2. App allow/deny list vs `context.selection.sourceApp.bundleIdentifier`.
     /// 3. Regex match / negated match; on success build `ActionMatchInfo`.
+    /// 4. Computed visibility via the `expression` DSL (`ValidateExpression`), evaluated with the
+    ///    regex pass's `ActionMatchInfo`; a runtime eval error disables (fail-closed).
     ///
     /// A malformed regex enables the action (defensive stance matching legacy URL behavior,
-    /// which returned `true` on a regex compile failure), so a bad manifest never hides an action.
+    /// which returned `true` on a regex compile failure), so a bad manifest never hides an action;
+    /// the expression gate is skipped alongside it. The regex is the fast first pass, so a missing
+    /// or failed regex gate returns before the DSL expression ever evaluates.
     public static func isEnabled(
         requirements: ActionRequirements?,
         legacyRegex: String?,
+        expression: ValidateExpression? = nil,
         context: ActionContext
     ) -> (enabled: Bool, match: ActionMatchInfo) {
         let text = context.selection.text
@@ -48,8 +53,11 @@ public enum ActionVisibility {
             }
         }
 
-        // 3. Regex match / negated match.
+        // 3. Regex match / negated match (unchanged). The regex is the fast first pass: a missing
+        //    or failed regex gate returns before the DSL expression ever evaluates.
         let pattern = requirements?.regex ?? legacyRegex
+        var matched = noMatch
+        var regexEnabled: Bool? = nil
         if let pattern, !pattern.isEmpty {
             do {
                 let regex = try NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive])
@@ -67,25 +75,36 @@ public enum ActionVisibility {
                             }
                         }
                     }
-                    let match = ActionMatchInfo(text: text, matchedText: matchedText, captures: captures, sourceBundleID: sourceBundleID)
-                    if requirements?.regexNegated == true {
-                        return (false, match)
-                    }
-                    return (true, match)
+                    matched = ActionMatchInfo(text: text, matchedText: matchedText, captures: captures, sourceBundleID: sourceBundleID)
+                    regexEnabled = !(requirements?.regexNegated == true)
+                } else {
+                    regexEnabled = requirements?.regexNegated == true
                 }
-                // No regex match: enabled when negated, disabled otherwise.
-                if requirements?.regexNegated == true {
-                    return (true, noMatch)
-                }
-                return (false, noMatch)
             } catch {
-                // Defensive: a malformed regex must not hide an action (legacy URL behavior).
+                // Defensive: a malformed regex must not hide an action (legacy URL behavior). The
+                // expression gate is skipped alongside it, matching prior behavior.
                 Log.coordinator.debug("Malformed enablement regex treated as non-matching: \(error.localizedDescription)")
                 return (true, noMatch)
             }
         }
+        if regexEnabled == false {
+            return (false, matched)
+        }
 
-        return (true, noMatch)
+        // 4. Computed visibility via the expression DSL (pure Swift, parse-once-eval-many).
+        if let expression {
+            switch expression.evaluate(context, match: matched) {
+            case .success(true):
+                return (true, matched)
+            case .success(false):
+                return (false, matched)
+            case .failure(let error):
+                Log.js.error("Enablement expression evaluation failed: \(error)")
+                return (false, matched)
+            }
+        }
+
+        return (true, matched)
     }
 
     /// Returns the identifiers of required options whose resolved value is empty. Pure helper —

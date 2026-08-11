@@ -16,6 +16,11 @@ private extension ActionContext {
 
 @MainActor
 final class ActionVisibilityTests: XCTestCase {
+    private func attemptParse(_ source: String) -> ValidateExpression {
+        // Test-only: source strings here are known-valid; parse failure would surface as a force-trap.
+        try! ValidateExpression.parse(source).get()
+    }
+
     // MARK: - App allow / deny lists
 
     func testAllowListEnablesWhenBundleIdentifierMatches() {
@@ -249,5 +254,60 @@ final class ActionVisibilityTests: XCTestCase {
         } else {
             XCTFail("Expected .paste result, got \(result)")
         }
+    }
+
+    // MARK: - expression gate
+
+    func testExpressionGateDisablesWhenEvaluatesFalse() {
+        let requirements = ActionRequirements(expression: "isEmail(text)")
+        let context = ActionContext(selectedText: "not an email")
+        let result = ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: attemptParse("isEmail(text)"), context: context)
+        XCTAssertFalse(result.enabled)
+    }
+
+    func testExpressionGateEnablesWhenEvaluatesTrue() {
+        let requirements = ActionRequirements(expression: "isEmail(text)")
+        let context = ActionContext(selectedText: "a@b.com")
+        let result = ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: attemptParse("isEmail(text)"), context: context)
+        XCTAssertTrue(result.enabled)
+    }
+
+    func testRegexAndExpressionBothMustPass() {
+        let requirements = ActionRequirements(regex: "^[a-z]+@", expression: "length(text) >= 8")
+        let expression = attemptParse("length(text) >= 8")
+
+        let bothPass = ActionContext(selectedText: "user@example.com")
+        XCTAssertTrue(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: expression, context: bothPass).enabled)
+
+        let regexPassesExpressionFails = ActionContext(selectedText: "a@b.co")
+        // regex ^[a-z]+@ matches, but length < 8
+        XCTAssertFalse(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: expression, context: regexPassesExpressionFails).enabled)
+
+        let regexFails = ActionContext(selectedText: "123@example.com")
+        // regex first pass fails -> disabled without evaluating the expression
+        XCTAssertFalse(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: expression, context: regexFails).enabled)
+    }
+
+    func testLegacyRegexWithExpressionGate() {
+        let context = ActionContext(selectedText: "hello world")
+        let expression = attemptParse("contains(text, \"world\")")
+        let passing = ActionVisibility.isEnabled(requirements: nil, legacyRegex: "^hello", expression: expression, context: context)
+        XCTAssertTrue(passing.enabled)
+        let failingExpr = attemptParse("contains(text, \"moon\")")
+        let failing = ActionVisibility.isEnabled(requirements: nil, legacyRegex: "^hello", expression: failingExpr, context: context)
+        XCTAssertFalse(failing.enabled)
+    }
+
+    func testExpressionRuntimeErrorDisables() {
+        let requirements = ActionRequirements(expression: "length(text) == \"x\"")
+        let context = ActionContext(selectedText: "hello")
+        let result = ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: attemptParse("length(text) == \"x\""), context: context)
+        XCTAssertFalse(result.enabled) // fail-closed on eval error
+    }
+
+    func testExpressionWithoutRequirementsGatesAlone() {
+        let context = ActionContext(selectedText: "a@b.com")
+        let passing = ActionVisibility.isEnabled(requirements: nil, legacyRegex: nil, expression: attemptParse("isEmail(text)"), context: context)
+        XCTAssertTrue(passing.enabled)
     }
 }
