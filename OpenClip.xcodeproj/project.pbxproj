@@ -115,6 +115,7 @@
 		6FB7FED781C042F7E06E2757 /* CanvasDSL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18D0D234BC067954B5694FCC /* CanvasDSL.swift */; };
 		701B65DCD6E9E9A69A6C7C13 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2582277236A4342581920E66 /* Assets.xcassets */; };
 		714F641630B8C17979890D5C /* ExtensionsAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208E1DDA96B874A04C415CE2 /* ExtensionsAPIClient.swift */; };
+		71D3BA7D0C8A54E78B0D8F85 /* JSNativeFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A821047BB14D292928A35777 /* JSNativeFetch.swift */; };
 		7265AF347B73B7E61A597E30 /* AppRulesTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F83E744E54478C7A60BEE112 /* AppRulesTab.swift */; };
 		72FBDF8955E2E15B5849EF5C /* CanvasSessionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D690B960D87A061EAF5F723 /* CanvasSessionStateTests.swift */; };
 		75FF6A183690E816A427676C /* ActionRequirements.swift in Sources */ = {isa = PBXBuildFile; fileRef = B43E5D5739492C708E36DE7B /* ActionRequirements.swift */; };
@@ -473,6 +474,7 @@
 		A4F2434073F85AB2FC61E746 /* BuiltinActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltinActionsTests.swift; sourceTree = "<group>"; };
 		A574D624ED260AC9A43E5D22 /* DebugLogCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogCommand.swift; sourceTree = "<group>"; };
 		A7BBC1C9D5BC350A1DE3769D /* InstalledExtensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledExtensionsView.swift; sourceTree = "<group>"; };
+		A821047BB14D292928A35777 /* JSNativeFetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSNativeFetch.swift; sourceTree = "<group>"; };
 		A85D6B583DAD8DA3E981C226 /* StatusFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusFeedback.swift; sourceTree = "<group>"; };
 		A8DAACCC7C82CE7BB96D5F0D /* CustomAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomAction.swift; sourceTree = "<group>"; };
 		AA25688B7F7CA6E74A8BDBDC /* ExtensionActionRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionActionRules.swift; sourceTree = "<group>"; };
@@ -809,6 +811,7 @@
 				58D8C54121CAFC913E8B4110 /* JavaScriptAction.swift */,
 				22B41834634AC61BCF43AFCC /* JavaScriptCanvasAction.swift */,
 				83F59189F77BC9B5A645387A /* JavaScriptCanvasEngine.swift */,
+				A821047BB14D292928A35777 /* JSNativeFetch.swift */,
 				FDBF55EF6666202D0FAA8AA9 /* KeyPressAction.swift */,
 				509707D7B7F8F160B2C001BC /* NamedServiceAction.swift */,
 				CA08C27DF325BEA21486A673 /* OpenClipJSHost.swift */,
@@ -1417,6 +1420,7 @@
 				DCC694DC2D481C35063D62B4 /* IconPickerView.swift in Sources */,
 				E61E4C2DC3230E70EA105D27 /* InstalledAppsScanner.swift in Sources */,
 				F2AE27E093E546BB9F84835F /* InstalledExtensionsView.swift in Sources */,
+				71D3BA7D0C8A54E78B0D8F85 /* JSNativeFetch.swift in Sources */,
 				906E3948E1B975EE9BDA5AF3 /* JavaScriptAction.swift in Sources */,
 				087B852958CE5F2462F62CCE /* JavaScriptCanvasAction.swift in Sources */,
 				EB83C48537C03BEC347C0A99 /* JavaScriptCanvasEngine.swift in Sources */,
