@@ -53,12 +53,15 @@ public struct SessionEventTapPoster: KeyboardEventPosting {
 public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     private let settingsStore: SettingsStore
     private let keyboardPoster: KeyboardEventPosting
+    private let pasteboard: NSPasteboard
     private var pendingRestoreTask: Task<Void, Never>?
 
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
-                keyboardPoster: KeyboardEventPosting = SessionEventTapPoster()) {
+                keyboardPoster: KeyboardEventPosting = SessionEventTapPoster(),
+                pasteboard: NSPasteboard = .general) {
         self.settingsStore = settingsStore
         self.keyboardPoster = keyboardPoster
+        self.pasteboard = pasteboard
     }
 
 
@@ -83,14 +86,14 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         case .copy(let text):
             pendingRestoreTask?.cancel()
             pendingRestoreTask = nil
-            let pasteboard = NSPasteboard.general
+            let pasteboard = self.pasteboard
             pasteboard.clearContents()
             pasteboard.setString(text, forType: .string)
 
         case .cut(let text):
             pendingRestoreTask?.cancel()
             pendingRestoreTask = nil
-            let pasteboard = NSPasteboard.general
+            let pasteboard = self.pasteboard
             pasteboard.clearContents()
             pasteboard.setString(text, forType: .string)
             postKey(keyCode: Constants.deleteVirtualKey, flags: [])
@@ -98,7 +101,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         case .paste(let text):
             pendingRestoreTask?.cancel()
             pendingRestoreTask = nil
-            let pasteboard = NSPasteboard.general
+            let pasteboard = self.pasteboard
             let copyToClipboard = settingsStore.get(.completionCopyToClipboard)
 
             if copyToClipboard {
