@@ -58,7 +58,7 @@ graph TD
 ### 1. Settings Subsystem — [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift)
 - **Responsibility**: Centralized persistence and retrieval of application settings.
 - **Mechanism**: Operates via strongly-typed [`SettingKey<T>`](../../Sources/Core/Settings/SettingKey.swift) instances.
-- **Strict Rule**: Zero direct `UserDefaults.standard` calls anywhere in `Sources/`. All access goes through `SettingsStore` in Core via dependency injection or `DefaultSettingsStore.shared` in the App target. (Note: ~8 App-target call sites still use `UserDefaults.standard` directly, plus the AI-config/theme `@AppStorage` surface; migrating them is an ongoing effort — do not add new ones.) Secrets (e.g. the cloud AI API key) live in the Keychain via `KeychainStore`, never UserDefaults.
+- **Strict Rule**: Zero direct `UserDefaults.standard` calls anywhere in `Sources/`. All access goes through `SettingsStore` in Core via dependency injection or `DefaultSettingsStore.shared` in the App target. (The only remaining raw access is the one-time `aiCloudAPIKey` migration in `AIServiceManager` — read-then-delete; the AI-config/theme `@AppStorage` surface remains too. Migrating is ongoing — do not add new direct call sites.) Secrets (e.g. the cloud AI API key) live in the Keychain via `KeychainStore`, never UserDefaults.
 
 ### 2. Action Presentation — [`ActionCustomizationManager`](../../Sources/Core/Actions/ActionCustomizationManager.swift)
 - **Responsibility**: Resolves display titles and icons for specific UI surfaces (`.popup` or `.table`).

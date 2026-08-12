@@ -51,10 +51,10 @@ public class PopupPanel: NSPanel {
     override public func setFrame(_ frameRect: NSRect, display flag: Bool) {
         var clamped = frameRect
         if let screenFrame = screen?.visibleFrame ?? NSScreen.main?.visibleFrame {
-            let maxWidth = max(0, screenFrame.width - Constants.popupPadding * 2)
+            let maxWidth = max(0, screenFrame.width - PopupMetrics.popupPadding * 2)
             clamped.size.width = min(clamped.size.width, maxWidth)
         }
-        clamped.size.height = min(clamped.size.height, Constants.popupMaxHeight)
+        clamped.size.height = min(clamped.size.height, PopupMetrics.popupMaxHeight)
 
         // If height clamping altered the requested height, adjust origin.y to preserve the requested frame's top edge (maxY)
         if clamped.height != frameRect.height, !pinBottomEdgeOnResize {

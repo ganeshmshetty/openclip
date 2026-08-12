@@ -3,8 +3,11 @@
 //
 // Defines the data-driven gesture policy for the popup bar, derived from an action's chrome
 // metadata and protocol conformance. The UI reads this value and executes it — it never decides
-// interaction behavior itself. Keeps Core AppKit-free; conformance checks live here, not in views.
+// interaction behavior itself. This is a UI-only presentation concern, so it lives in the App
+// target (not `Core`); the derived policy is consumed solely by the popup views and the hover
+// support in this folder.
 import Foundation
+import Core
 
 public struct PopupGesturePolicy: Sendable, Equatable {
     public enum SingleClick: Sendable, Equatable {

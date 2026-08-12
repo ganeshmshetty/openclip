@@ -52,8 +52,19 @@ public class PopupWindowController {
 
     private var isMenuTracking = false
 
-    public init(resultHandler: ActionResultHandler = DefaultActionResultHandler()) {
+    /// How the most recent bar/palette action was triggered (left-click vs right/⇧-click). Set by
+    /// the mouse monitor on mouse-down and reset by hide(). Snapshotted into a `DeliveryContext`
+    /// when an action performs — never read as live state after an await. Drives the standardized
+    /// paste-vs-copy delivery decision (`ActionResultDelivery`).
+    private var pendingClickIntent: ActionResultDelivery.ClickIntent = .leftClick
+
+    /// Probes whether the frontmost app supports Paste. Injected for tests.
+    private let pasteProbe: PasteAvailabilityProbing
+
+    public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
+                pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe()) {
         self.resultHandler = resultHandler
+        self.pasteProbe = pasteProbe
     }
     
     public func show(for context: SelectionContext) {
@@ -82,7 +93,7 @@ public class PopupWindowController {
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let tempFrame = PopupPositioner.calculateFrame(
             for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds)
-        cardAbove = tempFrame.minY < screenBounds.minY + Constants.cardAboveThreshold
+        cardAbove = tempFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
 
         modeStore.mode = .actions
         modeStore.searchResultsAbove = cardAbove
@@ -112,8 +123,8 @@ public class PopupWindowController {
             onEnterSearch: { [weak self] in self?.enterSearch() },
             onExitSearch: { [weak self] in self?.exitSearch() },
             onExitContent: { [weak self] in self?.exitContent() },
-            // Every canvas effect — dispatch-collected AND view-driven — is a keep-open effect: keyboard
-            // ones get deliverKeyboardEffect, leaf ones run without dismissal. Never handleEffect.
+            // Canvas effects — dispatch-collected AND view-driven — are explicit user requests routed
+            // through handleCanvasEffects; they bypass the paste-vs-copy delivery re-decision.
             onCanvasEvent: { [weak self] event in
                 self?.canvasSessionController.dispatch(event)
             },
@@ -121,14 +132,7 @@ public class PopupWindowController {
                 self?.handleCanvasEffects([effect])   // same door as dispatch-collected effects (§1, §6)
             },
             onResult: { [weak self] result in
-                guard let self else { return }
-                // Decision 8: dismissal is decided once on the top-level result; the tree-walk never
-                // hides per-item. `hide()` runs before `handleActionResult` so `exitKeyMode()` reactivates
-                // the target source app before any synthetic keyboard events (.paste, .cut, etc.) are posted.
-                if result.dismissesPopup {
-                    self.hide()
-                }
-                self.handleActionResult(result)
+                self?.deliverResult(result)
             },
             onContentSizeChange: { [weak self] size in
                 self?.resizePanel(to: size)
@@ -154,7 +158,7 @@ public class PopupWindowController {
         // Compute card direction from real screen position using the actual rendered panel size.
         let calculatedFrame = PopupPositioner.calculateFrame(
             for: context, popupSize: size, in: screenBounds)
-        cardAbove = calculatedFrame.minY < screenBounds.minY + Constants.cardAboveThreshold
+        cardAbove = calculatedFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
         modeStore.searchResultsAbove = cardAbove
 
         positionPanel(panel, size: size, for: context)
@@ -441,7 +445,7 @@ public class PopupWindowController {
         }
 
         hoverDebounceTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: Constants.bubbleHoverDelayNanoseconds)
+            try? await Task.sleep(nanoseconds: PopupMetrics.hoverPreviewDelayNanoseconds)
             guard !Task.isCancelled,
                   self.hoveredAction?.id == action.id,
                   self.modeStore.mode == .actions else { return }
@@ -468,7 +472,7 @@ public class PopupWindowController {
 
         let targetAction = hoveredAction
         longPressTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: Constants.bubbleLongPressNanoseconds)
+            try? await Task.sleep(nanoseconds: PopupMetrics.longPressDelayNanoseconds)
             guard !Task.isCancelled, self.hoveredAction?.id == targetAction.id else { return }
             guard let tree = await (targetAction as? any ResultContentProviding)?.makeContent(for: actionContext) else {
                 return
@@ -540,6 +544,9 @@ public class PopupWindowController {
         longPressTask?.cancel()
         longPressTask = nil
         longPressFired = false
+        // A dismissed session must not leak its click intent into the next one (keyboard-driven
+        // runs and any later snapshot read the last intent; force-copy must never persist).
+        pendingClickIntent = .leftClick
         modeStore.mode = .actions
         modeStore.scope = nil
         panel?.pinBottomEdgeOnResize = false
@@ -561,14 +568,14 @@ public class PopupWindowController {
         let canMonitorGlobally = PermissionManager.shared.isAccessibilityGranted
         PopupHoverState.shared.usesGlobalMouseMonitoring = canMonitorGlobally
         if canMonitorGlobally {
-            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
                 self?.handleEvent(event)
             }
         } else {
             Log.presentation.notice("Accessibility permission unavailable; using local hover tracking.")
         }
         
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
             if let self, event.type == .leftMouseUp {
                 // A mouse-up always ends a pending long press: cancel the task so a quick click
                 // doesn't later fire a result bubble, and swallow the trailing mouse-up only when
@@ -623,17 +630,32 @@ public class PopupWindowController {
                 let frame = panel.frame
                 let dx = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
                 let dy = max(0, max(frame.minY - cursorLoc.y, cursorLoc.y - frame.maxY))
-                if hypot(dx, dy) > Constants.popupDismissalDistance {
+                if hypot(dx, dy) > PopupMetrics.popupDismissalDistance {
                     hide()
                 }
             }
         case .leftMouseDown:
             let clickLoc = NSEvent.mouseLocation
             let inBar = panel?.frame.contains(clickLoc) ?? false
+            // Capture the modifier state at click time so the action that runs on mouse-up (via the
+            // SwiftUI Button) delivers as a copy when ⇧ is held.
+            let isShift = event.modifierFlags.contains(.shift)
+            pendingClickIntent = isShift ? .forceCopy : .leftClick
             if inBar {
                 beginLongPressIfNeeded(at: clickLoc)
             }
             if !inBar {
+                hide()
+            }
+        case .rightMouseDown:
+            // Right-click: force copy and run the hovered action directly (the bar's SwiftUI Button
+            // only reacts to left-clicks). A long-press is never triggered by a right-click.
+            let clickLoc = NSEvent.mouseLocation
+            let inBar = panel?.frame.contains(clickLoc) ?? false
+            pendingClickIntent = .forceCopy
+            if inBar, let hoveredAction, let actionContext = currentActionContext, modeStore.mode == .actions {
+                runAction(hoveredAction, with: actionContext, forceCopy: true)
+            } else if !inBar {
                 hide()
             }
         case .scrollWheel:
@@ -694,10 +716,48 @@ public class PopupWindowController {
 
     // MARK: - Decision 8: ActionResult Tree-Walk
 
+    /// The inputs to the paste-vs-copy delivery decision, captured synchronously when an action
+    /// performs — before `hide()` can clear the live context, and before any async probe await.
+    /// `nil` (canvas effects, which are explicit user requests) means the result is never re-decided.
+    struct DeliveryContext {
+        let policy: AppPolicyContext
+        let clickIntent: ActionResultDelivery.ClickIntent
+        /// The target app the result will be delivered to. Captured synchronously with the other
+        /// inputs: while the (non-activating) panel is up, the source app stays frontmost, and
+        /// `exitKeyMode()` reactivates exactly this app on hide — so the snapshot is the same app
+        /// `pasteProbe` must inspect, without reading frontmost state after hide or an await.
+        let application: NSRunningApplication?
+    }
+
+    /// Snapshots the delivery inputs from the current session state. Called on the main actor,
+    /// synchronously, before any dismissal or await, so the decision never depends on live state
+    /// read after `hide()` or after the probe suspension.
+    private func deliverySnapshot() -> DeliveryContext {
+        DeliveryContext(
+            policy: currentActionContext?.selection.appPolicy ?? .default,
+            clickIntent: pendingClickIntent,
+            application: NSWorkspace.shared.frontmostApplication
+        )
+    }
+
+    /// Routes a performed result into the tree-walk, snapshotting the delivery inputs first.
+    /// Decision 8: dismissal is decided once on the top-level result; the tree-walk never hides
+    /// per-item. `hide()` runs before `handleActionResult` so `exitKeyMode()` reactivates the target
+    /// source app before any synthetic keyboard events (.paste, .cut, etc.) are posted — and the
+    /// delivery snapshot is taken before that `hide()` clears the live context. Internal for tests.
+    func deliverResult(_ result: ActionResult) {
+        let delivery = deliverySnapshot()
+        if result.dismissesPopup {
+            hide()
+        }
+        handleActionResult(result, delivery: delivery)
+    }
+
     /// Walks an ActionResult produced by a perform, rendering presentation results in the popup and
     /// routing leaf effects to the effect handler. Never hides the popup per-item — dismissal is
-    /// decided once on the top-level result via `dismissesPopup`.
-    func handleActionResult(_ result: ActionResult) {
+    /// decided once on the top-level result via `dismissesPopup`. `delivery` carries the captured
+    /// paste-vs-copy inputs; `nil` means the result is an explicit user request never re-decided.
+    func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil) {
         switch result {
         case .showContent(let tree, let header):
             armCanvas(tree: tree, header: header ?? currentHeaderFromAction())
@@ -708,25 +768,85 @@ public class PopupWindowController {
         case .openConfiguration(let request):
             presentConfiguration(for: request)
         case .keepVisible(let inner):
-            handleActionResult(inner)
+            handleActionResult(inner, delivery: delivery)
         case .sequence(let items):
-            for item in items { handleActionResult(item) }
+            for item in items { handleActionResult(item, delivery: delivery) }
         default:
-            handleEffect(result)
+            handleEffect(result, delivery: delivery)
         }
     }
 
     /// Routes a leaf effect to DefaultActionResultHandler and surfaces any thrown error uniformly
     /// (decision 9): an error becomes a `.showStatus(.error)` and the popup stays. Returns the task
-    /// so `deliverKeyboardEffect` can await the posted effect.
+    /// so a caller can await the posted effect.
+    ///
+    /// Applies the standardized paste-vs-copy delivery decision (`.paste` → `.copy` when the click
+    /// was a force-copy, the app policy forbids paste, or the target app can't Paste). Only leaf
+    /// text results routed here are re-decided; canvas effects (explicit user buttons) pass through
+    /// untouched via a nil `delivery`.
     @discardableResult
-    private func handleEffect(_ result: ActionResult) -> Task<Void, Never> {
+    private func handleEffect(_ result: ActionResult, delivery: DeliveryContext?) -> Task<Void, Never> {
         guard let effect = result.effectForHandler else { return Task {} }
         return Task { @MainActor in
             do {
-                try await resultHandler.handle(effect, in: panel?.contentView)
+                let delivered = await resolveDelivery(effect, delivery: delivery)
+                try await resultHandler.handle(delivered, in: panel?.contentView)
             } catch {
                 handleActionResult(.showStatus(StatusFeedback(error: error)))
+            }
+        }
+    }
+
+    /// Decides how a text result should be delivered, per the standardized rule. Only `.paste`
+    /// outcomes can be downgraded to `.copy`; everything else — and any result without a captured
+    /// `delivery` (an explicit user request) — passes through untouched. The click intent and app
+    /// policy come from the snapshot, never from live state read after an await.
+    private func resolveDelivery(_ result: ActionResult, delivery: DeliveryContext?) async -> ActionResult {
+        guard case .paste = result, let delivery else { return result }
+        // Short-circuit the AX probe when the outcome is already a copy (force-copy click or a
+        // denyPaste policy): the probe would be wasted work and needs Accessibility.
+        let needsProbe = delivery.clickIntent != .forceCopy && !delivery.policy.denyPaste
+        // Unknown availability (probe nil) falls back to copy — the safe default: never paste
+        // blindly when we cannot confirm the target supports it. The target is the snapshotted app
+        // captured before hide(), never frontmost state read after suspension.
+        let canPaste = needsProbe ? (await pasteProbe.canPaste(in: delivery.application) ?? false) : true
+        return ActionResultDelivery.resolve(
+            raw: result,
+            clickIntent: delivery.clickIntent,
+            canPaste: canPaste,
+            policy: delivery.policy
+        )
+    }
+
+    /// Performs an action directly (the right-click path, which the bar's SwiftUI Button never
+    /// fires) and routes its result through the standard dismissal + tree-walk, recording usage.
+    /// Mirrors the left-click perform path in PopupView. The delivery context is built here from
+    /// `forceCopy`, so the decision never depends on live state read after the perform await.
+    private func runAction(_ action: any Action, with context: ActionContext, forceCopy: Bool) {
+        let clickIntent: ActionResultDelivery.ClickIntent = forceCopy ? .forceCopy : .leftClick
+        pendingClickIntent = clickIntent
+        // Snapshot the target app with the rest of the delivery inputs, before the perform await
+        // and before hide() can reactivate a different frontmost app.
+        let delivery = DeliveryContext(
+            policy: context.selection.appPolicy,
+            clickIntent: clickIntent,
+            application: NSWorkspace.shared.frontmostApplication
+        )
+        usageStore.record(action.id)
+        let match = action.matchInfo(for: context)
+        let performContext = match.map {
+            ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
+        } ?? context
+        Task { @MainActor in
+            do {
+                let result = try await action.perform(performContext)
+                if result.dismissesPopup {
+                    self.hide()
+                }
+                self.handleActionResult(result, delivery: delivery)
+            } catch {
+                Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
+                self.handleActionResult(.showStatus(StatusFeedback(error: error)))
             }
         }
     }
@@ -734,6 +854,8 @@ public class PopupWindowController {
     /// Canvas leaf effects: if the effect dismisses the popup (.paste, .cut, .simulatePaste, .keyPress, etc.),
     /// hide() first so exitKeyMode() reactivates the target app, then handle the result — matching search
     /// and bar action execution. Non-dismissing effects (.copy, .keepVisible, etc.) execute without dismissal.
+    /// Canvas effects are explicit user requests (e.g. a Replace/Copy button), so they carry no delivery
+    /// context and bypass the paste-vs-copy re-decision — an explicit Replace always pastes.
     private func handleCanvasEffects(_ effects: [CanvasEffect]) {
         for effect in effects {
             let result = effect.asActionResult
@@ -741,7 +863,7 @@ public class PopupWindowController {
                 hide()
                 handleActionResult(result)
             } else {
-                _ = handleEffect(result)
+                _ = handleEffect(result, delivery: nil)
             }
         }
     }

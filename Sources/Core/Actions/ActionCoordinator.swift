@@ -66,7 +66,7 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         let bundleID = context.selection.sourceApp.bundleIdentifier ?? ""
         let policy = ruleEngine.resolvePolicies(for: bundleID)
         var updatedSelection = context.selection
-        if policy.denyFormatting || policy.assumePaste || policy.grabPasteboard {
+        if policy.denyFormatting || policy.assumePaste {
             updatedSelection = SelectionContext(
                 text: context.selection.text,
                 sourceApp: context.selection.sourceApp,

@@ -40,8 +40,6 @@ public struct PreferencesView: View {
     /// width as the form-based tabs instead of stretching with the window.
     private static let detailContentMaxWidth: CGFloat = 600
 
-    @AppStorage(Constants.startAtLoginKey) private var startAtLogin: Bool = false
-    
     @State private var disabledActionIDs: Set<String> = []
     @State private var disabledPackages: Set<String> = []
     @State private var selectedTab: PreferenceTab = .general

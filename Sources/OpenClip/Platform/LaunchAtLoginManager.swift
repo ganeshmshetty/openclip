@@ -2,6 +2,8 @@
 // OpenClip
 //
 // Manages macOS login item registration using ServiceManagement SMAppService APIs.
+// Persisted state goes through `SettingKey.startAtLogin` via the settings store — never raw
+// `UserDefaults`. (Deployment target is macOS 14, so the pre-13 fallbacks are dead and dropped.)
 import Foundation
 import ServiceManagement
 import AppKit
@@ -33,40 +35,30 @@ public final class LaunchAtLoginManager: ObservableObject {
     }
     
     public func syncStatus() {
-        if #available(macOS 13.0, *) {
-            let actualStatus = (SMAppService.mainApp.status == .enabled)
-            if isEnabled != actualStatus {
-                isEnabled = actualStatus
-            }
+        let actualStatus = (SMAppService.mainApp.status == .enabled)
+        if isEnabled != actualStatus {
+            isEnabled = actualStatus
         }
     }
     
     private static func readCurrentStatus() -> Bool {
-        if #available(macOS 13.0, *) {
-            return (SMAppService.mainApp.status == .enabled)
-        } else {
-            return UserDefaults.standard.bool(forKey: Constants.startAtLoginKey)
-        }
+        (SMAppService.mainApp.status == .enabled)
     }
 
     private static func updateServiceStatus(_ enabled: Bool) {
-        if #available(macOS 13.0, *) {
-            do {
-                if enabled {
-                    if SMAppService.mainApp.status != .enabled {
-                        try SMAppService.mainApp.register()
-                    }
-                } else {
-                    if SMAppService.mainApp.status == .enabled {
-                        try SMAppService.mainApp.unregister()
-                    }
+        do {
+            if enabled {
+                if SMAppService.mainApp.status != .enabled {
+                    try SMAppService.mainApp.register()
                 }
-                UserDefaults.standard.set(enabled, forKey: Constants.startAtLoginKey)
-            } catch {
-                Log.settings.error("SMAppService failed to update launch at login status: \(error.localizedDescription)")
+            } else {
+                if SMAppService.mainApp.status == .enabled {
+                    try SMAppService.mainApp.unregister()
+                }
             }
-        } else {
-            UserDefaults.standard.set(enabled, forKey: Constants.startAtLoginKey)
+            DefaultSettingsStore.shared.set(.startAtLogin, value: enabled)
+        } catch {
+            Log.settings.error("SMAppService failed to update launch at login status: \(error.localizedDescription)")
         }
     }
 }

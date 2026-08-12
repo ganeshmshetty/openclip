@@ -11,8 +11,32 @@ public struct InstalledExtensionsView: View {
 
     public init() {}
 
-    private var installedExtensionActions: [any Action] {
-        coordinator.actions.filter { ActionIdentity.isExtension($0) }
+    /// One row per installed extension **package**. A group + its sub-actions all belong to the
+    /// same package, so they render as a single flat row (no nesting) and uninstall removes the
+    /// whole package — matching how the extension appears in the store.
+    private struct PackageRow: Identifiable {
+        let packageID: String
+        let title: String
+        let representative: any Action
+
+        var id: String { packageID }
+    }
+
+    private var installedPackages: [PackageRow] {
+        var representatives: [String: any Action] = [:]
+        var titles: [String: String] = [:]
+        for action in coordinator.actions where ActionIdentity.isExtension(action) {
+            guard let packageID = ActionIdentity.extensionPackageID(of: action) else { continue }
+            representatives[packageID] = representatives[packageID] ?? action
+            if titles[packageID] == nil, case .extensionPkg(let name) = action.chrome.badge {
+                titles[packageID] = name
+            }
+        }
+        return representatives
+            .map { packageID, action in
+                PackageRow(packageID: packageID, title: titles[packageID] ?? packageID, representative: action)
+            }
+            .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
 
     @State private var selectedExtensionID: String? = nil
@@ -31,7 +55,7 @@ public struct InstalledExtensionsView: View {
             }
             .padding(.horizontal, 4)
 
-            if installedExtensionActions.isEmpty {
+            if installedPackages.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
                     Image(systemName: "puzzlepiece.extension")
@@ -47,10 +71,10 @@ public struct InstalledExtensionsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(selection: $selectedExtensionID) {
-                    ForEach(installedExtensionActions, id: \.id) { action in
+                    ForEach(installedPackages) { package in
                         HStack(spacing: 12) {
                             ZStack {
-                                ActionIconView(icon: action.displayIcon(using: ActionCustomizationManager.shared), size: 16)
+                                ActionIconView(icon: package.representative.displayIcon(using: ActionCustomizationManager.shared), size: 16)
                                     .foregroundColor(.accentColor)
                             }
                             .frame(width: 36, height: 36)
@@ -58,25 +82,17 @@ public struct InstalledExtensionsView: View {
                             .cornerRadius(8)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(action.displayTitle(using: ActionCustomizationManager.shared))
+                                Text(package.title)
                                     .font(.system(size: 13, weight: .semibold))
-
-                                switch action.chrome.badge {
-                                case .extensionPkg(let pkgName):
-                                    Text(pkgName)
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                default:
-                                    Text("Extension Package")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
+                                Text(package.packageID)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
                             }
 
                             Spacer()
 
                             Button(role: .destructive, action: {
-                                uninstallExtension(actionID: action.id)
+                                uninstallExtension(actionID: package.representative.id)
                             }) {
                                 Label("Uninstall", systemImage: "trash")
                                     .font(.caption)
@@ -86,7 +102,7 @@ public struct InstalledExtensionsView: View {
                             .tint(.red)
                         }
                         .padding(.vertical, 6)
-                        .tag(action.id)
+                        .tag(package.id)
                     }
                 }
                 .listStyle(.inset)
