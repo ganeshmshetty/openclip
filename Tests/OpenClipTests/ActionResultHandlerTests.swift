@@ -5,11 +5,12 @@ import XCTest
 @MainActor
 final class ActionResultHandlerTests: XCTestCase {
     func testCopyResultHandler() async throws {
-        let handler = DefaultActionResultHandler()
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let handler = DefaultActionResultHandler(pasteboard: isolatedPasteboard)
         let result = ActionResult.copy("Test Copy")
         try await handler.handle(result, in: nil)
         
-        let pasteboardText = NSPasteboard.general.string(forType: .string)
+        let pasteboardText = isolatedPasteboard.string(forType: .string)
         XCTAssertEqual(pasteboardText, "Test Copy")
     }
 
@@ -41,24 +42,25 @@ final class ActionResultHandlerTests: XCTestCase {
     }
 
     func testPasteResultHandlerSkipsRestoreIfChangeCountMoved() async throws {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         let store = MemorySettingsStore()
         store.set(.completionCopyToClipboard, value: false)
-        let handler = DefaultActionResultHandler(settingsStore: store)
+        let handler = DefaultActionResultHandler(settingsStore: store, pasteboard: isolatedPasteboard)
         
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("OriginalItem", forType: .string)
+        isolatedPasteboard.clearContents()
+        isolatedPasteboard.setString("OriginalItem", forType: .string)
 
         try await handler.handle(.paste("PastedText"), in: nil)
 
         // User copies something new while sleep task is running
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("UserNewCopy", forType: .string)
+        isolatedPasteboard.clearContents()
+        isolatedPasteboard.setString("UserNewCopy", forType: .string)
 
         // Wait for restore delay
         try await Task.sleep(nanoseconds: UInt64((Constants.pasteboardRestoreDelay + 0.1) * 1_000_000_000))
 
         // Ensure user's new copy was NOT overwritten by stale restore task
-        let currentText = NSPasteboard.general.string(forType: .string)
+        let currentText = isolatedPasteboard.string(forType: .string)
         XCTAssertEqual(currentText, "UserNewCopy", "Pasteboard restore must be skipped when changeCount moved")
     }
 }
