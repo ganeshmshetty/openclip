@@ -8,7 +8,8 @@ final class PopupKeyModeTests: XCTestCase {
 
     private func shownController() throws -> PopupWindowController {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
-        let controller = PopupWindowController()
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
         controller.show(for: SelectionContext(
             text: "hello world",
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),

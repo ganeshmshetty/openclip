@@ -8,7 +8,8 @@ final class PopupCanvasTests: XCTestCase {
 
     private func shownController(for cursor: CGPoint) throws -> PopupWindowController {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
-        let controller = PopupWindowController()
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
         let context = SelectionContext(
             text: "hello world",
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),

@@ -14,7 +14,8 @@ final class CanvasKeyBehaviorTests: XCTestCase {
 
     private func shownController(for cursor: CGPoint = .zero) throws -> PopupWindowController {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen available") }
-        let controller = PopupWindowController()
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
         let pos = cursor == .zero ? CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200) : cursor
         let context = SelectionContext(
             text: "hello world",

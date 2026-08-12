@@ -125,10 +125,8 @@ final class NewExtensionKindTests: XCTestCase {
 
     func testNamedServiceExecutionPreservesGlobalClipboard() async throws {
         // Live integration: directly exercising the named-service flow must not touch
-        // NSPasteboard.general (which holds the user's real clipboard). Restore afterward.
-        let sentinel = "OpenClip-test-sentinel-\(UUID().uuidString)"
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(sentinel, forType: .string)
+        // NSPasteboard.general (which holds the user's real clipboard).
+        let changeCountBefore = NSPasteboard.general.changeCount
 
         var service = NamedServiceAction(id: "com.test.isolated", title: "Service", serviceName: "com.apple.text.input")
         final class SeenBox: @unchecked Sendable { var name = "" }
@@ -139,19 +137,14 @@ final class NewExtensionKindTests: XCTestCase {
             return true
         }
 
-        do {
-            let result = try await service.perform(makeContext(text: "selected text"))
-            guard case .none = result else {
-                return XCTFail("Expected .none result, got \(result)")
-            }
-        } catch {
-            try? NSPasteboard.general.setString(sentinel, forType: .string)
-            return XCTFail("Expected perform to succeed, got \(error)")
+        let result = try await service.perform(makeContext(text: "selected text"))
+        guard case .none = result else {
+            return XCTFail("Expected .none result, got \(result)")
         }
 
         XCTAssertFalse(seen.name.isEmpty)
         XCTAssertNotEqual(seen.name, NSPasteboard.general.name.rawValue, "Service should receive an isolated pasteboard, not NSPasteboard.general")
-        XCTAssertEqual(NSPasteboard.general.string(forType: .string), sentinel, "Global clipboard must remain unchanged")
+        XCTAssertEqual(NSPasteboard.general.changeCount, changeCountBefore, "Global clipboard must remain unchanged")
     }
 
     // MARK: - canvas
