@@ -46,6 +46,10 @@ public enum DefaultAppRules: Sendable {
             denyFormatting: true
         ),
         AppRule(
+            bundleIdentifiers: ["com.apple.Terminal", "com.googlecode.iterm2", "com.mitchellh.ghostty"],
+            denyPaste: true
+        ),
+        AppRule(
             bundleIdentifiers: ["net.ankiweb.dtop"],
             assumePaste: true
         )

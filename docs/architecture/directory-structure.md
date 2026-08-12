@@ -28,7 +28,6 @@ Sources/
 │   │   ├── ExtensionOption.swift             # Extension option models
 │   │   ├── ModifierFlags.swift               # Keyboard modifier flags
 │   │   ├── MathEvaluator.swift               # Deterministic exception-free arithmetic parser (replaces NSExpression; used by CalculateAction)
-│   │   ├── PopupGesturePolicy.swift          # Derived popup interaction policy (click/long-press/hover) from chrome + conformance
 │   │   ├── ResultContentProviding.swift       # Opt-in PreviewProviding / ResultContentProviding protocols for the content canvas
 │   │   ├── URLTemplateAction.swift           # Web search / URL template action
 │   │   └── WordCompletionProviding.swift     # Completion provider protocol
@@ -60,7 +59,7 @@ Sources/
 │   ├── Selection/                            # Text selection & monitoring models
 │   │   ├── AppFilter.swift
 │   │   ├── AppIdentifying.swift
-│   │   ├── Constants.swift                   # Timing thresholds, key codes, settings keys, scriptTimeout
+│   │   ├── Constants.swift                   # Domain/runtime constants (timeouts, key codes, env vars, manifest keys) — no UI sizing
 │   │   ├── SelectionContext.swift
 │   │   ├── SelectionMonitoring.swift
 │   │   └── TextRetrieving.swift
@@ -88,7 +87,7 @@ Sources/
     │   ├── OpenClipJSHostSupport.swift       # Threading/support boxes for the JS host (TimeoutFlag, gate, JS context/value/runloop boxes, promise state)
     │   └── ShortcutAction.swift              # type: "shortcut" runtime → .runShortcut(name:input:)
     ├── App/
-    ├── AppDelegate.swift                     # Reads isAppEnabled / hasCompletedOnboarding via UserDefaults.standard
+    ├── AppDelegate.swift                     # Reads isAppEnabled / hasCompletedOnboarding via DefaultSettingsStore (SettingKey)
     ├── OpenClipApp.swift                     # SwiftUI App Entrypoint
     ├── Platform/                             # macOS Platform Services
     │   ├── AppleScriptRunner.swift           # Bounded off-main AppleScript executor (killable osascript subprocess via ShellProcessRunner)
@@ -103,9 +102,9 @@ Sources/
     │   ├── HotkeyManager.swift               # Global shortcut manager (⌥⌘C toggles popup actions → search → dismiss when visible)
     │   ├── InstalledAppsScanner.swift        # App scanner
     │   ├── KeychainStore.swift               # Generic-password SecItem wrapper for sensitive credentials (AI API key)
-    │   ├── LaunchAtLoginManager.swift        # Login item manager
+    │   ├── LaunchAtLoginManager.swift        # Login item manager (SMAppService; persisted state via SettingKey.startAtLogin)
     │   ├── MacSelectionMonitor.swift         # Global accessibility monitor
-    │   ├── MacTextRetriever.swift            # AX selection read + Safari JS; grabPasteboard apps use Cmd+C fallback
+    │   ├── MacTextRetriever.swift            # AX selection read + Safari JS; AX Menu Copy fallback for lenient apps
     │   ├── OnceResume.swift                  # Exactly-once continuation resume gate (AX read + AppleScript deadline races)
     │   ├── PermissionManager.swift           # Accessibility permission manager
     │   └── DebugLogging/                             # In-process debug log store + --dump-logs CLI (App target)
@@ -116,7 +115,7 @@ Sources/
     │       ├── DebugLogStore.swift                   # 1s background poller + .shared
     │       ├── DebugLogFilter.swift                  # Pure category/level/count filter
     │       └── DebugLogCommand.swift                 # --dump-logs arg parsing + line formatting
-    ├── StatusBarController.swift             # Reads/writes isAppEnabled via UserDefaults.standard
+    ├── StatusBarController.swift             # Reads/writes isAppEnabled via DefaultSettingsStore (SettingKey)
     └── UI/                                   # User Interface (SwiftUI & AppKit Panels)
         ├── AppIcon.swift                     # App icon loaded from the bundle's AppIcon.icns (avoids the generic placeholder NSApp.applicationIconImage can return for LSUIElement apps)
         ├── Design/
@@ -129,7 +128,9 @@ Sources/
         │   └── RecommendedExtensionsView.swift   # Top store extensions by downloadCount + Install File
         ├── Popup/                            # Floating popup panel
         │   ├── PopupModeStore.swift            # Shared observable actions↔search↔content mode + content/preview/statusBanner payloads; preview passes a throwaway store
+        │   ├── PopupMetrics.swift                # UI-only popup/search/canvas sizing + placement/dismissal/hover/long-press constants (App target, not Core)
         │   ├── PopupPanel.swift                # NSPanel subclass (scoped allowsKey + bottom-edge pin on content-driven resize)
+        │   ├── PopupGesturePolicy.swift        # Derived popup interaction policy (click/long-press/hover) from chrome + conformance (App target — UI-only)
         │   ├── PopupPositioner.swift           # Frame math & screen clamping (pure static, no singletons)
         │   ├── PopupPreview.swift              # Static popup bar preview (fixed canonical actions; Preferences Appearance tab + onboarding Finish)
         │   ├── PopupPreviewStrip.swift         # Compact inline hover-preview strip stacked with the bar

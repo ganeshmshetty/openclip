@@ -92,6 +92,10 @@ private struct AppRuleRowView: View {
         rule.denyFormatting == true
     }
     
+    private var isPasteDenied: Bool {
+        rule.denyPaste == true
+    }
+    
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             // App Icon
@@ -132,8 +136,8 @@ private struct AppRuleRowView: View {
                         denyFormatting: rule.denyFormatting,
                         denyProbe: enabled ? nil : true,
                         denyPreprobe: enabled ? nil : true,
-                        grabPasteboard: rule.grabPasteboard,
-                        assumePaste: rule.assumePaste
+                        assumePaste: rule.assumePaste,
+                        denyPaste: rule.denyPaste
                     )
                     onUpdate(newRule)
                 }
@@ -153,8 +157,8 @@ private struct AppRuleRowView: View {
                         denyFormatting: rule.denyFormatting,
                         denyProbe: newDisableState ? true : nil,
                         denyPreprobe: newDisableState ? true : nil,
-                        grabPasteboard: rule.grabPasteboard,
-                        assumePaste: rule.assumePaste
+                        assumePaste: rule.assumePaste,
+                        denyPaste: rule.denyPaste
                     )
                     onUpdate(updated)
                 } label: {
@@ -170,14 +174,31 @@ private struct AppRuleRowView: View {
                         denyFormatting: isFormattingDisabled ? nil : true,
                         denyProbe: rule.denyProbe,
                         denyPreprobe: rule.denyPreprobe,
-                        grabPasteboard: rule.grabPasteboard,
-                        assumePaste: rule.assumePaste
+                        assumePaste: rule.assumePaste,
+                        denyPaste: rule.denyPaste
                     )
                     onUpdate(updated)
                 } label: {
                     Label(
                         isFormattingDisabled ? "Enable Formatting Actions" : "Hide Formatting Actions",
                         systemImage: "textformat"
+                    )
+                }
+                
+                Button {
+                    let updated = AppRule(
+                        bundleIdentifiers: rule.bundleIdentifiers,
+                        denyFormatting: rule.denyFormatting,
+                        denyProbe: rule.denyProbe,
+                        denyPreprobe: rule.denyPreprobe,
+                        assumePaste: rule.assumePaste,
+                        denyPaste: isPasteDenied ? nil : true
+                    )
+                    onUpdate(updated)
+                } label: {
+                    Label(
+                        isPasteDenied ? "Enable Paste Delivery" : "Copy Instead of Paste",
+                        systemImage: "doc.on.doc"
                     )
                 }
                 

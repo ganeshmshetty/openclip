@@ -94,9 +94,9 @@ public final class RuleEngine: ObservableObject, Sendable {
                 denyFormatting: rule.denyFormatting,
                 denyProbe: rule.denyProbe,
                 denyPreprobe: rule.denyPreprobe,
-                grabPasteboard: rule.grabPasteboard,
                 assumePaste: rule.assumePaste,
-                useMenuCopy: rule.useMenuCopy
+                useMenuCopy: rule.useMenuCopy,
+                denyPaste: rule.denyPaste
             )
         }
     }
@@ -110,9 +110,9 @@ public final class RuleEngine: ObservableObject, Sendable {
                     denyFormatting: rule.denyFormatting ?? context.denyFormatting,
                     denyProbe: rule.denyProbe ?? context.denyProbe,
                     denyPreprobe: rule.denyPreprobe ?? context.denyPreprobe,
-                    grabPasteboard: rule.grabPasteboard ?? context.grabPasteboard,
                     assumePaste: rule.assumePaste ?? context.assumePaste,
-                    useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy
+                    useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy,
+                    denyPaste: rule.denyPaste ?? context.denyPaste
                 )
             }
         }

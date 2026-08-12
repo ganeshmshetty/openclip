@@ -111,7 +111,7 @@ final class CanvasRendererTests: XCTestCase {
         pump()
 
         let panel = try visiblePanel()
-        let maxAllowedWidth = CanvasLimits.canvasMaxWidth + 2.0 * Constants.popupPadding
+        let maxAllowedWidth = CanvasLimits.canvasMaxWidth + 2.0 * PopupMetrics.popupPadding
         XCTAssertLessThanOrEqual(panel.frame.width, maxAllowedWidth + 2.0, "panel width must clamp within CanvasLimits max width boundaries")
     }
 
@@ -129,7 +129,7 @@ final class CanvasRendererTests: XCTestCase {
         pump()
 
         let panel = try visiblePanel()
-        XCTAssertLessThanOrEqual(panel.frame.height, Constants.popupMaxHeight + 10.0, "panel height must cap near popupMaxHeight")
+        XCTAssertLessThanOrEqual(panel.frame.height, PopupMetrics.popupMaxHeight + 10.0, "panel height must cap near popupMaxHeight")
     }
 
     func testPreferredSizeIsFixedAcrossDispatch() throws {
@@ -180,7 +180,7 @@ final class CanvasRendererTests: XCTestCase {
         pump()
 
         let panel = try visiblePanel()
-        XCTAssertLessThan(panel.frame.height, Constants.popupMaxHeight, "nil preferredSize must use content fitting size smaller than max height cap")
+        XCTAssertLessThan(panel.frame.height, PopupMetrics.popupMaxHeight, "nil preferredSize must use content fitting size smaller than max height cap")
     }
 
     func testDividerAndSpacerRender() throws {

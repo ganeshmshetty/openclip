@@ -12,7 +12,8 @@
 // because the tree re-render flushes the field being left *before* dropping — drop-after-commit,
 // see `CanvasSessionDraftPlan`). Sizing follows §7.1: the width column min/ideal/max comes
 // from CanvasLimits clamped to the screen, the body scroll box is capped at
-// `Constants.popupMaxHeight - 36`, and a producer-set `preferredSize` is fixed for the session.
+// `PopupMetrics.popupMaxHeight - PopupMetrics.canvasHeaderHeight`, and a producer-set
+// `preferredSize` is fixed for the session.
 import SwiftUI
 import AppKit
 import Core
@@ -123,13 +124,14 @@ public struct CanvasSessionView: View {
     }
 
     /// §7.1 sizing: a producer-set `preferredSize` renders the surface at that size (clamped to the
-    /// width column and the popup height cap), fixed for the session; nil → fitting-size column.
+    /// width column and the popup height cap, and never below the fixed header height), fixed for
+    /// the session; nil → fitting-size column.
     @ViewBuilder
     private var sizedSurface: some View {
         if let size = session.preferredSize {
             headerAndBody
                 .frame(width: min(size.width, clampedWidths.max),
-                       height: min(size.height, Constants.popupMaxHeight))
+                       height: min(max(size.height, PopupMetrics.canvasHeaderHeight), PopupMetrics.popupMaxHeight))
         } else {
             headerAndBody
                 .frame(minWidth: clampedWidths.min,
@@ -163,9 +165,9 @@ public struct CanvasSessionView: View {
         }
     }
 
-    /// The scrollable canvas body. `.frame(maxHeight: Constants.popupMaxHeight - Constants.canvasHeaderHeight)`:
+    /// The scrollable canvas body. `.frame(maxHeight: PopupMetrics.popupMaxHeight - PopupMetrics.canvasHeaderHeight)`:
     /// the header chrome fills 33pt above/below the body scroll box; the panel's resizePanel still
-    /// caps the whole surface at Constants.popupMaxHeight (240) — the single sizing funnel.
+    /// caps the whole surface at PopupMetrics.popupMaxHeight (240) — the single sizing funnel.
     private var bodyContent: some View {
         CanvasComponentView(
             tree: session.tree,
@@ -184,8 +186,10 @@ public struct CanvasSessionView: View {
     }
 
     private var bodyScroll: some View {
-        let availableBodyHeight = session.preferredSize.map { min($0.height, Constants.popupMaxHeight) - Constants.canvasHeaderHeight }
-            ?? (Constants.popupMaxHeight - Constants.canvasHeaderHeight)
+        let availableBodyHeight = session.preferredSize.map {
+            min(max($0.height, PopupMetrics.canvasHeaderHeight), PopupMetrics.popupMaxHeight) - PopupMetrics.canvasHeaderHeight
+        }
+            ?? (PopupMetrics.popupMaxHeight - PopupMetrics.canvasHeaderHeight)
         let needsScroll = measuredContentHeight > availableBodyHeight
         return Group {
             if needsScroll {
@@ -217,7 +221,7 @@ public struct CanvasSessionView: View {
         guard let width = screen?.visibleFrame.width else {
             return (CanvasLimits.canvasMinWidth, CanvasLimits.canvasIdealWidth, CanvasLimits.canvasMaxWidth)
         }
-        let available = width - 2 * Constants.popupPadding
+        let available = width - 2 * PopupMetrics.popupPadding
         return (min(CanvasLimits.canvasMinWidth, available),
                 min(CanvasLimits.canvasIdealWidth, available),
                 min(CanvasLimits.canvasMaxWidth, available))

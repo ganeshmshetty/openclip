@@ -22,7 +22,7 @@ flowchart TD
 
 1. **Composition Seam**: Initializes domain registries during `loadInitialState()`.
 2. **Catalog Storage**: Delegates raw action storage and sorting to `ActionRegistry`.
-3. **Policy Context Resolution**: Evaluates context bundle identifiers through `RuleEngine` to produce updated `ActionContext` options (`denyFormatting`, `assumePaste`, `grabPasteboard`).
+3. **Policy Context Resolution**: Evaluates context bundle identifiers through `RuleEngine` to produce updated `ActionContext` options (`denyFormatting`, `assumePaste`).
 4. **Action Reordering**: Exposes reordering primitives (`moveActions(from:to:)`) that mutate user preferences stored via `SettingsStore`.
 
 ---

@@ -388,6 +388,30 @@ A malformed regex **enables** the action (defensive — a bad manifest never hid
 when it would otherwise dismiss. This is also how a plain-text script keeps the menu up after a
 paste.
 
+### 5c. Standardized paste-vs-copy delivery (leaf `.paste` results)
+
+A leaf `.paste(text)` result produced by any runtime is re-decided at the presenter by
+`ActionResultDelivery` (`Sources/Core/Actions/ActionResultDelivery.swift`) before the effect door
+runs. The rule (one choke point, applied to every text result):
+
+1. **Right-click or ⇧-click** → always `.copy(text)`.
+2. The source app's `AppPolicyContext.denyPaste` is set (per-app rule, e.g. the built-in **Terminal**
+   / iTerm `denyPaste: true` defaults) → `.copy(text)`.
+3. The `PasteAvailabilityProbe` reports the target can't Paste (AX Edit ▸ Paste disabled) or the
+   probe is unavailable → `.copy(text)`.
+4. Otherwise → the action's requested `.paste(text)` is honored.
+
+The delivery inputs (click intent + app policy) are snapshotted when the action performs, *before*
+dismissal `hide()` clears the session context, so the per-app `denyPaste` rule still applies to
+pastes that dismiss the popup. Canvas leaf effects (e.g. an AI-result **Replace** button) are
+explicit user requests: they carry no delivery context and are never re-decided — an explicit
+Replace always pastes.
+
+`.copy`/`.cut` and non-text results are never downgraded. This is a **presentation/delivery**
+decision (App target only) — Core stays pure; `canPaste` and the app policy are injected inputs.
+The per-app `denyPaste` toggle is user-editable in Preferences → Application Rules. Set
+`assume-paste`/`deny-paste` only via `AppRule`; a manifest has **no** delivery keys.
+
 ---
 
 ## 6. Data made available to actions
@@ -543,7 +567,7 @@ each evaluation and run **without dismissing** — a canvas never hides the popu
 `keepVisible()` is a **no-op** inside a canvas (effects never dismiss). `showStatus(message, style)`
 surfaces on the **bar banner after collapse**, never inside the canvas. `showContent(tree, { size })`
 declares the canvas size **once** — `{ size: { width, height } }` clamped to the 220–360 width
-column and `Constants.popupMaxHeight` tall — and replaces the mounted tree for the next re-render.
+column and `PopupMetrics.popupMaxHeight` tall — and replaces the mounted tree for the next re-render.
 
 With `"async": true`, handlers may call `openclip.fetch(url, options)` — the same contract
 as JS actions: `options` = `{ method, headers, body }` (default GET); the response is

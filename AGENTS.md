@@ -19,8 +19,8 @@ All Swift is Swift 6 with `SWIFT_STRICT_CONCURRENCY: complete`. Targets (see `pr
 
 ## Architecture hard rules
 
-- **Core is pure** — no AppKit/SwiftUI imports in `Sources/Core/`. Platform side-effects live in `Sources/OpenClip/` (runtimes, `ActionResultHandler`, `DefaultActionFactory`).
-- **No direct `UserDefaults.standard`** in new code — route through `SettingsStore` + `SettingKey` (~8 legacy app-target call sites remain; don't add more). Secrets (AI API key, secret options) go to the **Keychain**, never UserDefaults.
+- **Core is pure** — no AppKit/SwiftUI imports in `Sources/Core/`, and the boundary is enforced by concept, not just import-grepping: UI-only presentation concerns (popup sizing/timing constants, chrome-style presentation metadata) live in `Sources/OpenClip/` — e.g. `PopupMetrics` holds popup/search/canvas sizing — while `Core/Selection/Constants.swift` keeps only domain/runtime constants (timeouts, key codes, env vars, manifest keys). Platform side-effects live in `Sources/OpenClip/` (runtimes, `ActionResultHandler`, `DefaultActionFactory`).
+- **No direct `UserDefaults.standard`** in new code — route through `SettingsStore` + `SettingKey`. The only remaining raw access is the one-time `aiCloudAPIKey` migration in `AIServiceManager` (read-then-delete); don't add more. Secrets (AI API key, secret options) go to the **Keychain**, never UserDefaults.
 - **`ActionCoordinator` is the composition root.** Managers report registry changes via `onRegister`/`onUnregister` callbacks only; nothing else touches `ActionRegistry.shared`.
 - **No `switch action.id` string-matching** in UI/presentation — use `ActionChrome` / `ConfigurableAction.preferenceIconName` instead.
 - Any new subprocess-spawning action must kill the child after `Constants.scriptTimeout` (30 s, the shared watchdog); shell/AppleScript/JS runtimes all join the existing `ShellProcessRunner` executor rather than spawning their own.

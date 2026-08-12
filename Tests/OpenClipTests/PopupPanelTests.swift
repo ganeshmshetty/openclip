@@ -5,6 +5,12 @@ import Core
 
 @MainActor
 final class PopupPanelTests: XCTestCase {
+    func testPopupMetricsConstants() {
+        // Sentinel: the shared height cap stays 240. Lives here (app target) because popup sizing
+        // constants are UI concerns — see PopupMetrics.
+        XCTAssertEqual(PopupMetrics.popupMaxHeight, 240)
+    }
+
     func testCanBecomeKeyFollowsAllowsKey() {
         let panel = PopupPanel()
         XCTAssertFalse(panel.canBecomeKey)
@@ -203,12 +209,12 @@ final class PopupPanelTests: XCTestCase {
         panel.setFrame(initialFrame, display: false)
         XCTAssertEqual(panel.frame.maxY, 600)
 
-        // Path 1: Top-anchored height change (height 250 is clamped to Constants.popupMaxHeight = 240, requested maxY is 600)
+        // Path 1: Top-anchored height change (height 250 is clamped to PopupMetrics.popupMaxHeight = 240, requested maxY is 600)
         let heightOnlyChange = NSRect(x: 100, y: 350, width: 200, height: 250)
         panel.setFrame(heightOnlyChange, display: false)
         XCTAssertEqual(panel.frame.maxY, 600, "Height-only change must preserve requested top edge (maxY)")
-        XCTAssertEqual(panel.frame.height, Constants.popupMaxHeight)
-        XCTAssertEqual(panel.frame.origin.y, 600 - Constants.popupMaxHeight)
+        XCTAssertEqual(panel.frame.height, PopupMetrics.popupMaxHeight)
+        XCTAssertEqual(panel.frame.origin.y, 600 - PopupMetrics.popupMaxHeight)
 
         // Path 2: Repositioning to a new cursor location must respect the new requested origin.y
         let repositionFrame = NSRect(x: 80, y: 100, width: 200, height: 100)

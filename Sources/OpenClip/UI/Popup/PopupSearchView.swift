@@ -73,15 +73,15 @@ public struct PopupSearchView: View {
     @State private var results: [ActionSearchIndex] = []
 
     private var visibleResultCount: Int {
-        min(results.count, Constants.searchMaxRows)
+        min(results.count, PopupMetrics.searchMaxRows)
     }
 
     /// Scroll-viewport height: full rows up to `searchMaxRows`, plus a partial extra row when
     /// more results exist so the next action peeks and signals scrollability.
     private var resultsViewportHeight: CGFloat {
-        let base = CGFloat(visibleResultCount) * Constants.searchResultRowHeight
+        let base = CGFloat(visibleResultCount) * PopupMetrics.searchResultRowHeight
         guard results.count > visibleResultCount else { return base }
-        return base + Constants.searchPeekRowFraction * Constants.searchResultRowHeight
+        return base + PopupMetrics.searchPeekRowFraction * PopupMetrics.searchResultRowHeight
     }
 
     public init(
@@ -275,7 +275,7 @@ public struct PopupSearchView: View {
                 }
             }
             .padding(.horizontal, 12)
-            .frame(height: Constants.searchResultRowHeight)
+            .frame(height: PopupMetrics.searchResultRowHeight)
             .background(isSelected ? Color.accentColor : Color.clear)
             .contentShape(Rectangle())
         }
@@ -324,15 +324,25 @@ public struct PopupSearchView: View {
     /// once per palette entry. Runs only when the catalog/scope inputs change, never per body eval.
     private static func buildIndex(catalog: [any Action], scope: SearchScope?, usageRecency: [String: Int], presenter: any ActionPresenting) -> [ActionSearchIndex] {
         let candidates = scope?.children ?? catalog
-        return candidates.map { action in
-            ActionSearchIndex(
-                id: action.id,
-                title: action.displayTitle(using: presenter),
-                keywords: Self.searchKeywords(for: action),
-                action: action,
-                usageRecency: usageRecency[action.id] ?? 0
-            )
-        }
+        // The unscoped palette lists leaf actions only: container rows (group rows) are hidden so
+        // the results never surface an inert row that performs `.none`. Their sub-actions are
+        // indexed directly, and each group's title/name is folded into its children's keywords
+        // (see `searchKeywords`) so typing the group name still surfaces its sub-actions. Scoped
+        // palettes receive pre-resolved children (no container rows), so they pass through.
+        let containerIDs = scope == nil
+            ? Set(catalog.filter { $0.chrome.popupBehavior == .showSubActions }.map(\.id))
+            : []
+        return candidates
+            .filter { !containerIDs.contains($0.id) }
+            .map { action in
+                ActionSearchIndex(
+                    id: action.id,
+                    title: action.displayTitle(using: presenter),
+                    keywords: Self.searchKeywords(for: action, in: catalog),
+                    action: action,
+                    usageRecency: usageRecency[action.id] ?? 0
+                )
+            }
     }
 
     /// Rebuilds the index when the scope changes in place. The view is normally recreated per
@@ -345,13 +355,23 @@ public struct PopupSearchView: View {
         selectedIndex = 0
     }
 
-    private static func searchKeywords(for action: any Action) -> String {
+    private static func searchKeywords(for action: any Action, in catalog: [any Action]) -> String {
         var parts = [action.title]
         if let packageID = ActionIdentity.extensionPackageID(of: action) {
             parts.append(packageID)
         }
         if case .extensionPkg(let packageID) = action.chrome.badge {
             parts.append(packageID)
+        }
+        // Fold each container (group) row's title + package name into its sub-actions' keywords.
+        // The group row is filtered out of the palette, so its name must index its children to
+        // stay searchable.
+        for group in catalog where group.chrome.popupBehavior == .showSubActions {
+            guard group.id != action.id, action.id.hasPrefix(group.id + ".") else { continue }
+            parts.append(group.title)
+            if case .extensionPkg(let packageName) = group.chrome.badge {
+                parts.append(packageName)
+            }
         }
         return parts.joined(separator: " ")
     }
@@ -381,7 +401,7 @@ public struct PopupSearchView: View {
         case .script: return "script"
         case .url: return "url"
         case .custom: return "custom"
-        case .extensionPkg(let id): return id
+        case .extensionPkg: return nil
         case .none:
             if ActionIdentity.isExtension(action) { return "extension" }
             return nil

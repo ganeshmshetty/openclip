@@ -93,7 +93,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setString(text, forType: .string)
-            simulateKeyShortcut(keyCode: Constants.deleteVirtualKey, modifier: [])
+            postKey(keyCode: Constants.deleteVirtualKey, flags: [])
 
         case .paste(let text):
             pendingRestoreTask?.cancel()
@@ -104,13 +104,13 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             if copyToClipboard {
                 pasteboard.clearContents()
                 pasteboard.setString(text, forType: .string)
-                simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand)
+                postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
             } else {
                 let savedItems = backupPasteboard(pasteboard)
                 pasteboard.clearContents()
                 pasteboard.setString(text, forType: .string)
                 let changeCountAfterSet = pasteboard.changeCount
-                simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand)
+                postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
                 
                 pendingRestoreTask = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: UInt64(Constants.pasteboardRestoreDelay * 1_000_000_000))
@@ -145,7 +145,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             try await postNotification(title: title, body: body)
 
         case .simulatePaste:
-            simulateKeyShortcut(keyCode: Constants.vVirtualKey, modifier: .maskCommand)
+            postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
 
         // Presentation/flow results are presenter-owned (PopupWindowController). The handler treats
         // them as no-ops so the switch stays exhaustive without crashing when one is routed here.
@@ -215,10 +215,6 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         pasteboard.clearContents()
         guard !items.isEmpty else { return }
         pasteboard.writeObjects(items)
-    }
-
-    private func simulateKeyShortcut(keyCode: CGKeyCode, modifier: CGEventFlags) {
-        postKey(keyCode: keyCode, flags: modifier)
     }
 
     /// Posts a synthetic key press (key + modifiers from a `KeyPressSpec`) to the frontmost app.

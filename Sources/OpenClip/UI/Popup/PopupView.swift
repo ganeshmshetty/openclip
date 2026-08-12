@@ -162,7 +162,9 @@ public struct PopupView: View {
 
     /// Bar rows: everything except the inline completion pseudo-action and any action that some
     /// `SubActionProviding` row resolves as a child (group sub-actions, AI presets). Membership is
-    /// resolver/protocol-driven — the view never re-derives id-prefix conventions.
+    /// resolver/protocol-driven — the view never re-derives id-prefix conventions. A group row
+    /// itself only appears when at least one of its sub-actions is applicable to the current
+    /// context — with every sub-action disabled the parent would be an inert row.
     private var displayActions: [any Action] {
         let resolver = SubActionResolver()
         let subActionIDs = Set(
@@ -172,6 +174,9 @@ public struct PopupView: View {
         )
         return actions.filter { action in
             guard !ActionIdentity.isCompletionPseudoAction(action) else { return false }
+            if action.chrome.popupBehavior == .showSubActions {
+                return !resolver.subActions(of: action, in: actions).isEmpty
+            }
             return !subActionIDs.contains(action.id)
         }
     }

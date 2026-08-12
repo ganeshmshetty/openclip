@@ -6,37 +6,10 @@ import Foundation
 import CoreGraphics
 
 public enum Constants {
-    public static let filterDelay: TimeInterval = 0.075
-    public static let elementTimeout: TimeInterval = 0.3
     public static let maxTextLength: Int = 10_485_760
     public static let pasteboardRestoreDelay: TimeInterval = 0.8
-    public static let cVirtualKey: CGKeyCode = 0x08
     public static let deleteVirtualKey: CGKeyCode = 0x33
     public static let vVirtualKey: CGKeyCode = 0x09
-    public static let pasteboardWaitInterval: TimeInterval = 0.05
-    public static let pasteboardWaitTimeout: TimeInterval = 0.5
-    public static let pasteboardWaitSleep: UInt64 = 50_000_000
-    public static let popupOffset: CGFloat = 16.0
-    public static let popupPadding: CGFloat = 8.0
-    public static let popupDismissalDistance: CGFloat = 280.0
-    /// Vertical threshold (pt) from the bottom of the screen bounds below which the popup card
-    /// renders above the action bar instead of below (numerically equals `popupDismissalDistance`).
-    public static let cardAboveThreshold: CGFloat = 280.0
-    /// Action-search palette sizing: visible result rows and result row height.
-    public static let searchMaxRows: Int = 5
-    public static let searchResultRowHeight: CGFloat = 32
-    /// Fraction of an extra result row shown beyond `searchMaxRows` so the next action peeks,
-    /// hinting that the list scrolls.
-    public static let searchPeekRowFraction: CGFloat = 0.5
-    /// Shared height cap for the popup panel (search palette field + result rows, and the canvas
-    /// body). The code value 240 wins over any stale comment.
-    public static let popupMaxHeight: CGFloat = 240
-    /// Measured height of `CanvasHeaderView` (padding 8pt top/bottom + 16pt content height + 1pt hairline divider = 33pt).
-    public static let canvasHeaderHeight: CGFloat = 33.0
-    /// Delay before the hover info bubble appears (400ms).
-    public static let bubbleHoverDelayNanoseconds: UInt64 = 400_000_000
-    /// Delay before the long-press result bubble fires (600ms).
-    public static let bubbleLongPressNanoseconds: UInt64 = 600_000_000
     public static let maxURLScanLength: Int = 2000
     public static let actionErrorDomain: String = "OpenClip.ActionError"
     public static let actionErrorCode: Int = 1
@@ -105,6 +78,12 @@ public enum Constants {
     /// never hangs on selection retrieval.
     public static let axReadTimeout: TimeInterval = 0.5
 
+    /// Hard deadline (seconds) for the Paste-availability probe's AX menu-bar walk. Mirrors
+    /// `axReadTimeout`: the probe races its Edit ▸ Paste lookup against this deadline so a slow or
+    /// unresponsive target app can never hang delivery. On timeout the probe returns "unknown",
+    /// which the delivery decision treats as cannot-paste (copy).
+    public static let pasteProbeTimeout: TimeInterval = 0.4
+
     /// Cap on in-flight synchronous JS evaluations. A CPU-bound synchronous script cannot be
     /// interrupted in modern JavaScriptCore (JSVirtualMachine.invalidate is gone), so each stuck
     /// script permanently parks a cooperative-pool thread; refusing new synchronous evaluations
@@ -129,5 +108,4 @@ public enum Constants {
     
     // Preferences Keys
     public static let disabledActionIDsKey: String = "disabledActionIDs"
-    public static let startAtLoginKey: String = "startAtLogin"
 }

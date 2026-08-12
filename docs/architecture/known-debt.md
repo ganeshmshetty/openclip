@@ -12,9 +12,10 @@ areas; stale debt notes are worse than none.
 - The typed settings abstraction is `SettingsStore` + `SettingKey<T>` (see `Sources/Core/Settings/`).
   New settings code must route through it.
 - **AI-config `@AppStorage` surface remains** (`AIServiceManager` keys), and `completionCopyToClipboard`
-  / `startAtLogin` / popup theme still read via `@AppStorage`, but the theme keys (`popupTheme`,
+  / popup theme still read via `@AppStorage`, but the theme keys (`popupTheme`,
   `popupThemeColor`) now reference `SettingKey` definitions instead of raw literals. Migrating to
-  `SettingsStore` is ongoing — **don't add new direct call sites.**
+  `SettingsStore` is ongoing — **don't add new direct call sites.** (`startAtLogin` was consolidated
+  onto `SettingKey.startAtLogin` — `LaunchAtLoginManager` persists through `DefaultSettingsStore`.)
 - **Secrets live in the Keychain, not UserDefaults.** Sensitive credentials (the cloud AI API key)
   must use `KeychainStore` (generic-password `SecItem` wrapper, `kSecAttrAccessibleAfterFirstUnlock`).
   `AIServiceManager.cloudAPIKey` is `@Published`, backed by `KeychainStore` (account `aiCloudAPIKey`);
@@ -106,28 +107,41 @@ areas; stale debt notes are worse than none.
   `ActionIcon` cases render through the shared `ActionIconView` (`Sources/OpenClip/UI/Icons/ActionIconView.swift`),
   including Iconify-format symbols (`prefix:name`). The popup bar keeps its own `iconView(for:)`
   (`PopupView.swift`) because text icons there need natural width + horizontal padding, not a fixed frame.
-- **Popup sizing constants:** `Constants.searchMaxRows` (5), `searchResultRowHeight` (32),
-  `searchPeekRowFraction` (0.5), `Constants.popupMaxHeight` (240, the shared height cap for the
-  search palette and the canvas body) — `Sources/Core/Selection/Constants.swift:23`.
+- **Popup sizing constants live in the App target.** `PopupMetrics`
+  (`Sources/OpenClip/UI/Popup/PopupMetrics.swift`) holds the UI-only values — `searchMaxRows`
+  (5), `searchResultRowHeight` (32), `searchPeekRowFraction` (0.5), `popupMaxHeight` (240, the
+  shared height cap for the search palette and the canvas body), plus placement/dismissal
+  distances and hover/long-press delays. `Core/Selection/Constants.swift` keeps only
+  domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 
 ## Unused / Latent
 
 - **`ActionContext.modifiers` is currently unused.** No action reads it; `PopupWindowController`
   passes `modifiers: []`. Don't build logic that assumes modifier keys reach actions.
+- **Paste delivery is now standardized but has a probe reliance.** Leaf `.paste` results are
+  re-decided by `ActionResultDelivery` (App target) per the rule in the dev-guide §5c: right/⇧-click,
+  app `denyPaste` policy (Terminal/iTerm defaults), or a failing `PasteAvailabilityProbe` → copy;
+  otherwise paste. The delivery inputs are snapshotted at perform time — before the dismissing
+  `hide()` clears the session context — so `denyPaste` holds even for pastes that dismiss the popup,
+  and canvas effects (explicit Replace/Copy buttons) carry no delivery context and are never
+  re-decided. The `canPaste` probe (`PasteAvailabilityProbe`) needs Accessibility permission and
+  walks the target's Edit ▸ Paste AX menu item; without AX it returns "unknown" and delivery falls
+  back to copy (safe but means paste never happens for AX-less users). The click-intent capture reads
+  only ⇧ (not ⌘/⌥) and only sets it on mouse-down; a keyboard-driven run (search palette Enter) uses
+  the last left-click intent. A future `context.modifiers` plumbing pass could feed true modifier
+  state into `ActionContext` instead.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 
 ## Concurrency
 
-- **Residual non-interruptible paths (documented, bounded).** Three spots remain that a hostile
+- **Residual non-interruptible paths (documented, bounded).** Two spots remain that a hostile
   or hung target can make block a cooperative-pool thread for up to `Constants.scriptTimeout`:
   (1) `MacTextRetriever.strategyAXMenuCopy` fires an unstructured `Task.detached` AXPress that the
   0.15 s pasteboard poll does not kill — the detached task finishes on its own; (2) an async-mode
   JS script with a top-level *synchronous* infinite loop blocks inside `evaluateScript`, which the
-  watchdog pump loop never reaches (the sync-evaluation gate covers only `isAsync == false`);
-  (3) `withMutedAlertVolume`'s volume-restore is fire-and-forget (deliberate — it must not block
-  the Cmd+C return). All three are bounded (a leaked thread is eventually reaped), never
-  main-actor-blocking.
+  watchdog pump loop never reaches (the sync-evaluation gate covers only `isAsync == false`).
+  Both are bounded (a leaked thread is eventually reaped), never main-actor-blocking.
 - **AX direct read is deadline-capped.** `strategyAXDirect` races against
   `Constants.axReadTimeout` (0.5 s) via the `OnceResume` once-gate; an unresponsive app returns
   `nil` to the retrieval chain instead of hanging the popup.
