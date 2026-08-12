@@ -21,7 +21,7 @@ The subsystem consists of three primary components:
  v                |
 +------------------------+      |
 | MacTextRetriever |      |
-| (AX / Safari / Cmd+C) |      |
+| (AX / Safari / AX Menu Copy) |      |
 +------------------------+      |
                         v
              +-----------------------+
@@ -42,20 +42,21 @@ OpenClip prioritizes **zero pasteboard side-effects** during background selectio
 
 ```mermaid
 flowchart TD
- Start[Selection Event Detected] --> PolicyCheck{AppPolicy.grabPasteboard?}
-
- PolicyCheck -- Yes --> StrategyCmdC[Strategy 3: Keyboard Shortcut Cmd+C]
- PolicyCheck -- No --> StrategyAX[Strategy 1: AX Direct Read]
+ Start[Selection Event Detected] --> StrategyAX[Strategy 1: AX Direct Read]
 
  StrategyAX -- Success --> ReturnResult[Return Text & Bounds]
  StrategyAX -- Null/Empty --> SafariCheck{App is Safari?}
 
  SafariCheck -- Yes --> StrategySafari[Strategy 1.5: Safari JS Read]
- SafariCheck -- No --> Fail[Selection Ignored]
+ SafariCheck -- No --> MenuCopyCheck{App has useMenuCopy policy}
+
+ MenuCopyCheck -- Yes --> StrategyMenuCopy[Strategy 1.8: AX Menu Copy]
+ MenuCopyCheck -- No --> Fail[Selection Ignored]
 
  StrategySafari -- Success --> ReturnResult
- StrategySafari -- Null --> Fail
- StrategyCmdC --> ReturnResult
+ StrategySafari -- Null --> MenuCopyCheck
+ StrategyMenuCopy -- Success --> ReturnResult
+ StrategyMenuCopy -- Null --> Fail
 ```
 
 ### Strategy 1: Accessibility (AX) Direct Attribute Read
@@ -74,15 +75,9 @@ flowchart TD
  end tell
  ```
 
-### Strategy 3: Keyboard Shortcut (`Cmd+C`) Fallback
-- **Trigger**: Executed **only** when an application explicitly has the `grabPasteboard: true` rule set in `AppRule` (e.g., Obsidian, Skype, Evernote).
-- **Mechanism**:
- 1. Backs up existing pasteboard items (`NSPasteboardItem`).
- 2. Mutes system alert volume temporarily to prevent error beeps.
- 3. Posts synthetic `Cmd+C` key events via `CGEvent`.
- 4. Polls `NSPasteboard.general` change count every 5ms (up to 0.5s timeout).
- 5. Extracts copied string.
- 6. Restores original pasteboard contents after a 50ms window.
+### Strategy 1.8: AX Menu Copy
+- **Target**: Apps with the `useMenuCopy` policy (VS Code, Zed, Obsidian, etc.) whose AX selection reads are unreliable.
+- **Mechanism**: Walks the app's AX menu bar to Edit ▸ Copy and performs an `AXPress`, then polls the pasteboard for a change (0.15 s), restoring the original contents afterward.
 
 ---
 
@@ -90,13 +85,12 @@ flowchart TD
 
 The strategies above apply to *passive selection monitoring*. The global toggle shortcut ([`HotkeyManager`](../../Sources/OpenClip/Platform/HotkeyManager.swift)) has an extra path: if the frontmost app yields no selection (empty or whitespace-only text), OpenClip falls back to the current contents of `NSPasteboard.general` so the popup still has input to act on.
 
-- This is distinct from the background `grabPasteboard` strategy — it happens only on explicit shortcut invocation, never during passive monitoring.
+- This happens only on explicit shortcut invocation, never during passive monitoring.
 - The context is flagged `SelectionContext.isClipboardFallback`; `PopupWindowController.show` then filters the available actions down to **Paste** (the AI Tools launcher stays available — it doesn't touch the selection). Selection-oriented actions are meaningless for clipboard text, so they're hidden.
 
 ---
 
 ## Privacy & Non-Destructive Guarantees
 
-- **No Clipboard Pollution**: Unless `grabPasteboard` is explicitly configured for an app, OpenClip **never** triggers `Cmd+C` or modifies `NSPasteboard` while monitoring selections.
-- **Muted System Beeps**: When pasteboard polling is required for opted-in apps, system alert volume is muted via AppleScript during key injection so empty selection attempts remain silent.
+- **No Clipboard Pollution**: OpenClip **never** sends `Cmd+C` and never modifies `NSPasteboard` during passive selection monitoring. The only pasteboard-touching strategy is the AX Menu Copy fallback, which saves and restores the original contents around the read.
 - **Ignored Fields**: Secure text fields (such as password inputs or masked text areas) do not expose `kAXSelectedTextAttribute` through AX APIs, ensuring password security.

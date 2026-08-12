@@ -27,7 +27,6 @@ private extension ActionContext {
             denyFormatting: false,
             denyProbe: false,
             denyPreprobe: false,
-            grabPasteboard: false,
             assumePaste: false
         )
         let selection = SelectionContext(

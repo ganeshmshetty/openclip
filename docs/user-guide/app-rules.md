@@ -21,14 +21,6 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
  },
  {
  "bundle-identifiers": [
- "md.obsidian",
- "com.skype.skype",
- "com.evernote.Evernote"
- ],
- "grab-pb": true
- },
- {
- "bundle-identifiers": [
  ":chromium-group:"
  ],
  "assume-paste": true
@@ -45,7 +37,6 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 | :--- | :--- | :--- | :--- |
 | `bundle-identifiers` | `bundleIdentifiers` | Array | Target application bundle ID strings, wildcards, or group aliases. |
 | `deny-formatting` | `denyFormatting` | Bool | When `true`, suppresses text case transformations (e.g. UPPERCASE) in IDEs/Terminals. |
-| `grab-pb` | `grabPasteboard` | Bool | When `true`, opts into using `Cmd+C` pasteboard copy fallback for apps without AX selection support. |
 | `assume-paste` | `assumePaste` | Bool | Assumes text replacement should be performed via paste event simulation. |
 | `deny-probe` | `denyProbe` | Bool | Prevents active AX element probing. |
 | `deny-preprobe` | `denyPreprobe` | Bool | Prevents background AX pre-probing. |

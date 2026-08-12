@@ -20,17 +20,21 @@ struct ActionsTab: View {
     /// subscribe to `ActionCustomizationManager.shared` directly — they receive resolved values.
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     
-    /// Row model for the grouped actions list: multi-action extension packages get a package
-    /// header row (with a whole-package toggle) before their actions; single-action packages and
-    /// builtins stay flat.
+    /// Row model for the grouped actions list. A multi-action extension package with a single
+    /// group gets a **collapsible parent** row (the group, with its own icon, a disclosure chevron,
+    /// and the uninstall/toggle/configure controls) and its sub-actions nested underneath; other
+    /// multi-action packages get a package header (whole-package toggle) before their actions;
+    /// single-action packages and builtins stay flat.
     private enum ListRow: Identifiable {
         case packageHeader(packageID: String, title: String)
-        case action(any Action)
-        
+        case groupParent(any Action)
+        case action(any Action, nestedUnder: String?)
+
         var id: String {
             switch self {
             case .packageHeader(let packageID, _): return "pkg.\(packageID)"
-            case .action(let action): return action.id
+            case .groupParent(let action): return "group.\(action.id)"
+            case .action(let action, _): return action.id
             }
         }
     }
@@ -46,6 +50,18 @@ struct ActionsTab: View {
     }
     
     private var listRows: [ListRow] {
+        // Packages whose actions are a single group + its sub-actions: the group row becomes the
+        // parent (it owns the controls and shows the group's own icon) and the package header is
+        // skipped, so the parent never shows a generic package glyph.
+        let groupPackages = Set(
+            coordinator.actions
+                .filter { $0.chrome.popupBehavior == .showSubActions }
+                .compactMap { ActionIdentity.extensionPackageID(of: $0) }
+        )
+        let groupIDs = coordinator.actions
+            .filter { $0.chrome.popupBehavior == .showSubActions }
+            .map(\.id)
+
         var seenPackages: Set<String> = []
         var rows: [ListRow] = []
         for action in coordinator.actions {
@@ -54,33 +70,63 @@ struct ActionsTab: View {
             if ActionIdentity.isAIPreset(action) {
                 continue
             }
+            // Extension group rows: the parent row. Sub-actions of the same package nest below it.
+            if action.chrome.popupBehavior == .showSubActions {
+                rows.append(.groupParent(action))
+                continue
+            }
             if let packageID = ActionIdentity.extensionPackageID(of: action) {
-                if !seenPackages.contains(packageID) {
-                    seenPackages.insert(packageID)
-                    if packageActionCounts[packageID] ?? 0 >= 2 {
-                        let title: String
-                        if case .extensionPkg(let name) = action.chrome.badge {
-                            title = name
-                        } else {
-                            title = packageID
+                if groupPackages.contains(packageID) {
+                    // A group package: every action is shown nested under its group parent
+                    // (membership is the ID-prefix convention), with the group owning the controls.
+                    let nestedUnder = groupIDs.first { action.id.hasPrefix($0 + ".") }
+                    rows.append(.action(action, nestedUnder: nestedUnder))
+                } else {
+                    if !seenPackages.contains(packageID) {
+                        seenPackages.insert(packageID)
+                        if packageActionCounts[packageID] ?? 0 >= 2 {
+                            let title: String
+                            if case .extensionPkg(let name) = action.chrome.badge {
+                                title = name
+                            } else {
+                                title = packageID
+                            }
+                            rows.append(.packageHeader(packageID: packageID, title: title))
                         }
-                        rows.append(.packageHeader(packageID: packageID, title: title))
                     }
+                    rows.append(.action(action, nestedUnder: nil))
                 }
-                rows.append(.action(action))
             } else {
-                rows.append(.action(action))
+                rows.append(.action(action, nestedUnder: nil))
             }
         }
         return rows
     }
+
+    /// The rows actually rendered: nested sub-actions disappear while their group parent is
+    /// collapsed (the parent's disclosure chevron toggles `collapsedGroupIDs`).
+    private var visibleRows: [ListRow] {
+        listRows.filter { row in
+            if case .action(_, let nestedUnder) = row, let groupID = nestedUnder {
+                return !collapsedGroupIDs.contains(groupID)
+            }
+            return true
+        }
+    }
     
-    /// Translates indices in the grouped row list (which contains inert package headers) back to
-    /// `coordinator.actions` indices so reordering stays correct despite the inserted headers.
+    /// Translates indices in the visible row list (which contains inert package headers and, while
+    /// a group is collapsed, omits its nested rows) back to `coordinator.actions` indices so
+    /// reordering stays correct despite the inserted/omitted rows.
     private func moveRows(source: IndexSet, destination: Int) {
-        let actionIndices: [(rowIndex: Int, actionIndex: Int)] = listRows.enumerated().compactMap { rowIndex, row in
-            guard case .action(let action) = row else { return nil }
-            guard let actionIndex = coordinator.actions.firstIndex(where: { $0.id == action.id }) else { return nil }
+        let actionIndices: [(rowIndex: Int, actionIndex: Int)] = visibleRows.enumerated().compactMap { rowIndex, row in
+            let rowAction: (any Action)?
+            switch row {
+            case .action(let action, _): rowAction = action
+            case .groupParent(let action): rowAction = action
+            case .packageHeader: rowAction = nil
+            }
+            guard let rowAction else { return nil }
+            guard let actionIndex = coordinator.actions.firstIndex(where: { $0.id == rowAction.id }) else { return nil }
             return (rowIndex, actionIndex)
         }
         let actionIndexByRow = Dictionary(uniqueKeysWithValues: actionIndices.map { ($0.rowIndex, $0.actionIndex) })
@@ -89,23 +135,47 @@ struct ActionsTab: View {
         coordinator.moveActions(from: actionSource, to: actionDestination)
     }
 
+    /// Group ids whose nested sub-actions are collapsed. Defaults to all-expanded on launch.
+    @State private var collapsedGroupIDs: Set<String> = []
+
     @State private var selectedRowID: String? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             List(selection: $selectedRowID) {
                 Section {
-                    ForEach(listRows) { row in
+                    ForEach(visibleRows) { row in
                         switch row {
                         case .packageHeader(let packageID, let title):
                             PackageHeaderRowView(packageID: packageID, title: title, disabledPackages: $disabledPackages)
                                 .tag(row.id)
-                        case .action(let action):
+                        case .groupParent(let action):
                             ActionRowView(
                                 action: action,
                                 presentationModel: presentationModel(for: action),
                                 isEnabled: enabledBinding(for: action),
-                                onOpenAI: onOpenAI
+                                onOpenAI: onOpenAI,
+                                isExpanded: !collapsedGroupIDs.contains(action.id),
+                                onToggleExpansion: {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        if collapsedGroupIDs.contains(action.id) {
+                                            collapsedGroupIDs.remove(action.id)
+                                        } else {
+                                            collapsedGroupIDs.insert(action.id)
+                                        }
+                                    }
+                                }
+                            )
+                            .tag(row.id)
+                        case .action(let action, let nestedUnder):
+                            let indented = nestedUnder != nil
+                            ActionRowView(
+                                action: action,
+                                presentationModel: presentationModel(for: action),
+                                isEnabled: enabledBinding(for: action),
+                                onOpenAI: onOpenAI,
+                                indented: indented,
+                                showsControls: !indented
                             )
                             .tag(row.id)
                         }
@@ -238,12 +308,32 @@ struct ActionRowView: View {
     let isEnabled: Binding<Bool>
     /// Opens the AI tab (AI Tools launcher rows); nil for rows without a nav gear.
     let onOpenAI: (() -> Void)?
+    /// Nested rows (group sub-actions) are indented under their parent.
+    let indented: Bool
+    /// The uninstall/configure controls belong to the parent row only; nested sub-action rows
+    /// hide them (their enable toggle stays).
+    let showsControls: Bool
+    /// When non-nil, the row is a group parent: a disclosure chevron shows the expansion state and
+    /// toggles it via `onToggleExpansion`.
+    let isExpanded: Bool
+    let onToggleExpansion: (() -> Void)?
 
-    init(action: any Action, presentationModel: ActionPresentationModel, isEnabled: Binding<Bool>, onOpenAI: (() -> Void)? = nil) {
+    init(action: any Action,
+         presentationModel: ActionPresentationModel,
+         isEnabled: Binding<Bool>,
+         onOpenAI: (() -> Void)? = nil,
+         indented: Bool = false,
+         showsControls: Bool = true,
+         isExpanded: Bool = true,
+         onToggleExpansion: (() -> Void)? = nil) {
         self.action = action
         self.presentationModel = presentationModel
         self.isEnabled = isEnabled
         self.onOpenAI = onOpenAI
+        self.indented = indented
+        self.showsControls = showsControls
+        self.isExpanded = isExpanded
+        self.onToggleExpansion = onToggleExpansion
     }
 
     /// AI preset rows share their toggle with the AI tab: enabling/disabling here (or there)
@@ -264,6 +354,19 @@ struct ActionRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
+            // Disclosure chevron (group parents only): rotates 90° when the group is expanded.
+            if let onToggleExpansion {
+                Button(action: onToggleExpansion) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .frame(width: 14, height: 14)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Collapse \(presentationModel.title)" : "Expand \(presentationModel.title)")
+            }
+
             // Icon Column
             ZStack {
                 ActionIconView(icon: presentationModel.icon, size: 12)
@@ -278,35 +381,38 @@ struct ActionRowView: View {
 
             Spacer()
             
-            // Right-aligned controls (Remove | Toggle | Gear)
+            // Right-aligned controls (Remove | Toggle | Gear). The Remove and Gear buttons belong
+            // to the parent row only — nested sub-actions keep just their enable toggle.
             HStack(alignment: .center, spacing: 8) {
                 // Delete / Uninstall Button (if applicable)
-                switch action.chrome.source {
-                case .custom, .extensionPkg:
-                    Button(action: {
-                        Task {
-                            do {
-                                try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
-                            } catch {
-                                Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
-                                let failure = NSAlert()
-                                failure.messageText = "Uninstall Failed"
-                                failure.informativeText = "OpenClip could not uninstall extension: \(error.localizedDescription)"
-                                failure.alertStyle = .warning
-                                failure.runModal()
+                if showsControls {
+                    switch action.chrome.source {
+                    case .custom, .extensionPkg:
+                        Button(action: {
+                            Task {
+                                do {
+                                    try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                                } catch {
+                                    Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
+                                    let failure = NSAlert()
+                                    failure.messageText = "Uninstall Failed"
+                                    failure.informativeText = "OpenClip could not uninstall extension: \(error.localizedDescription)"
+                                    failure.alertStyle = .warning
+                                    failure.runModal()
+                                }
                             }
+                        }) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
                         }
-                    }) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 12))
-                            .foregroundColor(.red)
+                        .buttonStyle(.plain)
+                        .frame(width: 20, height: 20)
+                        .help("Uninstall Extension")
+                        .accessibilityLabel("Uninstall Extension")
+                    case .builtin, .ai:
+                        EmptyView()
                     }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .help("Uninstall Extension")
-                    .accessibilityLabel("Uninstall Extension")
-                case .builtin, .ai:
-                    EmptyView()
                 }
 
                 // Enable/Disable Switch
@@ -317,36 +423,39 @@ struct ActionRowView: View {
                     .accessibilityLabel("Enable \(presentationModel.title)")
                 
                 // Edit / Configure Button
-                if isAITools {
-                    if let onOpenAI {
-                        Button(action: onOpenAI) {
+                if showsControls {
+                    if isAITools {
+                        if let onOpenAI {
+                            Button(action: onOpenAI) {
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .frame(width: 20, height: 20)
+                            .help("Open AI settings")
+                            .accessibilityLabel("Open AI settings")
+                        }
+                    } else if !isAI {
+                        Button(action: {
+                            showingConfigSheet = true
+                        }) {
                             Image(systemName: "gearshape")
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
                         .frame(width: 20, height: 20)
-                        .help("Open AI settings")
-                        .accessibilityLabel("Open AI settings")
-                    }
-                } else if !isAI {
-                    Button(action: {
-                        showingConfigSheet = true
-                    }) {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .help("Configure Action")
-                    .accessibilityLabel("Configure Action")
-                    .sheet(isPresented: $showingConfigSheet) {
-                        EditActionSheet(action: action)
+                        .help("Configure Action")
+                        .accessibilityLabel("Configure Action")
+                        .sheet(isPresented: $showingConfigSheet) {
+                            EditActionSheet(action: action)
+                        }
                     }
                 }
             }
         }
+        .padding(.leading, indented ? 24 : 0)
         .padding(.vertical, 1)
     }
 }

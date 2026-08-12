@@ -15,7 +15,6 @@ final class RuleEngineTests: XCTestCase {
                 {
                     "bundle-identifiers": ["com.test.app"],
                     "deny-formatting": true,
-                    "grab-pb": true,
                     "assume-paste": true,
                     "deny-probe": true,
                     "deny-preprobe": false
@@ -31,7 +30,6 @@ final class RuleEngineTests: XCTestCase {
         let rule = config.rules[0]
         XCTAssertEqual(rule.bundleIdentifiers, ["com.test.app"])
         XCTAssertEqual(rule.denyFormatting, true)
-        XCTAssertEqual(rule.grabPasteboard, true)
         XCTAssertEqual(rule.assumePaste, true)
         XCTAssertEqual(rule.denyProbe, true)
         XCTAssertEqual(rule.denyPreprobe, false)
@@ -56,7 +54,7 @@ final class RuleEngineTests: XCTestCase {
                 },
                 {
                     "bundle-identifiers": [":safari-group:"],
-                    "grab-pb": true
+                    "deny-formatting": true
                 },
                 {
                     "bundle-identifiers": [":firefox-group:"],
@@ -91,10 +89,10 @@ final class RuleEngineTests: XCTestCase {
         
         // Test Macro
         let safariContext = RuleEngine.shared.resolvePolicies(for: "com.apple.Safari")
-        XCTAssertEqual(safariContext.grabPasteboard, true)
-        
+        XCTAssertEqual(safariContext.denyFormatting, true)
+
         let safariTpContext = RuleEngine.shared.resolvePolicies(for: "com.apple.SafariTechnologyPreview")
-        XCTAssertEqual(safariTpContext.grabPasteboard, true)
+        XCTAssertEqual(safariTpContext.denyFormatting, true)
         
         let firefoxContext = RuleEngine.shared.resolvePolicies(for: "org.mozilla.firefox")
         XCTAssertEqual(firefoxContext.denyProbe, true)

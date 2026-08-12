@@ -58,8 +58,4 @@ final class CanvasTreeValidatorTests: XCTestCase {
             XCTAssertEqual(error as? CanvasParseError, .duplicateSiblingID("dup"))
         }
     }
-
-    func testConstantsRenamed() {
-        XCTAssertEqual(Constants.popupMaxHeight, 240)
-    }
 }

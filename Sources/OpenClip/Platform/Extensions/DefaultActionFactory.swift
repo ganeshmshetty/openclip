@@ -129,16 +129,17 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             popupBehavior: .showSubActions,
             source: .extensionPkg(packageID: manifest.identifier)
         )
+        let groupIcon = ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL)
         var result: [any Action] = [GroupAction(
             id: groupID,
             title: metadata.title ?? manifest.name,
-            icon: ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL),
+            icon: groupIcon,
             chrome: groupChrome,
             rules: groupRules
         )]
         for (subIndex, sub) in (metadata.subActions ?? []).enumerated() where sub.kind != .group {
             let subID = "\(groupID).\(sub.id ?? String(subIndex))"
-            if let action = await makeAction(metadata: sub, manifest: manifest, directoryURL: directoryURL, index: subIndex, forcedID: subID) {
+            if let action = await makeAction(metadata: sub, manifest: manifest, directoryURL: directoryURL, index: subIndex, forcedID: subID, inheritedIcon: groupIcon) {
                 result.append(decorate(action, metadata: sub))
             }
         }
@@ -168,13 +169,23 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         manifest: ExtensionMetadata,
         directoryURL: URL,
         index: Int,
-        forcedID: String?
+        forcedID: String?,
+        inheritedIcon: ActionIcon? = nil
     ) async -> (any Action)? {
         // Groups are schema-only at the single-action seam: never register a bare group as runnable.
         guard metadata.kind != .group else { return nil }
         let actionId = forcedID ?? ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
         let title = metadata.title ?? manifest.name
-        let icon = ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL)
+        // Sub-actions inherit their group's icon when they declare none (`inheritedIcon`); otherwise
+        // a missing icon falls back to the default symbol.
+        let icon: ActionIcon
+        if let iconString = metadata.icon, !iconString.isEmpty {
+            icon = ExtensionManager.parseIcon(iconString, directoryURL: directoryURL)
+        } else if let inheritedIcon {
+            icon = inheritedIcon
+        } else {
+            icon = .symbol(Constants.defaultIconSymbol)
+        }
         
         let options = mergedOptions(manifestOptions: manifest.options, actionOptions: metadata.options)
         

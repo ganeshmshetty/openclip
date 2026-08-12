@@ -58,7 +58,7 @@ letters `a`–`z`, digits `0`–`9`, or named keys like `return`, `space`, `esca
 `showContent(tree, { size })` renders an element object from `h()` as an inline interactive canvas
 on the popup panel (`.content` mode) — never a separate floating panel. `tree` is a single `h()`
 element object (an array is wrapped in a vertical `stack`); the optional `{ size: { width, height } }`
-declares the canvas size once (clamped to the 220–360 width column / `Constants.popupMaxHeight`).
+declares the canvas size once (clamped to the 220–360 width column / `PopupMetrics.popupMaxHeight`).
 The canned `title`/`body`/`footer`/`emphasis` keys are gone — the tree carries the content and the
 canvas's chrome header comes from the running action. The full canvas authoring contract
 (`ui(state, input)` / `handlers`, state model, `keepVisible` no-op, status-after-collapse) is in

@@ -30,7 +30,7 @@ public struct PopupPositioner: Sendable {
     /// screen's padding-inset edges. Used for both initial placement and re-centering on resize so a
     /// width change (search palette, pagination) never drifts the bar off the cursor.
     public static func centeredX(releaseX: CGFloat, width: CGFloat, screenBounds: CGRect) -> CGFloat {
-        let padding: CGFloat = Constants.popupPadding
+        let padding: CGFloat = PopupMetrics.popupPadding
 
         // --- Clamp popup width so a too-wide popup never overflows the right edge ---
         let maxPopupWidth = max(0, screenBounds.width - 2 * padding)
@@ -53,7 +53,7 @@ public struct PopupPositioner: Sendable {
         popupSize: CGSize,
         screenBounds: CGRect
     ) -> CGRect {
-        let padding: CGFloat = Constants.popupPadding
+        let padding: CGFloat = PopupMetrics.popupPadding
 
         // --- Clamp popup width so a too-wide popup never overflows the right edge ---
         let maxPopupWidth = max(0, screenBounds.width - 2 * padding)

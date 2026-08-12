@@ -8,33 +8,36 @@ public struct AppPolicyContext: Sendable {
     public let denyFormatting: Bool
     public let denyProbe: Bool
     public let denyPreprobe: Bool
-    public let grabPasteboard: Bool
     public let assumePaste: Bool
     public let useMenuCopy: Bool
+    /// Force a text result to be delivered as a copy instead of a paste, even when the app lists a
+    /// Paste command. The explicit escape hatch for apps (e.g. Terminal) that advertise Paste but
+    /// cannot reliably replace a selection.
+    public let denyPaste: Bool
 
     public static let `default` = AppPolicyContext(
         denyFormatting: false,
         denyProbe: false,
         denyPreprobe: false,
-        grabPasteboard: false,
         assumePaste: false,
-        useMenuCopy: false
+        useMenuCopy: false,
+        denyPaste: false
     )
 
     public init(
         denyFormatting: Bool = false,
         denyProbe: Bool = false,
         denyPreprobe: Bool = false,
-        grabPasteboard: Bool = false,
         assumePaste: Bool = false,
-        useMenuCopy: Bool = false
+        useMenuCopy: Bool = false,
+        denyPaste: Bool = false
     ) {
         self.denyFormatting = denyFormatting
         self.denyProbe = denyProbe
         self.denyPreprobe = denyPreprobe
-        self.grabPasteboard = grabPasteboard
         self.assumePaste = assumePaste
         self.useMenuCopy = useMenuCopy
+        self.denyPaste = denyPaste
     }
 }
 
@@ -44,26 +47,26 @@ public struct AppRule: Codable, Sendable, Equatable, Identifiable {
     public let denyFormatting: Bool?
     public let denyProbe: Bool?
     public let denyPreprobe: Bool?
-    public let grabPasteboard: Bool?
     public let assumePaste: Bool?
     public let useMenuCopy: Bool?
+    public let denyPaste: Bool?
     
     public init(
         bundleIdentifiers: [String],
         denyFormatting: Bool? = nil,
         denyProbe: Bool? = nil,
         denyPreprobe: Bool? = nil,
-        grabPasteboard: Bool? = nil,
         assumePaste: Bool? = nil,
-        useMenuCopy: Bool? = nil
+        useMenuCopy: Bool? = nil,
+        denyPaste: Bool? = nil
     ) {
         self.bundleIdentifiers = bundleIdentifiers
         self.denyFormatting = denyFormatting
         self.denyProbe = denyProbe
         self.denyPreprobe = denyPreprobe
-        self.grabPasteboard = grabPasteboard
         self.assumePaste = assumePaste
         self.useMenuCopy = useMenuCopy
+        self.denyPaste = denyPaste
     }
     
     public enum CodingKeys: String, CodingKey {
@@ -71,8 +74,8 @@ public struct AppRule: Codable, Sendable, Equatable, Identifiable {
         case denyFormatting = "deny-formatting"
         case denyProbe = "deny-probe"
         case denyPreprobe = "deny-preprobe"
-        case grabPasteboard = "grab-pb"
         case assumePaste = "assume-paste"
         case useMenuCopy = "use-menu-copy"
+        case denyPaste = "deny-paste"
     }
 }

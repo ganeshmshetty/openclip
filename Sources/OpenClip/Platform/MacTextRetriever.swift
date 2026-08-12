@@ -9,29 +9,17 @@ import Core
 
 // MARK: - MacTextRetriever
 
-/// Retrieves selected text from macOS applications using a two-strategy chain:
+/// Retrieves selected text from macOS applications using a fall-through strategy chain:
 /// 1. Accessibility (AX) direct attribute read – fastest, no side effects.
 /// 2. Safari JS selection read (Safari AX can be delayed).
-/// Apps explicitly opted-in via `grabPasteboard` policy use a Cmd+C keystroke fallback.
+/// 3. AX Edit ▸ Copy press fallback for apps opting into the `useMenuCopy` policy (no Cmd+C key event).
 internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
     internal init() {}
 
     // MARK: - TextRetrieving
 
-    internal func retrieveText(for app: AppIdentity, policy: AppPolicyContext) async -> String? {
-        await retrieveTextResult(for: app, policy: policy)?.text
-    }
-
     internal func retrieveTextResult(for app: AppIdentity, policy: AppPolicyContext) async -> TextResult? {
-        // `grabPasteboard` is an explicit per-app policy that opts into Cmd+C behaviour.
-        // Never send Cmd+C by default — OpenClip uses AX selection only, with no clipboard side-effects.
-        if policy.grabPasteboard {
-            if let text = await strategyKeyboardShortcut() {
-                return TextResult(text: text, bounds: nil)
-            }
-        }
-
         // Strategy 1: Accessibility direct read — instant, zero side-effects.
         if let result = await strategyAXDirect() {
             return result
@@ -273,35 +261,6 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         return TextResult(text: text, bounds: bounds)
     }
 
-    // MARK: - Strategy 3: Keyboard Shortcut (Cmd+C)
-
-    /// Post a synthetic Cmd+C keystroke, then poll the pasteboard for a change.
-    /// Mutes the system beep so an empty-selection Copy is silent.
-    /// Saves and restores all pasteboard items around the operation.
-    private func strategyKeyboardShortcut() async -> String? {
-        Log.selection.debug("Keyboard strategy: sending Cmd+C")
-        return await fetchPasteboardText(timeout: 0.5) {
-            Task {
-                await self.withMutedAlertVolume {
-                    let src = CGEventSource(stateID: .combinedSessionState)
-                    src?.setLocalEventsFilterDuringSuppressionState([.permitLocalMouseEvents, .permitSystemDefinedEvents], state: .eventSuppressionStateSuppressionInterval)
-                    let flags = CGEventFlags(rawValue: CGEventFlags.maskCommand.rawValue | 0x000008)
-                    let keyDown = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: true)
-                    let keyUp = CGEvent(keyboardEventSource: src, virtualKey: Constants.cVirtualKey, keyDown: false)
-                    keyDown?.flags = flags
-                    keyUp?.flags = flags
-                    if let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier {
-                        keyDown?.postToPid(pid)
-                        keyUp?.postToPid(pid)
-                    } else {
-                        keyDown?.post(tap: .cgSessionEventTap)
-                        keyUp?.post(tap: .cgSessionEventTap)
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: - Shared Pasteboard Polling
 
     /// Save the current pasteboard, perform `action`, poll every 2 ms up to `timeout`
@@ -374,45 +333,6 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         guard !items.isEmpty else { return }
         pasteboard.clearContents()
         pasteboard.writeObjects(items)
-    }
-
-    // MARK: - Beep Suppression
-
-    /// Run `operation` with the system alert volume muted, restoring it asynchronously afterwards.
-    private func withMutedAlertVolume<T>(_ operation: () async -> T) async -> T {
-        var originalVolume: Int? = nil
-        
-        // Single combined AppleScript call to get and mute in one roundtrip
-        let muteScript = """
-        tell application "System Events"
-            set originalVolume to alert volume of (get volume settings)
-            set volume alert volume 0
-            return originalVolume
-        end tell
-        """
-        
-        if let result = await runAppleScript(muteScript), let vol = Int(result) {
-            originalVolume = vol
-            Log.selection.debug("Beep suppression: muted alert volume (was \(vol))")
-        }
-        
-        let result = await operation()
-        
-        // Restore volume asynchronously without blocking the return
-        if let vol = originalVolume, vol > 0 {
-            Task.detached {
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0s delay
-                let restoreScript = """
-                tell application "System Events"
-                    set volume alert volume \(vol)
-                end tell
-                """
-                _ = await self.runAppleScript(restoreScript)
-                Log.selection.debug("Beep suppression: restored alert volume to \(vol)")
-            }
-        }
-        
-        return result
     }
 
     /// Run an AppleScript on a background thread with a timeout and return its string output.

@@ -29,7 +29,7 @@ The floating popup panel subsystem presents contextual actions near the user's c
 ### 2. [`PopupWindowController`](../../Sources/OpenClip/UI/Popup/PopupWindowController.swift)
 - **Responsibility**: Controls window creation, display lifecycle, event monitoring, hover tracking, and the popup mode state machine (actions bar ↔ search palette ↔ content canvas).
 - **Event Handling**: Sets up local and global `NSEvent` monitors (`.leftMouseDown`, `.mouseMoved`, `.scrollWheel`, `.keyDown`). The local monitor sees mouse events over the panel; the global monitor sees events system-wide.
-- **Dismissal Threshold**: Automatically dismisses the popup if the cursor moves beyond `Constants.popupDismissalDistance` (suspended in search mode and while a content canvas is open).
+- **Dismissal Threshold**: Automatically dismisses the popup if the cursor moves beyond `PopupMetrics.popupDismissalDistance` (suspended in search mode and while a content canvas is open).
 - **Keyboard Dismissal**: Requires Accessibility permission (the global monitor). In actions mode any key — including `Escape` — dismisses the popup; the global monitor is observation-only, so the keystroke still lands in the source app's document and the panel never needs to become key. In search mode the panel *is* key, so keys go to the search field (`Escape` clears a scoped query, then exits). In content mode the panel is *also* key: Esc and non-Esc keys belong to the focused SwiftUI canvas component (`.onKeyPress`), `Escape` collapses the canvas back to the bar (`exitContent()`), and the controller monitor stays observation-only so it never double-fires Esc.
 
 ---
@@ -131,9 +131,9 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
   above or below the field by `searchResultsAbove`.
 - **Catalog & matching**: the palette searches the **full** catalog (enabled + disabled, no context
   filtering) via `ActionCoordinator.searchCatalog` → `ActionRegistry.searchCatalog`; `ActionSearch`
-  ranks by case-insensitive substring (prefix > contains > keyword). Up to `Constants.searchMaxRows`
+  ranks by case-insensitive substring (prefix > contains > keyword). Up to `PopupMetrics.searchMaxRows`
   rows render (`searchMaxRows = 5`, `searchResultRowHeight = 32`, height capped by
-  `Constants.popupMaxHeight`).
+  `PopupMetrics.popupMaxHeight`).
 - **Row icons are strictly `[icon | text]`**: a `.text` icon falls back to
   `ConfigurableAction.preferenceIconName`; Iconify-format symbols (`prefix:name`) render via
   `AnyIconView`, matching the bar (`PopupSearchView.swift:214,230`).
