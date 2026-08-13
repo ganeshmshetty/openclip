@@ -17,7 +17,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     
     private var monitor: Any?
     private var keyDownMonitor: Any?
-    private var debounceTask: Task<Void, Never>?
+    internal var debounceTask: Task<Void, Never>?
     private var mouseDownMonitor: Any?
     private var mouseDownLocation: CGPoint?
     
@@ -135,11 +135,18 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     }
     
     /// Keyboard selection gesture: retrieve under the current frontmost app (no click filtering).
-    private func handleSelectionTrigger() {
+    internal func handleSelectionTrigger() {
         guard let app = NSWorkspace.shared.frontmostApplication else { return }
         
         debounceTask?.cancel()
         debounceTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: UInt64(Constants.keyboardSelectionDebounceInterval * 1_000_000_000))
+            } catch {
+                return
+            }
+            if Task.isCancelled { return }
+
             if let bundleID = app.bundleIdentifier, AppFilter.isExcluded(bundleID: bundleID) {
                 return
             }
@@ -148,6 +155,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
             let result = await SelectionRetrievalCoordinator().retrieve(for: appIdentity, policy: policy)
+            if Task.isCancelled { return }
             await self.deliverSelection(
                 result: result,
                 appIdentity: appIdentity,

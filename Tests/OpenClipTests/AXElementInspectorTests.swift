@@ -62,4 +62,42 @@ final class AXElementInspectorTests: XCTestCase {
     func testAncestorWalkDepthIsBounded() {
         XCTAssertEqual(AXElementInspector.ancestorWalkDepth, 4)
     }
+
+    func testSelectedTextMarkerRangeFallsBackToWebAreaWhenFocusedElementExposesNoMarker() {
+        let focusedEl = AXUIElementCreateApplication(100)
+        let webAreaEl = AXUIElementCreateApplication(200)
+        let dummyFocusedMarker = "focused-marker-range" as NSString
+        let dummyWebMarker = "webarea-marker-range" as NSString
+
+        // Case 1: Focused element exposes marker range -> returns focused element's range
+        let fromFocused = AXElementInspector.selectedTextMarkerRange(
+            focusedElement: focusedEl,
+            webArea: webAreaEl,
+            read: { element, _ in
+                if CFEqual(element, focusedEl) { return dummyFocusedMarker }
+                if CFEqual(element, webAreaEl) { return dummyWebMarker }
+                return nil
+            }
+        )
+        XCTAssertEqual(fromFocused as? NSString, dummyFocusedMarker)
+
+        // Case 2: Focused element returns nil, webArea exposes marker range -> falls back to webArea
+        let fromWebArea = AXElementInspector.selectedTextMarkerRange(
+            focusedElement: focusedEl,
+            webArea: webAreaEl,
+            read: { element, _ in
+                if CFEqual(element, webAreaEl) { return dummyWebMarker }
+                return nil
+            }
+        )
+        XCTAssertEqual(fromWebArea as? NSString, dummyWebMarker)
+
+        // Case 3: Both yield nil -> returns nil
+        let fromNeither = AXElementInspector.selectedTextMarkerRange(
+            focusedElement: focusedEl,
+            webArea: webAreaEl,
+            read: { _, _ in nil }
+        )
+        XCTAssertNil(fromNeither)
+    }
 }

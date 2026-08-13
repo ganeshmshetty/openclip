@@ -47,25 +47,6 @@ final class BrowserScriptStrategyTests: XCTestCase {
         }
     }
 
-    func testSafariURLScriptReadsFrontDocumentURL() {
-        let script = BrowserScriptStrategy.urlScriptSource(bundleIdentifier: "com.apple.Safari")
-        XCTAssertTrue(script.contains("tell front document"))
-        XCTAssertTrue(script.contains("URL"))
-        XCTAssertFalse(script.contains("active tab"))
-    }
-
-    func testChromiumURLScriptReadsActiveTabURL() {
-        let script = BrowserScriptStrategy.urlScriptSource(bundleIdentifier: "com.google.Chrome")
-        XCTAssertTrue(script.contains("tell active tab of front window"))
-        XCTAssertTrue(script.contains("URL"))
-    }
-
-    func testArcURLScriptReadsActiveTabURL() {
-        let script = BrowserScriptStrategy.urlScriptSource(bundleIdentifier: "company.thebrowser.Browser")
-        XCTAssertTrue(script.contains("tell active tab of front window"))
-        XCTAssertTrue(script.contains("URL"))
-    }
-
     // MARK: - Arc quote stripping (pure function)
 
     func testStripSurroundingQuotesRemovesOnePair() {

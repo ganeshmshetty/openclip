@@ -97,6 +97,9 @@ public enum Constants {
     /// Max polls before giving up on the AX web-area text settling.
     public static let webAreaSettleMaxRetries: Int = 6
 
+    /// Throttle interval (seconds) for keyboard selection gestures (Cmd+A, Shift+arrow) to prevent rapid repeated retrievals while holding keys.
+    public static let keyboardSelectionDebounceInterval: TimeInterval = 0.15
+
     /// Cap on in-flight synchronous JS evaluations. A CPU-bound synchronous script cannot be
     /// interrupted in modern JavaScriptCore (JSVirtualMachine.invalidate is gone), so each stuck
     /// script permanently parks a cooperative-pool thread; refusing new synchronous evaluations
