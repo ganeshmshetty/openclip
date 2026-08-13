@@ -8,7 +8,13 @@ import Core
 
 @MainActor
 internal final class MacSelectionMonitor: SelectionMonitoring {
-    internal var onSelection: ((SelectionContext) -> Void)?
+    /// Selection context + the paste-availability probe result for the source app (`nil` when the
+    /// app is excluded or the probe never ran).
+    internal var onSelection: ((SelectionContext, Bool?) -> Void)?
+    /// Starts the paste-availability probe for a target app (rules + AX) in parallel with selection
+    /// retrieval so the popup can apply the result on its first frame. Wired to the popup controller
+    /// by the composition root (AppDelegate).
+    internal var preparePasteProbe: ((NSRunningApplication, AppPolicyContext) -> Task<Bool?, Never>?)?
     
     private var monitor: Any?
     private var debounceTask: Task<Void, Never>?
@@ -68,9 +74,6 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             
             let policy = RuleEngine.shared.resolvePolicies(for: app.bundleIdentifier ?? "")
-            if policy.denyProbe || policy.denyPreprobe {
-                return
-            }
             
             // Measure drag distance for click filtering
             var isDragOrMultiClick = clickCount >= 2
@@ -82,6 +85,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             guard isDragOrMultiClick else { return }
             
             let appIdentity = AppIdentity(app)
+            let probeTask = self.preparePasteProbe?(app, policy)
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
             if let result = await self.retriever.retrieveTextResult(for: appIdentity, policy: policy) {
                 let text = result.text
@@ -95,7 +99,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                         timestamp: Date(),
                         appPolicy: policy
                     )
-                    self.onSelection?(context)
+                    let canPaste = await probeTask?.value
+                    self.onSelection?(context, canPaste)
                 }
             }
         }

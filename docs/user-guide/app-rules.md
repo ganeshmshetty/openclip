@@ -1,6 +1,6 @@
 # Application-Specific Policy Rules (`AppRule`)
 
-OpenClip allows configuring application-specific behavior rules through [`AppRule`](../../Sources/Core/Rules/AppRule.swift) and [`RuleEngine`](../../Sources/Core/Rules/RuleEngine.swift). App rules control how OpenClip detects selections, retrieves text, and enables or suppresses formatting actions when specific target macOS applications are active.
+OpenClip allows configuring application-specific behavior rules through [`AppRule`](../../Sources/Core/Rules/AppRule.swift) and [`RuleEngine`](../../Sources/Core/Rules/RuleEngine.swift). App rules control how OpenClip retrieves text and delivers it (paste vs copy) when specific target macOS applications are active.
 
 ---
 
@@ -13,17 +13,15 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
  "rules": [
  {
  "bundle-identifiers": [
- "com.jetbrains.*",
- "com.apple.Terminal",
- "com.sublimetext.*"
+ "com.apple.Terminal"
  ],
- "deny-formatting": true
+ "deny-paste": true
  },
  {
  "bundle-identifiers": [
  ":chromium-group:"
  ],
- "assume-paste": true
+ "use-menu-copy": true
  }
  ]
 }
@@ -36,10 +34,8 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 | Property Key in JSON | Code Identifier | Type | Description |
 | :--- | :--- | :--- | :--- |
 | `bundle-identifiers` | `bundleIdentifiers` | Array | Target application bundle ID strings, wildcards, or group aliases. |
-| `deny-formatting` | `denyFormatting` | Bool | When `true`, suppresses text case transformations (e.g. UPPERCASE) in IDEs/Terminals. |
-| `assume-paste` | `assumePaste` | Bool | Assumes text replacement should be performed via paste event simulation. |
-| `deny-probe` | `denyProbe` | Bool | Prevents active AX element probing. |
-| `deny-preprobe` | `denyPreprobe` | Bool | Prevents background AX pre-probing. |
+| `deny-paste` | `denyPaste` | Bool | Force text delivery to be a copy instead of a paste, even when the app advertises a Paste command (e.g. terminals). |
+| `use-menu-copy` | `useMenuCopy` | Bool | Read the selection via the AX Edit ▸ Copy menu item instead of a Cmd+C key event (Electron/JS apps). |
 
 ---
 
@@ -66,4 +62,4 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 1. When text selection is detected, `ActionCoordinator` queries `RuleEngine.shared.resolvePolicies(for: bundleID)`.
 2. `RuleEngine` matches the target application bundle ID against effective rules (default rules + user rules).
 3. Matched policy settings override default `AppPolicyContext` values.
-4. If `denyFormatting: true` is active for the frontmost application, transform actions are automatically hidden from the floating popup bar.
+4. If `denyPaste: true` is active for the frontmost application, paste delivery is downgraded to copy and the Paste/Cut actions are hidden from the floating popup bar (via the unified `PasteAvailability` decision).

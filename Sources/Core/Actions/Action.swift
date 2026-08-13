@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Defines the core Action protocol and ActionIcon enum that all executable actions in OpenClip implement.
-// Provides default protocol extensions for formatting flags, chrome metadata, action options, and customization resolution.
+// Provides default protocol extensions for chrome metadata, action options, and customization resolution.
 import Foundation
 
 public enum ActionIcon: Sendable, Equatable {
@@ -16,7 +16,6 @@ public protocol Action: Sendable {
     var id: String { get }
     var title: String { get }
     var icon: ActionIcon { get }
-    var isFormatting: Bool { get }
     var chrome: ActionChrome { get }
     
     @MainActor
@@ -35,7 +34,6 @@ public protocol Action: Sendable {
 }
 
 public extension Action {
-    var isFormatting: Bool { false }
     var actionOptions: [ExtensionOption] { [] }
     var chrome: ActionChrome {
         ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin)

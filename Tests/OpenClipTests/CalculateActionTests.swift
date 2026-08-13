@@ -39,57 +39,6 @@ final class CalculateActionTests: XCTestCase {
         }
     }
 
-    // MARK: - Result Content
-
-    @MainActor
-    func testResultContentFooterOptions() async {
-        let action = CalculateAction()
-        let app = AppIdentity(NSRunningApplication.current)
-        let context = ActionContext(
-            selection: SelectionContext(text: "12 * 12", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
-            modifiers: []
-        )
-
-        guard let tree = await action.makeContent(for: context) else {
-            return XCTFail("Expected a result content tree")
-        }
-        guard case .stack(_, let children) = tree else {
-            return XCTFail("Expected stack root node")
-        }
-        XCTAssertEqual(children.count, 2)
-        guard case .text(let textProps) = children[0] else {
-            return XCTFail("Expected text component")
-        }
-        XCTAssertEqual(textProps.content, "12 * 12 = 144")
-
-        guard case .stack(let hstackProps, let btnChildren) = children[1] else {
-            return XCTFail("Expected horizontal stack for buttons")
-        }
-        XCTAssertEqual(hstackProps.orientation, .horizontal)
-        XCTAssertEqual(btnChildren.count, 2)
-
-        guard case .button(let btn1) = btnChildren[0] else { return XCTFail("Expected button") }
-        XCTAssertEqual(btn1.title, "Paste 144")
-        XCTAssertEqual(btn1.handler, .effect(.paste("144")))
-
-        guard case .button(let btn2) = btnChildren[1] else { return XCTFail("Expected button") }
-        XCTAssertEqual(btn2.title, "Copy 144")
-        XCTAssertEqual(btn2.handler, .effect(.copy("144")))
-    }
-
-    @MainActor
-    func testResultContentNilForNonMath() async {
-        let action = CalculateAction()
-        let app = AppIdentity(NSRunningApplication.current)
-        let context = ActionContext(
-            selection: SelectionContext(text: "Hello World", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
-            modifiers: []
-        )
-
-        let content = await action.makeContent(for: context)
-        XCTAssertNil(content)
-    }
-
     // MARK: - Malformed Input Regression (crash fix)
 
     /// Previously, "12 + 4.5" worked but a bare operator or malformed expression crashed the app:

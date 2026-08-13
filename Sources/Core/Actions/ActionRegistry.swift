@@ -127,9 +127,6 @@ public final class ActionRegistry: ObservableObject, Sendable {
         if context.selection.isClipboardFallback && action.chrome.requiresLiveSelection {
             return false
         }
-        if context.selection.appPolicy.denyFormatting && action.isFormatting {
-            return false
-        }
         return action.isEnabled(for: context)
     }
 

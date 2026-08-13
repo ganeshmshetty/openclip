@@ -88,9 +88,7 @@ public struct ScriptAction: Action {
         return ActionResultAdapter.apply(
             raw: raw,
             after: rules?.after ?? .default,
-            stayVisible: rules?.stayVisible ?? false,
-            title: title,
-            icon: icon.symbolName
+            stayVisible: rules?.stayVisible ?? false
         )
     }
 }

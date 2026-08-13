@@ -4,16 +4,14 @@ import XCTest
 final class PopupGesturePolicyTests: XCTestCase {
 
     @MainActor
-    func testCalculateGetsLongPressWithoutHover() {
+    func testCalculateIsPerformSingleClick() {
         let action = CalculateAction()
         let policy = action.gesturePolicy
         XCTAssertEqual(policy.singleClick, .perform)
-        XCTAssertEqual(policy.longPress, .showResultContent)
-        XCTAssertFalse(policy.hoverPreview, "Calculate is long-press only; no hover preview")
     }
 
     @MainActor
-    func testGroupActionShowsMenuWithoutLongPress() {
+    func testGroupActionShowsMenuOnSingleClick() {
         let action = GroupAction(
             id: "ext.group",
             title: "Group",
@@ -22,16 +20,12 @@ final class PopupGesturePolicyTests: XCTestCase {
         )
         let policy = action.gesturePolicy
         XCTAssertEqual(policy.singleClick, .openSubActions)
-        XCTAssertNil(policy.longPress)
-        XCTAssertFalse(policy.hoverPreview)
     }
 
     @MainActor
-    func testPlainPerformActionHasNoLongPress() {
+    func testPlainPerformActionIsPerformSingleClick() {
         let action = CopyAction()
         let policy = action.gesturePolicy
         XCTAssertEqual(policy.singleClick, .perform)
-        XCTAssertNil(policy.longPress)
-        XCTAssertFalse(policy.hoverPreview)
     }
 }

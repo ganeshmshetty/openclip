@@ -22,7 +22,7 @@ flowchart TD
 
 1. **Composition Seam**: Initializes domain registries during `loadInitialState()`.
 2. **Catalog Storage**: Delegates raw action storage and sorting to `ActionRegistry`.
-3. **Policy Context Resolution**: Evaluates context bundle identifiers through `RuleEngine` to produce updated `ActionContext` options (`denyFormatting`, `assumePaste`).
+3. **Policy Context**: App policies are resolved by the trigger sites (`RuleEngine.resolvePolicies`) and attached to the selection context; delivery re-reads them from the snapshot (paste-vs-copy).
 4. **Action Reordering**: Exposes reordering primitives (`moveActions(from:to:)`) that mutate user preferences stored via `SettingsStore`.
 
 ---
@@ -102,10 +102,7 @@ When selected text is detected, `ActionCoordinator.resolveActions(for:)` convert
 2. **Disabled Package Check**:
  - Queries `SettingKey.disabledPackages` from `SettingsStore`. Any action whose `action.chrome.source` is `.extensionPkg(packageID:)` with a disabled packageID is filtered out (whole-package disable).
 
-3. **Formatting Policy Check**:
- - If `context.selection.appPolicy.denyFormatting` is `true` (e.g. Terminal, IDEs), actions with `action.isFormatting == true` are filtered out.
-
-4. **Action Capability Check**:
+3. **Action Capability Check**:
  - Evaluates `action.isEnabled(for: context)`. For instance, script actions check for non-empty text, while URL template actions evaluate optional regex pattern matches (`regexPattern`). Extension actions built by `DefaultActionFactory` carry `ExtensionActionRules` and delegate to `rules.resolveVisibility(for:)`, which also applies a manifest `requirements.expression` computed-visibility gate (a pure-Swift `ValidateExpression` DSL compiled once at load) after the regex first pass.
 
 ```swift
@@ -118,7 +115,6 @@ public func availableActions(for context: ActionContext) -> [any Action] {
   if context.selection.isClipboardFallback && action.chrome.requiresLiveSelection { return false }
   if disabledIDs.contains(action.id) { return false }
   if case .extensionPkg(let packageID) = action.chrome.source, disabledPackages.contains(packageID) { return false }
-  if context.selection.appPolicy.denyFormatting && action.isFormatting { return false }
   return action.isEnabled(for: context)
  }
 

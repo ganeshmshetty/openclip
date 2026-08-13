@@ -4,7 +4,7 @@
 // Implements the standard cut action that returns a clipboard cut result for selected text.
 import Foundation
 
-public struct CutAction: ConfigurableAction {
+public struct CutAction: ConfigurableAction, PasteRequiringAction {
     public let id = "builtin.cut"
     public let title = "Cut"
     public let preferenceIconName = "scissors"

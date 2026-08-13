@@ -147,12 +147,6 @@ public struct ManifestValidator: Sendable {
             if isBlank(action.keyPress) {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("keyPress"), path: path))
             }
-        case .canvas:
-            // Canvas actions carry their JS payload either inline as `scriptCode` or as a `.js`
-            // script file (`script`), mirroring `DefaultActionFactory` — reject only when both are blank.
-            if !hasExecutablePayload([action.script, action.scriptCode]) {
-                issues.append(ManifestValidationIssue(kind: .missingRequiredField("script/scriptCode"), path: path))
-            }
         case .shortcut:
             if isBlank(action.shortcutName) {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("shortcutName"), path: path))

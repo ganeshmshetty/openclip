@@ -4,11 +4,12 @@
 // The single, pure decision that standardizes how a text-producing result is delivered (paste vs
 // copy). Per the standardized rule:
 //   * a right-click or ⇧-click ALWAYS copies,
-//   * an app that forbids paste (policy `denyPaste`) or cannot paste (probe says no) copies,
+//   * an app that cannot paste (the unified `PasteAvailability` answer — per-app rules first, AX
+//     probe fallback — says no) copies,
 //   * otherwise the action's requested outcome (paste) is honored.
 // Only `.paste` outcomes are ever downgraded to `.copy`; an explicit `.copy` stays a copy, and
 // non-text results (openURL, notify, keyPress, ...) pass through untouched. Pure Core — no AppKit,
-// no UserDefaults; `canPaste` and the app policy are injected inputs so this is unit-testable.
+// no UserDefaults; `canPaste` is the injected, already-unified answer so this is unit-testable.
 import Foundation
 
 public enum ActionResultDelivery {
@@ -25,19 +26,18 @@ public enum ActionResultDelivery {
     /// - Parameters:
     ///   - raw: the result a runtime/effect produced.
     ///   - clickIntent: how the user triggered the action.
-    ///   - canPaste: whether the frontmost target app currently supports Paste (platform probe).
-    ///   - policy: the source app's resolved policy; `denyPaste` forces a copy.
+    ///   - canPaste: the unified paste availability (rules + probe) for the target app; callers
+    ///     pre-resolve it via `PasteAvailability.effective`, treating unknown as cannot-paste.
     public static func resolve(
         raw: ActionResult,
         clickIntent: ClickIntent,
-        canPaste: Bool,
-        policy: AppPolicyContext
+        canPaste: Bool
     ) -> ActionResult {
         guard case .paste(let text) = raw else {
             // `.copy`, `.cut`, and all non-text results are never downgraded.
             return raw
         }
-        let forceCopy = (clickIntent == .forceCopy) || policy.denyPaste || !canPaste
+        let forceCopy = (clickIntent == .forceCopy) || !canPaste
         return forceCopy ? .copy(text) : .paste(text)
     }
 }

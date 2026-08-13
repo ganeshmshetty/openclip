@@ -4,7 +4,7 @@
 // Implements the standard paste action that triggers clipboard paste simulation.
 import Foundation
 
-public struct PasteAction: ConfigurableAction {
+public struct PasteAction: ConfigurableAction, PasteRequiringAction {
     public let id = "builtin.paste"
     public let title = "Paste"
     public let preferenceIconName = "doc.on.clipboard"

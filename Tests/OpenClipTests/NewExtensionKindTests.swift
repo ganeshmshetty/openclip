@@ -147,48 +147,32 @@ final class NewExtensionKindTests: XCTestCase {
         XCTAssertEqual(NSPasteboard.general.changeCount, changeCountBefore, "Global clipboard must remain unchanged")
     }
 
-    // MARK: - canvas
+    // MARK: - canvas (removed)
 
+    /// The canvas feature was removed: `type: "canvas"` is no longer a recognized kind, so the
+    /// factory must NOT produce a canvas runtime. With only `scriptCode` (no URL/script file) the
+    /// generic script path finds nothing runnable and the action is dropped.
     @MainActor
-    func testFactoryRoutesCanvasToJavaScriptCanvasAction() async throws {
+    func testFactoryNoLongerProducesCanvasAction() async throws {
         let factory = DefaultActionFactory()
-        let scriptCode = "const ui = () => h('text', {});"
-        let meta = ExtensionActionMetadata(title: "Canvas", icon: "symbol(paintbrush)", type: "canvas", scriptCode: scriptCode, isAsync: true)
+        let meta = ExtensionActionMetadata(title: "Canvas", icon: "symbol(paintbrush)", type: "canvas", scriptCode: "const ui = () => h('text', {});", isAsync: true)
         let manifest = ExtensionMetadata(identifier: "com.test.canvas", name: "Canvas Test", actions: [meta])
 
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
-        guard let canvas = action as? JavaScriptCanvasAction else {
-            try? FileManager.default.removeItem(at: tempDir)
-            return XCTFail("Expected JavaScriptCanvasAction, got \(String(describing: action))")
-        }
-        XCTAssertEqual(canvas.id, "com.test.canvas.action.0")
-        XCTAssertEqual(canvas.title, "Canvas")
-        XCTAssertEqual(canvas.icon, .symbol("paintbrush"))
-        XCTAssertEqual(canvas.scriptCode, scriptCode)
-        XCTAssertTrue(canvas.isAsync)
-
-        let result = try await canvas.perform(makeContext(text: "hello"))
-        guard case .showCanvas(let request, let header) = result else {
-            try? FileManager.default.removeItem(at: tempDir)
-            return XCTFail("Expected .showCanvas result, got \(result)")
-        }
-        XCTAssertEqual(request.scriptCode, scriptCode)
-        XCTAssertEqual(request.input, "hello")
-        XCTAssertEqual(request.optionValues, [:])
-        XCTAssertEqual(header.title, "Canvas")
-        XCTAssertEqual(header.icon, "paintbrush")
-
-        try? FileManager.default.removeItem(at: tempDir)
+        XCTAssertNil(action, "canvas-type metadata must not produce an action after canvas removal")
     }
 
+    /// A canvas manifest with a `.js` script file degrades to the generic JS runtime (still
+    /// rejected at validation, but never a canvas action).
     @MainActor
-    func testFactoryRoutesCanvasScriptFileToJavaScriptCanvasAction() async throws {
+    func testFactoryRoutesCanvasScriptFileToPlainJavaScriptAction() async throws {
         let factory = DefaultActionFactory()
-        let scriptCode = "const ui = () => h('text', { content: 'file canvas' });"
-        let meta = ExtensionActionMetadata(title: "File Canvas", script: "main.js", type: "canvas")
+        let scriptCode = "function action() { return 'ok'; }"
+        let meta = ExtensionActionMetadata(title: "Canvas File", script: "main.js", type: "canvas")
         let manifest = ExtensionMetadata(identifier: "com.test.filecanvas", name: "File Canvas Test", actions: [meta])
 
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -197,65 +181,7 @@ final class NewExtensionKindTests: XCTestCase {
         try scriptCode.write(to: tempDir.appendingPathComponent("main.js"), atomically: true, encoding: .utf8)
 
         let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
-        guard let canvas = action as? JavaScriptCanvasAction else {
-            return XCTFail("Expected JavaScriptCanvasAction, got \(String(describing: action))")
-        }
-        XCTAssertEqual(canvas.id, "com.test.filecanvas.action.0")
-        XCTAssertEqual(canvas.title, "File Canvas")
-        XCTAssertEqual(canvas.scriptCode, scriptCode)
-    }
-
-    @MainActor
-    func testCanvasActionMissingRequiredOptionsReturnsConfiguration() async throws {
-        let factory = DefaultActionFactory()
-        let meta = ExtensionActionMetadata(
-            title: "Canvas",
-            type: "canvas",
-            scriptCode: "const ui = () => h('text', {});",
-            requirements: ActionRequirements(requiredOptions: ["prefix"]),
-            options: [ExtensionOptionMetadata(identifier: "prefix", label: "Prefix", type: "string")]
-        )
-        let manifest = ExtensionMetadata(identifier: "com.test.canvasopt", name: "Canvas Opt Test", actions: [meta])
-
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
-        guard let canvas = action as? JavaScriptCanvasAction else {
-            try? FileManager.default.removeItem(at: tempDir)
-            return XCTFail("Expected JavaScriptCanvasAction, got \(String(describing: action))")
-        }
-
-        let result = try await canvas.perform(makeContext(text: "hello"))
-        guard case .openConfiguration(let config) = result else {
-            try? FileManager.default.removeItem(at: tempDir)
-            return XCTFail("Expected .openConfiguration result, got \(result)")
-        }
-        XCTAssertEqual(config.actionID, "com.test.canvasopt.action.0")
-        XCTAssertEqual(config.missingOptionIDs, ["prefix"])
-
-        try? FileManager.default.removeItem(at: tempDir)
-    }
-
-    @MainActor
-    func testCanvasActionWithDuplicateOptionsHandlesDictionarySafely() async throws {
-        let scriptCode = "const ui = () => h('text', {});"
-        let dupOptions = [
-            ExtensionOption(identifier: "key", label: "Key 1", defaultValue: "val1"),
-            ExtensionOption(identifier: "key", label: "Key 2", defaultValue: "val2")
-        ]
-        let canvas = JavaScriptCanvasAction(
-            id: "com.test.dupcanvas",
-            title: "Dup Canvas",
-            scriptCode: scriptCode,
-            options: dupOptions
-        )
-
-        let result = try await canvas.perform(makeContext(text: "hello"))
-        guard case .showCanvas(let request, _) = result else {
-            return XCTFail("Expected .showCanvas result, got \(result)")
-        }
-        XCTAssertEqual(request.optionValues["key"], JSONValue.string("val2"))
+        XCTAssertTrue(action is JavaScriptAction, "canvas script files degrade to the plain JS runtime, got \(String(describing: action))")
     }
 
     // MARK: - KeyPressSpec parsing

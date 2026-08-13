@@ -8,7 +8,6 @@ This directory contains the Swift codebase for OpenClip, divided into two distin
 Sources/
 ├── Core/               # Pure domain framework (Core.framework)
 │   ├── Actions/        # Abstract action definitions, rules, relevance models
-│   ├── Canvas/         # Dynamic Canvas UI specifications, AST & JSON DSL parsers
 │   ├── Extensions/     # Manifest schemas, validation, extension manager
 │   ├── Rules/          # Application context rules & engine
 │   ├── Selection/      # Selection context data structures & protocols
@@ -19,12 +18,12 @@ Sources/
     ├── AI/             # AI service integrations (Ollama, Cloud API, Apple Intelligence)
     ├── Notifications/  # macOS system notification names & dispatchers
     ├── Platform/       # macOS OS adapters (Accessibility API, Pasteboard, Hotkeys, Keychain)
-    │   └── Runtimes/   # Concrete action execution engines (JS, AppleScript, KeyPress, Canvas)
+    │   └── Runtimes/   # Concrete action execution engines (JS, AppleScript, KeyPress)
     └── UI/             # macOS AppKit windows (NSPanel) & SwiftUI views
         ├── Design/     # LiquidGlass & visual design tokens
         ├── Icons/      # SVG/PNG icon view renderers & caches
         ├── Onboarding/ # Onboarding window & view controllers
-        ├── Popup/      # Floating popup window, positioner, hover & preview views
+        ├── Popup/      # Floating popup window, positioner, hover & AI result card views
         └── Preferences/# App settings tabs & extension store views
 ```
 

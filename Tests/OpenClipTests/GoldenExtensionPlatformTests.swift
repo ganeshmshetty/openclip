@@ -22,13 +22,8 @@ fileprivate final class MemoryOptionStore: ActionOptionReading, ActionOptionWrit
 }
 
 private extension ActionContext {
-    init(selectedText: String, denyFormatting: Bool = false) {
-        let policy = AppPolicyContext(
-            denyFormatting: denyFormatting,
-            denyProbe: false,
-            denyPreprobe: false,
-            assumePaste: false
-        )
+    init(selectedText: String) {
+        let policy = AppPolicyContext()
         let selection = SelectionContext(
             text: selectedText,
             sourceApp: AppIdentity(bundleIdentifier: "com.golden.testapp", localizedName: "GoldenTestApp"),
@@ -279,10 +274,11 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         XCTAssertTrue(availableWithDisabled.contains(where: { $0.id == "com.golden.shell.action" }), "Enabled actions in the same registry remain available")
     }
 
-    /// Exit criterion: a JS extension calling openclip.showContent(...) produces a `.showContent`
-    /// result through the full load → factory → host pipeline.
+    /// Exit criterion: the removed `openclip.showContent`/`h()` canvas bridge surfaces a JS error
+    /// through the full load → factory → host pipeline (the extension loads fine, but calling the
+    /// removed bridge fails as a normal JS exception → error status).
     @MainActor
-    func testJSContentExtensionProducesShowContent() async throws {
+    func testJSContentBridgeRemovedSurfacesErrorThroughPipeline() async throws {
         let jsBundle = tempDir.appendingPathComponent("JSContentExt.openclipext")
         try FileManager.default.createDirectory(at: jsBundle, withIntermediateDirectories: true)
         let jsManifest = """
@@ -316,73 +312,9 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         }
 
         let result = try await action.perform(ActionContext(selectedText: "World"))
-        guard case .showContent(let root, nil) = result else {
-            return XCTFail("Expected .showContent, got \(result)")
+        guard case .showStatus(let feedback) = result else {
+            return XCTFail("Expected an error status from the removed canvas bridge, got \(result)")
         }
-        guard case .stack(_, let children) = root, children.count == 1, case .text(let textProps) = children[0] else {
-            return XCTFail("Expected stack with text child, got \(root)")
-        }
-        XCTAssertEqual(textProps.content, "Hello World")
-    }
-
-    /// Exit criterion: a manifest `type: "canvas"` action loads through the full pipeline, `perform`
-    /// yields a `.showCanvas` mount request, and the REAL JavaScriptCanvasEngine serves ≥3 dispatches
-    /// from one compiled script — the counter climbs 1 → 2 → 3 (behavioral parity with the panel
-    /// e2e test, minus any panel/windowing).
-    @MainActor
-    func testCanvasCounterGoldenReusesCompiledScriptAcrossDispatches() async throws {
-        let canvasBundle = tempDir.appendingPathComponent("CanvasExt.openclipext")
-        try FileManager.default.createDirectory(at: canvasBundle, withIntermediateDirectories: true)
-        let canvasManifest = """
-        {
-            "identifier": "com.golden.canvas",
-            "name": "Canvas Golden Extension",
-            "actions": [
-                {
-                    "id": "com.golden.canvas.counter",
-                    "title": "Canvas Counter",
-                    "type": "canvas",
-                    "scriptCode": "const initialState = { count: 0 }; const handlers = { increment: (state) => ({ count: state.count + 1 }) }; const ui = (state) => h('button', { title: 'Count: ' + state.count, handler: 'increment' });"
-                }
-            ]
-        }
-        """
-        try canvasManifest.write(to: canvasBundle.appendingPathComponent("openclip.json"), atomically: true, encoding: .utf8)
-
-        await ExtensionManager.shared.loadExtensions(from: tempDir)
-        let loadedActions = ExtensionManager.shared.loadedActions
-
-        guard let action = loadedActions.first(where: { $0.id == "com.golden.canvas.counter" }) as? JavaScriptCanvasAction else {
-            XCTFail("Missing JavaScriptCanvasAction for com.golden.canvas.counter")
-            return
-        }
-
-        let result = try await action.perform(ActionContext(selectedText: "World"))
-        guard case .showCanvas(let request, let header) = result else {
-            return XCTFail("Expected .showCanvas, got \(result)")
-        }
-        XCTAssertEqual(header.title, "Canvas Counter")
-
-        // Drive the real engine directly (no panel): one mount + three dispatches.
-        let engine = JavaScriptCanvasEngine()
-        let mount = try await engine.mount(request)
-        XCTAssertEqual(buttonTitle(mount.tree), "Count: 0")
-
-        var state = mount.state
-        let expected = ["Count: 1", "Count: 2", "Count: 3"]
-        for (index, title) in expected.enumerated() {
-            let dispatch = try await engine.dispatch(CanvasDispatchRequest(
-                event: CanvasEvent(kind: .tap, handler: "increment"),
-                state: state
-            ))
-            XCTAssertEqual(buttonTitle(dispatch.tree), title,
-                           "dispatch \(index + 1) must re-render from the same compiled script")
-            state = dispatch.state
-        }
-    }
-
-    private func buttonTitle(_ tree: CanvasComponent?) -> String? {
-        if case .button(let props)? = tree { return props.title }
-        return nil
+        XCTAssertEqual(feedback.style, .error)
     }
 }

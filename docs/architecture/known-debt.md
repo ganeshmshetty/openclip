@@ -54,13 +54,6 @@ areas; stale debt notes are worse than none.
   results; each extension runtime's `perform` applies `rules.after`/`rules.stayVisible` via the
   adapter. `OpenClipJSHost.run` returns only raw results; async JS runs are guarded by the
   `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
-- **Canvas `fetch()` ships with a live-load gap.** `"async": true` canvas actions get
-  `openclip.fetch` in handlers via the shared `JSNativeFetch` bridge
-  (`Sources/OpenClip/Platform/Runtimes/JSNativeFetch.swift`, used by both `OpenClipJSHost` and
-  `JavaScriptCanvasEngine`). The canvas `isAsync` flag — previously stored but never read —
-  now gates dispatch-time fetch installation. Deferred: mount-time async rendering (async
-  `ui()` / a `beforeMount` hook) and a busy indicator for in-flight handler fetches; `ui()`
-  must stay synchronous.
 
 ## Presentation / Rule Holes
 
@@ -82,21 +75,19 @@ areas; stale debt notes are worse than none.
   enables `canBecomeKey`/`canBecomeMain` in both modes (`PopupPanel.swift:19`), routed through the
   same `enterKeyMode()`/`exitKeyMode()` primitives (`PopupWindowController.swift:196,206`). A
   `@FocusState`-in-onAppear request is silently dropped on macOS, so search forces focus via
-  `focusSearchField()` on the next run-loop turn (`PopupWindowController.swift:245`) and the canvas
-  focuses its first interactive component via `canvasSessionController.requestFocus`;
+  `focusSearchField()` on the next run-loop turn (`PopupWindowController.swift:245`);
   `previousFrontmostApp` is captured once per session (on `show(for:)`/`enterKeyMode`, never
   re-captured mid-session) and re-activated on `exitKeyMode`/`hide`.
 - **Search and content modes suspend popup dismissal.** The distance auto-dismiss and the key/scroll
   dismissals in `handleEvent` are skipped while `modeStore.mode == .search` or `.content`
   (`PopupWindowController.swift:591,612,622`), so typing with the mouse elsewhere doesn't close the
-  palette, and a canvas stays open until it is collapsed or the popup hides.
+  palette, and the AI result card stays open until it is collapsed or the popup hides.
 - **The floating bubble panel is gone; content renders inline.** The second `PopupPanel` (and its
   `showBubble`/`hideBubble`/`bubbleBlocksDismiss` machinery) was removed — all action/AI/status
-  content renders inside the single panel via `.content` mode (`PopupModeStore`) + `CanvasSessionView`
-  (the interactive canvas renderer), and hover previews render in the inline `PopupPreviewStrip`.
-  `StatusBadgeModel` and the old `.info`/`.result`/`.menu` emphasis model are gone; a status emitted
-  while a canvas is open is **queued** (`pendingStatus`) and flushed onto the bar banner when the
-  canvas collapses (`exitContent()` → `flushPendingStatus()`).
+  content renders inside the single panel via `.content` mode (`PopupModeStore`) as a native
+  SwiftUI `AIResultCardView`. `StatusBadgeModel` and the old `.info`/`.result`/`.menu` emphasis
+  model are gone; a status emitted while a card is open is **queued** (`pendingStatus`) and flushed
+  onto the bar banner when the card collapses (`exitContent()` → `flushPendingStatus()`).
 - **`MathEvaluator` replaced crash-prone `NSExpression`.** `CalculateAction` used to run
   `NSExpression(format:)`, which throws an **uncaught Objective-C exception** on malformed selection
   text like `+` or `1+` (crash). The pure-Swift `MathEvaluator` (`Sources/Core/Actions/MathEvaluator.swift`)
@@ -110,8 +101,9 @@ areas; stale debt notes are worse than none.
 - **Popup sizing constants live in the App target.** `PopupMetrics`
   (`Sources/OpenClip/UI/Popup/PopupMetrics.swift`) holds the UI-only values — `searchMaxRows`
   (5), `searchResultRowHeight` (32), `searchPeekRowFraction` (0.5), `popupMaxHeight` (240, the
-  shared height cap for the search palette and the canvas body), plus placement/dismissal
-  distances and hover/long-press delays. `Core/Selection/Constants.swift` keeps only
+  shared height cap for the search palette), the AI card bounds (`aiCardMinWidth` 220 /
+  `aiCardIdealWidth` 300 / `aiCardMaxWidth` 360 / `aiCardBodyHeight` 120), plus
+  placement/dismissal distances. `Core/Selection/Constants.swift` keeps only
   domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 
 ## Unused / Latent
@@ -120,13 +112,20 @@ areas; stale debt notes are worse than none.
   passes `modifiers: []`. Don't build logic that assumes modifier keys reach actions.
 - **Paste delivery is now standardized but has a probe reliance.** Leaf `.paste` results are
   re-decided by `ActionResultDelivery` (App target) per the rule in the dev-guide §5c: right/⇧-click,
-  app `denyPaste` policy (Terminal/iTerm defaults), or a failing `PasteAvailabilityProbe` → copy;
-  otherwise paste. The delivery inputs are snapshotted at perform time — before the dismissing
-  `hide()` clears the session context — so `denyPaste` holds even for pastes that dismiss the popup,
-  and canvas effects (explicit Replace/Copy buttons) carry no delivery context and are never
-  re-decided. The `canPaste` probe (`PasteAvailabilityProbe`) needs Accessibility permission and
+  or the **unified** `PasteAvailability` answer (per-app rules win, AX `PasteAvailabilityProbe` fills
+  in) saying no → copy; otherwise paste. The delivery inputs are snapshotted at perform time — before
+  the dismissing `hide()` clears the session context — so `denyPaste` holds even for pastes that
+  dismiss the popup, and the AI card's Paste/Copy buttons are explicit requests
+  (`performCardEffect`) that carry no delivery context and are never re-decided. The live probe
+  (`PasteAvailabilityProbe`) needs
+  Accessibility permission and
   walks the target's Edit ▸ Paste AX menu item; without AX it returns "unknown" and delivery falls
-  back to copy (safe but means paste never happens for AX-less users). The click-intent capture reads
+  back to copy (safe but means paste never happens for AX-less users). The same unified decision drives
+  `modeStore.canPaste`, which hides the card's Paste button and the bar/search Paste + Cut
+  (`PasteRequiringAction`) actions on a confirmed cannot-paste; unknown keeps them visible. The
+  probe is started by the trigger sites in parallel with selection retrieval and applied before the
+  first frame (probe-before-render, nothing cached), so a same-app focus-context change re-probes
+  cleanly. The click-intent capture reads
   only ⇧ (not ⌘/⌥) and only sets it on mouse-down; a keyboard-driven run (search palette Enter) uses
   the last left-click intent. A future `context.modifiers` plumbing pass could feed true modifier
   state into `ActionContext` instead.
@@ -176,10 +175,9 @@ areas; stale debt notes are worse than none.
   hits the real macOS Keychain (UUID-unique accounts, deleted in tearDown), and
   `ScriptActionExecutionTests`/`ActionResultHandlerTests` spawn real subprocesses in temp dirs. These are
   bounded, self-restoring integration checks — leave them unless a real seam is added.
-- **Removed slow/flaky/environment-dependent tests:** the Apple Intelligence live-model tests
-  (`testAppleIntelligenceMatchesPresetPrompts`, `AIActionTests.testPerformReturnsContentTree`) made
-  real on-device `LanguageModelSession` calls; `CanvasEffectDeliveryTests` gated on real app
-  activation under xcodebuild (intermittent failures); `DebugLogEndToEndTests` polled `OSLogStore`
+- **Removed slow/flaky/environment-dependent tests:** the Apple Intelligence live-model test
+  (`testAppleIntelligenceMatchesPresetPrompts`) made
+  real on-device `LanguageModelSession` calls; `DebugLogEndToEndTests` polled `OSLogStore`
   with multi-second sleeps; and `ScriptActionTests` duplicated `ScriptActionExecutionTests` (its
   stdin-reading test was the observed hang point). Core validation tests for those paths remain
   (pure validation, no live model/activation).

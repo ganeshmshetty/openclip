@@ -111,9 +111,7 @@ public struct JavaScriptAction: ConfigurableAction {
         return ActionResultAdapter.apply(
             raw: raw,
             after: rules?.after ?? .default,
-            stayVisible: rules?.stayVisible ?? false,
-            title: title,
-            icon: preferenceIconName
+            stayVisible: rules?.stayVisible ?? false
         )
     }
 }

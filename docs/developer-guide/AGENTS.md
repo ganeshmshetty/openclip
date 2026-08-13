@@ -76,7 +76,8 @@ Option values are keyed by this final action id at runtime.
 `type` is normalized case-insensitively (`ExtensionActionKind.init(rawType:)`); absent values
 default to `url`. **Unknown/unsupported `type` strings now reject the whole package at load**
 (via the manifest validation pass, `ManifestValidator`), instead of silently routing as `url`.
-Recognized inputs for each kind:
+The former interactive-canvas kind `"canvas"` is rejected at validation with
+`unknownActionKind("canvas")`. Recognized inputs for each kind:
 
 | Kind | Accepted `type` strings | Runtime action |
 | :--- | :--- | :--- |
@@ -271,10 +272,10 @@ structural only — running it returns `.none`. The group row is registered by t
 `createActions` (the registry/loader path); the single-action seam treats a bare group as
 schema-only (produces nothing).
 
-### 3j. Sub-menu relevance & preview (`menuRelevance`, `menuPreview`)
+### 3j. Sub-menu relevance (`menuRelevance`)
 
-Any action — most usefully a sub-action inside a `group` — may declare two optional keys that
-dress up how it appears in the group's sub-menu:
+Any action — most usefully a sub-action inside a `group` — may declare one optional key that
+dresses up how it appears in the group's sub-menu:
 
 ```jsonc
 {
@@ -282,8 +283,7 @@ dress up how it appears in the group's sub-menu:
   "title": "UPPERCASE",
   "type": "url",
   "url": "https://example.com/?q={text}",
-  "menuRelevance": "\\S",                     // optional regex: only list when the selection matches
-  "menuPreview": "{text} → {matched}"         // optional placeholder template shown as the row subtitle
+  "menuRelevance": "\\S"                      // optional regex: only list when the selection matches
 }
 ```
 
@@ -291,14 +291,11 @@ dress up how it appears in the group's sub-menu:
   selected text (trimmed, case-insensitive, dot-matches-newlines) matches. Absent → always listed.
   A malformed pattern never hides the action (defensive). This is a *menu-time* filter only — it
   does not affect `requirements`-based visibility or the popup bar.
-- **`menuPreview`** (placeholder template): rendered with `TextPlaceholderEngine`
-  (`{text}`/`{query}`/`{matched}`/`{captureN}`/`{bundleID}`) and shown as the sub-menu row's
-  one-line subtitle. Absent → no subtitle.
 
 The builtin **Transform** group is the reference: its four case-conversion sub-actions
-(UPPERCASE, lowercase, Title Case, camelCase) self-filter to no-ops and preview the transformed
-result. The factory wraps any action declaring these keys in a passive decorator that forwards the
-original action's identity and behavior — registry sorting, disable, and perform are unaffected.
+(UPPERCASE, lowercase, Title Case, camelCase) self-filter to no-ops. The factory wraps any action
+declaring this key in a passive decorator that forwards the original action's identity and behavior
+— registry sorting, disable, and perform are unaffected.
 
 ---
 
@@ -379,9 +376,9 @@ A malformed regex **enables** the action (defensive — a bad manifest never hid
 
 - `copy-result` — a paste/copy outcome becomes `.copy`.
 - `paste-result` — a copy/paste outcome becomes `.paste`.
-- `show-result` — a copy/paste outcome is rendered as a content canvas with Paste/Copy footer actions.
+- `show-result` — a copy/paste outcome degrades to the plain leaf result (copy/paste).
 - `none` — collapse any result to success.
-- `default` — unchanged. (Runtime presentations — content canvas/status/configuration/keyPress/shortcut/
+- `default` — unchanged. (Runtime presentations — content card/status/configuration/keyPress/shortcut/
   sequence/keepVisible — always pass through regardless of `after`.)
 
 `stayVisible: true` wraps the (normalized) result in `.keepVisible` so the popup **stays open**
@@ -395,22 +392,28 @@ A leaf `.paste(text)` result produced by any runtime is re-decided at the presen
 runs. The rule (one choke point, applied to every text result):
 
 1. **Right-click or ⇧-click** → always `.copy(text)`.
-2. The source app's `AppPolicyContext.denyPaste` is set (per-app rule, e.g. the built-in **Terminal**
-   / iTerm `denyPaste: true` defaults) → `.copy(text)`.
-3. The `PasteAvailabilityProbe` reports the target can't Paste (AX Edit ▸ Paste disabled) or the
-   probe is unavailable → `.copy(text)`.
-4. Otherwise → the action's requested `.paste(text)` is honored.
+2. The unified `PasteAvailability` decision says the target can't paste — a `denyPaste` per-app rule,
+   or the `PasteAvailabilityProbe` reports the AX Edit ▸ Paste disabled or
+   unavailable → `.copy(text)`.
+3. Otherwise → the action's requested `.paste(text)` is honored.
 
 The delivery inputs (click intent + app policy) are snapshotted when the action performs, *before*
 dismissal `hide()` clears the session context, so the per-app `denyPaste` rule still applies to
-pastes that dismiss the popup. Canvas leaf effects (e.g. an AI-result **Replace** button) are
-explicit user requests: they carry no delivery context and are never re-decided — an explicit
-Replace always pastes.
+pastes that dismiss the popup. The AI-result card's **Paste** button (and the built-in Paste/Cut
+actions, all `PasteRequiringAction`s) is gated by the same **unified** answer (`PasteAvailability`,
+pure Core): the `denyPaste` per-app rule wins over the live AX probe, and the probe is skipped
+entirely when a rule answers — no Accessibility dependency for those apps. The trigger sites start
+the probe in parallel with selection retrieval and apply it to `modeStore.canPaste` before the
+first frame, so Paste/Cut never flash out after render; `false` hides the card's Paste button and
+the bar/search drop Paste/Cut. Nothing is cached — with no rule the probe tracks the target app's
+focus context, which can differ between shows in the same app. Card
+Paste/Copy are explicit user requests: they carry no delivery context and are
+never re-decided — an explicit Paste always pastes.
 
 `.copy`/`.cut` and non-text results are never downgraded. This is a **presentation/delivery**
 decision (App target only) — Core stays pure; `canPaste` and the app policy are injected inputs.
 The per-app `denyPaste` toggle is user-editable in Preferences → Application Rules. Set
-`assume-paste`/`deny-paste` only via `AppRule`; a manifest has **no** delivery keys.
+`deny-paste` only via `AppRule`; a manifest has **no** delivery keys.
 
 ---
 
@@ -475,143 +478,20 @@ Side effects (each appends an effect; multiple effects run as a `.sequence` in c
   identifier (e.g. `com.apple.Notes.SharingExtension` → the Notes inline popup). `text` defaults to
   the selected text when omitted.
 - `openclip.showStatus(message, style)` — style `"success"`|`"error"`|`"info"` (else `"info"`)
-- `openclip.showContent(tree, { size })` — renders the given `h()` element tree as an inline
-  interactive canvas on the popup (`.content` mode). The optional `{ size: { width, height } }`
-  declares the canvas size once. See §7a for the full canvas authoring contract.
+- `openclip.showContent(...)` / `h()` — **removed**: the interactive-canvas bridge no longer
+  exists; calling these names surfaces a JS error (`.showStatus(.error)`).
 - `openclip.keepVisible()` — wraps the resolved result so the popup stays open
 - `openclip.requireConfiguration({ reason, missing: ["optID"] })` — open config sheet for this action
 
 Deterministic resolution order (`OpenClipJSHost.run`): **JS exception → `.showStatus(error)`** (JS
 throws never propagate as Swift errors); else `requireConfiguration` → `openConfiguration`;
-`showContent` → `.showContent(CanvasComponent, CanvasHeader?)`; `showStatus` with no other effects
-→ `showStatus`; effects → single/`sequence`; function string return → `copy`; else `success`.
-`keepVisible()` wraps the final result unconditionally. Inside a canvas session (§7a) `showContent`
-never resolves to a result — it *replaces* the session's mounted tree (declaring the canvas size)
-for the next re-render, and effects never dismiss.
+`showStatus` with no other effects → `showStatus`; effects → single/`sequence`; function string
+return → `copy`; else `success`. `keepVisible()` wraps the final result unconditionally.
 
 > Execution runs on a background thread (never the `MainActor`); async scripts are guarded by a
 > 30-second watchdog (`Constants.scriptTimeout`, `TimeoutFlag` pattern) — a never-settling promise
 > surfaces as an error status. Note the resolution above: `showStatus` followed by an effect yields
 > the effect, not the status.
-
----
-
-## 7a. Interactive canvases (`type: "canvas"`)
-
-A canvas is a **JS-only** action kind: `"type": "canvas"` with `scriptCode` (required — validation
-rejects a canvas without it) holding the canvas script;
-`"async": true` is optional — it enables `openclip.fetch` in handlers (below). `ui()` and
-mount-time rendering are synchronous, so a promise returned from `ui()` at mount or during a
-re-render is rejected immediately (`asyncNotSupported`); the 30 s watchdog applies only to async
-handler dispatches whose promise never settles (e.g. an `openclip.fetch` that never resolves).
-There is no `output` key — a canvas never "returns" text; it *renders*.
-
-### Script contract
-
-```js
-const initialState = { count: 0 };   // optional; app-owned state seeds the session
-
-function ui(state, input) {          // REQUIRED — the only required export
-  return h('stack', {}, [
-    h('text', { content: 'Count: ' + state.count }),
-    h('button', { title: '+1', handler: 'increment' }),
-  ]);
-}
-
-const handlers = {                   // optional; named handlers receive (state, event, input)
-  increment(state, event, input) { return { ...state, count: state.count + 1 }; },
-  deliver(state, event, input)   { openclip.paste(event.value); return state; }
-};
-```
-
-- `ui(state, input)` is the **only required export**; it must return an `h()` element object (an
-  array return is wrapped in a vertical `stack`). It is called at mount (`ui(initialState, input)`)
-  and re-called after every handler (`ui(newState, input)`).
-- `handlers[name](state, event, input)` is optional. `state` is a **fresh JSON object** each call
-  (never the same object you returned); the handler returns the **new state** — not a new tree. The
-  render tree is produced by `ui(newState, input)` *after* the handler runs. `event` is
-  `{ kind, targetID, value, handler }` where `kind` is `"tap"` (button/listItem/link/toggle
-  activation), `"change"` (a committed value: a `textField` blur or submit, or a `toggle` flip —
-  never a per-keystroke event), or `"submit"` (a `textField` Enter).
-- A node whose `handler` is an **object** (`{ type: "paste", text: "..." }`) is a leaf effect
-  (H2) and never dispatches; a bare string `handler` names a `handlers` entry.
-
-### `h(type, props, children)` — component reference
-
-`h` returns `{ type, props, children }` element objects. The 11 component types:
-
-| type | props |
-| :--- | :--- |
-| `stack` | `orientation` (`"vertical"`/`"horizontal"`), `spacing`, `id` |
-| `divider` | `id` |
-| `spacer` | `minLength`, `id` |
-| `text` | `content`, `style` (`"title"`/`"body"`/`"caption"`/`"monospaced"`), `color` (`"primary"`/`"secondary"`/`"accent"`), `selectable`, `id` |
-| `icon` | `symbol` \| `iconify` \| `local` \| `url`, `size`, `id` |
-| `image` | `url` \| `local`, `cornerRadius`, `id` |
-| `button` | `title`, `icon`, `style` (`"accent"`/`"plain"`), `disabled`, `handler`, `id` |
-| `list` / `listItem` | `listItem`: `icon`, `title`, `subtitle`, `badge`, `disabled`, `handler`, `id` |
-| `textField` | `id` (**required**), `value`, `placeholder`, `onSubmit`, `onChange` |
-| `toggle` | `id` (**required**), `value`, `disabled`, `onToggle` |
-| `link` | `title`, `url` |
-
-Unknown types, missing required `id`s, and invalid link URLs drop the node (recovery is lenient
-per node); only structural violations — too many nodes/depth, too many list items, an over-long
-`text`, or a non-object root — reject the whole canvas with an error status.
-
-### The `openclip` bridge inside a canvas
-
-Read-only context: `openclip.input.text`, `openclip.input.matchedText` (both the selection),
-`openclip.options` / `openclip.option(id)` (resolved option values). Leaf effects
-(`paste`/`copy`/`cut`/`keyPress`/`runShortcut`/`openURL`/`showServices`/`notify`) are collected on
-each evaluation and run **without dismissing** — a canvas never hides the popup on its own.
-`keepVisible()` is a **no-op** inside a canvas (effects never dismiss). `showStatus(message, style)`
-surfaces on the **bar banner after collapse**, never inside the canvas. `showContent(tree, { size })`
-declares the canvas size **once** — `{ size: { width, height } }` clamped to the 220–360 width
-column and `PopupMetrics.popupMaxHeight` tall — and replaces the mounted tree for the next re-render.
-
-With `"async": true`, handlers may call `openclip.fetch(url, options)` — the same contract
-as JS actions: `options` = `{ method, headers, body }` (default GET); the response is
-`{ status, ok, text() → Promise<string>, json() → Promise<any> }`; network errors reject the
-handler's promise (surfaced as an error status), and a request that never settles is killed
-by the 30 s watchdog (in-flight tasks are cancelled). `ui()` stays synchronous — use fetch in
-handlers, never in `ui`/at mount; mount-time async rendering is not supported.
-
-### State model
-
-- A `textField` commits on **submit (Enter) or blur**, never per keystroke; the committed value
-  fires the field's `onChange` handler as a `change` event (Enter fires `onSubmit` as a `submit`
-  event first).
-- A `toggle` commits the **already-flipped** value — the renderer flips it before the handler runs,
-  so `handlers` read post-flip state.
-
-### Example: interactive counter + textField form
-
-```js
-const initialState = { count: 0, name: '' };
-
-const handlers = {
-  increment(state)            { return { ...state, count: state.count + 1 }; },
-  updateName(state, event)    { return { ...state, name: event.value }; },
-  greet(state, event, input)  { openclip.notify('Hi ' + state.name, input); return state; }
-};
-
-function ui(state, input) {
-  return h('stack', { spacing: 8 }, [
-    h('text', { content: 'Count: ' + state.count, style: 'title' }),
-    h('button', { title: '+1', handler: 'increment' }),
-    h('textField', { id: 'name', value: state.name, placeholder: 'Your name',
-                     onChange: 'updateName' }),
-    h('button', { title: 'Greet', handler: 'greet', style: 'accent' }),
-  ]);
-}
-```
-
-### Behavior contract
-
-- **Esc collapses** the canvas to the bar (SwiftUI `.onKeyPress` on the canvas root/fields) —
-  click-outside and app deactivation **hide** the popup.
-- A mount/parse/watchdog **failure rejects the canvas**: the session is dropped, the panel
-  collapses to the bar, and the error surfaces as a status on the bar banner.
 
 ---
 
@@ -630,7 +510,6 @@ function ui(state, input) {
 | `.showServices(String)` | macOS share picker on the text |
 | `.shareService(identifier:, text:)` | invoke a specific macOS sharing service by identifier (e.g. Notes inline popup) |
 | `.notify(title:, body:)` | post a notification (best-effort; needs authorization) |
-| `.showContent(CanvasComponent, CanvasHeader?)` | render an interactive canvas tree; **keeps popup open** |
 | `.showStatus(StatusFeedback)` | transient status; **keeps popup open** |
 | `.openConfiguration(ConfigurationRequest)` | hide popup, open the action's config sheet |
 | `.keepVisible(ActionResult)` | perform inner result but never dismiss |
@@ -639,9 +518,8 @@ function ui(state, input) {
 | `.runShortcut(name:, input:)` | run a Shortcuts shortcut with input |
 | `.none` | no effect |
 
-Dismissal: `.showContent`/`.showStatus`/`.keepVisible` keep the popup open; `.sequence` dismisses
-only when non-empty and all items dismiss; everything else (including `.openConfiguration`)
-dismisses.
+Dismissal: `.showStatus`/`.keepVisible` keep the popup open; `.sequence` dismisses only when
+non-empty and all items dismiss; everything else (including `.openConfiguration`) dismisses.
 
 ### 8a. Shell/script JSON protocol (`ShellResultMapper`)
 
@@ -661,8 +539,7 @@ except `shareService`'s `identifier`, which is required):
 Unknown `type` → `.success`. If stdout is **not** valid JSON, the plain text is **pasted**; empty
 stdout → `.success`. A non-zero exit (or hitting the 30 s watchdog) becomes an error status. These
 are the *only* script JSON `type` values the runtime accepts. **`"showContent"` is not one of
-them** — a shell script cannot render a canvas, so a `"showContent"` type falls into the unknown
-branch and maps to `.success` (canvas rendering is JS-only, §7a).
+them** — a `"showContent"` type falls into the unknown branch and maps to `.success`.
 
 **`"shareService"` requires a non-empty `identifier`** — a missing/empty one maps to an **error**
 (failure status), never to `.success`. Its `value` is optional: the shared text falls back to
@@ -736,8 +613,8 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 ## 10. Develop / iterate / test workflow
 
 1. **Scaffold or author** the folder. To start from a known-valid template, run
-   `./scripts/new_extension.sh <Name> [--type canvas|js|group|url]` — it writes a reverse-DNS
-   `openclip.json` (+ `main.js` for canvas/js) into `Extensions/raw/<Name>.openclipext/` and runs
+   `./scripts/new_extension.sh <Name> [--type js|group|url]` — it writes a reverse-DNS
+   `openclip.json` (+ `main.js` for js) into `Extensions/raw/<Name>.openclipext/` and runs
    the validator before reporting success. To author by hand:
    `mkdir ~/my-ext.openclipext && nano ~/my-ext.openclipext/openclip.json`
    (plus any `script.sh`/`main.js`/scripts it references, and optional local icon files).
@@ -819,11 +696,7 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 - Effect execution: `Sources/OpenClip/Platform/Effects/ActionResultHandler.swift`.
 - Result model: `Sources/Core/Actions/ActionResult.swift` (+ `ActionResultAdapter.swift`,
   `StatusFeedback.swift`, `ConfigurationRequest.swift`).
-- Canvas component model + limits: `Sources/Core/Canvas/` (`CanvasComponent.swift`,
-  `CanvasElementParser.swift`, `CanvasLimits.swift`, `CanvasScripting.swift`).
-- Canvas engine + JS bridge + manifest kind: `Sources/OpenClip/Platform/Runtimes/JavaScriptCanvasEngine.swift`,
-  `Sources/OpenClip/Platform/Runtimes/CanvasScriptBox.swift`, `Sources/OpenClip/Platform/Runtimes/JavaScriptCanvasAction.swift`.
-- Canvas renderer/session: `Sources/OpenClip/UI/Popup/CanvasSession*.swift`.
+- AI result card (native SwiftUI): `Sources/OpenClip/UI/Popup/AIResultCardView.swift`.
 - Visibility/required options: `Sources/Core/Actions/ActionVisibility.swift`, `ExtensionActionRules.swift`.
 - Options storage: `Sources/Core/Settings/ActionOptionStore.swift`, `SettingKey.swift`,
   `Sources/OpenClip/Platform/Extensions/KeychainActionOptionStore.swift`.

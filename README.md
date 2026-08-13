@@ -57,7 +57,7 @@ popup theme — before text-selection monitoring starts.
 
 - Click an action to run it (copy, search, transform, run your extension…).
 - Click a group or the AI bar to open a scoped palette of its sub-actions.
-- Hover any row to preview its result inline; long-press for more.
+- Run an AI action to see its output in a native result card (Replace/Copy buttons; back chevron or Esc to exit).
 
 **2. Use the hotkeys:**
 
@@ -104,7 +104,7 @@ A minimal extension is a folder with one `openclip.json`:
 ```
 
 Actions can also expose options (strings, booleans, dropdowns, Keychain-backed secrets), gate
-visibility with app/regex rules, and render rich results — status, content canvases, notifications,
+visibility with app/regex rules, and render rich results — status, notifications,
 or chained effects — from JSON emitted by a shell script.
 
 - **Action kinds** — `url`, `javascript` (JavaScriptCore with an `openclip.*` bridge + async/`fetch`), `applescript`, `shell`, `textsnippet`, `keypress`, `shortcut`, `service`, and `group` sub-menus.

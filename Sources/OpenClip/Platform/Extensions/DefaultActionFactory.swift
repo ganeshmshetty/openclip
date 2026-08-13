@@ -147,16 +147,15 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
     }
 
     /// Wraps a created action in `MenuDecoratedAction` when its manifest metadata declares
-    /// `menuRelevance` / `menuPreview`, stamping the action with sub-menu relevance and a one-line
-    /// preview without changing its identity. Non-declaring actions pass through unchanged.
+    /// `menuRelevance`, stamping the action with sub-menu relevance without changing its
+    /// identity. Non-declaring actions pass through unchanged.
     private func decorate(_ action: any Action, metadata: ExtensionActionMetadata) -> any Action {
-        guard metadata.menuRelevance != nil || metadata.menuPreview != nil else {
+        guard metadata.menuRelevance != nil else {
             return action
         }
         return MenuDecoratedAction(
             base: action,
-            menuRelevanceRegex: metadata.menuRelevance,
-            menuPreviewTemplate: metadata.menuPreview
+            menuRelevanceRegex: metadata.menuRelevance
         )
     }
 
@@ -268,18 +267,6 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         if let scriptCode = metadata.scriptCode, !scriptCode.isEmpty {
             let typeStr = (metadata.type ?? "").lowercased()
             switch typeStr {
-            case "canvas":
-                return JavaScriptCanvasAction(
-                    id: actionId,
-                    title: title,
-                    icon: icon,
-                    scriptCode: scriptCode,
-                    options: options,
-                    chrome: extensionChrome,
-                    optionStore: optionStore,
-                    rules: rules,
-                    isAsync: metadata.isAsync ?? false
-                )
             case "js", "javascript":
                 return JavaScriptAction(
                     id: actionId,
@@ -335,19 +322,6 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else {
                 Log.factory.error("Failed to read JS script file at \(scriptURL.path, privacy: .public)")
                 return nil
-            }
-            if metadata.type?.lowercased() == "canvas" {
-                return JavaScriptCanvasAction(
-                    id: actionId,
-                    title: title,
-                    icon: icon,
-                    scriptCode: code,
-                    options: options,
-                    chrome: extensionChrome,
-                    optionStore: optionStore,
-                    rules: rules,
-                    isAsync: metadata.isAsync ?? false
-                )
             }
             return JavaScriptAction(
                 id: actionId,

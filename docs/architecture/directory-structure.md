@@ -28,18 +28,8 @@ Sources/
 │   │   ├── ExtensionOption.swift             # Extension option models
 │   │   ├── ModifierFlags.swift               # Keyboard modifier flags
 │   │   ├── MathEvaluator.swift               # Deterministic exception-free arithmetic parser (replaces NSExpression; used by CalculateAction)
-│   │   ├── ResultContentProviding.swift       # Opt-in PreviewProviding / ResultContentProviding protocols for the content canvas
 │   │   ├── URLTemplateAction.swift           # Web search / URL template action
 │   │   └── WordCompletionProviding.swift     # Completion provider protocol
-│   ├── Canvas/                               # Interactive canvas component model (pure, spec §4–§6)
-│   │   ├── CanvasComponent.swift             # Typed component tree + props + CanvasEvent/CanvasEffect/CanvasHandler
-│   │   ├── CanvasSessionState.swift          # App-owned session state bag (JSONValue values)
-│   │   ├── CanvasLimits.swift                # Canvas tree limits + CanvasTreeValidator (structural rejection)
-│   │   ├── CanvasScripting.swift             # Engine-agnostic mount/dispatch seam (CanvasMountRequest/Result, CanvasDispatchRequest/Result)
-│   │   ├── CanvasElementSpec.swift           # Neutral Codable element-object form of a canvas node (h() output)
-│   │   ├── CanvasElementParser.swift         # CanvasElementSpec → CanvasComponent (lenient per-node, strict structurally)
-│   │   ├── CanvasFocus.swift                 # Focus-priority ordering over interactive nodes (firstInteractiveID)
-│   │   └── CanvasDSL.swift                   # Canvas.build result-builder + Canvas.* constructors (native trees)
 │   ├── Extensions/
 │   │   ├── ActionFactory.swift               # Action factory protocol
 │   │   ├── ExtensionManager.swift            # Extension loader; reports changes via onRegister/onUnregister callbacks
@@ -77,10 +67,7 @@ Sources/
     │       └── CloudAPIProviderDTOs.swift    # Codable chat request/response payloads for the cloud APIs
     ├── Actions/                              # Runtime actions requiring AppKit/JavaScript
     │   ├── AppleScriptAction.swift
-    │   ├── CanvasScriptBox.swift              # Canvas JSContext glue: h() helper, element bridging, openclip canvas bridge
     │   ├── JavaScriptAction.swift            # Manifests JS actions; short-circuits to .openConfiguration when a required option is unresolved, else delegates to OpenClipJSHost (options via injected ActionOptionReading)
-    │   ├── JavaScriptCanvasAction.swift      # type: "canvas" runtime → .showCanvas mount request (never runs the script itself)
-    │   ├── JavaScriptCanvasEngine.swift      # In-process JavaScriptCore CanvasScripting engine (session VM, mount/dispatch eval)
     │   ├── KeyPressAction.swift              # type: "keyPress" runtime → .keyPress(KeyPressSpec)
     │   ├── NamedServiceAction.swift          # type: "service" runtime → .showServices(text)
     │   ├── OpenClipJSHost.swift              # JS bridge (openclip.*) + effect resolver + .openConfiguration short-circuit support
@@ -127,26 +114,20 @@ Sources/
         │   ├── OnboardingWindowController.swift  # Transparent borderless window hosting the solid rounded card
         │   └── RecommendedExtensionsView.swift   # Top store extensions by downloadCount + Install File
         ├── Popup/                            # Floating popup panel
-        │   ├── PopupModeStore.swift            # Shared observable actions↔search↔content mode + content/preview/statusBanner payloads; preview passes a throwaway store
-        │   ├── PopupMetrics.swift                # UI-only popup/search/canvas sizing + placement/dismissal/hover/long-press constants (App target, not Core)
+        │   ├── PopupModeStore.swift            # Shared observable actions↔search↔content mode + aiResult/statusBanner payloads
+        │   ├── PopupMetrics.swift                # UI-only popup/search/AI-card sizing + placement/dismissal constants (App target, not Core)
         │   ├── PopupPanel.swift                # NSPanel subclass (scoped allowsKey + bottom-edge pin on content-driven resize)
-        │   ├── PopupGesturePolicy.swift        # Derived popup interaction policy (click/long-press/hover) from chrome + conformance (App target — UI-only)
+        │   ├── PopupGesturePolicy.swift        # Derived popup interaction policy from chrome + conformance (App target — UI-only)
         │   ├── PopupPositioner.swift           # Frame math & screen clamping (pure static, no singletons)
         │   ├── PopupPreview.swift              # Static popup bar preview (fixed canonical actions; Preferences Appearance tab + onboarding Finish)
-        │   ├── PopupPreviewStrip.swift         # Compact inline hover-preview strip stacked with the bar
         │   ├── PopupSearchView.swift           # Action-search palette: field + ranked results as one surface with the bar
         │   ├── PopupThemeModel.swift           # Theme resolution: category (classic/glass) + shared appearance → tokens/colorScheme
         │   ├── PopupThemeSelector.swift        # Theme control: two rows (Classic|Glass, then System/Light/Dark); storage popupTheme + popupThemeColor
-        │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode / content-canvas branch + ⌘ affordance)
-        │   ├── PopupWindowController.swift   # Window lifecycle + mode state machine (bar/search/content) + hover/long-press timers
-        │   ├── CanvasComponentView.swift       # Renders one CanvasComponent node (stack/text/button/field/toggle/…)
-        │   ├── CanvasHeaderView.swift          # Chrome header (title/icon + back chevron) for the content-canvas surface
-        │   ├── CanvasSession.swift             # Observable unit: one tree + app-owned state + chrome header + optional scripting engine
-        │   ├── CanvasSessionController.swift   # Single active session owner: serialized mount/dispatch chain + focus restore; effects/status/armed doors
-        │   ├── CanvasSessionView.swift         # Content-canvas surface: chrome header + scrollable body + Esc collapse (.onKeyPress)
+        │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode / content AI-card branch + ⌘ affordance)
+        │   ├── PopupWindowController.swift   # Window lifecycle + mode state machine (bar/search/content) + event monitoring
+        │   ├── AIResultCardView.swift          # Native AI result card (back chevron + sparkles + title header, scrollable body, Copy/Paste footer) for .content mode
         │   ├── PopupHoverSupport.swift         # Shared popup hover-state singleton + hover-target/frame preference keys (bar)
-        │   ├── SearchHoverSupport.swift        # Search-palette hover-target/frame preference keys
-        │   └── CanvasHoverSupport.swift        # Content-canvas hover-target/frame preference keys
+        │   └── SearchHoverSupport.swift        # Search-palette hover-target/frame preference keys
         └── Preferences/                      # Settings & preferences views
             ├── ActionAppearanceFields.swift
             ├── AddCustomActionSheet.swift

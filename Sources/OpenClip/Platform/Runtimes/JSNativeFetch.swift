@@ -1,12 +1,11 @@
 // JSNativeFetch.swift
 // OpenClip
 //
-// Shared URLSession-backed fetch bridge for both JavaScript runtimes. Installs
+// Shared URLSession-backed fetch bridge for the JavaScript runtime. Installs
 // `openclip.__nativeFetch` (a URLSession dataTask) and the `openclip.fetch`
 // polyfill into any JSContext that already exposes a global `openclip` object.
-// OpenClipJSHost (async JS actions) and JavaScriptCanvasEngine (async canvas
-// dispatches) both call installNativeFetch after installing their own bridge;
-// tests route through an injected URLSession with MockURLProtocol.
+// OpenClipJSHost (async JS actions) calls installNativeFetch after installing its
+// own bridge; tests route through an injected URLSession with MockURLProtocol.
 import Foundation
 import JavaScriptCore
 import Darwin

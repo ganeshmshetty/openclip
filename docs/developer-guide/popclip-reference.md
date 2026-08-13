@@ -335,7 +335,7 @@ Extensions…" `⌘E`) lists installed extension packages with origin, version, 
    `popclip.showText` (compact or large "type" display), badges/status, and `show-result` preview
    text. There is no embedded pane/webview/ext-enrichment that survives the clip pop — the extension
    runs when triggered and its "interface" is a button + optional script result. ([js-env], [js-actions])
-2. **No always-on app-space background / widget.** Extensions have no independent UI canvas or
+2. **No always-on app-space background / widget.** Extensions have no independent UI surface or
    system‑wide events beyond what PopClip's popup host provides.
 3. **Per-extension full keyboard-controllable hotkey** (a hand-wired "click this button" is the only
    Trigger). There is no documented `hotkey`/shortcut field in the action schema (the app-level ⌥⌘…

@@ -14,14 +14,6 @@ final class ActionResultHandlerTests: XCTestCase {
         XCTAssertEqual(pasteboardText, "Test Copy")
     }
 
-    /// Presentation/flow results are presenter-owned (PopupWindowController); the handler must treat
-    /// them as no-ops without crashing.
-    func testHandlerIgnoresShowContent() async throws {
-        let handler = DefaultActionResultHandler()
-        let tree = CanvasComponent.text(CanvasTextProps(content: "hi"))
-        try await handler.handle(.showContent(tree, nil), in: nil)
-    }
-
     /// The `shortcut` effect routes through the shortcuts CLI under a watchdog. Only exercised when
     /// the binary is present; there is no deterministic short-lived Shortcut to invoke here, so the
     /// assertion is that a non-existent name surfaces as a thrown error (→ status) and that the

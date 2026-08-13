@@ -52,14 +52,10 @@ extension View {
         }
     }
 
-    /// Uses the OS `.help()` tooltip unless the action has a hover preview, in which case the
-    /// preview strip replaces it (avoids double tooltips on PreviewProviding actions).
+    /// Applies the action's title as the OS tooltip. (The hover preview strip is gone with the
+    /// canvas feature, so there is nothing to suppress tooltips for anymore.)
     @MainActor
     func applyContentTooltip(for action: any Action, fallback: String) -> some View {
-        let usesPreviewStrip = action.gesturePolicy.hoverPreview
-        if usesPreviewStrip {
-            return AnyView(self.help(""))
-        }
-        return AnyView(self.help(fallback))
+        self.help(fallback)
     }
 }

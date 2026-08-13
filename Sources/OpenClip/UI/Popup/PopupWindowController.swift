@@ -2,13 +2,12 @@
 // OpenClip
 //
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
-// Owns the popup mode state machine (actions bar ↔ action-search palette ↔ content canvas): search
+// Owns the popup mode state machine (actions bar ↔ action-search palette ↔ native AI result card): search
 // mode makes the panel key (a scoped exception to the never-key rule) and restores focus to the
-// previous app on exit; content mode renders action/AI results inline on the panel and — since
+// previous app on exit; content mode renders the AI result card inline on the panel and — since
 // Task 14 — is also key, reusing the same enterKeyMode()/exitKeyMode() primitives as search, with
-// Esc and all other keys owned by the SwiftUI canvas (the controller-level key monitor stays
-// observation-only in content mode). Also owns the hover-debounce
-// and long-press timers that feed the preview strip / result canvas per Action.gesturePolicy.
+// Esc owned by the SwiftUI card (the controller-level key monitor stays observation-only in
+// content mode).
 // Implements the decision-8 ActionResult tree-walk (handleActionResult): presentation results render
 // here, leaf effects route to DefaultActionResultHandler, and dismissal is decided once via
 // ActionResult.dismissesPopup.
@@ -24,31 +23,23 @@ public class PopupWindowController {
     private var currentContext: SelectionContext?
     private var currentActionContext: ActionContext?
     private var cardAbove = false
-    /// Popup display mode (actions bar ↔ search palette), observed by PopupView.
+    /// Popup display mode (actions bar ↔ search palette ↔ AI result card), observed by PopupView.
     public let modeStore = PopupModeStore()
     /// Records action usage for search recency ranking.
     private let usageStore = ActionUsageStore()
-    /// Frontmost app before the panel became key (search or, later, canvas); captured once per
-    /// session in show(for:), reactivated on exitKeyMode/hide, cleared only by hide(). Internal
-    /// for tests.
+    /// Frontmost app before the panel became key (search or content); captured once per session in
+    /// show(for:), reactivated on exitKeyMode/hide, cleared only by hide(). Internal for tests.
     var previousFrontmostApp: NSRunningApplication?
 
-    private var hoverDebounceTask: Task<Void, Never>?
-    private var longPressTask: Task<Void, Never>?
     private var hoveredAction: (any Action)?
-    private var longPressFired = false
     /// Auto-dismiss timer for the non-blocking status info bubble.
     private var statusDismissTask: Task<Void, Never>?
     /// How long the non-blocking status info bubble stays up before auto-dismissing.
     private let statusBubbleDurationNanoseconds: UInt64 = 1_500_000_000
-    /// A status queued while a content canvas is open (.content mode). Flushed onto the bar banner
-    /// when the canvas collapses (exitContent) — a canvas open never shows a banner, and hide()
+    /// A status queued while the AI result card is open (.content mode). Flushed onto the bar
+    /// banner when the card collapses (exitContent) — a card open never shows a banner, and hide()
     /// clears the queue so a dismissal never surfaces a stale banner.
     private var pendingStatus: StatusFeedback?
-    /// Owns the single active content-canvas session; its collected effects and errors are wired in
-    /// show(for:) into the single canvas effect/error doors. Internal (not private) so the renderer/
-    /// key-behavior tests can reach the session (state/tree/focus) — production uses the default.
-    var canvasSessionController = CanvasSessionController()
 
     private var isMenuTracking = false
 
@@ -66,8 +57,20 @@ public class PopupWindowController {
         self.resultHandler = resultHandler
         self.pasteProbe = pasteProbe
     }
-    
-    public func show(for context: SelectionContext) {
+
+    /// Kicks off the paste-availability probe for the given target app (rules first, then the AX
+    /// menu walk on its own queue). Trigger sites run this in parallel with selection retrieval,
+    /// then hand the awaited result to `show(for:pasteAvailable:)` so the bar/search render Paste/
+    /// Cut correctly on the first frame. Nothing is cached: paste availability tracks the target
+    /// app's *focus context* (editable field vs read-only view), which can differ between shows in
+    /// the same app — unless a per-app rule (assume/deny paste) answers definitively.
+    public func preparePasteProbe(for app: NSRunningApplication?, policy: AppPolicyContext) -> Task<Bool?, Never> {
+        Task { @MainActor in
+            await pasteProbe.canPaste(in: app, policy: policy)
+        }
+    }
+
+    public func show(for context: SelectionContext, pasteAvailable: Bool? = nil) {
         isMenuTracking = false
         currentContext = context
 
@@ -97,23 +100,9 @@ public class PopupWindowController {
 
         modeStore.mode = .actions
         modeStore.searchResultsAbove = cardAbove
-
-        // Wire the canvas door once per session. Dispatch-collected effects AND view-driven effects
-        // (onCanvasEffect) both route into the single keep-open handleCanvasEffects path.
-        canvasSessionController.onEffects = { [weak self] effects in
-            self?.handleCanvasEffects(effects)
-        }
-        canvasSessionController.onSessionError = { [weak self] error in
-            self?.failCanvas(error)
-        }
-        canvasSessionController.onStatus = { [weak self] feedback in
-            self?.presentStatus(feedback)
-        }
-        // Mount success arms content mode + keys the panel exactly like armCanvas (audit gap fix):
-        // without this the `.showCanvas` path would mount a session the panel never shows.
-        canvasSessionController.onSessionArmed = { [weak self] session in
-            self?.armMountedSession(session)
-        }
+        // Probed before selection retrieval by the trigger sites and resolved before this frame,
+        // so the bar/search gate Paste/Cut correctly on the first render. `nil` keeps them visible.
+        modeStore.canPaste = pasteAvailable
 
         let rootView = PopupView(
             actions: availableActions,
@@ -123,13 +112,8 @@ public class PopupWindowController {
             onEnterSearch: { [weak self] in self?.enterSearch() },
             onExitSearch: { [weak self] in self?.exitSearch() },
             onExitContent: { [weak self] in self?.exitContent() },
-            // Canvas effects — dispatch-collected AND view-driven — are explicit user requests routed
-            // through handleCanvasEffects; they bypass the paste-vs-copy delivery re-decision.
-            onCanvasEvent: { [weak self] event in
-                self?.canvasSessionController.dispatch(event)
-            },
-            onCanvasEffect: { [weak self] effect in
-                self?.handleCanvasEffects([effect])   // same door as dispatch-collected effects (§1, §6)
+            onCardEffect: { [weak self] result in
+                self?.performCardEffect(result)
             },
             onResult: { [weak self] result in
                 self?.deliverResult(result)
@@ -138,8 +122,8 @@ public class PopupWindowController {
                 self?.resizePanel(to: size)
             },
             onAIStateChange: { _, _ in },
-            onAIResult: { [weak self] text, isError in
-                self?.showAIContent(text: text, isError: isError)
+            onAIResult: { [weak self] text, isError, title in
+                self?.showAIContent(text: text, isError: isError, title: title)
             },
             onHoveredActionChanged: { [weak self] action in
                 self?.updateHoveredAction(action)
@@ -165,8 +149,8 @@ public class PopupWindowController {
         // Placement is fixed; any subsequent content-driven width change (search palette,
         // pagination) must re-center rather than drift off the cursor.
         panel.recenterXOnResize = true
-        // The hover preview strip renders above the bar when the popup sits low on screen, so its
-        // growth must pin the bottom edge too — same anchor rule as search/content mode.
+        // Content-driven growth keeps the panel's bottom edge fixed when the popup sits low on
+        // screen — same anchor rule as search/content mode.
         panel.pinBottomEdgeOnResize = cardAbove
         panel.orderFront(nil)
         
@@ -189,7 +173,7 @@ public class PopupWindowController {
     }
 
     /// Records the app that was frontmost before the panel made itself key (search, or later the
-    /// interactive canvas). Captures only when no session value exists yet — mid-session re-entry must
+    /// AI result card). Captures only when no session value exists yet — mid-session re-entry must
     /// keep the original source app — and only when that app is not OpenClip itself. Used by show(for:)
     /// (session start) and enterKeyMode() (direct key entry); hide() is the only thing that clears it.
     private func captureFrontmostAppIfNeeded() {
@@ -286,209 +270,54 @@ public class PopupWindowController {
         exitKeyMode() // reactivates previousFrontmostApp but keeps it for the session
     }
 
-    // MARK: - Content Canvas
+    // MARK: - AI Result Card
 
-    /// Arms a native (non-scripting) canvas session and enters content mode, making the panel key
-    /// exactly like search (rule 10 exception) so the canvas can receive typing; Esc and non-Esc
-    /// keys are owned by SwiftUI (.onKeyPress/.focusable), never the controller monitor.
-    private func armCanvas(tree: CanvasComponent, header: CanvasHeader, preferredSize: CanvasSize? = nil) {
-        do {
-            try CanvasTreeValidator.validate(tree)
-        } catch {
-            failCanvas(error)
-            return
-        }
-        let session = CanvasSession(
-            header: header,
-            input: currentActionContext?.selection.text ?? "",
-            preferredSize: preferredSize,
-            scripting: nil,               // native/static in v1; Task 17 routes .showCanvas through mount
-            isAsync: false,
-            tree: tree
-        )
-        canvasSessionController.replace(with: session)
+    /// Shows the AI provider's response (or error) in the native result card, entering content
+    /// mode and making the panel key so Esc can collapse the card. Paste/Copy are explicit
+    /// user requests routed through `performCardEffect`, so they bypass the paste-vs-copy
+    /// re-decision — an explicit Paste always pastes. Probes (AX) whether the target app can paste
+    /// so the card can hide its Paste button; the probe targets the captured source app, never
+    /// OpenClip itself. Internal for tests.
+    func showAIContent(text: String, isError: Bool, title: String) {
+        modeStore.aiResult = AIResultPayload(text: text, isError: isError, title: title)
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         panel?.recenterXOnResize = true
-        modeStore.content = session
         modeStore.mode = .content
         enterKeyMode()
-        // Focus the first interactive element (or the canvas root) on the next run-loop turn — a
-        // @FocusState request issued during the mode-change render can be silently dropped on macOS.
-        Task { @MainActor in
-            await Task.yield()
-            canvasSessionController.requestFocus(session.tree.firstInteractiveID())
-        }
     }
 
-    /// Arms a mounted scripting session: enters content mode and keys the panel exactly like
-    /// armCanvas, minus session construction — the session already exists (built by the engine's
-    /// mount) and lives on CanvasSessionController. Called from `show(for:)` via the
-    /// onSessionArmed callback; this is the `.showCanvas` path's only transition into content mode.
-    private func armMountedSession(_ session: CanvasSession) {
-        do {
-            try CanvasTreeValidator.validate(session.tree)
-        } catch {
-            // exitContent() (via failCanvas) is a no-op while content mode is unset, so the mounted
-            // session would otherwise leak — clear it before collapsing via failCanvas.
-            canvasSessionController.clear()
-            failCanvas(error)
-            return
-        }
-        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
-        panel?.recenterXOnResize = true
-        modeStore.content = session
-        modeStore.mode = .content
-        enterKeyMode()
-        Task { @MainActor in
-            await Task.yield()
-            canvasSessionController.requestFocus(session.tree.firstInteractiveID())
-        }
-    }
-
-    /// The running action's chrome title/icon for a canvas whose producer left the header nil.
-    private func currentHeaderFromAction() -> CanvasHeader {
-        if let hoveredAction {
-            let title = hoveredAction.displayTitle(using: ActionCustomizationManager.shared)
-            let icon = hoveredAction.icon.symbolName ?? Constants.defaultAIIconSymbol
-            return CanvasHeader(title: title.isEmpty ? "AI Tools" : title, icon: icon)
-        }
-        return CanvasHeader(title: "AI Tools", icon: Constants.defaultAIIconSymbol)
-    }
-
-    /// Arms a scripting session through the JS canvas engine. Mount success enters content mode and
-    /// keys the panel via the onSessionArmed → armMountedSession callback wired in show(for:); a
-    /// mount error surfaces through onSessionError → failCanvas (collapses + shows the error banner).
-    private func mountCanvas(request: CanvasMountRequest, header: CanvasHeader) {
-        canvasSessionController.mount(request, scripting: JavaScriptCanvasEngine(), header: header)
-    }
-
-    /// Test access to the private arm path: mirrors exactly what enterContent/showAIContent do, so
-    /// tests can arm an arbitrary native or scripted tree without going through the legacy bridge.
-    /// `preferredSize` forwards the §7.1 fixed session size (nil → fitting-size column). Internal
-    /// because armCanvas is private; not production API.
-    func armCanvasForTesting(
-        tree: CanvasComponent,
-        header: CanvasHeader,
-        preferredSize: CanvasSize? = nil,
-        scripting: (any CanvasScripting)? = nil,
-        state: CanvasSessionState = CanvasSessionState()
-    ) {
-        do {
-            try CanvasTreeValidator.validate(tree)
-        } catch {
-            failCanvas(error)
-            return
-        }
-        let session = CanvasSession(
-            header: header,
-            input: currentActionContext?.selection.text ?? "",
-            preferredSize: preferredSize,
-            scripting: scripting,
-            isAsync: false,
-            tree: tree,
-            state: state
-        )
-        canvasSessionController.replace(with: session)
-        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
-        panel?.recenterXOnResize = true
-        modeStore.content = session
-        modeStore.mode = .content
-        enterKeyMode()
-        Task { @MainActor in
-            await Task.yield()
-            canvasSessionController.requestFocus(session.tree.firstInteractiveID())
-        }
-    }
-
-    /// Collapses the content canvas back to the actions bar. Never hides the popup. Clears the
-    /// session and flushes any status queued while the canvas was open onto the bar banner.
+    /// Collapses the AI result card back to the actions bar. Never hides the popup. Flushes any
+    /// status queued while the card was open onto the bar banner.
     public func exitContent() {
         guard modeStore.mode == .content else { return }
-        canvasSessionController.clear()
-        modeStore.content = nil
+        modeStore.aiResult = nil
         modeStore.mode = .actions
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         exitKeyMode()
         flushPendingStatus()
     }
 
-    /// Renders the AI response (or error) as a canvas with Replace/Copy delivery options.
-    private func showAIContent(text: String, isError: Bool) {
-        let tree = Canvas.build {
-            Canvas.text(text)
-            if !isError {
-                Canvas.hstack(spacing: 6) {
-                    Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(text)))
-                    Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(text)))
-                }
-            }
-        }
-        armCanvas(tree: tree, header: currentHeaderFromAction())
-    }
+    // MARK: - Hovered Action
 
-    // MARK: - Hover Preview
-
+    /// Tracks the hovered bar row so the right-click path can run it directly. Re-entry with the
+    /// same action id is a no-op.
     private func updateHoveredAction(_ action: (any Action)?) {
-        // Re-entry with the same action id must not cancel a pending hover preview for it.
         guard action?.id != hoveredAction?.id else { return }
-        hoverDebounceTask?.cancel()
         hoveredAction = action
+    }
 
-        guard let action, let actionContext = currentActionContext, modeStore.mode == .actions else {
-            modeStore.preview = nil
-            return
-        }
-
-        guard action.gesturePolicy.hoverPreview else {
-            modeStore.preview = nil
-            return
-        }
-
-        hoverDebounceTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: PopupMetrics.hoverPreviewDelayNanoseconds)
-            guard !Task.isCancelled,
-                  self.hoveredAction?.id == action.id,
-                  self.modeStore.mode == .actions else { return }
-
-            let line = await (action as? any PreviewProviding)?.previewLine(for: actionContext)
-
-            // A single non-keyed text node per the confirmed hover-preview decision — hovering a bar
-            // row never steals focus, so the strip is a snapshot, never a session. The plain text
-            // node carries no icon (the old .info card's icon is gone with PopupContentView).
-            self.modeStore.preview = .text(CanvasTextProps(content: line ?? action.displayTitle(using: ActionCustomizationManager.shared), style: .caption))
+    /// Runs an explicit card button (Paste/Copy) — an explicit user request, so it carries no
+    /// delivery context and bypasses the paste-vs-copy re-decision. Dismissing results hide the
+    /// popup first (so exitKeyMode() reactivates the target app) before handling.
+    private func performCardEffect(_ result: ActionResult) {
+        if result.dismissesPopup {
+            hide()
+            handleActionResult(result, delivery: nil)
+        } else {
+            _ = handleEffect(result, delivery: nil)
         }
     }
 
-    // MARK: - Long-Press Canvas
-
-    private func beginLongPressIfNeeded(at clickLocation: CGPoint) {
-        longPressTask?.cancel()
-        longPressFired = false
-
-        guard modeStore.mode == .actions else { return }
-        guard let hoveredAction, hoveredAction.gesturePolicy.longPress != nil,
-              let actionContext = currentActionContext,
-              let panel, panel.frame.contains(clickLocation) else { return }
-
-        let targetAction = hoveredAction
-        longPressTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: PopupMetrics.longPressDelayNanoseconds)
-            guard !Task.isCancelled, self.hoveredAction?.id == targetAction.id else { return }
-            guard let tree = await (targetAction as? any ResultContentProviding)?.makeContent(for: actionContext) else {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            longPressFired = true
-            self.armCanvas(
-                tree: tree,
-                header: CanvasHeader(
-                    title: targetAction.displayTitle(using: ActionCustomizationManager.shared),
-                    icon: targetAction.icon.symbolName
-                )
-            )
-        }
-    }
-    
     // MARK: - Panel Resize
 
     /// Resize the bar/search panel, keeping the field's edge fixed so entering search mode never
@@ -534,16 +363,11 @@ public class PopupWindowController {
     public func hide() {
         statusDismissTask?.cancel()
         statusDismissTask = nil
-        canvasSessionController.clear()
-        // Never surface a banner after dismissal: a status queued while a canvas was open is dropped.
+        // Never surface a banner after dismissal: a status queued while the AI card was open is dropped.
         pendingStatus = nil
         modeStore.statusBanner = nil
-        modeStore.content = nil
-        modeStore.preview = nil
-        hoverDebounceTask?.cancel()
-        longPressTask?.cancel()
-        longPressTask = nil
-        longPressFired = false
+        modeStore.aiResult = nil
+        modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
         // runs and any later snapshot read the last intent; force-copy must never persist).
         pendingClickIntent = .leftClick
@@ -576,17 +400,6 @@ public class PopupWindowController {
         }
         
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
-            if let self, event.type == .leftMouseUp {
-                // A mouse-up always ends a pending long press: cancel the task so a quick click
-                // doesn't later fire a result bubble, and swallow the trailing mouse-up only when
-                // a long-press bubble was actually shown (so it doesn't also perform the action).
-                self.longPressTask?.cancel()
-                self.longPressTask = nil
-                if self.longPressFired {
-                    self.longPressFired = false
-                    return nil
-                }
-            }
             self?.handleEvent(event)
             return event
         }
@@ -624,7 +437,7 @@ public class PopupWindowController {
             updatePopupHover(at: NSEvent.mouseLocation)
             let cursorLoc = NSEvent.mouseLocation
             // Distance dismissal suspends in search mode (typing elsewhere must not dismiss the
-            // palette) and while a content canvas is open (modal); it is active otherwise.
+            // palette) and while the AI result card is open (modal); it is active otherwise.
             let distanceDismissActive = modeStore.mode != .search && modeStore.mode != .content
             if distanceDismissActive, let panel = panel {
                 let frame = panel.frame
@@ -641,15 +454,12 @@ public class PopupWindowController {
             // SwiftUI Button) delivers as a copy when ⇧ is held.
             let isShift = event.modifierFlags.contains(.shift)
             pendingClickIntent = isShift ? .forceCopy : .leftClick
-            if inBar {
-                beginLongPressIfNeeded(at: clickLoc)
-            }
             if !inBar {
                 hide()
             }
         case .rightMouseDown:
             // Right-click: force copy and run the hovered action directly (the bar's SwiftUI Button
-            // only reacts to left-clicks). A long-press is never triggered by a right-click.
+            // only reacts to left-clicks).
             let clickLoc = NSEvent.mouseLocation
             let inBar = panel?.frame.contains(clickLoc) ?? false
             pendingClickIntent = .forceCopy
@@ -659,21 +469,21 @@ public class PopupWindowController {
                 hide()
             }
         case .scrollWheel:
-            // Search mode scrolls the results list (panel key); a content canvas is modal and
-            // scrolls its own scrollable content, never dismisses.
+            // Search mode scrolls the results list (panel key); the AI result card is modal and
+            // scrolls its own content, never dismisses.
             if modeStore.mode == .search || modeStore.mode == .content { break }
             hide()
         case .keyDown:
             // Actions mode: any keystroke (including Escape) dismisses the popup; the panel is
             // never key here, so keys land in the source app and are merely observed.
             // Search mode: keys go to the search field (panel is key); Escape is handled there.
-            // Content mode: the canvas is key (Task 14) — Esc and every key belong to the focused
-            // SwiftUI component (.onKeyPress(.escape) on the root and each field calls
-            // onExitContent()), so the monitor stays observation-only here. Handling Esc a second
-            // time at the controller would double-fire on top of SwiftUI (M8).
+            // Content mode: the card is key (Task 14) — Esc belongs to the SwiftUI card
+            // (.onKeyPress(.escape) calls onExitContent()), so the monitor stays observation-only
+            // here. Handling Esc a second time at the controller would double-fire on top of
+            // SwiftUI (M8).
             if modeStore.mode == .search { break }
             if modeStore.mode == .content {
-                return   // Esc + all keys belong to the canvas component (SwiftUI .onKeyPress);
+                return   // Esc belongs to the card component (SwiftUI .onKeyPress);
                          // the global monitor stays observation-only — do NOT handle Esc here (M8)
             }
             hide()
@@ -718,7 +528,7 @@ public class PopupWindowController {
 
     /// The inputs to the paste-vs-copy delivery decision, captured synchronously when an action
     /// performs — before `hide()` can clear the live context, and before any async probe await.
-    /// `nil` (canvas effects, which are explicit user requests) means the result is never re-decided.
+    /// `nil` (an explicit user request, e.g. the AI card's Paste/Copy buttons) means the result is never re-decided.
     struct DeliveryContext {
         let policy: AppPolicyContext
         let clickIntent: ActionResultDelivery.ClickIntent
@@ -759,10 +569,6 @@ public class PopupWindowController {
     /// paste-vs-copy inputs; `nil` means the result is an explicit user request never re-decided.
     func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil) {
         switch result {
-        case .showContent(let tree, let header):
-            armCanvas(tree: tree, header: header ?? currentHeaderFromAction())
-        case .showCanvas(let request, let header): // no-op/unused until Task 24 (first producer)
-            mountCanvas(request: request, header: header)
         case .showStatus(let feedback):
             presentStatus(feedback)
         case .openConfiguration(let request):
@@ -782,8 +588,8 @@ public class PopupWindowController {
     ///
     /// Applies the standardized paste-vs-copy delivery decision (`.paste` → `.copy` when the click
     /// was a force-copy, the app policy forbids paste, or the target app can't Paste). Only leaf
-    /// text results routed here are re-decided; canvas effects (explicit user buttons) pass through
-    /// untouched via a nil `delivery`.
+    /// text results routed here are re-decided; explicit user requests (the AI card's Paste/Copy
+    /// buttons) pass through untouched via a nil `delivery`.
     @discardableResult
     private func handleEffect(_ result: ActionResult, delivery: DeliveryContext?) -> Task<Void, Never> {
         guard let effect = result.effectForHandler else { return Task {} }
@@ -803,18 +609,22 @@ public class PopupWindowController {
     /// policy come from the snapshot, never from live state read after an await.
     private func resolveDelivery(_ result: ActionResult, delivery: DeliveryContext?) async -> ActionResult {
         guard case .paste = result, let delivery else { return result }
-        // Short-circuit the AX probe when the outcome is already a copy (force-copy click or a
-        // denyPaste policy): the probe would be wasted work and needs Accessibility.
-        let needsProbe = delivery.clickIntent != .forceCopy && !delivery.policy.denyPaste
-        // Unknown availability (probe nil) falls back to copy — the safe default: never paste
-        // blindly when we cannot confirm the target supports it. The target is the snapshotted app
-        // captured before hide(), never frontmost state read after suspension.
-        let canPaste = needsProbe ? (await pasteProbe.canPaste(in: delivery.application) ?? false) : true
+        // The unified paste decision: per-app rules (assume/deny paste) answer definitively and
+        // skip the AX walk entirely (no Accessibility dependency for those apps); a force-copy click
+        // also skips it (the outcome is a copy regardless). Otherwise probe the target app and treat
+        // unknown availability as cannot-paste — the safe default: never paste blindly when we
+        // cannot confirm the target supports it. The target is the snapshotted app captured before
+        // hide(), never frontmost state read after suspension.
+        let canPaste: Bool
+        if delivery.clickIntent == .forceCopy || !PasteAvailability.needsProbe(policy: delivery.policy) {
+            canPaste = PasteAvailability.effective(policy: delivery.policy, probe: nil) ?? false
+        } else {
+            canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
+        }
         return ActionResultDelivery.resolve(
             raw: result,
             clickIntent: delivery.clickIntent,
-            canPaste: canPaste,
-            policy: delivery.policy
+            canPaste: canPaste
         )
     }
 
@@ -851,34 +661,8 @@ public class PopupWindowController {
         }
     }
 
-    /// Canvas leaf effects: if the effect dismisses the popup (.paste, .cut, .simulatePaste, .keyPress, etc.),
-    /// hide() first so exitKeyMode() reactivates the target app, then handle the result — matching search
-    /// and bar action execution. Non-dismissing effects (.copy, .keepVisible, etc.) execute without dismissal.
-    /// Canvas effects are explicit user requests (e.g. a Replace/Copy button), so they carry no delivery
-    /// context and bypass the paste-vs-copy re-decision — an explicit Replace always pastes.
-    private func handleCanvasEffects(_ effects: [CanvasEffect]) {
-        for effect in effects {
-            let result = effect.asActionResult
-            if effect.dismissesPopup {
-                hide()
-                handleActionResult(result)
-            } else {
-                _ = handleEffect(result, delivery: nil)
-            }
-        }
-    }
-
-    /// Mount/dispatch failure (§11): collapse to the bar and show the error on the bar banner.
-    private func failCanvas(_ error: Error) {
-        Log.extensions.error("canvas session error: \(error.localizedDescription)")
-        exitContent()          // clears the session; flushes pending status (which we then override)
-        statusDismissTask?.cancel()
-        modeStore.statusBanner = StatusFeedback(error: error)
-        startStatusDismissal()
-    }
-
-    /// Surfaces a StatusFeedback: queues it while a content canvas is open (the canvas shows no
-    /// banner; the status is flushed onto the bar when the canvas collapses), otherwise shows an
+    /// Surfaces a StatusFeedback: queues it while the AI result card is open (the card shows no
+    /// banner; the status is flushed onto the bar when the card collapses), otherwise shows an
     /// auto-dismissing (~1.5s) non-blocking banner.
     private func presentStatus(_ feedback: StatusFeedback) {
         // Never surface a status if the popup isn't showing (e.g. a `.failure` result dismissed it
@@ -893,8 +677,8 @@ public class PopupWindowController {
         startStatusDismissal()
     }
 
-    /// Shows a queued (while-canvas-open) status on the bar banner exactly once, then clears the
-    /// queue. Called by exitContent() when the canvas collapses.
+    /// Shows a queued (while-card-open) status on the bar banner exactly once, then clears the
+    /// queue. Called by exitContent() when the card collapses.
     private func flushPendingStatus() {
         guard let pendingStatus else { return }
         self.pendingStatus = nil
