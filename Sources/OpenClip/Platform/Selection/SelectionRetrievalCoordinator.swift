@@ -79,13 +79,21 @@ public struct SelectionRetrievalCoordinator {
             return AXTextControlStrategy.read(from: target)
 
         case .axWebArea:
-            // Web-area text can lag the focus snapshot; poll the same target a bounded number of
-            // times before giving up on a settled read.
-            for _ in 0..<Constants.webAreaSettleMaxRetries {
-                if let result = AXWebAreaStrategy.read(from: target) {
+            // Web-area text can lag the focus snapshot, and the snapshot itself can go stale while
+            // the page settles. Re-inspect fresh on every retry (Global Constraint: resolve fresh
+            // on every call) so the loop actually observes the text appearing instead of re-reading
+            // a frozen target; return on the first settled read.
+            var snapshot: AXElementInspector.Target? = target
+            var attempts = 0
+            while attempts < Constants.webAreaSettleMaxRetries {
+                if let snapshot, let result = AXWebAreaStrategy.read(from: snapshot) {
                     return result
                 }
-                try? await Task.sleep(nanoseconds: UInt64(Constants.webAreaSettleInterval * 1_000_000_000))
+                attempts += 1
+                if attempts < Constants.webAreaSettleMaxRetries {
+                    try? await Task.sleep(nanoseconds: UInt64(Constants.webAreaSettleInterval * 1_000_000_000))
+                    snapshot = await inspectWithWatchdog()
+                }
             }
             return nil
 

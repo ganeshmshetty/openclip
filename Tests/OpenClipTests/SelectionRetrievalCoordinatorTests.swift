@@ -121,6 +121,28 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(result?.text, "web text")
     }
 
+    func testAXWebAreaSettleRetryReInspectsUntilTextSettles() async {
+        final class InspectCallCount: @unchecked Sendable { var value = 0 }
+        let calls = InspectCallCount()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: {
+                calls.value += 1
+                if calls.value <= 2 {
+                    return Self.webAreaTarget(selectedText: "")
+                }
+                return Self.webAreaTarget(selectedText: "settled web text")
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axWebArea)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "settled web text")
+        XCTAssertGreaterThan(calls.value, 2)
+    }
+
     func testBrowserScriptReturnsBrowserText() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: "ignored") },
