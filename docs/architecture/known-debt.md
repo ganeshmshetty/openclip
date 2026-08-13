@@ -139,13 +139,16 @@ areas; stale debt notes are worse than none.
 
 - **Residual non-interruptible paths (documented, bounded).** Two spots remain that a hostile
   or hung target can make block a cooperative-pool thread for up to `Constants.scriptTimeout`:
-  (1) `MacTextRetriever.strategyAXMenuCopy` fires an unstructured `Task.detached` AXPress that the
-  0.15 s pasteboard poll does not kill — the detached task finishes on its own; (2) an async-mode
+  (1) `SelectionRetrievalCoordinator.pressEditCopyMenu` fires an AXPress on the dedicated
+  `com.openclip.ax-inspect` queue that the `pasteboardCopyTimeout` poll does not kill — the press
+  finishes on its own; (2) an async-mode
   JS script with a top-level *synchronous* infinite loop blocks inside `evaluateScript`, which the
   watchdog pump loop never reaches (the sync-evaluation gate covers only `isAsync == false`).
   Both are bounded (a leaked thread is eventually reaped), never main-actor-blocking.
-- **AX direct read is deadline-capped.** `strategyAXDirect` races against
-  `Constants.axReadTimeout` (0.5 s) via the `OnceResume` once-gate; an unresponsive app returns
+- **AX inspect is deadline-capped.** `SelectionRetrievalCoordinator.inspectWithWatchdog` races
+  `AXElementInspector.inspect` against
+  `Constants.axReadTimeout` (0.5 s) via the `OnceResume` once-gate, running the blocking snapshot on
+  the dedicated `com.openclip.ax-inspect` queue; an unresponsive app returns
   `nil` to the retrieval chain instead of hanging the popup.
 - **Subprocess pipe reads are non-blocking (hang fix).** `ShellProcessRunner` previously read stdout/
   stderr with blocking `readToEnd()` tasks and a `Task.sleep` watchdog — both can be starved, so a

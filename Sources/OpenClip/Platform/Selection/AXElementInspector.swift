@@ -10,7 +10,11 @@ import CoreGraphics
 public struct AXElementInspector {
     /// A snapshot of the focused application and UI element plus the AX attributes needed to
     /// gate and retrieve a text selection.
-    public struct Target {
+    ///
+    /// `@unchecked Sendable` because it is an immutable snapshot of AX attribute values: the
+    /// CF-type members are never mutated and are safe to hand from the blocking inspect worker to
+    /// the consuming strategy.
+    public struct Target: @unchecked Sendable {
         public let focusedApp: AXUIElement?
         public let focusedElement: AXUIElement?
         public let role: String?

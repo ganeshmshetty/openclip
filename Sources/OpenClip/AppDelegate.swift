@@ -78,8 +78,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         // Setup selection monitor
-        let retriever = MacTextRetriever()
-        let macMonitor = MacSelectionMonitor(retriever: retriever)
+        let macMonitor = MacSelectionMonitor()
         macMonitor.onSelection = { [weak self] context, canPaste in
             let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
             if isEnabled {

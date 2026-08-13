@@ -10,6 +10,7 @@ public enum Constants {
     public static let pasteboardRestoreDelay: TimeInterval = 0.8
     public static let deleteVirtualKey: CGKeyCode = 0x33
     public static let vVirtualKey: CGKeyCode = 0x09
+    public static let copyVirtualKey: CGKeyCode = 0x08
     public static let maxURLScanLength: Int = 2000
     public static let actionErrorDomain: String = "OpenClip.ActionError"
     public static let actionErrorCode: Int = 1

@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Probes whether the frontmost app currently supports Paste (the Edit ▸ Paste menu item is enabled)
-// via Accessibility, mirroring the proven `strategyAXMenuCopy` menu-bar walk in MacTextRetriever.
+// via Accessibility, mirroring the `SelectionRetrievalCoordinator.pressEditCopyMenu` menu-bar walk.
 // When AX is unavailable, or the probe times out, it reports "unknown" — callers treat that as
 // cannot-paste (safe default). Lives in the App target: it touches AppKit/AX.
 import AppKit
