@@ -143,8 +143,7 @@ final class DefaultActionFactoryTests: XCTestCase {
             title: "Slugify",
             url: "https://example.com/slug?q={query}",
             type: "url",
-            menuRelevance: "\\s",
-            menuPreview: "Slug: {matched}"
+            menuRelevance: "\\s"
         )
         let plain = ExtensionActionMetadata(
             id: "open",
@@ -163,7 +162,6 @@ final class DefaultActionFactoryTests: XCTestCase {
         XCTAssertEqual(decorated.id, "pkg.slug")
         XCTAssertTrue(decorated.base is URLTemplateAction)
         XCTAssertEqual(decorated.menuRelevanceRegex, "\\s")
-        XCTAssertEqual(decorated.menuPreviewTemplate, "Slug: {matched}")
         XCTAssertTrue(decorated.isRelevant(for: "a b"))
         XCTAssertFalse(decorated.isRelevant(for: "ab"))
 
@@ -174,14 +172,14 @@ final class DefaultActionFactoryTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
-    func testFactoryDecoratesGroupSubActionsThatDeclareMenuBehavior() async {
+    func testFactoryLeavesSubActionsWithoutMenuBehaviorPlain() async {
         let factory = DefaultActionFactory()
         let groupMeta = ExtensionActionMetadata(
             id: "tools",
             title: "Group",
             type: "group",
             subActions: [
-                ExtensionActionMetadata(id: "upper", title: "Uppercase", url: "https://example.com?q={query}", type: "url", menuPreview: "Upper: {text}")
+                ExtensionActionMetadata(id: "upper", title: "Uppercase", url: "https://example.com?q={query}", type: "url")
             ]
         )
         let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [groupMeta], options: nil)
@@ -192,10 +190,7 @@ final class DefaultActionFactoryTests: XCTestCase {
         XCTAssertEqual(flattened.count, 2)
         XCTAssertTrue(flattened[0] is GroupAction)
         XCTAssertEqual(flattened[1].id, "pkg.tools.upper")
-        guard let decorated = flattened[1] as? MenuDecoratedAction else {
-            return XCTFail("Declaring sub-action should be wrapped")
-        }
-        XCTAssertEqual(decorated.menuPreviewTemplate, "Upper: {text}")
+        XCTAssertFalse(flattened[1] is MenuDecoratedAction, "sub-actions without menuRelevance stay plain")
 
         try? FileManager.default.removeItem(at: tempDir)
     }

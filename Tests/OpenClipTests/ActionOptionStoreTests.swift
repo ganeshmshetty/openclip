@@ -23,12 +23,7 @@ private final class MemoryOptionStore: ActionOptionReading, ActionOptionWriting,
 
 private extension ActionContext {
     init(selectedText: String) {
-        let policy = AppPolicyContext(
-            denyFormatting: false,
-            denyProbe: false,
-            denyPreprobe: false,
-            assumePaste: false
-        )
+        let policy = AppPolicyContext()
         let selection = SelectionContext(
             text: selectedText,
             sourceApp: AppIdentity(bundleIdentifier: "com.openclip.tests", localizedName: "OpenClipTests"),

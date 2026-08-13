@@ -3,7 +3,7 @@
 //
 // Defines a custom floating NSPanel subclass configured for non-activating popup bar display.
 // The panel stays non-key by default (rule #9); `allowsKey` is enabled only while the
-// action-search palette or the content canvas is active so the search field / focused canvas
+// action-search palette or the native AI result card is active so the search field / card
 // component can receive typing.
 // Also re-anchors content-driven window growth: when `pinBottomEdgeOnResize` is set the panel
 // keeps its bottom edge fixed while growing (search results above the field), instead of AppKit's
@@ -16,7 +16,7 @@ import Core
 
 @MainActor
 public class PopupPanel: NSPanel {
-    /// When true the panel may become the key/main window (action-search and content-canvas modes).
+    /// When true the panel may become the key/main window (action-search and AI-result-card modes).
     public var allowsKey: Bool = false
     /// When true (search mode with results above the field), content-driven growth keeps the
     /// panel's bottom edge fixed and grows upward so the field never shifts.
@@ -50,6 +50,7 @@ public class PopupPanel: NSPanel {
     /// first placement (zero-sized frame) pass through untouched.
     override public func setFrame(_ frameRect: NSRect, display flag: Bool) {
         var clamped = frameRect
+        let heightWasClamped = clamped.size.height > PopupMetrics.popupMaxHeight
         if let screenFrame = screen?.visibleFrame ?? NSScreen.main?.visibleFrame {
             let maxWidth = max(0, screenFrame.width - PopupMetrics.popupPadding * 2)
             clamped.size.width = min(clamped.size.width, maxWidth)
@@ -65,7 +66,13 @@ public class PopupPanel: NSPanel {
             clamped.origin.x = frame.midX - clamped.width / 2
         }
 
-        if frame.height > 0, recenterXOnResize, clamped.height != frame.height {
+        // Re-anchor the pinned edge whenever the request changed the panel size OR was height-clamped.
+        // A clamped request reaches this block with clamped.height == frame.height (the panel already
+        // grew to the cap), yet its top-anchored origin still encodes the un-clamped height — without
+        // re-anchoring, the clamped-off delta leaks into the origin and the pinned edge drifts.
+        let sizeChangedOrClamped = frame.height > 0 && recenterXOnResize
+            && (clamped.height != frame.height || heightWasClamped)
+        if sizeChangedOrClamped {
             if pinBottomEdgeOnResize {
                 clamped.origin.y = frame.origin.y
             } else {

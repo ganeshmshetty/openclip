@@ -112,9 +112,7 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
         return ActionResultAdapter.apply(
             raw: raw,
             after: rules?.after ?? .default,
-            stayVisible: rules?.stayVisible ?? false,
-            title: title,
-            icon: iconName
+            stayVisible: rules?.stayVisible ?? false
         )
     }
 }

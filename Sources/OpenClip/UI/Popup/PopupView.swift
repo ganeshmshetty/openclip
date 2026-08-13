@@ -2,8 +2,8 @@
 // OpenClip
 //
 // Renders the main floating action bar popup view presenting available actions, transform menus,
-// inline completion buttons, the action-search palette, and the inline content canvas (which
-// replaces the bar with the live CanvasSessionView in content mode).
+// inline completion buttons, the action-search palette, and the native AI result card (which
+// replaces the bar with AIResultCardView in content mode).
 import SwiftUI
 import AppKit
 import CoreGraphics
@@ -19,18 +19,16 @@ public struct PopupView: View {
     public let onContentSizeChange: (@MainActor (CGSize) -> Void)?
     /// active=true when AI is running or showing result; cardAboveBar=true when the card should render above the bar
     public let onAIStateChange: (@MainActor (Bool, Bool) -> Void)?
-    /// Called with (resultText, isError) when the AI result is ready to show in the content canvas.
-    public let onAIResult: (@MainActor (String, Bool) -> Void)?
-    /// Called when the content canvas should collapse back to the bar (back chevron).
+    /// Called with (resultText, isError, title) when the AI result is ready to show in the AI result
+    /// card; `title` is the producing preset's title (falls back to "AI Tools" in the card).
+    public let onAIResult: (@MainActor (String, Bool, String) -> Void)?
+    /// Called when the AI result card should collapse back to the bar (back chevron).
     public let onExitContent: @MainActor () -> Void
-    /// Canvas session events (e.g. a node handler dispatch) routed to the controller's
-    /// CanvasSessionController. Defaulted to a no-op so the static preview compiles unchanged.
-    public let onCanvasEvent: @MainActor (CanvasEvent) -> Void
-    /// Canvas leaf effects (e.g. a rendered `.button`/`.link` activation) routed to the
-    /// controller's keep-open effect door. Defaulted to a no-op so the static preview compiles
-    /// unchanged.
-    public let onCanvasEffect: @MainActor (CanvasEffect) -> Void
-    /// Called when the hovered action changes (nil when nothing hovered). Drives the hover preview strip.
+    /// The AI result card's Paste/Copy buttons — explicit user requests routed through the
+    /// controller's keep-open card-effect door (bypasses the paste-vs-copy re-decision).
+    public let onCardEffect: @MainActor (ActionResult) -> Void
+    /// Called when the hovered action changes (nil when nothing hovered). Drives the hovered-row
+    /// tracking used by the right-click path.
     public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
     /// Opens a scoped palette for a bar row's sub-actions (group rows via `.openSubActions` and the
     /// AI Tools launcher): the controller resolves + owns the SearchScope and enters search mode.
@@ -110,12 +108,11 @@ public struct PopupView: View {
         onEnterSearch: @escaping @MainActor () -> Void = {},
         onExitSearch: @escaping @MainActor () -> Void = {},
         onExitContent: @escaping @MainActor () -> Void = {},
-        onCanvasEvent: @escaping @MainActor (CanvasEvent) -> Void = { _ in },
-        onCanvasEffect: @escaping @MainActor (CanvasEffect) -> Void = { _ in },
+        onCardEffect: @escaping @MainActor (ActionResult) -> Void = { _ in },
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
-        onAIResult: (@MainActor (String, Bool) -> Void)? = nil,
+        onAIResult: (@MainActor (String, Bool, String) -> Void)? = nil,
         onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
         onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil,
         onActionPerformed: (@MainActor (String) -> Void)? = nil
@@ -127,8 +124,7 @@ public struct PopupView: View {
         self.onAIStateChange = onAIStateChange
         self.onAIResult = onAIResult
         self.onExitContent = onExitContent
-        self.onCanvasEvent = onCanvasEvent
-        self.onCanvasEffect = onCanvasEffect
+        self.onCardEffect = onCardEffect
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
         self.onActionPerformed = onActionPerformed
@@ -164,7 +160,8 @@ public struct PopupView: View {
     /// `SubActionProviding` row resolves as a child (group sub-actions, AI presets). Membership is
     /// resolver/protocol-driven — the view never re-derives id-prefix conventions. A group row
     /// itself only appears when at least one of its sub-actions is applicable to the current
-    /// context — with every sub-action disabled the parent would be an inert row.
+    /// context — with every sub-action disabled the parent would be an inert row. Paste-requiring
+    /// actions (Paste/Cut) are dropped when the probe confirmed the target can't paste.
     private var displayActions: [any Action] {
         let resolver = SubActionResolver()
         let subActionIDs = Set(
@@ -174,11 +171,18 @@ public struct PopupView: View {
         )
         return actions.filter { action in
             guard !ActionIdentity.isCompletionPseudoAction(action) else { return false }
+            if hiddenForPasteAvailability(action) { return false }
             if action.chrome.popupBehavior == .showSubActions {
                 return !resolver.subActions(of: action, in: actions).isEmpty
             }
             return !subActionIDs.contains(action.id)
         }
+    }
+
+    /// Paste/Cut can only perform when the target app supports paste; a confirmed cannot-paste
+    /// probe hides them from the bar and the search palette (nil/unknown keeps them visible).
+    private func hiddenForPasteAvailability(_ action: any Action) -> Bool {
+        modeStore.canPaste == false && action is any PasteRequiringAction
     }
 
     private var totalPages: Int {
@@ -231,24 +235,29 @@ public struct PopupView: View {
     @ViewBuilder
     private var barContent: some View {
         if modeStore.mode == .content {
-            contentCanvas
+            aiResultCard
         } else {
             mainBarStyled
         }
     }
 
-    /// The content canvas: renders the live canvas session inline on the popup panel in place of the bar.
+    /// The AI result card: renders the native AIResultCardView inline on the popup panel in place
+    /// of the bar (content mode). Paste/Copy are explicit user requests routed through
+    /// onCardEffect (bypassing the paste-vs-copy re-decision) that both dismiss the popup; the
+    /// Paste button is hidden when the target app can't paste; the back chevron collapses back to
+    /// the bar.
     @ViewBuilder
-    private var contentCanvas: some View {
-        if let session = modeStore.content {
-            CanvasSessionView(
-                session: session,
-                searchResultsAbove: modeStore.searchResultsAbove,
-                onExitContent: { onExitContent() },
-                onEvent: onCanvasEvent,
-                onEffect: onCanvasEffect
+    private var aiResultCard: some View {
+        if let payload = modeStore.aiResult {
+            AIResultCardView(
+                payload: payload,
+                canPaste: modeStore.canPaste,
+                onExit: { onExitContent() },
+                onPaste: { onCardEffect(.paste(payload.text)) },
+                onCopy: { onCardEffect(.copy(payload.text)) }
             )
             .environment(\.colorScheme, effectiveColorScheme)
+            .environment(\.popupEffectiveTheme, effectiveTheme)
         }
     }
 
@@ -381,25 +390,17 @@ public struct PopupView: View {
         }
     }
 
-    /// The actions bar with the inline hover-preview strip: the strip renders above the bar when
-    /// the popup sits low on screen (results above the cursor), below otherwise.
+    /// The plain actions bar — the hover preview strip is gone with the canvas feature, so the bar
+    /// is just the actions HStack (paged actions + pagination + search affordance).
     @ViewBuilder
     private var actionsStack: some View {
-        VStack(spacing: 0) {
-            if let preview = modeStore.preview, modeStore.searchResultsAbove {
-                PopupPreviewStrip(component: preview)
-            }
-            actionsHStack
-            if let preview = modeStore.preview, !modeStore.searchResultsAbove {
-                PopupPreviewStrip(component: preview)
-            }
-        }
+        actionsHStack
     }
 
     @ViewBuilder
     private var searchContent: some View {
         PopupSearchView(
-            catalog: ActionCoordinator.shared.searchCatalog(for: context),
+            catalog: searchCatalog,
             context: context,
             resultsAbove: modeStore.searchResultsAbove,
             scope: modeStore.scope,
@@ -414,15 +415,22 @@ public struct PopupView: View {
                 onActionPerformed?(actionID)
                 guard let preset = aiManager.preset(forActionID: actionID) else { return }
                 onExitSearch()
-                runAIPreset(prompt: preset.prompt)
+                runAIPreset(prompt: preset.prompt, title: preset.title)
             },
             onActionPerformed: onActionPerformed
         )
     }
 
+    /// The search palette's catalog: the coordinator's search catalog minus Paste-requiring
+    /// actions hidden by a confirmed cannot-paste probe.
+    private var searchCatalog: [any Action] {
+        ActionCoordinator.shared.searchCatalog(for: context)
+            .filter { !hiddenForPasteAvailability($0) }
+    }
+
     // MARK: - AI Helpers
 
-    private func runAIPreset(prompt: String) {
+    private func runAIPreset(prompt: String, title: String) {
         cancelAITask()
 
         let selectionText = context.selection.text
@@ -442,7 +450,7 @@ public struct PopupView: View {
                 if provider.type == .browser || response.isEmpty {
                     if response.isEmpty { onResult(.success) }
                 } else {
-                    onAIResult?(response, false)
+                    onAIResult?(response, false, title)
                 }
             } catch is CancellationError {
                 // no-op
@@ -451,7 +459,7 @@ public struct PopupView: View {
             } catch {
                 guard !Task.isCancelled else { return }
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                onAIResult?(message, true)
+                onAIResult?(message, true, title)
             }
         }
     }
@@ -612,7 +620,7 @@ public struct PopupView: View {
         switch action.gesturePolicy.singleClick {
         case .openSubActions:
             // Group rows (extension groups) open a scoped palette of
-            // their children instead of a hover preview strip. The controller resolves the SearchScope.
+            // their children instead of performing directly. The controller resolves the SearchScope.
             Button {
                 onEnteredScopedSearch?(action)
             } label: {
@@ -625,7 +633,7 @@ public struct PopupView: View {
             .onHover { isHovering in
                 useLocalHoverFallback(for: .action(index), isHovering: isHovering)
             }
-        case .showResultContent, .perform:
+        case .perform:
             if action.chrome.launchesAI {
                 // The AI Tools launcher opens the scoped AI-presets palette (chrome-driven, no id
                 // switching); it renders as a normal bar row and paginates like any other action.
@@ -727,7 +735,8 @@ public struct PopupView: View {
         reportHoveredAction()
     }
 
-    /// Maps the current hoveredTarget to its action (if any) and reports it upward for the preview strip.
+    /// Maps the current hoveredTarget to its action (if any) and reports it upward so the
+    /// controller can track the hovered row (right-click path).
     private func reportHoveredAction() {
         let action: (any Action)? = {
             guard case .action(let index) = hoveredTarget, index < pagedActions.count else { return nil }

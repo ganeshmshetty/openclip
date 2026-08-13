@@ -91,10 +91,6 @@ public final class RuleEngine: ObservableObject, Sendable {
             }
             return AppRule(
                 bundleIdentifiers: expandedIdentifiers,
-                denyFormatting: rule.denyFormatting,
-                denyProbe: rule.denyProbe,
-                denyPreprobe: rule.denyPreprobe,
-                assumePaste: rule.assumePaste,
                 useMenuCopy: rule.useMenuCopy,
                 denyPaste: rule.denyPaste
             )
@@ -107,12 +103,8 @@ public final class RuleEngine: ObservableObject, Sendable {
         for rule in effectiveRules {
             if rule.bundleIdentifiers.contains(where: { matchPattern($0, with: bundleIdentifier) }) {
                 context = AppPolicyContext(
-                    denyFormatting: rule.denyFormatting ?? context.denyFormatting,
-                    denyProbe: rule.denyProbe ?? context.denyProbe,
-                    denyPreprobe: rule.denyPreprobe ?? context.denyPreprobe,
-                    assumePaste: rule.assumePaste ?? context.assumePaste,
-                    useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy,
-                    denyPaste: rule.denyPaste ?? context.denyPaste
+                    denyPaste: rule.denyPaste ?? context.denyPaste,
+                    useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy
                 )
             }
         }

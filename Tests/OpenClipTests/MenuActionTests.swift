@@ -20,20 +20,19 @@ final class MenuActionTests: XCTestCase {
     func testDecoratorForwardsIdentity() {
         let chrome = ActionChrome(badge: .extensionPkg("Pkg"), rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .extensionPkg(packageID: "com.test.pkg"))
         let base = MockAction(id: "pkg.sub", shouldBeEnabled: true, chrome: chrome)
-        let decorated = MenuDecoratedAction(base: base, menuRelevanceRegex: "\\d+", menuPreviewTemplate: "{text}")
+        let decorated = MenuDecoratedAction(base: base, menuRelevanceRegex: "\\d+")
 
         XCTAssertEqual(decorated.id, base.id)
         XCTAssertEqual(decorated.title, base.title)
         XCTAssertEqual(decorated.icon, base.icon)
         XCTAssertEqual(decorated.chrome, base.chrome)
-        XCTAssertEqual(decorated.isFormatting, base.isFormatting)
         XCTAssertEqual(decorated.actionOptions.count, base.actionOptions.count)
         XCTAssertEqual(decorated.isEnabled(for: makeContext(text: "x")), true)
     }
 
     func testDecoratorForwardsPerform() async throws {
         let base = MockAction(id: "pkg.run", shouldBeEnabled: true)
-        let decorated = MenuDecoratedAction(base: base, menuPreviewTemplate: "{text}")
+        let decorated = MenuDecoratedAction(base: base)
         let result = try await decorated.perform(makeContext(text: "hi"))
         guard case .success = result else {
             return XCTFail("perform should delegate to the base action")
@@ -60,19 +59,5 @@ final class MenuActionTests: XCTestCase {
     func testDecoratorMalformedRegexIsRelevant() {
         let decorated = MenuDecoratedAction(base: MockAction(id: "pkg.a", shouldBeEnabled: true), menuRelevanceRegex: "([unclosed")
         XCTAssertTrue(decorated.isRelevant(for: "anything"))
-    }
-
-    // MARK: - MenuDecoratedAction: preview
-
-    func testDecoratorPreviewTemplateRendersContext() async {
-        let decorated = MenuDecoratedAction(base: MockAction(id: "pkg.a", shouldBeEnabled: true), menuPreviewTemplate: "Copy: {text}")
-        let preview = await decorated.previewLine(for: makeContext(text: "hello world"))
-        XCTAssertEqual(preview, "Copy: hello world")
-    }
-
-    func testDecoratorPreviewNilWithoutTemplate() async {
-        let decorated = MenuDecoratedAction(base: MockAction(id: "pkg.a", shouldBeEnabled: true))
-        let preview = await decorated.previewLine(for: makeContext(text: "hello"))
-        XCTAssertNil(preview)
     }
 }

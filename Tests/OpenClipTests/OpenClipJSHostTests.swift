@@ -176,45 +176,22 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "undefined|true")
     }
 
-    func testShowContentReturnsElementTree() async throws {
-        let script = "openclip.showContent(h('stack', {}, [h('text', { content: 'Hello' }), h('button', { title: 'Paste', handler: 'x' })]));"
-        let result = try await host.run(makeRequest(script: script))
-        guard case .showContent(let root, nil) = result else {
-            return XCTFail("Expected .showContent, got \(result)")
-        }
-        guard case .stack(_, let children) = root else {
-            return XCTFail("Expected stack root, got \(root)")
-        }
-        XCTAssertEqual(children.count, 2)
-        guard case .text(let textProps) = children[0] else {
-            return XCTFail("Expected text child")
-        }
-        XCTAssertEqual(textProps.content, "Hello")
-        guard case .button(let buttonProps) = children[1] else {
-            return XCTFail("Expected button child")
-        }
-        XCTAssertEqual(buttonProps.title, "Paste")
-        XCTAssertEqual(buttonProps.handler, .dispatch("x"))
-    }
-
-    func testShowContentRejectsMalformedElementTree() async throws {
-        let script = "openclip.showContent({ invalid: true });"
+    func testShowContentBridgeRemovedSurfacesError() async throws {
+        let script = "openclip.showContent(h('stack', {}, [h('text', { content: 'Hello' })]));"
         let result = try await host.run(makeRequest(script: script))
         guard case .showStatus(let feedback) = result else {
             return XCTFail("Expected .showStatus, got \(result)")
         }
-        XCTAssertEqual(feedback.style, .error)
-        XCTAssertEqual(feedback.message, "Canvas payload rejected.")
+        XCTAssertEqual(feedback.style, .error, "calling the removed showContent bridge surfaces a JS error")
     }
 
-    func testCannedKeysNoLongerProduceContent() async throws {
-        let script = "openclip.showContent({ title: 'T', body: 'B' });"
+    func testHHelperRemovedSurfacesError() async throws {
+        let script = "h('text', { content: 'Hello' });"
         let result = try await host.run(makeRequest(script: script))
         guard case .showStatus(let feedback) = result else {
             return XCTFail("Expected .showStatus, got \(result)")
         }
-        XCTAssertEqual(feedback.style, .error)
-        XCTAssertEqual(feedback.message, "Canvas payload rejected.")
+        XCTAssertEqual(feedback.style, .error, "the h() helper is gone with the canvas feature")
     }
 
     func testRequireConfigurationReturnsOpenConfiguration() async throws {
@@ -319,9 +296,7 @@ final class OpenClipJSHostTests: XCTestCase {
         let applied = ActionResultAdapter.apply(
             raw: raw,
             after: .pasteResult,
-            stayVisible: false,
-            title: "T",
-            icon: nil
+            stayVisible: false
         )
         guard case .paste(let text) = applied else {
             return XCTFail("Expected .paste after paste-result, got \(applied)")

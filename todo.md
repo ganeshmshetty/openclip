@@ -25,9 +25,9 @@ Flat, independently implementable checklist. Each item is self-contained; no ite
 
 ## Phase 2 — Platform power
 
-- [ ] Add `openclip.storage.get/set/remove` persistent KV store (JSON-typed) for JS + canvas, namespaced `extension.<packageID>.storage.*` via `SettingsStore`
-- [x] Install fetch polyfill + real async branch in `JavaScriptCanvasEngine` so canvas handlers can `await fetch(...)` (branch on `request.isAsync`)
-- [ ] Add bounded timer primitive for canvases (`openclip.tick` / `setInterval`) with session-teardown cleanup and watchdog budget
+- [ ] Add `openclip.storage.get/set/remove` persistent KV store (JSON-typed) for JS, namespaced `extension.<packageID>.storage.*` via `SettingsStore`
+- [x] ~~Install fetch polyfill + real async branch in `JavaScriptCanvasEngine`~~ *(canvas engine removed)*
+- [ ] ~~Add bounded timer primitive for canvases (`openclip.tick` / `setInterval`)~~ *(canvas removed)*
 - [ ] Add mid-flight re-render path so a long async handler can push progress ("Loading…" → result)
 - [x] Extend requirement vocabulary: `cut`/`paste`/`formatting`/`urls`/`path`, `!` negation, `option-x=y` value gating
 - [x] Expose regex capture groups + matched-vs-full text in JS bridge (`openclip.input.captures` exists; add matched/full distinction + array API)
@@ -35,7 +35,7 @@ Flat, independently implementable checklist. Each item is self-contained; no ite
 - [ ] Add `openclip.readClipboard()` (NSPasteboard read, off JS thread)
 - [ ] Add `openclip.readPackageFile(path)` with strict package-directory containment
 - [x] Deliver typed option values (bool/number/string) in `openclip.options` instead of strings-only
-- [x] Add `openclip.runShortcut(name, input)` input override to non-canvas host (canvas already has it)
+- [x] Add `openclip.runShortcut(name, input)` input override to the JS host
 - [ ] Make `.sequence` await each effect (incl. pasteboard restore) before next; add conditional/error short-circuit
 - [ ] Add `pasteWithoutReplacing` (insert at cursor) + `pastePlain` + `duplicateSelection` effects
 - [ ] Make `.cut` and `.keyPress` failures visible (no silent no-ops on unknown keys/bad contexts)
@@ -43,8 +43,8 @@ Flat, independently implementable checklist. Each item is self-contained; no ite
 - [x] Wire `NSPerformService(serviceName)` for real `service` kind; fall back to picker when unnamed
 - [x] Add `cut`, `keyPress`, `runShortcut`, `notify`, `sequence`, `fail` types to shell JSON protocol (`ShellResultMapper`)
 - [ ] Add per-action timeout override (manifest `"timeout"`, clamped) + per-request fetch timeout/AbortController
-- [ ] Add handler error isolation in canvas: inline error node instead of session collapse (mount errors still collapse)
-- [ ] Add canvas components: `select` (dropdown), `checkbox`, `progress`, markdown text
+- [ ] ~~Add handler error isolation in canvas: inline error node instead of session collapse~~ *(canvas removed)*
+- [ ] ~~Add canvas components: `select` (dropdown), `checkbox`, `progress`, markdown text~~ *(canvas removed)*
 - [ ] Add `console` availability note to `docs/developer-guide/AGENTS.md` §7 and document string-typed option values
 - [ ] Add "Debugging" box to author guide §10: `OpenClip --dump-logs --category=extensions --level=error`
 
@@ -70,7 +70,7 @@ Flat, independently implementable checklist. Each item is self-contained; no ite
 - [ ] Add README badges (CI status, license, tests)
 - [ ] Clean worktree junk: `reference/`, `graphify-out/`, `.superpowers/`, `default.profraw`; gitignore + remove `.agents/`
 - [ ] Move `web/` marketing site to its own repo (or top-level `website/`)
-- [ ] Merge `feat/component-canvas-implementation` into `main`; push `Extensions/` submodule commit before tagging v0.1.0
+- [x] ~~Merge `feat/component-canvas-implementation` into `main`~~ *(canvas removed)*; push `Extensions/` submodule commit before tagging v0.1.0
 
 ## Phase 4 — Deferred (post-launch)
 
@@ -82,18 +82,18 @@ Flat, independently implementable checklist. Each item is self-contained; no ite
 - [ ] Add app install-guards (`checkInstalled` + `bundleIdentifiers` + install prompt)
 - [ ] Add browser context (`browserUrl`/`browserTitle`) to bridge
 - [ ] Add file/export effects (`writeFile`, `revealInFinder`, share sheet)
-- [ ] Add viewer window / HUD / toast presentation for long results (beyond canvas caps)
+- [ ] Add viewer window / HUD / toast presentation for long results
 - [ ] Add keyboard layout-aware keyPress (TIS-based) + `type(string)` effect + key repeat
 - [ ] Add rich components: table/grid, tabs/segmented, slider, list sections
-- [ ] Raise/parameterize canvas limits (512 nodes / 64 list items) with lazy/virtualized lists
+- [ ] ~~Raise/parameterize canvas limits (512 nodes / 64 list items) with lazy/virtualized lists~~ *(canvas removed)*
 - [ ] Add app/context info API (OpenClip version, screen geometry, frontmost app)
 - [ ] Add options UI richness: `heading`, `multiline`, `allow other`, per-option icons, generated settings sheet
 - [ ] Add re-trigger popup (`popclip-appear`-style) + `copy-selection` helper
 - [ ] Add ratings/reviews/screenshots/donations/changelogs to store schema + UI
 - [ ] Add update channels (beta/stable)
 - [ ] Add interactive notifications (UNNotificationCategory actions)
-- [ ] Apply `denyFormatting`/`assumePaste` app policies to extension paste behavior
-- [ ] Add `showCanvas` declarative mount (dead `ActionResult` case)
+- [ ] Apply app paste policies (`denyPaste`) to extension paste behavior (unified `PasteAvailability` currently covers built-in Paste/Cut + delivery)
+- [x] ~~Add `showCanvas` declarative mount (dead `ActionResult` case)~~ *(showCanvas removed with the canvas feature)*
 - [ ] Add hot-reload size/content-hash check (mtime-preserving copies currently missed)
 - [ ] Add in-app "Extensions log" panel (last N `Log.extensions` entries)
 
@@ -101,7 +101,7 @@ Flat, independently implementable checklist. Each item is self-contained; no ite
 
 - [ ] Fix stale `@MainActor` claims for `OpenClipSnippetParser` in AGENTS.md, `docs/architecture/overview.md`, `docs/developer-guide/snippets.md`
 - [ ] Fix `directory-structure.md` drift: `Sources/OpenClip/App/` empty, `Core/Extensions/` nesting, `ActionRequirements.swift` missing
-- [ ] Fix stale `PopupContentView` reference in AGENTS.md canvas line
+- [x] ~~Fix stale `PopupContentView` reference in AGENTS.md canvas line~~ *(canvas references removed from AGENTS.md)*
 - [ ] Document hot reload in author guide §10 (docs understate: ~2s, not relaunch)
 - [ ] Document chmod requirement for `script:` files (script-file actions throw "not executable")
 - [ ] Add local icon asset guidance (≥512px PNG, name must match, silent fallback)
@@ -111,7 +111,7 @@ Flat, independently implementable checklist. Each item is self-contained; no ite
 - [ ] Make validation error messages action-specific: `actions[1] (keypress): missing required field "keyPress"`
 - [ ] Print hot-reload hint in `install_extension.sh` ("app reloads within ~2s if running")
 - [ ] Set executable bit in `new_extension.sh` templates
-- [ ] Add `TestIsolation.reset()` + `MemorySettingsStore` to `CanvasRendererTests` (writes real prefs domain)
+- [x] ~~Add `TestIsolation.reset()` + `MemorySettingsStore` to `CanvasRendererTests` (writes real prefs domain)~~ *(canvas tests removed with the canvas feature)*
 - [ ] Fix AI provider/StatusBar/Hotkey/Onboarding test coverage gaps (zero tests today)
 - [ ] Add "Update available" flow docs when Phase 3 versioning lands
 - [ ] Update `docs/architecture/extensions.md` failure-surfacing section when load-failure UI lands

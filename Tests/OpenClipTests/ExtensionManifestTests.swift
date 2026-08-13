@@ -6,8 +6,8 @@ final class ExtensionManifestTests: XCTestCase {
     func testExtensionActionKindNormalization() {
         XCTAssertEqual(ExtensionActionKind(rawType: "url"), .url)
         XCTAssertEqual(ExtensionActionKind(rawType: "js"), .js)
-        XCTAssertEqual(ExtensionActionKind(rawType: "canvas"), .canvas)
-        XCTAssertTrue(ExtensionActionKind.isRecognized(rawType: "canvas"))
+        XCTAssertEqual(ExtensionActionKind(rawType: "canvas"), .url, "canvas was removed with the canvas feature; unknown kinds fall back to .url")
+        XCTAssertFalse(ExtensionActionKind.isRecognized(rawType: "canvas"), "canvas kind must be rejected at validation")
         XCTAssertEqual(ExtensionActionKind(rawType: "applescript"), .applescript)
         XCTAssertEqual(ExtensionActionKind(rawType: "shellInline"), .shellInline)
         XCTAssertEqual(ExtensionActionKind(rawType: "scriptFile"), .scriptFile)
@@ -87,24 +87,21 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertTrue(action.stayVisible ?? false)
     }
 
-    func testMenuRelevanceAndPreviewDecode() throws {
+    func testMenuRelevanceDecodes() throws {
         let json = """
         {
             "id": "slug",
             "title": "Slugify",
             "type": "shell",
             "script": "slug.sh",
-            "menuRelevance": "\\\\s",
-            "menuPreview": "{text} -> {matched}"
+            "menuRelevance": "\\\\s"
         }
         """.data(using: .utf8)!
         let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
         XCTAssertEqual(action.menuRelevance, "\\s")
-        XCTAssertEqual(action.menuPreview, "{text} -> {matched}")
 
         let absent = try JSONDecoder().decode(ExtensionActionMetadata.self, from: #"{"title":"Plain"}"#.data(using: .utf8)!)
         XCTAssertNil(absent.menuRelevance)
-        XCTAssertNil(absent.menuPreview)
     }
 
     func testManifestDecoding() throws {

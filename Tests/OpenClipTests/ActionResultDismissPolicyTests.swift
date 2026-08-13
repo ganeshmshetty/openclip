@@ -16,8 +16,7 @@ final class ActionResultDismissPolicyTests: XCTestCase {
     }
 
     func testSequenceDismissesOnlyWhenAllItemsDismiss() {
-        let tree = CanvasComponent.text(CanvasTextProps(content: "hi"))
-        XCTAssertFalse(ActionResult.sequence([.copy("x"), .showContent(tree, nil)]).dismissesPopup)
+        XCTAssertFalse(ActionResult.sequence([.copy("x"), .keepVisible(.copy("y"))]).dismissesPopup)
         XCTAssertTrue(ActionResult.sequence([.copy("x"), .paste("y")]).dismissesPopup)
         // An empty sequence never dismisses.
         XCTAssertFalse(ActionResult.sequence([]).dismissesPopup)
@@ -34,20 +33,8 @@ final class ActionResultDismissPolicyTests: XCTestCase {
     }
 
     func testPresentationResultsKeepPopup() {
-        let tree = CanvasComponent.text(CanvasTextProps(content: "hi"))
-        XCTAssertFalse(ActionResult.showContent(tree, nil).dismissesPopup)
         XCTAssertFalse(ActionResult.showStatus(.init(message: "ok", style: .success)).dismissesPopup)
         XCTAssertFalse(ActionResult.showStatus(.init(message: "boom", style: .error)).dismissesPopup)
-    }
-
-    func testCanvasTreeDoesNotDismiss() {
-        let tree = CanvasComponent.text(CanvasTextProps(content: "hi"))
-        XCTAssertFalse(ActionResult.showContent(tree, nil).dismissesPopup)
-    }
-
-    func testCanvasMountDoesNotDismiss() {
-        let request = CanvasMountRequest(input: "x", scriptCode: "const ui = () => h('text', {});")
-        XCTAssertFalse(ActionResult.showCanvas(request, CanvasHeader(title: "T", icon: nil)).dismissesPopup)
     }
 
     // MARK: - Decision 9: errors surface as .showStatus(.error) and the popup stays

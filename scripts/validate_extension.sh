@@ -54,7 +54,7 @@ def has_scriptCode: ((.scriptCode? | sv | is_blank | not));
 def has_url:        ((.url? | sv | is_blank | not));
 def has_payload: has_script or has_scriptCode or has_url;
 def kind: ((.type // "url") | ascii_downcase);
-def known_kinds: ["url","urltemplate","js","javascript","applescript","shell","shellinline","script","scriptfile","textsnippet","snippet","text","websearch","web","search","keypress","keys","shortcut","keyboardshortcut","service","servicemenu","group","subactions","canvas"];
+def known_kinds: ["url","urltemplate","js","javascript","applescript","shell","shellinline","script","scriptfile","textsnippet","snippet","text","websearch","web","search","keypress","keys","shortcut","keyboardshortcut","service","servicemenu","group","subactions"];
 def is_group: ((kind == "group") or (kind == "subactions"));
 
 # Option metadata must be complete and unique; malformed options reject the manifest at decode.
@@ -86,8 +86,6 @@ def check_action($p):
       (if (($self.shortcutName? | sv) | is_blank) then "\($p): missing required field shortcutName" else empty end)
     elif ($t == "group" or $t == "subactions") then
       (if (($self.subActions? | type) != "array" or (($self.subActions // []) | length) == 0) then "\($p): group requires non-empty subActions" else empty end)
-    elif ($t == "canvas") then
-      (if ($self | has_payload | not) then "\($p): missing required payload (script or scriptCode)" else empty end)
     else
       (if ($self | has_payload | not) then "\($p): missing required payload (url, script, or scriptCode)" else empty end)
     end

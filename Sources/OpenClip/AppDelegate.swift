@@ -80,11 +80,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Setup selection monitor
         let retriever = MacTextRetriever()
         let macMonitor = MacSelectionMonitor(retriever: retriever)
-        macMonitor.onSelection = { [weak self] context in
+        macMonitor.onSelection = { [weak self] context, canPaste in
             let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
             if isEnabled {
-                self?.popupController?.show(for: context)
+                self?.popupController?.show(for: context, pasteAvailable: canPaste)
             }
+        }
+        macMonitor.preparePasteProbe = { [weak self] app, policy in
+            self?.popupController?.preparePasteProbe(for: app, policy: policy)
         }
         selectionMonitor = macMonitor
         

@@ -66,8 +66,7 @@ Supported `type` values:
 - `"keepVisible"` → wraps a nested `effect` payload so the popup stays open.
 - `"configure"` → `ActionResult.openConfiguration` (`reason`, `missing: [optionID]`).
 
-`"showContent"` is **not** accepted — shell scripts cannot render a canvas (canvas rendering is
-JS-only, `type: "canvas"`); a decoded-but-unknown `type` maps to `.success`.
+`"showContent"` is **not** accepted — a decoded-but-unknown `type` maps to `.success`.
 
 ### Mode 2: Plain Text Output Fallback
 

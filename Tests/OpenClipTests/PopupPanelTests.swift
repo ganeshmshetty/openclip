@@ -1,5 +1,6 @@
 import XCTest
 import AppKit
+import SwiftUI
 import Core
 @testable import OpenClip
 
@@ -9,6 +10,126 @@ final class PopupPanelTests: XCTestCase {
         // Sentinel: the shared height cap stays 240. Lives here (app target) because popup sizing
         // constants are UI concerns — see PopupMetrics.
         XCTAssertEqual(PopupMetrics.popupMaxHeight, 240)
+    }
+
+    /// Evidence check: the AI result card's preferred (fitting) size must include the response
+    /// body region, not just header + footer. The panel auto-resizes to the hosting view's fitting
+    /// size on mode change; if the ScrollView body collapses to zero at fit-time the window stays
+    /// ~bar-height and the response never renders.
+    func testAICardFittingSizeIncludesResponseBody() throws {
+        let card = AIResultCardView(
+            payload: AIResultPayload(
+                text: (1...20).map { "line \($0) of a long response body" }.joined(separator: "\n"),
+                isError: false,
+                title: "Summarize"
+            ),
+            onExit: {},
+            onPaste: {},
+            onCopy: {}
+        )
+        let host = NSHostingView(rootView: card)
+        host.layoutSubtreeIfNeeded()
+        let fit = host.fittingSize
+        XCTAssertGreaterThan(fit.height, 130,
+                             "card fitting height collapsed to \(fit.height) — response body contributes no height")
+    }
+
+    /// The panel must actually GROW to fit the card when the AI result is shown (content mode),
+    /// not stay at bar height. If the resize path starves the ScrollView body, the user sees only
+    /// the header (title + back) and footer (Copy/Paste) with no response text.
+    func testAICardResizesPanelToIncludeBody() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150))
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        pump(0.3)
+        let barFrame = panel.frame
+        XCTAssertGreaterThan(barFrame.height, 0)
+
+        controller.modeStore.aiResult = AIResultPayload(
+            text: (1...20).map { "line \($0) of a long response body" }.joined(separator: "\n"),
+            isError: false,
+            title: "Summarize"
+        )
+        controller.modeStore.mode = .content
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while Date() < deadline {
+            if panel.frame.height > barFrame.height + 100 { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+        }
+        XCTAssertGreaterThan(panel.frame.height, barFrame.height + 100,
+                             "panel stayed at bar height \(barFrame.height); card body starved, final \(panel.frame.height)")
+    }
+
+    /// Paste availability is probed by the trigger site before selection retrieval and handed to
+    /// show(for:pasteAvailable:) — a confirmed cannot-paste must land on `modeStore.canPaste ==
+    /// false` synchronously so the card hides its Paste button and the bar/search hide Paste + Cut
+    /// on the first frame (no async flash).
+    func testPasteAvailabilityGatesBarAndCardSynchronously() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(
+            resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
+            pasteProbe: AICardFixedProbe(result: false)
+        )
+        let context = SelectionContext(
+            text: "hello",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.show(for: context, pasteAvailable: false)
+        defer { controller.hide() }
+
+        XCTAssertEqual(controller.modeStore.canPaste, false,
+                       "confirmed cannot-paste must gate Paste/Cut from the first frame")
+    }
+
+    /// Paste and Cut require a paste-capable target; Copy does not. The bar/search hide exactly the
+    /// `PasteRequiringAction` set when the probe reports cannot-paste.
+    func testPasteAndCutArePasteRequiringActions() {
+        XCTAssertTrue(PasteAction() is any PasteRequiringAction)
+        XCTAssertTrue(CutAction() is any PasteRequiringAction)
+        XCTAssertFalse(CopyAction() is any PasteRequiringAction)
+    }
+
+    /// Paste availability tracks the target app's focus context, so it must never be cached per
+    /// app: a re-show in the same app applies the freshly-probed value each time.
+    func testPasteAvailabilityIsNotCachedAcrossShows() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(
+            resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
+            pasteProbe: AICardFixedProbe(result: false)
+        )
+        let context = SelectionContext(
+            text: "hello",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+
+        controller.show(for: context, pasteAvailable: false)
+        XCTAssertEqual(controller.modeStore.canPaste, false)
+        controller.hide()
+
+        controller.show(for: context, pasteAvailable: true)
+        XCTAssertEqual(controller.modeStore.canPaste, true,
+                       "a focus-context change in the same app must apply the fresh probe result")
+        controller.hide()
+    }
+
+    /// preparePasteProbe runs the injected probe and resolves to its result, so the trigger sites
+    /// can await it after selection retrieval and hand it to show without blocking the bar.
+    func testPreparePasteProbeResolvesToProbeResult() async {
+        let controller = PopupWindowController(pasteProbe: AICardFixedProbe(result: true))
+        let probe = controller.preparePasteProbe(for: nil, policy: .default)
+        let value = await probe.value
+        XCTAssertEqual(value, true)
     }
 
     func testCanBecomeKeyFollowsAllowsKey() {
@@ -49,6 +170,15 @@ final class PopupPanelTests: XCTestCase {
 
     private func pump(_ duration: TimeInterval = 2.0) {
         RunLoop.current.run(until: Date().addingTimeInterval(duration))
+    }
+
+    /// Deterministic paste-availability fake (never blocks, ignores the app argument).
+    private struct AICardFixedProbe: PasteAvailabilityProbing {
+        let result: Bool?
+
+        func canPaste(in app: NSRunningApplication?, policy: AppPolicyContext) async -> Bool? {
+            result
+        }
     }
 
     /// Polls until the panel height settles at a value strictly greater than the bar height (i.e.
@@ -115,9 +245,9 @@ final class PopupPanelTests: XCTestCase {
     }
 
     /// A fresh show near the bottom of the screen (card above the cursor) must arm the bottom-edge
-    /// pin immediately: the hover preview strip renders above the bar, so its growth has to push up,
-    /// not shove the bar down off the cursor. Previously only enterSearch() armed the pin, so the
-    /// first hover preview after opening the popup was mis-anchored.
+    /// pin immediately: a card-above popup renders its content above the bar, so content-driven
+    /// growth has to push up, not shove the bar down off the cursor. Previously only enterSearch()
+    /// armed the pin, so the first above-bar render after opening the popup was mis-anchored.
     func testShowArmsBottomEdgePinForResultsAbove() throws {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150))

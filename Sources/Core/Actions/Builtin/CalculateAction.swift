@@ -2,11 +2,9 @@
 // OpenClip
 //
 // Implements the builtin math expression evaluation action, computing mathematical expressions found in selected text.
-// Conforms to ResultContentProviding to surface a result card (on long-press) with per-click delivery options
-// (paste/copy), superseding the global calculateMode setting for the result-card path.
 import Foundation
 
-public struct CalculateAction: ConfigurableAction, ResultContentProviding {
+public struct CalculateAction: ConfigurableAction {
     public let id = "builtin.calculate"
     public var title: String { "Calculate" }
     public let preferenceIconName = "equal.circle"
@@ -50,24 +48,6 @@ public struct CalculateAction: ConfigurableAction, ResultContentProviding {
             }
         }
         return .none
-    }
-    
-    // MARK: - ResultContentProviding
-
-    @MainActor
-    public func makeContent(for context: ActionContext) async -> CanvasComponent? {
-        let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let result = evaluateExpression(text) else { return nil }
-        let resultString = formatResult(result)
-        let fullLine = "\(text) = \(resultString)"
-
-        return Canvas.build {
-            Canvas.text(fullLine)
-            Canvas.hstack(spacing: 6) {
-                Canvas.button("Paste \(resultString)", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(resultString)))
-                Canvas.button("Copy \(resultString)", icon: .symbol("doc.on.doc"), handler: .effect(.copy(resultString)))
-            }
-        }
     }
     
     private func evaluateExpression(_ text: String) -> Double? {

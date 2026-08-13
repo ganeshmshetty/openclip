@@ -45,7 +45,6 @@ interface OpenClipBridge {
   runShortcut(name: string): void;       // Runs a macOS Shortcut (requires /usr/bin/shortcuts)
   notify(title: string, body: string): void;
   showStatus(message: string, style?: string): void; // style: "success" | "error" | "info"
-  showContent(tree: object, options?: { size?: { width: number; height: number } }): void; // See below
   keepVisible(): void;                   // Keep the popup open after the result
   requireConfiguration(payload: object): void; // { reason?: string, missing?: string[] }
 }
@@ -55,17 +54,8 @@ Modifier names accepted by `keyPress`: `command`/`cmd`, `shift`, `option`/`alt`,
 `control`/`ctrl`. The key is a macOS virtual-key name (QWERTY/ANSI layout is assumed), e.g.
 letters `a`–`z`, digits `0`–`9`, or named keys like `return`, `space`, `escape`.
 
-`showContent(tree, { size })` renders an element object from `h()` as an inline interactive canvas
-on the popup panel (`.content` mode) — never a separate floating panel. `tree` is a single `h()`
-element object (an array is wrapped in a vertical `stack`); the optional `{ size: { width, height } }`
-declares the canvas size once (clamped to the 220–360 width column / `PopupMetrics.popupMaxHeight`).
-The canned `title`/`body`/`footer`/`emphasis` keys are gone — the tree carries the content and the
-canvas's chrome header comes from the running action. The full canvas authoring contract
-(`ui(state, input)` / `handlers`, state model, `keepVisible` no-op, status-after-collapse) is in
-§7a of `docs/developer-guide/AGENTS.md`.
-
-Async canvas actions (`"async": true`) get the same `fetch(url, options)` polyfill inside
-handlers as the non-canvas JS runtime above; `ui()` remains synchronous.
+The former canvas bridge (`showContent(tree, { size })` / `h()`) has been **removed**; calling
+those names surfaces a JS error (`.showStatus(.error)`).
 
 ## Options & Preference Integration
 
@@ -143,15 +133,11 @@ script enters its promise pump loop, the sync gate is released while the watchdo
 `OpenClipJSHost.run` resolves the outcome in a deterministic order:
 
 1. `requireConfiguration(...)` → `.openConfiguration`.
-2. `showContent(...)` → `.showContent(CanvasComponent, CanvasHeader?)` — the `h()` element tree,
-   rendered as the inline canvas. Called *from inside* a canvas session it never resolves to a
-   result: it replaces the session's mounted tree (declaring the canvas size) for the next
-   re-render rather than dismissing.
-3. `showStatus(...)` (with no effects) → `.showStatus`.
-4. Effects (paste/copy/cut/openURL/keyPress/runShortcut/notify) → single `.paste`/`.copy`/etc, or
+2. `showStatus(...)` (with no effects) → `.showStatus`.
+3. Effects (paste/copy/cut/openURL/keyPress/runShortcut/notify) → single `.paste`/`.copy`/etc, or
    `.sequence` of them when multiple were called.
-5. String return value → `.copy(string)`.
-6. Otherwise → `.success`.
+4. String return value → `.copy(string)`.
+5. Otherwise → `.success`.
 
 If `keepVisible()` was called, the resolved result is wrapped in `.keepVisible(...)`.
 A JavaScript exception produces `.showStatus(.error, message)` instead of throwing; the popup

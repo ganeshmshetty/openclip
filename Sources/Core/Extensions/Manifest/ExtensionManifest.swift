@@ -26,7 +26,6 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     public let serviceName: String?
     public let shortcutName: String?
     public let menuRelevance: String?
-    public let menuPreview: String?
 
     public var kind: ExtensionActionKind {
         ExtensionActionKind(rawType: type ?? "url")
@@ -50,8 +49,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         keyPress: String? = nil,
         serviceName: String? = nil,
         shortcutName: String? = nil,
-        menuRelevance: String? = nil,
-        menuPreview: String? = nil
+        menuRelevance: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -71,7 +69,6 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.serviceName = serviceName
         self.shortcutName = shortcutName
         self.menuRelevance = menuRelevance
-        self.menuPreview = menuPreview
     }
 
     public init(from decoder: Decoder) throws {
@@ -102,7 +99,6 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.serviceName = try container.decodeIfPresent(String.self, forKey: .serviceName)
         self.shortcutName = try container.decodeIfPresent(String.self, forKey: .shortcutName)
         self.menuRelevance = try container.decodeIfPresent(String.self, forKey: .menuRelevance)
-        self.menuPreview = try container.decodeIfPresent(String.self, forKey: .menuPreview)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -125,7 +121,6 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(serviceName, forKey: .serviceName)
         try container.encodeIfPresent(shortcutName, forKey: .shortcutName)
         try container.encodeIfPresent(menuRelevance, forKey: .menuRelevance)
-        try container.encodeIfPresent(menuPreview, forKey: .menuPreview)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -155,7 +150,6 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case serviceName = "serviceName"
         case shortcutName = "shortcutName"
         case menuRelevance = "menuRelevance"
-        case menuPreview = "menuPreview"
     }
 }
 

@@ -83,7 +83,7 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `id` | String | Unique action identifier. If omitted, generated as `<manifest.id>.action.<index>`. |
 | `title` | String | Display title presented in UI surfaces. |
 | `icon` | String | Icon definition. Accepts `symbol:sf_symbol_name`, local filename (`icon.png`), or URL. |
-| `type` | String | Runtime kind (case-insensitive): `"url"` (default when absent), `"javascript"` (`"js"`), `"canvas"`, `"applescript"`, `"shell"` (`"shellinline"`), `"script"` (`"scriptfile"`), `"textSnippet"` (`"snippet"`/`"text"`), `"webSearch"` (`"web"`/`"search"`), `"keyPress"` (`"keys"`), `"service"` (`"servicemenu"`), `"shortcut"` (`"keyboardshortcut"`), `"group"` (`"subactions"`). **Unknown values reject the manifest** at load. |
+| `type` | String | Runtime kind (case-insensitive): `"url"` (default when absent), `"javascript"` (`"js"`), `"applescript"`, `"shell"` (`"shellinline"`), `"script"` (`"scriptfile"`), `"textSnippet"` (`"snippet"`/`"text"`), `"webSearch"` (`"web"`/`"search"`), `"keyPress"` (`"keys"`), `"service"` (`"servicemenu"`), `"shortcut"` (`"keyboardshortcut"`), `"group"` (`"subactions"`). **Unknown values reject the manifest** at load. |
 | `script` | String | Path to script file relative to extension directory (defaults to `main.js`). |
 | `scriptCode` | String | Inline script code string (used when code is embedded directly in manifest/snippet). |
 | `async` | Boolean | Optional. For `type: "javascript"` only: runs the script asynchronously, enabling a `fetch()` polyfill and awaiting the entry function's returned promise. Default `false` (legacy synchronous mode). |
@@ -94,22 +94,10 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `serviceName` | String | Reserved for the macOS Services menu (for `type: "service"`). |
 | `subActions` | Array | Sub-action objects for `type: "group"`; rendered as a sub-menu with IDs `<groupID>.<subID>`. |
 
-### `type: "canvas"` (interactive canvas)
+### `type: "canvas"` (removed)
 
-A JS-only kind: `scriptCode` (required — validation rejects a canvas without it) holds the canvas
-script, `"async": true` is optional, and there is **no `output` key** — `output: "canvas"` is **not
-introduced**. A canvas never returns text; it renders an interactive component tree on the popup
-via the `ui(state, input)` / `handlers` contract. The full authoring guide (script contract,
-`h()` component reference, `openclip` bridge, examples) lives in §7a of
-[`docs/developer-guide/AGENTS.md`](./AGENTS.md).
-
-```jsonc
-{
-  "title": "Counter",
-  "type": "canvas",
-  "scriptCode": "const initialState = { count: 0 }; const handlers = { increment: (s) => ({ count: s.count + 1 }) }; const ui = (s) => h('button', { title: 'Count: ' + s.count, handler: 'increment' });"
-}
-```
+The former interactive-canvas kind `"canvas"` was removed; a `type: "canvas"` manifest is rejected
+at load (`unknownActionKind("canvas")`).
 
 ---
 
