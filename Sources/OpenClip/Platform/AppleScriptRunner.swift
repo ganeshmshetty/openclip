@@ -20,12 +20,14 @@ final class AppleScriptRunner: @unchecked Sendable {
     private init() {}
 
     /// Runs `source` and returns its trimmed string result. Throws on non-zero exit (stderr text as
-    /// the message, matching ShellProcessRunner's error policy) and on watchdog timeout.
-    func run(_ source: String) async throws -> String {
+    /// the message, matching ShellProcessRunner's error policy) and on watchdog timeout. `timeout`
+    /// overrides the default `Constants.scriptTimeout` budget on the subprocess watchdog.
+    func run(_ source: String, timeout: TimeInterval? = nil) async throws -> String {
         let invocation = ShellProcessRunner.Invocation(
             executableURL: URL(fileURLWithPath: "/usr/bin/osascript"),
             arguments: ["-e", source],
-            environment: [:]
+            environment: [:],
+            timeout: timeout
         )
         let output = try await ShellProcessRunner.run(invocation)
         return output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
