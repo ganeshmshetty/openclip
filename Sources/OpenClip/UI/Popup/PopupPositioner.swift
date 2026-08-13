@@ -10,7 +10,7 @@ import AppKit
 public struct PopupPositioner: Sendable {
 
     // How far the popup sits from the release point (points)
-    private static let gap: CGFloat = 12
+    private static let gap: CGFloat = 6
 
     /// Main entry point — positions relative to mouse release point and drag direction.
     public static func calculateFrame(

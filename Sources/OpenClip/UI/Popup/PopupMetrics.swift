@@ -10,7 +10,7 @@ import CoreGraphics
 public enum PopupMetrics {
     public static let popupPadding: CGFloat = 8.0
     /// Cursor distance (pt) beyond which the popup auto-dismisses (suspended in search/content mode).
-    public static let popupDismissalDistance: CGFloat = 280.0
+    public static let popupDismissalDistance: CGFloat = 160.0
     /// Vertical threshold (pt) from the bottom of the screen bounds below which the card renders
     /// above the action bar instead of below (numerically equals `popupDismissalDistance`).
     public static let cardAboveThreshold: CGFloat = 280.0
