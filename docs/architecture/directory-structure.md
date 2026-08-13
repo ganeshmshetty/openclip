@@ -91,7 +91,7 @@ Sources/
     │   ├── KeychainStore.swift               # Generic-password SecItem wrapper for sensitive credentials (AI API key)
     │   ├── LaunchAtLoginManager.swift        # Login item manager (SMAppService; persisted state via SettingKey.startAtLogin)
     │   ├── MacSelectionMonitor.swift         # Global accessibility monitor
-    │   ├── MacTextRetriever.swift            # AX selection read + Safari JS; AX Menu Copy fallback for lenient apps
+    │   ├── MacTextRetriever.swift            # AX selection read; AX Menu Copy fallback for lenient apps
     │   ├── OnceResume.swift                  # Exactly-once continuation resume gate (AX read + AppleScript deadline races)
     │   ├── PermissionManager.swift           # Accessibility permission manager
     │   └── DebugLogging/                             # In-process debug log store + --dump-logs CLI (App target)
@@ -114,7 +114,7 @@ Sources/
         │   ├── OnboardingWindowController.swift  # Transparent borderless window hosting the solid rounded card
         │   └── RecommendedExtensionsView.swift   # Top store extensions by downloadCount + Install File
         ├── Popup/                            # Floating popup panel
-        │   ├── PopupModeStore.swift            # Shared observable actions↔search↔content mode + aiResult/statusBanner payloads
+        │   ├── PopupModeStore.swift            # Shared observable actions↔search↔content mode + aiResult payload (statuses now live in the toast, not the store)
         │   ├── PopupMetrics.swift                # UI-only popup/search/AI-card sizing + placement/dismissal constants (App target, not Core)
         │   ├── PopupPanel.swift                # NSPanel subclass (scoped allowsKey + bottom-edge pin on content-driven resize)
         │   ├── PopupGesturePolicy.swift        # Derived popup interaction policy from chrome + conformance (App target — UI-only)
@@ -126,6 +126,9 @@ Sources/
         │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode / content AI-card branch + ⌘ affordance)
         │   ├── PopupWindowController.swift   # Window lifecycle + mode state machine (bar/search/content) + event monitoring
         │   ├── AIResultCardView.swift          # Native AI result card (back chevron + sparkles + title header, scrollable body, Copy/Paste footer) for .content mode
+        │   ├── ToastPanel.swift                # Non-key floating NSPanel behind the status toast (borderless, non-activating, never key)
+        │   ├── ToastView.swift                 # One-line SwiftUI toast `[spinner | icon] message`, PopupThemeModel-themed
+        │   ├── ToastPanelController.swift      # Owns the toast panel + auto-dismiss timer; single status surface (replaces the inline banner)
         │   ├── PopupHoverSupport.swift         # Shared popup hover-state singleton + hover-target/frame preference keys (bar)
         │   └── SearchHoverSupport.swift        # Search-palette hover-target/frame preference keys
         └── Preferences/                      # Settings & preferences views

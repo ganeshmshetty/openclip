@@ -37,6 +37,12 @@ public struct DefineAction: ConfigurableAction {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A force-copy click (right-click or ⇧-click) copies the dictionary definition headlessly
+        // instead of opening Dictionary.app. The actual lookup is a platform effect resolved by the
+        // effect door, so Core stays pure.
+        if context.forceCopy {
+            return .copyDefinition(text)
+        }
         if let encoded = text.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed),
            let url = URL(string: "dict://\(encoded)") {
             return .openURL(url)

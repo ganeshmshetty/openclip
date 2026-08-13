@@ -17,11 +17,14 @@ public struct StatusFeedback: Sendable, Equatable {
     public var style: Style
     /// Optional SF Symbol preset name; the app maps a nil value to the style's default token.
     public var symbolName: String?
+    /// True when this status renders a spinner instead of a symbol (loading/opening state).
+    public var isLoading: Bool
 
-    public init(message: String, style: Style, symbolName: String? = nil) {
+    public init(message: String, style: Style, symbolName: String? = nil, isLoading: Bool = false) {
         self.message = message
         self.style = style
         self.symbolName = symbolName
+        self.isLoading = isLoading
     }
 
     /// Builds an `.error` status for a thrown error, using the localized description when available.

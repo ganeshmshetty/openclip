@@ -2,8 +2,9 @@
 // OpenClip
 //
 // Shared observable mode state for the popup: the screen mode (actions bar / search palette /
-// native AI result card) and the payloads those screens render (AI result payload, status
-// banner). The real popup observes the store injected by PopupWindowController; the static
+// native AI result card) and the payloads those screens render (AI result payload). Statuses
+// render as a floating toast via ToastPanelController, not through the store. The real popup
+// observes the store injected by PopupWindowController; the static
 // preview uses a throwaway store so it never affects the live popup (mirrors the PopupHoverState
 // shared + opt-in-static pattern).
 import Foundation
@@ -25,8 +26,6 @@ public final class PopupModeStore: ObservableObject {
     /// card's Paste button and the bar/search Paste + Cut actions; `nil` (unknown/probing) and
     /// `true` keep them visible.
     @Published public var canPaste: Bool? = nil
-    /// A transient inline status banner (auto-dismissed by the controller).
-    @Published public var statusBanner: StatusFeedback? = nil
 
     public init() {}
 }

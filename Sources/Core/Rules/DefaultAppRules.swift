@@ -17,25 +17,6 @@ public enum DefaultAppRules: Sendable {
         "net.whatsapp.WhatsApp"
     ]
     
-    public static let safariGroup: [String] = [
-        "com.apple.Safari",
-        "com.apple.SafariTechnologyPreview"
-    ]
-    
-    public static let chromiumGroup: [String] = [
-        "com.google.Chrome",
-        "com.brave.Browser",
-        "com.microsoft.edgemac"
-    ]
-    
-    public static let firefoxGroup: [String] = [
-        "org.mozilla.firefox"
-    ]
-    
-    public static let arcGroup: [String] = [
-        "company.thebrowser.Browser"
-    ]
-    
     public static let catalog: [AppRule] = [
         AppRule(
             bundleIdentifiers: [":menu-copy-apps:"],

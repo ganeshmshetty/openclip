@@ -104,6 +104,32 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertNil(absent.menuRelevance)
     }
 
+    func testActionDecodesLoadingKey() throws {
+        let json = """
+        {
+          "identifier": "com.test.music",
+          "name": "Music",
+          "action": {
+            "title": "Music",
+            "type": "applescript",
+            "script": "main.applescript",
+            "loading": true,
+            "loadingMessage": "Connecting to Music…"
+          }
+        }
+        """
+        let data = Data(json.utf8)
+        let manifest = try JSONDecoder().decode(ExtensionMetadata.self, from: data)
+        XCTAssertEqual(manifest.actions.first?.loading, true)
+        XCTAssertEqual(manifest.actions.first?.loadingMessage, "Connecting to Music…")
+    }
+
+    func testLoadingMessageDefaultsNil() throws {
+        let action = try JSONDecoder().decode(ExtensionActionMetadata.self,
+                                             from: #"{"title":"Plain"}"#.data(using: .utf8)!)
+        XCTAssertNil(action.loadingMessage)
+    }
+
     func testManifestDecoding() throws {
         let json = """
         {

@@ -127,9 +127,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     private func shownController(resultHandler: ActionResultHandler,
                                  pasteProbe: PasteAvailabilityProbing,
-                                 appPolicy: AppPolicyContext) throws -> PopupWindowController {
+                                 appPolicy: AppPolicyContext,
+                                 toastController: ToastPanelController = ToastPanelController()) throws -> PopupWindowController {
         guard NSScreen.main != nil else { throw XCTSkip("no screen") }
-        let controller = PopupWindowController(resultHandler: resultHandler, pasteProbe: pasteProbe)
+        let controller = PopupWindowController(resultHandler: resultHandler, pasteProbe: pasteProbe, toastController: toastController)
         let context = SelectionContext(
             text: "hello",
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
@@ -201,6 +202,147 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         assertCase(try await awaitDelivery(from: handler), .paste("hello"))
     }
+
+    // MARK: - Toast routing: paste→copy downgrade shows "Copied"; native copy shows nothing
+
+    /// A `.paste` result downgraded to `.copy` (force-copy click / cannot paste) surfaces the
+    /// "Copied" toast. The toast is independent of the popup, so it works even though the popup hid.
+    @MainActor
+    func testDowngradeToCopyShowsCopiedToast() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: false),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        _ = try await awaitDelivery(from: handler)
+        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
+        XCTAssertEqual(toast.currentFeedback?.style, .success)
+    }
+
+    /// A native `.copy` result is not a downgrade — it must show no toast.
+    @MainActor
+    func testNativeCopyShowsNoToast() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        controller.deliverResult(.copy("hello"))
+
+        _ = try await awaitDelivery(from: handler)
+        XCTAssertNil(toast.currentFeedback, "native copy must not show the Copied toast")
+    }
+
+    /// Every `.showStatus` result routes to the toast (the single status surface). The popup is
+    /// shown first (via `shownController`) so `panel` exists and the toast anchors to the popup's
+    /// frame — matching production, where a nil panel would otherwise fall back to the cursor.
+    @MainActor
+    func testShowStatusRoutesToToast() async throws {
+        let toast = ToastPanelController()
+        let controller = try shownController(resultHandler: RecordingHandler(),
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+        controller.handleActionResult(.showStatus(StatusFeedback(message: "hello", style: .info)))
+        XCTAssertEqual(toast.currentFeedback?.message, "hello")
+        XCTAssertTrue(toast.isShowing)
+        XCTAssertNotNil(toast.lastAnchorFrame, "status toast must anchor to the popup frame, not the cursor")
+    }
+
+    // MARK: - Loading (slow-action) early-close flow
+
+    /// A `showsLoading` action closes the popup immediately, shows a spinner toast, and fades the
+    /// toast when the result lands with no description (`.success`).
+    @MainActor
+    func testLoadingActionShowsSpinnerThenFades() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        controller.runLoadingAction(SlowStubAction(), with: controllerCurrentContext(controller), forceCopy: false)
+        XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
+        try await Task.sleep(nanoseconds: 150_000_000)
+        XCTAssertFalse(toast.isLoading, "loading toast should fade once a description-free result lands")
+    }
+
+    @MainActor
+    private func controllerCurrentContext(_ controller: PopupWindowController) -> ActionContext {
+        let context = SelectionContext(
+            text: "hello",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: CGPoint(x: 300, y: 300),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        return ActionContext(selection: context, modifiers: [])
+    }
+
+    /// A `showsLoading` action with an explicit `loadingMessage`; the controller must surface that
+    /// message verbatim instead of the "Opening <title>…" default.
+    @MainActor
+    func testLoadingActionUsesCustomLoadingMessage() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        controller.runLoadingAction(MessageStubAction(), with: controllerCurrentContext(controller), forceCopy: false)
+        XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
+        XCTAssertEqual(toast.currentFeedback?.message, "Connecting to Music…")
+        try await Task.sleep(nanoseconds: 150_000_000)
+        XCTAssertFalse(toast.isLoading, "loading toast should fade once a description-free result lands")
+    }
+
+    // MARK: - Force-copy threading: runAction must propagate the click intent into the action context
+
+    /// A right-click (forceCopy) on an action must reach `perform` as `context.forceCopy == true`,
+    /// so Define returns `.copyDefinition` instead of opening Dictionary.
+    @MainActor
+    func testRunActionThreadsForceCopyIntoActionContext() async throws {
+        let handler = RecordingHandler()
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default)
+        defer { controller.hide() }
+
+        let probe = ForceCopyProbeAction()
+        controller.runAction(probe, with: controllerCurrentContext(controller), forceCopy: true)
+
+        _ = try await awaitDelivery(from: handler)
+        XCTAssertEqual(probe.lastPerformContext?.forceCopy, true, "force-copy click must reach the action context")
+    }
+
+    /// A normal left-click must reach `perform` as `context.forceCopy == false` (default).
+    @MainActor
+    func testRunActionDefaultsForceCopyToFalse() async throws {
+        let handler = RecordingHandler()
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default)
+        defer { controller.hide() }
+
+        let probe = ForceCopyProbeAction()
+        controller.runAction(probe, with: controllerCurrentContext(controller), forceCopy: false)
+
+        _ = try await awaitDelivery(from: handler)
+        XCTAssertEqual(probe.lastPerformContext?.forceCopy, false, "left-click must not set forceCopy")
+    }
 }
 
 /// Records every effect the handler is asked to deliver. @MainActor-isolated, matching the
@@ -223,5 +365,67 @@ private struct FixedProbe: PasteAvailabilityProbing {
 
     func canPaste(in app: NSRunningApplication?, policy: AppPolicyContext) async -> Bool? {
         result
+    }
+}
+
+/// A `showsLoading` action whose perform resolves after a short delay to a description-free
+/// `.success` (e.g. Apple Music's empty-stdout AppleScript).
+private final class SlowStubAction: Action {
+    let id = "stub.slow"
+    let title = "Slow"
+    let icon: ActionIcon = .symbol("play")
+    var chrome: ActionChrome { ActionChrome(source: .builtin, showsLoading: true) }
+    func isEnabled(for context: ActionContext) -> Bool { true }
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
+    func perform(_ context: ActionContext) async throws -> ActionResult {
+        try await Task.sleep(nanoseconds: 30_000_000)
+        return .success
+    }
+}
+
+/// A `showsLoading` action that declares its own loading toast text.
+private final class MessageStubAction: Action {
+    let id = "stub.message"
+    let title = "Slow"
+    let icon: ActionIcon = .symbol("play")
+    var chrome: ActionChrome { ActionChrome(source: .builtin, showsLoading: true, loadingMessage: "Connecting to Music…") }
+    func isEnabled(for context: ActionContext) -> Bool { true }
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
+    func perform(_ context: ActionContext) async throws -> ActionResult {
+        try await Task.sleep(nanoseconds: 30_000_000)
+        return .success
+    }
+}
+
+/// Records the `ActionContext` handed to `perform` so tests can assert the click intent
+/// (forceCopy) threaded through the controller's run path. Mutable state lives in a synchronous
+/// lock-protected box so the Sendable `Action` conformance stays race-free.
+private final class ForceCopyProbeAction: Action, @unchecked Sendable {
+    let id = "stub.forcecopy"
+    let title = "ForceCopyProbe"
+    let icon: ActionIcon = .symbol("hand.point.right")
+    var chrome: ActionChrome { ActionChrome(source: .builtin) }
+    private let captured = LockedContextBox()
+    var lastPerformContext: ActionContext? { captured.value }
+    func isEnabled(for context: ActionContext) -> Bool { true }
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
+    func perform(_ context: ActionContext) async throws -> ActionResult {
+        captured.set(context)
+        return .copyDefinition(context.selection.text)
+    }
+}
+
+/// Lock-protected capture box for the context an action performed with (synchronous accessors, so
+/// it stays callable from an async `perform`).
+private final class LockedContextBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: ActionContext?
+    func set(_ value: ActionContext) {
+        lock.lock(); defer { lock.unlock() }
+        storage = value
+    }
+    var value: ActionContext? {
+        lock.lock(); defer { lock.unlock() }
+        return storage
     }
 }

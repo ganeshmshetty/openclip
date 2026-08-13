@@ -19,7 +19,7 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
  },
  {
  "bundle-identifiers": [
- ":chromium-group:"
+ ":menu-copy-apps:"
  ],
  "use-menu-copy": true
  }
@@ -50,10 +50,7 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 
 | Group Shortcut | Expanded Application Bundle Identifiers |
 | :--- | :--- |
-| `:safari-group:` | `com.apple.Safari`, `com.apple.SafariTechnologyPreview` |
-| `:chromium-group:` | `com.google.Chrome`, `com.brave.Browser`, `com.microsoft.edgemac` |
-| `:firefox-group:` | `org.mozilla.firefox` |
-| `:arc-group:` | `company.thebrowser.Browser` |
+| `:menu-copy-apps:` | `com.microsoft.VSCode`, `com.microsoft.VSCodeInsiders`, `dev.zed.Zed`, `com.github.atom`, `com.sublimetext.*`, `notion.id`, `md.obsidian`, `com.figma.Desktop`, `net.whatsapp.WhatsApp` |
 
 ---
 

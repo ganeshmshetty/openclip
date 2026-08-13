@@ -62,4 +62,21 @@ final class DefineActionTests: XCTestCase {
             XCTFail("Expected openURL with dict:// scheme for DefineAction")
         }
     }
+
+    @MainActor
+    func testDefineActionForceCopyReturnsCopyDefinition() async throws {
+        let action = DefineAction()
+        let app = AppIdentity(NSRunningApplication.current)
+        let context = ActionContext(
+            selection: SelectionContext(text: "epiphany", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+            modifiers: [],
+            forceCopy: true
+        )
+
+        let result = try await action.perform(context)
+        guard case .copyDefinition(let word) = result else {
+            return XCTFail("Expected copyDefinition for a force-copy click, got \(result)")
+        }
+        XCTAssertEqual(word, "epiphany")
+    }
 }

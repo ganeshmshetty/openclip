@@ -33,4 +33,7 @@ public enum PopupMetrics {
     /// collapsed to nothing while the header/footer rendered). A concrete height gives the card a
     /// deterministic preferred size and keeps the whole card under `popupMaxHeight`.
     public static let aiCardBodyHeight: CGFloat = 120
+    /// How long an info/error toast stays up before auto-dismissing (0.5 s). Loading toasts have
+    /// no timer — they live until the action's result lands.
+    public static let toastDurationNanoseconds: UInt64 = 500_000_000
 }

@@ -32,14 +32,6 @@ public class PopupWindowController {
     var previousFrontmostApp: NSRunningApplication?
 
     private var hoveredAction: (any Action)?
-    /// Auto-dismiss timer for the non-blocking status info bubble.
-    private var statusDismissTask: Task<Void, Never>?
-    /// How long the non-blocking status info bubble stays up before auto-dismissing.
-    private let statusBubbleDurationNanoseconds: UInt64 = 1_500_000_000
-    /// A status queued while the AI result card is open (.content mode). Flushed onto the bar
-    /// banner when the card collapses (exitContent) — a card open never shows a banner, and hide()
-    /// clears the queue so a dismissal never surfaces a stale banner.
-    private var pendingStatus: StatusFeedback?
 
     private var isMenuTracking = false
 
@@ -52,10 +44,16 @@ public class PopupWindowController {
     /// Probes whether the frontmost app supports Paste. Injected for tests.
     private let pasteProbe: PasteAvailabilityProbing
 
+    /// The floating toast surface for statuses and the paste→copy "Copied" notice. Independent of
+    /// the popup panel: it shows whether the popup is up or has already hidden. Injected for tests.
+    private let toastController: ToastPanelController
+
     public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
-                pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe()) {
+                pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe(),
+                toastController: ToastPanelController = ToastPanelController()) {
         self.resultHandler = resultHandler
         self.pasteProbe = pasteProbe
+        self.toastController = toastController
     }
 
     /// Kicks off the paste-availability probe for the given target app (rules first, then the AX
@@ -133,7 +131,12 @@ public class PopupWindowController {
             },
             onActionPerformed: { [weak self] actionID in
                 self?.usageStore.record(actionID)
-            }
+            },
+            onRunLoadingAction: { [weak self] action in
+                guard let self, let context = self.currentActionContext else { return }
+                self.runLoadingAction(action, with: context, forceCopy: self.pendingClickIntent == .forceCopy)
+            },
+            onClickIntent: { [weak self] in self?.pendingClickIntent ?? .leftClick }
         )
         panel.contentView = NSHostingView(rootView: rootView)
         panel.contentView?.layoutSubtreeIfNeeded()
@@ -286,15 +289,13 @@ public class PopupWindowController {
         enterKeyMode()
     }
 
-    /// Collapses the AI result card back to the actions bar. Never hides the popup. Flushes any
-    /// status queued while the card was open onto the bar banner.
+    /// Collapses the AI result card back to the actions bar. Never hides the popup.
     public func exitContent() {
         guard modeStore.mode == .content else { return }
         modeStore.aiResult = nil
         modeStore.mode = .actions
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         exitKeyMode()
-        flushPendingStatus()
     }
 
     // MARK: - Hovered Action
@@ -361,11 +362,6 @@ public class PopupWindowController {
     }
     
     public func hide() {
-        statusDismissTask?.cancel()
-        statusDismissTask = nil
-        // Never surface a banner after dismissal: a status queued while the AI card was open is dropped.
-        pendingStatus = nil
-        modeStore.statusBanner = nil
         modeStore.aiResult = nil
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
@@ -596,6 +592,9 @@ public class PopupWindowController {
         return Task { @MainActor in
             do {
                 let delivered = await resolveDelivery(effect, delivery: delivery)
+                if case .paste = effect, case .copy = delivered {
+                    toastController.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorFrame: panel?.frame)
+                }
                 try await resultHandler.handle(delivered, in: panel?.contentView)
             } catch {
                 handleActionResult(.showStatus(StatusFeedback(error: error)))
@@ -632,7 +631,12 @@ public class PopupWindowController {
     /// fires) and routes its result through the standard dismissal + tree-walk, recording usage.
     /// Mirrors the left-click perform path in PopupView. The delivery context is built here from
     /// `forceCopy`, so the decision never depends on live state read after the perform await.
-    private func runAction(_ action: any Action, with context: ActionContext, forceCopy: Bool) {
+    /// Internal for tests (mirrors `runLoadingAction`).
+    func runAction(_ action: any Action, with context: ActionContext, forceCopy: Bool) {
+        if action.chrome.showsLoading {
+            runLoadingAction(action, with: context, forceCopy: forceCopy)
+            return
+        }
         let clickIntent: ActionResultDelivery.ClickIntent = forceCopy ? .forceCopy : .leftClick
         pendingClickIntent = clickIntent
         // Snapshot the target app with the rest of the delivery inputs, before the perform await
@@ -644,9 +648,12 @@ public class PopupWindowController {
         )
         usageStore.record(action.id)
         let match = action.matchInfo(for: context)
-        let performContext = match.map {
-            ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
-        } ?? context
+        let performContext = ActionContext(
+            selection: context.selection,
+            modifiers: context.modifiers,
+            forceCopy: forceCopy,
+            match: match
+        )
         Task { @MainActor in
             do {
                 let result = try await action.perform(performContext)
@@ -661,39 +668,78 @@ public class PopupWindowController {
         }
     }
 
-    /// Surfaces a StatusFeedback: queues it while the AI result card is open (the card shows no
-    /// banner; the status is flushed onto the bar when the card collapses), otherwise shows an
-    /// auto-dismissing (~1.5s) non-blocking banner.
+    /// Performs a `showsLoading` action with early-close: the popup hides immediately, a spinner
+    /// toast appears at the cursor, and the result settles the toast (swap to description, or fade
+    /// when the result carries none). Mirrors runAction's delivery snapshot: captured before the
+    /// early hide so paste-vs-copy still sees the pre-dismissal context. Internal for tests.
+    func runLoadingAction(_ action: any Action, with context: ActionContext, forceCopy: Bool) {
+        let clickIntent: ActionResultDelivery.ClickIntent = forceCopy ? .forceCopy : .leftClick
+        pendingClickIntent = clickIntent
+        let delivery = DeliveryContext(
+            policy: context.selection.appPolicy,
+            clickIntent: clickIntent,
+            application: NSWorkspace.shared.frontmostApplication
+        )
+        usageStore.record(action.id)
+        let match = action.matchInfo(for: context)
+        let performContext = ActionContext(
+            selection: context.selection,
+            modifiers: context.modifiers,
+            forceCopy: forceCopy,
+            match: match
+        )
+        let anchorFrame = panel?.frame
+        hide()
+        let message = action.chrome.loadingMessage ?? "Opening \(action.title)…"
+        toastController.showLoading(message: message, anchorFrame: anchorFrame)
+        Task { @MainActor in
+            do {
+                let result = try await action.perform(performContext)
+                await settleLoadingResult(result, delivery: delivery)
+            } catch {
+                Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
+                await settleLoadingResult(.showStatus(StatusFeedback(error: error)), delivery: delivery)
+            }
+        }
+    }
+
+    /// Resolves a loading action's result into the toast: `.showStatus` swaps to that status,
+    /// a paste→copy downgrade swaps to "Copied", a leaf with an effect that delivers swaps to
+    /// "Copied" on downgrade, and everything else (`.success`, `.openURL`, honored paste, native
+    /// copy) fades the spinner.
+    private func settleLoadingResult(_ result: ActionResult, delivery: DeliveryContext) async {
+        switch result {
+        case .showStatus(let feedback):
+            toastController.show(feedback)
+        case .openConfiguration(let request):
+            presentConfiguration(for: request)
+        case .keepVisible(let inner):
+            await settleLoadingResult(inner, delivery: delivery)
+        case .sequence(let items):
+            for item in items { await settleLoadingResult(item, delivery: delivery) }
+        default:
+            guard let effect = result.effectForHandler else {
+                toastController.hide()
+                return
+            }
+            do {
+                let delivered = await resolveDelivery(effect, delivery: delivery)
+                if case .paste = effect, case .copy = delivered {
+                    toastController.swapTo(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"))
+                } else {
+                    try await resultHandler.handle(delivered, in: panel?.contentView)
+                    toastController.hide()
+                }
+            } catch {
+                await settleLoadingResult(.showStatus(StatusFeedback(error: error)), delivery: delivery)
+            }
+        }
+    }
+
+    /// Surfaces a StatusFeedback as the floating toast (the single status renderer). The toast
+    /// is independent of the popup, so it shows whether the popup stays up or has already hidden.
     private func presentStatus(_ feedback: StatusFeedback) {
-        // Never surface a status if the popup isn't showing (e.g. a `.failure` result dismissed it
-        // before the effect threw); otherwise a detached banner would float with no bar.
-        guard panel?.isVisible == true else { return }
-        if modeStore.mode == .content {
-            pendingStatus = feedback
-            return
-        }
-        statusDismissTask?.cancel()
-        modeStore.statusBanner = feedback
-        startStatusDismissal()
-    }
-
-    /// Shows a queued (while-card-open) status on the bar banner exactly once, then clears the
-    /// queue. Called by exitContent() when the card collapses.
-    private func flushPendingStatus() {
-        guard let pendingStatus else { return }
-        self.pendingStatus = nil
-        statusDismissTask?.cancel()
-        modeStore.statusBanner = pendingStatus
-        startStatusDismissal()
-    }
-
-    /// Starts the auto-dismiss task for the current bar banner.
-    private func startStatusDismissal() {
-        statusDismissTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: statusBubbleDurationNanoseconds)
-            guard !Task.isCancelled else { return }
-            self.modeStore.statusBanner = nil
-        }
+        toastController.show(feedback, anchorFrame: panel?.frame)
     }
 
     /// Decision 8 config-open path: the popup has already hidden (`.openConfiguration` dismisses it);

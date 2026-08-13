@@ -49,16 +49,8 @@ final class RuleEngineTests: XCTestCase {
                     "deny-paste": false
                 },
                 {
-                    "bundle-identifiers": [":safari-group:"],
+                    "bundle-identifiers": [":menu-copy-apps:"],
                     "deny-paste": true
-                },
-                {
-                    "bundle-identifiers": [":firefox-group:"],
-                    "deny-paste": true
-                },
-                {
-                    "bundle-identifiers": [":arc-group:"],
-                    "use-menu-copy": true
                 }
             ]
         }
@@ -83,18 +75,9 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(randomContext.useMenuCopy, true)
         XCTAssertEqual(randomContext.denyPaste, false)
         
-        // Test Macro
-        let safariContext = RuleEngine.shared.resolvePolicies(for: "com.apple.Safari")
-        XCTAssertEqual(safariContext.denyPaste, true)
-
-        let safariTpContext = RuleEngine.shared.resolvePolicies(for: "com.apple.SafariTechnologyPreview")
-        XCTAssertEqual(safariTpContext.denyPaste, true)
-        
-        let firefoxContext = RuleEngine.shared.resolvePolicies(for: "org.mozilla.firefox")
-        XCTAssertEqual(firefoxContext.denyPaste, true)
-        
-        let arcContext = RuleEngine.shared.resolvePolicies(for: "company.thebrowser.Browser")
-        XCTAssertEqual(arcContext.useMenuCopy, true)
+        // Test macro
+        let menuCopyContext = RuleEngine.shared.resolvePolicies(for: "com.microsoft.VSCode")
+        XCTAssertEqual(menuCopyContext.denyPaste, true)
         
         try FileManager.default.removeItem(at: tempURL)
     }

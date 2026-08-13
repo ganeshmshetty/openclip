@@ -9,7 +9,6 @@ final class PopupModeStoreTests: XCTestCase {
         let store = PopupModeStore()
         XCTAssertEqual(store.mode, .actions)
         XCTAssertNil(store.aiResult)
-        XCTAssertNil(store.statusBanner)
     }
 
     func testContentModePublishesAIResult() {
@@ -28,11 +27,5 @@ final class PopupModeStoreTests: XCTestCase {
         let payload = AIResultPayload(text: "boom", isError: true)
         XCTAssertTrue(payload.isError)
         XCTAssertEqual(payload.title, "AI Tools")
-    }
-
-    func testStatusBannerPublishes() {
-        let store = PopupModeStore()
-        store.statusBanner = StatusFeedback(message: "Copied", style: .success)
-        XCTAssertEqual(store.statusBanner?.message, "Copied")
     }
 }
