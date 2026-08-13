@@ -10,7 +10,7 @@ echo "Generating Xcode project..."
 xcodegen generate
 
 echo "Building OpenClip (Release)..."
-xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -configuration Release -destination 'platform=macOS' build > /dev/null
+xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -configuration Release -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO build > /dev/null
 
 BUILT_APP="$(find ~/Library/Developer/Xcode/DerivedData/OpenClip-*/Build/Products/Release -name "OpenClip.app" | head -n 1)"
 
