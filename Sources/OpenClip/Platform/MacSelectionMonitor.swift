@@ -79,13 +79,17 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     
     /// True when a key event is a selection gesture OpenClip should retrieve: ⌘A (select all) or
     /// ⇧+arrow (extend/collapse selection). Only the exact modifier set matches, so plain typing and
-    /// app shortcuts that happen to use these keys don't fire.
+    /// app shortcuts that happen to use these keys don't fire. Persistent/non-gesture flags (`.capsLock`
+    /// is held in every keyDown's modifierFlags while caps lock is engaged; `.function`, `.numericPad`,
+    /// `.help` are device/hardware bits) are stripped before comparing.
     internal static func isSelectionTrigger(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
-        let independentFlags = flags.intersection(.deviceIndependentFlagsMask)
-        if independentFlags == .command {
+        let gestureFlags = flags
+            .intersection(.deviceIndependentFlagsMask)
+            .subtracting([.capsLock, .function, .numericPad, .help])
+        if gestureFlags == .command {
             return keyCode == selectAllKeyCode
         }
-        if independentFlags == .shift {
+        if gestureFlags == .shift {
             return arrowKeyCodes.contains(keyCode)
         }
         return false
