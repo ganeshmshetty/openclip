@@ -146,7 +146,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testBrowserScriptReturnsBrowserText() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: "ignored") },
-            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "browser selection", url: "https://example.com") }
+            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "browser selection") }
         )
         let policy = AppPolicyContext(retrievalMode: .browserScript)
         let result = await coordinator.retrieve(
@@ -174,7 +174,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testBrowserScriptEmptyFallsBackToWebArea() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.webAreaTarget(selectedText: "web fallback") },
-            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "", url: nil) }
+            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "") }
         )
         let policy = AppPolicyContext(retrievalMode: .browserScript)
         let result = await coordinator.retrieve(

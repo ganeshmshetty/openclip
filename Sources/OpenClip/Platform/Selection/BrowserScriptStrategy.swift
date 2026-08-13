@@ -12,7 +12,6 @@ import Core
 public struct BrowserScriptStrategy {
     public struct BrowserResult: Sendable {
         public let text: String
-        public let url: String?
     }
 
     /// Runs AppleScript through AppleScriptRunner (osascript subprocess, watchdog-killable).
@@ -23,16 +22,12 @@ public struct BrowserScriptStrategy {
                 textScriptSource(bundleIdentifier: bundleIdentifier),
                 timeout: Constants.browserScriptTimeout
             )
-            let url = try? await AppleScriptRunner.shared.run(
-                urlScriptSource(bundleIdentifier: bundleIdentifier),
-                timeout: Constants.browserScriptTimeout
-            )
             var resultText = text
             if DefaultAppRules.arcGroup.contains(bundleIdentifier) {
                 resultText = stripSurroundingQuotes(resultText)
             }
             guard !resultText.isEmpty else { return nil }
-            return BrowserResult(text: resultText, url: url)
+            return BrowserResult(text: resultText)
         } catch {
             Log.selection.error("browser script retrieval failed for \(bundleIdentifier, privacy: .public): \(error.localizedDescription, privacy: .private)")
             return nil
@@ -56,28 +51,6 @@ public struct BrowserScriptStrategy {
         tell application id "\(bundleIdentifier)"
           tell active tab of front window
             execute javascript "window.getSelection().toString()"
-          end tell
-        end tell
-        """
-    }
-
-    /// Generates the AppleScript that reads the active page's URL. Safari reads `URL of front
-    /// document`; the others read `URL of active tab of front window` (expressed as the bare
-    /// `URL` property inside the `tell active tab` block).
-    static func urlScriptSource(bundleIdentifier: String) -> String {
-        if DefaultAppRules.safariGroup.contains(bundleIdentifier) {
-            return """
-            tell application id "\(bundleIdentifier)"
-              tell front document
-                URL
-              end tell
-            end tell
-            """
-        }
-        return """
-        tell application id "\(bundleIdentifier)"
-          tell active tab of front window
-            URL
           end tell
         end tell
         """

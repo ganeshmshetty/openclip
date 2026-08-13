@@ -36,4 +36,25 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7B, flags: [.capsLock]))
         XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7B, flags: [.capsLock, .shift, .command]))
     }
+
+    func testRapidKeyboardSelectionTriggersCancelPriorPendingTask() {
+        let monitor = MacSelectionMonitor()
+        
+        // First trigger spawns initial debounce task
+        monitor.handleSelectionTrigger()
+        let firstTask = monitor.debounceTask
+        XCTAssertNotNil(firstTask)
+        XCTAssertFalse(firstTask?.isCancelled == true)
+
+        // Rapid second trigger immediately cancels prior task and replaces it
+        monitor.handleSelectionTrigger()
+        XCTAssertTrue(firstTask?.isCancelled == true)
+        
+        let secondTask = monitor.debounceTask
+        XCTAssertNotNil(secondTask)
+        XCTAssertFalse(secondTask?.isCancelled == true)
+
+        // Cleanup
+        secondTask?.cancel()
+    }
 }

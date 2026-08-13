@@ -88,7 +88,7 @@ public struct AXElementInspector {
 
         // Text/value attributes and selection bounds, where supported.
         let selectedText = focusedElement.flatMap { read($0, kAXSelectedTextAttribute) as? String }
-        let selectedTextMarkerRange = focusedElement.flatMap { read($0, selectedTextMarkerRangeAttribute) }
+        let selectedTextMarkerRange = selectedTextMarkerRange(focusedElement: focusedElement, webArea: webArea)
         let value = focusedElement.flatMap { read($0, kAXValueAttribute) as? String }
         let selectedTextRange = focusedElement.flatMap { read($0, kAXSelectedTextRangeAttribute) }
         let bounds = bounds(for: focusedElement, range: selectedTextRange)
@@ -107,6 +107,15 @@ public struct AXElementInspector {
             selectedTextRange: selectedTextRange,
             bounds: bounds
         )
+    }
+
+    /// Reads `AXSelectedTextMarkerRange` attribute from `focusedElement`, falling back to `webArea` if `focusedElement` is nil or yields no marker range.
+    static func selectedTextMarkerRange(
+        focusedElement: AXUIElement?,
+        webArea: AXUIElement?,
+        read: (AXUIElement, String) -> CFTypeRef? = { read($0, $1) }
+    ) -> AnyObject? {
+        focusedElement.flatMap { read($0, selectedTextMarkerRangeAttribute) } ?? webArea.flatMap { read($0, selectedTextMarkerRangeAttribute) }
     }
 
     /// Reads a single AX attribute, returning `nil` on any error or unsupported attribute.
