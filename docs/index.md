@@ -47,7 +47,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Known Debt & Current-State Realities](architecture/known-debt.md) — `UserDefaults` → `SettingsStore` migration, singleton wiring, latent issues.
 - [Directory Structure](architecture/directory-structure.md) — Annotated per-file source tree.
 - [Action Coordinator & Registry](architecture/action-coordinator.md) — Central wiring, callback mechanics, and ordering policy.
-- [Text Selection Subsystem](architecture/text-selection.md) — AX monitoring, `MacTextRetriever`, and non-destructive selection handling.
+- [Text Selection Subsystem](architecture/text-selection.md) — Selection detection, the gate/resolver/strategy retrieval model, and non-destructive selection handling.
 - [Popup Panel & Positioning Math](architecture/popup-window.md) — `PopupPanel`, static layout math in `PopupPositioner`, and window lifecycle management.
 - [Logging](logging.md) — the single `Log` surface, category table, and per-subsystem filtering workflow.
 

@@ -91,9 +91,16 @@ Sources/
     │   ├── KeychainStore.swift               # Generic-password SecItem wrapper for sensitive credentials (AI API key)
     │   ├── LaunchAtLoginManager.swift        # Login item manager (SMAppService; persisted state via SettingKey.startAtLogin)
     │   ├── MacSelectionMonitor.swift         # Global accessibility monitor
-    │   ├── MacTextRetriever.swift            # AX selection read; AX Menu Copy fallback for lenient apps
+    │   ├── MacTextRetriever.swift            # TextRetrieving facade over SelectionRetrievalCoordinator
     │   ├── OnceResume.swift                  # Exactly-once continuation resume gate (AX read + AppleScript deadline races)
     │   ├── PermissionManager.swift           # Accessibility permission manager
+    │   ├── Selection/                        # Fresh-AX selection retrieval (coordinator + strategies)
+    │   │   ├── AXElementInspector.swift      # Fresh focused-app/UI-element snapshot (never system-wide focused element)
+    │   │   ├── AXTextControlStrategy.swift   # kAXSelectedText read for native text controls
+    │   │   ├── AXWebAreaStrategy.swift       # WebKit marker-range read (settle-retry lives in the coordinator)
+    │   │   ├── BrowserScriptStrategy.swift   # AppleScript-bridge page-selection read (Safari/Chromium/Firefox/Arc) + URL
+    │   │   ├── CursorClassifier.swift        # Cursor image → CursorClass
+    │   │   └── SelectionRetrievalCoordinator.swift # Gate + mode routing + inspect watchdog + AX Edit ▸ Copy press
     │   └── DebugLogging/                             # In-process debug log store + --dump-logs CLI (App target)
     │       ├── DebugLogEntry.swift                   # Captured log entry model (timestamp/category/level/message)
     │       ├── DebugLogLevel.swift                   # Severity level enum (values mirror OSLogEntryLog.Level)

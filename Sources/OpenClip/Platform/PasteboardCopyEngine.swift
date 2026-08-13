@@ -9,8 +9,9 @@ import Core
 
 /// Corrected pasteboard copy capture: archive → trigger → poll → verify → restore.
 ///
-/// Not wired into `MacTextRetriever` directly; later retrieval tasks use this for the menu-copy /
-/// keyboard-copy paths so the real clipboard is never left in a copied state.
+/// Drives the `.menuCopy` / `.keyboardCopy` retrieval modes via
+/// `SelectionRetrievalCoordinator.defaultCopyCapture`, so the real clipboard is never left in a
+/// copied state.
 @MainActor
 public struct PasteboardCopyEngine {
     public typealias CopyTrigger = @MainActor () -> Void

@@ -24,7 +24,7 @@ OpenClip Workspace
  ├── Action execution runtimes (JavaScriptAction, AppleScriptAction)
  ├── Platform side-effect handler (ActionResultHandler)
  ├── Action factory implementation (DefaultActionFactory)
- ├── macOS selection monitor (MacSelectionMonitor, MacTextRetriever)
+ ├── macOS selection monitoring & retrieval (MacSelectionMonitor, SelectionRetrievalCoordinator + strategies)
  └── App Composition Root (AppDelegate)
 ```
 
