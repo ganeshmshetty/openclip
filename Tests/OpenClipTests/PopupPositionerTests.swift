@@ -13,8 +13,8 @@ final class PopupPositionerTests: XCTestCase {
         )
         // X: centered on release → 400 - 25 = 375
         XCTAssertEqual(frame.origin.x, 375)
-        // Y: above release → 200 + 12 (gap) = 212
-        XCTAssertEqual(frame.origin.y, 212)
+        // Y: above release → 200 + 6 (gap) = 206
+        XCTAssertEqual(frame.origin.y, 206)
     }
 
     // Top-to-Bottom drag: mouse released below start point -> place popup BELOW cursor to avoid covering text
@@ -24,8 +24,8 @@ final class PopupPositionerTests: XCTestCase {
         let frame = PopupPositioner.placeNearReleasePoint(
             releasePoint: release, mouseDownPoint: start, popupSize: size, screenBounds: screen
         )
-        // Y: below release → 200 - 50 (height) - 12 (gap) = 138
-        XCTAssertEqual(frame.origin.y, 138)
+        // Y: below release → 200 - 50 (height) - 6 (gap) = 144
+        XCTAssertEqual(frame.origin.y, 144)
     }
 
     // Near right edge: popup should be pushed left
@@ -54,8 +54,8 @@ final class PopupPositionerTests: XCTestCase {
         let frame = PopupPositioner.placeNearReleasePoint(
             releasePoint: release, popupSize: size, screenBounds: screen
         )
-        // No room above (580+12+50=642 > 600-8=592), flip below: 580 - 50 - 12 = 518
-        XCTAssertEqual(frame.origin.y, 518)
+        // No room above (580+6+50=636 > 600-8=592), flip below: 580 - 50 - 6 = 524
+        XCTAssertEqual(frame.origin.y, 524)
     }
 
     // Near bottom edge: popup should stay above and clamp
@@ -64,8 +64,8 @@ final class PopupPositionerTests: XCTestCase {
         let frame = PopupPositioner.placeNearReleasePoint(
             releasePoint: release, popupSize: size, screenBounds: screen
         )
-        // y = 5 + 12 = 17 — fits above fine
-        XCTAssertEqual(frame.origin.y, 17)
+        // y = 5 + 6 = 11 — fits above fine
+        XCTAssertEqual(frame.origin.y, 11)
     }
 
     // Width changes must re-center on the release X so the bar never drifts off the cursor.
