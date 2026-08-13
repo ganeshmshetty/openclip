@@ -84,6 +84,18 @@ public enum Constants {
     /// which the delivery decision treats as cannot-paste (copy).
     public static let pasteProbeTimeout: TimeInterval = 0.4
 
+    /// Hard deadline (seconds) for the browser-script retrieval bridge to return a selection.
+    public static let browserScriptTimeout: TimeInterval = 1.0
+
+    /// Hard deadline (seconds) for reading the clipboard after issuing a Cmd+C copy.
+    public static let pasteboardCopyTimeout: TimeInterval = 0.6
+
+    /// Poll interval (seconds) while waiting for the AX web-area text to settle after focus.
+    public static let webAreaSettleInterval: TimeInterval = 0.05
+
+    /// Max polls before giving up on the AX web-area text settling.
+    public static let webAreaSettleMaxRetries: Int = 6
+
     /// Cap on in-flight synchronous JS evaluations. A CPU-bound synchronous script cannot be
     /// interrupted in modern JavaScriptCore (JSVirtualMachine.invalidate is gone), so each stuck
     /// script permanently parks a cooperative-pool thread; refusing new synchronous evaluations

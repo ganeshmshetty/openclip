@@ -76,7 +76,7 @@ public final class RuleEngine: ObservableObject, Sendable {
             var expandedIdentifiers: [String] = []
             for id in rule.bundleIdentifiers {
                 if id == ":menu-copy-apps:" {
-                    expandedIdentifiers.append(contentsOf: DefaultAppRules.menuCopyApps)
+                    expandedIdentifiers.append(contentsOf: DefaultAppRules.legacyMenuCopyApps)
                 } else {
                     expandedIdentifiers.append(id)
                 }
@@ -84,7 +84,9 @@ public final class RuleEngine: ObservableObject, Sendable {
             return AppRule(
                 bundleIdentifiers: expandedIdentifiers,
                 useMenuCopy: rule.useMenuCopy,
-                denyPaste: rule.denyPaste
+                denyPaste: rule.denyPaste,
+                retrievalMode: rule.retrievalMode,
+                gate: rule.gate
             )
         }
     }
@@ -96,9 +98,22 @@ public final class RuleEngine: ObservableObject, Sendable {
             if rule.bundleIdentifiers.contains(where: { matchPattern($0, with: bundleIdentifier) }) {
                 context = AppPolicyContext(
                     denyPaste: rule.denyPaste ?? context.denyPaste,
-                    useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy
+                    useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy,
+                    retrievalMode: rule.retrievalMode ?? context.retrievalMode,
+                    gate: rule.gate ?? context.gate
                 )
             }
+        }
+        
+        // Legacy alias: a `use-menu-copy: true` rule that never set an explicit retrieval mode
+        // resolves to `.menuCopy`, preserving old rule files' behavior.
+        if context.useMenuCopy && context.retrievalMode == .axTextControl {
+            context = AppPolicyContext(
+                denyPaste: context.denyPaste,
+                useMenuCopy: context.useMenuCopy,
+                retrievalMode: .menuCopy,
+                gate: context.gate
+            )
         }
         
         return context
