@@ -3,7 +3,7 @@
 //
 // Defines the protocol interface for monitoring system-wide text selection events.
 public protocol SelectionMonitoring: Sendable {
-    @MainActor var onSelection: ((SelectionContext) -> Void)? { get set }
+    @MainActor var onSelection: ((SelectionContext, Bool?) -> Void)? { get set }
     @MainActor func start()
     @MainActor func stop()
 }

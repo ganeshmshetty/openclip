@@ -8,33 +8,30 @@ final class PopupModeStoreTests: XCTestCase {
     func testStoreDefaults() {
         let store = PopupModeStore()
         XCTAssertEqual(store.mode, .actions)
-        XCTAssertNil(store.content)
-        XCTAssertNil(store.preview)
+        XCTAssertNil(store.aiResult)
         XCTAssertNil(store.statusBanner)
     }
 
-    func testContentModeIsEquatableAndPublishes() {
+    func testContentModePublishesAIResult() {
         let store = PopupModeStore()
-        let session = CanvasSession(
-            header: CanvasHeader(title: "AI Result", icon: "sparkles"),
-            input: "hi",
-            preferredSize: nil,
-            scripting: nil,
-            isAsync: false,
-            tree: .text(CanvasTextProps(content: "hi", style: .body))
-        )
-        store.content = session
+        let payload = AIResultPayload(text: "hi", isError: false, title: "AI Tools")
+        store.aiResult = payload
         store.mode = .content
         XCTAssertEqual(store.mode, PopupMode.content)
-        XCTAssertEqual(store.content?.header.title, "AI Result")
+        XCTAssertEqual(store.aiResult?.text, "hi")
+        XCTAssertEqual(store.aiResult?.title, "AI Tools")
         XCTAssertNotEqual(PopupMode.actions, PopupMode.content)
         XCTAssertNotEqual(PopupMode.search, PopupMode.content)
     }
 
-    func testPreviewAndStatusPublish() {
+    func testAIResultPayloadFlagsError() {
+        let payload = AIResultPayload(text: "boom", isError: true)
+        XCTAssertTrue(payload.isError)
+        XCTAssertEqual(payload.title, "AI Tools")
+    }
+
+    func testStatusBannerPublishes() {
         let store = PopupModeStore()
-        store.preview = .text(CanvasTextProps(content: "2 + 2 = 4", style: .caption))
-        XCTAssertNotNil(store.preview)
         store.statusBanner = StatusFeedback(message: "Copied", style: .success)
         XCTAssertEqual(store.statusBanner?.message, "Copied")
     }

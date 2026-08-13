@@ -12,9 +12,10 @@ public protocol ActionResultHandler: Sendable {
     @MainActor
     func handle(_ result: ActionResult, in view: NSView?) async throws
     /// Executes a leaf effect with its side-effect body but never asks the presenter to dismiss
-    /// the popup. Canvas-session effects use this door (Task 13): dismissal lives in the
-    /// controller's top-level decision, never inside the effect handler, so this is the "effect
-    /// door that never hides". Non-throwing — a thrown error is swallowed and logged.
+    /// the popup. Keep-open presentation effects (e.g. the AI result card's Paste/Copy) use this
+    /// door: dismissal lives in the controller's top-level decision, never inside the effect
+    /// handler, so this is the "effect door that never hides". Non-throwing — a thrown error is
+    /// swallowed and logged.
     @MainActor
     func handleWithoutDismissal(_ result: ActionResult, in view: NSView?) async
 }
@@ -73,9 +74,9 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         do {
             try await execute(result, in: view)
         } catch {
-            // Never rethrow into the canvas door: the presenter already suppresses dismissal and a
+            // Never rethrow into the keep-open door: the presenter already suppresses dismissal and a
             // throw would fall back to the legacy error-status path. Log instead.
-            Log.resultHandler.error("canvas effect failed: \(error.localizedDescription)")
+            Log.resultHandler.error("effect failed: \(error.localizedDescription)")
         }
     }
 
@@ -152,7 +153,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
 
         // Presentation/flow results are presenter-owned (PopupWindowController). The handler treats
         // them as no-ops so the switch stays exhaustive without crashing when one is routed here.
-        case .showContent, .showCanvas, .showStatus, .openConfiguration, .sequence:
+        case .showStatus, .openConfiguration, .sequence:
             break
         case .keepVisible(let inner):
             try await execute(inner, in: view)

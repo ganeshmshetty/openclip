@@ -10,19 +10,23 @@ import ApplicationServices
 import Core
 
 public protocol PasteAvailabilityProbing: Sendable {
-    func canPaste(in app: NSRunningApplication?) async -> Bool?
+    func canPaste(in app: NSRunningApplication?, policy: AppPolicyContext) async -> Bool?
 }
 
 public struct PasteAvailabilityProbe: PasteAvailabilityProbing {
     public init() {}
 
     @MainActor
-    public func canPaste(in app: NSRunningApplication?) async -> Bool? {
+    public func canPaste(in app: NSRunningApplication?, policy: AppPolicyContext) async -> Bool? {
+        // Rules answer definitively (assume/deny paste): no AX walk, no Accessibility dependency.
+        if !PasteAvailability.needsProbe(policy: policy) {
+            return PasteAvailability.effective(policy: policy, probe: nil)
+        }
         // AX drives the probe; without it we cannot inspect the menu bar.
         guard PermissionManager.shared.isAccessibilityGranted,
               let app, app.isTerminated == false else { return nil }
         let pid = app.processIdentifier
-        return await probePaste(pid: pid)
+        return PasteAvailability.effective(policy: policy, probe: await probePaste(pid: pid))
     }
 
     /// Serial executor for the blocking AX probe. AX lookups must never run on the cooperative

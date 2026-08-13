@@ -42,16 +42,8 @@ public enum DefaultAppRules: Sendable {
             useMenuCopy: true
         ),
         AppRule(
-            bundleIdentifiers: ["com.jetbrains.*", "com.apple.Terminal", "com.sublimetext.*"],
-            denyFormatting: true
-        ),
-        AppRule(
             bundleIdentifiers: ["com.apple.Terminal", "com.googlecode.iterm2", "com.mitchellh.ghostty"],
             denyPaste: true
-        ),
-        AppRule(
-            bundleIdentifiers: ["net.ankiweb.dtop"],
-            assumePaste: true
         )
     ]
 }

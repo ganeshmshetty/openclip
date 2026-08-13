@@ -60,39 +60,6 @@ final class ActionRegistryTests: XCTestCase {
     }
     
     @MainActor
-    func testDenyFormattingPolicyFiltersFormattingActions() {
-        let registry = ActionRegistry.shared
-        
-        struct MockFormattingAction: Action {
-            let id = "mock.formatting"
-            let title = "Format"
-            let icon = ActionIcon.symbol("star")
-            var isFormatting: Bool { true }
-            
-            @MainActor
-            func isEnabled(for context: ActionContext) -> Bool { return true }
-            @MainActor
-            func perform(_ context: ActionContext) async throws -> ActionResult { return .success }
-        }
-        
-        let formatAction = MockFormattingAction()
-        registry.register(action: formatAction)
-        
-        let denyPolicy = AppPolicyContext(denyFormatting: true, denyProbe: false, denyPreprobe: false, assumePaste: false)
-        let denySelection = SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: denyPolicy)
-        let denyContext = ActionContext(selection: denySelection, modifiers: [])
-        
-        let availableWithDeny = registry.availableActions(for: denyContext)
-        XCTAssertFalse(availableWithDeny.contains(where: { $0.id == "mock.formatting" }), "Formatting action should be filtered out when denyFormatting is true")
-        
-        let allowSelection = SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
-        let allowContext = ActionContext(selection: allowSelection, modifiers: [])
-        
-        let availableWithAllow = registry.availableActions(for: allowContext)
-        XCTAssertTrue(availableWithAllow.contains(where: { $0.id == "mock.formatting" }), "Formatting action should be included when denyFormatting is false")
-    }
-    
-    @MainActor
     func testDisabledActionsAreFiltered() {
         let store = MemorySettingsStore()
         let registry = ActionRegistry(settingsStore: store)

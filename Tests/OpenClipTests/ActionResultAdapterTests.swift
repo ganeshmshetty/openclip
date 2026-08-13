@@ -5,14 +5,14 @@ final class ActionResultAdapterTests: XCTestCase {
     // MARK: - copyResult / pasteResult overrides
 
     func testCopyResultOverridesPasteAndCopy() {
-        let fromPaste = ActionResultAdapter.apply(raw: .paste("x"), after: .copyResult, stayVisible: false, title: "T", icon: nil)
+        let fromPaste = ActionResultAdapter.apply(raw: .paste("x"), after: .copyResult, stayVisible: false)
         if case .copy(let text) = fromPaste {
             XCTAssertEqual(text, "x")
         } else {
             XCTFail("Expected .copy(x), got \(fromPaste)")
         }
 
-        let fromCopy = ActionResultAdapter.apply(raw: .copy("x"), after: .copyResult, stayVisible: false, title: "T", icon: nil)
+        let fromCopy = ActionResultAdapter.apply(raw: .copy("x"), after: .copyResult, stayVisible: false)
         if case .copy(let text) = fromCopy {
             XCTAssertEqual(text, "x")
         } else {
@@ -21,14 +21,14 @@ final class ActionResultAdapterTests: XCTestCase {
     }
 
     func testPasteResultOverridesCopyAndPaste() {
-        let fromCopy = ActionResultAdapter.apply(raw: .copy("x"), after: .pasteResult, stayVisible: false, title: "T", icon: nil)
+        let fromCopy = ActionResultAdapter.apply(raw: .copy("x"), after: .pasteResult, stayVisible: false)
         if case .paste(let text) = fromCopy {
             XCTAssertEqual(text, "x")
         } else {
             XCTFail("Expected .paste(x), got \(fromCopy)")
         }
 
-        let fromPaste = ActionResultAdapter.apply(raw: .paste("x"), after: .pasteResult, stayVisible: false, title: "T", icon: nil)
+        let fromPaste = ActionResultAdapter.apply(raw: .paste("x"), after: .pasteResult, stayVisible: false)
         if case .paste(let text) = fromPaste {
             XCTAssertEqual(text, "x")
         } else {
@@ -36,72 +36,33 @@ final class ActionResultAdapterTests: XCTestCase {
         }
     }
 
-    // MARK: - showResult → component tree with Paste/Copy buttons
+    // MARK: - showResult degrades to the plain leaf result (canvas card rendering removed)
 
-    func testShowResultWrapsCopyInContentTree() {
-        let result = ActionResultAdapter.apply(raw: .copy("x"), after: .showResult, stayVisible: false, title: "My Title", icon: "doc.text")
-        guard case .showContent(let tree, let header) = result else {
-            return XCTFail("Expected .showContent, got \(result)")
+    func testShowResultDegradesToRawCopy() {
+        let result = ActionResultAdapter.apply(raw: .copy("x"), after: .showResult, stayVisible: false)
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
         }
-        XCTAssertEqual(header?.title, "My Title")
-        XCTAssertEqual(header?.icon, "doc.text")
-        guard case .stack(_, let children) = tree else {
-            return XCTFail("Expected stack root node")
-        }
-        XCTAssertEqual(children.count, 2)
-        guard case .text(let textProps) = children[0] else {
-            return XCTFail("Expected text component")
-        }
-        XCTAssertEqual(textProps.content, "x")
-
-        guard case .stack(let hstackProps, let buttons) = children[1] else {
-            return XCTFail("Expected horizontal button stack at index 1")
-        }
-        XCTAssertEqual(hstackProps.orientation, .horizontal)
-        XCTAssertEqual(buttons.count, 2)
-
-        guard case .button(let pasteBtn) = buttons[0] else {
-            return XCTFail("Expected Paste button")
-        }
-        XCTAssertEqual(pasteBtn.title, "Paste")
-        XCTAssertEqual(pasteBtn.icon, .symbol("arrow.triangle.2.circlepath"))
-        XCTAssertEqual(pasteBtn.handler, .effect(.paste("x")))
-
-        guard case .button(let copyBtn) = buttons[1] else {
-            return XCTFail("Expected Copy button")
-        }
-        XCTAssertEqual(copyBtn.title, "Copy")
-        XCTAssertEqual(copyBtn.icon, .symbol("doc.on.doc"))
-        XCTAssertEqual(copyBtn.handler, .effect(.copy("x")))
+        XCTAssertEqual(text, "x")
     }
 
-    func testShowResultWrapsPasteInContentTree() {
-        let result = ActionResultAdapter.apply(raw: .paste("x"), after: .showResult, stayVisible: false, title: "T", icon: nil)
-        guard case .showContent(let tree, let header) = result else {
-            return XCTFail("Expected .showContent, got \(result)")
+    func testShowResultDegradesToRawPaste() {
+        let result = ActionResultAdapter.apply(raw: .paste("x"), after: .showResult, stayVisible: false)
+        guard case .paste(let text) = result else {
+            return XCTFail("Expected .paste, got \(result)")
         }
-        XCTAssertEqual(header?.title, "T")
-        XCTAssertNil(header?.icon)
-        guard case .stack(_, let children) = tree else {
-            return XCTFail("Expected stack root node")
-        }
-        XCTAssertEqual(children.count, 2)
-        guard case .stack(let hstackProps, let buttons) = children[1] else {
-            return XCTFail("Expected horizontal button stack at index 1")
-        }
-        XCTAssertEqual(hstackProps.orientation, .horizontal)
-        XCTAssertEqual(buttons.count, 2)
+        XCTAssertEqual(text, "x")
     }
 
     // MARK: - none collapses to success
 
     func testNoneReturnsSuccessForAnyRaw() {
-        let copy = ActionResultAdapter.apply(raw: .copy("x"), after: .none, stayVisible: false, title: "T", icon: nil)
+        let copy = ActionResultAdapter.apply(raw: .copy("x"), after: .none, stayVisible: false)
         guard case .success = copy else {
             return XCTFail("Expected .success, got \(copy)")
         }
 
-        let openURL = ActionResultAdapter.apply(raw: .openURL(URL(string: "https://example.com")!), after: .none, stayVisible: false, title: "T", icon: nil)
+        let openURL = ActionResultAdapter.apply(raw: .openURL(URL(string: "https://example.com")!), after: .none, stayVisible: false)
         guard case .success = openURL else {
             return XCTFail("Expected .success, got \(openURL)")
         }
@@ -111,13 +72,13 @@ final class ActionResultAdapterTests: XCTestCase {
 
     func testDefaultPassesThroughRaw() {
         let url = URL(string: "https://example.com")!
-        let openURL = ActionResultAdapter.apply(raw: .openURL(url), after: .default, stayVisible: false, title: "T", icon: nil)
+        let openURL = ActionResultAdapter.apply(raw: .openURL(url), after: .default, stayVisible: false)
         guard case .openURL(let target) = openURL else {
             return XCTFail("Expected .openURL, got \(openURL)")
         }
         XCTAssertEqual(target, url)
 
-        let cut = ActionResultAdapter.apply(raw: .cut("x"), after: .default, stayVisible: false, title: "T", icon: nil)
+        let cut = ActionResultAdapter.apply(raw: .cut("x"), after: .default, stayVisible: false)
         guard case .cut(let text) = cut else {
             return XCTFail("Expected .cut, got \(cut)")
         }
@@ -127,41 +88,35 @@ final class ActionResultAdapterTests: XCTestCase {
     // MARK: - presentations pass through untouched
 
     func testPresentationsPassThroughUnchanged() {
-        let content = ActionResultAdapter.apply(raw: .showContent(.text(CanvasTextProps(content: "B")), nil), after: .copyResult, stayVisible: true, title: "T", icon: nil)
-        guard case .showContent(let tree, _) = content, case .text(let props) = tree else {
-            return XCTFail("Expected .showContent passthrough, got \(content)")
-        }
-        XCTAssertEqual(props.content, "B")
-
-        let status = ActionResultAdapter.apply(raw: .showStatus(StatusFeedback(message: "s", style: .info)), after: .pasteResult, stayVisible: false, title: "T", icon: nil)
+        let status = ActionResultAdapter.apply(raw: .showStatus(StatusFeedback(message: "s", style: .info)), after: .pasteResult, stayVisible: false)
         guard case .showStatus(let feedback) = status else {
             return XCTFail("Expected .showStatus passthrough, got \(status)")
         }
         XCTAssertEqual(feedback.message, "s")
 
-        let config = ActionResultAdapter.apply(raw: .openConfiguration(ConfigurationRequest(actionID: "a")), after: .copyResult, stayVisible: false, title: "T", icon: nil)
+        let config = ActionResultAdapter.apply(raw: .openConfiguration(ConfigurationRequest(actionID: "a")), after: .copyResult, stayVisible: false)
         guard case .openConfiguration(let request) = config else {
             return XCTFail("Expected .openConfiguration passthrough, got \(config)")
         }
         XCTAssertEqual(request.actionID, "a")
 
-        let keyPress = ActionResultAdapter.apply(raw: .keyPress(KeyPressSpec(key: "b")), after: .copyResult, stayVisible: false, title: "T", icon: nil)
+        let keyPress = ActionResultAdapter.apply(raw: .keyPress(KeyPressSpec(key: "b")), after: .copyResult, stayVisible: false)
         guard case .keyPress(let spec) = keyPress else {
             return XCTFail("Expected .keyPress passthrough, got \(keyPress)")
         }
         XCTAssertEqual(spec.key, "b")
 
-        let shortcut = ActionResultAdapter.apply(raw: .runShortcut(name: "n", input: "i"), after: .copyResult, stayVisible: false, title: "T", icon: nil)
+        let shortcut = ActionResultAdapter.apply(raw: .runShortcut(name: "n", input: "i"), after: .copyResult, stayVisible: false)
         guard case .runShortcut(name: "n", input: "i") = shortcut else {
             return XCTFail("Expected .runShortcut passthrough, got \(shortcut)")
         }
 
-        let keepVisible = ActionResultAdapter.apply(raw: .keepVisible(.copy("x")), after: .copyResult, stayVisible: false, title: "T", icon: nil)
+        let keepVisible = ActionResultAdapter.apply(raw: .keepVisible(.copy("x")), after: .copyResult, stayVisible: false)
         guard case .keepVisible(.copy("x")) = keepVisible else {
             return XCTFail("Expected .keepVisible passthrough, got \(keepVisible)")
         }
 
-        let sequence = ActionResultAdapter.apply(raw: .sequence([.copy("a"), .copy("b")]), after: .copyResult, stayVisible: false, title: "T", icon: nil)
+        let sequence = ActionResultAdapter.apply(raw: .sequence([.copy("a"), .copy("b")]), after: .copyResult, stayVisible: false)
         guard case .sequence(let items) = sequence else {
             return XCTFail("Expected .sequence passthrough, got \(sequence)")
         }
@@ -169,7 +124,7 @@ final class ActionResultAdapterTests: XCTestCase {
 
         // A dismissing sequence is still wrapped by stayVisible (every item dismisses), matching
         // the plan: passthrough happens first, then the stayVisible wrap applies to dismissing results.
-        let wrappedSequence = ActionResultAdapter.apply(raw: .sequence([.copy("a"), .copy("b")]), after: .copyResult, stayVisible: true, title: "T", icon: nil)
+        let wrappedSequence = ActionResultAdapter.apply(raw: .sequence([.copy("a"), .copy("b")]), after: .copyResult, stayVisible: true)
         guard case .keepVisible(.sequence(let wrappedItems)) = wrappedSequence else {
             return XCTFail("Expected .keepVisible(.sequence) under stayVisible, got \(wrappedSequence)")
         }
@@ -179,18 +134,18 @@ final class ActionResultAdapterTests: XCTestCase {
     // MARK: - stayVisible wraps only when the normalized result would dismiss
 
     func testStayVisibleWrapsDismissingResult() {
-        let copy = ActionResultAdapter.apply(raw: .copy("x"), after: .default, stayVisible: true, title: "T", icon: nil)
+        let copy = ActionResultAdapter.apply(raw: .copy("x"), after: .default, stayVisible: true)
         guard case .keepVisible(.copy("x")) = copy else {
             return XCTFail("Expected .keepVisible(.copy), got \(copy)")
         }
 
-        let paste = ActionResultAdapter.apply(raw: .paste("x"), after: .default, stayVisible: true, title: "T", icon: nil)
+        let paste = ActionResultAdapter.apply(raw: .paste("x"), after: .default, stayVisible: true)
         guard case .keepVisible(.paste("x")) = paste else {
             return XCTFail("Expected .keepVisible(.paste), got \(paste)")
         }
 
         let url = URL(string: "https://example.com")!
-        let openURL = ActionResultAdapter.apply(raw: .openURL(url), after: .default, stayVisible: true, title: "T", icon: nil)
+        let openURL = ActionResultAdapter.apply(raw: .openURL(url), after: .default, stayVisible: true)
         guard case .keepVisible(.openURL(let target)) = openURL else {
             return XCTFail("Expected .keepVisible(.openURL), got \(openURL)")
         }
@@ -198,19 +153,14 @@ final class ActionResultAdapterTests: XCTestCase {
     }
 
     func testStayVisibleDoesNotWrapPresentations() {
-        let content = ActionResultAdapter.apply(raw: .showContent(.text(CanvasTextProps(content: "B")), nil), after: .default, stayVisible: true, title: "T", icon: nil)
-        guard case .showContent = content else {
-            return XCTFail("Expected unwrapped .showContent, got \(content)")
-        }
-
-        let status = ActionResultAdapter.apply(raw: .showStatus(StatusFeedback(message: "s", style: .info)), after: .default, stayVisible: true, title: "T", icon: nil)
+        let status = ActionResultAdapter.apply(raw: .showStatus(StatusFeedback(message: "s", style: .info)), after: .default, stayVisible: true)
         guard case .showStatus = status else {
             return XCTFail("Expected unwrapped .showStatus, got \(status)")
         }
     }
 
     func testStayVisibleFalseLeavesResultUnwrapped() {
-        let copy = ActionResultAdapter.apply(raw: .copy("x"), after: .default, stayVisible: false, title: "T", icon: nil)
+        let copy = ActionResultAdapter.apply(raw: .copy("x"), after: .default, stayVisible: false)
         guard case .copy(let text) = copy else {
             return XCTFail("Expected .copy, got \(copy)")
         }

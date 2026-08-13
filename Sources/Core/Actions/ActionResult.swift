@@ -3,7 +3,7 @@
 //
 // Defines the value enum representing execution results and platform side-effects returned by actions.
 // Specifies outcomes such as copy, cut, paste, URL opening, system service triggers, notification
-// posting, presentation results (content canvas, status, configuration), and simple success/failure. Also
+// posting, presentation results (status, configuration), and simple success/failure. Also
 // carries the popup dismissal policy computed once on a top-level result (decision 8).
 import Foundation
 
@@ -30,16 +30,6 @@ public indirect enum ActionResult: Sendable {
 
     // MARK: - Presentation results (presenter-owned; the effect handler treats these as no-ops)
 
-    /// Render an interactive component tree on the popup panel (spec §7). The optional header is the
-    /// running action's chrome title/icon; nil falls back to the controller's current-action header.
-    /// Keeps the popup open.
-    case showContent(CanvasComponent, CanvasHeader?)
-    /// Mount a scripting canvas session (spec §5.2): the engine evaluates the mount request, arms
-    /// the session, and the tree re-renders via `.dispatch`. Keeps the popup open.
-    /// Transient dead case until Task 24: no producer emits `.showCanvas` before the JS canvas
-    /// producer (Task 24). Declared now for ecosystem completeness (exhaustive switches + the
-    /// Task 21 final shape enumerate it); the first producer arms it in Task 24.
-    case showCanvas(CanvasMountRequest, CanvasHeader)
     /// Surface a transient status (success/error/info) as a banner or corner badge. Keeps the popup open.
     case showStatus(StatusFeedback)
     /// Hide the popup and ask the user to configure the named action (opens Preferences → EditActionSheet).
@@ -64,12 +54,12 @@ public indirect enum ActionResult: Sendable {
 
 extension ActionResult {
     /// Whether the popup should hide after this top-level result is handled. Computed once on the
-    /// top-level result (decision 8): `.showContent`/`.showStatus` keep the popup up, `.keepVisible`
+    /// top-level result (decision 8): `.showStatus` keeps the popup up, `.keepVisible`
     /// explicitly suppresses dismissal, and a `.sequence` dismisses only when non-empty and every
     /// item dismisses. Everything else (leaf effects, `.openConfiguration`) dismisses.
     public var dismissesPopup: Bool {
         switch self {
-        case .keepVisible, .showContent, .showCanvas, .showStatus:
+        case .keepVisible, .showStatus:
             return false
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)

@@ -19,7 +19,7 @@ public struct AppRulesTab: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Application Rules")
                         .font(.headline)
-                    Text("Disable OpenClip or tweak behavior for specific applications.")
+                    Text("Tweak paste behavior for specific applications.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -43,7 +43,7 @@ public struct AppRulesTab: View {
                                 .foregroundColor(.secondary)
                             Text("No App Rules Configured")
                                 .font(.headline)
-                            Text("OpenClip works in all applications by default. Click 'Add Application' to blacklist or tweak rules.")
+                            Text("OpenClip works in all applications by default. Click 'Add Application' to tweak paste behavior for it.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -84,14 +84,6 @@ private struct AppRuleRowView: View {
         rule.bundleIdentifiers.first ?? "Unknown App"
     }
     
-    private var isAppDisabled: Bool {
-        rule.denyProbe == true
-    }
-    
-    private var isFormattingDisabled: Bool {
-        rule.denyFormatting == true
-    }
-    
     private var isPasteDenied: Bool {
         rule.denyPaste == true
     }
@@ -127,71 +119,11 @@ private struct AppRuleRowView: View {
             
             Spacer()
             
-            // Quick Enable/Disable Toggle
-            Toggle("", isOn: Binding(
-                get: { !isAppDisabled },
-                set: { enabled in
-                    let newRule = AppRule(
-                        bundleIdentifiers: rule.bundleIdentifiers,
-                        denyFormatting: rule.denyFormatting,
-                        denyProbe: enabled ? nil : true,
-                        denyPreprobe: enabled ? nil : true,
-                        assumePaste: rule.assumePaste,
-                        denyPaste: rule.denyPaste
-                    )
-                    onUpdate(newRule)
-                }
-            ))
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .help(isAppDisabled ? "Enable OpenClip in this app" : "Disable OpenClip in this app")
-            .accessibilityLabel(isAppDisabled ? "Enable OpenClip in this app" : "Disable OpenClip in this app")
-            
             // Three-Dots (...) Actions Menu
             Menu {
                 Button {
-                    let newDisableState = !isAppDisabled
                     let updated = AppRule(
                         bundleIdentifiers: rule.bundleIdentifiers,
-                        denyFormatting: rule.denyFormatting,
-                        denyProbe: newDisableState ? true : nil,
-                        denyPreprobe: newDisableState ? true : nil,
-                        assumePaste: rule.assumePaste,
-                        denyPaste: rule.denyPaste
-                    )
-                    onUpdate(updated)
-                } label: {
-                    Label(
-                        isAppDisabled ? "Enable OpenClip" : "Disable OpenClip",
-                        systemImage: isAppDisabled ? "checkmark.circle" : "slash.circle"
-                    )
-                }
-                
-                Button {
-                    let updated = AppRule(
-                        bundleIdentifiers: rule.bundleIdentifiers,
-                        denyFormatting: isFormattingDisabled ? nil : true,
-                        denyProbe: rule.denyProbe,
-                        denyPreprobe: rule.denyPreprobe,
-                        assumePaste: rule.assumePaste,
-                        denyPaste: rule.denyPaste
-                    )
-                    onUpdate(updated)
-                } label: {
-                    Label(
-                        isFormattingDisabled ? "Enable Formatting Actions" : "Hide Formatting Actions",
-                        systemImage: "textformat"
-                    )
-                }
-                
-                Button {
-                    let updated = AppRule(
-                        bundleIdentifiers: rule.bundleIdentifiers,
-                        denyFormatting: rule.denyFormatting,
-                        denyProbe: rule.denyProbe,
-                        denyPreprobe: rule.denyPreprobe,
-                        assumePaste: rule.assumePaste,
                         denyPaste: isPasteDenied ? nil : true
                     )
                     onUpdate(updated)

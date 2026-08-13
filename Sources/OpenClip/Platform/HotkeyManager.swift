@@ -34,7 +34,13 @@ public final class HotkeyManager {
                 let frontApp = NSWorkspace.shared.frontmostApplication ?? NSRunningApplication.current
                 let policy = await RuleEngine.shared.resolvePolicies(for: frontApp.bundleIdentifier ?? "")
                 let appIdentity = AppIdentity(frontApp)
-                
+
+                // Start the paste-availability probe now, in parallel with selection retrieval, so
+                // show(for:pasteAvailable:) can apply the result on the first frame (no Paste/Cut
+                // flash). Per-app rules (assume/deny paste) answer inside the probe and skip the AX
+                // walk; otherwise it reflects the target app's focus context and is never cached.
+                let probeTask = popupController?.preparePasteProbe(for: frontApp, policy: policy)
+
                 var retrievedText = ""
                 var selectionBounds: CGRect? = nil
                 
@@ -69,7 +75,8 @@ public final class HotkeyManager {
                     isClipboardFallback: isClipboardFallback
                 )
                 
-                popupController?.show(for: context)
+                let canPaste = await probeTask?.value
+                popupController?.show(for: context, pasteAvailable: canPaste)
             }
         }
     }

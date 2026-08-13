@@ -19,12 +19,12 @@ All Swift is Swift 6 with `SWIFT_STRICT_CONCURRENCY: complete`. Targets (see `pr
 
 ## Architecture hard rules
 
-- **Core is pure** — no AppKit/SwiftUI imports in `Sources/Core/`, and the boundary is enforced by concept, not just import-grepping: UI-only presentation concerns (popup sizing/timing constants, chrome-style presentation metadata) live in `Sources/OpenClip/` — e.g. `PopupMetrics` holds popup/search/canvas sizing — while `Core/Selection/Constants.swift` keeps only domain/runtime constants (timeouts, key codes, env vars, manifest keys). Platform side-effects live in `Sources/OpenClip/` (runtimes, `ActionResultHandler`, `DefaultActionFactory`).
+- **Core is pure** — no AppKit/SwiftUI imports in `Sources/Core/`, and the boundary is enforced by concept, not just import-grepping: UI-only presentation concerns (popup sizing/timing constants, chrome-style presentation metadata) live in `Sources/OpenClip/` — e.g. `PopupMetrics` holds popup/search sizing and `AIResultCardView` renders AI results natively — while `Core/Selection/Constants.swift` keeps only domain/runtime constants (timeouts, key codes, env vars, manifest keys). Platform side-effects live in `Sources/OpenClip/` (runtimes, `ActionResultHandler`, `DefaultActionFactory`).
 - **No direct `UserDefaults.standard`** in new code — route through `SettingsStore` + `SettingKey`. The only remaining raw access is the one-time `aiCloudAPIKey` migration in `AIServiceManager` (read-then-delete); don't add more. Secrets (AI API key, secret options) go to the **Keychain**, never UserDefaults.
 - **`ActionCoordinator` is the composition root.** Managers report registry changes via `onRegister`/`onUnregister` callbacks only; nothing else touches `ActionRegistry.shared`.
 - **No `switch action.id` string-matching** in UI/presentation — use `ActionChrome` / `ConfigurableAction.preferenceIconName` instead.
 - Any new subprocess-spawning action must kill the child after `Constants.scriptTimeout` (30 s, the shared watchdog); shell/AppleScript/JS runtimes all join the existing `ShellProcessRunner` executor rather than spawning their own.
-- Verified current-state details (incl. residual debt and the search/canvas popup modes) live in `docs/architecture/known-debt.md` — update it when you touch those areas.
+- Verified current-state details (incl. residual debt and the search/content popup modes) live in `docs/architecture/known-debt.md` — update it when you touch those areas.
 
 ## Logging
 
@@ -37,10 +37,10 @@ log stream --predicate 'subsystem == "com.openclip" && category == "extensions"'
 
 ## Extensions
 
-The **authoritative manifest v2 / JS-bridge / canvas spec is `docs/developer-guide/AGENTS.md`** — read it before touching anything extension-related. Don't invent manifest keys (unknown keys are ignored; unknown `type` strings reject the whole package). Extensions live in `~/.openclip/extensions`, scanned at startup (~2 s hot reload if running).
+The **authoritative manifest v2 / JS-bridge spec is `docs/developer-guide/AGENTS.md`** — read it before touching anything extension-related. Don't invent manifest keys (unknown keys are ignored; unknown `type` strings reject the whole package). Extensions live in `~/.openclip/extensions`, scanned at startup (~2 s hot reload if running).
 
 ```bash
-./scripts/new_extension.sh <Name> [--type canvas|js|group|url]  # scaffold -> Extensions/raw/
+./scripts/new_extension.sh <Name> [--type js|group|url]  # scaffold -> Extensions/raw/
 ./scripts/validate_extension.sh <dir>                           # pre-flight manifest rules check
 ./scripts/install_extension.sh <path>                           # validates, then copies to ~/.openclip/extensions
 ```

@@ -1,4 +1,4 @@
-# OpenClip v2 Vision: Unified JavaScript Runtime
+# OpenClip v2 Vision: One JavaScript Action Runtime
 
 > **Status:** Future vision — not a current spec. Captured so the v1 design doesn't close this door.
 
@@ -6,29 +6,20 @@
 
 ## The Core Idea
 
-Merge the JS-action host (`OpenClipJSHost`) and the canvas engine (`JavaScriptCanvasEngine`) into **one** `OpenClipJSEngine` — a bounded-session engine that powers *both* action kinds with a single, complete async runtime.
+Today `OpenClipJSHost` powers `type: "js"` actions with a bounded session runtime (run-once:
+mount → `action(selection, options)` → return result → session ends), and async-mode JS reaches
+the network through the shared `JSNativeFetch` bridge. (An interactive canvas runtime once sat
+alongside it; that surface has been removed — the JS **action** runtime is the only remaining
+JavaScript surface.)
 
-The difference between `type: "js"` and `type: "canvas"` becomes a **session contract** (run-once vs persistent), not a different engine.
-
----
-
-## 1. One Engine, Two Contracts
-
-| | `type: "js"` (Action Session) | `type: "canvas"` (Canvas Session) |
-| :--- | :--- | :--- |
-| **Lifecycle** | Mount → `action(selection, options)` → return result → session ends | `beforeMount` (async) → `ui(state)` → events → `onClose` |
-| **Async surface** | Full — `await fetch` anywhere, even top-level | Full — `await fetch` in `beforeMount`, handlers, **and `ui()`** |
-| **State** | Stateless | JSON `state` + private JS closure state |
-| **Timers** | Available (auto-cancel on finish) | Available (auto-cancel on close) |
-| **Push updates** | N/A | Engine can call `render()` mid-flight |
-
-Both contracts share the *exact same* `CanvasScripting` protocol — `OpenClipJSEngine` is just a new conformer.
+The v2 vision is to keep hardening that one runtime into a complete async engine: first-class
+web shims, unified fetch, and optional bundling — so "any good library" runs in a popup.
 
 ---
 
-## 2. The Web/Async Shim Layer (The Real Unlock)
+## 1. The Web/Async Shim Layer (The Real Unlock)
 
-Installed in **every** context, this is what makes "any good library" actually run.
+Installed in the JS context, this is what makes "any good library" actually run.
 
 | Shim | Bridged To | Why It Matters |
 | :--- | :--- | :--- |
@@ -47,18 +38,18 @@ Installed in **every** context, this is what makes "any good library" actually r
 
 ---
 
-## 3. Unified Fetch (Single Source of Truth)
+## 2. Unified Fetch (Single Source of Truth)
 
-One `JSNativeFetch` helper (extracted from v1) used by both contracts:
+The `JSNativeFetch` helper (already extracted in v1) is the one network path:
 
 - `installNativeFetch(in context:, session:, fetchTasks:)` — installs `openclip.__nativeFetch` + polyfills both global `fetch` and `openclip.fetch`
 - Response: `{ status, ok, text(): Promise<string>, json(): Promise<any> }`
 - Identical error rejection, headers, body, timeout (30 s watchdog)
-- One test harness (`MockURLProtocol`) covers both
+- One test harness (`MockURLProtocol`) covers the JS runtime
 
 ---
 
-## 4. Optional Bundler Pipeline (esbuild at Install Time)
+## 3. Optional Bundler Pipeline (esbuild at Install Time)
 
 - Detects: `tsconfig.json` / `package.json` / `.ts`/`.tsx`/`.jsx` / multiple entry files
 - Runs **esbuild** at install → emits single cached `.js` + source map
@@ -68,7 +59,7 @@ One `JSNativeFetch` helper (extracted from v1) used by both contracts:
 
 ---
 
-## 5. The Bridge Surface (Stable, Shared)
+## 4. The Bridge Surface (Stable, Shared)
 
 ```typescript
 interface OpenClipBridge {
@@ -86,7 +77,6 @@ interface OpenClipBridge {
   runShortcut(name: string): void;
   notify(title: string, body: string): void;
   showStatus(message: string, style?: "success" | "error" | "info"): void;
-  showContent(tree: object, options?: { size?: { width: number; height: number } }): void;
   keepVisible(): void;
   requireConfiguration(payload: object): void;
 }
@@ -94,47 +84,42 @@ interface OpenClipBridge {
 
 ---
 
-## 6. Migration Path (No Big Bang)
+## 5. Migration Path (No Big Bang)
 
 | Step | What Happens | Risk |
 | :--- | :--- | :--- |
-| **v1 (now)** | Handlers-only `fetch` in canvas (as designed). Ship it. | Zero — additive, API-stable |
+| **v1 (now)** | `OpenClipJSHost` with async-mode `fetch` + the `openclip.*` bridge. Ship it. | Zero — additive, API-stable |
 | **+Shim** | Add `setTimeout`/`URL`/`crypto`/etc. shim behind flag. Validate with real libs (`zod`, `marked`, `nanoid`). | Low — isolated, testable |
-| **Engine swap** | `OpenClipJSEngine` conforms to `CanvasScripting`. Canvas sessions migrate; JS actions stay on `OpenClipJSHost`. | Medium — new engine, same protocol |
-| **JS action migration** | Move `type: "js"` to the engine (run-once session contract). Delete `OpenClipJSHost`. | Medium — one codebase, one test suite |
 | **Bundler** | Add esbuild-at-install (opt-in). Purely additive. | Low — separate pipeline |
 
 ---
 
-## 7. Why This Is the Right End State
+## 6. Why This Is the Right End State
 
-- **No duplicate engines** — current split (~800 lines × 2) is an artifact of "canvas added later." Unifying makes "async works" a property of the *runtime*, not the action kind.
+- **One runtime, one async story.** Making "async works" a property of the *runtime* means every
+  JS action gets the same execution bounding, teardown, and error isolation.
 - **The shim is the real unlock** — most think "modules = libs"; actually `setTimeout` + `crypto` + `URL` is what makes libs run. Bundling is just plumbing.
-- **Protocol seam already exists** — `CanvasScripting` was built for exactly this swap. UI/session layer never changes.
 - **Cost is honest but bounded** — the hard parts (execution bounding, teardown, error isolation) are a *single* effort on one engine.
 
 ---
 
-## 8. What We Explicitly *Don't* Do
+## 7. What We Explicitly *Don't* Do
 
 - **No `require()` / Node built-ins** — the shell runtime is the correct escape hatch for `fs`/`process`/subprocess. The JS runtime's job is "browser-grade logic in a popup."
-- **No DOM / WebView** — typed `CanvasComponent` tree → SwiftUI renderer is a core product differentiator (privacy, validation, lightweight).
-- **No out-of-process** — in-process JSC is the deliberate cost/benefit call for a floating popup. Raycast's Node is a different product class.
+- **No WebView** — JS runs in-process in a `JSContext`; that is the deliberate cost/benefit call for a floating popup. Raycast's Node is a different product class.
+- **No out-of-process** — in-process JSC keeps the popup lightweight and private.
 
 ---
 
-## 9. Appendix: v1 → v2 Compatibility
+## 8. Appendix: v1 → v2 Compatibility
 
 | v1 Feature | v2 Status |
 | :--- | :--- |
-| Canvas handlers-only `fetch` | Works identically (same `openclip.fetch`) |
+| `openclip.fetch` / global `fetch` (async mode) | Works identically (same `JSNativeFetch`) |
 | `isAsync: true` manifest flag | Becomes the gate for the full shim + timers |
-| `ui()` synchronous | Becomes async-capable (but can stay sync) |
-| `initialState` | Works; `beforeMount` adds async init |
-| `handlers` returning promises | Works identically (same pump) |
-| `showContent` at mount | Works identically; size declaration same |
-| Test suite | Extended, not rewritten — same `CanvasScripting` contract |
+| `openclip.*` effects | Works identically (same bridge surface) |
+| Test suite | Extended, not rewritten — same `JSNativeFetch` seam |
 
 ---
 
-*This vision exists so today's `JSNativeFetch` extraction, the `CanvasScripting` protocol, and the handlers-only scope all point at the same door. v1 ships value; v2 opens the door.*
+*This vision exists so today's `JSNativeFetch` extraction and the async-mode scope all point at the same door. v1 ships value; v2 opens the door.*

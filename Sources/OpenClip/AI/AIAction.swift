@@ -12,8 +12,8 @@ import Core
 
 /// Registry action for one AI preset. Never a popup bar row (`chrome.source == .ai` is excluded
 /// in `ActionRegistry.availableActions`); the search palette routes `.ai` selections through the
-/// popup's AI flow (`runAIPreset`) rather than `perform`, so results render in the content canvas
-/// just like clicking the preset in the AI Tools bar.
+/// popup's AI flow (`runAIPreset`) rather than `perform`, so results render in the native AI
+/// result card just like clicking the preset in the AI Tools bar.
 public struct AIAction: Action {
     public let presetID: String
 
@@ -35,25 +35,11 @@ public struct AIAction: Action {
     }
 
     /// Defensive fallback for any non-palette caller (the palette routes `.ai` through the AI
-    /// card flow). Runs the provider and shows the response in a popup content canvas.
+    /// result-card flow). The popup's AI flow delivers the response via onAIResult, so this simply
+    /// succeeds.
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        guard let preset = preset(), !context.selection.text.isEmpty else { return .success }
-        let provider = AIServiceManager.shared.currentProvider
-        let response = try await provider.process(prompt: preset.prompt, text: context.selection.text)
-        return .keepVisible(.showContent(
-            Canvas.build {
-                Canvas.text(response)
-                Canvas.hstack(spacing: 6) {
-                    Canvas.button("Replace", icon: .symbol("arrow.triangle.2.circlepath"), handler: .effect(.paste(response)))
-                    Canvas.button("Copy", icon: .symbol("doc.on.doc"), handler: .effect(.copy(response)))
-                }
-            },
-            CanvasHeader(
-                title: displayTitle(using: ActionCustomizationManager.shared),
-                icon: icon.symbolName
-            )
-        ))
+        .success
     }
 
     @MainActor

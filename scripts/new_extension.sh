@@ -2,7 +2,7 @@
 # new_extension.sh — scaffold a known-valid extension package into Extensions/raw/.
 #
 # Usage:
-#   ./scripts/new_extension.sh <name> [--type canvas|js|group|url]
+#   ./scripts/new_extension.sh <name> [--type js|group|url]
 #
 # Generates Extensions/raw/<Name>.openclipext/ with an openclip.json manifest (reverse-DNS
 # identifier, bare SF Symbol icons) plus any script files, then prints the install command.
@@ -16,10 +16,10 @@ TYPE=""
 
 usage() {
     cat <<'EOF'
-Usage: ./scripts/new_extension.sh <name> [--type canvas|js|group|url]
+Usage: ./scripts/new_extension.sh <name> [--type js|group|url]
 
   <name>                 Package name; also the directory name (<Name>.openclipext).
-  --type <kind>          Action kind to scaffold: canvas | js | group | url (default: url).
+  --type <kind>          Action kind to scaffold: js | group | url (default: url).
   -h, --help             Show this help.
 EOF
 }
@@ -59,8 +59,8 @@ done
 [[ -n "$TYPE" ]] || TYPE="$DEFAULT_TYPE"
 
 case "$TYPE" in
-    canvas|js|group|url) ;;
-    *) echo "Error: unknown type '$TYPE' (expected canvas|js|group|url)" >&2; exit 1 ;;
+    js|group|url) ;;
+    *) echo "Error: unknown type '$TYPE' (expected js|group|url)" >&2; exit 1 ;;
 esac
 
 # Slug for the reverse-DNS identifier: lowercased, non-alphanumerics -> "-", trimmed.
@@ -94,38 +94,6 @@ write_file() {
 }
 
 case "$TYPE" in
-    canvas)
-        write_manifest <<EOF
-{
-  "identifier": "$IDENTIFIER",
-  "name": "$NAME",
-  "action": {
-    "title": "$NAME",
-    "icon": "plusminus",
-    "type": "canvas",
-    "script": "main.js"
-  }
-}
-EOF
-        write_file "main.js" <<'EOF'
-const initialState = { count: 0 };
-
-const handlers = {
-  increment(state)      { return { ...state, count: state.count + 1 }; },
-  reset(state)          { return { ...state, count: 0 }; }
-};
-
-function ui(state, input) {
-  return h('stack', { spacing: 8 }, [
-    h('text', { content: 'Count: ' + state.count, style: 'title' }),
-    h('stack', { orientation: 'horizontal', spacing: 8 }, [
-      h('button', { title: '+1', handler: 'increment' }),
-      h('button', { title: 'Reset', handler: 'reset', style: 'accent' })
-    ])
-  ]);
-}
-EOF
-        ;;
     js)
         write_manifest <<EOF
 {

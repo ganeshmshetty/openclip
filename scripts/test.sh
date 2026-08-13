@@ -16,7 +16,6 @@ SKIP_INTEGRATION_FLAGS=(
     -skip-testing:OpenClipTests/KeychainActionOptionStoreTests
     -skip-testing:OpenClipTests/ScriptActionExecutionTests
     -skip-testing:OpenClipTests/ActionResultHandlerTests
-    -skip-testing:OpenClipTests/CanvasEndToEndTests
 )
 
 if [ "$TEST_ARG" = "--unit" ]; then

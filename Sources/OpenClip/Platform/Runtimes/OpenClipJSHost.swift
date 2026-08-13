@@ -66,8 +66,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var paste: String?
         public var copy: String?
         public var cut: String?
-        public var content: CanvasComponent?
-        public var isContentRejected: Bool
         public var status: StatusFeedback?
         public var configuration: ConfigurationRequest?
         public var keyPress: KeyPressSpec?
@@ -78,7 +76,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var returnValue: String?
 
         public init() {
-            self.isContentRejected = false
             self.keepVisible = false
         }
     }
@@ -242,14 +239,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             effects.value.append(.shareService(identifier: identifier, text: cleanedInput))
         }
         let showStatusBlock: @convention(block) (String, String?) -> Void = { message, style in
-            collected.value.status = StatusFeedback(message: message, style: CanvasScriptBox.mapStatusStyle(style ?? "info"))
-        }
-        let showContentBlock: @convention(block) (JSValue) -> Void = { value in
-            if let parsed = Self.parseElementTree(value) {
-                collected.value.content = parsed
-            } else {
-                collected.value.isContentRejected = true
-            }
+            collected.value.status = StatusFeedback(message: message, style: Self.mapStatusStyle(style ?? "info"))
         }
         let keepVisibleBlock: @convention(block) () -> Void = {
             collected.value.keepVisible = true
@@ -267,7 +257,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(notifyBlock, forKeyedSubscript: "notify" as NSString)
         openclip.setObject(shareServiceBlock, forKeyedSubscript: "shareService" as NSString)
         openclip.setObject(showStatusBlock, forKeyedSubscript: "showStatus" as NSString)
-        openclip.setObject(showContentBlock, forKeyedSubscript: "showContent" as NSString)
         openclip.setObject(keepVisibleBlock, forKeyedSubscript: "keepVisible" as NSString)
         openclip.setObject(requireConfigurationBlock, forKeyedSubscript: "requireConfiguration" as NSString)
 
@@ -478,16 +467,12 @@ public final class OpenClipJSHost: @unchecked Sendable {
             return collected.keepVisible ? .keepVisible(raw) : raw
         }
 
-        // Deterministic resolution order (plan §8): configuration > content > status-only > effects
+        // Deterministic resolution order (plan §8): configuration > status-only > effects
         // (in call order, sequence when >1) > function string return > success.
         let effects = evaluation.effects
         let raw: ActionResult
         if let configuration = collected.configuration {
             raw = .openConfiguration(configuration)
-        } else if let content = collected.content {
-            raw = .showContent(content, nil)
-        } else if collected.isContentRejected {
-            raw = .showStatus(StatusFeedback(message: "Canvas payload rejected.", style: .error))
         } else if let status = collected.status, effects.isEmpty {
             raw = .showStatus(status)
         } else if !effects.isEmpty {
@@ -557,8 +542,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
         app.setObject(sourceApp.localizedName ?? "", forKeyedSubscript: "name")
         input.setObject(app, forKeyedSubscript: "app")
 
-        CanvasScriptBox.installH(in: jsContext)
-
         openclip.setObject(input, forKeyedSubscript: "input")
         openclip.setObject(options, forKeyedSubscript: "options")
         return openclip
@@ -600,13 +583,14 @@ public final class OpenClipJSHost: @unchecked Sendable {
         return ConfigurationRequest(actionID: actionID, reason: reason, missingOptionIDs: missing)
     }
 
-    /// Parses an h() element object (`{type, props, children}`) into a CanvasComponent tree.
-    private static func parseElementTree(_ value: JSValue) -> CanvasComponent? {
-        guard value.isObject,
-              let object = value.toObject() as? [String: Any],
-              let spec = CanvasScriptBox.elementSpec(from: object),
-              let root = try? CanvasElementParser.parseTree(spec) else { return nil }
-        return root
+    /// Maps a JS `showStatus` style string to a `StatusFeedback.Style`.
+    private static func mapStatusStyle(_ raw: String) -> StatusFeedback.Style {
+        switch raw.lowercased() {
+        case "success": return .success
+        case "error": return .error
+        case "info": return .info
+        default: return .info
+        }
     }
 
     // MARK: - Watchdog + threading helpers

@@ -28,8 +28,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let result = ActionResultDelivery.resolve(
             raw: .paste("hello"),
             clickIntent: .leftClick,
-            canPaste: true,
-            policy: .default
+            canPaste: true
         )
         assertCase(result, .paste("hello"))
     }
@@ -40,8 +39,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let result = ActionResultDelivery.resolve(
             raw: .paste("hello"),
             clickIntent: .forceCopy,
-            canPaste: true,
-            policy: .default
+            canPaste: true
         )
         assertCase(result, .copy("hello"))
     }
@@ -52,21 +50,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let result = ActionResultDelivery.resolve(
             raw: .paste("hello"),
             clickIntent: .leftClick,
-            canPaste: false,
-            policy: .default
-        )
-        assertCase(result, .copy("hello"))
-    }
-
-    // MARK: - App policy denyPaste → copy (Terminal/REPL escape hatch)
-
-    func testDenyPasteCopiesEvenWhenPasteAvailable() {
-        let policy = AppPolicyContext(denyPaste: true)
-        let result = ActionResultDelivery.resolve(
-            raw: .paste("hello"),
-            clickIntent: .leftClick,
-            canPaste: true,
-            policy: policy
+            canPaste: false
         )
         assertCase(result, .copy("hello"))
     }
@@ -77,8 +61,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let result = ActionResultDelivery.resolve(
             raw: .copy("hello"),
             clickIntent: .forceCopy,
-            canPaste: false,
-            policy: .default
+            canPaste: false
         )
         assertCase(result, .copy("hello"))
     }
@@ -87,8 +70,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let result = ActionResultDelivery.resolve(
             raw: .cut("hello"),
             clickIntent: .forceCopy,
-            canPaste: false,
-            policy: .default
+            canPaste: false
         )
         assertCase(result, .cut("hello"))
     }
@@ -98,8 +80,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let result = ActionResultDelivery.resolve(
             raw: .openURL(url),
             clickIntent: .forceCopy,
-            canPaste: false,
-            policy: .default
+            canPaste: false
         )
         assertCase(result, .openURL(url))
     }
@@ -162,7 +143,8 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     /// Regression: a `.paste` result dismisses the popup, and `hide()` clears the live session
     /// context. The denyPaste policy must be captured BEFORE that hide — otherwise the Terminal
-    /// escape hatch silently pastes instead of copying.
+    /// escape hatch silently pastes instead of copying. The policy answers inside the unified
+    /// decision (no probe consulted), so the "would happily paste" probe is overridden by the rule.
     @MainActor
     func testDeliverResultAppliesDenyPasteDespiteDismissingHide() async throws {
         let handler = RecordingHandler()
@@ -177,7 +159,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
     }
 
-    /// A nil delivery context (canvas-explicit effects, e.g. an AI-result Replace button) must never
+    /// A nil delivery context (an explicit user request, e.g. the AI card's Paste button) must never
     /// be re-decided — even when the probe would say paste is unavailable.
     @MainActor
     func testNilDeliveryPassesPasteThroughUntouched() async throws {
@@ -239,7 +221,7 @@ private final class RecordingHandler: ActionResultHandler, Sendable {
 private struct FixedProbe: PasteAvailabilityProbing {
     let result: Bool?
 
-    func canPaste(in app: NSRunningApplication?) async -> Bool? {
+    func canPaste(in app: NSRunningApplication?, policy: AppPolicyContext) async -> Bool? {
         result
     }
 }

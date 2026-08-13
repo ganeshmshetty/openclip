@@ -19,7 +19,6 @@ final class ManifestValidationTests: XCTestCase {
                 { "title": "URL", "type": "url", "url": "https://example.com/{query}" },
                 { "title": "Web", "type": "websearch", "url": "https://example.com/{query}" },
                 { "title": "JS", "type": "js", "scriptCode": "function action(t){return t}" },
-                { "title": "Canvas", "type": "canvas", "scriptCode": "const ui = () => h('text', {});" },
                 { "title": "AppleScript", "type": "applescript", "scriptCode": "return text" },
                 { "title": "Shell", "type": "shell", "scriptCode": "echo hi" },
                 { "title": "Script file", "type": "scriptfile", "script": "main.sh" },
@@ -113,7 +112,8 @@ final class ManifestValidationTests: XCTestCase {
         XCTAssertEqual(validator.validate(manifest), [ManifestValidationIssue(kind: .missingRequiredField("keyPress"), path: "actions[0]")])
     }
 
-    func testCanvasRequiresScriptCode() throws {
+    func testCanvasKindRejectsManifest() throws {
+        // The canvas feature was removed; `type: "canvas"` is rejected like any unknown kind.
         let manifest = try decodeManifest("""
         {
             "identifier": "com.example.badcanvas",
@@ -121,18 +121,7 @@ final class ManifestValidationTests: XCTestCase {
             "actions": [{ "title": "Canvas", "type": "canvas" }]
         }
         """)
-        XCTAssertEqual(validator.validate(manifest), [ManifestValidationIssue(kind: .missingRequiredField("script/scriptCode"), path: "actions[0]")])
-    }
-
-    func testCanvasAcceptsScriptFile() throws {
-        let manifest = try decodeManifest("""
-        {
-            "identifier": "com.example.filecanvas",
-            "name": "File Canvas",
-            "actions": [{ "title": "Canvas", "type": "canvas", "script": "main.js" }]
-        }
-        """)
-        XCTAssertEqual(validator.validate(manifest), [])
+        XCTAssertEqual(validator.validate(manifest), [ManifestValidationIssue(kind: .unknownActionKind("canvas"), path: "actions[0]")])
     }
 
     func testShortcutWithoutShortcutNameRejects() throws {
@@ -262,9 +251,9 @@ final class ManifestValidationTests: XCTestCase {
             "identifier": "com.example.dupoptions",
             "name": "Dup Options",
             "actions": [{
-                "title": "Canvas",
-                "type": "canvas",
-                "scriptCode": "const ui = () => h('text', {});",
+                "title": "JS",
+                "type": "js",
+                "scriptCode": "function action(t){return t}",
                 "options": [
                     { "identifier": "apiKey", "label": "Key 1", "type": "string" },
                     { "identifier": "apiKey", "label": "Key 2", "type": "string" }
@@ -286,9 +275,9 @@ final class ManifestValidationTests: XCTestCase {
                 { "identifier": "apiKey", "label": "Key 2", "type": "string" }
             ],
             "actions": [{
-                "title": "Canvas",
-                "type": "canvas",
-                "scriptCode": "const ui = () => h('text', {});"
+                "title": "JS",
+                "type": "js",
+                "scriptCode": "function action(t){return t}"
             }]
         }
         """)

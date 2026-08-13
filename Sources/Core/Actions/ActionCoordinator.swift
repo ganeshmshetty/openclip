@@ -57,35 +57,14 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     }
     
     public func resolveActions(for context: ActionContext) -> [any Action] {
-        registry.availableActions(for: resolvedContext(for: context))
-    }
-
-    /// Resolves `context` against the app-rule engine: applies the formatting/paste policies to
-    /// the selection and returns the context used for availability filtering.
-    private func resolvedContext(for context: ActionContext) -> ActionContext {
-        let bundleID = context.selection.sourceApp.bundleIdentifier ?? ""
-        let policy = ruleEngine.resolvePolicies(for: bundleID)
-        var updatedSelection = context.selection
-        if policy.denyFormatting || policy.assumePaste {
-            updatedSelection = SelectionContext(
-                text: context.selection.text,
-                sourceApp: context.selection.sourceApp,
-                cursorPosition: context.selection.cursorPosition,
-                mouseDownLocation: context.selection.mouseDownLocation,
-                selectionBounds: context.selection.selectionBounds,
-                timestamp: context.selection.timestamp,
-                appPolicy: policy,
-                isClipboardFallback: context.selection.isClipboardFallback
-            )
-        }
-        return ActionContext(selection: updatedSelection, modifiers: context.modifiers)
+        registry.availableActions(for: context)
     }
 
     /// Catalog for the action-search palette, filtered to actions that can perform given `context`.
     /// Settings-disabled actions remain visible; contextually-unable ones (no selection, regex/app
-    /// gate, clipboard fallback, formatting policy) are dropped.
+    /// gate, clipboard fallback) are dropped.
     public func searchCatalog(for context: ActionContext) -> [any Action] {
-        registry.searchCatalog(for: resolvedContext(for: context))
+        registry.searchCatalog(for: context)
     }
     
     public func register(action: any Action) {

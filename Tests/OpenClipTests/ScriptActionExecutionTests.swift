@@ -105,7 +105,7 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
 
-    func testScriptActionShowContentJSONFallsThroughToSuccess() async throws {
+    func testScriptActionLegacyShowContentJSONFallsThroughToSuccess() async throws {
         let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("content_test_\(UUID().uuidString).sh")
         let scriptContent = """
         #!/bin/bash
@@ -118,7 +118,7 @@ final class ScriptActionExecutionTests: XCTestCase {
         let result = try await action.perform(ActionContext(selectedText: "SampleInput"))
 
         guard case .success = result else {
-            return XCTFail("Expected .success for shell showContent, got \(result)")
+            return XCTFail("Expected .success for the legacy showContent JSON type (unmapped → success), got \(result)")
         }
 
         try? FileManager.default.removeItem(at: tempScript)
@@ -170,10 +170,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
 
-    /// A manifest `type: "canvas"` whose `script` points at a `.sh` file falls through to a shell
-    /// ScriptAction — the inline `scriptCode` is what makes a canvas action a canvas; a script file
-    /// is routed by extension, so a `.sh` payload is never a JavaScriptCanvasAction.
-    func testCanvasManifestWithShellFileIsNotCanvasAction() async {
+    /// A legacy manifest `type: "canvas"` whose `script` points at a `.sh` file degrades to a shell
+    /// ScriptAction — with the canvas feature removed, the script file is routed by extension, so
+    /// a `.sh` payload is a plain shell action (and validation rejects the canvas kind anyway).
+    func testCanvasManifestWithShellFileIsPlainShellAction() async {
         let factory = DefaultActionFactory()
         let actionMeta = ExtensionActionMetadata(title: "Canvas File Action", icon: "symbol:terminal", script: "main.sh", type: "canvas")
         let manifest = ExtensionMetadata(identifier: "com.test.canvasfile", name: "Canvas File Test", actions: [actionMeta], options: nil)
@@ -189,7 +189,6 @@ final class ScriptActionExecutionTests: XCTestCase {
             try? FileManager.default.removeItem(at: tempDir)
             return XCTFail("A canvas manifest pointing at a shell file must still produce an action")
         }
-        XCTAssertFalse(action is JavaScriptCanvasAction, "a shell script file must never become a JavaScriptCanvasAction")
         XCTAssertTrue(action is ScriptAction || action is CustomAction,
                       "expected a shell ScriptAction (or CustomAction), got \(String(describing: action))")
 
