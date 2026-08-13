@@ -1,0 +1,28 @@
+import XCTest
+import AppKit
+@testable import OpenClip
+
+@MainActor
+final class MacSelectionMonitorTests: XCTestCase {
+
+    func testCommandATriggersSelectionRetrieval() {
+        XCTAssertTrue(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x00, flags: [.command]))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x08, flags: [.command]))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x00, flags: []))
+    }
+
+    func testShiftArrowTriggersSelectionRetrieval() {
+        for keyCode: UInt16 in [0x7B, 0x7C, 0x7D, 0x7E] {
+            XCTAssertTrue(MacSelectionMonitor.isSelectionTrigger(keyCode: keyCode, flags: [.shift]), "keyCode 0x\(String(keyCode, radix: 16))")
+        }
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7B, flags: [.shift, .command]))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7E, flags: [.shift, .option]))
+    }
+
+    func testPlainKeysDoNotTrigger() {
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x00, flags: []))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x00, flags: [.shift]))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7B, flags: [.command]))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x31, flags: [.command]))
+    }
+}

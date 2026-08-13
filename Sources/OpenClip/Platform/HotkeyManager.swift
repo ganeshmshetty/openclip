@@ -14,7 +14,6 @@ extension KeyboardShortcuts.Name {
 @MainActor
 public final class HotkeyManager {
     public static let shared = HotkeyManager()
-    private let retriever = MacTextRetriever()
     private var lastFallbackClipboard: (changeCount: Int, text: String)?
     
     private init() {}
@@ -44,7 +43,7 @@ public final class HotkeyManager {
                 var retrievedText = ""
                 var selectionBounds: CGRect? = nil
                 
-                if let result = await self.retriever.retrieveTextResult(for: appIdentity, policy: policy) {
+                if let result = await SelectionRetrievalCoordinator().retrieve(for: appIdentity, policy: policy) {
                     retrievedText = result.text
                     selectionBounds = result.bounds
                 }
