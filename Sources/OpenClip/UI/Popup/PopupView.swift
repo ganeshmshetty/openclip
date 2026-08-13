@@ -35,6 +35,12 @@ public struct PopupView: View {
     public let onEnteredScopedSearch: (@MainActor (any Action) -> Void)?
     /// Called when an action is actually run (bar / palette / AI), so the controller can record usage.
     public let onActionPerformed: (@MainActor (String) -> Void)?
+    /// Called when a `showsLoading` bar action is clicked: the controller early-closes the popup
+    /// and runs the action via the loading toast flow instead of the inline perform path.
+    public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
+    /// Returns the click intent captured at mouse-down for the current click, so the left-click
+    /// perform path can thread a force-copy click (⇧-click) into the action context.
+    public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
     /// True when this is a static preview — hover tracking is disabled entirely so the
     /// preview never reacts to (or leaks into) the real popup's shared hover state.
     private let isStatic: Bool
@@ -115,7 +121,9 @@ public struct PopupView: View {
         onAIResult: (@MainActor (String, Bool, String) -> Void)? = nil,
         onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
         onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil,
-        onActionPerformed: (@MainActor (String) -> Void)? = nil
+        onActionPerformed: (@MainActor (String) -> Void)? = nil,
+        onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
+        onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .leftClick }
     ) {
         self.actions = actions
         self.context = context
@@ -128,6 +136,8 @@ public struct PopupView: View {
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
         self.onActionPerformed = onActionPerformed
+        self.onRunLoadingAction = onRunLoadingAction
+        self.onClickIntent = onClickIntent
         self.isStatic = isStatic
         self.hoverState = hoverState
         self.presenter = presenter
@@ -312,39 +322,10 @@ public struct PopupView: View {
             .overlay(processingGlowBorder)
     }
 
-    /// The themed bar content: an optional status banner stacked above the actions/search content.
+    /// The themed bar content.
     @ViewBuilder
     private var barStack: some View {
-        VStack(spacing: 0) {
-            if let banner = modeStore.statusBanner {
-                statusBannerView(banner)
-            }
-            unifiedHStack
-        }
-    }
-
-    @ViewBuilder
-    private func statusBannerView(_ feedback: StatusFeedback) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: feedback.symbolName ?? "info.circle")
-                .font(.system(size: 10, weight: .semibold))
-            Text(feedback.message)
-                .font(.system(size: 10, weight: .semibold))
-                .lineLimit(1)
-                .truncationMode(.tail)
-        }
-        .foregroundColor(Self.statusColor(for: feedback.style))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private static func statusColor(for style: StatusFeedback.Style) -> Color {
-        switch style {
-        case .success: return .green
-        case .error: return .red
-        case .info: return .accentColor
-        }
+        unifiedHStack
     }
 
     @ViewBuilder
@@ -417,7 +398,9 @@ public struct PopupView: View {
                 onExitSearch()
                 runAIPreset(prompt: preset.prompt, title: preset.title)
             },
-            onActionPerformed: onActionPerformed
+            onActionPerformed: onActionPerformed,
+            onRunLoadingAction: onRunLoadingAction,
+            onClickIntent: onClickIntent
         )
     }
 
@@ -651,6 +634,10 @@ public struct PopupView: View {
                 }
             } else {
                 Button {
+                    if action.chrome.showsLoading {
+                        onRunLoadingAction?(action)
+                        return
+                    }
                     Task {
                         do {
                             onActionPerformed?(action.id)
@@ -658,9 +645,12 @@ public struct PopupView: View {
                             // this action and thread the match into the perform context so placeholders
                             // and env vars see the same match that enabled the row.
                             let match = action.matchInfo(for: context)
-                            let performContext = match.map {
-                                ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
-                            } ?? context
+                            let performContext = ActionContext(
+                                selection: context.selection,
+                                modifiers: context.modifiers,
+                                forceCopy: onClickIntent() == .forceCopy,
+                                match: match
+                            )
                             let result = try await action.perform(performContext)
                             onResult(result)
                         } catch {

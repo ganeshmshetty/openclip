@@ -29,6 +29,12 @@ public struct PopupSearchView: View {
     public let usageRecency: [String: Int]
     /// Called when an action is actually run, so the controller can record usage.
     public let onActionPerformed: (@MainActor (String) -> Void)?
+    /// Called when a `showsLoading` palette result is selected: the controller early-closes the
+    /// popup and runs the action via the loading toast flow instead of the inline perform path.
+    public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
+    /// Returns the click intent captured at mouse-down for the current click, so the palette's
+    /// perform path can thread a force-copy click (⇧-click) into the action context.
+    public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
 
     @State private var query = ""
     @State private var selectedIndex = 0
@@ -95,7 +101,9 @@ public struct PopupSearchView: View {
         onExit: @escaping @MainActor () -> Void,
         onExitScope: @escaping @MainActor () -> Void = {},
         onRunAI: @escaping @MainActor (String) -> Void = { _ in },
-        onActionPerformed: (@MainActor (String) -> Void)? = nil
+        onActionPerformed: (@MainActor (String) -> Void)? = nil,
+        onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
+        onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .leftClick }
     ) {
         self.catalog = catalog
         self.context = context
@@ -108,6 +116,8 @@ public struct PopupSearchView: View {
         self.onExitScope = onExitScope
         self.onRunAI = onRunAI
         self.onActionPerformed = onActionPerformed
+        self.onRunLoadingAction = onRunLoadingAction
+        self.onClickIntent = onClickIntent
         // Index once at entry: the palette is recreated on every search entry (mode + scope
         // transition together), so the current catalog/scope are captured here. The initial query
         // is empty, so the ranked results are just the full index in order.
@@ -303,15 +313,22 @@ public struct PopupSearchView: View {
             onRunAI(action.id)
             return
         }
+        if action.chrome.showsLoading {
+            onRunLoadingAction?(action)
+            return
+        }
         onActionPerformed?(action.id)
         Task { @MainActor in
             do {
                 // Same match plumbing as the bar's perform path: thread the visibility match into
                 // the perform context so placeholders/env see the same match that enabled the row.
                 let match = action.matchInfo(for: context)
-                let performContext = match.map {
-                    ActionContext(selection: context.selection, modifiers: context.modifiers, match: $0)
-                } ?? context
+                let performContext = ActionContext(
+                    selection: context.selection,
+                    modifiers: context.modifiers,
+                    forceCopy: onClickIntent() == .forceCopy,
+                    match: match
+                )
                 let result = try await action.perform(performContext)
                 onResult(result)
             } catch {

@@ -9,11 +9,11 @@ The floating popup panel subsystem presents contextual actions near the user's c
 ```
 +-----------------------------------------------------------------------------+
 | PopupWindowController |
-| ├── PopupPanel (NSPanel, non-activating, borderless, floating level) |
+| ├── PopupPanel (NSPanel, non-activating, borderless, popUpMenu level) |
 | │ └── NSHostingView(PopupView) |
 | │ ├── Action Buttons / Sub-menus |
 | │ ├── AIResultCardView (native AI result card in .content mode) |
-| │ └── Status banner (inline status) |
+| │ └── Status toast (floating `ToastPanelController`, outside the panel) |
 | └── Event Monitors (Global / Local NSEvent tracking) |
 +-----------------------------------------------------------------------------+
 ```
@@ -21,7 +21,7 @@ The floating popup panel subsystem presents contextual actions near the user's c
 ### 1. [`PopupPanel`](../../Sources/OpenClip/UI/Popup/PopupPanel.swift)
 - **Base Class**: `NSPanel`
 - **Window Style**: `.nonactivatingPanel`, `.borderless`
-- **Window Level**: `.floating` (sits above normal application windows). The panel is deliberately **never** the key window by default; making it key would steal keyboard focus from the active app and swallow keystrokes. There are two scoped exceptions — action-search mode and content (AI-card) mode: `PopupPanel.allowsKey` gates `canBecomeKey`/`canBecomeMain`, enabled by `PopupWindowController.enterSearch()` and `enterKeyMode()` (search and content both route through the same `enterKeyMode()`/`exitKeyMode()` primitives).
+- **Window Level**: `.popUpMenu` (sits above all normal, floating, and status-bar windows; only system menus and the screen saver stack higher). The panel is deliberately **never** the key window by default; making it key would steal keyboard focus from the active app and swallow keystrokes. There are two scoped exceptions — action-search mode and content (AI-card) mode: `PopupPanel.allowsKey` gates `canBecomeKey`/`canBecomeMain`, enabled by `PopupWindowController.enterSearch()` and `enterKeyMode()` (search and content both route through the same `enterKeyMode()`/`exitKeyMode()` primitives).
 - **Properties**: `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = false` (SwiftUI draws its own shadow; a panel shadow causes double artifacts). `pinBottomEdgeOnResize` (search/content mode only) re-anchors content-driven growth — see *Action-Search Palette & Panel Growth* below.
 - **Shadow inset**: `PopupView` keeps ≥16pt of SwiftUI padding around the bar and AI result card so the SwiftUI shadow renders *inside* the panel rather than being clipped at its edge. If a shadow looks cut off, increase the padding — never re-enable the panel shadow.
 
@@ -108,11 +108,18 @@ that replaced the former interactive canvas.
   cannot-paste hides. Nothing is cached: with no rule, paste availability tracks the target app's
   *focus context* (editable field vs read-only view), so every show re-probes. The perform-time
   delivery re-decision reads the same unified value (`resolveDelivery`).
-- **Status**: with no card open, a `StatusFeedback` shows as an inline auto-dismissing banner
-  (`modeStore.statusBanner`, cleared after ~1.5s). While a card is open status is **queued**
-  (`pendingStatus`) — the card shows no banner — and the queued status is flushed onto the bar
-  banner when the card collapses (`exitContent()` → `flushPendingStatus()`); `hide()` clears the
-  queue so a dismissal never surfaces a stale banner.
+- **Status**: every `StatusFeedback` renders as a floating one-line toast at the cursor via
+  `ToastPanelController` (`ToastPanel` + SwiftUI `ToastView`), independent of the popup — it shows
+  whether the bar is up or already hidden. Info/error toasts auto-dismiss after
+  `PopupMetrics.toastDurationNanoseconds` (0.5 s); the paste→copy downgrade surfaces a "Copied"
+  toast. The inline banner and its queue (`modeStore.statusBanner`, `pendingStatus`,
+  `flushPendingStatus`) are gone. `showsLoading` actions (manifest `"loading"`) early-close the
+  popup with a spinner toast, swapping to a description or fading on a description-free result.
+- **Force-copy threading**: the click intent captured at mouse-down (`pendingClickIntent`) is threaded
+  into the perform context as `ActionContext.forceCopy` (right-click always; ⇧-click via
+  `PopupView`/`PopupSearchView`'s `onClickIntent` closure). Actions can branch on it — `DefineAction`
+  returns `.copyDefinition(word)` on a force-copy click so the effect door copies the dictionary
+  definition headlessly instead of opening Dictionary.app.
 
 ---
 
@@ -126,8 +133,8 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
 
 - **Mode state**: [`PopupModeStore`](../../Sources/OpenClip/UI/Popup/PopupModeStore.swift) holds
   `mode` (`.actions`/`.search`/`.content`), `searchResultsAbove` (set from `cardAbove` in
-  `show(for:)`), plus the content payloads `aiResult` and `statusBanner`.
-  `PopupView` branches on `modeStore.mode` in `unifiedHStack` and renders
+  `show(for:)`), plus the content payload `aiResult`. Statuses live in the floating toast, not the
+  store. `PopupView` branches on `modeStore.mode` in `unifiedHStack` and renders
   `PopupSearchView` — the field + result list rendered as **one surface** with the bar, results
   above or below the field by `searchResultsAbove`.
 - **Catalog & matching**: the palette searches the **full** catalog (enabled + disabled, no context

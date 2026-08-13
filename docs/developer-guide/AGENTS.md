@@ -104,7 +104,9 @@ Common action fields (all OPTIONAL unless noted):
   "after": "copy-result",              // see §5b
   "stayVisible": true,                 // see §5b (alias "stay-visible")
   "requirements": { /* ... */ },       // see §5
-  "options": [ /* per-action option overrides, see §4 */ ]
+  "options": [ /* per-action option overrides, see §4 */ ],
+  "loading": true,                       // slow action: early-close + spinner toast, see §5d
+  "loadingMessage": "Searching…"         // loading toast text; defaults to "Opening <title>…"
 }
 ```
 
@@ -414,6 +416,44 @@ never re-decided — an explicit Paste always pastes.
 decision (App target only) — Core stays pure; `canPaste` and the app policy are injected inputs.
 The per-app `denyPaste` toggle is user-editable in Preferences → Application Rules. Set
 `deny-paste` only via `AppRule`; a manifest has **no** delivery keys.
+
+### 5d. `loading` (slow actions)
+
+`loading: true` declares that an action is slow (e.g. an AppleScript that activates an app and
+blocks until it launches). On click the popup closes immediately and a `[spinner] <message>`
+toast appears; when the result lands the toast swaps to a description — "Copied" on a
+paste→copy downgrade, or the action's error status — or fades when the result carries none
+(`.success`, an opened URL, an honored paste, a native copy). It is presentation metadata only: it
+never changes the result/dismissal semantics of `.showStatus`/`.keepVisible`.
+
+The spinner's message is `loadingMessage` when declared (a static string, used verbatim), otherwise
+the host falls back to `Opening <title>…`. Example:
+
+```json
+{
+  "action": {
+    "title": "Apple Music",
+    "type": "applescript",
+    "script": "main.applescript",
+    "loading": true,
+    "loadingMessage": "Searching Apple Music…"
+  }
+}
+```
+
+The toast is a compact, single-line popup centered on the popup bar's frame (the anchor frame is
+captured before the popup hides, so loading toasts that early-close still render where the popup
+was; it never follows the live cursor). It renders `[icon | spinner] message` in one row with
+modest vertical padding (never a multi-line sheet). The "Copied" toast renders a ✓ checkmark icon
+**plus** the "Copied" text — the icon alone (bare right-mark) is not a valid representation — in
+the theme's resting foreground (black on light, white on dark), not green. The toast is sized from
+a laid-out content measurement (`layoutSubtreeIfNeeded()` before reading the hosting view's
+`fittingSize`); reading `fittingSize` before a layout pass yields a stale, oversized frame. The
+hosting view sits in a plain container so the window's constraint engine never tracks the SwiftUI
+content (an `NSHostingView` as a direct contentView that re-measures during the display cycle
+crashes with "marked as needing another Update Constraints in Window pass"). Info/error toasts
+auto-dismiss after `PopupMetrics.toastDurationNanoseconds` (0.5 s); loading toasts have no timer
+and stay until the result lands.
 
 ---
 

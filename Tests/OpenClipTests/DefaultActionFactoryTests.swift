@@ -65,6 +65,35 @@ final class DefaultActionFactoryTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
+    @MainActor
+    func testFactoryMapsLoadingFlagOntoChrome() async {
+        let factory = DefaultActionFactory()
+        let loadingMeta = ExtensionActionMetadata(title: "Loading", icon: "symbol:play", script: "test.applescript", type: "applescript", loading: true, loadingMessage: "Connecting to Music…")
+        let plainMeta = ExtensionActionMetadata(title: "Plain", icon: "symbol:play", script: "test2.applescript", type: "applescript")
+        let manifest = ExtensionMetadata(identifier: "com.test.loading", name: "Loading Test", actions: [loadingMeta, plainMeta], options: nil)
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try? "return \"hi\"".write(to: tempDir.appendingPathComponent("test.applescript"), atomically: true, encoding: .utf8)
+        try? "return \"hi\"".write(to: tempDir.appendingPathComponent("test2.applescript"), atomically: true, encoding: .utf8)
+
+        guard let loading = await factory.createAction(metadata: loadingMeta, manifest: manifest, directoryURL: tempDir, index: 0) as? AppleScriptAction else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("Expected AppleScriptAction")
+        }
+        XCTAssertTrue(loading.chrome.showsLoading)
+        XCTAssertEqual(loading.chrome.loadingMessage, "Connecting to Music…")
+
+        guard let plain = await factory.createAction(metadata: plainMeta, manifest: manifest, directoryURL: tempDir, index: 1) as? AppleScriptAction else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("Expected AppleScriptAction")
+        }
+        XCTAssertFalse(plain.chrome.showsLoading)
+        XCTAssertNil(plain.chrome.loadingMessage)
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
     func testUniformIDBareSlugExpandsWithManifestIdentifier() async {
         let factory = DefaultActionFactory()
         let actionMeta = ExtensionActionMetadata(id: "a", title: "Action A", icon: "symbol:link", script: nil, url: "https://example.com/a?q={query}", regex: nil)

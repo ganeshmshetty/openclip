@@ -17,6 +17,12 @@ public indirect enum ActionResult: Sendable {
     case paste(String)
     case showServices(String)
 
+    /// Look up `word` in the system dictionaries headlessly (no app launch) and copy its definition
+    /// to the pasteboard. Declared by Core; resolved by the effect door via DictionaryServices so
+    /// Core and the JS host stay testable. Returned by `DefineAction` on a force-copy click (the
+    /// right-click/⇧-click alternative to opening Dictionary.app).
+    case copyDefinition(String)
+
     /// Invoke a specific macOS sharing service by its identifier (e.g.
     /// `com.apple.Notes.SharingExtension`) with the given text — the sharing-extension analogue of
     /// `popclip.share(...)`. Handled by the effect door via `NSSharingService(named:).perform`,

@@ -14,6 +14,33 @@ final class ActionResultHandlerTests: XCTestCase {
         XCTAssertEqual(pasteboardText, "Test Copy")
     }
 
+    func testCopyDefinitionHandlerWritesLookupToPasteboard() async throws {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let handler = DefaultActionResultHandler(
+            pasteboard: isolatedPasteboard,
+            dictionaryLookup: { word in "The definition of \(word)." }
+        )
+        try await handler.handle(.copyDefinition("epiphany"), in: nil)
+
+        XCTAssertEqual(isolatedPasteboard.string(forType: .string), "The definition of epiphany.")
+    }
+
+    func testCopyDefinitionHandlerThrowsWhenLookupEmpty() async throws {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let handler = DefaultActionResultHandler(
+            pasteboard: isolatedPasteboard,
+            dictionaryLookup: { _ in nil }
+        )
+
+        do {
+            try await handler.handle(.copyDefinition("zzznotaword"), in: nil)
+            XCTFail("Expected empty definition lookup to throw")
+        } catch {
+            // Expected: surfaces as an error status.
+        }
+        XCTAssertNil(isolatedPasteboard.string(forType: .string))
+    }
+
     /// The `shortcut` effect routes through the shortcuts CLI under a watchdog. Only exercised when
     /// the binary is present; there is no deterministic short-lived Shortcut to invoke here, so the
     /// assertion is that a non-existent name surfaces as a thrown error (→ status) and that the

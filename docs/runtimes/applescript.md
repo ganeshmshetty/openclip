@@ -37,8 +37,8 @@ so a stuck script can never wedge a thread forever. Callers that need a tighter 
 beep-suppression mute, 0.2 s) race the subprocess against their own deadline via a once-resume
 gate (`OnceResume` in `Platform/OnceResume.swift`); the subprocess is reaped by its own watchdog.
 
-`MacTextRetriever` (Safari JS selection read, beep suppression) and `AppleScriptAction` both route
-through `AppleScriptRunner`. The two short-timeout helpers in `MacTextRetriever` use
+`MacTextRetriever` (AX deadline-capped read, beep suppression) and `AppleScriptAction` both route
+through `AppleScriptRunner`. The deadline-capped helpers in `MacTextRetriever` use
 `OnceResume` to guarantee exactly-once continuation resume between the worker and the deadline.
 
 ---

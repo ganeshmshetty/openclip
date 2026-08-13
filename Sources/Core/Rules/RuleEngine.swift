@@ -77,14 +77,6 @@ public final class RuleEngine: ObservableObject, Sendable {
             for id in rule.bundleIdentifiers {
                 if id == ":menu-copy-apps:" {
                     expandedIdentifiers.append(contentsOf: DefaultAppRules.menuCopyApps)
-                } else if id == ":safari-group:" {
-                    expandedIdentifiers.append(contentsOf: DefaultAppRules.safariGroup)
-                } else if id == ":chromium-group:" {
-                    expandedIdentifiers.append(contentsOf: DefaultAppRules.chromiumGroup)
-                } else if id == ":firefox-group:" {
-                    expandedIdentifiers.append(contentsOf: DefaultAppRules.firefoxGroup)
-                } else if id == ":arc-group:" {
-                    expandedIdentifiers.append(contentsOf: DefaultAppRules.arcGroup)
                 } else {
                     expandedIdentifiers.append(id)
                 }

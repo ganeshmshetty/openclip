@@ -6,6 +6,7 @@
 import Foundation
 import AppKit
 import UserNotifications
+import CoreServices
 import Core
 
 public protocol ActionResultHandler: Sendable {
@@ -52,17 +53,24 @@ public struct SessionEventTapPoster: KeyboardEventPosting {
 
 @MainActor
 public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
+    /// Resolves a word to its dictionary definition (headless DictionaryServices lookup). Injectable
+    /// so tests can stub the lookup instead of hitting the real system dictionaries.
+    public typealias DictionaryLookup = @Sendable (String) -> String?
+
     private let settingsStore: SettingsStore
     private let keyboardPoster: KeyboardEventPosting
     private let pasteboard: NSPasteboard
+    private let dictionaryLookup: DictionaryLookup
     private var pendingRestoreTask: Task<Void, Never>?
 
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
                 keyboardPoster: KeyboardEventPosting = SessionEventTapPoster(),
-                pasteboard: NSPasteboard = .general) {
+                pasteboard: NSPasteboard = .general,
+                dictionaryLookup: @escaping DictionaryLookup = DictionaryLookupFactory.systemLookup) {
         self.settingsStore = settingsStore
         self.keyboardPoster = keyboardPoster
         self.pasteboard = pasteboard
+        self.dictionaryLookup = dictionaryLookup
     }
 
 
@@ -90,6 +98,20 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             let pasteboard = self.pasteboard
             pasteboard.clearContents()
             pasteboard.setString(text, forType: .string)
+
+        case .copyDefinition(let word):
+            pendingRestoreTask?.cancel()
+            pendingRestoreTask = nil
+            guard let definition = dictionaryLookup(word), !definition.isEmpty else {
+                throw NSError(
+                    domain: Constants.actionErrorDomain,
+                    code: Int(Constants.actionErrorCode),
+                    userInfo: [NSLocalizedDescriptionKey: "No dictionary definition found for “\(word)”."]
+                )
+            }
+            let pasteboard = self.pasteboard
+            pasteboard.clearContents()
+            pasteboard.setString(definition, forType: .string)
 
         case .cut(let text):
             pendingRestoreTask?.cancel()
@@ -304,5 +326,22 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             }
         }
         return nil
+    }
+}
+
+/// The production dictionary lookup for the `.copyDefinition` effect: a headless
+/// `DCSCopyTextDefinition` call that never launches the Dictionary app. The pasteboard write happens
+/// in `DefaultActionResultHandler`; this only resolves a word to its definition text.
+public enum DictionaryLookupFactory {
+    /// Looks up `word` via `DCSCopyTextDefinition` (default system dictionary). Returns nil when the
+    /// word has no definition in the active dictionary or the lookup fails.
+    public static let systemLookup: @Sendable (String) -> String? = { word in
+        let cfWord = word as CFString
+        let range = CFRange(location: 0, length: CFStringGetLength(cfWord))
+        guard let definition = DCSCopyTextDefinition(nil, cfWord, range)?.takeRetainedValue() as String? else {
+            return nil
+        }
+        let trimmed = definition.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

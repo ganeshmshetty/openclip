@@ -21,7 +21,7 @@ The subsystem consists of three primary components:
  v                |
 +------------------------+      |
 | MacTextRetriever |      |
-| (AX / Safari / AX Menu Copy) |      |
+| (AX / AX Menu Copy) |      |
 +------------------------+      |
                         v
              +-----------------------+
@@ -45,16 +45,11 @@ flowchart TD
  Start[Selection Event Detected] --> StrategyAX[Strategy 1: AX Direct Read]
 
  StrategyAX -- Success --> ReturnResult[Return Text & Bounds]
- StrategyAX -- Null/Empty --> SafariCheck{App is Safari?}
-
- SafariCheck -- Yes --> StrategySafari[Strategy 1.5: Safari JS Read]
- SafariCheck -- No --> MenuCopyCheck{App has useMenuCopy policy}
+ StrategyAX -- Null/Empty --> MenuCopyCheck{App has useMenuCopy policy}
 
  MenuCopyCheck -- Yes --> StrategyMenuCopy[Strategy 1.8: AX Menu Copy]
  MenuCopyCheck -- No --> Fail[Selection Ignored]
 
- StrategySafari -- Success --> ReturnResult
- StrategySafari -- Null --> MenuCopyCheck
  StrategyMenuCopy -- Success --> ReturnResult
  StrategyMenuCopy -- Null --> Fail
 ```
@@ -63,17 +58,6 @@ flowchart TD
 - **Mechanism**: Queries `AXUIElementCreateSystemWide()` for `kAXFocusedUIElementAttribute`, then reads `kAXSelectedTextAttribute`.
 - **Bounds Query**: Queries `kAXSelectedTextRangeAttribute` and `kAXBoundsForRangeParameterizedAttribute` to obtain the precise screen rectangle (`CGRect`) of the selected text.
 - **Advantage**: Instant, zero side-effects, never modifies system clipboard.
-
-### Strategy 1.5: Safari JavaScript Read
-- **Target**: Safari browser tabs (`com.apple.Safari`).
-- **Mechanism**: Executed if AX direct read returns empty due to web page DOM rendering delays. Executes a lightweight AppleScript snippet:
- ```applescript
- tell application "Safari"
- if (count of documents) > 0 then
- do JavaScript "window.getSelection().toString()" in front document
- end if
- end tell
- ```
 
 ### Strategy 1.8: AX Menu Copy
 - **Target**: Apps with the `useMenuCopy` policy (VS Code, Zed, Obsidian, etc.) whose AX selection reads are unreliable.

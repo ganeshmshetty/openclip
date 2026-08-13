@@ -24,4 +24,20 @@ final class ActionChromeTests: XCTestCase {
         XCTAssertTrue(launcher.chrome.launchesAI)
     }
 
+    func testShowsLoadingDefaultsFalse() {
+        let plain = CustomAction(id: "custom.plain", title: "Plain", iconName: "star", type: .textSnippet(template: "P"))
+        XCTAssertFalse(plain.chrome.showsLoading)
+    }
+
+    func testShowsLoadingRoundTrips() {
+        let chrome = ActionChrome(source: .builtin, showsLoading: true)
+        XCTAssertTrue(chrome.showsLoading)
+    }
+
+    func testLoadingMessageDefaultsNilAndRoundTrips() {
+        XCTAssertNil(ActionChrome(source: .builtin, showsLoading: true).loadingMessage)
+        let chrome = ActionChrome(source: .builtin, showsLoading: true, loadingMessage: "Connecting to Music…")
+        XCTAssertEqual(chrome.loadingMessage, "Connecting to Music…")
+    }
+
 }

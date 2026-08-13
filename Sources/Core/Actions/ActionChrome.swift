@@ -46,6 +46,12 @@ public struct ActionChrome: Codable, Sendable, Equatable {
     /// routes its click into AI mode instead of `perform`, and the search palette excludes it
     /// (AI presets are already searchable there).
     public let launchesAI: Bool
+    /// True when the action is slow (e.g. an AppleScript that activates an app) and the popup
+    /// should close immediately on click with a spinner toast until the result lands.
+    public let showsLoading: Bool
+    /// The loading toast's text when `showsLoading` (e.g. "Connecting to Music…"). When nil the
+    /// presentation layer falls back to its default ("Opening <title>…").
+    public let loadingMessage: String?
 
     public init(
         badge: Badge = .none,
@@ -53,7 +59,9 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         popupBehavior: PopupBehavior = .perform,
         source: Source = .builtin,
         requiresLiveSelection: Bool = false,
-        launchesAI: Bool = false
+        launchesAI: Bool = false,
+        showsLoading: Bool = false,
+        loadingMessage: String? = nil
     ) {
         self.badge = badge
         self.rowStyle = rowStyle
@@ -61,5 +69,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.source = source
         self.requiresLiveSelection = requiresLiveSelection
         self.launchesAI = launchesAI
+        self.showsLoading = showsLoading
+        self.loadingMessage = loadingMessage
     }
 }

@@ -12,6 +12,19 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertEqual(PopupMetrics.popupMaxHeight, 240)
     }
 
+    func testToastDurationConstant() {
+        XCTAssertEqual(PopupMetrics.toastDurationNanoseconds, 500_000_000)
+    }
+
+    func testToastFittingSizeIsOneLine() throws {
+        let toast = ToastView(feedback: StatusFeedback(message: "Copied to clipboard", style: .success, symbolName: "checkmark"))
+        let host = NSHostingView(rootView: toast)
+        host.layoutSubtreeIfNeeded()
+        let fit = host.fittingSize
+        XCTAssertGreaterThan(fit.width, 80, "toast collapsed to zero width")
+        XCTAssertLessThan(fit.height, 60, "toast should be a single compact line")
+    }
+
     /// Evidence check: the AI result card's preferred (fitting) size must include the response
     /// body region, not just header + footer. The panel auto-resizes to the hosting view's fitting
     /// size on mode change; if the ScrollView body collapses to zero at fit-time the window stays

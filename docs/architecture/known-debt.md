@@ -86,8 +86,9 @@ areas; stale debt notes are worse than none.
   `showBubble`/`hideBubble`/`bubbleBlocksDismiss` machinery) was removed — all action/AI/status
   content renders inside the single panel via `.content` mode (`PopupModeStore`) as a native
   SwiftUI `AIResultCardView`. `StatusBadgeModel` and the old `.info`/`.result`/`.menu` emphasis
-  model are gone; a status emitted while a card is open is **queued** (`pendingStatus`) and flushed
-  onto the bar banner when the card collapses (`exitContent()` → `flushPendingStatus()`).
+  model are gone, and the inline status banner is gone too: every `StatusFeedback` renders as a
+  floating toast (`ToastPanelController`) with no queue — a status shows over the card — and
+  `showsLoading` actions (manifest `"loading"`) use the early-close spinner toast.
 - **`MathEvaluator` replaced crash-prone `NSExpression`.** `CalculateAction` used to run
   `NSExpression(format:)`, which throws an **uncaught Objective-C exception** on malformed selection
   text like `+` or `1+` (crash). The pure-Swift `MathEvaluator` (`Sources/Core/Actions/MathEvaluator.swift`)
@@ -109,7 +110,10 @@ areas; stale debt notes are worse than none.
 ## Unused / Latent
 
 - **`ActionContext.modifiers` is currently unused.** No action reads it; `PopupWindowController`
-  passes `modifiers: []`. Don't build logic that assumes modifier keys reach actions.
+  passes `modifiers: []`. The click intent itself *is* plumbed: `ActionContext.forceCopy` is set from
+  the captured `pendingClickIntent` by the bar/palette perform paths (right-click always; ⇧-click
+  via the `onClickIntent` closure) and read by `DefineAction` to copy a definition headlessly. True
+  modifier keys (⌘/⌥) still don't reach actions.
 - **Paste delivery is now standardized but has a probe reliance.** Leaf `.paste` results are
   re-decided by `ActionResultDelivery` (App target) per the rule in the dev-guide §5c: right/⇧-click,
   or the **unified** `PasteAvailability` answer (per-app rules win, AX `PasteAvailabilityProbe` fills
@@ -127,8 +131,7 @@ areas; stale debt notes are worse than none.
   first frame (probe-before-render, nothing cached), so a same-app focus-context change re-probes
   cleanly. The click-intent capture reads
   only ⇧ (not ⌘/⌥) and only sets it on mouse-down; a keyboard-driven run (search palette Enter) uses
-  the last left-click intent. A future `context.modifiers` plumbing pass could feed true modifier
-  state into `ActionContext` instead.
+  the last left-click intent.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 

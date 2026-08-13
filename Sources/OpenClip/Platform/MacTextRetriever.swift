@@ -11,8 +11,7 @@ import Core
 
 /// Retrieves selected text from macOS applications using a fall-through strategy chain:
 /// 1. Accessibility (AX) direct attribute read – fastest, no side effects.
-/// 2. Safari JS selection read (Safari AX can be delayed).
-/// 3. AX Edit ▸ Copy press fallback for apps opting into the `useMenuCopy` policy (no Cmd+C key event).
+/// 2. AX Edit ▸ Copy press fallback for apps opting into the `useMenuCopy` policy (no Cmd+C key event).
 internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
 
     internal init() {}
@@ -23,12 +22,6 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         // Strategy 1: Accessibility direct read — instant, zero side-effects.
         if let result = await strategyAXDirect() {
             return result
-        }
-
-        // Strategy 1.5: Safari JS selection read (Safari AX can be delayed).
-        if let safariText = await strategySafariJS(for: app),
-           !safariText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return TextResult(text: safariText, bounds: nil)
         }
 
         // Strategy 1.8: AX Menu Copy for lenient selection apps (VS Code, Electron)
@@ -94,19 +87,6 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         }
     }
     
-    private func strategySafariJS(for app: AppIdentity) async -> String? {
-        guard let bundleID = app.bundleIdentifier, DefaultAppRules.safariGroup.contains(bundleID) else { return nil }
-        let script = """
-        tell application id "\(bundleID)"
-            if (count of documents) > 0 then
-                do JavaScript "window.getSelection().toString()" in front document
-            end if
-        end tell
-        """
-        let text = await runAppleScript(script)
-        return text?.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     // MARK: - Strategy 1: AX Direct
 
     /// Read selected text directly using Accessibility APIs:
@@ -333,30 +313,5 @@ internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
         guard !items.isEmpty else { return }
         pasteboard.clearContents()
         pasteboard.writeObjects(items)
-    }
-
-    /// Run an AppleScript on a background thread with a timeout and return its string output.
-    /// The evaluation itself runs as a killable osascript subprocess (AppleScriptRunner); the
-    /// caller-side deadline lets the popup move on while the subprocess is reaped by its own
-    /// watchdog.
-    private func runAppleScript(_ source: String, timeout: TimeInterval = 0.2) async -> String? {
-        await withCheckedContinuation { continuation in
-            let resume = OnceResume<String?>()
-            let execTask = TaskBox()
-            let timeoutTask = TaskBox()
-
-            execTask.set(Task {
-                let result = try? await AppleScriptRunner.shared.run(source)
-                if resume.resume(continuation, with: result) {
-                    timeoutTask.cancel()
-                }
-            })
-            timeoutTask.set(Task {
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                if resume.resume(continuation, with: nil) {
-                    execTask.cancel()
-                }
-            })
-        }
     }
 }

@@ -203,7 +203,9 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             badge: .extensionPkg(manifest.name),
             rowStyle: .standard,
             popupBehavior: .perform,
-            source: .extensionPkg(packageID: manifest.identifier)
+            source: .extensionPkg(packageID: manifest.identifier),
+            showsLoading: metadata.loading ?? false,
+            loadingMessage: metadata.loadingMessage
         )
 
         // Phase 8 runtime kinds: keyPress / shortcut / service. Checked before the generic url and

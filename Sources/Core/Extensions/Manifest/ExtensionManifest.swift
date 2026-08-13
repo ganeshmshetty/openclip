@@ -26,6 +26,12 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     public let serviceName: String?
     public let shortcutName: String?
     public let menuRelevance: String?
+    /// When true the host closes the popup immediately on click and shows a spinner toast until
+    /// the action's result lands (slow actions like an AppleScript that activates an app).
+    public let loading: Bool?
+    /// Optional text for the loading spinner toast (shown while `loading: true`). When absent the
+    /// host falls back to its default ("Opening <title>…").
+    public let loadingMessage: String?
 
     public var kind: ExtensionActionKind {
         ExtensionActionKind(rawType: type ?? "url")
@@ -49,7 +55,9 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         keyPress: String? = nil,
         serviceName: String? = nil,
         shortcutName: String? = nil,
-        menuRelevance: String? = nil
+        menuRelevance: String? = nil,
+        loading: Bool? = nil,
+        loadingMessage: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -69,6 +77,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.serviceName = serviceName
         self.shortcutName = shortcutName
         self.menuRelevance = menuRelevance
+        self.loading = loading
+        self.loadingMessage = loadingMessage
     }
 
     public init(from decoder: Decoder) throws {
@@ -99,6 +109,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.serviceName = try container.decodeIfPresent(String.self, forKey: .serviceName)
         self.shortcutName = try container.decodeIfPresent(String.self, forKey: .shortcutName)
         self.menuRelevance = try container.decodeIfPresent(String.self, forKey: .menuRelevance)
+        self.loading = try container.decodeIfPresent(Bool.self, forKey: .loading)
+        self.loadingMessage = try container.decodeIfPresent(String.self, forKey: .loadingMessage)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -121,6 +133,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(serviceName, forKey: .serviceName)
         try container.encodeIfPresent(shortcutName, forKey: .shortcutName)
         try container.encodeIfPresent(menuRelevance, forKey: .menuRelevance)
+        try container.encodeIfPresent(loading, forKey: .loading)
+        try container.encodeIfPresent(loadingMessage, forKey: .loadingMessage)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -150,6 +164,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case serviceName = "serviceName"
         case shortcutName = "shortcutName"
         case menuRelevance = "menuRelevance"
+        case loading = "loading"
+        case loadingMessage = "loadingMessage"
     }
 }
 

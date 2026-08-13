@@ -33,7 +33,7 @@ public class PopupPanel: NSPanel {
             backing: .buffered,
             defer: false
         )
-        self.level = .floating
+        self.level = .popUpMenu
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.backgroundColor = .clear
         self.isOpaque = false
