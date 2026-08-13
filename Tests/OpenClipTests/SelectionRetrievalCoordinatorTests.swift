@@ -255,4 +255,18 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         )
         XCTAssertNil(result)
     }
+
+    func testMenuCopyCaptureNilReturnsNil() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: "confirmed selection") },
+            copyCapture: { _ in nil }
+        )
+        let policy = AppPolicyContext(retrievalMode: .menuCopy)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.apple.Terminal"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(result)
+    }
 }
