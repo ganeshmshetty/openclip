@@ -74,6 +74,8 @@ public struct SelectionRetrievalCoordinator {
             return nil
         }
 
+        Log.selection.debug("coordinator: gate passed for \(app.bundleIdentifier ?? "unknown", privacy: .public); retrieving via \(policy.retrievalMode.rawValue, privacy: .public)")
+
         switch policy.retrievalMode {
         case .axTextControl:
             return AXTextControlStrategy.read(from: target)

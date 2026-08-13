@@ -18,7 +18,7 @@ Each subsystem owns a fixed `os.Logger` on `com.openclip`:
 | `coordinator`    | action coordination / enablement evaluation                 |
 | `shell`          | `ShellProcessRunner` (subprocess watchdog, timeout)         |
 | `js`             | `OpenClipJSHost` runtime                                    |
-| `selection`      | `MacTextRetriever` / `MacSelectionMonitor` (AX + pasteboard + keyboard retrieval) |
+| `selection`      | `SelectionRetrievalCoordinator` + strategies / `MacSelectionMonitor` (gate decisions, mode routing, AX + pasteboard + keyboard retrieval) |
 | `extensions`     | `ExtensionManager`, remote installer, extension store/onboarding install & uninstall, **manifest decode/validation rejections** |
 | `ai`             | AI providers and preset persistence                         |
 | `permissions`    | TCC / accessibility permission management                   |

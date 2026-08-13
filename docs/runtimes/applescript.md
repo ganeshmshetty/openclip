@@ -33,12 +33,12 @@ application answers over Apple Events — it cannot be cancelled, has no timeout
 `tell application` permanently parks a cooperative-pool thread. `NSAppleScript` is also not
 thread-safe across instances. Running each script as a killable subprocess keeps the
 cooperative-thread pool free: the watchdog terminates the subprocess at `Constants.scriptTimeout`,
-so a stuck script can never wedge a thread forever. Callers that need a tighter budget (e.g. the
-beep-suppression mute, 0.2 s) race the subprocess against their own deadline via a once-resume
-gate (`OnceResume` in `Platform/OnceResume.swift`); the subprocess is reaped by its own watchdog.
+so a stuck script can never wedge a thread forever. Callers that need a tighter budget pass an
+explicit `timeout` that shortens the subprocess watchdog (e.g. `BrowserScriptStrategy` bounds each
+AppleScript run at `Constants.browserScriptTimeout`, 1.0 s) instead of racing a separate deadline.
 
-`MacTextRetriever` (AX deadline-capped read, beep suppression) and `AppleScriptAction` both route
-through `AppleScriptRunner`. The deadline-capped helpers in `MacTextRetriever` use
+`BrowserScriptStrategy` (via `AppleScriptRunner`) and `AppleScriptAction` both route through the
+shared subprocess runner. The deadline-capped AX inspect in `SelectionRetrievalCoordinator` uses
 `OnceResume` to guarantee exactly-once continuation resume between the worker and the deadline.
 
 ---
