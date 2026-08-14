@@ -1,4 +1,5 @@
 import XCTest
+@testable import Core
 @testable import OpenClip
 
 private func makeEntry(_ n: Int) -> DebugLogEntry {
