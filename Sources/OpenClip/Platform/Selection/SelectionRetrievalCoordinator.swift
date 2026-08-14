@@ -118,27 +118,26 @@ public struct SelectionRetrievalCoordinator: Sendable {
         target: AXElementInspector.Target,
         policy: AppPolicyContext
     ) async -> TextResult? {
-        for strategy in strategyCascade(for: policy) {
+        let bundleID = app.bundleIdentifier ?? "unknown"
+        let strategies = strategyCascade(for: policy, target: target)
+
+        for (index, strategy) in strategies.enumerated() {
+            if index > 0 {
+                let previous = strategies[index - 1]
+                Log.selection.debug("coordinator: \(previous.rawValue, privacy: .public) produced no text for \(bundleID, privacy: .public); falling back to \(strategy.rawValue, privacy: .public)")
+            }
             if let result = Self.nonBlank(await run(strategy, app: app, target: target)) {
+                if index > 0 {
+                    Log.selection.debug("coordinator: fallback \(strategy.rawValue, privacy: .public) succeeded for \(bundleID, privacy: .public)")
+                } else {
+                    Log.selection.debug("coordinator: primary \(strategy.rawValue, privacy: .public) succeeded for \(bundleID, privacy: .public)")
+                }
                 return result
             }
         }
+        Log.selection.debug("coordinator: all strategies exhausted for \(bundleID, privacy: .public); no selection")
         return nil
     }
-
-    /// Canonical fallback order. A policy selects a *preferred* strategy; retrieval runs that
-    /// strategy followed by everything below it in this chain, so a failed read always degrades to
-    /// a copy-based read. `browserScript` sits above `axWebArea` so a browser's preferred JS read
-    /// still falls back to the AX web-area read before any copy. An app with no rule uses
-    /// `.axTextControl` (index 0) and thus the full chain — the "auto" behavior. A rule never
-    /// reaches strategies above its preferred entry point.
-    private static let retrievalChain: [RetrievalStrategy] = [
-        .axTextControl,
-        .browserScript,
-        .axWebArea,
-        .menuCopy,
-        .keyboardCopy
-    ]
 
     private static let browserBundleIDs: Set<String> = Set(
         DefaultAppRules.safariGroup
@@ -147,13 +146,32 @@ public struct SelectionRetrievalCoordinator: Sendable {
             + DefaultAppRules.arcGroup
     )
 
-    /// Returns the suffix of the chain starting at `policy.retrievalMode`'s preferred strategy.
-    private func strategyCascade(for policy: AppPolicyContext) -> [RetrievalStrategy] {
-        let preferred = RetrievalStrategy(mode: policy.retrievalMode)
-        guard let index = Self.retrievalChain.firstIndex(of: preferred) else {
-            return Self.retrievalChain
+    /// Resolves targeted strategies for `policy.retrievalMode`, providing tiered fallback
+    /// where dynamic web content requires it, while strictly confining native controls and terminals
+    /// to their direct mechanisms to eliminate redundant double timeouts and false cascades.
+    private func strategyCascade(
+        for policy: AppPolicyContext,
+        target: AXElementInspector.Target
+    ) -> [RetrievalStrategy] {
+        switch policy.retrievalMode {
+        case .axTextControl:
+            if target.webArea != nil || target.role == "AXWebArea" {
+                return [.axWebArea, .browserScript, .keyboardCopy]
+            }
+            return [.axTextControl, .keyboardCopy]
+
+        case .axWebArea:
+            return [.axWebArea, .browserScript, .keyboardCopy]
+
+        case .browserScript:
+            return [.browserScript, .axWebArea, .keyboardCopy]
+
+        case .menuCopy:
+            return [.menuCopy]
+
+        case .keyboardCopy:
+            return [.keyboardCopy]
         }
-        return Array(Self.retrievalChain[index...])
     }
 
     private func run(
@@ -225,12 +243,12 @@ public struct SelectionRetrievalCoordinator: Sendable {
     }
 
     /// A leaf strategy in the fallback cascade.
-    private enum RetrievalStrategy: Equatable {
-        case axTextControl
-        case axWebArea
-        case browserScript
-        case menuCopy
-        case keyboardCopy
+    private enum RetrievalStrategy: String, Equatable, Sendable {
+        case axTextControl = "ax-text-control"
+        case axWebArea = "ax-web-area"
+        case browserScript = "browser-script"
+        case menuCopy = "menu-copy"
+        case keyboardCopy = "keyboard-copy"
 
         init(mode: SelectionRetrievalMode) {
             switch mode {
