@@ -6,7 +6,7 @@ view; this is the detailed per-file map.
 ```text
 Sources/
 ├── Core/                                     # Domain Logic (Pure Swift Target)
-│   ├── Log.swift                             # Single Log enum: per-subsystem os.Logger categories (see docs/logging.md)
+│   ├── Log.swift                             # Single logging surface: Log enum, LogChannel, LogSink protocol, LogLevel, LogMessage (see docs/logging.md)
 │   ├── Actions/
 │   │   ├── Action.swift                      # Action protocol
 │   │   ├── ActionChrome.swift                # UI metadata policy enum
@@ -60,19 +60,19 @@ Sources/
 │       └── TextPlaceholderEngine.swift       # Dynamic text template engine
 └── OpenClip/                                 # App Target (macOS App / AppKit / SwiftUI)
     ├── AI/                                   # AI Assistant & Providers
-    │   ├── AIProvider.swift
-    │   ├── AIServiceManager.swift            # cloudAPIKey is Keychain-backed (@Published), other prefs via @AppStorage
-    │   └── Providers/                        # Apple Intelligence, Cloud, Ollama, BrowserRedirect
-    │       ├── CloudAPIProvider.swift        # OpenAI-compatible / Anthropic / Gemini cloud chat
-    │       └── CloudAPIProviderDTOs.swift    # Codable chat request/response payloads for the cloud APIs
+    ├── AIProvider.swift
+    ├── AIServiceManager.swift            # cloudAPIKey is Keychain-backed (@Published), other prefs via @AppStorage
+    └── Providers/                        # Apple Intelligence, Cloud, Ollama, BrowserRedirect
+        ├── CloudAPIProvider.swift        # OpenAI-compatible / Anthropic / Gemini cloud chat
+        └── CloudAPIProviderDTOs.swift    # Codable chat request/response payloads for the cloud APIs
     ├── Actions/                              # Runtime actions requiring AppKit/JavaScript
-    │   ├── AppleScriptAction.swift
-    │   ├── JavaScriptAction.swift            # Manifests JS actions; short-circuits to .openConfiguration when a required option is unresolved, else delegates to OpenClipJSHost (options via injected ActionOptionReading)
-    │   ├── KeyPressAction.swift              # type: "keyPress" runtime → .keyPress(KeyPressSpec)
-    │   ├── NamedServiceAction.swift          # type: "service" runtime → .showServices(text)
-    │   ├── OpenClipJSHost.swift              # JS bridge (openclip.*) + effect resolver + .openConfiguration short-circuit support
-    │   ├── OpenClipJSHostSupport.swift       # Threading/support boxes for the JS host (TimeoutFlag, gate, JS context/value/runloop boxes, promise state)
-    │   └── ShortcutAction.swift              # type: "shortcut" runtime → .runShortcut(name:input:)
+    ├── AppleScriptAction.swift
+    ├── JavaScriptAction.swift            # Manifests JS actions; short-circuits to .openConfiguration when a required option is unresolved, else delegates to OpenClipJSHost (options via injected ActionOptionReading)
+    ├── KeyPressAction.swift              # type: "keyPress" runtime → .keyPress(KeyPressSpec)
+    ├── NamedServiceAction.swift          # type: "service" runtime → .showServices(text)
+    ├── OpenClipJSHost.swift              # JS bridge (openclip.*) + effect resolver + .openConfiguration short-circuit support
+    ├── OpenClipJSHostSupport.swift       # Threading/support boxes for the JS host (TimeoutFlag, gate, JS context/value/runloop boxes, promise state)
+    └── ShortcutAction.swift              # type: "shortcut" runtime → .runShortcut(name:input:)
     ├── App/
     ├── AppDelegate.swift                     # Reads isAppEnabled / hasCompletedOnboarding via DefaultSettingsStore (SettingKey)
     ├── OpenClipApp.swift                     # SwiftUI App Entrypoint
@@ -101,14 +101,14 @@ Sources/
     │   │   ├── BrowserScriptStrategy.swift   # AppleScript-bridge page-selection read (Safari/Chromium/Firefox/Arc) + URL
     │   │   ├── CursorClassifier.swift        # Cursor image → CursorClass
     │   │   └── SelectionRetrievalCoordinator.swift # Gate + mode routing + inspect watchdog + AX Edit ▸ Copy press
-    │   └── DebugLogging/                             # In-process debug log store + --dump-logs CLI (App target)
+    │   └── DebugLogging/                             # In-process debug log store, file sink + --dump-logs CLI (App target)
     │       ├── DebugLogEntry.swift                   # Captured log entry model (timestamp/category/level/message)
     │       ├── DebugLogLevel.swift                   # Severity level enum (values mirror OSLogEntryLog.Level)
-    │       ├── DebugLogBuffer.swift                  # Thread-safe capacity-capped ring buffer
-    │       ├── DebugLogReader.swift                  # LogReading protocol + OSLogStore-backed UnifiedLogReader
-    │       ├── DebugLogStore.swift                   # 1s background poller + .shared
+    │       ├── DebugLogBuffer.swift                  # Thread-safe capacity-capped ring buffer (LogSink)
+    │       ├── DebugLogStore.swift                   # Buffer-backed log store (0ms delay, zero polling) + .shared
     │       ├── DebugLogFilter.swift                  # Pure category/level/count filter
-    │       └── DebugLogCommand.swift                 # --dump-logs arg parsing + line formatting
+    │       ├── DebugLogCommand.swift                 # --dump-logs arg parsing + line formatting
+    │       └── RotatingFileLogSink.swift             # Thread-safe rotating file appender (~/Library/Logs/OpenClip/openclip.log, 5MB cap, 3 backups)
     ├── StatusBarController.swift             # Reads/writes isAppEnabled via DefaultSettingsStore (SettingKey)
     └── UI/                                   # User Interface (SwiftUI & AppKit Panels)
         ├── AppIcon.swift                     # App icon loaded from the bundle's AppIcon.icns (avoids the generic placeholder NSApp.applicationIconImage can return for LSUIElement apps)
