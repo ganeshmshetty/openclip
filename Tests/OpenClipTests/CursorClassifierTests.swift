@@ -129,7 +129,7 @@ final class CursorClassifierTests: XCTestCase {
                 bitsPerComponent: 8,
                 bytesPerRow: bytesPerRow,
                 space: colorSpace,
-                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
             )!
             return NSImage(cgImage: context.makeImage()!, size: NSSize(width: width, height: height))
         }

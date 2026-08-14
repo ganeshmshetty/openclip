@@ -42,7 +42,8 @@ public final class ActionRegistry: ObservableObject, Sendable {
     private func sortActions() {
         let order = settingsStore.get(.actionOrder)
         let orderIndexMap: [String: Int] = Dictionary(
-            uniqueKeysWithValues: order.enumerated().map { ($1, $0) }
+            order.enumerated().map { ($1, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
 
         // Tier classification:

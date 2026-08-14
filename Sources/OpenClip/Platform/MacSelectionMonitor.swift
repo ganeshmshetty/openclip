@@ -62,6 +62,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     }
     
     internal func stop() {
+        debounceTask?.cancel()
+        debounceTask = nil
         if let monitor = monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
@@ -92,7 +94,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         if gestureFlags == .command {
             return keyCode == selectAllKeyCode
         }
-        if gestureFlags.contains(.shift) {
+        if gestureFlags.contains(.shift) && gestureFlags.isSubset(of: [.shift, .option, .command]) {
             return arrowKeyCodes.contains(keyCode)
         }
         return false
@@ -139,6 +141,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                 policy: policy,
                 cursor: CursorClassifier.current
             )
+            if Task.isCancelled { return }
             await self.deliverSelection(
                 result: result,
                 appIdentity: appIdentity,
@@ -214,6 +217,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         mouseDownLocation: CGPoint?,
         probeTask: Task<Bool?, Never>?
     ) async {
+        guard !Task.isCancelled else { return }
         guard let result,
               !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               result.text.utf8.count <= Constants.maxTextLength else { return }
@@ -227,6 +231,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             appPolicy: policy
         )
         let canPaste = await probeTask?.value
+        guard !Task.isCancelled else { return }
         self.onSelection?(context, canPaste)
     }
 }

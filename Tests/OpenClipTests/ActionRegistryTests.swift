@@ -279,6 +279,21 @@ final class ActionRegistryTests: XCTestCase {
     }
 
     @MainActor
+    func testDuplicateActionOrderIDsDoNotTrapAndKeepFirstRank() {
+        let store = MemorySettingsStore()
+        store.set(.actionOrder, value: ["action.b", "action.a", "action.b"])
+        let registry = ActionRegistry(settingsStore: store)
+
+        let a = MockAction(id: "action.a", shouldBeEnabled: true)
+        let b = MockAction(id: "action.b", shouldBeEnabled: true)
+
+        registry.register(action: a)
+        registry.register(action: b)
+
+        XCTAssertEqual(registry.actions.map(\.id), ["action.b", "action.a"])
+    }
+
+    @MainActor
     func testClipboardFallbackExcludesRequiresLiveSelectionActions() {
         let registry = ActionRegistry()
         let copy = MockAction(id: "builtin.copy", shouldBeEnabled: true, chrome: ActionChrome(requiresLiveSelection: true))

@@ -2,12 +2,12 @@
 // OpenClip
 //
 // Standalone, testable clipboard capture engine: archives every pasteboard type, runs a copy
-// trigger, polls for a changeCount advance, verifies the string content actually changed, then
+// trigger, polls for a changeCount advance with non-empty string content, then
 // restores the original items tagged with the nspasteboard transient markers.
 import AppKit
 import Core
 
-/// Corrected pasteboard copy capture: archive → trigger → poll → verify → restore.
+/// Corrected pasteboard copy capture: archive → trigger → poll → restore.
 ///
 /// Drives the `.menuCopy` / `.keyboardCopy` retrieval modes via
 /// `SelectionRetrievalCoordinator.defaultCopyCapture`, so the real clipboard is never left in a

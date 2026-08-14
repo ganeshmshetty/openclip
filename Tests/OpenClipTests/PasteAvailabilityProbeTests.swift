@@ -11,6 +11,8 @@ final class PasteAvailabilityProbeTests: XCTestCase {
         XCTAssertTrue(PasteAvailabilityProbe.isPaste(title: "Coller", cmdChar: nil, cmdCharModifiers: nil))
         XCTAssertTrue(PasteAvailabilityProbe.isPaste(title: "Einfügen", cmdChar: nil, cmdCharModifiers: nil))
         XCTAssertTrue(PasteAvailabilityProbe.isPaste(title: "Pegar", cmdChar: nil, cmdCharModifiers: nil))
+        XCTAssertTrue(PasteAvailabilityProbe.isPaste(title: "уметни", cmdChar: nil, cmdCharModifiers: nil))
+        XCTAssertTrue(PasteAvailabilityProbe.isPaste(title: "umetni", cmdChar: nil, cmdCharModifiers: nil))
     }
 
     func testPasteMatchByCJKTitle() {
@@ -19,10 +21,23 @@ final class PasteAvailabilityProbeTests: XCTestCase {
     }
 
     func testPasteMatchByCommandEquivalent_IndependentlyOfTitle() {
-        XCTAssertTrue(PasteAvailabilityProbe.isPaste(
+        // Additional modifiers like Shift should be rejected
+        XCTAssertFalse(PasteAvailabilityProbe.isPaste(
             title: "포함", cmdChar: "V", cmdCharModifiers: UInt(AXMenuItemModifiers.shift.rawValue)))
+        // Zero modifiers matches regardless of casing
         XCTAssertTrue(PasteAvailabilityProbe.isPaste(
             title: nil, cmdChar: "V", cmdCharModifiers: UInt(AXMenuItemModifiers().rawValue)))
+        XCTAssertTrue(PasteAvailabilityProbe.isPaste(
+            title: nil, cmdChar: "v", cmdCharModifiers: 0))
+    }
+
+    func testCopyMatchesCaseInsensitivelyAndRejectsExtraModifiers() {
+        XCTAssertTrue(AXMenuNavigator.matches(.copy, title: nil, identifier: nil, cmdChar: "C", cmdModifiers: 0))
+        XCTAssertTrue(AXMenuNavigator.matches(.copy, title: nil, identifier: nil, cmdChar: "c", cmdModifiers: 0))
+        XCTAssertFalse(AXMenuNavigator.matches(.copy, title: nil, identifier: nil, cmdChar: "C", cmdModifiers: UInt(AXMenuItemModifiers.shift.rawValue)))
+        XCTAssertFalse(AXMenuNavigator.matches(.copy, title: nil, identifier: nil, cmdChar: "C", cmdModifiers: UInt(AXMenuItemModifiers.option.rawValue)))
+        XCTAssertFalse(AXMenuNavigator.matches(.copy, title: nil, identifier: nil, cmdChar: "C", cmdModifiers: UInt(AXMenuItemModifiers.control.rawValue)))
+        XCTAssertFalse(AXMenuNavigator.matches(.copy, title: nil, identifier: nil, cmdChar: "C", cmdModifiers: UInt(AXMenuItemModifiers.noCommand.rawValue)))
     }
 
     func testNonPasteItemsAreRejected() {

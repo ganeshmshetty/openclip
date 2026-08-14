@@ -10,7 +10,7 @@ import CoreGraphics
 import Foundation
 import Core
 
-public struct SelectionRetrievalCoordinator {
+public struct SelectionRetrievalCoordinator: Sendable {
     public typealias TargetProvider = @Sendable () -> AXElementInspector.Target
     public typealias BrowserReader = @Sendable (String) async -> BrowserScriptStrategy.BrowserResult?
     public typealias CopyTrigger = PasteboardCopyEngine.CopyTrigger
@@ -21,6 +21,23 @@ public struct SelectionRetrievalCoordinator {
     /// and pressEditCopyMenu work from starting. AX lookups must never run on the cooperative thread
     /// pool: a hung call would pin one of those threads. Mirrors `PasteAvailabilityProbe.axProbeQueue`.
     private static let axInspectQueue = DispatchQueue(label: "com.openclip.ax-inspect", qos: .userInitiated, attributes: .concurrent)
+
+    /// Gates AX operations so at most one blocking AX worker is ever in flight. While an AX call
+    /// is stalled on a hung target app, further requests fail fast (return nil / skip press)
+    /// instead of spawning unbounded blocked workers; the slot is released once the stalled call
+    /// eventually returns. Mirrors `PasteAvailabilityProbe.ProbeSlot`.
+    private actor AXSlot {
+        var occupied = false
+        func acquire() -> Bool {
+            guard !occupied else { return false }
+            occupied = true
+            return true
+        }
+        func release() {
+            occupied = false
+        }
+    }
+    private static let axSlot = AXSlot()
 
     private let inspect: TargetProvider
     private let browserRead: BrowserReader
@@ -102,7 +119,7 @@ public struct SelectionRetrievalCoordinator {
         policy: AppPolicyContext
     ) async -> TextResult? {
         for strategy in strategyCascade(for: policy) {
-            if let result = await run(strategy, app: app, target: target) {
+            if let result = Self.nonBlank(await run(strategy, app: app, target: target)) {
                 return result
             }
         }
@@ -186,7 +203,15 @@ public struct SelectionRetrievalCoordinator {
             let trigger: CopyTrigger
             switch strategy {
             case .menuCopy:
-                trigger = { Self.axInspectQueue.async { Self.pressEditCopyMenu(app: target.focusedApp) } }
+                trigger = {
+                    Task.detached {
+                        guard await Self.axSlot.acquire() else { return }
+                        Self.axInspectQueue.async {
+                            Self.pressEditCopyMenu(app: target.focusedApp)
+                            Task.detached { await Self.axSlot.release() }
+                        }
+                    }
+                }
             case .keyboardCopy:
                 trigger = { SessionEventTapPoster().postKey(keyCode: Constants.copyVirtualKey, flags: .maskCommand) }
             default:
@@ -219,6 +244,7 @@ public struct SelectionRetrievalCoordinator {
     /// Runs the blocking AX snapshot off the cooperative pool, racing it against
     /// `Constants.axReadTimeout` so a hung target app yields `nil` instead of stalling the popup.
     private func inspectWithWatchdog() async -> AXElementInspector.Target? {
+        guard await Self.axSlot.acquire() else { return nil }
         let inspect = self.inspect
         return await withCheckedContinuation { (continuation: CheckedContinuation<AXElementInspector.Target?, Never>) in
             let resume = OnceResume<AXElementInspector.Target?>()
@@ -236,6 +262,7 @@ public struct SelectionRetrievalCoordinator {
                 if resume.resume(continuation, with: target) {
                     timeout.cancel()
                 }
+                Task.detached { await Self.axSlot.release() }
             }
         }
     }

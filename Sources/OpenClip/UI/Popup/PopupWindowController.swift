@@ -613,12 +613,12 @@ public class PopupWindowController {
         return Task { @MainActor in
             do {
                 let delivered = await resolveDelivery(effect, delivery: delivery)
-                if case .paste = effect, case .copy = delivered {
-                    toastController.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorFrame: panel?.frame)
-                } else if case .copyDefinition = delivered {
+                try await resultHandler.handle(delivered, in: panel?.contentView)
+                let isDowngradedToCopy = if case .paste = effect, case .copy = delivered { true } else { false }
+                let isCopyDefinition = if case .copyDefinition = delivered { true } else { false }
+                if isDowngradedToCopy || isCopyDefinition {
                     toastController.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorFrame: panel?.frame)
                 }
-                try await resultHandler.handle(delivered, in: panel?.contentView)
             } catch {
                 handleActionResult(.showStatus(StatusFeedback(error: error)))
             }

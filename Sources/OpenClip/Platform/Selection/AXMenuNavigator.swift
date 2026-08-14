@@ -68,7 +68,7 @@ public struct AXMenuNavigator {
 
         for offset in 1...max(startIndex, topLevelMenus.count - startIndex - 1) {
             let leftIndex = startIndex - offset
-            if leftIndex >= 0,
+            if leftIndex >= 0 && leftIndex < topLevelMenus.count,
                let match = findMenuItem(command, in: topLevelMenus[leftIndex], requireEnabled: requireEnabled) {
                 return match
             }
@@ -101,9 +101,9 @@ public struct AXMenuNavigator {
     ) -> Bool {
         if let identifier, identifier == command.identifier { return true }
 
-        if let cmdChar, cmdChar == command.cmdChar,
+        if let cmdChar, cmdChar.caseInsensitiveCompare(command.cmdChar) == .orderedSame,
            let modifiers = cmdModifiers {
-            return modifiers & UInt(AXMenuItemModifiers.noCommand.rawValue) == 0
+            return modifiers == 0
         }
 
         guard let title else { return false }
@@ -266,7 +266,7 @@ public struct AXMenuNavigator {
         "vložit",  // Czech
         "vložiť",  // Slovak
         "umetni",  // Croatian, Serbian (Latin)
-        "умеитни",  // Serbian (Cyrillic)
+        "уметни",  // Serbian (Cyrillic)
         "поставяне",  // Bulgarian
         "ielīmēt",  // Latvian
         "įklijuoti",  // Lithuanian
