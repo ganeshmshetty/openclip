@@ -9,6 +9,8 @@ import Foundation
 import Core
 
 public final class RotatingFileLogSink: LogSink, @unchecked Sendable {
+    public nonisolated(unsafe) static var shared: RotatingFileLogSink?
+
     public static var defaultLogDirectory: URL {
         let libraryLogs = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library")
         return libraryLogs.appendingPathComponent("Logs/OpenClip")
