@@ -235,6 +235,24 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertEqual(toast.currentFeedback?.style, .success)
     }
 
+    /// When resultHandler.handle throws an error, the "Copied" success toast is NOT shown (an error status is shown instead).
+    @MainActor
+    func testDeliveryFailureDoesNotShowCopiedToast() async throws {
+        let handler = FailingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: false),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertNotEqual(toast.currentFeedback?.message, "Copied")
+        XCTAssertEqual(toast.currentFeedback?.style, .error)
+    }
+
     /// A native `.copy` result is not a downgrade — it must show no toast.
     @MainActor
     func testNativeCopyShowsNoToast() async throws {
@@ -369,6 +387,17 @@ private final class RecordingHandler: ActionResultHandler, Sendable {
     func handleWithoutDismissal(_ result: ActionResult, in view: NSView?) async {
         results.append(result)
     }
+}
+
+@MainActor
+private final class FailingHandler: ActionResultHandler, Sendable {
+    struct TestError: LocalizedError {
+        var errorDescription: String? { "Delivery failed" }
+    }
+    func handle(_ result: ActionResult, in view: NSView?) async throws {
+        throw TestError()
+    }
+    func handleWithoutDismissal(_ result: ActionResult, in view: NSView?) async {}
 }
 
 private struct FixedProbe: PasteAvailabilityProbing {

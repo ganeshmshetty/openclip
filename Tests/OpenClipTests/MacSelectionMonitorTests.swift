@@ -17,6 +17,10 @@ final class MacSelectionMonitorTests: XCTestCase {
         }
         XCTAssertTrue(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7B, flags: [.shift, .command]))
         XCTAssertTrue(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7E, flags: [.shift, .option]))
+        XCTAssertTrue(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7D, flags: [.shift, .option, .command]))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7B, flags: [.shift, .control]))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7B, flags: [.shift, .control, .command]))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7B, flags: [.control]))
         XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x7B, flags: [.option]))
         XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x00, flags: [.shift, .command]))
     }
@@ -59,4 +63,19 @@ final class MacSelectionMonitorTests: XCTestCase {
         // Cleanup
         secondTask?.cancel()
     }
+
+    func testStopCancelsAndClearsPendingDebounceTask() {
+        let monitor = MacSelectionMonitor()
+
+        monitor.handleSelectionTrigger(isSelectAll: false)
+        let task = monitor.debounceTask
+        XCTAssertNotNil(task)
+        XCTAssertFalse(task?.isCancelled == true)
+
+        monitor.stop()
+
+        XCTAssertTrue(task?.isCancelled == true)
+        XCTAssertNil(monitor.debounceTask)
+    }
 }
+

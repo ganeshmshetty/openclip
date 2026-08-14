@@ -401,4 +401,54 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         )
         XCTAssertNil(result)
     }
+
+    func testBlankAXTextFallsThroughToCopyFallback() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: "   \t  ") },
+            copyCapture: { _ in "copied text" }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "copied text")
+    }
+
+    func testHungAXInspectTimesOutAndFailsFastWhileOccupied() async {
+        let inspectStarted = expectation(description: "inspect started")
+        let unblockInspect = expectation(description: "unblock inspect")
+        
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: {
+                inspectStarted.fulfill()
+                _ = XCTWaiter.wait(for: [unblockInspect], timeout: 0.5)
+                return Self.textFieldTarget(selectedText: "eventual text")
+            }
+        )
+        
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        
+        // Launch first retrieve that will hang in inspect
+        async let firstResult = coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        
+        await fulfillment(of: [inspectStarted], timeout: 1.0)
+        
+        // Second concurrent retrieve should fail fast because axSlot is occupied
+        let secondResult = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(secondResult)
+        
+        unblockInspect.fulfill()
+        _ = await firstResult
+    }
 }
+
