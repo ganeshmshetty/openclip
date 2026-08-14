@@ -18,9 +18,11 @@ private final class TestLogSink: LogSink, @unchecked Sendable {
     }
 }
 
+@MainActor
 final class LogCoreTests: XCTestCase {
     override func setUp() {
         super.setUp()
+        TestIsolation.reset()
         Log.removeAllSinks()
     }
 
@@ -81,11 +83,13 @@ final class LogCoreTests: XCTestCase {
         Log.addSink(sink)
 
         let secret = "super-secret-token"
+        let unannotated = "unannotated-text"
+        let autoVal = "auto-text"
         let publicVal = 42
-        Log.settings.info("Auth info: secret=\(secret, privacy: .private) count=\(publicVal, privacy: .public)")
+        Log.settings.info("Auth info: secret=\(secret, privacy: .private) unannotated=\(unannotated) auto=\(autoVal, privacy: .auto) count=\(publicVal, privacy: .public)")
 
         let records = sink.getRecords()
         XCTAssertEqual(records.count, 1)
-        XCTAssertEqual(records[0].message, "Auth info: secret=<private> count=42")
+        XCTAssertEqual(records[0].message, "Auth info: secret=<private> unannotated=<private> auto=<private> count=42")
     }
 }

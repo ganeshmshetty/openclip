@@ -40,7 +40,7 @@ enum DebugLogCommand {
                 case "category": options.category = value
                 case "level":
                     guard let level = DebugLogLevel.allCases.first(where: { $0.displayName == value }) else {
-                        return .usageError("Unknown level '\(value)'. Valid: debug, info, notice, error, fault")
+                        return .usageError("Unknown level '\(value)'. Valid: debug, info, notice, warning, error, fault")
                     }
                     options.level = level
                 case "count":
@@ -85,7 +85,7 @@ enum DebugLogCommand {
 
         Options:
           --category=<name>      Only entries from this Log category (e.g. extensions)
-          --level=<level>        Only entries at this severity: debug, info, notice, error, fault
+          --level=<level>        Only entries at this severity: debug, info, notice, warning, error, fault
           --count=<N>            Max number of lines (default 500)
           --collect=<seconds>    Collect window before dumping (default 4)
           --help                 Show this help

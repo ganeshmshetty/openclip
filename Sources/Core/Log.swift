@@ -83,14 +83,14 @@ public struct LogMessage: ExpressibleByStringInterpolation, ExpressibleByStringL
         }
 
         public mutating func appendInterpolation<T>(_ value: T) {
-            buffer.append(String(describing: value))
+            buffer.append("<private>")
         }
 
         public mutating func appendInterpolation<T>(_ value: T, privacy: LogPrivacy) {
             switch privacy {
-            case .private:
+            case .private, .auto:
                 buffer.append("<private>")
-            case .public, .auto:
+            case .public:
                 buffer.append(String(describing: value))
             }
         }
