@@ -9,7 +9,7 @@ import Core
 public struct AXTextControlStrategy {
     /// kAXSelectedTextAttribute, falling back to value + selectedTextRange substring.
     public static func read(from target: AXElementInspector.Target) -> TextResult? {
-        if let text = target.selectedText, !text.isEmpty {
+        if let text = target.selectedText, TextSanitizer.isSubstantial(text) {
             return TextResult(text: text, bounds: target.bounds)
         }
 
@@ -27,6 +27,8 @@ public struct AXTextControlStrategy {
         // than Character-based offsets (which would mis-slice multi-byte strings).
         let start = String.Index(utf16Offset: cfRange.location, in: fullValue)
         let end = String.Index(utf16Offset: cfRange.location + cfRange.length, in: fullValue)
-        return TextResult(text: String(fullValue[start..<end]), bounds: target.bounds)
+        let substring = String(fullValue[start..<end])
+        guard TextSanitizer.isSubstantial(substring) else { return nil }
+        return TextResult(text: substring, bounds: target.bounds)
     }
 }

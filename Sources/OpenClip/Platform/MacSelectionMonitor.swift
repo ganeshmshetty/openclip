@@ -219,7 +219,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     ) async {
         guard !Task.isCancelled else { return }
         guard let result,
-              !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              TextSanitizer.isSubstantial(result.text),
               result.text.utf8.count <= Constants.maxTextLength else { return }
         let context = SelectionContext(
             text: result.text,

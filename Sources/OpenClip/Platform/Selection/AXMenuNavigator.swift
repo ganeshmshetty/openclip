@@ -3,16 +3,13 @@
 //
 // Robust, localization-agnostic navigation of the frontmost application's menu bar through the raw
 // Accessibility API. Menu items are matched by action identifier (`copy:`/`paste:`), by their
-// Command-key equivalent (⌘C/⌘V), or by a curated set of localized titles, then deep-searched the
-// same way SelectedTextKit does: try the Edit menu first, expand to adjacent menus, and fall back
-// to a full menu-bar scan. This replaces the title-only walks that previously missed non-English
-// menus and apps that do not expose localized titles.
+// Command-key equivalent (⌘C/⌘V), or by localized titles.
 import ApplicationServices
 import Foundation
 
 public struct AXMenuNavigator {
     /// The system menu commands OpenClip needs to locate and, for copy, press.
-    public enum MenuCommand: CaseIterable {
+    public enum MenuCommand: CaseIterable, Sendable {
         case copy
         case paste
 
@@ -58,29 +55,20 @@ public struct AXMenuNavigator {
               let menuBar = attribute(app, kAXMenuBarAttribute).flatMap(axElement),
               let topLevelMenus = children(menuBar) else { return nil }
 
-        // The Edit menu is usually the 4th top-level item (index 3). Try it first, then expand to
-        // adjacent menus alternately, then scan the whole menu bar as a last resort.
-        let startIndex = 3
-        if topLevelMenus.indices.contains(startIndex),
-           let match = findMenuItem(command, in: topLevelMenus[startIndex], requireEnabled: requireEnabled) {
+        // The Edit menu is standardly the 4th top-level menu (index 3). Search it first, then search remaining menus.
+        let editIndex = 3
+        if topLevelMenus.indices.contains(editIndex),
+           let match = findMenuItem(command, in: topLevelMenus[editIndex], requireEnabled: requireEnabled) {
             return match
         }
 
-        for offset in 1...max(startIndex, topLevelMenus.count - startIndex - 1) {
-            let leftIndex = startIndex - offset
-            if leftIndex >= 0 && leftIndex < topLevelMenus.count,
-               let match = findMenuItem(command, in: topLevelMenus[leftIndex], requireEnabled: requireEnabled) {
-                return match
-            }
-
-            let rightIndex = startIndex + offset
-            if rightIndex < topLevelMenus.count,
-               let match = findMenuItem(command, in: topLevelMenus[rightIndex], requireEnabled: requireEnabled) {
+        for (index, menu) in topLevelMenus.enumerated() where index != editIndex {
+            if let match = findMenuItem(command, in: menu, requireEnabled: requireEnabled) {
                 return match
             }
         }
 
-        return findMenuItem(command, in: menuBar, requireEnabled: requireEnabled)
+        return nil
     }
 
     /// Presses the requested menu item if it can be found and is enabled.
@@ -112,8 +100,8 @@ public struct AXMenuNavigator {
 
     // MARK: - Tree walking
 
-    /// Depth-first search bounded by `maxDepth` so a malformed or cyclic AX tree can never recurse
-    /// forever.
+    private static let maxDepth = 8
+
     private static func findMenuItem(
         _ command: MenuCommand,
         in element: AXUIElement,
@@ -158,8 +146,6 @@ public struct AXMenuNavigator {
         }
         return true
     }
-
-    private static let maxDepth = 8
 
     // MARK: - AX attribute helpers
 
