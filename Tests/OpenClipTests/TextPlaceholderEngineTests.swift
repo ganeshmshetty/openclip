@@ -45,6 +45,34 @@ final class TextPlaceholderEngineTests: XCTestCase {
         XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "echo {query}", with: "hello world", urlEncode: false), "echo hello world")
     }
 
+    func testNoCascadingSubstitutions() {
+        // Selected text contains literal "{bundleID}" and "{2}"
+        let input = "Check {bundleID} and {2} here"
+        let match = ActionMatchInfo(text: input, matchedText: input, captures: ["{2}", "real_capture_2"], sourceBundleID: "com.test.app")
+        let context = ActionContext(selectedText: input, match: match)
+
+        // {text} should not have its internal "{bundleID}" or "{2}" expanded
+        let result = TextPlaceholderEngine.replacePlaceholders(
+            in: "echo '{text}' - bundle is '{bundleID}' - captures are '{1}' and '{2}'",
+            context: context,
+            urlEncode: false
+        )
+        XCTAssertEqual(
+            result,
+            "echo 'Check {bundleID} and {2} here' - bundle is 'com.test.app' - captures are '{2}' and 'real_capture_2'"
+        )
+    }
+
+    func testUnknownPlaceholdersPreserved() {
+        let context = ActionContext(selectedText: "hello")
+        let result = TextPlaceholderEngine.replacePlaceholders(
+            in: "https://example.com/{unknown}?q={text}",
+            context: context,
+            urlEncode: false
+        )
+        XCTAssertEqual(result, "https://example.com/{unknown}?q=hello")
+    }
+
     @MainActor
     func testURLTemplateActionUsesPlaceholderEngine() async throws {
         let action = URLTemplateAction(
@@ -65,3 +93,4 @@ final class TextPlaceholderEngineTests: XCTestCase {
         }
     }
 }
+

@@ -41,31 +41,31 @@ public final class ActionRegistry: ObservableObject, Sendable {
     
     private func sortActions() {
         let order = settingsStore.get(.actionOrder)
-        actions.sort { a, b in
-            let idxA = order.firstIndex(of: a.id) ?? Int.max
-            let idxB = order.firstIndex(of: b.id) ?? Int.max
-            // Default slot for un-ordered actions: a builtin (e.g. the AI Tools launcher) joins
-            // the far end of the builtin group — right after the last ordered builtin, ahead of
-            // un-ordered extensions/AI presets — instead of the absolute tail. Without this, a
-            // newly added builtin sorts after installed extensions whenever `.actionOrder` is
-            // populated but omits it.
-            if idxA == Int.max && idxB == Int.max {
-                let aIsBuiltin = builtinSource(a)
-                let bIsBuiltin = builtinSource(b)
-                if aIsBuiltin != bIsBuiltin {
-                    return aIsBuiltin && !bIsBuiltin
-                }
-                // Same group (both ordered-equivalent): keep registry-relative order. Not a
-                // strict guarantee (Swift sort is unstable) but membership filtering downstream
-                // is order-agnostic.
-                return false
-            }
-            return idxA < idxB
-        }
-    }
+        let orderIndexMap: [String: Int] = Dictionary(
+            uniqueKeysWithValues: order.enumerated().map { ($1, $0) }
+        )
 
-    private func builtinSource(_ action: any Action) -> Bool {
-        ActionIdentity.isBuiltin(action)
+        // Tier classification:
+        // Tier 0: Explicitly ordered by user in `action.order` (sorted by rank in orderIndexMap)
+        // Tier 1: Un-ordered built-in actions (sorted stably by insertion order)
+        // Tier 2: Un-ordered extensions/other actions (sorted stably by insertion order)
+        let ranked: [(action: any Action, tier: Int, rank: Int, stableOffset: Int)] = actions.enumerated().map { offset, action in
+            if let index = orderIndexMap[action.id] {
+                return (action, 0, index, offset)
+            } else if ActionIdentity.isBuiltin(action) {
+                return (action, 1, 0, offset)
+            } else {
+                return (action, 2, 0, offset)
+            }
+        }
+
+        actions = ranked
+            .sorted { lhs, rhs in
+                if lhs.tier != rhs.tier { return lhs.tier < rhs.tier }
+                if lhs.rank != rhs.rank { return lhs.rank < rhs.rank }
+                return lhs.stableOffset < rhs.stableOffset
+            }
+            .map(\.action)
     }
     
     public func moveActions(from source: IndexSet, to destination: Int) {

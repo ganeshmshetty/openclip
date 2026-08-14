@@ -261,6 +261,24 @@ final class ActionRegistryTests: XCTestCase {
     }
 
     @MainActor
+    func testUnorderedBuiltinActionsPreserveStableInsertionOrder() {
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+
+        let b1 = MockAction(id: "builtin.1", shouldBeEnabled: true, chrome: ActionChrome(source: .builtin))
+        let b2 = MockAction(id: "builtin.2", shouldBeEnabled: true, chrome: ActionChrome(source: .builtin))
+        let b3 = MockAction(id: "builtin.3", shouldBeEnabled: true, chrome: ActionChrome(source: .builtin))
+        let b4 = MockAction(id: "builtin.4", shouldBeEnabled: true, chrome: ActionChrome(source: .builtin))
+
+        registry.register(action: b1)
+        registry.register(action: b2)
+        registry.register(action: b3)
+        registry.register(action: b4)
+
+        XCTAssertEqual(registry.actions.map(\.id), ["builtin.1", "builtin.2", "builtin.3", "builtin.4"])
+    }
+
+    @MainActor
     func testClipboardFallbackExcludesRequiresLiveSelectionActions() {
         let registry = ActionRegistry()
         let copy = MockAction(id: "builtin.copy", shouldBeEnabled: true, chrome: ActionChrome(requiresLiveSelection: true))

@@ -12,15 +12,16 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 {
   "rules": [
     {
-      "bundle-identifiers": ["com.apple.Terminal"],
-      "deny-paste": true
+      "bundle-identifiers": ["com.example.terminal"],
+      "deny-paste": true,
+      "retrieval-mode": "menu-copy"
     },
     {
       "bundle-identifiers": ["com.example.editor"],
       "retrieval-mode": "keyboard-copy"
     },
     {
-      "bundle-identifiers": ["com.example.menuapp"],
+      "bundle-identifiers": ["com.example.app"],
       "gate": {
         "skipRoles": [],
         "allowedCursors": ["beam", "arrow", "pointingHand", "unknown"]
@@ -44,13 +45,13 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 
 ### `retrieval-mode` values
 
-| Value | Strategy | Example apps |
+| Value | Strategy | Target Context |
 | :--- | :--- | :--- |
-| `ax-text-control` | Direct AX read of `kAXSelectedTextAttribute` — zero pasteboard side-effects. Default. | native text fields |
-| `ax-web-area` | AX web-area read via text-marker ranges, with a settle-retry loop. | WebKit web content |
-| `browser-script` | Browser AppleScript bridge (`do JavaScript` / `execute javascript`); falls back to the AX web-area read on automation-permission errors. | Safari, Chrome, Firefox, Arc |
-| `menu-copy` | AXPress the Edit ▸ Copy menu item, then archive-and-restore the pasteboard. | Terminal, iTerm2, Ghostty |
-| `keyboard-copy` | Synthesized ⌘C key event, then archive-and-restore the pasteboard. | VS Code, Zed, Obsidian, JetBrains |
+| `ax-text-control` | Direct AX read of `kAXSelectedTextAttribute` — zero pasteboard side-effects. Default. | Standard native text controls |
+| `ax-web-area` | AX web-area read via text-marker ranges, with a settle-retry loop. | Web views and WebKit content |
+| `browser-script` | Browser AppleScript bridge (`do JavaScript` / `execute javascript`); falls back to the AX web-area read on automation-permission errors. | Supported web browsers |
+| `menu-copy` | AXPress the Edit ▸ Copy menu item, then archive-and-restore the pasteboard. | Terminal emulators and CLI tools |
+| `keyboard-copy` | Synthesized ⌘C key event, then archive-and-restore the pasteboard. | Custom code editors and Electron apps |
 
 These modes match the per-app defaults assigned by the builtin catalog (`DefaultAppRules.catalog`); a user rule only overrides the keys it sets, so e.g. `gate` alone leaves `retrieval-mode` at the app's default.
 
@@ -60,21 +61,14 @@ These modes match the per-app defaults assigned by the builtin catalog (`Default
 
 ### Wildcard Pattern Matching
 `RuleEngine` supports prefix wildcard matching using `.*` or global wildcard `*`:
-- `"com.jetbrains.*"` matches `com.jetbrains.intellij`, `com.jetbrains.pycharm`, `com.jetbrains.goland`, etc.
-- `"*" ` matches all applications.
+- `"com.example.*"` matches `com.example.app1`, `com.example.app2`, etc.
+- `"*"` matches all applications.
 
 ### Builtin Group Expansion Aliases
 
-| Group Shortcut | Expanded Application Bundle Identifiers |
+| Group Shortcut | Description |
 | :--- | :--- |
-| `:menu-copy-apps:` | `com.microsoft.VSCode`, `com.microsoft.VSCodeInsiders`, `dev.zed.Zed`, `com.github.atom`, `com.sublimetext.*`, `notion.id`, `md.obsidian`, `com.figma.Desktop`, `net.whatsapp.WhatsApp` |
-
-> The `:menu-copy-apps:` macro keeps expanding to the same app list for backward compatibility,
-> but those apps now resolve `retrieval-mode: "keyboard-copy"` from the builtin catalog
-> (`DefaultAppRules.keyboardCopyApps`), so a rule that only sets `use-menu-copy: true` against the
-> macro no longer forces the AX-menu path for them — the higher-priority builtin mode wins. Only
-> the terminals (`com.apple.Terminal`, `com.googlecode.iterm2`) default to `menu-copy`; Ghostty
-> (`com.mitchellh.ghostty`) reads via AX (`ax-text-control`).
+| `:menu-copy-apps:` | Expands to all terminal applications configured for menu-based copy in `DefaultAppRules.menuCopyApps`. |
 
 ---
 

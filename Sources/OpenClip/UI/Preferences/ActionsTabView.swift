@@ -135,8 +135,10 @@ struct ActionsTab: View {
         coordinator.moveActions(from: actionSource, to: actionDestination)
     }
 
-    /// Group ids whose nested sub-actions are collapsed. Defaults to all-expanded on launch.
+    /// Group ids whose nested sub-actions are collapsed. Starts collapsed (populated on first appear).
     @State private var collapsedGroupIDs: Set<String> = []
+    /// Whether the initial collapsed state has been seeded (all groups collapsed on first appear).
+    @State private var didSeedCollapsed = false
 
     @State private var selectedRowID: String? = nil
     
@@ -216,6 +218,15 @@ struct ActionsTab: View {
         .padding(12)
         .sheet(isPresented: $showingAddActionSheet) {
             AddCustomActionSheet()
+        }
+        .onAppear {
+            guard !didSeedCollapsed else { return }
+            didSeedCollapsed = true
+            collapsedGroupIDs = Set(
+                coordinator.actions
+                    .filter { $0.chrome.popupBehavior == .showSubActions }
+                    .map(\.id)
+            )
         }
     }
     
@@ -353,18 +364,21 @@ struct ActionRowView: View {
     @State private var showingConfigSheet = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            // Disclosure chevron (group parents only): rotates 90° when the group is expanded.
+        HStack(alignment: .center, spacing: 6) {
+            // Disclosure chevron column (width: 10): ensures all top-level rows align compactly.
             if let onToggleExpansion {
                 Button(action: onToggleExpansion) {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 9, weight: .semibold))
                         .foregroundColor(.secondary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .frame(width: 14, height: 14)
+                        .frame(width: 10, height: 10)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isExpanded ? "Collapse \(presentationModel.title)" : "Expand \(presentationModel.title)")
+            } else if !indented {
+                Color.clear
+                    .frame(width: 10, height: 10)
             }
 
             // Icon Column
@@ -452,10 +466,15 @@ struct ActionRowView: View {
                             EditActionSheet(action: action)
                         }
                     }
+                } else {
+                    // Reserve space matching the gear button so nested row toggles align with parent
+                    Color.clear
+                        .frame(width: 20, height: 20)
                 }
             }
         }
-        .padding(.leading, indented ? 24 : 0)
+        .padding(.leading, indented ? 22 : 0)
+        .padding(.trailing, 14)
         .padding(.vertical, 1)
     }
 }
@@ -481,7 +500,10 @@ struct PackageHeaderRowView: View {
     }
     
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 6) {
+            Color.clear
+                .frame(width: 10, height: 10)
+
             Image(systemName: "shippingbox")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
@@ -498,7 +520,11 @@ struct PackageHeaderRowView: View {
                 .toggleStyle(.switch)
                 .controlSize(.mini)
                 .accessibilityLabel("Enable \(title)")
+
+            Color.clear
+                .frame(width: 20, height: 20)
         }
+        .padding(.trailing, 14)
         .padding(.vertical, 1)
     }
 }

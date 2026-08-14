@@ -64,9 +64,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
             await ActionCoordinator.shared.loadInitialState()
-            ActionCoordinator.shared.register(action: CompletionAction())
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
+            ActionCoordinator.shared.register(action: CompletionAction())
             // Register each AI preset as an individual action (palette + Preferences → Actions).
             aiActionSync = AIActionSync.shared
 
@@ -92,17 +92,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         let isGranted = PermissionManager.shared.isAccessibilityGranted
         let completedOnboarding = DefaultSettingsStore.shared.get(.hasCompletedOnboarding)
+        let isAppEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
         
         if !isGranted || !completedOnboarding {
             showOnboarding()
-        } else {
+        } else if isAppEnabled {
             selectionMonitor?.start()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("OpenClipEnabledStateChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let enabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
+            if enabled {
+                let granted = PermissionManager.shared.isAccessibilityGranted
+                let onboarded = DefaultSettingsStore.shared.get(.hasCompletedOnboarding)
+                if granted && onboarded {
+                    self?.selectionMonitor?.start()
+                }
+            } else {
+                self?.selectionMonitor?.stop()
+            }
         }
     }
     
     private func showOnboarding() {
         onboardingWindowController = OnboardingWindowController { [weak self] in
-            self?.selectionMonitor?.start()
+            if DefaultSettingsStore.shared.get(.isAppEnabled) {
+                self?.selectionMonitor?.start()
+            }
             self?.statusBarController?.showPreferences()
         }
         onboardingWindowController?.showWindow(nil)
@@ -128,9 +148,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
             await ActionCoordinator.shared.loadInitialState()
-            ActionCoordinator.shared.register(action: CompletionAction())
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
+            ActionCoordinator.shared.register(action: CompletionAction())
             try? await Task.sleep(for: .seconds(options.collectSeconds))
             let entries = DebugLogStore.shared.entries(matching: options.filter)
             print("OpenClip log dump (\(entries.count) entr\(entries.count == 1 ? "y" : "ies"))")

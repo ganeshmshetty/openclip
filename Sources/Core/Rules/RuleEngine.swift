@@ -76,7 +76,7 @@ public final class RuleEngine: ObservableObject, Sendable {
             var expandedIdentifiers: [String] = []
             for id in rule.bundleIdentifiers {
                 if id == ":menu-copy-apps:" {
-                    expandedIdentifiers.append(contentsOf: DefaultAppRules.legacyMenuCopyApps)
+                    expandedIdentifiers.append(contentsOf: DefaultAppRules.menuCopyApps)
                 } else {
                     expandedIdentifiers.append(id)
                 }

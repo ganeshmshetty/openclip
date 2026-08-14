@@ -94,7 +94,7 @@ Chain suffix per preferred mode:
 | AX web area | `ax-web-area` | `AXWebAreaStrategy` reads `kAXSelectedTextMarkerRange` → `AXStringForTextMarkerRange` (fallback `selectedText`). Includes a **settle-retry** loop: the snapshot is re-inspected fresh on every retry (up to `webAreaSettleMaxRetries` = 6, `webAreaSettleInterval` = 50 ms apart) so text appearing after focus is observed instead of a frozen target. |
 | Browser script | `browser-script` | `BrowserScriptStrategy` reads the page selection through the browser's AppleScript automation bridge (`do JavaScript` on Safari-family front documents, `execute javascript` on Chromium/Firefox/Arc active tabs) via the watchdog-killable `osascript` subprocess. Returns nil on automation-permission errors so the coordinator falls back to `AXWebAreaStrategy`. |
 | Menu copy | `menu-copy` | `PasteboardCopyEngine` archives the pasteboard, AXPresses the app's **Edit ▸ Copy** menu item (matched by action identifier `copy:`, ⌘C key equivalent, or localized title via `AXMenuNavigator`, fired on the dedicated AX queue), polls for non-empty text, verifies the content changed, then restores. Used for terminals. |
-| Keyboard copy | `keyboard-copy` | The same engine with a synthesized ⌘C key event (`SessionEventTapPoster`) as the trigger. Used for Electron/JS apps (VS Code, Zed, …) whose AX selection reads are unreliable. |
+| Keyboard copy | `keyboard-copy` | The same engine with a synthesized ⌘C key event (`SessionEventTapPoster`) as the trigger. Used for custom code editors and Electron apps whose AX selection reads are unreliable. |
 
 ### The copy engine and transient markers
 
@@ -104,16 +104,16 @@ Both copy modes run through [`PasteboardCopyEngine`](../../Sources/OpenClip/Plat
 
 `DefaultAppRules.catalog` assigns modes to app groups; `RuleEngine.resolvePolicies` matches the frontmost app's bundle id (with `.*` prefix / `*` wildcards) against default + user rules. User rules in `~/.openclip/rules.json` override per-key — see `docs/user-guide/app-rules.md` for the JSON keys.
 
-| Group | Apps (bundle-id prefix) | Mode |
+| Group | Target Application Category | Mode |
 | :--- | :--- | :--- |
-| `safariGroup` | Safari, SafariTechnologyPreview, Kagi | `browser-script` |
-| `chromiumGroup` | Chrome (incl. Canary), Chromium, Brave, Edge (incl. Beta/Dev/Canary), Sidekick, Vivaldi, Opera (incl. Next/Developer/GX), Thorium, SigmaOS, Quark, Helium, Perplexity Comet, OpenAI Atlas, Ecosia | `browser-script` |
-| `firefoxGroup` | Firefox, Developer Edition, Nightly, Waterfox, LibreWolf, Zen | `browser-script` |
-| `arcGroup` | Arc, dia | `browser-script` |
-| `keyboardCopyApps` | VS Code (incl. Insiders), Zed, Atom, `com.sublimetext.*`, Notion, Obsidian, Figma, WhatsApp, Evernote, `com.jetbrains.*`, 1Password, iBooks | `keyboard-copy` |
-| `menuCopyApps` | Terminal, iTerm2 | `menu-copy` |
-| Ghostty | `com.mitchellh.ghostty` | `ax-text-control` (reads via AX; also `denyPaste`) |
-| default | everything else | `ax-text-control` |
+| `safariGroup` | Safari & WebKit-based browsers | `browser-script` |
+| `chromiumGroup` | Chromium-based browsers | `browser-script` |
+| `firefoxGroup` | Firefox & Gecko-based browsers | `browser-script` |
+| `arcGroup` | Arc browsers | `browser-script` |
+| `keyboardCopyApps` | Code editors, IDEs, markdown & note apps | `keyboard-copy` |
+| `menuCopyApps` | Terminal emulators | `menu-copy` |
+| `denyPasteApps` | Applications requiring paste suppression | `denyPaste: true` |
+| default | All other standard applications | `ax-text-control` |
 
 ---
 
