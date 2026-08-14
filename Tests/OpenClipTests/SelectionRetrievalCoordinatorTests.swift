@@ -253,6 +253,27 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(counter.calls, 1)
     }
 
+    func testMenuCopyHasNoFallbackToKeyboardCopy() async {
+        // menu-copy is strict for terminals and does not fall through to keyboard-copy, avoiding double timeouts.
+        final class Counter: @unchecked Sendable { var calls = 0 }
+        let counter = Counter()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            copyCapture: { _ in
+                counter.calls += 1
+                return nil
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .menuCopy)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.mitchellh.ghostty"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(result)
+        XCTAssertEqual(counter.calls, 1)
+    }
+
     func testCopyCaptureNilReturnsNil() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: nil) },
