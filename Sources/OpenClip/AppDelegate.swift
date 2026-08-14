@@ -21,6 +21,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindowController: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Register logging sinks (Rotating File Appender and In-Memory Buffer)
+        Log.addSink(RotatingFileLogSink())
+        _ = DebugLogStore.shared
+
         switch DebugLogCommand.parse(CommandLine.arguments) {
         case .showHelp:
             print(DebugLogCommand.usage)
@@ -34,10 +38,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         case .none:
             break
         }
-
-        // DebugLogStore stays stopped in normal app runs: its 1s OSLogStore poll loop keeps
-        // OSLogService.xpc burning CPU for the app's whole lifetime. Only --dump-logs starts it
-        // (runDumpLogsCommand), where the process exits right after the dump.
 
         // Register SVG coder
         let svgCoder = SDImageSVGCoder.shared
@@ -137,12 +137,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         extensionsWatcher = watcher
     }
 
-    /// Runs the app in `--dump-logs` mode: start the store, run the normal startup action load
-    /// (this is where extension load/rejection lines are logged), wait the collect window, print
-    /// the filtered snapshot, and exit.
+    /// Runs the app in `--dump-logs` mode: runs the normal startup action load
+    /// (this is where extension load/rejection lines are logged), fetches matching entries
+    /// from the in-memory buffer with 0ms indexing lag, prints them, and exits.
     private func runDumpLogsCommand(_ options: DebugLogCommand.DumpOptions) {
-        DebugLogStore.shared.start()
-
         Task {
             let optionStore = KeychainActionOptionStore()
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
@@ -151,7 +149,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
             ActionCoordinator.shared.register(action: CompletionAction())
-            try? await Task.sleep(for: .seconds(options.collectSeconds))
+            if options.collectSeconds > 0 {
+                try? await Task.sleep(for: .seconds(options.collectSeconds))
+            }
             let entries = DebugLogStore.shared.entries(matching: options.filter)
             print("OpenClip log dump (\(entries.count) entr\(entries.count == 1 ? "y" : "ies"))")
             for entry in entries {

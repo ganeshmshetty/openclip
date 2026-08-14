@@ -81,6 +81,8 @@ enum DebugLogCommand {
         Prints recent OpenClip log entries (subsystem com.openclip) from this process
         and exits. Run the app binary directly (not via dev_run.sh).
 
+        Logs are also persistently written to ~/Library/Logs/OpenClip/openclip.log.
+
         Options:
           --category=<name>      Only entries from this Log category (e.g. extensions)
           --level=<level>        Only entries at this severity: debug, info, notice, error, fault
@@ -90,7 +92,7 @@ enum DebugLogCommand {
 
         Examples:
           OpenClip --dump-logs --category=extensions --level=error
-          OpenClip --dump-logs --count=20 --collect=5
+          OpenClip --dump-logs --count=20 --collect=0
         """
     }
 
