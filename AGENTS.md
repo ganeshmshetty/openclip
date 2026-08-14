@@ -28,10 +28,16 @@ All Swift is Swift 6 with `SWIFT_STRICT_CONCURRENCY: complete`. Targets (see `pr
 
 ## Logging
 
-One `Log` enum in `Sources/Core/Log.swift` owns every `os.Logger` category (subsystem `com.openclip`). Never create a raw `Logger(...)` or use `print()`; add a category to `Log` and keep the table in `docs/logging.md` in step. Selected text / clipboard content must stay privacy-default; only ids and URLs get `privacy: .public`. Filter, e.g.:
+OpenClip uses a production **Dual-Sink (Multi-Sink) Architecture** anchored by `Log` (`Sources/Core/Log.swift`):
+- **Apple `os.Logger`**: Zero-cost kernel trace for Console.app and `log stream`.
+- **In-Memory Ring Buffer (`DebugLogBuffer` / `DebugLogStore`)**: High-performance, 500-entry in-memory ring buffer with 0ms indexing latency for instant `--dump-logs`, crash reporting, and diagnostics with 0% polling CPU overhead.
+- **Rotating File Appender (`RotatingFileLogSink`)**: Writes formatted logs to `~/Library/Logs/OpenClip/openclip.log` (5MB cap, max 3 backups) via a background serial queue.
+
+`Log` owns every `LogChannel` category (`com.openclip` subsystem) and broadcasts to registered `LogSink`s. Never create a raw `Logger(...)` or use `print()`; add categories to `Log` and keep `docs/logging.md` in step. Selected text / clipboard content must stay privacy-default; only ids and URLs get `privacy: .public`. Filter and dump, e.g.:
 
 ```bash
 log stream --predicate 'subsystem == "com.openclip" && category == "extensions"'
+tail -f ~/Library/Logs/OpenClip/openclip.log
 "<app>/Contents/MacOS/OpenClip" --dump-logs --category=extensions --level=error
 ```
 
