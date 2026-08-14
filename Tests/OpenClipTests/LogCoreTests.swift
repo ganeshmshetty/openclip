@@ -75,4 +75,17 @@ final class LogCoreTests: XCTestCase {
         Log.settings.info("After clear")
         XCTAssertEqual(sink.getRecords().count, 1)
     }
+
+    func testLogPrivateInterpolationRedaction() {
+        let sink = TestLogSink()
+        Log.addSink(sink)
+
+        let secret = "super-secret-token"
+        let publicVal = 42
+        Log.settings.info("Auth info: secret=\(secret, privacy: .private) count=\(publicVal, privacy: .public)")
+
+        let records = sink.getRecords()
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(records[0].message, "Auth info: secret=<private> count=42")
+    }
 }
