@@ -1,7 +1,7 @@
 # Extending OpenClip Overview
 
 > **Start here:** the self-contained authoring guide is [`docs/developer-guide/AGENTS.md`](./AGENTS.md)
-> (manifest v2 schema, all action kinds, options/requirements, groups, and the result surface).
+> (manifest schema, all action kinds, options/requirements, groups, and the result surface).
 > This page is a high-level orientation.
 
 OpenClip provides a pluggable extension architecture that allows developers and power users to create custom text manipulation tools, integrate third-party APIs, and automate macOS workflows.

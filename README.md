@@ -110,7 +110,7 @@ or chained effects — from JSON emitted by a shell script.
 - **Action kinds** — `url`, `javascript` (JavaScriptCore with an `openclip.*` bridge + async/`fetch`), `applescript`, `shell`, `textsnippet`, `keypress`, `shortcut`, `service`, and `group` sub-menus.
 - **Install one-liner** — `./scripts/install_extension.sh path/to/extension.openclipext`
 - **From the app** — browse and install from the built-in Extension Store in **Preferences → Extension Store**, or author URL/search/script actions in **Preferences → Actions**.
-- **Authoring guide** — the full manifest v2 schema, options, visibility rules, and the `openclip.*` bridge: [`docs/developer-guide/AGENTS.md`](docs/developer-guide/AGENTS.md).
+- **Authoring guide** — the full manifest schema, options, visibility rules, and the `openclip.*` bridge: [`docs/developer-guide/AGENTS.md`](docs/developer-guide/AGENTS.md).
 
 ## Building from source
 
@@ -146,7 +146,7 @@ xcodegen generate
 The full technical documentation lives in the [`docs/`](docs/index.md) hub:
 
 - **Architecture** — target split, the six core subsystems, popup internals, text selection, and the action-search palette.
-- **Developer guide** — extension package format, manifest v2 schema, and action authoring.
+- **Developer guide** — extension package format, manifest schema, and action authoring.
 - **Runtimes** — AppleScript, JavaScript, URL templates, and shell/Python execution (env vars, JSON effects, 30-second watchdog).
 - **User guide** — installation, preferences, app rules, and extension management.
 - **Logging** — the single `Log` surface and per-subsystem categories.

@@ -43,7 +43,7 @@ tail -f ~/Library/Logs/OpenClip/openclip.log
 
 ## Extensions
 
-The **authoritative manifest v2 / JS-bridge spec is `docs/developer-guide/AGENTS.md`** — read it before touching anything extension-related. Don't invent manifest keys (unknown keys are ignored; unknown `type` strings reject the whole package). Extensions live in `~/.openclip/extensions`, scanned at startup (~2 s hot reload if running).
+The **authoritative manifest / JS-bridge spec is `docs/developer-guide/AGENTS.md`** — read it before touching anything extension-related. Don't invent manifest keys (unknown keys are ignored; unknown `type` strings reject the whole package). Extensions live in `~/.openclip/extensions`, scanned at startup (~2 s hot reload if running).
 
 ```bash
 ./scripts/new_extension.sh <Name> [--type js|group|url]  # scaffold -> Extensions/raw/
