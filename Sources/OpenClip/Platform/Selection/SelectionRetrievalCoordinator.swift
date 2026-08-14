@@ -119,7 +119,7 @@ public struct SelectionRetrievalCoordinator: Sendable {
         policy: AppPolicyContext
     ) async -> TextResult? {
         let bundleID = app.bundleIdentifier ?? "unknown"
-        let strategies = strategyCascade(for: policy, target: target)
+        let strategies = strategyCascade(for: policy, target: target, bundleIdentifier: app.bundleIdentifier)
 
         for (index, strategy) in strategies.enumerated() {
             if index > 0 {
@@ -146,18 +146,30 @@ public struct SelectionRetrievalCoordinator: Sendable {
             + DefaultAppRules.arcGroup
     )
 
+    private static let strictlyNativeBundleIDs: Set<String> = Set(
+        DefaultAppRules.nativeApps
+    )
+
     /// Resolves targeted strategies for `policy.retrievalMode`, providing tiered fallback
     /// where dynamic web content requires it, while strictly confining native controls and terminals
     /// to their direct mechanisms to eliminate redundant double timeouts and false cascades.
     private func strategyCascade(
         for policy: AppPolicyContext,
-        target: AXElementInspector.Target
+        target: AXElementInspector.Target,
+        bundleIdentifier: String?
     ) -> [RetrievalStrategy] {
         switch policy.retrievalMode {
         case .axTextControl:
+            // 100% native Apple apps (Notes, TextEdit, Pages, Finder, etc.) are strictly authoritative in AX.
+            // When AX reports no text selected, terminate immediately in 0ms without redundant ⌘C copy.
+            if let bundleIdentifier, Self.strictlyNativeBundleIDs.contains(bundleIdentifier) {
+                return [.axTextControl]
+            }
+            // Embedded webview (e.g. Help viewer or Xcode documentation) -> web cascade
             if target.webArea != nil || target.role == "AXWebArea" {
                 return [.axWebArea, .browserScript, .keyboardCopy]
             }
+            // Unlisted third-party apps -> AX with keyboard-copy safety net
             return [.axTextControl, .keyboardCopy]
 
         case .axWebArea:

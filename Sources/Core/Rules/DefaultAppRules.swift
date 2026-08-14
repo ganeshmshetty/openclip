@@ -43,8 +43,27 @@ public enum DefaultAppRules: Sendable {
         "company.thebrowser.*"
     ]
     
+    public static let nativeApps: [String] = [
+        "com.apple.Notes",
+        "com.apple.TextEdit",
+        "com.apple.mail",
+        "com.apple.finder",
+        "com.apple.iWork.Pages",
+        "com.apple.iWork.Numbers",
+        "com.apple.iWork.Keynote",
+        "com.apple.MobileSMS",
+        "com.apple.reminders",
+        "com.apple.Preview",
+        "com.apple.calculator",
+        "com.apple.systempreferences",
+        "com.apple.SystemSettings"
+    ]
+    
     public static let keyboardCopyApps: [String] = [
         // Code Editors & IDEs
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "com.mitchellh.ghostty",
         "com.microsoft.VSCode",
         "com.microsoft.VSCodeInsiders",
         "com.vscodium",
@@ -116,9 +135,6 @@ public enum DefaultAppRules: Sendable {
     ]
     
     public static let menuCopyApps: [String] = [
-        "com.mitchellh.ghostty",
-        "com.apple.Terminal",
-        "com.googlecode.iterm2",
         "org.alacritty",
         "net.kovidgoyal.kitty",
         "co.zeit.hyper",
@@ -180,6 +196,10 @@ public enum DefaultAppRules: Sendable {
     ]
     
     public static let catalog: [AppRule] = [
+        AppRule(
+            bundleIdentifiers: nativeApps,
+            retrievalMode: .axTextControl
+        ),
         AppRule(
             bundleIdentifiers: safariGroup,
             retrievalMode: .browserScript

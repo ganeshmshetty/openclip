@@ -437,6 +437,26 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(result?.text, "copied text")
     }
 
+    func testStrictlyNativeAppDoesNotFallbackToKeyboardCopy() async {
+        final class Counter: @unchecked Sendable { var calls = 0 }
+        let counter = Counter()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            copyCapture: { _ in
+                counter.calls += 1
+                return "unexpected copy"
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.apple.Notes"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(result)
+        XCTAssertEqual(counter.calls, 0)
+    }
+
     func testHungAXInspectTimesOutAndFailsFastWhileOccupied() async {
         let inspectStarted = expectation(description: "inspect started")
         let unblockInspect = expectation(description: "unblock inspect")
