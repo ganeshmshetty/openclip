@@ -48,8 +48,10 @@ public final class RotatingFileLogSink: LogSink, @unchecked Sendable {
 
     deinit {
         let handle = fileHandle
-        fileHandle = nil
-        try? handle?.close()
+        queue.async {
+            try? handle?.synchronize()
+            try? handle?.close()
+        }
     }
 
     public func record(date: Date, category: String, level: LogLevel, message: String) {
