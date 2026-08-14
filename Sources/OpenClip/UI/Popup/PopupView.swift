@@ -729,6 +729,9 @@ public struct PopupView: View {
     /// controller can track the hovered row (right-click path).
     private func reportHoveredAction() {
         let action: (any Action)? = {
+            if inCompletionMode, case .completion(let index) = hoveredTarget, index < cachedCompletions.count {
+                return WordCompletionCandidateAction(word: cachedCompletions[index])
+            }
             guard case .action(let index) = hoveredTarget, index < pagedActions.count else { return nil }
             return pagedActions[index]
         }()
@@ -778,5 +781,25 @@ public struct PopupView: View {
             Text(text)
                 .font(.system(size: 13, weight: .medium))
         }
+    }
+}
+
+/// A lightweight synthetic action representing an inline word completion candidate so the
+/// right-click force-copy path can execute and deliver it identically to other bar items.
+private struct WordCompletionCandidateAction: Action {
+    let word: String
+    var id: String { "builtin.completion.\(word)" }
+    var title: String { word }
+    var icon: ActionIcon { .text(word) }
+    var chrome: ActionChrome {
+        ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin, requiresLiveSelection: true)
+    }
+
+    @MainActor
+    func isEnabled(for context: ActionContext) -> Bool { true }
+
+    @MainActor
+    func perform(_ context: ActionContext) async throws -> ActionResult {
+        return .paste(word)
     }
 }

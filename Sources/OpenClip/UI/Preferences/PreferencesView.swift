@@ -201,7 +201,7 @@ public struct PreferencesView: View {
         }
         .ignoresSafeArea(.all, edges: .top)
         .background(Color(NSColor.windowBackgroundColor))
-        .frame(minWidth: 760, idealWidth: 860, minHeight: 640, idealHeight: 720)
+        .frame(minWidth: 760, idealWidth: 760, minHeight: 520, idealHeight: 600)
         .onAppear { loadDisabledState() }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledState() }
         .onChange(of: disabledPackages) { _, _ in saveDisabledState() }

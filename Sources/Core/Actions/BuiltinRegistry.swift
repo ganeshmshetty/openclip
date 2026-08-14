@@ -11,12 +11,12 @@ public enum BuiltinRegistry {
     public static func makeCoreBuiltins(settingsStore: any SettingsStore = DefaultSettingsStore.shared) -> [any Action] {
         let actions: [any Action] = [
             SearchAction(settingsStore: settingsStore),
-            DefineAction(),
-            CalendarAction(settingsStore: settingsStore),
             CopyAction(),
             CutAction(),
             PasteAction(),
-            CalculateAction(settingsStore: settingsStore)
+            CalculateAction(settingsStore: settingsStore),
+            DefineAction(),
+            CalendarAction(settingsStore: settingsStore)
         ]
         return actions
     }

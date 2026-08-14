@@ -21,8 +21,6 @@ public final class HotkeyManager {
     public func setup(popupController: PopupWindowController) {
         KeyboardShortcuts.onKeyUp(for: .togglePopup) { [weak popupController] in
             Task { @MainActor in
-                guard DefaultSettingsStore.shared.get(.isAppEnabled) else { return }
-
                 // Popup already visible: the hotkey toggles actions → search palette → dismiss,
                 // instead of re-running text retrieval and re-showing.
                 if let popupController, popupController.isVisible {

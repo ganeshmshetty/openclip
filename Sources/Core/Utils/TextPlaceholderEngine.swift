@@ -36,6 +36,8 @@ public struct TextPlaceholderEngine {
         )
     }
 
+    private static let placeholderRegex = try? NSRegularExpression(pattern: #"\{([a-zA-Z0-9_]+)\}"#)
+
     private static func replace(
         in template: String,
         text: String,
@@ -48,17 +50,49 @@ public struct TextPlaceholderEngine {
             urlEncode ? (value.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed) ?? value) : value
         }
 
-        var result = template
-        let encodedText = encode(text)
-        result = result.replacingOccurrences(of: "{text}", with: encodedText)
-        result = result.replacingOccurrences(of: "{query}", with: encodedText)
-        result = result.replacingOccurrences(of: "{matched}", with: encode(matched))
-        result = result.replacingOccurrences(of: "{bundleID}", with: encode(bundleID ?? ""))
+        var replacements: [String: String] = [
+            "text": encode(text),
+            "query": encode(text),
+            "matched": encode(matched),
+            "bundleID": encode(bundleID ?? "")
+        ]
         for (index, capture) in captures.enumerated() {
             let encodedCapture = encode(capture)
-            result = result.replacingOccurrences(of: "{capture\(index + 1)}", with: encodedCapture)
-            result = result.replacingOccurrences(of: "{\(index + 1)}", with: encodedCapture)
+            replacements["capture\(index + 1)"] = encodedCapture
+            replacements["\(index + 1)"] = encodedCapture
         }
+
+        guard let regex = placeholderRegex else { return template }
+        let nsTemplate = template as NSString
+        let fullRange = NSRange(location: 0, length: nsTemplate.length)
+        let matches = regex.matches(in: template, range: fullRange)
+        guard !matches.isEmpty else { return template }
+
+        var result = ""
+        var lastLocation = 0
+
+        for match in matches {
+            let matchRange = match.range(at: 0)
+            let keyRange = match.range(at: 1)
+
+            if matchRange.location > lastLocation {
+                result += nsTemplate.substring(with: NSRange(location: lastLocation, length: matchRange.location - lastLocation))
+            }
+
+            let key = nsTemplate.substring(with: keyRange)
+            if let replacement = replacements[key] {
+                result += replacement
+            } else {
+                result += nsTemplate.substring(with: matchRange)
+            }
+
+            lastLocation = matchRange.location + matchRange.length
+        }
+
+        if lastLocation < nsTemplate.length {
+            result += nsTemplate.substring(from: lastLocation)
+        }
+
         return result
     }
 }

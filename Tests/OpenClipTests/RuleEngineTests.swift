@@ -76,7 +76,7 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(randomContext.denyPaste, false)
         
         // Test macro
-        let menuCopyContext = RuleEngine.shared.resolvePolicies(for: "com.microsoft.VSCode")
+        let menuCopyContext = RuleEngine.shared.resolvePolicies(for: "com.apple.Terminal")
         XCTAssertEqual(menuCopyContext.denyPaste, true)
         
         try FileManager.default.removeItem(at: tempURL)
@@ -190,6 +190,22 @@ final class RuleEngineTests: XCTestCase {
     func testKeyboardCopyModeResolvesForCodeEditorApps() async throws {
         let vsCodeContext = RuleEngine.shared.resolvePolicies(for: "com.microsoft.VSCode")
         XCTAssertEqual(vsCodeContext.retrievalMode, .keyboardCopy)
+        XCTAssertFalse(vsCodeContext.denyPaste)
+    }
+
+    @MainActor
+    func testDenyPasteModeResolvesForTerminalAndGhostty() async throws {
+        let terminalContext = RuleEngine.shared.resolvePolicies(for: "com.apple.Terminal")
+        XCTAssertTrue(terminalContext.denyPaste)
+        XCTAssertEqual(terminalContext.retrievalMode, .menuCopy)
+
+        let itermContext = RuleEngine.shared.resolvePolicies(for: "com.googlecode.iterm2")
+        XCTAssertTrue(itermContext.denyPaste)
+        XCTAssertEqual(itermContext.retrievalMode, .menuCopy)
+
+        let ghosttyContext = RuleEngine.shared.resolvePolicies(for: "com.mitchellh.ghostty")
+        XCTAssertTrue(ghosttyContext.denyPaste)
+        XCTAssertEqual(ghosttyContext.retrievalMode, .axTextControl)
     }
 
     @MainActor

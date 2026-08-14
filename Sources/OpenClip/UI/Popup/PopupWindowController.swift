@@ -35,6 +35,9 @@ public class PopupWindowController {
 
     private var isMenuTracking = false
 
+    /// Tracks whether a right-click mouse-down originated within the popup bar.
+    private var isRightClickInProgress = false
+
     /// How the most recent bar/palette action was triggered (left-click vs right/⇧-click). Set by
     /// the mouse monitor on mouse-down and reset by hide(). Snapshotted into a `DeliveryContext`
     /// when an action performs — never read as live state after an await. Drives the standardized
@@ -360,13 +363,14 @@ public class PopupWindowController {
         )
         panel.setFrame(frame, display: true)
     }
-    
+
     public func hide() {
         modeStore.aiResult = nil
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
         // runs and any later snapshot read the last intent; force-copy must never persist).
         pendingClickIntent = .leftClick
+        isRightClickInProgress = false
         modeStore.mode = .actions
         modeStore.scope = nil
         panel?.pinBottomEdgeOnResize = false
@@ -388,14 +392,14 @@ public class PopupWindowController {
         let canMonitorGlobally = PermissionManager.shared.isAccessibilityGranted
         PopupHoverState.shared.usesGlobalMouseMonitoring = canMonitorGlobally
         if canMonitorGlobally {
-            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
                 self?.handleEvent(event)
             }
         } else {
             Log.presentation.notice("Accessibility permission unavailable; using local hover tracking.")
         }
         
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
             self?.handleEvent(event)
             return event
         }
@@ -454,20 +458,35 @@ public class PopupWindowController {
                 hide()
             }
         case .rightMouseDown:
-            // Right-click: force copy and run the hovered action directly (the bar's SwiftUI Button
-            // only reacts to left-clicks).
+            // Right-click down: prepare force-copy intent and mark right-click in progress.
+            // Execution waits for rightMouseUp (matching standard button click-release semantics).
             let clickLoc = NSEvent.mouseLocation
             let inBar = panel?.frame.contains(clickLoc) ?? false
-            pendingClickIntent = .forceCopy
+            if inBar {
+                pendingClickIntent = .forceCopy
+                isRightClickInProgress = true
+            } else {
+                isRightClickInProgress = false
+                hide()
+            }
+        case .rightMouseUp:
+            guard isRightClickInProgress else { break }
+            isRightClickInProgress = false
+            let clickLoc = NSEvent.mouseLocation
+            let inBar = panel?.frame.contains(clickLoc) ?? false
             if inBar, let hoveredAction, let actionContext = currentActionContext, modeStore.mode == .actions {
                 runAction(hoveredAction, with: actionContext, forceCopy: true)
-            } else if !inBar {
-                hide()
             }
         case .scrollWheel:
             // Search mode scrolls the results list (panel key); the AI result card is modal and
             // scrolls its own content, never dismisses.
             if modeStore.mode == .search || modeStore.mode == .content { break }
+            // A 2-finger tap (trackpad right-click) generates a phantom scrollWheel with
+            // .mayBegin/.cancelled phase and zero deltas before rightMouseDown arrives. Ignore
+            // these so the right-click gesture is not killed by the scroll dismissal.
+            let dominated = event.phase == .mayBegin || event.phase == .cancelled
+            let zeroScroll = event.scrollingDeltaX == 0 && event.scrollingDeltaY == 0
+            if dominated && zeroScroll { break }
             hide()
         case .keyDown:
             // Actions mode: any keystroke (including Escape) dismisses the popup; the panel is
@@ -512,7 +531,9 @@ public class PopupWindowController {
     }
     
     @objc private func appDidDeactivate() {
-        if !isMenuTracking {
+        // A right-click fires didResignActiveNotification before rightMouseUp arrives; suppressing
+        // hide() here lets the right-click path complete on mouse-up as intended.
+        if !isMenuTracking && !isRightClickInProgress {
             hide()
         }
     }
@@ -593,6 +614,8 @@ public class PopupWindowController {
             do {
                 let delivered = await resolveDelivery(effect, delivery: delivery)
                 if case .paste = effect, case .copy = delivered {
+                    toastController.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorFrame: panel?.frame)
+                } else if case .copyDefinition = delivered {
                     toastController.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorFrame: panel?.frame)
                 }
                 try await resultHandler.handle(delivered, in: panel?.contentView)
