@@ -210,6 +210,7 @@
 		C54EA6972708DC6B6083AF66 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 69201994E9CE6C7F2CDED2F0 /* KeyboardShortcuts */; };
 		C63E6C48A533FAF5D6C89CA6 /* ActionUsageStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE52A2746613B843A8CD5AB5 /* ActionUsageStoreTests.swift */; };
 		C85F042BF73B07FCBDEC234A /* BuiltinActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4F2434073F85AB2FC61E746 /* BuiltinActionsTests.swift */; };
+		C9F6A7E626AF049B5BBEEEDF /* LogExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83107D1DC88F388F201AE1D2 /* LogExporterTests.swift */; };
 		CB0F2118E3D0E7195D500A5D /* OpenClipSnippetParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3359F30EB7FC15DFC02A4D9B /* OpenClipSnippetParserTests.swift */; };
 		CB1DDD42F8CFEBA4535BF2A6 /* ActionOptionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E8782CDF24448F374DA0038 /* ActionOptionStore.swift */; };
 		CCC401E40B61E07FFAEFC9AF /* KeyPressAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94427CB651F537087B83063A /* KeyPressAction.swift */; };
@@ -261,6 +262,7 @@
 		F9BF36325EE43D2E470B7019 /* OllamaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A106241D07C43ED6F7226F /* OllamaProvider.swift */; };
 		FA9CCA6EBD8B042DEA531176 /* ExtensionActionRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA25688B7F7CA6E74A8BDBDC /* ExtensionActionRules.swift */; };
 		FACD7D36C9F9D59E235C615A /* RevealInFinderAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85CB0D7F545A74562723950E /* RevealInFinderAction.swift */; };
+		FAE6A04356B9A3C6C10F7274 /* LogExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C565B3E87AC475CEE12B3E /* LogExporter.swift */; };
 		FAE8B480FE55D8C3ACC20A29 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F660BE562891C148ECA1E083 /* PreferencesView.swift */; };
 		FD4AAED6B52C78979F10227E /* LocalIconCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64E77AACA56DB3C341E5044 /* LocalIconCacheTests.swift */; };
 		FD6DE7EA993732CE74D6331B /* CustomActionDraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29B9F196EE9D3082CCEA29E2 /* CustomActionDraftTests.swift */; };
@@ -344,6 +346,7 @@
 		2582277236A4342581920E66 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		26747E7621DE707FAC1645A5 /* AppleScriptAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptAction.swift; sourceTree = "<group>"; };
 		26AA38CCEB64711C1129F135 /* DebugLogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogEntry.swift; sourceTree = "<group>"; };
+		27C565B3E87AC475CEE12B3E /* LogExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogExporter.swift; sourceTree = "<group>"; };
 		287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		2880EA47FA384B00CFAD2877 /* OpenClipSnippetParser+DefaultFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClipSnippetParser+DefaultFactory.swift"; sourceTree = "<group>"; };
 		28C251D684663DDC867A7E7C /* DebugLogStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogStoreTests.swift; sourceTree = "<group>"; };
@@ -431,6 +434,7 @@
 		8018BA605653ACD93A6A6BF6 /* SelectionGatePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionGatePolicy.swift; sourceTree = "<group>"; };
 		82321CCDFB4EDE96ABB905F7 /* CompletionAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionAction.swift; sourceTree = "<group>"; };
 		82CA57F3B19ABD7C1FADC2C8 /* SearchHoverSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHoverSupport.swift; sourceTree = "<group>"; };
+		83107D1DC88F388F201AE1D2 /* LogExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogExporterTests.swift; sourceTree = "<group>"; };
 		842374852607342FFC468020 /* PopupGesturePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupGesturePolicy.swift; sourceTree = "<group>"; };
 		85CB0D7F545A74562723950E /* RevealInFinderAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevealInFinderAction.swift; sourceTree = "<group>"; };
 		867F5FE32483EEF1ED7B18D1 /* DebugLogEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogEntryTests.swift; sourceTree = "<group>"; };
@@ -857,6 +861,7 @@
 				9F04245B4F0896E4AFD3B9BC /* DebugLogFilter.swift */,
 				E4EF53D5A01CA2A1884F414D /* DebugLogLevel.swift */,
 				643250CF0FF406A8F5AC587E /* DebugLogStore.swift */,
+				27C565B3E87AC475CEE12B3E /* LogExporter.swift */,
 				535B6891DB044AC163B4E2CF /* RotatingFileLogSink.swift */,
 			);
 			path = DebugLogging;
@@ -1026,6 +1031,7 @@
 				B603C28D161A795066B85A89 /* LaunchAtLoginManagerTests.swift */,
 				E64E77AACA56DB3C341E5044 /* LocalIconCacheTests.swift */,
 				382F45A3CA8BFDC01E3132BD /* LogCoreTests.swift */,
+				83107D1DC88F388F201AE1D2 /* LogExporterTests.swift */,
 				AD213AE6ECE1B6BFDBCDE342 /* MacSelectionMonitorTests.swift */,
 				31413D1B3A41341818B8B6F6 /* ManifestValidationTests.swift */,
 				DDF25B7CA70822AE323518F8 /* MemorySettingsStore.swift */,
@@ -1242,6 +1248,7 @@
 				1C03F28FAA913021C9CA39D2 /* LaunchAtLoginManagerTests.swift in Sources */,
 				FD4AAED6B52C78979F10227E /* LocalIconCacheTests.swift in Sources */,
 				EBDE5DA75D4148EBBD2BEE05 /* LogCoreTests.swift in Sources */,
+				C9F6A7E626AF049B5BBEEEDF /* LogExporterTests.swift in Sources */,
 				0E3D68AFA4DDEDAA15DEC3F5 /* MacSelectionMonitorTests.swift in Sources */,
 				0875DA9C238F752BCDBB8EC9 /* ManifestValidationTests.swift in Sources */,
 				4E94CAC5D8C6131D7ABEC9FC /* MemorySettingsStore.swift in Sources */,
@@ -1418,6 +1425,7 @@
 				DF8D4D6ADC91E929BB3F3920 /* LaunchAtLoginManager.swift in Sources */,
 				33956B07A3C1A2972BEEC22E /* LiquidGlass.swift in Sources */,
 				F90A545EAD5C3F1F1578C757 /* LocalIconCache.swift in Sources */,
+				FAE6A04356B9A3C6C10F7274 /* LogExporter.swift in Sources */,
 				09A58930CFE1B6C771AAF8D4 /* MacSelectionMonitor.swift in Sources */,
 				84A19D69965D8FE1825442E5 /* MacTextRetriever.swift in Sources */,
 				468FD2B168D9A77D579DFBF1 /* NamedServiceAction.swift in Sources */,

@@ -34,6 +34,10 @@ final class RotatingFileLogSinkTests: XCTestCase {
         let logFile = tempDirectory.appendingPathComponent("test.log")
         XCTAssertTrue(FileManager.default.fileExists(atPath: logFile.path))
 
+        let attributes = try FileManager.default.attributesOfItem(atPath: logFile.path)
+        let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue
+        XCTAssertEqual(permissions, 0o600)
+
         let content = try String(contentsOf: logFile, encoding: .utf8)
         XCTAssertTrue(content.contains("notice extensions Loaded extension foo"))
     }

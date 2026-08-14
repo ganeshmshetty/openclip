@@ -91,7 +91,7 @@ public final class RotatingFileLogSink: LogSink, @unchecked Sendable {
 
         let fileURL = currentFileURL
         if !fileManager.fileExists(atPath: fileURL.path) {
-            fileManager.createFile(atPath: fileURL.path, contents: nil)
+            fileManager.createFile(atPath: fileURL.path, contents: nil, attributes: [.posixPermissions: 0o600])
         }
 
         do {
@@ -111,16 +111,19 @@ public final class RotatingFileLogSink: LogSink, @unchecked Sendable {
             rotate()
         }
 
-        guard let fileHandle else {
+        if fileHandle == nil {
             prepareLogFile()
-            guard let fileHandle else { return }
-            fileHandle.write(data)
-            currentFileSize += UInt64(data.count)
-            return
         }
 
-        fileHandle.write(data)
-        currentFileSize += UInt64(data.count)
+        guard let fileHandle else { return }
+
+        do {
+            try fileHandle.write(contentsOf: data)
+            currentFileSize += UInt64(data.count)
+        } catch {
+            try? fileHandle.close()
+            self.fileHandle = nil
+        }
     }
 
     private func rotate() {
