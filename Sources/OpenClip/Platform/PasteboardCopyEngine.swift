@@ -20,14 +20,16 @@ public struct PasteboardCopyEngine {
     ///
     /// - Parameters:
     ///   - pasteboard: The pasteboard to watch (defaults to the system general pasteboard).
-    ///   - timeout: Maximum seconds to wait for the pasteboard changeCount to advance.
+    ///   - timeout: Maximum seconds to wait for the pasteboard changeCount to advance and yield text.
+    ///     Defaults to a per-app profile: Safari gets a longer budget because its copy path is
+    ///     observably slower to stabilize.
     ///   - restoreDelay: Seconds to wait before restoring the archived original items on success.
     ///   - trigger: Performs the actual copy (AX menu press or keyboard event).
     /// - Returns: The new string on the pasteboard, or `nil` when the changeCount never advances
     ///   or the copied string is empty.
     public func captureString(
         pasteboard: NSPasteboard = .general,
-        timeout: TimeInterval = Constants.pasteboardCopyTimeout,
+        timeout: TimeInterval? = nil,
         restoreDelay: TimeInterval = Constants.pasteboardRestoreDelay,
         trigger: CopyTrigger
     ) async -> String? {
@@ -36,40 +38,48 @@ public struct PasteboardCopyEngine {
 
         trigger()
 
-        // Poll every 2 ms up to `timeout` for the changeCount to advance. A deadline loop (rather
-        // than the OnceResume/TaskBox watchdog) is the right shape here: the trigger is a
-        // synchronous MainActor closure, so there is no worker task racing a deadline that could
-        // double-resume a continuation to guard against. The deadline bounds the loop regardless.
+        let resolvedTimeout = timeout ?? Self.pollingTimeout()
         let pollInterval: TimeInterval = 0.002
-        let deadline = Date().addingTimeInterval(timeout)
+        let deadline = Date().addingTimeInterval(resolvedTimeout)
+        var text: String?
+
+        // A changeCount advance alone is not enough: some apps write a transient/empty string while
+        // the pasteboard is still being updated (or a clipboard manager is racing the same copy), so
+        // keep polling until non-empty text appears or the deadline passes.
         while Date() < deadline && !Task.isCancelled {
-            if pasteboard.changeCount != initialChangeCount { break }
+            if pasteboard.changeCount != initialChangeCount {
+                if let candidate = pasteboard.string(forType: .string),
+                   Self.hasSelection(candidate) {
+                    text = candidate
+                    break
+                }
+            }
             try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
         }
 
-        guard pasteboard.changeCount != initialChangeCount else {
-            Log.selection.debug("Copy engine: changeCount did not advance; restoring immediately")
-            return nil
-        }
-
-        let text = pasteboard.string(forType: .string)
-        guard Self.hasSelection(text) else {
-            Log.selection.debug("Copy engine: copied string empty; restoring immediately")
+        guard let text else {
+            Log.selection.debug("Copy engine: no non-empty pasteboard text within deadline; restoring immediately")
             Self.restore(pasteboard, items: savedItems)
             return nil
         }
 
-        // Keep the captured string readable for `restoreDelay`, then put the original back. Skip
-        // the restore if the pasteboard was written to again in the meantime (e.g. a user copy).
-        let changeCountAfterRead = pasteboard.changeCount
-        Task { @MainActor [pasteboard, savedItems, changeCountAfterRead, restoreDelay] in
-            try? await Task.sleep(nanoseconds: UInt64(restoreDelay * 1_000_000_000))
-            guard !Task.isCancelled else { return }
-            guard pasteboard.changeCount == changeCountAfterRead else { return }
-            Self.restore(pasteboard, items: savedItems, transientMarkers: true)
-        }
+        // Restore the original pasteboard synchronously before returning. The captured string is
+        // already held in memory, so there is no reason to leave it on the general pasteboard (the
+        // reference implementation restores with a zero interval after the poll completes). An async
+        // delayed restore is both unnecessary and unreliable here: it races later clipboard writes
+        // and can leave the copied text visible in clipboard managers.
+        Self.restore(pasteboard, items: savedItems, transientMarkers: true)
 
         return text
+    }
+
+    /// Per-app copy polling timeout. Safari is the observed outlier needing more time for its
+    /// selected-text copy to stabilize; all other apps resolve within the default budget.
+    private static func pollingTimeout() -> TimeInterval {
+        let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        return bundleID == "com.apple.Safari"
+            ? Constants.safariPasteboardCopyTimeout
+            : Constants.pasteboardCopyTimeout
     }
 
     /// Returns `true` only when `text` is non-nil and trims to something non-empty.

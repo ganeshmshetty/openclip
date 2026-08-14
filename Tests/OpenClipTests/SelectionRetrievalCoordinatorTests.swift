@@ -65,7 +65,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         )
         let policy = AppPolicyContext(
             retrievalMode: .axTextControl,
-            gate: SelectionGatePolicy(allowedCursors: [.beam], requireSelectionBeforeCopy: true)
+            gate: SelectionGatePolicy(allowedCursors: [.beam])
         )
         let result = await coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.test.app"),
@@ -81,7 +81,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         )
         let policy = AppPolicyContext(
             retrievalMode: .axTextControl,
-            gate: SelectionGatePolicy(allowedCursors: [.beam], requireSelectionBeforeCopy: true)
+            gate: SelectionGatePolicy(allowedCursors: [.beam])
         )
         let result = await coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.test.app"),
@@ -187,25 +187,12 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
 
     // MARK: - Copy modes
 
-    func testMenuCopyBlockedWithoutConfirmedSelectionWhenRequired() async {
-        let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.textFieldTarget(selectedText: nil) }
-        )
-        let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .default)  // requireSelectionBeforeCopy
-        let result = await coordinator.retrieve(
-            for: AppIdentity(bundleIdentifier: "com.apple.Terminal"),
-            policy: policy,
-            cursor: .unknown
-        )
-        XCTAssertNil(result)
-    }
-
-    func testMenuCopyProceedsWhenSelectionIsNotRequired() async {
+    func testMenuCopyProceedsWithoutConfirmedSelection() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: nil) },
             copyCapture: { _ in "captured via menu copy" }
         )
-        let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .lenient)
+        let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .default)
         let result = await coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.apple.Terminal"),
             policy: policy,
@@ -214,10 +201,12 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(result?.text, "captured via menu copy")
     }
 
-    func testMenuCopyCapturesWhenSelectionConfirmed() async {
+    func testMenuCopyStartsAtMenuCopyEvenWhenAXTextAvailable() async {
+        // A menu-copy rule starts the chain at menu copy, so it never performs the AX text strategy
+        // above it — even when the target happens to expose AX text.
         let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.textFieldTarget(selectedText: "confirmed selection") },
-            copyCapture: { _ in "captured copy" }
+            inspect: { Self.textFieldTarget(selectedText: "ax text") },
+            copyCapture: { _ in "captured via menu copy" }
         )
         let policy = AppPolicyContext(retrievalMode: .menuCopy)
         let result = await coordinator.retrieve(
@@ -225,12 +214,12 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
             policy: policy,
             cursor: .unknown
         )
-        XCTAssertEqual(result?.text, "captured copy")
+        XCTAssertEqual(result?.text, "captured via menu copy")
     }
 
-    func testKeyboardCopyCapturesWhenSelectionConfirmed() async {
+    func testKeyboardCopyStartsAtKeyboardCopyEvenWhenAXTextAvailable() async {
         let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.textFieldTarget(selectedText: "confirmed selection") },
+            inspect: { Self.textFieldTarget(selectedText: "ax text") },
             copyCapture: { _ in "captured keyboard copy" }
         )
         let policy = AppPolicyContext(retrievalMode: .keyboardCopy)
@@ -242,9 +231,31 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(result?.text, "captured keyboard copy")
     }
 
+    func testKeyboardCopyHasNoFallbackBelowIt() async {
+        // keyboard-copy is the terminal strategy in the chain, so a failed keyboard copy does not
+        // fall through to menu copy.
+        final class Counter: @unchecked Sendable { var calls = 0 }
+        let counter = Counter()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            copyCapture: { _ in
+                counter.calls += 1
+                return nil
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .keyboardCopy)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.microsoft.VSCode"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(result)
+        XCTAssertEqual(counter.calls, 1)
+    }
+
     func testCopyCaptureNilReturnsNil() async {
         let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.textFieldTarget(selectedText: "confirmed selection") },
+            inspect: { Self.textFieldTarget(selectedText: nil) },
             copyCapture: { _ in nil }
         )
         let policy = AppPolicyContext(retrievalMode: .keyboardCopy)
@@ -258,7 +269,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
 
     func testMenuCopyCaptureNilReturnsNil() async {
         let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.textFieldTarget(selectedText: "confirmed selection") },
+            inspect: { Self.textFieldTarget(selectedText: nil) },
             copyCapture: { _ in nil }
         )
         let policy = AppPolicyContext(retrievalMode: .menuCopy)
@@ -329,6 +340,37 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
             isSelectAll: true
         )
         XCTAssertEqual(result?.text, "selected text")
+    }
+
+    // MARK: - Fallback cascade
+
+    func testAXTextControlFallsBackToCopyWhenAXReadIsEmpty() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil, role: "AXTextArea") },
+            copyCapture: { _ in "copied fallback" }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "copied fallback")
+    }
+
+    func testBrowserScriptFallsBackThroughWebAreaThenCopy() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.webAreaTarget(selectedText: "") },
+            browserRead: { _ in nil },
+            copyCapture: { _ in "browser copy fallback" }
+        )
+        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.apple.Safari"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "browser copy fallback")
     }
 
     // MARK: - Blank-text filtering

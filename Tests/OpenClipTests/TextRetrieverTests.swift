@@ -9,18 +9,13 @@ final class TextRetrieverTests: XCTestCase {
         let retriever = MacTextRetriever()
         let currentApp = AppIdentity(NSRunningApplication.current)
 
-        // MacTextRetriever only uses AX. In the test runner there is no real text selection,
-        // so AX returns nil. We verify this: the retriever must NOT fall back to Cmd+C
-        // (no clipboard side-effects).
-        let pasteboardBefore = NSPasteboard.general.changeCount
+        // In the test runner there is no real text selection, so the AX read and the copy-based
+        // fallbacks all produce no text. The retriever must surface nil rather than a stale
+        // clipboard value. (Copy fallbacks may transiently touch the pasteboard and restore it;
+        // the engine never returns non-empty text for an empty selection.)
         let text = await retriever.retrieveText(for: currentApp, policy: .default)
 
-        // AX finds nothing → nil result.
-        XCTAssertNil(text, "Retriever should return nil when there is no AX selection")
-
-        // Clipboard must be untouched — no silent Cmd+C.
-        XCTAssertEqual(NSPasteboard.general.changeCount, pasteboardBefore,
-                       "Clipboard must not be modified when selection is AX-only")
+        XCTAssertNil(text, "Retriever should return nil when there is no selection")
     }
 
     func testTextResultInitialization() {

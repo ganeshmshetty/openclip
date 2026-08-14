@@ -69,8 +69,7 @@ public enum DefaultAppRules: Sendable {
     
     public static let menuCopyApps: [String] = [
         "com.apple.Terminal",
-        "com.googlecode.iterm2",
-        "com.mitchellh.ghostty"
+        "com.googlecode.iterm2"
     ]
     
     /// The full pre-narrowing menu-copy list, kept for the `:menu-copy-apps:` macro so existing
@@ -113,7 +112,12 @@ public enum DefaultAppRules: Sendable {
             retrievalMode: .menuCopy
         ),
         AppRule(
-            bundleIdentifiers: ["com.apple.Terminal", "com.googlecode.iterm2", "com.mitchellh.ghostty"],
+            bundleIdentifiers: ["com.mitchellh.ghostty"],
+            denyPaste: true,
+            retrievalMode: .axTextControl
+        ),
+        AppRule(
+            bundleIdentifiers: ["com.apple.Terminal", "com.googlecode.iterm2"],
             denyPaste: true
         )
     ]
