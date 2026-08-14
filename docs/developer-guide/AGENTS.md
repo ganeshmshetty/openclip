@@ -1,6 +1,6 @@
-# AGENTS.md — Authoring & Packaging OpenClip Extensions (Manifest v2)
+# AGENTS.md — Authoring & Packaging OpenClip Extensions (Manifest Schema)
 
-This file is the single source of truth for writing a **v2 manifest** OpenClip extension by hand.
+This file is the single source of truth for writing an OpenClip extension manifest by hand.
 It is self-contained: every key, enum value, and JSON effect `type` string below was verified
 against the source of truth (`Sources/Core/Extensions/Manifest/`, `DefaultActionFactory.swift`,
 `OpenClipJSHost.swift`, `ActionResult.swift`, `ActionResultHandler.swift`, `ShellResultMapper`,
@@ -269,7 +269,7 @@ sub-action ids `com.example.words.tools.upper`, `com.example.words.tools.bold`.
 
 There is **no `parentGroupID` field** — that design was deliberately deferred. Sub-actions are
 matched to their group purely by this id-prefix. **Do not write a `parentGroupID` key.** Nested
-groups are not flattened in v1 (a sub-action of kind `group` is skipped). The group row itself is
+groups are not flattened (a sub-action of kind `group` is skipped). The group row itself is
 structural only — running it returns `.none`. The group row is registered by the factory's
 `createActions` (the registry/loader path); the single-action seam treats a bare group as
 schema-only (produces nothing).

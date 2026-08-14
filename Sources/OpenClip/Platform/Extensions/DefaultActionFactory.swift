@@ -103,7 +103,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
     /// Materializes every registry entry for one manifest action. Non-group actions return the
     /// single `createAction` result; a `.group` returns a GroupAction row plus one entry per
     /// sub-action whose ID is `\(groupID).\(subID)` (ID-prefix convention — no parentGroupID
-    /// marker). Nested groups are not flattened in v1.
+    /// marker). Nested groups are not flattened.
     public func createActions(
         metadata: ExtensionActionMetadata,
         manifest: ExtensionMetadata,

@@ -91,8 +91,8 @@ final class RuleEngineTests: XCTestCase {
         let zedContext = RuleEngine.shared.resolvePolicies(for: "dev.zed.Zed")
         XCTAssertEqual(zedContext.retrievalMode, .keyboardCopy, "Zed should resolve keyboard-copy retrieval mode")
         
-        let terminalContext = RuleEngine.shared.resolvePolicies(for: "com.apple.Terminal")
-        XCTAssertEqual(terminalContext.retrievalMode, .menuCopy, "Terminal should resolve menu-copy retrieval mode")
+        let alacrittyContext = RuleEngine.shared.resolvePolicies(for: "org.alacritty")
+        XCTAssertEqual(alacrittyContext.retrievalMode, .menuCopy, "Alacritty should resolve menu-copy retrieval mode")
         
         let randomContext = RuleEngine.shared.resolvePolicies(for: "com.random.app")
         XCTAssertEqual(randomContext.retrievalMode, .axTextControl, "Random app should stay on the default retrieval mode")
@@ -197,15 +197,15 @@ final class RuleEngineTests: XCTestCase {
     func testDenyPasteModeResolvesForTerminalAndGhostty() async throws {
         let terminalContext = RuleEngine.shared.resolvePolicies(for: "com.apple.Terminal")
         XCTAssertTrue(terminalContext.denyPaste)
-        XCTAssertEqual(terminalContext.retrievalMode, .menuCopy)
+        XCTAssertEqual(terminalContext.retrievalMode, .keyboardCopy)
 
         let itermContext = RuleEngine.shared.resolvePolicies(for: "com.googlecode.iterm2")
         XCTAssertTrue(itermContext.denyPaste)
-        XCTAssertEqual(itermContext.retrievalMode, .menuCopy)
+        XCTAssertEqual(itermContext.retrievalMode, .keyboardCopy)
 
         let ghosttyContext = RuleEngine.shared.resolvePolicies(for: "com.mitchellh.ghostty")
         XCTAssertTrue(ghosttyContext.denyPaste)
-        XCTAssertEqual(ghosttyContext.retrievalMode, .menuCopy)
+        XCTAssertEqual(ghosttyContext.retrievalMode, .keyboardCopy)
     }
 
     @MainActor

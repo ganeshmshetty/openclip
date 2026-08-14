@@ -1,6 +1,6 @@
 # Extension Package Format (`.openclipext`)
 
-> **Authoritative reference:** the current (v2) manifest schema, all action kinds, options,
+> **Authoritative reference:** the current manifest schema, all action kinds, options,
 > requirements, groups, and the runtime result surface are documented in
 > [`docs/developer-guide/AGENTS.md`](./AGENTS.md). This page is a summary and may lag it.
 
