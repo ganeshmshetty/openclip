@@ -22,7 +22,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Register logging sinks (Rotating File Appender and In-Memory Buffer)
-        Log.addSink(RotatingFileLogSink())
+        let rotatingSink = RotatingFileLogSink()
+        RotatingFileLogSink.shared = rotatingSink
+        Log.addSink(rotatingSink)
         _ = DebugLogStore.shared
 
         switch DebugLogCommand.parse(CommandLine.arguments) {
