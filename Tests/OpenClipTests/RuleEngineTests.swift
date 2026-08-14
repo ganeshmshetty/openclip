@@ -125,6 +125,32 @@ final class RuleEngineTests: XCTestCase {
     }
 
     @MainActor
+    func testExplicitRetrievalModeSuppressesLegacyMenuCopyAlias() async throws {
+        let json = """
+        {
+            "rules": [
+                {
+                    "bundle-identifiers": ["com.legacy.explicit"],
+                    "use-menu-copy": true,
+                    "retrieval-mode": "ax-text-control"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("rules_legacy_explicit_test.json")
+        try json.write(to: tempURL)
+
+        await RuleEngine.shared.loadRules(from: tempURL)
+
+        let context = RuleEngine.shared.resolvePolicies(for: "com.legacy.explicit")
+        XCTAssertTrue(context.useMenuCopy)
+        XCTAssertEqual(context.retrievalMode, .axTextControl, "explicit ax-text-control must opt out of the legacy menu-copy alias")
+
+        try FileManager.default.removeItem(at: tempURL)
+    }
+
+    @MainActor
     func testRetrievalModeJSONDecodesAndResolves() async throws {
         let json = """
         {

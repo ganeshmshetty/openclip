@@ -314,8 +314,11 @@ public struct PopupSearchView: View {
             return
         }
         if action.chrome.showsLoading {
-            onRunLoadingAction?(action)
-            return
+            if let onRunLoadingAction {
+                onRunLoadingAction(action)
+                return
+            }
+            // No loading callback wired up (e.g. a preview): fall through to the inline perform path.
         }
         onActionPerformed?(action.id)
         Task { @MainActor in

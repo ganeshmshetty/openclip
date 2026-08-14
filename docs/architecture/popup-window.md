@@ -72,8 +72,9 @@ public static func placeNearReleasePoint(
 
 ## Content Mode: Native AI Result Card
 
-All action/AI/status content renders **inside** the single `PopupPanel` — there is no second
-floating panel. A `.content` mode on `PopupModeStore` (mirroring `.search`) transforms the panel:
+Action and AI content render **inside** the single `PopupPanel` — there is no second
+floating panel; status feedback renders separately as a floating toast via `ToastPanelController`
+(see *Status* below). A `.content` mode on `PopupModeStore` (mirroring `.search`) transforms the panel:
 the bar is hidden and `PopupView.barContent` renders `AIResultCardView`, a native SwiftUI card
 that replaced the former interactive canvas.
 

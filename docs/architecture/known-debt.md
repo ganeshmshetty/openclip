@@ -137,24 +137,28 @@ areas; stale debt notes are worse than none.
 
 ## Concurrency
 
-- **Residual non-interruptible paths (documented, bounded).** Two spots remain that a hostile
-  or hung target can make block a cooperative-pool thread for up to `Constants.scriptTimeout`:
+- **Residual non-interruptible paths (documented).** Two spots remain that a hostile
+  or hung target can make block a background thread:
   (1) `SelectionRetrievalCoordinator.pressEditCopyMenu` fires an AXPress on the dedicated
   `com.openclip.ax-inspect` queue that the `pasteboardCopyTimeout` poll does not kill — the press
-  finishes on its own; (2) an async-mode
+  is uncancellable and may pin a queue worker thread against a hung target until the AX call
+  returns (never bounded by the copy timeout). The queue is concurrent, so a stuck press no longer
+  head-of-line-blocks later retrieval requests (see below);
+  (2) an async-mode
   JS script with a top-level *synchronous* infinite loop blocks inside `evaluateScript`, which the
   watchdog pump loop never reaches (the sync-evaluation gate covers only `isAsync == false`).
-  Both are bounded (a leaked thread is eventually reaped), never main-actor-blocking.
+  Neither path is main-actor-blocking.
 - **AX inspect is deadline-capped.** `SelectionRetrievalCoordinator.inspectWithWatchdog` races
   `AXElementInspector.inspect` against
   `Constants.axReadTimeout` (0.5 s) via the `OnceResume` once-gate, running the blocking snapshot on
   the dedicated `com.openclip.ax-inspect` queue; an unresponsive app returns
   `nil` to the retrieval chain instead of hanging the popup.
-- **The `ax-inspect` queue is head-of-line blocking.** All blocking AX work in the coordinator
-  (the inspect snapshot and the Edit ▸ Copy AXPress) shares one serial `com.openclip.ax-inspect`
-  queue, so a slow target ahead in the queue delays the next request's start. Each request still
-  gets its own `axReadTimeout` deadline race, but requests serialize behind one another rather than
-  running in parallel. (`PasteAvailabilityProbe` deliberately keeps its own `ax-probe` queue plus a
+- **The `ax-inspect` queue is concurrent, not head-of-line blocking.** All blocking AX work in the
+  coordinator (the inspect snapshot and the Edit ▸ Copy AXPress) shares one concurrent
+  `com.openclip.ax-inspect` queue: a hung AX call occupies one worker thread but later inspect
+  snapshots and presses start on other threads, so a slow or stuck target no longer delays the next
+  request's start. Each request still gets its own `axReadTimeout` deadline race.
+  (`PasteAvailabilityProbe` deliberately keeps its own `ax-probe` queue plus a
   probe-slot gate so a stalled probe never spawns extra blocked workers.)
 - **Subprocess pipe reads are non-blocking (hang fix).** `ShellProcessRunner` previously read stdout/
   stderr with blocking `readToEnd()` tasks and a `Task.sleep` watchdog — both can be starved, so a

@@ -95,14 +95,16 @@ public final class ToastPanelController {
     /// Centers the toast on the popup's anchor frame (falling back to the cursor), clamped to the
     /// visible frame.
     private func place(at size: CGSize) {
-        var origin: CGPoint
+        // Pick the screen from the anchor center (or the cursor when there is no anchor), never the
+        // centered toast origin: near screen edges the toast origin can land on the wrong screen.
+        let reference: CGPoint
         if let anchor = _lastAnchorFrame {
-            origin = CGPoint(x: anchor.midX - size.width / 2, y: anchor.midY - size.height / 2)
+            reference = CGPoint(x: anchor.midX, y: anchor.midY)
         } else {
-            let mouse = NSEvent.mouseLocation
-            origin = CGPoint(x: mouse.x - size.width / 2, y: mouse.y - size.height / 2)
+            reference = NSEvent.mouseLocation
         }
-        if let screen = NSScreen.screens.first(where: { $0.frame.contains(origin) }) ?? NSScreen.main {
+        var origin = CGPoint(x: reference.x - size.width / 2, y: reference.y - size.height / 2)
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(reference) }) ?? NSScreen.main {
             let vf = screen.visibleFrame
             origin.x = min(max(origin.x, vf.minX), vf.maxX - size.width)
             origin.y = min(max(origin.y, vf.minY), vf.maxY - size.height)

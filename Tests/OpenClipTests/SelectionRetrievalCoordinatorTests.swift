@@ -269,4 +269,94 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         )
         XCTAssertNil(result)
     }
+
+    // MARK: - Select-all (⌘A) gating for copy modes
+
+    func testSelectAllMenuCopySkippedOnNonTextElement() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil, role: "AXOutline") },
+            copyCapture: { _ in "should not copy rows" }
+        )
+        let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .lenient)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.apple.finder"),
+            policy: policy,
+            cursor: .unknown,
+            isSelectAll: true
+        )
+        XCTAssertNil(result)
+    }
+
+    func testSelectAllMenuCopySkippedOnNonTextElementWithoutSelection() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: "row text", role: "AXTable") },
+            copyCapture: { _ in "should not copy" }
+        )
+        let policy = AppPolicyContext(retrievalMode: .keyboardCopy)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.apple.mail"),
+            policy: policy,
+            cursor: .unknown,
+            isSelectAll: true
+        )
+        XCTAssertNil(result)
+    }
+
+    func testSelectAllMenuCopyProceedsOnTextElement() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil, role: "AXTextArea") },
+            copyCapture: { _ in "captured select-all text" }
+        )
+        let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .lenient)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.apple.Terminal"),
+            policy: policy,
+            cursor: .unknown,
+            isSelectAll: true
+        )
+        XCTAssertEqual(result?.text, "captured select-all text")
+    }
+
+    func testSelectAllDoesNotGateNonCopyModes() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: "selected text") }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown,
+            isSelectAll: true
+        )
+        XCTAssertEqual(result?.text, "selected text")
+    }
+
+    // MARK: - Blank-text filtering
+
+    func testRetrieveRejectsWhitespaceOnlySelection() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: "   \n  ") }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(result)
+    }
+
+    func testRetrieveRejectsWhitespaceOnlyCopyCapture() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil, role: "AXTextArea") },
+            copyCapture: { _ in "  " }
+        )
+        let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .lenient)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.apple.Terminal"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(result)
+    }
 }

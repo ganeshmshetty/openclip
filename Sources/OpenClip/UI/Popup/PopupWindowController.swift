@@ -712,6 +712,7 @@ public class PopupWindowController {
         case .showStatus(let feedback):
             toastController.show(feedback)
         case .openConfiguration(let request):
+            toastController.hide()
             presentConfiguration(for: request)
         case .keepVisible(let inner):
             await settleLoadingResult(inner, delivery: delivery)
@@ -725,6 +726,7 @@ public class PopupWindowController {
             do {
                 let delivered = await resolveDelivery(effect, delivery: delivery)
                 if case .paste = effect, case .copy = delivered {
+                    try await resultHandler.handle(delivered, in: panel?.contentView)
                     toastController.swapTo(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"))
                 } else {
                     try await resultHandler.handle(delivered, in: panel?.contentView)

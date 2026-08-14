@@ -55,7 +55,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         keyDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
             MainActor.assumeIsolated {
                 guard Self.isSelectionTrigger(keyCode: event.keyCode, flags: event.modifierFlags) else { return }
-                self?.handleSelectionTrigger()
+                let isSelectAll = Self.isSelectAllKey(keyCode: event.keyCode, flags: event.modifierFlags)
+                self?.handleSelectionTrigger(isSelectAll: isSelectAll)
             }
         }
     }
@@ -77,9 +78,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     
     // MARK: - Trigger detection
     
-    /// True when a key event is a selection gesture OpenClip should retrieve: ⌘A (select all) or
-    /// ⇧+arrow (extend/collapse selection). Only the exact modifier set matches, so plain typing and
-    /// app shortcuts that happen to use these keys don't fire. Persistent/non-gesture flags (`.capsLock`
+    /// True when a key event is a selection gesture OpenClip should retrieve: ⌘A (select all) or an
+    /// arrow key with Shift held (⇧/⌥⇧/⌘⇧+arrow extend/collapse selection). Only the select-all
+    /// gesture requires the exact `.command` set; arrow gestures fire whenever `.shift` is held with
+    /// optional `.option`/`.command`, so plain typing and unrelated shortcuts still don't match.
+    /// Persistent/non-gesture flags (`.capsLock`
     /// is held in every keyDown's modifierFlags while caps lock is engaged; `.function`, `.numericPad`,
     /// `.help` are device/hardware bits) are stripped before comparing.
     internal static func isSelectionTrigger(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
@@ -89,10 +92,19 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         if gestureFlags == .command {
             return keyCode == selectAllKeyCode
         }
-        if gestureFlags == .shift {
+        if gestureFlags.contains(.shift) {
             return arrowKeyCodes.contains(keyCode)
         }
         return false
+    }
+
+    /// True only for the exact ⌘A (select-all) gesture, using the same flag normalization as
+    /// `isSelectionTrigger`.
+    private static func isSelectAllKey(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
+        let gestureFlags = flags
+            .intersection(.deviceIndependentFlagsMask)
+            .subtracting([.capsLock, .function, .numericPad, .help])
+        return gestureFlags == .command && keyCode == selectAllKeyCode
     }
     
     // MARK: - Event handling
@@ -122,7 +134,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
-            let result = await SelectionRetrievalCoordinator().retrieve(for: appIdentity, policy: policy)
+            let result = await SelectionRetrievalCoordinator().retrieve(
+                for: appIdentity,
+                policy: policy,
+                cursor: CursorClassifier.current
+            )
             await self.deliverSelection(
                 result: result,
                 appIdentity: appIdentity,
@@ -134,10 +150,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         }
     }
     
-    /// Keyboard selection gesture: retrieve under the current frontmost app (no click filtering).
-    internal func handleSelectionTrigger() {
-        guard let app = NSWorkspace.shared.frontmostApplication else { return }
-        
+    /// Keyboard selection gesture: retrieve under the frontmost app resolved *after* the debounce
+    /// (a ⌘A/⇧+arrow in one app followed by a switch during the debounce window must target the
+    /// now-frontmost app). `isSelectAll` marks a ⌘A select-all, which copy-based retrieval modes
+    /// reject unless the focused element is text-bearing (row selection in Finder/Mail/table views).
+    internal func handleSelectionTrigger(isSelectAll: Bool) {
         debounceTask?.cancel()
         debounceTask = Task { @MainActor in
             do {
@@ -147,6 +164,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             if Task.isCancelled { return }
 
+            guard let app = NSWorkspace.shared.frontmostApplication else { return }
+
             if let bundleID = app.bundleIdentifier, AppFilter.isExcluded(bundleID: bundleID) {
                 return
             }
@@ -154,17 +173,35 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             let policy = RuleEngine.shared.resolvePolicies(for: app.bundleIdentifier ?? "")
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
-            let result = await SelectionRetrievalCoordinator().retrieve(for: appIdentity, policy: policy)
+            let result = await SelectionRetrievalCoordinator().retrieve(
+                for: appIdentity,
+                policy: policy,
+                cursor: CursorClassifier.current,
+                isSelectAll: isSelectAll
+            )
             if Task.isCancelled { return }
+            // For keyboard selections the mouse may be anywhere, so anchor the popup on the
+            // selection's accessibility bounds (converted to Cocoa screen coordinates) when the
+            // retrieval produced them, falling back to the mouse location otherwise.
+            let anchor = result?.bounds.map {
+                Self.cocoaPoint(fromAXPoint: CGPoint(x: $0.minX, y: $0.minY))
+            } ?? NSEvent.mouseLocation
             await self.deliverSelection(
                 result: result,
                 appIdentity: appIdentity,
                 policy: policy,
-                cursor: NSEvent.mouseLocation,
+                cursor: anchor,
                 mouseDownLocation: nil,
                 probeTask: probeTask
             )
         }
+    }
+    
+    /// Converts an accessibility-coordinate point (primary-display origin at the top-left, y
+    /// growing downward) into Cocoa screen coordinates (origin at the bottom-left).
+    private static func cocoaPoint(fromAXPoint point: CGPoint) -> CGPoint {
+        guard let main = NSScreen.main else { return point }
+        return CGPoint(x: point.x, y: main.frame.maxY - point.y)
     }
     
     /// Shared post-retrieval assembly: build the length-gated SelectionContext and notify
@@ -177,7 +214,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         mouseDownLocation: CGPoint?,
         probeTask: Task<Bool?, Never>?
     ) async {
-        guard let result, result.text.utf8.count <= Constants.maxTextLength else { return }
+        guard let result,
+              !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              result.text.utf8.count <= Constants.maxTextLength else { return }
         let context = SelectionContext(
             text: result.text,
             sourceApp: appIdentity,
