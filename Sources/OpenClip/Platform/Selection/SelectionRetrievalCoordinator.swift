@@ -166,10 +166,8 @@ public struct SelectionRetrievalCoordinator: Sendable {
             return AXTextControlStrategy.read(from: target)
 
         case .axWebArea:
-            // Web-area text can lag the focus snapshot, and the snapshot itself can go stale while
-            // the page settles. Re-inspect fresh on every retry (Global Constraint: resolve fresh
-            // on every call) so the loop actually observes the text appearing instead of re-reading
-            // a frozen target; return on the first settled read.
+            // Web-area text can lag the focus snapshot. Poll the element directly for the selection
+            // to appear, falling back to fresh inspection if the element is unavailable.
             var snapshot: AXElementInspector.Target? = target
             var attempts = 0
             while attempts < Constants.webAreaSettleMaxRetries {
@@ -179,6 +177,10 @@ public struct SelectionRetrievalCoordinator: Sendable {
                 attempts += 1
                 if attempts < Constants.webAreaSettleMaxRetries {
                     try? await Task.sleep(nanoseconds: UInt64(Constants.webAreaSettleInterval * 1_000_000_000))
+                    if let element = snapshot?.webArea ?? snapshot?.focusedElement,
+                       let result = AXWebAreaStrategy.pollFresh(from: element) {
+                        return result
+                    }
                     snapshot = await inspectWithWatchdog()
                 }
             }
@@ -269,11 +271,11 @@ public struct SelectionRetrievalCoordinator: Sendable {
 
     // MARK: - AX Edit ▸ Copy press (menu-copy mode)
 
-    /// Drops results whose text is empty or whitespace-only, so a selection with no usable text
+    /// Drops results whose text is empty, whitespace-only, or non-printable, so a selection with no usable text
     /// never reaches delivery. Every mode's result flows through here.
     private static func nonBlank(_ result: TextResult?) -> TextResult? {
         guard let result else { return nil }
-        guard !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        guard TextSanitizer.isSubstantial(result.text) else { return nil }
         return result
     }
 

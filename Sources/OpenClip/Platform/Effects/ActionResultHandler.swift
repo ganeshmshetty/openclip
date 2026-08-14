@@ -132,7 +132,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 pasteboard.setString(text, forType: .string)
                 postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
             } else {
-                let savedItems = backupPasteboard(pasteboard)
+                let snapshot = PasteboardSnapshot.capture(pasteboard)
                 pasteboard.clearContents()
                 pasteboard.setString(text, forType: .string)
                 let changeCountAfterSet = pasteboard.changeCount
@@ -142,7 +142,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                     try? await Task.sleep(nanoseconds: UInt64(Constants.pasteboardRestoreDelay * 1_000_000_000))
                     guard !Task.isCancelled else { return }
                     if pasteboard.changeCount == changeCountAfterSet {
-                        self.restorePasteboard(pasteboard, items: savedItems)
+                        snapshot.restore(to: pasteboard, transientMarkers: true)
                     }
                 }
             }
@@ -222,25 +222,6 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         content.body = body
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         try await center.add(request)
-    }
-
-    private func backupPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem] {
-        guard let items = pasteboard.pasteboardItems else { return [] }
-        return items.compactMap { item -> NSPasteboardItem? in
-            let copy = NSPasteboardItem()
-            for type in item.types {
-                if let data = item.data(forType: type) {
-                    copy.setData(data, forType: type)
-                }
-            }
-            return copy.types.isEmpty ? nil : copy
-        }
-    }
-
-    private func restorePasteboard(_ pasteboard: NSPasteboard, items: [NSPasteboardItem]) {
-        pasteboard.clearContents()
-        guard !items.isEmpty else { return }
-        pasteboard.writeObjects(items)
     }
 
     /// Posts a synthetic key press (key + modifiers from a `KeyPressSpec`) to the frontmost app.

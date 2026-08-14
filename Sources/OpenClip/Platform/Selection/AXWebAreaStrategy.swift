@@ -2,11 +2,14 @@
 // OpenClip
 //
 // Reads selected text and bounds for WebKit web areas from an
-// AXElementInspector.Target snapshot.
+// AXElementInspector.Target snapshot or directly from an AXUIElement.
 import ApplicationServices
 import Core
 
 public struct AXWebAreaStrategy {
+    /// Canonical AX attribute string for a web area's selected text marker range.
+    public static let selectedTextMarkerRangeAttribute = "AXSelectedTextMarkerRange"
+
     /// kAXSelectedTextMarkerRange → AXStringForTextMarkerRange; bounds via
     /// kAXBoundsForTextMarkerRangeParameterizedAttribute.
     public static func read(from target: AXElementInspector.Target) -> TextResult? {
@@ -17,13 +20,35 @@ public struct AXWebAreaStrategy {
            let markerRange = target.selectedTextMarkerRange,
            CFGetTypeID(markerRange) == AXTextMarkerRangeGetTypeID() {
             let range = markerRange as! AXTextMarkerRange
-            if let text = string(for: element, markerRange: range), !text.isEmpty {
+            if let text = string(for: element, markerRange: range), TextSanitizer.isSubstantial(text) {
                 return TextResult(text: text, bounds: bounds(for: element, markerRange: range))
             }
         }
 
-        guard let text = target.selectedText, !text.isEmpty else { return nil }
+        guard let text = target.selectedText, TextSanitizer.isSubstantial(text) else { return nil }
         return TextResult(text: text, bounds: target.bounds)
+    }
+
+    /// Re-queries `element` directly for fresh selection text and bounds, avoiding
+    /// full system-wide ancestor tree re-inspections during settle-retry polling.
+    public static func pollFresh(from element: AXUIElement) -> TextResult? {
+        var markerValue: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, selectedTextMarkerRangeAttribute as CFString, &markerValue) == .success,
+           let markerRange = markerValue,
+           CFGetTypeID(markerRange) == AXTextMarkerRangeGetTypeID() {
+            let range = markerRange as! AXTextMarkerRange
+            if let text = string(for: element, markerRange: range), TextSanitizer.isSubstantial(text) {
+                return TextResult(text: text, bounds: bounds(for: element, markerRange: range))
+            }
+        }
+
+        var textValue: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &textValue) == .success,
+           let text = textValue as? String, TextSanitizer.isSubstantial(text) {
+            return TextResult(text: text, bounds: nil)
+        }
+
+        return nil
     }
 
     /// Resolve a text marker range to its string via the

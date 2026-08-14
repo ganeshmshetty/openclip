@@ -116,6 +116,7 @@ public enum DefaultAppRules: Sendable {
     ]
     
     public static let menuCopyApps: [String] = [
+        "com.mitchellh.ghostty",
         "com.apple.Terminal",
         "com.googlecode.iterm2",
         "org.alacritty",
