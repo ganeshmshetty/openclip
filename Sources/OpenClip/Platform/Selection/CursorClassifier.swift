@@ -42,7 +42,9 @@ public struct CursorClassifier {
         return .unknown
     }
 
-    /// The cursor currently shown by the system.
+    /// The cursor currently shown by the system. `NSCursor.current` is main-thread-only by AppKit
+    /// contract (and @MainActor-annotated in newer SDKs), so the access is main-actor isolated.
+    @MainActor
     public static var current: CursorClass {
         classify(NSCursor.current.image)
     }
@@ -50,23 +52,47 @@ public struct CursorClassifier {
     // MARK: - Shape analysis
 
     /// Opacity mask of the image's alpha channel; `nil` when the image has no readable 32-bit
-    /// bitmap (e.g. system cursors like the plain arrow expose an empty image).
+    /// 8-bits-per-component bitmap (e.g. system cursors like the plain arrow expose an empty image)
+    /// or uses an unsupported alpha/byte-order layout.
     private static func alphaMask(of image: NSImage) -> [[Bool]]? {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
             cgImage.bitsPerPixel == 32,
+            cgImage.bitsPerComponent == 8,
             let data = cgImage.dataProvider?.data,
-            let pixels = CFDataGetBytePtr(data) else { return nil }
+            let pixels = CFDataGetBytePtr(data),
+            let alphaOffset = alphaByteOffset(cgImage) else { return nil }
         let width = cgImage.width
         let height = cgImage.height
         let bytesPerRow = cgImage.bytesPerRow
         guard width > 0, height > 0 else { return nil }
         var mask = [[Bool]](repeating: [Bool](repeating: false, count: width), count: height)
         for y in 0..<height {
-            for x in 0..<width where pixels[y * bytesPerRow + x * 4 + 3] > 24 {
+            for x in 0..<width where pixels[y * bytesPerRow + x * 4 + alphaOffset] > 24 {
                 mask[y][x] = true
             }
         }
         return mask
+    }
+
+    /// The byte offset of the alpha component within each 32-bit pixel for the explicitly handled
+    /// 8-bits-per-component layouts. `.first`/`.last` (including the premultiplied variants) decide
+    /// which end of the pixel the alpha lives on, and the byte order decides the physical byte
+    /// arrangement; any no-alpha layout or unhandled byte order returns `nil`.
+    private static func alphaByteOffset(_ cgImage: CGImage) -> Int? {
+        switch (cgImage.alphaInfo, cgImage.byteOrderInfo) {
+        case (.first, .orderDefault), (.first, .order32Big),
+             (.premultipliedFirst, .orderDefault), (.premultipliedFirst, .order32Big):
+            return 0  // ARGB (big-endian / default): alpha first in memory.
+        case (.last, .orderDefault), (.last, .order32Big),
+             (.premultipliedLast, .orderDefault), (.premultipliedLast, .order32Big):
+            return 3  // RGBA (big-endian / default): alpha last in memory.
+        case (.first, .order32Little), (.premultipliedFirst, .order32Little):
+            return 3  // BGRA (little-endian): alpha last in memory.
+        case (.last, .order32Little), (.premultipliedLast, .order32Little):
+            return 0  // ABGR (little-endian): alpha first in memory.
+        default:
+            return nil
+        }
     }
 
     /// Row-profile metrics that describe the cursor's silhouette.

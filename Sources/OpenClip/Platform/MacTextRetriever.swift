@@ -8,13 +8,18 @@ import Core
 
 // MARK: - MacTextRetriever
 
-internal final class MacTextRetriever: TextRetrieving, @unchecked Sendable {
+@MainActor
+internal final class MacTextRetriever: TextRetrieving {
 
     internal init() {}
 
     // MARK: - TextRetrieving
 
     internal func retrieveTextResult(for app: AppIdentity, policy: AppPolicyContext) async -> TextResult? {
-        await SelectionRetrievalCoordinator().retrieve(for: app, policy: policy)
+        await SelectionRetrievalCoordinator().retrieve(
+            for: app,
+            policy: policy,
+            cursor: CursorClassifier.current
+        )
     }
 }

@@ -16,10 +16,11 @@ public struct SelectionRetrievalCoordinator {
     public typealias CopyTrigger = PasteboardCopyEngine.CopyTrigger
     public typealias CopyCapture = @Sendable (CopyTrigger) async -> String?
 
-    /// Dedicated serial queue for blocking AX work (the inspect snapshot and the Edit ▸ Copy AXPress).
-    /// AX lookups must never run on the cooperative thread pool: a hung call would pin one of those
-    /// threads. Mirrors `PasteAvailabilityProbe.axProbeQueue`.
-    private static let axInspectQueue = DispatchQueue(label: "com.openclip.ax-inspect", qos: .userInitiated)
+    /// Dedicated concurrent queue for blocking AX work (the inspect snapshot and the Edit ▸ Copy
+    /// AXPress). Concurrent so a blocked accessibility call cannot prevent later inspectWithWatchdog
+    /// and pressEditCopyMenu work from starting. AX lookups must never run on the cooperative thread
+    /// pool: a hung call would pin one of those threads. Mirrors `PasteAvailabilityProbe.axProbeQueue`.
+    private static let axInspectQueue = DispatchQueue(label: "com.openclip.ax-inspect", qos: .userInitiated, attributes: .concurrent)
 
     private let inspect: TargetProvider
     private let browserRead: BrowserReader
@@ -48,12 +49,15 @@ public struct SelectionRetrievalCoordinator {
     }
 
     /// Reads the current selection for `app` under `policy`, or `nil` when the gate rejects the
-    /// context or no strategy produced text. `cursor` defaults to the live system cursor class;
-    /// `.unknown` (unrecognized cursor) never blocks.
+    /// context or no strategy produced text. `cursor` is the system cursor class (`CursorClassifier.current`,
+    /// which is `@MainActor`) captured by the caller; `.unknown` (unrecognized cursor) never blocks.
+    /// `isSelectAll` marks a ⌘A gesture: a copy-based read is then skipped unless the focused element
+    /// is text-bearing, so row selections in Finder/Mail/table views never fire a real copy.
     public func retrieve(
         for app: AppIdentity,
         policy: AppPolicyContext,
-        cursor: CursorClass = CursorClassifier.current
+        cursor: CursorClass,
+        isSelectAll: Bool = false
     ) async -> TextResult? {
         let target = await inspectWithWatchdog()
         guard let target else {
@@ -76,6 +80,16 @@ public struct SelectionRetrievalCoordinator {
 
         Log.selection.debug("coordinator: gate passed for \(app.bundleIdentifier ?? "unknown", privacy: .public); retrieving via \(policy.retrievalMode.rawValue, privacy: .public)")
 
+        return Self.nonBlank(await read(for: app, target: target, policy: policy, isSelectAll: isSelectAll))
+    }
+
+    /// Dispatches the resolved retrieval mode against the inspected target.
+    private func read(
+        for app: AppIdentity,
+        target: AXElementInspector.Target,
+        policy: AppPolicyContext,
+        isSelectAll: Bool
+    ) async -> TextResult? {
         switch policy.retrievalMode {
         case .axTextControl:
             return AXTextControlStrategy.read(from: target)
@@ -108,6 +122,13 @@ public struct SelectionRetrievalCoordinator {
             return AXWebAreaStrategy.read(from: target)
 
         case .menuCopy, .keyboardCopy:
+            // ⌘A select-all on a non-text element (row selection in Finder/Mail/table views) must
+            // never reach a copy-based read: the trigger would fire a real copy (AXPress Edit ▸ Copy
+            // or ⌘C) on rows, not text.
+            if isSelectAll, !Self.isTextBearing(target) {
+                Log.selection.debug("coordinator: select-all on non-text element; skipping copy-based retrieval")
+                return nil
+            }
             let hasConfirmedSelection = await MainActor.run { PasteboardCopyEngine.hasSelection(target.selectedText) }
             guard hasConfirmedSelection || !policy.gate.requireSelectionBeforeCopy else {
                 Log.selection.debug("coordinator: \(policy.retrievalMode.rawValue, privacy: .public) blocked; no confirmed selection and selection is required")
@@ -154,6 +175,25 @@ public struct SelectionRetrievalCoordinator {
 
     // MARK: - AX Edit ▸ Copy press (menu-copy mode)
 
+    /// Drops results whose text is empty or whitespace-only, so a selection with no usable text
+    /// never reaches delivery. Every mode's result flows through here.
+    private static func nonBlank(_ result: TextResult?) -> TextResult? {
+        guard let result else { return nil }
+        guard !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return result
+    }
+
+    /// Whether the focused element can hold a *text* selection (as opposed to a row/table selection
+    /// that ⌘A would expand). True for editable text roles, anything inside a web area, and any
+    /// element that already exposes a text selection range.
+    private static func isTextBearing(_ target: AXElementInspector.Target) -> Bool {
+        if target.selectedTextRange != nil { return true }
+        let textRoles: Set<String> = ["AXTextField", "AXTextArea", "AXSearchField", "AXComboBox", "AXWebArea"]
+        if let role = target.role, textRoles.contains(role) { return true }
+        if !target.containedInRoles.isDisjoint(with: textRoles) { return true }
+        return target.webArea != nil
+    }
+
     /// AXPress the Edit ▸ Copy menu item of `app`'s menu bar. Localization-agnostic title matching
     /// (an "Edit" top-level menu containing a "Copy" item), mirroring the retired
     /// `MacTextRetriever.strategyAXMenuCopy` walk. Best-effort: a failed lookup performs no press and
@@ -169,7 +209,7 @@ public struct SelectionRetrievalCoordinator {
             guard let title = copyTitle(item), title.localizedCaseInsensitiveContains("Edit") else { continue }
             let menuChildren = copyChildren(item) ?? []
             let menu = menuChildren.first ?? item
-            guard let menuItems = copyChildren(menu) else { return }
+            guard let menuItems = copyChildren(menu) else { continue }
             for copyCandidate in menuItems {
                 guard let copyTitle = copyTitle(copyCandidate), copyTitle.localizedCaseInsensitiveContains("Copy") else { continue }
                 AXUIElementPerformAction(copyCandidate, kAXPressAction as CFString)

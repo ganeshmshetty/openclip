@@ -43,7 +43,11 @@ public final class HotkeyManager {
                 var retrievedText = ""
                 var selectionBounds: CGRect? = nil
                 
-                if let result = await SelectionRetrievalCoordinator().retrieve(for: appIdentity, policy: policy) {
+                if let result = await SelectionRetrievalCoordinator().retrieve(
+                    for: appIdentity,
+                    policy: policy,
+                    cursor: CursorClassifier.current
+                ) {
                     retrievedText = result.text
                     selectionBounds = result.bounds
                 }

@@ -23,8 +23,8 @@ public struct PasteboardCopyEngine {
     ///   - timeout: Maximum seconds to wait for the pasteboard changeCount to advance.
     ///   - restoreDelay: Seconds to wait before restoring the archived original items on success.
     ///   - trigger: Performs the actual copy (AX menu press or keyboard event).
-    /// - Returns: The new string on the pasteboard, or `nil` when the changeCount never advances,
-    ///   the copied string is empty, or the copied string equals the archived original.
+    /// - Returns: The new string on the pasteboard, or `nil` when the changeCount never advances
+    ///   or the copied string is empty.
     public func captureString(
         pasteboard: NSPasteboard = .general,
         timeout: TimeInterval = Constants.pasteboardCopyTimeout,
@@ -32,7 +32,6 @@ public struct PasteboardCopyEngine {
         trigger: CopyTrigger
     ) async -> String? {
         let savedItems = Self.archive(pasteboard)
-        let archivedString = pasteboard.string(forType: .string)
         let initialChangeCount = pasteboard.changeCount
 
         trigger()
@@ -50,13 +49,12 @@ public struct PasteboardCopyEngine {
 
         guard pasteboard.changeCount != initialChangeCount else {
             Log.selection.debug("Copy engine: changeCount did not advance; restoring immediately")
-            Self.restore(pasteboard, items: savedItems)
             return nil
         }
 
         let text = pasteboard.string(forType: .string)
-        guard Self.hasSelection(text), text != archivedString else {
-            Log.selection.debug("Copy engine: copied string empty or unchanged; restoring immediately")
+        guard Self.hasSelection(text) else {
+            Log.selection.debug("Copy engine: copied string empty; restoring immediately")
             Self.restore(pasteboard, items: savedItems)
             return nil
         }

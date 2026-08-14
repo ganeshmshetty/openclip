@@ -21,10 +21,12 @@ public struct AXTextControlStrategy {
         guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &cfRange),
               cfRange.length > 0,
               cfRange.location >= 0,
-              cfRange.location + cfRange.length <= fullValue.count else { return nil }
+              cfRange.location + cfRange.length <= fullValue.utf16.count else { return nil }
 
-        let start = fullValue.index(fullValue.startIndex, offsetBy: cfRange.location)
-        let end = fullValue.index(start, offsetBy: cfRange.length)
+        // AXValueGetValue reports UTF-16 code-unit offsets, so index via the UTF-16 view rather
+        // than Character-based offsets (which would mis-slice multi-byte strings).
+        let start = String.Index(utf16Offset: cfRange.location, in: fullValue)
+        let end = String.Index(utf16Offset: cfRange.location + cfRange.length, in: fullValue)
         return TextResult(text: String(fullValue[start..<end]), bounds: target.bounds)
     }
 }

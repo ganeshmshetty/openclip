@@ -58,6 +58,21 @@ final class AXTextControlStrategyTests: XCTestCase {
         XCTAssertEqual(result?.bounds, bounds)
     }
 
+    func testReadTreatsRangeOffsetsAsUTF16CodeUnits() {
+        // "e\u{0301}" is 2 UTF-16 code units but 1 Character; a range selecting just it is
+        // location 0, length 2. Character-based offsets would over-read into the trailing "x".
+        let bounds = CGRect(x: 1, y: 2, width: 30, height: 4)
+        let result = AXTextControlStrategy.read(from: target(
+            selectedText: "",
+            value: "e\u{0301}x",
+            selectedTextRange: cfRangeBox(location: 0, length: 2),
+            bounds: bounds
+        ))
+
+        XCTAssertEqual(result?.text, "e\u{0301}")
+        XCTAssertEqual(result?.bounds, bounds)
+    }
+
     func testReadReturnsNilWhenSelectedTextIsEmpty() {
         let result = AXTextControlStrategy.read(from: target(
             selectedText: "",

@@ -93,9 +93,13 @@ public final class RuleEngine: ObservableObject, Sendable {
     
     public func resolvePolicies(for bundleIdentifier: String) -> AppPolicyContext {
         var context = AppPolicyContext.default
-        
+        var explicitRetrievalMode = false
+
         for rule in effectiveRules {
             if rule.bundleIdentifiers.contains(where: { matchPattern($0, with: bundleIdentifier) }) {
+                if rule.retrievalMode != nil {
+                    explicitRetrievalMode = true
+                }
                 context = AppPolicyContext(
                     denyPaste: rule.denyPaste ?? context.denyPaste,
                     useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy,
@@ -104,10 +108,11 @@ public final class RuleEngine: ObservableObject, Sendable {
                 )
             }
         }
-        
+
         // Legacy alias: a `use-menu-copy: true` rule that never set an explicit retrieval mode
-        // resolves to `.menuCopy`, preserving old rule files' behavior.
-        if context.useMenuCopy && context.retrievalMode == .axTextControl {
+        // resolves to `.menuCopy`, preserving old rule files' behavior. A matching rule that
+        // explicitly supplied `retrieval-mode` (even `.axTextControl`) opts out of the conversion.
+        if context.useMenuCopy && context.retrievalMode == .axTextControl && !explicitRetrievalMode {
             context = AppPolicyContext(
                 denyPaste: context.denyPaste,
                 useMenuCopy: context.useMenuCopy,
@@ -115,7 +120,7 @@ public final class RuleEngine: ObservableObject, Sendable {
                 gate: context.gate
             )
         }
-        
+
         return context
     }
     

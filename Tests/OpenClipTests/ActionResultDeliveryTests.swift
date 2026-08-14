@@ -124,6 +124,17 @@ final class ActionResultDeliveryTests: XCTestCase {
         return handler.results.first!
     }
 
+    /// Polls `toast.isLoading` until it flips false (the loading toast fades once the action's
+    /// result lands) or the deadline passes — a state-based wait instead of a fixed sleep, so the
+    /// assertion isn't flaky on slow machines.
+    @MainActor
+    private func awaitLoadingFade(toast: ToastPanelController) async {
+        let deadline = Date().addingTimeInterval(3.0)
+        while toast.isLoading && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+    }
+
     @MainActor
     private func shownController(resultHandler: ActionResultHandler,
                                  pasteProbe: PasteAvailabilityProbing,
@@ -274,7 +285,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         controller.runLoadingAction(SlowStubAction(), with: controllerCurrentContext(controller), forceCopy: false)
         XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
-        try await Task.sleep(nanoseconds: 150_000_000)
+        await awaitLoadingFade(toast: toast)
         XCTAssertFalse(toast.isLoading, "loading toast should fade once a description-free result lands")
     }
 
@@ -305,7 +316,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.runLoadingAction(MessageStubAction(), with: controllerCurrentContext(controller), forceCopy: false)
         XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
         XCTAssertEqual(toast.currentFeedback?.message, "Connecting to Music…")
-        try await Task.sleep(nanoseconds: 150_000_000)
+        await awaitLoadingFade(toast: toast)
         XCTAssertFalse(toast.isLoading, "loading toast should fade once a description-free result lands")
     }
 
