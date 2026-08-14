@@ -1,4 +1,5 @@
 import XCTest
+@testable import Core
 @testable import OpenClip
 
 final class DebugLogFilterTests: XCTestCase {

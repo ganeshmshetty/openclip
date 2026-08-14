@@ -3,17 +3,18 @@
 //
 // One captured log line: timestamp, subsystem category, level, and decoded message.
 import Foundation
+import Core
 
 /// A single captured `Log` line. `id` is a per-process sequential index assigned at
 /// append time by `DebugLogBuffer`; readers pass `id: 0`.
-struct DebugLogEntry: Equatable {
-    let id: Int
-    let date: Date
-    let category: String
-    let level: DebugLogLevel
-    let message: String
+public struct DebugLogEntry: Equatable, Sendable {
+    public let id: Int
+    public let date: Date
+    public let category: String
+    public let level: DebugLogLevel
+    public let message: String
 
-    init(id: Int = 0, date: Date, category: String, level: DebugLogLevel, message: String) {
+    public init(id: Int = 0, date: Date, category: String, level: DebugLogLevel, message: String) {
         self.id = id
         self.date = date
         self.category = category

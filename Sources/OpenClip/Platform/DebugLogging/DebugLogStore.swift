@@ -1,76 +1,40 @@
 // DebugLogStore.swift
 // OpenClip
 //
-// Polls the LogReading source on a background serial queue and accumulates entries
-// into a small ring buffer. Production instance: .shared (own-process unified-log
-// readback). No UI observes it today; the CLI and tests read snapshots directly.
-// Lifecycle: started ONLY by the --dump-logs CLI path (AppDelegate.runDumpLogsCommand).
-// Never start it in a normal app run — each poll is an OSLogStore scan that keeps
-// OSLogService.xpc churning CPU for the process's whole lifetime.
+// In-process debug log store backed directly by an in-memory LogSink ring buffer.
+// Zero OSLogStore polling, 0ms indexing delay, zero CPU overhead.
+
 import Foundation
+import Core
 
-/// Background-collecting debug log store. `@unchecked Sendable` is sound:
-/// `buffer` and `reader` are thread-safe, `cursor` is confined to the poll queue,
-/// and `timer` is only touched from the owner (start/stop).
-final class DebugLogStore: @unchecked Sendable {
-    static let shared: DebugLogStore = DebugLogStore(
-        reader: UnifiedLogReader(),
-        buffer: DebugLogBuffer(capacity: 500)
-    )
+public final class DebugLogStore: @unchecked Sendable {
+    public static let shared: DebugLogStore = {
+        let buffer = DebugLogBuffer(capacity: 500)
+        let store = DebugLogStore(buffer: buffer)
+        Log.addSink(buffer)
+        return store
+    }()
 
-    private let reader: any LogReading
-    private let buffer: DebugLogBuffer
-    private let pollInterval: TimeInterval
+    public let buffer: DebugLogBuffer
 
-    private let queue = DispatchQueue(label: "com.openclip.debuglog.poll")
-    private var timer: DispatchSourceTimer?
-    private var cursor: Date?
-
-    init(reader: any LogReading, buffer: DebugLogBuffer, pollInterval: TimeInterval = 1.0) {
-        self.reader = reader
+    public init(buffer: DebugLogBuffer) {
         self.buffer = buffer
-        self.pollInterval = pollInterval
     }
 
-    func start() {
-        guard timer == nil else { return }
-        let newTimer = DispatchSource.makeTimerSource(queue: queue)
-        newTimer.schedule(deadline: .now() + pollInterval, repeating: pollInterval)
-        newTimer.setEventHandler { [weak self] in
-            self?.poll()
-        }
-        newTimer.resume()
-        timer = newTimer
-    }
-
-    func stop() {
-        timer?.cancel()
-        timer = nil
-    }
+    /// Kept for API compatibility; no background timers are needed.
+    public func start() {}
+    public func stop() {}
 
     /// Chronological snapshot (oldest → newest).
-    func snapshot() -> [DebugLogEntry] {
+    public func snapshot() -> [DebugLogEntry] {
         buffer.snapshot()
     }
 
-    func entries(matching filter: DebugLogFilter) -> [DebugLogEntry] {
+    public func entries(matching filter: DebugLogFilter) -> [DebugLogEntry] {
         filter.apply(to: buffer.snapshot())
     }
 
-    func clear() {
+    public func clear() {
         buffer.clear()
-    }
-
-    /// Runs on `queue` only. A transient reader error must not kill the loop.
-    private func poll() {
-        do {
-            let newEntries = try reader.read(after: cursor)
-            if let lastDate = newEntries.last?.date {
-                cursor = lastDate
-            }
-            buffer.append(contentsOf: newEntries)
-        } catch {
-            // keep polling on the next tick
-        }
     }
 }
