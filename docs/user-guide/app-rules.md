@@ -23,8 +23,7 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
       "bundle-identifiers": ["com.example.menuapp"],
       "gate": {
         "skipRoles": [],
-        "allowedCursors": ["beam", "arrow", "pointingHand", "unknown"],
-        "requireSelectionBeforeCopy": false
+        "allowedCursors": ["beam", "arrow", "pointingHand", "unknown"]
       }
     }
   ]
@@ -40,7 +39,7 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 | `bundle-identifiers` | `bundleIdentifiers` | Array | Target application bundle ID strings, wildcards, or group aliases. |
 | `deny-paste` | `denyPaste` | Bool | Force text delivery to be a copy instead of a paste, even when the app advertises a Paste command (e.g. terminals). |
 | `retrieval-mode` | `retrievalMode` | Enum | Which mechanism reads the selection. One of `ax-text-control` (default), `ax-web-area`, `browser-script`, `menu-copy`, `keyboard-copy` (see below). |
-| `gate` | `gate` | Object | Pre-retrieval gate rules — `skipRoles` (AX roles never allowed to hold a selection), `allowedCursors` (cursor classes that suggest a text context), `requireSelectionBeforeCopy` (require an existing selection before a copy-mode read). See [`SelectionGatePolicy`](../../Sources/Core/Rules/SelectionGatePolicy.swift). |
+| `gate` | `gate` | Object | Pre-retrieval gate rules — `skipRoles` (AX roles never allowed to hold a selection) and `allowedCursors` (cursor classes that suggest a text context). See [`SelectionGatePolicy`](../../Sources/Core/Rules/SelectionGatePolicy.swift). |
 | `use-menu-copy` | `useMenuCopy` | Bool | **Legacy alias.** `true` resolves to `retrieval-mode: "menu-copy"` (read via the AX Edit ▸ Copy menu item) only when the rule sets no `retrieval-mode` and no higher-priority builtin retrieval mode applies (the app isn't already assigned a different mode by the builtin catalog). Prefer `retrieval-mode` in new rules. |
 
 ### `retrieval-mode` values
@@ -74,8 +73,8 @@ These modes match the per-app defaults assigned by the builtin catalog (`Default
 > but those apps now resolve `retrieval-mode: "keyboard-copy"` from the builtin catalog
 > (`DefaultAppRules.keyboardCopyApps`), so a rule that only sets `use-menu-copy: true` against the
 > macro no longer forces the AX-menu path for them — the higher-priority builtin mode wins. Only
-> the terminals (`com.apple.Terminal`, `com.googlecode.iterm2`, `com.mitchellh.ghostty`) default
-> to `menu-copy`.
+> the terminals (`com.apple.Terminal`, `com.googlecode.iterm2`) default to `menu-copy`; Ghostty
+> (`com.mitchellh.ghostty`) reads via AX (`ax-text-control`).
 
 ---
 

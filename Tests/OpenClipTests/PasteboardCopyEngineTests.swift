@@ -32,8 +32,8 @@ final class PasteboardCopyEngineTests: XCTestCase {
 
         XCTAssertEqual(captured, "Copied")
 
-        try await Task.sleep(nanoseconds: UInt64((Constants.pasteboardRestoreDelay + 0.1) * 1_000_000_000))
-
+        // The original is restored synchronously before captureString returns — no delayed cleanup
+        // task that could race and leave the copied text behind.
         XCTAssertEqual(pasteboard.string(forType: .string), "Original")
 
         let transient = pasteboard.data(forType: NSPasteboard.PasteboardType(rawValue: "org.nspasteboard.TransientType")) ?? Data()
@@ -72,6 +72,30 @@ final class PasteboardCopyEngineTests: XCTestCase {
 
         XCTAssertNil(captured)
         XCTAssertEqual(pasteboard.string(forType: .string), "Original")
+    }
+
+    func testTransientEmptyWriteThenTextIsCaptured() async {
+        pasteboard.clearContents()
+        pasteboard.setString("Original", forType: .string)
+
+        let engine = PasteboardCopyEngine()
+        let captured = await engine.captureString(
+            pasteboard: pasteboard,
+            timeout: 0.2,
+            restoreDelay: 0.05
+        ) {
+            // Simulate the PopClip-style race: the changeCount advances with empty content first,
+            // then the real selection lands a beat later.
+            Task { @MainActor in
+                pasteboard.clearContents()
+                pasteboard.setString("", forType: .string)
+                try? await Task.sleep(nanoseconds: 20_000_000)
+                pasteboard.clearContents()
+                pasteboard.setString("Real selection", forType: .string)
+            }
+        }
+
+        XCTAssertEqual(captured, "Real selection")
     }
 
     func testHasSelection() {

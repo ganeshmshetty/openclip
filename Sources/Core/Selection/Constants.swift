@@ -91,6 +91,10 @@ public enum Constants {
     /// Hard deadline (seconds) for reading the clipboard after issuing a Cmd+C copy.
     public static let pasteboardCopyTimeout: TimeInterval = 0.6
 
+    /// Longer copy-poll deadline for Safari, whose selected-text copy path is observably slower to
+    /// stabilize than other apps.
+    public static let safariPasteboardCopyTimeout: TimeInterval = 1.0
+
     /// Poll interval (seconds) while waiting for the AX web-area text to settle after focus.
     public static let webAreaSettleInterval: TimeInterval = 0.05
 

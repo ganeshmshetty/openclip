@@ -78,19 +78,73 @@ public struct SelectionRetrievalCoordinator {
             return nil
         }
 
+        // ⌘A select-all on a non-text element (row selection in Finder/Mail/table views) must never
+        // produce text: AX reads would surface the row labels, and a copy trigger would fire a real
+        // copy on rows, not text. Guard before the cascade so every strategy, not just copy modes,
+        // honors it.
+        if isSelectAll, !Self.isTextBearing(target) {
+            Log.selection.debug("coordinator: select-all on non-text element; skipping retrieval")
+            return nil
+        }
+
         Log.selection.debug("coordinator: gate passed for \(app.bundleIdentifier ?? "unknown", privacy: .public); retrieving via \(policy.retrievalMode.rawValue, privacy: .public)")
 
-        return Self.nonBlank(await read(for: app, target: target, policy: policy, isSelectAll: isSelectAll))
+        return Self.nonBlank(await read(for: app, target: target, policy: policy))
     }
 
-    /// Dispatches the resolved retrieval mode against the inspected target.
+    /// Resolves an ordered cascade of strategies from the inspected target and the app, then returns
+    /// the first non-blank result. Unlike a single fixed `retrievalMode`, a failed primary strategy
+    /// falls through to a copy-based strategy, so the target app itself can produce the selection
+    /// when Accessibility cannot read it (the SelectedTextKit auto model).
     private func read(
         for app: AppIdentity,
         target: AXElementInspector.Target,
-        policy: AppPolicyContext,
-        isSelectAll: Bool
+        policy: AppPolicyContext
     ) async -> TextResult? {
-        switch policy.retrievalMode {
+        for strategy in strategyCascade(for: policy) {
+            if let result = await run(strategy, app: app, target: target) {
+                return result
+            }
+        }
+        return nil
+    }
+
+    /// Canonical fallback order. A policy selects a *preferred* strategy; retrieval runs that
+    /// strategy followed by everything below it in this chain, so a failed read always degrades to
+    /// a copy-based read. `browserScript` sits above `axWebArea` so a browser's preferred JS read
+    /// still falls back to the AX web-area read before any copy. An app with no rule uses
+    /// `.axTextControl` (index 0) and thus the full chain — the "auto" behavior. A rule never
+    /// reaches strategies above its preferred entry point.
+    private static let retrievalChain: [RetrievalStrategy] = [
+        .axTextControl,
+        .browserScript,
+        .axWebArea,
+        .menuCopy,
+        .keyboardCopy
+    ]
+
+    private static let browserBundleIDs: Set<String> = Set(
+        DefaultAppRules.safariGroup
+            + DefaultAppRules.chromiumGroup
+            + DefaultAppRules.firefoxGroup
+            + DefaultAppRules.arcGroup
+    )
+
+    /// Returns the suffix of the chain starting at `policy.retrievalMode`'s preferred strategy.
+    private func strategyCascade(for policy: AppPolicyContext) -> [RetrievalStrategy] {
+        let preferred = RetrievalStrategy(mode: policy.retrievalMode)
+        guard let index = Self.retrievalChain.firstIndex(of: preferred) else {
+            return Self.retrievalChain
+        }
+        return Array(Self.retrievalChain[index...])
+    }
+
+    private func run(
+        _ strategy: RetrievalStrategy,
+        app: AppIdentity,
+        target: AXElementInspector.Target
+    ) async -> TextResult? {
+        switch strategy {
         case .axTextControl:
             return AXTextControlStrategy.read(from: target)
 
@@ -114,30 +168,24 @@ public struct SelectionRetrievalCoordinator {
             return nil
 
         case .browserScript:
-            if let bundleIdentifier = app.bundleIdentifier,
-               let browserResult = await browserRead(bundleIdentifier),
+            // Only browsers can answer over the JS bridge; a non-browser would just burn an osascript
+            // subprocess and a timeout before falling through.
+            guard let bundleIdentifier = app.bundleIdentifier,
+                  Self.browserBundleIDs.contains(bundleIdentifier) else { return nil }
+            if let browserResult = await browserRead(bundleIdentifier),
                !browserResult.text.isEmpty {
                 return TextResult(text: browserResult.text, bounds: target.bounds)
             }
-            return AXWebAreaStrategy.read(from: target)
+            return nil
 
         case .menuCopy, .keyboardCopy:
-            // ⌘A select-all on a non-text element (row selection in Finder/Mail/table views) must
-            // never reach a copy-based read: the trigger would fire a real copy (AXPress Edit ▸ Copy
-            // or ⌘C) on rows, not text.
-            if isSelectAll, !Self.isTextBearing(target) {
-                Log.selection.debug("coordinator: select-all on non-text element; skipping copy-based retrieval")
-                return nil
-            }
-            let hasConfirmedSelection = await MainActor.run { PasteboardCopyEngine.hasSelection(target.selectedText) }
-            guard hasConfirmedSelection || !policy.gate.requireSelectionBeforeCopy else {
-                Log.selection.debug("coordinator: \(policy.retrievalMode.rawValue, privacy: .public) blocked; no confirmed selection and selection is required")
-                return nil
-            }
+            // The copy engine is the source of truth for whether a selection existed: it returns nil
+            // when the clipboard changeCount never advances or the copied string is empty, so a copy
+            // on an empty selection fails cleanly instead of being pre-gated by a (possibly stale)
+            // AX selection read.
             let trigger: CopyTrigger
-            switch policy.retrievalMode {
+            switch strategy {
             case .menuCopy:
-                // AXPress Edit ▸ Copy off the cooperative pool while the pasteboard engine polls.
                 trigger = { Self.axInspectQueue.async { Self.pressEditCopyMenu(app: target.focusedApp) } }
             case .keyboardCopy:
                 trigger = { SessionEventTapPoster().postKey(keyCode: Constants.copyVirtualKey, flags: .maskCommand) }
@@ -146,6 +194,25 @@ public struct SelectionRetrievalCoordinator {
             }
             guard let text = await copyCapture(trigger) else { return nil }
             return TextResult(text: text, bounds: target.bounds)
+        }
+    }
+
+    /// A leaf strategy in the fallback cascade.
+    private enum RetrievalStrategy: Equatable {
+        case axTextControl
+        case axWebArea
+        case browserScript
+        case menuCopy
+        case keyboardCopy
+
+        init(mode: SelectionRetrievalMode) {
+            switch mode {
+            case .axTextControl: self = .axTextControl
+            case .axWebArea: self = .axWebArea
+            case .browserScript: self = .browserScript
+            case .menuCopy: self = .menuCopy
+            case .keyboardCopy: self = .keyboardCopy
+            }
         }
     }
 
@@ -194,39 +261,9 @@ public struct SelectionRetrievalCoordinator {
         return target.webArea != nil
     }
 
-    /// AXPress the Edit ▸ Copy menu item of `app`'s menu bar. Localization-agnostic title matching
-    /// (an "Edit" top-level menu containing a "Copy" item), mirroring the retired
-    /// `MacTextRetriever.strategyAXMenuCopy` walk. Best-effort: a failed lookup performs no press and
-    /// the pasteboard capture times out.
+    /// AXPress the Edit ▸ Copy menu item of `app`'s menu bar via the robust menu navigator.
+    /// Best-effort: a failed lookup performs no press and the pasteboard capture times out.
     private static func pressEditCopyMenu(app: AXUIElement?) {
-        guard let app else { return }
-        var menuBarRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute as CFString, &menuBarRef) == .success,
-              let menuBarRef, CFGetTypeID(menuBarRef) == AXUIElementGetTypeID(),
-              let children = copyChildren(menuBarRef as! AXUIElement) else { return }
-
-        for item in children {
-            guard let title = copyTitle(item), title.localizedCaseInsensitiveContains("Edit") else { continue }
-            let menuChildren = copyChildren(item) ?? []
-            let menu = menuChildren.first ?? item
-            guard let menuItems = copyChildren(menu) else { continue }
-            for copyCandidate in menuItems {
-                guard let copyTitle = copyTitle(copyCandidate), copyTitle.localizedCaseInsensitiveContains("Copy") else { continue }
-                AXUIElementPerformAction(copyCandidate, kAXPressAction as CFString)
-                return
-            }
-        }
-    }
-
-    private static func copyTitle(_ element: AXUIElement) -> String? {
-        var ref: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &ref) == .success else { return nil }
-        return ref as? String
-    }
-
-    private static func copyChildren(_ element: AXUIElement) -> [AXUIElement]? {
-        var ref: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &ref) == .success else { return nil }
-        return ref as? [AXUIElement]
+        AXMenuNavigator.press(.copy, in: app)
     }
 }

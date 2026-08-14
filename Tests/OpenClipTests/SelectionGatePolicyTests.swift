@@ -5,13 +5,11 @@ final class SelectionGatePolicyTests: XCTestCase {
     func testDefaultGateSkipsAXButtonAndAllowsUnknown() {
         XCTAssertTrue(SelectionGatePolicy.default.skipRoles.contains("AXButton"))
         XCTAssertTrue(SelectionGatePolicy.default.allowedCursors.contains(.unknown))
-        XCTAssertTrue(SelectionGatePolicy.default.requireSelectionBeforeCopy)
     }
 
-    func testLenientGateHasNoSkippedRolesAndDoesNotRequireSelection() {
+    func testLenientGateHasNoSkippedRoles() {
         XCTAssertTrue(SelectionGatePolicy.lenient.skipRoles.isEmpty)
         XCTAssertEqual(SelectionGatePolicy.lenient.allowedCursors, [.beam, .arrow, .pointingHand, .unknown])
-        XCTAssertFalse(SelectionGatePolicy.lenient.requireSelectionBeforeCopy)
     }
 
     func testSelectionRetrievalModeCodableRoundTripsAllCases() throws {

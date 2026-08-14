@@ -2,23 +2,21 @@
 // OpenClip
 //
 // Gates whether OpenClip should attempt selection retrieval in a given app: skip UI roles
-// that cannot hold text, only read when the cursor class suggests a text context, and require
-// an existing selection before copying. Pure Core — no AppKit.
+// that cannot hold text and only read when the cursor class suggests a text context. Pure Core —
+// no AppKit. Copy-based reads are no longer pre-gated here; the pasteboard capture engine decides
+// whether a selection actually existed by observing the clipboard change.
 import Foundation
 
 public struct SelectionGatePolicy: Codable, Sendable, Equatable {
     public let skipRoles: Set<String>
     public let allowedCursors: Set<CursorClass>
-    public let requireSelectionBeforeCopy: Bool
 
     public init(
         skipRoles: Set<String> = [],
-        allowedCursors: Set<CursorClass> = [.beam, .arrow, .pointingHand, .unknown],
-        requireSelectionBeforeCopy: Bool = true
+        allowedCursors: Set<CursorClass> = [.beam, .arrow, .pointingHand, .unknown]
     ) {
         self.skipRoles = skipRoles
         self.allowedCursors = allowedCursors
-        self.requireSelectionBeforeCopy = requireSelectionBeforeCopy
     }
 
     public static let `default` = SelectionGatePolicy(
@@ -28,14 +26,12 @@ public struct SelectionGatePolicy: Codable, Sendable, Equatable {
             "AXPopUpButton", "AXRadioButton", "AXScrollBar", "AXSlider", "AXTimeField",
             "AXToolbar", "AXValueIndicator"
         ],
-        allowedCursors: [.beam, .arrow, .pointingHand, .unknown],
-        requireSelectionBeforeCopy: true
+        allowedCursors: [.beam, .arrow, .pointingHand, .unknown]
     )
 
     public static let lenient = SelectionGatePolicy(
         skipRoles: [],
-        allowedCursors: [.beam, .arrow, .pointingHand, .unknown],
-        requireSelectionBeforeCopy: false
+        allowedCursors: [.beam, .arrow, .pointingHand, .unknown]
     )
 }
 

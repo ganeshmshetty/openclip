@@ -171,6 +171,13 @@ areas; stale debt notes are worse than none.
 
 ## Selection Retrieval
 
+- **The coordinator runs a single canonical strategy chain, not per-mode switch routing.**
+  `retrievalMode` picks the entry point; retrieval then runs that strategy and every strategy below
+  it in the chain (`ax-text-control → browser-script → ax-web-area → menu-copy → keyboard-copy`).
+  An app with no rule starts at the top (auto). This mirrors SelectedTextKit's `.auto` model and
+  removes the old `requireSelectionBeforeCopy` pre-gate — the copy engine decides whether a
+  selection existed by observing the clipboard change. The chain is unit-tested with fixture
+  targets, but the live per-app ordering is not exercised by an integration test.
 - **Web-area settle-retry exhaustion is untested.** The `.axWebArea` retry loop
   (`webAreaSettleMaxRetries` = 6, re-inspecting fresh each attempt) returns `nil` when the text
   never appears, but the exhausted path has no dedicated test — the loop is exercised only through

@@ -201,8 +201,7 @@ final class RuleEngineTests: XCTestCase {
                     "bundle-identifiers": ["com.lenient.app"],
                     "gate": {
                         "skipRoles": [],
-                        "allowedCursors": ["beam", "arrow", "pointingHand", "unknown"],
-                        "requireSelectionBeforeCopy": false
+                        "allowedCursors": ["beam", "arrow", "pointingHand", "unknown"]
                     }
                 }
             ]
