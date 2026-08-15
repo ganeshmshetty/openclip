@@ -117,7 +117,7 @@ public struct InstalledExtensionsView: View {
                                     .foregroundColor(.orange)
                             }
                             if let gated = package.gated {
-                                Button(action: { trustReview = TrustReviewTarget(packageID: package.packageID) }) {
+                                Button(action: { trustReview = TrustReviewTarget(packageID: package.packageID, reason: gated.reason) }) {
                                     Label(reviewLabel(for: gated.reason), systemImage: "eye")
                                         .font(.caption)
                                 }
@@ -155,7 +155,7 @@ public struct InstalledExtensionsView: View {
         }
         .padding(12)
         .sheet(item: $trustReview) { target in
-            TrustModelView(model: TrustModelViewModel.load(packageID: target.packageID))
+            TrustModelView(model: TrustModelViewModel.load(packageID: target.packageID, reason: target.reason))
         }
     }
 

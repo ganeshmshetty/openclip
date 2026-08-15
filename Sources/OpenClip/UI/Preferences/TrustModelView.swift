@@ -10,6 +10,7 @@ import Core
 
 struct TrustReviewTarget: Identifiable {
     let packageID: String
+    let reason: ExtensionGateReason?
     var id: String { packageID }
 }
 
@@ -35,12 +36,12 @@ public final class TrustModelViewModel: ObservableObject {
         self.reason = reason
     }
 
-    static func load(packageID: String, in directory: URL = Constants.extensionsDirectory) -> TrustModelViewModel {
+    static func load(packageID: String, reason: ExtensionGateReason? = nil, in directory: URL = Constants.extensionsDirectory) -> TrustModelViewModel {
         let settings = DefaultSettingsStore.shared
         let manifest = ExtensionManifestStore.manifest(forPackageID: packageID, in: directory)
         let trustState = ExtensionTrustState(rawValue: settings.get(.extensionTrust)[packageID] ?? "")
         let source = settings.get(.extensionSources)[packageID]
-        return TrustModelViewModel(packageID: packageID, manifest: manifest, source: source, trustState: trustState, reason: nil)
+        return TrustModelViewModel(packageID: packageID, manifest: manifest, source: source, trustState: trustState, reason: reason)
     }
 }
 

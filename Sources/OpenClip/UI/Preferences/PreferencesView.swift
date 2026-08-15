@@ -213,14 +213,15 @@ public struct PreferencesView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenTrustModel)) { notification in
             guard let packageID = notification.userInfo?["packageID"] as? String else { return }
+            let reason = notification.userInfo?["reason"] as? ExtensionGateReason
             actionsSubTab = .installed
-            trustReview = TrustReviewTarget(packageID: packageID)
+            trustReview = TrustReviewTarget(packageID: packageID, reason: reason)
         }
         .sheet(item: $configuringAction) { item in
             EditActionSheet(action: item.action, configurationRequest: item.request)
         }
         .sheet(item: $trustReview) { target in
-            TrustModelView(model: TrustModelViewModel.load(packageID: target.packageID))
+            TrustModelView(model: TrustModelViewModel.load(packageID: target.packageID, reason: target.reason))
         }
     }
     
