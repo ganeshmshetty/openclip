@@ -512,7 +512,7 @@ public struct PopupView: View {
                 chevronButton(systemImage: "chevron.right", label: "Next page") { currentPage += 1 }
             }
 
-            // Action-search affordance: magnifyingglass glyph. Kept outside
+            // Action-search affordance: command glyph. Kept outside
             // the paged actions so it always sits at the far-right edge on every page.
             let isHovered = hoveredTarget == .search
             let affordanceForeground = PopupThemeModel.restForeground(for: effectiveTheme)
@@ -520,7 +520,7 @@ public struct PopupView: View {
             Button {
                 onEnterSearch()
             } label: {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: "command")
                     .font(.system(size: 13 * scale, weight: .medium))
                     .foregroundColor(isHovered ? .white : affordanceForeground)
                     .frame(width: buttonWidth, height: barButtonHeight)

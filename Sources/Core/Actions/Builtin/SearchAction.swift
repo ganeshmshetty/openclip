@@ -7,8 +7,8 @@ import Foundation
 public struct SearchAction: ConfigurableAction {
     public let id = "builtin.search"
     public let title = "Search"
-    public let icon = ActionIcon.symbol("globe")
-    public let preferenceIconName = "globe"
+    public let icon = ActionIcon.symbol("magnifyingglass")
+    public let preferenceIconName = "magnifyingglass"
     
     public var actionOptions: [ExtensionOption] {
         [
