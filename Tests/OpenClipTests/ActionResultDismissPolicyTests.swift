@@ -27,16 +27,31 @@ final class ActionResultDismissPolicyTests: XCTestCase {
         XCTAssertTrue(ActionResult.failure(DummyError()).dismissesPopup)
     }
 
-    func testPresentationResultsKeepPopup() {
-        XCTAssertFalse(ActionResult.toast(.init(message: "ok", style: .success)).dismissesPopup)
-        XCTAssertFalse(ActionResult.toast(.init(message: "boom", style: .error)).dismissesPopup)
+    func testToastDismissesPopupByDefault() {
+        XCTAssertTrue(ActionResult.toast(.init(message: "ok", style: .success)).dismissesPopup)
+        XCTAssertTrue(ActionResult.toast(.init(message: "boom", style: .error)).dismissesPopup)
+        XCTAssertFalse(ActionResult.toast(.init(message: "stick", style: .info, keepVisible: true)).dismissesPopup)
     }
 
-    // MARK: - Decision 9: errors surface as .toast(.error) and the popup stays
+    // MARK: - Decision 9: errors surface as .toast(.error), a dismissing toast
 
-    func testErrorStatusKeepsPopup() {
+    func testErrorToastDismissesPopup() {
         let status = StatusFeedback(error: DummyError())
         XCTAssertEqual(status.style, .error)
-        XCTAssertFalse(ActionResult.toast(status).dismissesPopup)
+        XCTAssertTrue(ActionResult.toast(status).dismissesPopup)
+    }
+
+    func testKeepVisibleToastInSequenceForcesPopupOpen() {
+        let seq = ActionResult.sequence([.toast(.init(message: "working", style: .info, keepVisible: true)), .copy("x")])
+        XCTAssertFalse(seq.dismissesPopup)
+        let dismiss = ActionResult.sequence([.toast(.init(message: "done", style: .success)), .copy("x")])
+        XCTAssertTrue(dismiss.dismissesPopup)
+    }
+
+    func testContainsToast() {
+        XCTAssertTrue(ActionResult.toast(.init(message: "t", style: .info)).containsToast)
+        XCTAssertTrue(ActionResult.sequence([.copy("x"), .toast(.init(message: "t", style: .info))]).containsToast)
+        XCTAssertFalse(ActionResult.copy("x").containsToast)
+        XCTAssertFalse(ActionResult.sequence([.copy("x"), .paste("y")]).containsToast)
     }
 }

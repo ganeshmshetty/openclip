@@ -36,7 +36,8 @@ public indirect enum ActionResult: Sendable {
 
     // MARK: - Presentation results (presenter-owned; the effect handler treats these as no-ops)
 
-    /// Surface a transient status (success/error/info) as a banner or corner badge. Keeps the popup open.
+    /// Surface a transient toast (success/error/info) as a banner or corner badge. Dismisses the
+    /// popup by default; `keepVisible` opts out.
     case toast(StatusFeedback)
     /// Hide the popup and ask the user to configure the named action (opens Preferences → EditActionSheet).
     case openConfiguration(ConfigurationRequest)
@@ -58,17 +59,27 @@ public indirect enum ActionResult: Sendable {
 
 extension ActionResult {
     /// Whether the popup should hide after this top-level result is handled. Computed once on the
-    /// top-level result (decision 8): `.toast` keeps the popup up, and a `.sequence` dismisses
-    /// only when non-empty and every item dismisses. Everything else (leaf effects,
-    /// `.openConfiguration`) dismisses.
+    /// top-level result (decision 8): a `.toast` dismisses the popup by default (`keepVisible` opts
+    /// out), and a `.sequence` dismisses only when non-empty and every item dismisses. Everything
+    /// else (leaf effects, `.openConfiguration`) dismisses.
     public var dismissesPopup: Bool {
         switch self {
-        case .toast:
-            return false
+        case .toast(let feedback):
+            return !feedback.keepVisible
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)
         default:
             return true // includes openConfiguration: hide bar, then open Preferences
+        }
+    }
+
+    /// True when this result (or any item of a `.sequence`) is a `.toast` — the presenter uses this
+    /// to suppress the delivery companion toast so a script toast wins (one toast per run).
+    public var containsToast: Bool {
+        switch self {
+        case .toast: return true
+        case .sequence(let items): return items.contains(where: \.containsToast)
+        default: return false
         }
     }
 }
