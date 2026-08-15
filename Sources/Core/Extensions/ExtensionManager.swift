@@ -203,6 +203,12 @@ public final class ExtensionManager: Sendable {
         await loadExtensions(from: targetDir)
     }
     
+    /// Test-only seam exposing the private scan over a directory. The real path funnels through
+    /// `loadExtensions` (which applies trust gating); tests use this to obtain raw scanned actions.
+    nonisolated public static func scanActionsForTest(in url: URL, factory: (any ActionFactory)? = nil) async -> [any Action] {
+        await scanDirectory(url, factory: factory)
+    }
+
     nonisolated private static func scanDirectory(_ extensionsURL: URL, factory: (any ActionFactory)? = nil) async -> [any Action] {
         var newActions: [any Action] = []
         let fileManager = FileManager.default
@@ -290,14 +296,23 @@ public final class ExtensionManager: Sendable {
                 let title = actionMeta.title ?? manifest.name
                 let icon = parseIcon(actionMeta.icon, directoryURL: directoryURL)
                 let regex = actionMeta.regex
+                // Stamp the manifest-identifier chrome here just like the factory path, so the
+                // trust gate (which groups packages by `chrome.source`) sees the package id
+                // (`com.t.first`), not the uniform action id (`com.t.first.action.0`).
+                let extensionChrome = ActionChrome(
+                    badge: .extensionPkg(manifest.name),
+                    rowStyle: .standard,
+                    popupBehavior: .perform,
+                    source: .extensionPkg(packageID: manifest.identifier)
+                )
                 
                 if let urlTemplate = actionMeta.url {
-                    let action = URLTemplateAction(id: actionId, title: title, icon: icon, urlTemplate: urlTemplate, regexPattern: regex)
+                    let action = URLTemplateAction(id: actionId, title: title, icon: icon, urlTemplate: urlTemplate, regexPattern: regex, chrome: extensionChrome)
                     actions.append(action)
                 } else {
                     let scriptName = actionMeta.script ?? Constants.defaultScriptName
                     let scriptURL = directoryURL.appendingPathComponent(scriptName)
-                    let action = ScriptAction(id: actionId, title: title, icon: icon, scriptURL: scriptURL)
+                    let action = ScriptAction(id: actionId, title: title, icon: icon, scriptURL: scriptURL, chrome: extensionChrome)
                     actions.append(action)
                 }
             }
