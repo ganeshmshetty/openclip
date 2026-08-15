@@ -132,7 +132,13 @@ areas; stale debt notes are worse than none.
   first frame (probe-before-render, nothing cached), so a same-app focus-context change re-probes
   cleanly. The click-intent capture reads
   only ⇧ (not ⌘/⌥) and only sets it on mouse-down; a keyboard-driven run (search palette Enter) uses
-  the last left-click intent.
+  the last left-click intent. Since Task 4, each action's declared `Action.delivery` (a distinct
+  secondary outcome + per-click `primaryToast`/`secondaryToast`) is snapshotted alongside the click
+  intent and fed into `resolve`, and the returned tuple's toast is rendered directly — the manual
+  `isDowngradedToCopy`/`isCopyDefinition` inline toast detection was removed in favor of the resolved
+  `.toast`. Only the SwiftUI inline perform path snapshots via the new `onWillPerformAction` closure;
+  the completion-button paste path (`PopupView` `onResult(.paste(word))`) still uses the last
+  `pendingDelivery` (normally nil, since `hide()` clears it) rather than its own snapshot.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 

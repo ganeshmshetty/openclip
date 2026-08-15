@@ -44,6 +44,13 @@ public class PopupWindowController {
     /// paste-vs-copy delivery decision (`ActionResultDelivery`).
     private var pendingClickIntent: ActionResultDelivery.ClickIntent = .primary
 
+    /// The most recent bar/palette action's declared delivery (secondary outcome + per-click
+    /// toasts). Set by the perform paths (`onWillPerformAction`, `runAction`,
+    /// `runLoadingAction`) right before the action runs and reset by hide(). Snapshotted into a
+    /// `DeliveryContext` with `pendingClickIntent`, so `resolveDelivery` sees the action's declared
+    /// delivery — never read as live state after an await.
+    private var pendingDelivery: ActionDelivery? = nil
+
     /// Probes whether the frontmost app supports Paste. Injected for tests.
     private let pasteProbe: PasteAvailabilityProbing
 
@@ -134,6 +141,9 @@ public class PopupWindowController {
             },
             onActionPerformed: { [weak self] actionID in
                 self?.usageStore.record(actionID)
+            },
+            onWillPerformAction: { [weak self] action in
+                self?.pendingDelivery = action.delivery
             },
             onRunLoadingAction: { [weak self] action in
                 guard let self, let context = self.currentActionContext else { return }
@@ -368,8 +378,10 @@ public class PopupWindowController {
         modeStore.aiResult = nil
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
-        // runs and any later snapshot read the last intent; force-copy must never persist).
+        // runs and any later snapshot read the last intent; force-copy must never persist). The
+        // declared delivery is snapshotted per-perform, so a stale value must not leak either.
         pendingClickIntent = .primary
+        pendingDelivery = nil
         isRightClickInProgress = false
         modeStore.mode = .actions
         modeStore.scope = nil
@@ -549,6 +561,10 @@ public class PopupWindowController {
     struct DeliveryContext {
         let policy: AppPolicyContext
         let clickIntent: ActionResultDelivery.ClickIntent
+        /// The action's declared delivery (secondary outcome + per-click toasts), snapshotted from
+        /// the performing action right before the perform. `nil` means no declaration: the unified
+        /// decision derives the secondary and default toasts exactly as before.
+        let delivery: ActionDelivery?
         /// The target app the result will be delivered to. Captured synchronously with the other
         /// inputs: while the (non-activating) panel is up, the source app stays frontmost, and
         /// `exitKeyMode()` reactivates exactly this app on hide — so the snapshot is the same app
@@ -563,6 +579,7 @@ public class PopupWindowController {
         DeliveryContext(
             policy: currentActionContext?.selection.appPolicy ?? .default,
             clickIntent: pendingClickIntent,
+            delivery: pendingDelivery,
             application: NSWorkspace.shared.frontmostApplication
         )
     }
@@ -610,12 +627,10 @@ public class PopupWindowController {
         let effect = result
         return Task { @MainActor in
             do {
-                let delivered = await resolveDelivery(effect, delivery: delivery)
-                try await resultHandler.handle(delivered, in: panel?.contentView)
-                let isDowngradedToCopy = if case .paste = effect, case .copy = delivered { true } else { false }
-                let isCopyDefinition = if case .copyDefinition = delivered { true } else { false }
-                if isDowngradedToCopy || isCopyDefinition {
-                    toastController.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorFrame: panel?.frame)
+                let resolved = await resolveDelivery(effect, delivery: delivery)
+                try await resultHandler.handle(resolved.result, in: panel?.contentView)
+                if let toast = resolved.toast {
+                    toastController.show(toast, anchorFrame: panel?.frame)
                 }
             } catch {
                 handleActionResult(.showStatus(StatusFeedback(error: error)))
@@ -623,12 +638,17 @@ public class PopupWindowController {
         }
     }
 
-    /// Decides how a text result should be delivered, per the standardized rule. Only `.paste`
-    /// outcomes can be downgraded to `.copy`; everything else — and any result without a captured
-    /// `delivery` (an explicit user request) — passes through untouched. The click intent and app
-    /// policy come from the snapshot, never from live state read after an await.
-    private func resolveDelivery(_ result: ActionResult, delivery: DeliveryContext?) async -> ActionResult {
-        guard case .paste = result, let delivery else { return result }
+    /// Decides how a text result should be delivered, per the standardized rule, and which
+    /// companion toast (if any) surfaces. The click intent, app policy, and the action's declared
+    /// delivery come from the snapshot, never from live state read after an await. A nil `delivery`
+    /// (an explicit user request, e.g. the AI card's Paste/Copy buttons) passes the result through
+    /// untouched with no toast. Only a `.paste` outcome can be downgraded to `.copy`, so the paste
+    /// probe runs only when a paste outcome is actually on the table (the raw result is a paste, or
+    /// a declared secondary is a paste); the declared secondary and per-click toasts still apply to
+    /// any result.
+    private func resolveDelivery(_ result: ActionResult, delivery: DeliveryContext?) async -> (result: ActionResult, toast: StatusFeedback?) {
+        guard let delivery else { return (result, nil) }
+        let couldPaste = isPaste(result) || (delivery.clickIntent == .secondary && isPaste(delivery.delivery?.secondary))
         // The unified paste decision: per-app rules (assume/deny paste) answer definitively and
         // skip the AX walk entirely (no Accessibility dependency for those apps); a force-copy click
         // also skips it (the outcome is a copy regardless). Otherwise probe the target app and treat
@@ -636,18 +656,24 @@ public class PopupWindowController {
         // cannot confirm the target supports it. The target is the snapshotted app captured before
         // hide(), never frontmost state read after suspension.
         let canPaste: Bool
-        if delivery.clickIntent == .secondary || !PasteAvailability.needsProbe(policy: delivery.policy) {
+        if !couldPaste {
+            canPaste = false // unused: `resolve` only consults it for a selected `.paste`
+        } else if delivery.clickIntent == .secondary || !PasteAvailability.needsProbe(policy: delivery.policy) {
             canPaste = PasteAvailability.effective(policy: delivery.policy, probe: nil) ?? false
         } else {
             canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
         }
-        let resolved = ActionResultDelivery.resolve(
+        return ActionResultDelivery.resolve(
             raw: result,
             clickIntent: delivery.clickIntent,
             canPaste: canPaste,
-            delivery: .none // Task 4 wires the real delivery; external behavior stays identical here
+            delivery: delivery.delivery ?? .none
         )
-        return resolved.result
+    }
+
+    private func isPaste(_ result: ActionResult?) -> Bool {
+        guard case .paste = result else { return false }
+        return true
     }
 
     /// Performs an action directly (the right-click path, which the bar's SwiftUI Button never
@@ -662,11 +688,13 @@ public class PopupWindowController {
         }
         let clickIntent: ActionResultDelivery.ClickIntent = isSecondaryClick ? .secondary : .primary
         pendingClickIntent = clickIntent
-        // Snapshot the target app with the rest of the delivery inputs, before the perform await
-        // and before hide() can reactivate a different frontmost app.
+        // Snapshot the action's declared delivery with the rest of the delivery inputs, before the
+        // perform await and before hide() can clear it.
+        pendingDelivery = action.delivery
         let delivery = DeliveryContext(
             policy: context.selection.appPolicy,
             clickIntent: clickIntent,
+            delivery: action.delivery,
             application: NSWorkspace.shared.frontmostApplication
         )
         usageStore.record(action.id)
@@ -698,9 +726,12 @@ public class PopupWindowController {
     func runLoadingAction(_ action: any Action, with context: ActionContext, isSecondaryClick: Bool) {
         let clickIntent: ActionResultDelivery.ClickIntent = isSecondaryClick ? .secondary : .primary
         pendingClickIntent = clickIntent
+        // Snapshot the action's declared delivery before the early hide clears the session state.
+        pendingDelivery = action.delivery
         let delivery = DeliveryContext(
             policy: context.selection.appPolicy,
             clickIntent: clickIntent,
+            delivery: action.delivery,
             application: NSWorkspace.shared.frontmostApplication
         )
         usageStore.record(action.id)
@@ -727,9 +758,9 @@ public class PopupWindowController {
     }
 
     /// Resolves a loading action's result into the toast: `.showStatus` swaps to that status,
-    /// a paste→copy downgrade swaps to "Copied", a leaf with an effect that delivers swaps to
-    /// "Copied" on downgrade, and everything else (`.success`, `.openURL`, honored paste, native
-    /// copy) fades the spinner.
+    /// a delivered result's companion toast (a paste→copy downgrade's "Copied", a declared per-click
+    /// toast) swaps in, and everything else (`.success`, `.openURL`, honored paste, native copy)
+    /// fades the spinner.
     private func settleLoadingResult(_ result: ActionResult, delivery: DeliveryContext) async {
         switch result {
         case .showStatus(let feedback):
@@ -742,12 +773,11 @@ public class PopupWindowController {
         default:
             let effect = result
             do {
-                let delivered = await resolveDelivery(effect, delivery: delivery)
-                if case .paste = effect, case .copy = delivered {
-                    try await resultHandler.handle(delivered, in: panel?.contentView)
-                    toastController.swapTo(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"))
+                let resolved = await resolveDelivery(effect, delivery: delivery)
+                try await resultHandler.handle(resolved.result, in: panel?.contentView)
+                if let toast = resolved.toast {
+                    toastController.swapTo(toast)
                 } else {
-                    try await resultHandler.handle(delivered, in: panel?.contentView)
                     toastController.hide()
                 }
             } catch {

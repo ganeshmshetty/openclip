@@ -445,6 +445,50 @@ final class ActionResultDeliveryTests: XCTestCase {
         _ = try await awaitDelivery(from: handler)
         XCTAssertEqual(probe.lastPerformContext?.isSecondaryClick, false, "primary click must not set isSecondaryClick")
     }
+
+    // MARK: - Declared delivery wiring: runAction must snapshot the action's delivery and render its toast
+
+    /// An action declaring a distinct secondary outcome + secondary toast: a secondary (right-click)
+    /// perform must deliver the declared secondary and surface the declared toast — the controller
+    /// snapshots `action.delivery` and renders the resolved tuple's toast.
+    @MainActor
+    func testRunActionDeliversDeclaredSecondaryAndToast() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        let url = URL(string: "https://alt")!
+        let declared = StatusFeedback(message: "Copied alt", style: .success)
+        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(secondary: .openURL(url), secondaryToast: declared))
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .openURL(url))
+        XCTAssertEqual(toast.currentFeedback, declared, "the declared secondary toast must surface for a secondary click")
+    }
+
+    /// An action declaring a primary toast: a primary perform must surface it even when the result
+    /// itself is a description-free `.success` (the toast is not tied to a paste→copy downgrade).
+    @MainActor
+    func testRunActionShowsDeclaredPrimaryToast() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        let declared = StatusFeedback(message: "Saved", style: .info)
+        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(primaryToast: declared), performResult: .success)
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: false)
+
+        _ = try await awaitDelivery(from: handler)
+        XCTAssertEqual(toast.currentFeedback, declared, "the declared primary toast must surface for a primary click")
+    }
 }
 
 /// Records every effect the handler is asked to deliver. @MainActor-isolated, matching the
@@ -526,6 +570,26 @@ private final class SecondaryClickProbeAction: Action, @unchecked Sendable {
         captured.set(context)
         return .copyDefinition(context.selection.text)
     }
+}
+
+/// An action carrying a declared `delivery` (secondary outcome + per-click toasts). Its default
+/// perform returns a plain `.paste`, so a secondary click derives the declared secondary rather
+/// than copying; `performResult` lets tests exercise non-paste results too.
+private final class DeclaredDeliveryStub: Action, @unchecked Sendable {
+    let id = "stub.declared"
+    let title = "Declared"
+    let icon: ActionIcon = .symbol("arrow.turn.down.right")
+    var chrome: ActionChrome { ActionChrome(source: .builtin) }
+    var delivery: ActionDelivery? { declaredDelivery }
+    private let declaredDelivery: ActionDelivery
+    let performResult: ActionResult
+    init(delivery: ActionDelivery, performResult: ActionResult = .paste("hello")) {
+        self.declaredDelivery = delivery
+        self.performResult = performResult
+    }
+    func isEnabled(for context: ActionContext) -> Bool { true }
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
+    func perform(_ context: ActionContext) async throws -> ActionResult { performResult }
 }
 
 /// Lock-protected capture box for the context an action performed with (synchronous accessors, so

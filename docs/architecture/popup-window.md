@@ -113,9 +113,11 @@ that replaced the former interactive canvas.
   `ToastPanelController` (`ToastPanel` + SwiftUI `ToastView`), independent of the popup — it shows
   whether the bar is up or already hidden. Info/error toasts auto-dismiss after
   `PopupMetrics.toastDurationNanoseconds` (0.5 s); the paste→copy downgrade surfaces a "Copied"
-  toast. The inline banner and its queue (`modeStore.statusBanner`, `pendingStatus`,
+  toast, or an action's declared per-click toast (`Action.delivery` `primaryToast`/`secondaryToast`)
+  when one is declared. The inline banner and its queue (`modeStore.statusBanner`, `pendingStatus`,
   `flushPendingStatus`) are gone. `showsLoading` actions (manifest `"loading"`) early-close the
-  popup with a spinner toast, swapping to a description or fading on a description-free result.
+  popup with a spinner toast, swapping to a description, the resolved companion toast, or fading on
+  a description-free result.
 - **Force-copy threading**: the click intent captured at mouse-down (`pendingClickIntent`) is threaded
   into the perform context as `ActionContext.forceCopy` (right-click always; ⇧-click via
   `PopupView`/`PopupSearchView`'s `onClickIntent` closure). Actions can branch on it — `DefineAction`
