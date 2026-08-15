@@ -13,7 +13,9 @@ Sources/
 │   │   ├── ActionContext.swift               # Action resolution context
 │   │   ├── ActionCoordinator.swift           # Action execution coordinator & composition root (wires managers to registry)
 │   │   ├── ActionResult.swift                # Action result value types
-│   │   ├── ActionResultAdapter.swift         # Single after translator for extension runtime results
+│   │   ├── ActionDelivery.swift              # Per-action delivery: secondary outcome + per-click toasts
+│   │   ├── ActionResultDelivery.swift        # Select → Probe → Toast: paste-vs-copy delivery decision (resolves (result, toast))
+│   │   ├── DeliveryDecoratedAction.swift     # Pure wrapper stamping a declared ActionDelivery onto an action
 │   │   ├── ActionCustomizationManager.swift  # User action overrides (title/icon); delegates I/O to SettingsStore
 │   │   ├── ActionRegistry.swift              # Storage, ordering, and transform default-on/off policy
 │   │   ├── ActionSearch.swift                # Popup mode enum + pure substring matcher for the action-search palette
