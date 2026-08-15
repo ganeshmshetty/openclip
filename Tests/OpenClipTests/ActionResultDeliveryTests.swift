@@ -208,7 +208,7 @@ final class ActionResultDeliveryTests: XCTestCase {
     }
 
     /// Polls the toast until it shows `message` or the deadline passes — waits for an action's
-    /// async `perform` to settle a `.showStatus` before the test proceeds.
+    /// async `perform` to settle a `.toast` before the test proceeds.
     @MainActor
     private func awaitToastMessage(_ toast: ToastPanelController, _ message: String) async {
         let deadline = Date().addingTimeInterval(3.0)
@@ -352,18 +352,18 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertNil(toast.currentFeedback, "native copy must not show the Copied toast")
     }
 
-    /// Every `.showStatus` result routes to the toast (the single status surface). The popup is
+    /// Every `.toast` result routes to the toast (the single status surface). The popup is
     /// shown first (via `shownController`) so `panel` exists and the toast anchors to the popup's
     /// frame — matching production, where a nil panel would otherwise fall back to the cursor.
     @MainActor
-    func testShowStatusRoutesToToast() async throws {
+    func testToastRoutesToToast() async throws {
         let toast = ToastPanelController()
         let controller = try shownController(resultHandler: RecordingHandler(),
                                              pasteProbe: FixedProbe(result: true),
                                              appPolicy: .default,
                                              toastController: toast)
         defer { controller.hide(); toast.hide() }
-        controller.handleActionResult(.showStatus(StatusFeedback(message: "hello", style: .info)))
+        controller.handleActionResult(.toast(StatusFeedback(message: "hello", style: .info)))
         XCTAssertEqual(toast.currentFeedback?.message, "hello")
         XCTAssertTrue(toast.isShowing)
         XCTAssertNotNil(toast.lastAnchorPoint, "status toast must anchor to the popup point, not the cursor")
@@ -504,7 +504,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     /// Completion buttons route `deliverResult(.paste(word))` straight in (PopupView `onResult`),
     /// bypassing `onWillPerformAction`. Model the left-click bar flow: the prior action's declared
-    /// delivery is snapshotted into `pendingDelivery`, its non-dismissing `.showStatus` result
+    /// delivery is snapshotted into `pendingDelivery`, its non-dismissing `.toast` result
     /// routes through `deliverResult` (which consumes and clears the declaration), and the
     /// completion-word paste that follows must carry no declared secondary and fire no stale toast.
     @MainActor
@@ -520,7 +520,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let working = StatusFeedback(message: "working", style: .info)
         let declared = StatusFeedback(message: "Saved", style: .info)
         controller.pendingDelivery = ActionDelivery(secondary: .paste("alt"), primaryToast: declared)
-        controller.deliverResult(.showStatus(working))
+        controller.deliverResult(.toast(working))
         await awaitToastMessage(toast, "working")
 
         controller.deliverResult(.paste("word"))

@@ -175,7 +175,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
 
         // Presentation/flow results are presenter-owned (PopupWindowController). The handler treats
         // them as no-ops so the switch stays exhaustive without crashing when one is routed here.
-        case .showStatus, .openConfiguration, .sequence:
+        case .toast, .openConfiguration, .sequence:
             break
 
         // Keyboard execution: keyPress posts a synthetic keystroke; runShortcut launches the
@@ -244,7 +244,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
 
     /// Runs a registered Shortcuts.app shortcut via the `shortcuts` CLI. The process runs through
     /// `ShellProcessRunner`, which supplies the 30s timeout watchdog and the throw-on-non-zero-exit
-    /// policy (surfaced by the presenter as a `.showStatus(.error)`). Input is passed via `-i` with a
+    /// policy (surfaced by the presenter as a `.toast(.error)`). Input is passed via `-i` with a
     /// temp file; output is intentionally discarded.
     private func runShortcut(name: String, input: String?) async throws {
         let binary = URL(fileURLWithPath: Constants.shortcutsBinaryPath)

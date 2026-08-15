@@ -186,7 +186,7 @@ enum ShellResultMapper {
             case "error": style = .error
             default: style = .info
             }
-            return .showStatus(StatusFeedback(message: output.message ?? "", style: style))
+            return .toast(StatusFeedback(message: output.message ?? "", style: style))
         case "configure":
             return .openConfiguration(ConfigurationRequest(
                 actionID: actionID,

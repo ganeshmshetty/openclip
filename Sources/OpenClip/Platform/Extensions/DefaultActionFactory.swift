@@ -196,7 +196,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             guard let value = secondary.value, let url = URL(string: value) else { return .success }
             return .openURL(url)
         case "status":
-            return .showStatus(StatusFeedback(message: secondary.message ?? "", style: .info))
+            return .toast(StatusFeedback(message: secondary.message ?? "", style: .info))
         case "success":
             return .success
         case "none":

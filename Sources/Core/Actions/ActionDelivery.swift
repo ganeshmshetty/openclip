@@ -46,7 +46,7 @@ extension ActionDelivery {
                 return x == y
             case (.openURL(let x), .openURL(let y)):
                 return x == y
-            case (.showStatus(let x), .showStatus(let y)):
+            case (.toast(let x), .toast(let y)):
                 return x == y
             case (.openConfiguration(let x), .openConfiguration(let y)):
                 return x == y

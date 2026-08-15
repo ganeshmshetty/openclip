@@ -28,15 +28,15 @@ final class ActionResultDismissPolicyTests: XCTestCase {
     }
 
     func testPresentationResultsKeepPopup() {
-        XCTAssertFalse(ActionResult.showStatus(.init(message: "ok", style: .success)).dismissesPopup)
-        XCTAssertFalse(ActionResult.showStatus(.init(message: "boom", style: .error)).dismissesPopup)
+        XCTAssertFalse(ActionResult.toast(.init(message: "ok", style: .success)).dismissesPopup)
+        XCTAssertFalse(ActionResult.toast(.init(message: "boom", style: .error)).dismissesPopup)
     }
 
-    // MARK: - Decision 9: errors surface as .showStatus(.error) and the popup stays
+    // MARK: - Decision 9: errors surface as .toast(.error) and the popup stays
 
     func testErrorStatusKeepsPopup() {
         let status = StatusFeedback(error: DummyError())
         XCTAssertEqual(status.style, .error)
-        XCTAssertFalse(ActionResult.showStatus(status).dismissesPopup)
+        XCTAssertFalse(ActionResult.toast(status).dismissesPopup)
     }
 }

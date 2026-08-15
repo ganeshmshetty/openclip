@@ -6,7 +6,7 @@
 // effect API) and resolves collected effects into a RAW runtime ActionResult via a deterministic
 // resolution order — no declarative secondary/delivery translation here (that happens downstream
 // via the action's declared `delivery`). JS exceptions surface as
-// `.showStatus(.error, message)` rather than throwing; Swift-level setup failures may throw.
+// `.toast(.error, message)` rather than throwing; Swift-level setup failures may throw.
 //
 // Execution model: every run executes inside a `Task.detached` on a background thread — never the
 // MainActor. JavaScriptCore contexts are not thread-safe, so ALL JavaScript VM access is confined to
@@ -71,7 +71,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var paste: String?
         public var copy: String?
         public var cut: String?
-        public var status: StatusFeedback?
+        public var toast: StatusFeedback?
         public var configuration: ConfigurationRequest?
         public var keyPress: KeyPressSpec?
         public var shortcutName: String?
@@ -241,8 +241,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
             collected.value.shareService = (identifier: identifier, text: cleanedInput)
             effects.value.append(.shareService(identifier: identifier, text: cleanedInput))
         }
-        let showStatusBlock: @convention(block) (String, String?) -> Void = { message, style in
-            collected.value.status = StatusFeedback(message: message, style: Self.mapStatusStyle(style ?? "info"))
+        let toastBlock: @convention(block) (String, String?) -> Void = { message, style in
+            collected.value.toast = StatusFeedback(message: message, style: Self.mapToastStyle(style ?? "info"))
         }
         let requireConfigurationBlock: @convention(block) (JSValue) -> Void = { value in
             collected.value.configuration = Self.parseConfiguration(value, actionID: request.actionID)
@@ -256,7 +256,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(runShortcutBlock, forKeyedSubscript: "runShortcut" as NSString)
         openclip.setObject(notifyBlock, forKeyedSubscript: "notify" as NSString)
         openclip.setObject(shareServiceBlock, forKeyedSubscript: "shareService" as NSString)
-        openclip.setObject(showStatusBlock, forKeyedSubscript: "showStatus" as NSString)
+        openclip.setObject(toastBlock, forKeyedSubscript: "showStatus" as NSString)
         openclip.setObject(requireConfigurationBlock, forKeyedSubscript: "requireConfiguration" as NSString)
 
         // Module bridge: in module mode (packageDirectory != nil) the wrapper prelude calls
@@ -384,7 +384,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
     /// Installs a global `console` object with a `log` method that routes to `Log.js`. Without this,
     /// `console.log(...)` throws a `ReferenceError` that the JSContext surfaces as
-    /// `.showStatus(.error)` and breaks the action. To prevent leaking sensitive text, clipboard, or
+    /// `.toast(.error)` and breaks the action. To prevent leaking sensitive text, clipboard, or
     /// extension data, arguments are redacted into non-sensitive metadata (type, length, object keys)
     /// before forwarding to `Log.js`.
     private static func installConsoleShim(in context: JSContext, actionID: String) {
@@ -584,7 +584,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
         // JS exceptions win over any partially-collected effects (do NOT throw for JS exceptions).
         if let exceptionMessage = evaluation.exceptionMessage {
-            return .showStatus(StatusFeedback(message: exceptionMessage, style: .error))
+            return .toast(StatusFeedback(message: exceptionMessage, style: .error))
         }
 
         // Deterministic resolution order (plan §8): configuration > status-only > effects
@@ -593,8 +593,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let raw: ActionResult
         if let configuration = collected.configuration {
             raw = .openConfiguration(configuration)
-        } else if let status = collected.status, effects.isEmpty {
-            raw = .showStatus(status)
+        } else if let toast = collected.toast, effects.isEmpty {
+            raw = .toast(toast)
         } else if !effects.isEmpty {
             let input = request.context.match?.matchedText ?? request.context.selection.text
             let mapped = effects.map { effectResult($0, input: input) }
@@ -707,8 +707,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         return ConfigurationRequest(actionID: actionID, reason: reason, missingOptionIDs: missing)
     }
 
-    /// Maps a JS `showStatus` style string to a `StatusFeedback.Style`.
-    private static func mapStatusStyle(_ raw: String) -> StatusFeedback.Style {
+    /// Maps a JS `toast` style string to a `StatusFeedback.Style`.
+    private static func mapToastStyle(_ raw: String) -> StatusFeedback.Style {
         switch raw.lowercased() {
         case "success": return .success
         case "error": return .error
