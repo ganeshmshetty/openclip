@@ -8,10 +8,11 @@ import SwiftUI
 import Core
 import SDWebImage
 import SDWebImageSVGCoder
+import UserNotifications
 
 /// Manages the application lifecycle and permissions.
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var statusBarController: StatusBarController?
     private var selectionMonitor: (any SelectionMonitoring)?
     private var popupController: PopupWindowController?
@@ -60,12 +61,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Setup global shortcut hotkey manager
         HotkeyManager.shared.setup(popupController: controller)
-        
+
+        // Route trust-change events to user notifications; clicking one opens the trust model.
+        UNUserNotificationCenter.current().delegate = self
+
         Task {
             let optionStore = KeychainActionOptionStore()
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
+            ExtensionManager.shared.onTrustChange = { [weak self] change in
+                self?.handleTrustChange(change)
+            }
             await ActionCoordinator.shared.loadInitialState()
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
@@ -121,6 +128,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    private func handleTrustChange(_ change: ExtensionTrustChange) {
+        switch change {
+        case .newPackage(let packageID, let name):
+            postTrustNotification(title: "New Extension", body: "\(name) needs your review before it can run.", packageID: packageID)
+        case .tampered(let packageID, let name):
+            postTrustNotification(title: "Extension Disabled", body: "\(name) was disabled because its files changed.", packageID: packageID)
+        }
+    }
+
+    private func postTrustNotification(title: String, body: String, packageID: String) {
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            var authorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+            if settings.authorizationStatus == .notDetermined {
+                authorized = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+            }
+            guard authorized else {
+                Log.extensions.warning("Trust notification skipped: notifications not authorized")
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.userInfo = ["packageID": packageID]
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+            try? await center.add(request)
+        }
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        guard let packageID = response.notification.request.content.userInfo["packageID"] as? String else { return }
+        await MainActor.run {
+            statusBarController?.showPreferences()
+            NotificationCenter.default.post(name: .openClipOpenTrustModel, object: nil, userInfo: ["packageID": packageID])
+        }
+    }
+
     private func showOnboarding() {
         onboardingWindowController = OnboardingWindowController { [weak self] in
             if DefaultSettingsStore.shared.get(.isAppEnabled) {
