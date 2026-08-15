@@ -401,11 +401,18 @@ public struct EditActionSheet: View {
             type: newType,
             scriptCode: newScriptCode,
             requirements: meta.requirements,
+            isAsync: meta.isAsync,
             options: meta.options,
             subActions: meta.subActions,
             keyPress: meta.keyPress,
             serviceName: meta.serviceName,
-            shortcutName: meta.shortcutName
+            shortcutName: meta.shortcutName,
+            menuRelevance: meta.menuRelevance,
+            loading: meta.loading,
+            loadingMessage: meta.loadingMessage,
+            secondary: meta.secondary,
+            toast: meta.toast,
+            secondaryToast: meta.secondaryToast
         )
         
         var actions = state.manifest.actions

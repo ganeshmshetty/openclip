@@ -142,10 +142,12 @@ areas; stale debt notes are worse than none.
   intent and fed into `resolve`, and the returned tuple's toast is rendered directly — the manual
   `isDowngradedToCopy`/`isCopyDefinition` inline toast detection was removed in favor of the resolved
   `.toast`. Only the SwiftUI inline perform path snapshots via the new `onWillPerformAction` closure;
-  the completion-button paste path (`PopupView` `onResult(.paste(word))`) still reads the **last**
-  `pendingDelivery` (normally nil, since `hide()` clears it) rather than its own snapshot — a prior
-  non-dismissing action's declared `primaryToast` could leak onto a completion-word paste; suggested
-  fix: clear `pendingDelivery` right after the snapshot in `deliverResult` (single-use per perform).
+  the completion-button paste path (`PopupView` `onResult(.paste(word))`) routes through
+  `deliverResult`, which clears `pendingDelivery` right after its snapshot (single-use per perform),
+  so a prior non-dismissing action's declared delivery can never leak onto a completion paste. The
+  force-copy probe short-circuit skips the AX walk for a secondary click whose outcome is a copy;
+  a declared `.paste` secondary is the exception and still probes, so it is honored when the target
+  can paste (and downgrades to copy when it cannot).
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 

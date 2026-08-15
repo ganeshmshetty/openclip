@@ -46,10 +46,12 @@ public class PopupWindowController {
 
     /// The most recent bar/palette action's declared delivery (secondary outcome + per-click
     /// toasts). Set by the perform paths (`onWillPerformAction`, `runAction`,
-    /// `runLoadingAction`) right before the action runs and reset by hide(). Snapshotted into a
-    /// `DeliveryContext` with `pendingClickIntent`, so `resolveDelivery` sees the action's declared
-    /// delivery — never read as live state after an await.
-    private var pendingDelivery: ActionDelivery? = nil
+    /// `runLoadingAction`) right before the action runs, consumed once by the next
+    /// `deliverResult` snapshot (which clears it — single-use per perform), and reset by hide().
+    /// Snapshotted into a `DeliveryContext` with `pendingClickIntent`, so `resolveDelivery` sees
+    /// the action's declared delivery — never read as live state after an await. Internal for
+    /// tests so a test can model the `onWillPerformAction` snapshot directly.
+    var pendingDelivery: ActionDelivery? = nil
 
     /// Probes whether the frontmost app supports Paste. Injected for tests.
     private let pasteProbe: PasteAvailabilityProbing
@@ -588,9 +590,13 @@ public class PopupWindowController {
     /// Decision 8: dismissal is decided once on the top-level result; the tree-walk never hides
     /// per-item. `hide()` runs before `handleActionResult` so `exitKeyMode()` reactivates the target
     /// source app before any synthetic keyboard events (.paste, .cut, etc.) are posted — and the
-    /// delivery snapshot is taken before that `hide()` clears the live context. Internal for tests.
+    /// delivery snapshot is taken before that `hide()` clears the live context. The declared
+    /// delivery is single-use per perform: the snapshot is its only consumer, so it is cleared
+    /// immediately after — a later `onResult` paste (completion buttons route here directly) must
+    /// never reuse a prior action's declaration. Internal for tests.
     func deliverResult(_ result: ActionResult) {
         let delivery = deliverySnapshot()
+        pendingDelivery = nil
         if result.dismissesPopup {
             hide()
         }
@@ -648,17 +654,22 @@ public class PopupWindowController {
     /// any result.
     private func resolveDelivery(_ result: ActionResult, delivery: DeliveryContext?) async -> (result: ActionResult, toast: StatusFeedback?) {
         guard let delivery else { return (result, nil) }
-        let couldPaste = isPaste(result) || (delivery.clickIntent == .secondary && isPaste(delivery.delivery?.secondary))
+        // A declared `.paste` secondary is pasted on a secondary click, so the probe must run for it
+        // too: the force-copy short-circuit below applies only when the click's outcome is a copy.
+        let declaredSecondaryIsPaste = delivery.clickIntent == .secondary && isPaste(delivery.delivery?.secondary)
+        let couldPaste = isPaste(result) || declaredSecondaryIsPaste
         // The unified paste decision: per-app rules (assume/deny paste) answer definitively and
         // skip the AX walk entirely (no Accessibility dependency for those apps); a force-copy click
-        // also skips it (the outcome is a copy regardless). Otherwise probe the target app and treat
-        // unknown availability as cannot-paste — the safe default: never paste blindly when we
-        // cannot confirm the target supports it. The target is the snapshotted app captured before
-        // hide(), never frontmost state read after suspension.
+        // (a secondary click whose outcome is a copy — derived, or a non-paste declared secondary)
+        // also skips it (the outcome is a copy regardless). A declared `.paste` secondary is the
+        // exception: its outcome is a paste, so the probe still runs. Otherwise probe the target app
+        // and treat unknown availability as cannot-paste — the safe default: never paste blindly
+        // when we cannot confirm the target supports it. The target is the snapshotted app captured
+        // before hide(), never frontmost state read after suspension.
         let canPaste: Bool
         if !couldPaste {
             canPaste = false // unused: `resolve` only consults it for a selected `.paste`
-        } else if delivery.clickIntent == .secondary || !PasteAvailability.needsProbe(policy: delivery.policy) {
+        } else if (delivery.clickIntent == .secondary && !declaredSecondaryIsPaste) || !PasteAvailability.needsProbe(policy: delivery.policy) {
             canPaste = PasteAvailability.effective(policy: delivery.policy, probe: nil) ?? false
         } else {
             canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
