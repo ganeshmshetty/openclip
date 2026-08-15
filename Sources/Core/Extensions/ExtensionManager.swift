@@ -23,6 +23,18 @@ public final class ExtensionManager: Sendable {
     public var actionFactory: (any ActionFactory)?
     public var optionWriter: (any ActionOptionWriting)?
     
+    /// Persistence for the trust gate. When nil the manager skips gating entirely (pre-existing
+    /// behavior); production sets it in AppDelegate, tests set a MemorySettingsStore.
+    public var settingsStore: (any SettingsStore)?
+    
+    /// Supplies the running app version for `minOpenClipVersion` checks. Overridable for tests.
+    public var appVersionProvider: @Sendable () -> String = {
+        (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.0.0"
+    }
+    
+    /// Trust events for the app target to surface as user notifications.
+    public var onTrustChange: ((ExtensionTrustChange) -> Void)?
+    
     private init() {}
 
     /// Clears loaded actions and wiring (callbacks, factory), returning the manager to its
@@ -34,16 +46,42 @@ public final class ExtensionManager: Sendable {
         onUnregister = nil
         actionFactory = nil
         optionWriter = nil
+        settingsStore = nil
+        onTrustChange = nil
     }
     
     public func loadExtensions(from url: URL = Constants.extensionsDirectory) async {
         let factory = self.actionFactory
-        let actions = await Task.detached {
+        let scanned = await Task.detached {
             // Reference the type by name (not `Self`) — `Self.X` inside a Task.detached closure
             // trips a Swift 6 region-based-isolation checker bug.
             return await ExtensionManager.scanDirectory(url, factory: factory)
         }.value
-        let newIDs = Set(actions.map { $0.id })
+        
+        let finalActions: [any Action]
+        if let settings = self.settingsStore {
+            let plan = ExtensionTrustGate.evaluate(
+                actions: scanned,
+                in: url,
+                trust: settings.get(.extensionTrust),
+                hashes: settings.get(.extensionTrustHashes),
+                sources: settings.get(.extensionSources),
+                isMigrated: settings.get(.extensionTrustMigrated),
+                appVersion: self.appVersionProvider()
+            )
+            if plan.trustChanged { settings.set(.extensionTrust, value: plan.trust) }
+            if plan.hashesChanged { settings.set(.extensionTrustHashes, value: plan.hashes) }
+            if plan.sourcesChanged { settings.set(.extensionSources, value: plan.sources) }
+            if plan.migratedChanged { settings.set(.extensionTrustMigrated, value: plan.isMigrated) }
+            finalActions = plan.actions
+            for event in plan.events {
+                onTrustChange?(event)
+            }
+        } else {
+            finalActions = scanned
+        }
+        
+        let newIDs = Set(finalActions.map { $0.id })
         // Diff the previous vs refreshed action IDs. Only unregister IDs that are permanently gone;
         // retained IDs are replaced in place via onRegister (register(action:)), so their
         // .actionOrder entries survive the reload instead of being pruned by a full
@@ -51,8 +89,8 @@ public final class ExtensionManager: Sendable {
         for oldAction in self.loadedActions where !newIDs.contains(oldAction.id) {
             onUnregister?(oldAction.id)
         }
-        self.loadedActions = actions
-        for action in actions {
+        self.loadedActions = finalActions
+        for action in finalActions {
             onRegister?(action)
         }
     }
@@ -131,6 +169,39 @@ public final class ExtensionManager: Sendable {
         // Reload extensions to activate installed action(s)
         await loadExtensions(from: targetDir)
         return loadedActions
+    }
+    
+    /// Seeds `extensionSources[packageID] = source` ahead of a load so store installs auto-trust
+    /// during the subsequent gating pass. Call before `loadExtensions`/`installExtension`.
+    public func prepareInstall(source: String, packageID: String) {
+        guard let settings = self.settingsStore else { return }
+        var sources = settings.get(.extensionSources)
+        sources[packageID] = source
+        settings.set(.extensionSources, value: sources)
+    }
+    
+    /// Trust-model Enable: record the package's current content hash and mark it trusted, then
+    /// reload so its real actions register. The only way to restore a gated/revoked package.
+    public func enablePackage(packageID: String, in directory: URL = Constants.extensionsDirectory) async {
+        guard let settings = self.settingsStore else { return }
+        let hash = ExtensionPackageHashResolver.packageHash(forPackageID: packageID, in: directory) ?? ""
+        var trust = settings.get(.extensionTrust)
+        trust[packageID] = ExtensionTrustState.trusted.rawValue
+        settings.set(.extensionTrust, value: trust)
+        var hashes = settings.get(.extensionTrustHashes)
+        hashes[packageID] = hash
+        settings.set(.extensionTrustHashes, value: hashes)
+        await loadExtensions(from: directory)
+    }
+    
+    /// Trust-model Disable: mark the package revoked (an explicit user "no"), then reload so its
+    /// real actions are replaced by the gated placeholder.
+    public func disablePackage(packageID: String, in directory: URL = Constants.extensionsDirectory) async {
+        guard let settings = self.settingsStore else { return }
+        var trust = settings.get(.extensionTrust)
+        trust[packageID] = ExtensionTrustState.revoked.rawValue
+        settings.set(.extensionTrust, value: trust)
+        await loadExtensions(from: directory)
     }
     
     /// Uninstalls an extension by removing its directory or file from ~/.openclip/extensions.
