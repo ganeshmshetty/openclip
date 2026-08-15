@@ -22,23 +22,23 @@ final class ActionResultDeliveryTests: XCTestCase {
         }
     }
 
-    // MARK: - Left-click + can paste → paste
+    // MARK: - Primary click + can paste → paste
 
-    func testLeftClickCanPastePastes() {
+    func testPrimaryClickCanPastePastes() {
         let result = ActionResultDelivery.resolve(
             raw: .paste("hello"),
-            clickIntent: .leftClick,
+            clickIntent: .primary,
             canPaste: true
         )
         assertCase(result, .paste("hello"))
     }
 
-    // MARK: - Force-copy (right-click / shift) always copies
+    // MARK: - Secondary (right-click / shift) always copies
 
-    func testForceCopyCopiesEvenWhenPasteAvailable() {
+    func testSecondaryCopiesEvenWhenPasteAvailable() {
         let result = ActionResultDelivery.resolve(
             raw: .paste("hello"),
-            clickIntent: .forceCopy,
+            clickIntent: .secondary,
             canPaste: true
         )
         assertCase(result, .copy("hello"))
@@ -49,7 +49,7 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testCannotPasteCopies() {
         let result = ActionResultDelivery.resolve(
             raw: .paste("hello"),
-            clickIntent: .leftClick,
+            clickIntent: .primary,
             canPaste: false
         )
         assertCase(result, .copy("hello"))
@@ -60,7 +60,7 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testCopyStaysCopy() {
         let result = ActionResultDelivery.resolve(
             raw: .copy("hello"),
-            clickIntent: .forceCopy,
+            clickIntent: .secondary,
             canPaste: false
         )
         assertCase(result, .copy("hello"))
@@ -69,7 +69,7 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testCutStaysCut() {
         let result = ActionResultDelivery.resolve(
             raw: .cut("hello"),
-            clickIntent: .forceCopy,
+            clickIntent: .secondary,
             canPaste: false
         )
         assertCase(result, .cut("hello"))
@@ -79,7 +79,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let url = URL(string: "https://example.com")!
         let result = ActionResultDelivery.resolve(
             raw: .openURL(url),
-            clickIntent: .forceCopy,
+            clickIntent: .secondary,
             canPaste: false
         )
         assertCase(result, .openURL(url))
@@ -216,7 +216,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     // MARK: - Toast routing: paste→copy downgrade shows "Copied"; native copy shows nothing
 
-    /// A `.paste` result downgraded to `.copy` (force-copy click / cannot paste) surfaces the
+    /// A `.paste` result downgraded to `.copy` (secondary click / cannot paste) surfaces the
     /// "Copied" toast. The toast is independent of the popup, so it works even though the popup hid.
     @MainActor
     func testDowngradeToCopyShowsCopiedToast() async throws {
@@ -301,7 +301,7 @@ final class ActionResultDeliveryTests: XCTestCase {
                                              toastController: toast)
         defer { controller.hide(); toast.hide() }
 
-        controller.runLoadingAction(SlowStubAction(), with: controllerCurrentContext(controller), forceCopy: false)
+        controller.runLoadingAction(SlowStubAction(), with: controllerCurrentContext(controller), isSecondaryClick: false)
         XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
         await awaitLoadingFade(toast: toast)
         XCTAssertFalse(toast.isLoading, "loading toast should fade once a description-free result lands")
@@ -331,46 +331,47 @@ final class ActionResultDeliveryTests: XCTestCase {
                                              toastController: toast)
         defer { controller.hide(); toast.hide() }
 
-        controller.runLoadingAction(MessageStubAction(), with: controllerCurrentContext(controller), forceCopy: false)
+        controller.runLoadingAction(MessageStubAction(), with: controllerCurrentContext(controller), isSecondaryClick: false)
         XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
         XCTAssertEqual(toast.currentFeedback?.message, "Connecting to Music…")
         await awaitLoadingFade(toast: toast)
         XCTAssertFalse(toast.isLoading, "loading toast should fade once a description-free result lands")
     }
 
-    // MARK: - Force-copy threading: runAction must propagate the click intent into the action context
+    // MARK: - Secondary-click threading: runAction must propagate the click intent into the action context
 
-    /// A right-click (forceCopy) on an action must reach `perform` as `context.forceCopy == true`,
-    /// so Define returns `.copyDefinition` instead of opening Dictionary.
+    /// A right-click (secondary click) on an action must reach `perform` as
+    /// `context.isSecondaryClick == true`, so Define returns `.copyDefinition` instead of opening
+    /// Dictionary.
     @MainActor
-    func testRunActionThreadsForceCopyIntoActionContext() async throws {
+    func testRunActionThreadsSecondaryClickIntoActionContext() async throws {
         let handler = RecordingHandler()
         let controller = try shownController(resultHandler: handler,
                                              pasteProbe: FixedProbe(result: true),
                                              appPolicy: .default)
         defer { controller.hide() }
 
-        let probe = ForceCopyProbeAction()
-        controller.runAction(probe, with: controllerCurrentContext(controller), forceCopy: true)
+        let probe = SecondaryClickProbeAction()
+        controller.runAction(probe, with: controllerCurrentContext(controller), isSecondaryClick: true)
 
         _ = try await awaitDelivery(from: handler)
-        XCTAssertEqual(probe.lastPerformContext?.forceCopy, true, "force-copy click must reach the action context")
+        XCTAssertEqual(probe.lastPerformContext?.isSecondaryClick, true, "secondary click must reach the action context")
     }
 
-    /// A normal left-click must reach `perform` as `context.forceCopy == false` (default).
+    /// A normal primary click must reach `perform` as `context.isSecondaryClick == false` (default).
     @MainActor
-    func testRunActionDefaultsForceCopyToFalse() async throws {
+    func testRunActionDefaultsSecondaryClickToFalse() async throws {
         let handler = RecordingHandler()
         let controller = try shownController(resultHandler: handler,
                                              pasteProbe: FixedProbe(result: true),
                                              appPolicy: .default)
         defer { controller.hide() }
 
-        let probe = ForceCopyProbeAction()
-        controller.runAction(probe, with: controllerCurrentContext(controller), forceCopy: false)
+        let probe = SecondaryClickProbeAction()
+        controller.runAction(probe, with: controllerCurrentContext(controller), isSecondaryClick: false)
 
         _ = try await awaitDelivery(from: handler)
-        XCTAssertEqual(probe.lastPerformContext?.forceCopy, false, "left-click must not set forceCopy")
+        XCTAssertEqual(probe.lastPerformContext?.isSecondaryClick, false, "primary click must not set isSecondaryClick")
     }
 }
 
@@ -438,11 +439,11 @@ private final class MessageStubAction: Action {
 }
 
 /// Records the `ActionContext` handed to `perform` so tests can assert the click intent
-/// (forceCopy) threaded through the controller's run path. Mutable state lives in a synchronous
-/// lock-protected box so the Sendable `Action` conformance stays race-free.
-private final class ForceCopyProbeAction: Action, @unchecked Sendable {
-    let id = "stub.forcecopy"
-    let title = "ForceCopyProbe"
+/// (isSecondaryClick) threaded through the controller's run path. Mutable state lives in a
+/// synchronous lock-protected box so the Sendable `Action` conformance stays race-free.
+private final class SecondaryClickProbeAction: Action, @unchecked Sendable {
+    let id = "stub.secondary"
+    let title = "SecondaryClickProbe"
     let icon: ActionIcon = .symbol("hand.point.right")
     var chrome: ActionChrome { ActionChrome(source: .builtin) }
     private let captured = LockedContextBox()

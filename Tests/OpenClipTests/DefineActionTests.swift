@@ -64,18 +64,18 @@ final class DefineActionTests: XCTestCase {
     }
 
     @MainActor
-    func testDefineActionForceCopyReturnsCopyDefinition() async throws {
+    func testDefineActionSecondaryClickReturnsCopyDefinition() async throws {
         let action = DefineAction()
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "epiphany", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
             modifiers: [],
-            forceCopy: true
+            isSecondaryClick: true
         )
 
         let result = try await action.perform(context)
         guard case .copyDefinition(let word) = result else {
-            return XCTFail("Expected copyDefinition for a force-copy click, got \(result)")
+            return XCTFail("Expected copyDefinition for a secondary click, got \(result)")
         }
         XCTAssertEqual(word, "epiphany")
     }

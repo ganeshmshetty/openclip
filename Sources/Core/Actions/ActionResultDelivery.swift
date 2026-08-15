@@ -14,11 +14,12 @@ import Foundation
 
 public enum ActionResultDelivery {
     /// How the user triggered the action — used to decide delivery. The popup populates this from
-    /// the click that ran the action (right-click or a ⇧-modifier click maps to `.forceCopy`).
+    /// the click that ran the action (right-click or a ⇧-modifier click maps to `.secondary`).
     public enum ClickIntent: Sendable, Equatable {
-        case leftClick
-        /// Right-click or a shift-click: always deliver as a copy.
-        case forceCopy
+        case primary
+        /// Right-click or a ⇧-modifier click maps to `.secondary`: the outcome requested by the
+        /// click is always deliver as a copy.
+        case secondary
     }
 
     /// Decides the final ActionResult for a raw runtime outcome.
@@ -37,7 +38,7 @@ public enum ActionResultDelivery {
             // `.copy`, `.cut`, and all non-text results are never downgraded.
             return raw
         }
-        let forceCopy = (clickIntent == .forceCopy) || !canPaste
-        return forceCopy ? .copy(text) : .paste(text)
+        let deliverAsCopy = (clickIntent == .secondary) || !canPaste
+        return deliverAsCopy ? .copy(text) : .paste(text)
     }
 }

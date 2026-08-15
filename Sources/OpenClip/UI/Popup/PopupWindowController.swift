@@ -42,7 +42,7 @@ public class PopupWindowController {
     /// the mouse monitor on mouse-down and reset by hide(). Snapshotted into a `DeliveryContext`
     /// when an action performs — never read as live state after an await. Drives the standardized
     /// paste-vs-copy delivery decision (`ActionResultDelivery`).
-    private var pendingClickIntent: ActionResultDelivery.ClickIntent = .leftClick
+    private var pendingClickIntent: ActionResultDelivery.ClickIntent = .primary
 
     /// Probes whether the frontmost app supports Paste. Injected for tests.
     private let pasteProbe: PasteAvailabilityProbing
@@ -137,9 +137,9 @@ public class PopupWindowController {
             },
             onRunLoadingAction: { [weak self] action in
                 guard let self, let context = self.currentActionContext else { return }
-                self.runLoadingAction(action, with: context, forceCopy: self.pendingClickIntent == .forceCopy)
+                self.runLoadingAction(action, with: context, isSecondaryClick: self.pendingClickIntent == .secondary)
             },
-            onClickIntent: { [weak self] in self?.pendingClickIntent ?? .leftClick }
+            onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary }
         )
         panel.contentView = NSHostingView(rootView: rootView)
         panel.contentView?.layoutSubtreeIfNeeded()
@@ -369,7 +369,7 @@ public class PopupWindowController {
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
         // runs and any later snapshot read the last intent; force-copy must never persist).
-        pendingClickIntent = .leftClick
+        pendingClickIntent = .primary
         isRightClickInProgress = false
         modeStore.mode = .actions
         modeStore.scope = nil
@@ -453,7 +453,7 @@ public class PopupWindowController {
             // Capture the modifier state at click time so the action that runs on mouse-up (via the
             // SwiftUI Button) delivers as a copy when ⇧ is held.
             let isShift = event.modifierFlags.contains(.shift)
-            pendingClickIntent = isShift ? .forceCopy : .leftClick
+            pendingClickIntent = isShift ? .secondary : .primary
             if !inBar {
                 hide()
             }
@@ -463,7 +463,7 @@ public class PopupWindowController {
             let clickLoc = NSEvent.mouseLocation
             let inBar = panel?.frame.contains(clickLoc) ?? false
             if inBar {
-                pendingClickIntent = .forceCopy
+                pendingClickIntent = .secondary
                 isRightClickInProgress = true
             } else {
                 isRightClickInProgress = false
@@ -475,7 +475,7 @@ public class PopupWindowController {
             let clickLoc = NSEvent.mouseLocation
             let inBar = panel?.frame.contains(clickLoc) ?? false
             if inBar, let hoveredAction, let actionContext = currentActionContext, modeStore.mode == .actions {
-                runAction(hoveredAction, with: actionContext, forceCopy: true)
+                runAction(hoveredAction, with: actionContext, isSecondaryClick: true)
             }
         case .scrollWheel:
             // Search mode scrolls the results list (panel key); the AI result card is modal and
@@ -636,7 +636,7 @@ public class PopupWindowController {
         // cannot confirm the target supports it. The target is the snapshotted app captured before
         // hide(), never frontmost state read after suspension.
         let canPaste: Bool
-        if delivery.clickIntent == .forceCopy || !PasteAvailability.needsProbe(policy: delivery.policy) {
+        if delivery.clickIntent == .secondary || !PasteAvailability.needsProbe(policy: delivery.policy) {
             canPaste = PasteAvailability.effective(policy: delivery.policy, probe: nil) ?? false
         } else {
             canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
@@ -651,14 +651,14 @@ public class PopupWindowController {
     /// Performs an action directly (the right-click path, which the bar's SwiftUI Button never
     /// fires) and routes its result through the standard dismissal + tree-walk, recording usage.
     /// Mirrors the left-click perform path in PopupView. The delivery context is built here from
-    /// `forceCopy`, so the decision never depends on live state read after the perform await.
+    /// `isSecondaryClick`, so the decision never depends on live state read after the perform await.
     /// Internal for tests (mirrors `runLoadingAction`).
-    func runAction(_ action: any Action, with context: ActionContext, forceCopy: Bool) {
+    func runAction(_ action: any Action, with context: ActionContext, isSecondaryClick: Bool) {
         if action.chrome.showsLoading {
-            runLoadingAction(action, with: context, forceCopy: forceCopy)
+            runLoadingAction(action, with: context, isSecondaryClick: isSecondaryClick)
             return
         }
-        let clickIntent: ActionResultDelivery.ClickIntent = forceCopy ? .forceCopy : .leftClick
+        let clickIntent: ActionResultDelivery.ClickIntent = isSecondaryClick ? .secondary : .primary
         pendingClickIntent = clickIntent
         // Snapshot the target app with the rest of the delivery inputs, before the perform await
         // and before hide() can reactivate a different frontmost app.
@@ -672,7 +672,7 @@ public class PopupWindowController {
         let performContext = ActionContext(
             selection: context.selection,
             modifiers: context.modifiers,
-            forceCopy: forceCopy,
+            isSecondaryClick: isSecondaryClick,
             match: match
         )
         Task { @MainActor in
@@ -693,8 +693,8 @@ public class PopupWindowController {
     /// toast appears at the cursor, and the result settles the toast (swap to description, or fade
     /// when the result carries none). Mirrors runAction's delivery snapshot: captured before the
     /// early hide so paste-vs-copy still sees the pre-dismissal context. Internal for tests.
-    func runLoadingAction(_ action: any Action, with context: ActionContext, forceCopy: Bool) {
-        let clickIntent: ActionResultDelivery.ClickIntent = forceCopy ? .forceCopy : .leftClick
+    func runLoadingAction(_ action: any Action, with context: ActionContext, isSecondaryClick: Bool) {
+        let clickIntent: ActionResultDelivery.ClickIntent = isSecondaryClick ? .secondary : .primary
         pendingClickIntent = clickIntent
         let delivery = DeliveryContext(
             policy: context.selection.appPolicy,
@@ -706,7 +706,7 @@ public class PopupWindowController {
         let performContext = ActionContext(
             selection: context.selection,
             modifiers: context.modifiers,
-            forceCopy: forceCopy,
+            isSecondaryClick: isSecondaryClick,
             match: match
         )
         let anchorFrame = panel?.frame
