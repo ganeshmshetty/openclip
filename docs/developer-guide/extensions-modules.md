@@ -18,6 +18,12 @@ may load other files inside the package.
   alias).
 - `__dirname` — the package directory (of the entry file).
 
+Note: the **entry script's** `require` base and `__dirname` are bound to the **package directory**,
+not the entry file's directory — so a manifest `script: "src/main.js"` would resolve
+`require('./helper.js')` against the package root, not `src/`. Keep entry scripts at the package
+root (which both the plain `js` scaffold and `--with-npm` scaffold do). Child modules resolve
+relative to their own file, Node-style.
+
 Inline `scriptCode` actions keep the **legacy single-file behavior, byte-identical**: no `require`,
 no `module`/`exports`/`__dirname`. If you need modules, use a `script:` file.
 

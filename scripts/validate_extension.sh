@@ -184,9 +184,9 @@ if [ -n "$MISSING_REQ" ]; then
     exit 1
 fi
 
-# npm bundles: package.json implies a build contract — dist/main.js must exist (error) and be
-# newer than package.json / src/ (warning, hot-edit workflows exist).
-if [ -f "$SRC_DIR/package.json" ]; then
+# npm bundles: only when the manifest targets dist/ does package.json imply a build contract.
+HAS_DIST_SCRIPT="$(jq -r '[.. | objects | .script?] | map(select(type == "string" and startswith("dist/"))) | length' "$MANIFEST")"
+if [ "${HAS_DIST_SCRIPT:-0}" -gt 0 ] && [ -f "$SRC_DIR/package.json" ]; then
     if [ ! -f "$SRC_DIR/dist/main.js" ]; then
         echo "validate_extension: $MANIFEST requires a build — run 'npm install && npm run build' in $SRC_DIR" >&2
         exit 1
