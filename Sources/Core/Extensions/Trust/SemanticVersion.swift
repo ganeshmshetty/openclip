@@ -18,6 +18,12 @@ public struct SemanticVersion: Sendable, Equatable, Comparable {
         self.patch = patch
     }
 
+    /// Convenience failable initializer delegating to `parse`.
+    public init?(string: String) {
+        guard let version = SemanticVersion.parse(string) else { return nil }
+        self = version
+    }
+
     /// Parses a version string. Returns nil for strings with no parseable numeric triplet.
     public static func parse(_ string: String) -> SemanticVersion? {
         var value = string.trimmingCharacters(in: .whitespacesAndNewlines)

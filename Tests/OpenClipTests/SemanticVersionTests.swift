@@ -13,6 +13,11 @@ final class SemanticVersionTests: XCTestCase {
         XCTAssertEqual(SemanticVersion.parse("1.2.3-beta.1"), SemanticVersion(1, 2, 3))
     }
 
+    func testStringInitializer() {
+        XCTAssertEqual(SemanticVersion(string: "2.1.0"), SemanticVersion(2, 1, 0))
+        XCTAssertNil(SemanticVersion(string: "banana"))
+    }
+
     func testParseRejectsGarbage() {
         XCTAssertNil(SemanticVersion.parse(""))
         XCTAssertNil(SemanticVersion.parse("banana"))
