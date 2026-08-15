@@ -60,11 +60,11 @@ struct ToastView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
                 .fill(bubbleFill)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
                 .stroke(bubbleBorder, lineWidth: 1)
         )
         .shadow(color: .black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 5, x: 0, y: 2)

@@ -636,7 +636,7 @@ public class PopupWindowController {
                 let resolved = await resolveDelivery(effect, delivery: delivery)
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
                 if let toast = resolved.toast {
-                    toastController.show(toast, anchorFrame: panel?.frame)
+                    toastController.show(toast, anchorPoint: panel?.centerPoint)
                 }
             } catch {
                 handleActionResult(.showStatus(StatusFeedback(error: error)))
@@ -753,10 +753,10 @@ public class PopupWindowController {
             isSecondaryClick: isSecondaryClick,
             match: match
         )
-        let anchorFrame = panel?.frame
+        let anchorPoint = panel?.centerPoint
         hide()
         let message = action.chrome.loadingMessage ?? "Opening \(action.title)…"
-        toastController.showLoading(message: message, anchorFrame: anchorFrame)
+        toastController.showLoading(message: message, anchorPoint: anchorPoint)
         Task { @MainActor in
             do {
                 let result = try await action.perform(performContext)
@@ -800,7 +800,7 @@ public class PopupWindowController {
     /// Surfaces a StatusFeedback as the floating toast (the single status renderer). The toast
     /// is independent of the popup, so it shows whether the popup stays up or has already hidden.
     private func presentStatus(_ feedback: StatusFeedback) {
-        toastController.show(feedback, anchorFrame: panel?.frame)
+        toastController.show(feedback, anchorPoint: panel?.centerPoint)
     }
 
     /// Decision 8 config-open path: the popup has already hidden (`.openConfiguration` dismisses it);

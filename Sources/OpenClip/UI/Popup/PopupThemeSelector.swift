@@ -19,6 +19,7 @@ import Core
 struct PopupThemeSelector: View {
     @AppStorage(SettingKey.popupTheme.name) private var theme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
+    @AppStorage(SettingKey.popupScale.name) private var popupScale: Double = SettingKey.popupScale.defaultValue
 
     private struct AppearanceOption: Identifiable {
         let label: String
@@ -33,14 +34,11 @@ struct PopupThemeSelector: View {
 
     private var isGlassOn: Bool { category == .glass }
 
-    /// Tray geometry. The Theme tray hugs its segment text width at a compact height;
-    /// the Mode tray is a bit taller so the appearance icon tiles have room to breathe.
+    /// Shared tray geometry for both Theme and Mode rows.
     private var trayHeight: CGFloat { 34 }
     private var trayContentHeight: CGFloat { trayHeight - 6 }
     private var segmentWidth: CGFloat { 72 }
-    private var tileWidth: CGFloat { 54 }
-    private var tileHeight: CGFloat { 48 }
-    private var tileTrayHeight: CGFloat { tileHeight + 8 }
+    private var modeSegmentWidth: CGFloat { 48 }
 
     private var themeOptions: [AppearanceOption] {
         [
@@ -70,8 +68,7 @@ struct PopupThemeSelector: View {
             Section {
                 themeRow
                 modeRow
-            } footer: {
-                Text("Applies to both themes. System follows the Mac's Light/Dark setting — pin Glass to Dark for a high-contrast popup over white backgrounds.")
+                sizeRow
             }
         }
         .formStyle(.grouped)
@@ -93,13 +90,37 @@ struct PopupThemeSelector: View {
 
     private var modeRow: some View {
         HStack(spacing: 12) {
-            rowTitle(icon: "circle.lefthalf.filled", title: "Mode", subtitle: "System, Light or Dark — applies to both themes")
+            rowTitle(icon: "circle.lefthalf.filled", title: "Mode", subtitle: "System, Light or Dark appearance")
             Spacer()
             iconTiles(
                 options: appearanceOptions,
                 isSelected: { activeAppearance == $0.value },
                 select: selectAppearance
             )
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var sizeRow: some View {
+        HStack(spacing: 12) {
+            rowTitle(
+                icon: "arrow.up.left.and.arrow.down.right",
+                title: "Size",
+                subtitle: "\(Int(round(popupScale * 100)))% scaling"
+            )
+            Spacer()
+            HStack(spacing: 10) {
+                Slider(value: $popupScale, in: 0.8...1.2, step: 0.05)
+                    .frame(width: 140)
+                Button("Reset") {
+                    popupScale = 1.0
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundColor(.accentColor)
+                .opacity(popupScale == 1.0 ? 0.4 : 1.0)
+                .disabled(popupScale == 1.0)
+            }
         }
         .padding(.vertical, 4)
     }
@@ -145,7 +166,7 @@ struct PopupThemeSelector: View {
         .overlay(segmentContainerBorder)
     }
 
-    /// Square icon tiles for the Mode row.
+    /// Icon-only segments for the Mode row matching the theme row size.
     private func iconTiles(
         options: [AppearanceOption],
         isSelected: @escaping (AppearanceOption) -> Bool,
@@ -154,7 +175,7 @@ struct PopupThemeSelector: View {
         HStack(spacing: 0) {
             ForEach(options) { option in
                 if option.value != options[0].value {
-                    hairline(height: 32)
+                    hairline(height: 20)
                 }
                 tileButton(
                     label: option.label,
@@ -165,7 +186,7 @@ struct PopupThemeSelector: View {
             }
         }
         .padding(3)
-        .frame(height: tileTrayHeight)
+        .frame(height: trayHeight)
         .background(segmentContainerBackground)
         .overlay(segmentContainerBorder)
     }
@@ -214,21 +235,17 @@ struct PopupThemeSelector: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(spacing: 3) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isSelected ? .accentColor : .secondary)
-                Text(label)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(isSelected ? .primary : .secondary)
-            }
-            .frame(width: tileWidth, height: tileHeight)
-            .contentShape(Rectangle())
-            .accessibilityLabel(label)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isSelected ? Color.primary.opacity(0.12) : Color.clear)
-            )
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(isSelected ? .white : .primary)
+                .frame(width: modeSegmentWidth, height: trayContentHeight)
+                .contentShape(Rectangle())
+                .help(label)
+                .accessibilityLabel(label)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(isSelected ? Color.accentColor : Color.clear)
+                )
         }
         .buttonStyle(.plain)
     }

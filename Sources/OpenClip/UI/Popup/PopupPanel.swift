@@ -26,6 +26,11 @@ public class PopupPanel: NSPanel {
     /// preserves origin.x and drifts the popup off the cursor.
     public var recenterXOnResize: Bool = false
 
+    /// The center point of the panel in screen coordinates.
+    public var centerPoint: CGPoint {
+        CGPoint(x: frame.midX, y: frame.midY)
+    }
+
     public init() {
         super.init(
             contentRect: .zero,

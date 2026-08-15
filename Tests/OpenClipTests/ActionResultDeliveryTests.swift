@@ -366,7 +366,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.handleActionResult(.showStatus(StatusFeedback(message: "hello", style: .info)))
         XCTAssertEqual(toast.currentFeedback?.message, "hello")
         XCTAssertTrue(toast.isShowing)
-        XCTAssertNotNil(toast.lastAnchorFrame, "status toast must anchor to the popup frame, not the cursor")
+        XCTAssertNotNil(toast.lastAnchorPoint, "status toast must anchor to the popup point, not the cursor")
     }
 
     // MARK: - Loading (slow-action) early-close flow

@@ -49,14 +49,14 @@ final class ToastPanelControllerTests: XCTestCase {
         controller.hide()
     }
 
-    /// The toast must center on the popup's anchor frame, not the cursor.
-    func testShowCentersOnAnchorFrame() {
+    /// The toast must center on the anchor point, not the cursor.
+    func testShowCentersOnAnchorPoint() {
         let controller = ToastPanelController()
-        let anchor = NSRect(x: 500, y: 400, width: 320, height: 36)
-        controller.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorFrame: anchor)
+        let anchor = CGPoint(x: 500, y: 400)
+        controller.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorPoint: anchor)
         let size = controller.panelFrame.size
-        XCTAssertEqual(controller.panelFrame.midX, anchor.midX, accuracy: 1)
-        XCTAssertEqual(controller.panelFrame.midY, anchor.midY, accuracy: 1)
+        XCTAssertEqual(controller.panelFrame.midX, anchor.x, accuracy: 1)
+        XCTAssertEqual(controller.panelFrame.midY, anchor.y, accuracy: 1)
         XCTAssertGreaterThan(size.width, 0)
         controller.hide()
     }

@@ -50,6 +50,7 @@ public struct PopupView: View {
 
     @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
+    @AppStorage(SettingKey.popupScale.name) private var popupScale: Double = SettingKey.popupScale.defaultValue
     @Environment(\.colorScheme) private var colorScheme
 
     private var themeCategory: PopupThemeModel.Category {
@@ -99,9 +100,11 @@ public struct PopupView: View {
     /// lifetime — and cached, so NSSpellChecker dictionary work never runs inside `body`.
     @State private var cachedCompletions: [String]
 
-    private let buttonWidth: CGFloat = 36
-    private let chevronWidth: CGFloat = 26
-    private let barButtonHeight: CGFloat = 26
+    private var scale: CGFloat { CGFloat(popupScale) }
+    private var buttonWidth: CGFloat { 36 * scale }
+    private var chevronWidth: CGFloat { 26 * scale }
+    private var barButtonHeight: CGFloat { 26 * scale }
+    private var cornerRadius: CGFloat { PopupMetrics.popupCornerRadius * scale }
     private let pageSize = 7
 
 
@@ -286,26 +289,26 @@ public struct PopupView: View {
                 if #available(macOS 26, *) {
                     barStack
                         .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .fill(.ultraThinMaterial)
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .stroke(glassBorderColor, lineWidth: 1.0)
                         )
-                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                         .compositingGroup()
                         .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
                 } else {
                     barStack
                         .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .fill(.ultraThinMaterial)
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .stroke(glassBorderColor, lineWidth: 1.0)
                         )
                         .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
@@ -313,9 +316,9 @@ public struct PopupView: View {
             } else {
                 barStack
                     .background(opaqueBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .stroke(opaqueBorder, lineWidth: 1.0)
                     )
                     .shadow(color: .black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 6, x: 0, y: 3)
@@ -336,7 +339,7 @@ public struct PopupView: View {
     @ViewBuilder
     private var processingGlowBorder: some View {
         if isProcessingAI {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(
                     LinearGradient(
                         colors: [
@@ -477,7 +480,7 @@ public struct PopupView: View {
             }
         }
         .fixedSize()
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
     // MARK: - Normal Actions Bar Layout
@@ -518,7 +521,7 @@ public struct PopupView: View {
                 onEnterSearch()
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 13 * scale, weight: .medium))
                     .foregroundColor(isHovered ? .white : affordanceForeground)
                     .frame(width: buttonWidth, height: barButtonHeight)
                     .background(isHovered ? Color.accentColor : Color.clear)
@@ -542,7 +545,7 @@ public struct PopupView: View {
             }
         }
         .fixedSize()
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
     // MARK: - Completion Button
@@ -556,12 +559,12 @@ public struct PopupView: View {
             onResult(.paste(word))
         } label: {
             Text(word)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 13 * scale, weight: .medium))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .foregroundColor(isHovered ? .white : restForeground)
-                .frame(maxWidth: 140)
-                .padding(.horizontal, 10)
+                .frame(maxWidth: 140 * scale)
+                .padding(.horizontal, 10 * scale)
                 .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
                 .background(isHovered ? Color.accentColor : Color.clear)
                 .overlay(alignment: .trailing) {
@@ -589,10 +592,10 @@ public struct PopupView: View {
         let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
 
         let labelView = iconView(for: action.displayIcon(using: presenter))
-            .font(.system(size: 13, weight: .medium))
+            .font(.system(size: 13 * scale, weight: .medium))
             .foregroundColor(isHovered ? .white : restForeground)
             .padding(.horizontal, {
-                if case .text = action.displayIcon(using: presenter) { return 7.0 }
+                if case .text = action.displayIcon(using: presenter) { return 7.0 * scale }
                 return 0.0
             }())
             .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
@@ -690,7 +693,7 @@ public struct PopupView: View {
         let isHovered = hoveredTarget == target
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 11 * scale, weight: .semibold))
                 .foregroundColor(isHovered ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
                 .frame(width: chevronWidth, height: barButtonHeight)
                 .background(isHovered ? Color.accentColor : Color.clear)
@@ -710,10 +713,10 @@ public struct PopupView: View {
     private var opaqueBackground: some View {
         switch effectiveTheme {
         case "dark":
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(Color(red: 0.20, green: 0.20, blue: 0.22))
         default:
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(Color(red: 0.91, green: 0.91, blue: 0.93))
         }
     }
