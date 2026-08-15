@@ -72,39 +72,3 @@ extension ActionResult {
         }
     }
 }
-
-extension ActionResult: Equatable {
-    /// Value equality for results. `.failure` compares by error description text — enough for
-    /// `ActionDelivery`/`ActionDelivery.none` to be `Equatable` without baking error identity in.
-    public static func == (lhs: ActionResult, rhs: ActionResult) -> Bool {
-        switch (lhs, rhs) {
-        case (.success, .success), (.simulatePaste, .simulatePaste), (.none, .none):
-            return true
-        case (.openURL(let a), .openURL(let b)):
-            return a == b
-        case (.copy(let a), .copy(let b)), (.cut(let a), .cut(let b)),
-             (.paste(let a), .paste(let b)), (.showServices(let a), .showServices(let b)),
-             (.copyDefinition(let a), .copyDefinition(let b)):
-            return a == b
-        case (.shareService(let ai, let at), .shareService(let bi, let bt)):
-            return ai == bi && at == bt
-        case (.notify(let at, let ab), .notify(let bt, let bb)):
-            return at == bt && ab == bb
-        case (.showStatus(let a), .showStatus(let b)):
-            return a == b
-        case (.openConfiguration(let a), .openConfiguration(let b)):
-            return a == b
-        case (.sequence(let a), .sequence(let b)):
-            return a == b
-        case (.keyPress(let a), .keyPress(let b)):
-            return a == b
-        case (.runShortcut(let an, let ai), .runShortcut(let bn, let bi)):
-            return an == bn && ai == bi
-        case (.failure(let a), .failure(let b)):
-            return (a as? LocalizedError)?.errorDescription ?? String(describing: a)
-                == (b as? LocalizedError)?.errorDescription ?? String(describing: b)
-        default:
-            return false
-        }
-    }
-}
