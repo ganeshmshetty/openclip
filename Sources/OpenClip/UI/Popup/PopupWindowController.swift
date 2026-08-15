@@ -641,11 +641,13 @@ public class PopupWindowController {
         } else {
             canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
         }
-        return ActionResultDelivery.resolve(
+        let resolved = ActionResultDelivery.resolve(
             raw: result,
             clickIntent: delivery.clickIntent,
-            canPaste: canPaste
+            canPaste: canPaste,
+            delivery: .none // Task 4 wires the real delivery; external behavior stays identical here
         )
+        return resolved.result
     }
 
     /// Performs an action directly (the right-click path, which the bar's SwiftUI Button never
