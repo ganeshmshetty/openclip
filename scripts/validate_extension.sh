@@ -176,7 +176,7 @@ while IFS= read -r js_file; do
             continue
         fi
         MISSING_REQ="$MISSING_REQ $js_file -> require(\"$spec\")"
-    done < <(grep -oE 'require\(\s*["'"'"']\.\.?/[^"'"'"']*["'"'"']' "$SRC_DIR/$js_file" | sed -E -e 's/^require\(\s*["'"'"']//' -e 's/["'"'"']\)$//')
+    done < <(grep -oE 'require\(\s*["'"'"']\.\.?/[^"'"'"']*["'"'"']' "$SRC_DIR/$js_file" | sed -E -e 's/^require\(\s*["'"'"']//' -e 's/["'"'"']\)?$//')
 done < <(jq -r '[.. | objects | .script?] | map(select(type == "string" and length > 0)) | unique[]' "$MANIFEST")
 
 if [ -n "$MISSING_REQ" ]; then
