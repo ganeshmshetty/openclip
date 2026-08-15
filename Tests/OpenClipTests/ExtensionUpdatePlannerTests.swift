@@ -35,4 +35,16 @@ final class ExtensionUpdatePlannerTests: XCTestCase {
         let installed = [InstalledPackageVersion(packageID: "com.a", installedVersion: "1.0.0", source: "local")]
         XCTAssertEqual(ExtensionUpdatePlanner.updatablePackageIDs(storeItems: items, installed: installed), [])
     }
+
+    func testDuplicateStoreIDsDoNotCrashAndLastWins() {
+        let items = [item("com.a", version: "1.2.0"), item("com.a", version: "1.0.0"), item("com.a", version: "2.0.0")]
+        let installed = [InstalledPackageVersion(packageID: "com.a", installedVersion: "1.1.0", source: "store")]
+        XCTAssertEqual(ExtensionUpdatePlanner.updatablePackageIDs(storeItems: items, installed: installed), ["com.a"])
+    }
+
+    func testDuplicateStoreIDsWithOnlyStaleLastEntryIsNotUpdatable() {
+        let items = [item("com.a", version: "2.0.0"), item("com.a", version: "1.0.0")]
+        let installed = [InstalledPackageVersion(packageID: "com.a", installedVersion: "1.1.0", source: "store")]
+        XCTAssertEqual(ExtensionUpdatePlanner.updatablePackageIDs(storeItems: items, installed: installed), [])
+    }
 }

@@ -149,7 +149,7 @@ public enum ExtensionTrustGate {
                 popupBehavior: .perform,
                 source: .extensionPkg(packageID: packageID)
             )
-            let currentHash = ExtensionPackageHashResolver.packageHash(for: representative, in: directory) ?? ""
+            let currentHash = ExtensionPackageHashResolver.packageHash(for: representative, in: directory)
             let record = trust[packageID]
             let source = sources[packageID] ?? "local"
             let required = ExtensionManifestStore.manifest(forPackageID: packageID, in: directory)?.openClipVersion
@@ -161,29 +161,37 @@ public enum ExtensionTrustGate {
             func real() {
                 result.append(contentsOf: packageActions)
             }
-            func writeTrusted() {
+            /// Trusts the package only when its content fingerprint resolved. Returns false (and
+            /// persists no trust, no hash) when it didn't, so the flow fails closed.
+            func writeTrusted() -> Bool {
+                guard let currentHash else { return false }
                 if trust[packageID] != "trusted" || hashes[packageID] != currentHash {
                     trust[packageID] = "trusted"
                     hashes[packageID] = currentHash
                     trustChanged = true
                     hashesChanged = true
                 }
+                return true
             }
 
             if source == "store", record == nil {
                 // Fresh store install = consent: trust with the current hash. The install path
                 // seeds `extensionSources` before the load; this branch must not consult the
                 // migration flag either way.
-                writeTrusted()
-                if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
+                if writeTrusted() {
+                    if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
+                } else {
+                    gated(.filesChanged)
+                }
             } else if record == "revoked" {
                 // Explicit user "no" survives updates regardless of source.
                 gated(.revoked)
-            } else if record == "trusted", hashes[packageID] == currentHash {
+            } else if record == "trusted", let currentHash, hashes[packageID] == currentHash {
                 if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
             } else if record == "trusted" {
-                // Any content drift — store-sourced packages included — is a tamper. Only the
-                // update flow re-trusts (via ExtensionUpdateManager.update → enablePackage).
+                // Any content drift — an unresolvable fingerprint included, store-sourced
+                // packages included — is a tamper. Only the update flow re-trusts
+                // (via ExtensionUpdateManager.update → enablePackage).
                 trust[packageID] = "seen"
                 trustChanged = true
                 events.append(.tampered(packageID: packageID, name: name))
@@ -191,8 +199,11 @@ public enum ExtensionTrustGate {
             } else if record == nil {
                 if !newMigrated {
                     // First launch after upgrade: auto-trust everything present.
-                    writeTrusted()
-                    if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
+                    if writeTrusted() {
+                        if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
+                    } else {
+                        gated(.filesChanged)
+                    }
                 } else {
                     trust[packageID] = "seen"
                     trustChanged = true

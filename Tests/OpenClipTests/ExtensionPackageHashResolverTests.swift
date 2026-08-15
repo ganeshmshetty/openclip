@@ -63,6 +63,44 @@ final class ExtensionPackageHashResolverTests: XCTestCase {
         XCTAssertEqual(hash, ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: ExtensionManifestStore.readManifest(at: manifestURL)!))
     }
 
+    func testAddingReferencedScriptChangesHash() throws {
+        let pkg = tempDir.appendingPathComponent("multi.openclipext")
+        try FileManager.default.createDirectory(at: pkg, withIntermediateDirectories: true)
+        let manifestURL = pkg.appendingPathComponent("openclip.json")
+        let scriptURL = pkg.appendingPathComponent("main.sh")
+        try writePackage(identifier: "com.t.multi", manifestURL: manifestURL, scriptURL: scriptURL, script: "echo one")
+
+        let manifest = ExtensionManifestStore.readManifest(at: manifestURL)!
+        let before = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+
+        let secondScript = pkg.appendingPathComponent("aux.sh")
+        try "echo two".write(to: secondScript, atomically: true, encoding: .utf8)
+        let extended = ExtensionMetadata(
+            identifier: manifest.identifier, name: manifest.name,
+            actions: manifest.actions + [ExtensionActionMetadata(title: "B", script: "aux.sh", type: "script")],
+            version: manifest.version
+        )
+        let after = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: extended))
+        XCTAssertNotEqual(before, after, "adding a referenced script component must change the package hash")
+    }
+
+    func testUnreadableReferencedScriptIsSkippedNotFatal() throws {
+        let pkg = tempDir.appendingPathComponent("skip.openclipext")
+        try FileManager.default.createDirectory(at: pkg, withIntermediateDirectories: true)
+        let manifestURL = pkg.appendingPathComponent("openclip.json")
+        try """
+        {"identifier":"com.t.skip","name":"Pkg","actions":[
+          {"title":"A","type":"script","script":"missing.sh"},
+          {"title":"B","type":"script","script":"present.sh"}
+        ]}
+        """.write(to: manifestURL, atomically: true, encoding: .utf8)
+        try "echo present".write(to: pkg.appendingPathComponent("present.sh"), atomically: true, encoding: .utf8)
+
+        let manifest = ExtensionManifestStore.readManifest(at: manifestURL)!
+        let hash = ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest)
+        XCTAssertNotNil(hash, "an unreadable referenced script must not void the package hash")
+    }
+
     @MainActor
     func testManifestLookupByPackageID() throws {
         let pkg = tempDir.appendingPathComponent("lookup.openclipext")

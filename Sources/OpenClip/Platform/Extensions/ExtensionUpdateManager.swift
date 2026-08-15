@@ -35,25 +35,29 @@ public final class ExtensionUpdateManager: ObservableObject {
         }
 
         var allItems: [ExtensionItem] = []
+        let maxPages = 100
         var page = 1
         var totalPages = 1
         while page <= totalPages {
-            if let response = try? await ExtensionsAPIClient.shared.fetchExtensions(page: page, limit: 50) {
-                allItems.append(contentsOf: response.extensions)
-                totalPages = response.totalPages
-                page += 1
-            } else {
-                break
-            }
+            // Finite bound so a pathological server-reported totalPages can't spin forever; normal
+            // pagination still follows the server's totalPages.
+            guard page <= maxPages,
+                  let response = try? await ExtensionsAPIClient.shared.fetchExtensions(page: page, limit: 50) else { break }
+            allItems.append(contentsOf: response.extensions)
+            totalPages = response.totalPages
+            page += 1
         }
-
+        // Only reached past the last server page if every required page (and the bound) succeeded;
+        // otherwise keep the previously published updatable set instead of computing on partial data.
+        guard page > totalPages else { return }
         updatablePackageIDs = ExtensionUpdatePlanner.updatablePackageIDs(storeItems: allItems, installed: installed)
     }
 
     /// Updates one package: marks its source as store (already true) and re-installs from the
     /// store download URL. The gate no longer blanket-re-trusts store packages, so update
     /// explicitly re-trusts (and re-records the hash) after the reinstall unless the package was
-    /// revoked — a revoked package stays revoked.
+    /// revoked — a revoked package stays revoked. If the reinstall fails, the pre-update trust
+    /// state and recorded hash are restored so the package isn't left in the intermediate seen state.
     public func update(packageID: String) async throws {
         guard let item = await storeItem(for: packageID), let url = URL(string: item.downloadURL) else {
             throw NSError(domain: "ExtensionUpdateManager", code: 404,
@@ -61,6 +65,8 @@ public final class ExtensionUpdateManager: ObservableObject {
         }
         let settings = DefaultSettingsStore.shared
         let wasRevoked = settings.get(.extensionTrust)[packageID] == ExtensionTrustState.revoked.rawValue
+        let originalTrust = settings.get(.extensionTrust)[packageID]
+        let originalHash = settings.get(.extensionTrustHashes)[packageID]
         if !wasRevoked {
             // Pre-mark seen and drop the recorded hash so the intermediate load inside the
             // install doesn't fire a spurious tamper event for a legitimate update.
@@ -72,7 +78,23 @@ public final class ExtensionUpdateManager: ObservableObject {
             settings.set(.extensionTrustHashes, value: hashes)
         }
         ExtensionManager.shared.prepareInstall(source: "store", packageID: packageID)
-        _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: packageID)
+        do {
+            _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: packageID)
+        } catch {
+            if !wasRevoked {
+                if let originalTrust {
+                    var trust = settings.get(.extensionTrust)
+                    trust[packageID] = originalTrust
+                    settings.set(.extensionTrust, value: trust)
+                }
+                if let originalHash {
+                    var hashes = settings.get(.extensionTrustHashes)
+                    hashes[packageID] = originalHash
+                    settings.set(.extensionTrustHashes, value: hashes)
+                }
+            }
+            throw error
+        }
         if !wasRevoked {
             await ExtensionManager.shared.enablePackage(packageID: packageID)
         }
