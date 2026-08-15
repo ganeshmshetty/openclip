@@ -1,0 +1,47 @@
+// SemanticVersion.swift
+// OpenClip
+//
+// Minimal semantic-version value type used for `minOpenClipVersion` compatibility checks and
+// extension update comparisons. Tolerant parse: leading "v", a 1-3 component triplet, and any
+// trailing prerelease/build text are accepted (only the numeric triplet is compared).
+// Pure Core — no AppKit/SwiftUI.
+import Foundation
+
+public struct SemanticVersion: Sendable, Equatable, Comparable {
+    public let major: Int
+    public let minor: Int
+    public let patch: Int
+
+    public init(_ major: Int, _ minor: Int, _ patch: Int) {
+        self.major = major
+        self.minor = minor
+        self.patch = patch
+    }
+
+    /// Parses a version string. Returns nil for strings with no parseable numeric triplet.
+    public static func parse(_ string: String) -> SemanticVersion? {
+        var value = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("v") || value.hasPrefix("V") {
+            value = String(value.dropFirst())
+        }
+        // Cut at the first non-[0-9.] so "1.2.3-beta.1" becomes "1.2.3".
+        if let stop = value.firstIndex(where: { !$0.isNumber && $0 != "." }) {
+            value = String(value[..<stop])
+        }
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        guard !parts.isEmpty, parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) }) else {
+            return nil
+        }
+        func component(_ index: Int) -> Int {
+            guard parts.indices.contains(index), let n = Int(parts[index]) else { return 0 }
+            return n
+        }
+        return SemanticVersion(component(0), component(1), component(2))
+    }
+
+    public static func < (lhs: SemanticVersion, rhs: SemanticVersion) -> Bool {
+        if lhs.major != rhs.major { return lhs.major < rhs.major }
+        if lhs.minor != rhs.minor { return lhs.minor < rhs.minor }
+        return lhs.patch < rhs.patch
+    }
+}
