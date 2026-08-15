@@ -25,10 +25,11 @@ final class ActionResultDeliveryTests: XCTestCase {
     // MARK: - Primary click + can paste → paste
 
     func testPrimaryClickCanPastePastes() {
-        let result = ActionResultDelivery.resolve(
+        let (result, _) = ActionResultDelivery.resolve(
             raw: .paste("hello"),
             clickIntent: .primary,
-            canPaste: true
+            canPaste: true,
+            delivery: .none
         )
         assertCase(result, .paste("hello"))
     }
@@ -36,10 +37,11 @@ final class ActionResultDeliveryTests: XCTestCase {
     // MARK: - Secondary (right-click / shift) always copies
 
     func testSecondaryCopiesEvenWhenPasteAvailable() {
-        let result = ActionResultDelivery.resolve(
+        let (result, _) = ActionResultDelivery.resolve(
             raw: .paste("hello"),
             clickIntent: .secondary,
-            canPaste: true
+            canPaste: true,
+            delivery: .none
         )
         assertCase(result, .copy("hello"))
     }
@@ -47,10 +49,11 @@ final class ActionResultDeliveryTests: XCTestCase {
     // MARK: - Cannot paste → copy
 
     func testCannotPasteCopies() {
-        let result = ActionResultDelivery.resolve(
+        let (result, _) = ActionResultDelivery.resolve(
             raw: .paste("hello"),
             clickIntent: .primary,
-            canPaste: false
+            canPaste: false,
+            delivery: .none
         )
         assertCase(result, .copy("hello"))
     }
@@ -58,31 +61,100 @@ final class ActionResultDeliveryTests: XCTestCase {
     // MARK: - Non-paste results pass through untouched
 
     func testCopyStaysCopy() {
-        let result = ActionResultDelivery.resolve(
+        let (result, _) = ActionResultDelivery.resolve(
             raw: .copy("hello"),
             clickIntent: .secondary,
-            canPaste: false
+            canPaste: false,
+            delivery: .none
         )
         assertCase(result, .copy("hello"))
     }
 
     func testCutStaysCut() {
-        let result = ActionResultDelivery.resolve(
+        let (result, _) = ActionResultDelivery.resolve(
             raw: .cut("hello"),
             clickIntent: .secondary,
-            canPaste: false
+            canPaste: false,
+            delivery: .none
         )
         assertCase(result, .cut("hello"))
     }
 
     func testNonTextResultsPassThrough() {
         let url = URL(string: "https://example.com")!
-        let result = ActionResultDelivery.resolve(
+        let (result, _) = ActionResultDelivery.resolve(
             raw: .openURL(url),
             clickIntent: .secondary,
-            canPaste: false
+            canPaste: false,
+            delivery: .none
         )
         assertCase(result, .openURL(url))
+    }
+
+    // MARK: - Primary/secondary selection
+
+    func testPrimaryUsesRawResult() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: true, delivery: .none)
+        assertCase(r, .paste("a"))
+    }
+
+    func testSecondaryWithoutDeclaredSecondaryCopiesPaste() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: .none)
+        assertCase(r, .copy("a"))
+    }
+
+    func testSecondaryWithNonPastePrimaryStaysPrimary() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .openURL(URL(string: "https://x")!), clickIntent: .secondary, canPaste: true, delivery: .none)
+        assertCase(r, .openURL(URL(string: "https://x")!))
+    }
+
+    func testSecondaryUsesDeclaredSecondary() {
+        let d = ActionDelivery(secondary: .openURL(URL(string: "https://alt")!))
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: d)
+        assertCase(r, .openURL(URL(string: "https://alt")!))
+    }
+
+    // MARK: - Probe applies to whichever result is chosen
+
+    func testProbeAppliesToDeclaredPasteSecondary() {
+        let d = ActionDelivery(secondary: .paste("a"))
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: false, delivery: d)
+        assertCase(r, .copy("a"))   // declared paste still downgrades when target can't paste
+    }
+
+    func testProbeAppliesToPrimary() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: false, delivery: .none)
+        assertCase(r, .copy("a"))
+    }
+
+    // MARK: - Toast
+
+    func testDefaultCopiedToastOnDerivedCopy() {
+        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: .none)
+        XCTAssertEqual(toast?.message, "Copied")
+        XCTAssertEqual(toast?.style, .success)
+    }
+
+    func testNoDefaultToastOnHonoredPaste() {
+        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: true, delivery: .none)
+        XCTAssertNil(toast)
+    }
+
+    func testNoDefaultToastOnNativeCopy() {
+        let (_, toast) = ActionResultDelivery.resolve(raw: .copy("a"), clickIntent: .primary, canPaste: true, delivery: .none)
+        XCTAssertNil(toast)
+    }
+
+    func testDeclaredPrimaryToastOverridesDefault() {
+        let t = StatusFeedback(message: "Saved", style: .info)
+        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: true, delivery: ActionDelivery(primaryToast: t))
+        XCTAssertEqual(toast, t)
+    }
+
+    func testDeclaredSecondaryToastUsed() {
+        let t = StatusFeedback(message: "Copied alt", style: .success)
+        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: ActionDelivery(secondaryToast: t))
+        XCTAssertEqual(toast, t)
     }
 
     // MARK: - RuleEngine propagates denyPaste
