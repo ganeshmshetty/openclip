@@ -149,7 +149,7 @@ to the same runtime. Runs under the `openclip.*` bridge (§7). Option values are
 `dir/index.js`) relative to the requiring file, and modules are cached per run (cycles get partial
 exports). Entry dispatch prefers `module.exports` as a function → `module.exports.action` →
 `module.exports.main` → in-scope `action` → in-scope `main`. Containment is the **package
-directory only**: `../` and symlink escapes are rejected (`.showStatus(.error)` with "resolves
+directory only**: `../` and symlink escapes are rejected (`.toast(.error)` with "resolves
 outside the extension package"), as are absolute paths and bare specifiers — Node builtins (`fs`,
 `os`, …) get an explicit "Node builtin" message, other bare names get "bundle npm libraries with
 esbuild". Inline `scriptCode` actions have **no** modules (byte-identical legacy behavior). The full
@@ -175,8 +175,8 @@ an `osascript` subprocess; the selection is injected as a top-level `property OP
 AppleScript names are case-insensitive), and
 `{text}`/`{query}`/`{matched}`/`{captureN}` placeholders are substituted (unencoded, §6b). Both
 authoring styles are supported: bare top-level statements **or** an explicit `on run … end run`
-handler. A non-empty string the script returns becomes `.copy`. Errors become `.failure` (shown as
-an error status).
+handler. A non-empty string the script returns becomes `.paste`. Errors become `.failure` (shown as
+an error toast).
 
 ### 3d. shell (inline or file)
 
@@ -405,6 +405,11 @@ runs:
 3. **Toast** — the click's declared toast (`toast` for primary, `secondaryToast` for secondary) wins;
    otherwise the default **"Copied"** toast fires only when a paste context was delivered as a copy
    (derived at select, declared, or downgraded by the probe) or a `.copyDefinition` is delivered.
+4. **One toast per run** — a script-emitted `.toast` (JS `openclip.toast`, shell JSON `"toast"`)
+   **suppresses** the delivery companion toast: nothing beyond the script's own toast surfaces. The
+   precedence is **script toast > declared per-click toast (`toast`/`secondaryToast`) > default
+   "Copied"**. The default "Copied" is a **delivery-side** fallback, not a script surface — it never
+   overrides, or appears alongside, a script's own toast.
 
 Only `.paste` outcomes are ever downgraded to `.copy`; an explicit `.copy` stays a copy, and
 non-text results (openURL, notify, keyPress, …) pass through untouched.
@@ -420,9 +425,9 @@ non-text results (openURL, notify, keyPress, …) pass through untouched.
 
   ```jsonc
   "secondary": {
-    "type": "copy",        // "copy" | "paste" | "openURL" | "status" | "success" | "none"
+    "type": "copy",        // "copy" | "paste" | "openURL" | "toast" | "success" | "none"
     "value": "Look up: https://example.com/search?q=selection",  // literal value for copy / paste / openURL
-    "message": "…"         // message for type "status"
+    "message": "…"         // message for type "toast"
   }
   ```
 
@@ -444,7 +449,7 @@ non-text results (openURL, notify, keyPress, …) pass through untouched.
 
   > **Fail-open note:** a `secondary` of type `copy`/`paste`/`openURL` whose `value` is missing (or
   > an `openURL` with an unparseable `value`) silently becomes a no-op `.success` — declare `value`
-  > for those types. `status` reads `message`; `success`/`none` need neither.
+  > for those types. `toast` reads `message`; `success`/`none` need neither.
 
 - **`toast`** / **`secondaryToast`** — a one-line companion toast shown after the action completes,
   per click. Valid on **all** kinds. Shape:
@@ -510,8 +515,9 @@ and the click's declared `toast`/`secondaryToast` still apply to it exactly as f
 blocks until it launches). On click the popup closes immediately and a `[spinner] <message>`
 toast appears; when the result lands the toast swaps to a description — "Copied" on a
 paste→copy downgrade, or the action's error status — or fades when the result carries none
-(`.success`, an opened URL, an honored paste, a native copy). It is presentation metadata only: it
-never changes the result/dismissal semantics of `.showStatus`.
+(`.success`, an opened URL, an honored paste, a native copy). It is presentation metadata only: when
+the result lands, the resulting toast and the delivery companion follow the one-toast-per-run
+precedence of §5b.
 
 The spinner's message is `loadingMessage` when declared (a static string, used verbatim), otherwise
 the host falls back to `Opening <title>…`. Example:
@@ -585,12 +591,12 @@ Read-only input context:
 
 Entry points: the code is wrapped in an IIFE; if you define `action(selection, options)` or
 `main(selection, options)` it is called with the selection and options dict; otherwise the top-level
-code runs. A returned non-null string maps to `.copy`. For a **file** script (`"script": "main.js"`),
+code runs. A returned non-null string maps to `.paste`. For a **file** script (`"script": "main.js"`),
 the code runs in module mode and `require('./…')` is available for local files within the package
 (§3b); inline `scriptCode` has no `require`.
 
 **Async mode (`"async": true`)** — the entry function may return a `Promise`; the host awaits it and
-a rejected promise surfaces as `.showStatus(.error)`. A script with no entry point (top-level side
+a rejected promise surfaces as `.toast(.error)`. A script with no entry point (top-level side
 effects only) still settles. Async scripts also get a `fetch(url, options)` polyfill bridged to
 URLSession: `options` = `{ method, headers, body }` (default GET); the response is
 `{ status, ok, text(): Promise<string>, json(): Promise<any> }`; network errors reject the promise.
@@ -607,20 +613,22 @@ Side effects (each appends an effect; multiple effects run as a `.sequence` in c
 - `openclip.shareService(identifier, text?)` — invoke a specific macOS sharing service by its
   identifier (e.g. `com.apple.Notes.SharingExtension` → the Notes inline popup). `text` defaults to
   the selected text when omitted.
-- `openclip.showStatus(message, style)` — style `"success"`|`"error"`|`"info"` (else `"info"`)
+- `openclip.toast(message, style?, options?)` — transient toast; style `"success"`|`"error"`|`"info"`
+  (else `"info"`); `options = { keepVisible }` — `keepVisible: true` keeps the popup open (no
+  auto-dismiss)
 - `openclip.showContent(...)` / `h()` — **removed**: the interactive-canvas bridge no longer
-  exists; calling these names surfaces a JS error (`.showStatus(.error)`).
+  exists; calling these names surfaces a JS error (`.toast(.error)`).
 - `openclip.requireConfiguration({ reason, missing: ["optID"] })` — open config sheet for this action
 
-Deterministic resolution order (`OpenClipJSHost.run`): **JS exception → `.showStatus(error)`** (JS
-throws never propagate as Swift errors); else `requireConfiguration` → `openConfiguration`;
-`showStatus` with no other effects → `showStatus`; effects → single/`sequence`; function string
-return → `copy`; else `success`.
+Deterministic resolution order (`OpenClipJSHost.run`): **JS exception → `.toast(.error)`** (JS throws
+never propagate as Swift errors); else `requireConfiguration` → `.openConfiguration`; a `toast`
+alone → `.toast`, or coexisting with effects → `.sequence([.toast, …effects])`; effects →
+single/`sequence`; function string return → `.paste(returnValue)`; else `.success`.
 
 > Execution runs on a background thread (never the `MainActor`); async scripts are guarded by a
 > 30-second watchdog (`Constants.scriptTimeout`, `TimeoutFlag` pattern) — a never-settling promise
-> surfaces as an error status. Note the resolution above: `showStatus` followed by an effect yields
-> the effect, not the status.
+> surfaces as an error toast. Note the resolution above: a toast followed by an effect yields a
+> sequence of both.
 
 ---
 
@@ -639,19 +647,21 @@ outcomes, or kind runtimes):
 | `.showServices(String)` | macOS share picker on the text |
 | `.shareService(identifier:, text:)` | invoke a specific macOS sharing service by identifier (e.g. Notes inline popup) |
 | `.notify(title:, body:)` | post a notification (best-effort; needs authorization) |
-| `.showStatus(StatusFeedback)` | transient status; **keeps popup open** |
+| `.toast(StatusFeedback)` | transient toast; **dismisses the popup by default**, `keepVisible: true` keeps it open |
 | `.openConfiguration(ConfigurationRequest)` | hide popup, open the action's config sheet |
 | `.sequence([ActionResult])` | run in order; popup hides only if all dismiss |
 | `.keyPress(KeyPressSpec)` | post synthetic key event |
 | `.runShortcut(name:, input:)` | run a Shortcuts shortcut with input |
 | `.none` | no effect |
 
-Dismissal: `.showStatus` keeps the popup open; `.sequence` dismisses only when non-empty and all
-items dismiss; everything else (including `.openConfiguration`) dismisses.
+Dismissal: `.toast` dismisses the popup by default (`keepVisible: true` keeps it open); `.sequence`
+dismisses only when non-empty and all items dismiss (a `keepVisible` toast forces it open);
+everything else (including `.openConfiguration`) dismisses.
 
 The **companion toast** resolved by delivery (the click's declared `toast`/`secondaryToast`, or the
 default "Copied") is a **delivery-side effect** — it is rendered by the floating toast surface and is
-*not* an `ActionResult` case, so it has no effect on dismissal (§5b).
+*not* an `ActionResult` case, so it has no effect on dismissal. A script-emitted `.toast` suppresses
+the companion entirely (one toast per run, §5b).
 
 ### 8a. Shell/script JSON protocol (`ShellResultMapper`)
 
@@ -662,7 +672,7 @@ except `shareService`'s `identifier`, which is required):
 { "type": "paste", "value": "text" }                                  // .paste
 { "type": "copy",  "value": "text" }                                  // .copy
 { "type": "openURL", "value": "https://..." }                         // .openURL
-{ "type": "status", "message": "Done", "style": "success" }           // "success"|"error"|"info"
+{ "type": "toast", "message": "Done", "style": "success", "keepVisible": true } // .toast — style "success"|"error"|"info"; keepVisible optional (default false)
 { "type": "configure", "reason": "...", "missing": ["opt"] }          // .openConfiguration
 { "type": "shareService", "identifier": "com.apple.Notes.SharingExtension", "value": "text" } // .shareService — identifier REQUIRED
 ```
@@ -731,7 +741,7 @@ Once installed, "Look up" opens Wikipedia for the selected text.
   "options": [ { "identifier": "api", "label": "API key", "type": "secret" } ],
   "actions": [
     { "title": "Ping (JSON)", "type": "shell",
-      "scriptCode": "echo '{\"type\":\"status\",\"message\":\"secret set\",\"style\":\"success\"}'" }
+      "scriptCode": "echo '{\"type\":\"toast\",\"message\":\"secret set\",\"style\":\"success\"}'" }
   ]
 }
 ```

@@ -57,7 +57,7 @@ Modules are cached **per run** — a second `require` of the same resolved path 
 A script's filesystem reach is **the extension package directory only**. The host resolves symlinks
 before checking, then enforces the package boundary (`OpenClipModuleLoader` +
 `Constants.isPathSafe`). A `require` that resolves outside the package — a `../` escape or a symlink
-pointing out — throws, and the run surfaces as `.showStatus(.error)` with "resolves outside the
+pointing out — throws, and the run surfaces as `.toast(.error)` with "resolves outside the
 extension package". Absolute-path specifiers are rejected outright.
 
 ### 1d. Rejected specifiers

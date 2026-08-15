@@ -155,7 +155,10 @@ areas; stale debt notes are worse than none.
   secondary outcome + per-click `primaryToast`/`secondaryToast`) is snapshotted alongside the click
   intent and fed into `resolve`, and the returned tuple's toast is rendered directly — the manual
   `isDowngradedToCopy`/`isCopyDefinition` inline toast detection was removed in favor of the resolved
-  `.toast`. Only the SwiftUI inline perform path snapshots via the new `onWillPerformAction` closure;
+  `.toast`. Since Task 8, a script-emitted `.toast` (or any result whose `containsToast` is true)
+  suppresses the delivery companion toast entirely — one toast per run — and `keepVisible: true`
+  stops a toast's auto-dismiss and keeps the popup open (a `.toast` dismisses by default). Only the
+  SwiftUI inline perform path snapshots via the new `onWillPerformAction` closure;
   the completion-button paste path (`PopupView` `onResult(.paste(word))`) routes through
   `deliverResult`, which clears `pendingDelivery` right after its snapshot (single-use per perform),
   so a prior non-dismissing action's declared delivery can never leak onto a completion paste. The

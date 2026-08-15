@@ -62,7 +62,7 @@ Supported `type` values:
 - `"paste"` → `ActionResult.paste(value)` (replaces selection in target application).
 - `"copy"` → `ActionResult.copy(value)` (copies text to system clipboard).
 - `"openURL"` → `ActionResult.openURL(URL)` (opens URL in default browser; URL parsed from `value`).
-- `"status"` → `ActionResult.showStatus` (`message`, `style`: `"success"`/`"error"`/`"info"`).
+- `"toast"` → `ActionResult.toast` (`message`, `style`: `"success"`/`"error"`/`"info"`, `keepVisible` optional, default `false`).
 - `"configure"` → `ActionResult.openConfiguration` (`reason`, `missing: [optionID]`).
 
 `"showContent"` is **not** accepted — a decoded-but-unknown `type` maps to `.success`.

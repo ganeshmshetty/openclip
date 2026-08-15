@@ -112,12 +112,13 @@ that replaced the former interactive canvas.
 - **Status**: every `StatusFeedback` renders as a floating one-line toast at the cursor via
   `ToastPanelController` (`ToastPanel` + SwiftUI `ToastView`), independent of the popup — it shows
   whether the bar is up or already hidden. Info/error toasts auto-dismiss after
-  `PopupMetrics.toastDurationNanoseconds` (0.5 s); the paste→copy downgrade surfaces a "Copied"
+  `PopupMetrics.toastDurationNanoseconds` (0.5 s) unless `keepVisible: true`, which disables
+  auto-dismiss; the paste→copy downgrade surfaces a "Copied"
   toast, or an action's declared per-click toast (`Action.delivery` `primaryToast`/`secondaryToast`)
-  when one is declared. The inline banner and its queue (`modeStore.statusBanner`, `pendingStatus`,
+  when one is declared (a script-emitted `.toast` suppresses these — one toast per run). The inline banner and its queue (`modeStore.statusBanner`, `pendingStatus`,
   `flushPendingStatus`) are gone. `showsLoading` actions (manifest `"loading"`) early-close the
   popup with a spinner toast, swapping to a description, the resolved companion toast, or fading on
-  a description-free result.
+  a description-free result (a keep-visible toast stays up rather than auto-dismissing).
 - **Secondary-click threading**: the click intent captured at mouse-down (`pendingClickIntent`) is
   threaded into the perform context as `ActionContext.isSecondaryClick` (right-click always; ⇧-click
   via `PopupView`/`PopupSearchView`'s `onClickIntent` closure) and into the delivery snapshot

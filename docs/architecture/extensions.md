@@ -100,7 +100,7 @@ a containment boundary.
 | :--- | :--- | :--- | :--- |
 | L1 — text effects | `textsnippet`, `group` | pasteboard (paste replaced selection), structural rows only | wrap selection in markup; sub-menu container |
 | L2 — network & pasteboard | `url`, `websearch`, `js` (sync) | open arbitrary URLs via LaunchServices, copy/paste clipboard | open a search page; prettify JSON into clipboard |
-| L2+ — network + effects | `js` (`"async": true`) | L2 plus network `fetch`, notifications, `openclip.*` effects (keyPress, runShortcut, openURL, showStatus) | call an API and paste the result |
+| L2+ — network + effects | `js` (`"async": true`) | L2 plus network `fetch`, notifications, `openclip.*` effects (keyPress, runShortcut, openURL, toast) | call an API and paste the result |
 | L3 — subprocess / automation | `shell`, `scriptfile`, `applescript` | arbitrary command execution (`/bin/zsh`), Apple Events automation with the user's rights | run a formatter binary; drive Notes.app |
 | L3+ — input injection & system | `keypress`, `shortcut`, `service` | synthetic key events to the frontmost app; run Shortcuts.app with the selection as input; macOS share picker | bold in the frontmost editor; run a "Trim" shortcut |
 
