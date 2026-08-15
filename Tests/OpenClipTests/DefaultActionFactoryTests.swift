@@ -379,6 +379,33 @@ final class DefaultActionFactoryTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
+    func testFactoryMapsManifestToastSecondaryOntoToastDelivery() async {
+        let factory = DefaultActionFactory()
+        let declaring = ExtensionActionMetadata(
+            id: "toast",
+            title: "Heads Up",
+            url: "https://example.com?q={query}",
+            type: "url",
+            secondary: ExtensionSecondaryDeclaration(type: "toast", value: nil, message: "Heads up")
+        )
+        let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [declaring], options: nil)
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        guard let action = await factory.createAction(metadata: declaring, manifest: manifest, directoryURL: tempDir, index: 0) as? DeliveryDecoratedAction else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("Declaring action should be wrapped in DeliveryDecoratedAction")
+        }
+        guard case .toast(let feedback)? = action.delivery?.secondary else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("secondary should map to .toast")
+        }
+        XCTAssertEqual(feedback, StatusFeedback(message: "Heads up", style: .info))
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
     func testFactoryComposesMenuAndDeliveryDecoration() async {
         let factory = DefaultActionFactory()
         let combo = ExtensionActionMetadata(

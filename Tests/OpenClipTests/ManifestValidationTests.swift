@@ -161,7 +161,7 @@ final class ManifestValidationTests: XCTestCase {
             "name": "JS Group",
             "actions": [{ "title": "Group", "type": "group", "subActions": [
                 { "id": "sub", "title": "Sub JS", "type": "javascript", "scriptCode": "return 1",
-                    "secondary": { "type": "status" } }
+                    "secondary": { "type": "toast" } }
             ] }]
         }
         """)

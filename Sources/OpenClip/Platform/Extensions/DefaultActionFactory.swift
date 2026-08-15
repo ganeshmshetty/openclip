@@ -180,7 +180,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
     }
 
     /// Maps a manifest `secondary` declaration onto the `ActionResult` it stands for, reusing
-    /// `ShellResultMapper`'s stdout vocabulary where the two overlap: copy/paste/openURL/status
+    /// `ShellResultMapper`'s stdout vocabulary where the two overlap: copy/paste/openURL/toast
     /// map to the same result shapes, `success` is the mapper's fallback, and an unknown type
     /// fails open to `.success` (mirroring the mapper's default case). `none` is the small pure
     /// addition — the empty result for an explicitly no-op secondary.
@@ -195,7 +195,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         case Constants.actionTypeOpenURL:
             guard let value = secondary.value, let url = URL(string: value) else { return .success }
             return .openURL(url)
-        case "status":
+        case "toast":
             return .toast(StatusFeedback(message: secondary.message ?? "", style: .info))
         case "success":
             return .success
