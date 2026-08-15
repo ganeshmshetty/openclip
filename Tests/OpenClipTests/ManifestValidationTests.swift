@@ -99,6 +99,76 @@ final class ManifestValidationTests: XCTestCase {
         XCTAssertEqual(issues, [ManifestValidationIssue(kind: .missingRequiredField("url/script/scriptCode"), path: "actions[0]")])
     }
 
+    // MARK: - secondary on javascript actions
+
+    func testJavascriptActionWithSecondaryRejects() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.jssec",
+            "name": "JS Sec",
+            "actions": [{ "title": "JS", "type": "javascript", "scriptCode": "return 1",
+                "secondary": { "type": "copy", "value": "x" } }]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [ManifestValidationIssue(kind: .secondaryOnJavaScriptAction, path: "actions[0]")])
+    }
+
+    func testJsAliasActionWithSecondaryRejects() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.jsalias",
+            "name": "JS Alias",
+            "actions": [{ "title": "JS", "type": "js", "scriptCode": "return 1",
+                "secondary": { "type": "copy", "value": "x" } }]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [ManifestValidationIssue(kind: .secondaryOnJavaScriptAction, path: "actions[0]")])
+    }
+
+    func testJavascriptActionWithoutSecondaryIsClean() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.jsok",
+            "name": "JS Ok",
+            "actions": [{ "title": "JS", "type": "javascript", "scriptCode": "return 1" }]
+        }
+        """)
+        XCTAssertEqual(validator.validate(manifest), [])
+    }
+
+    func testNonJavascriptActionWithSecondaryIsClean() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.nonsec",
+            "name": "Non-Sec",
+            "actions": [
+                { "title": "URL", "type": "url", "url": "https://example.com/{query}",
+                    "secondary": { "type": "copy", "value": "x" } },
+                { "title": "Snippet", "type": "textsnippet", "scriptCode": "{text}",
+                    "secondary": { "type": "none" } }
+            ]
+        }
+        """)
+        XCTAssertEqual(validator.validate(manifest), [])
+    }
+
+    func testJavascriptSubActionWithSecondaryRejectsInsideGroup() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.jsgroup",
+            "name": "JS Group",
+            "actions": [{ "title": "Group", "type": "group", "subActions": [
+                { "id": "sub", "title": "Sub JS", "type": "javascript", "scriptCode": "return 1",
+                    "secondary": { "type": "status" } }
+            ] }]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [ManifestValidationIssue(kind: .secondaryOnJavaScriptAction, path: "actions[0].subActions[0]")])
+    }
+
     // MARK: - required fields per kind
 
     func testKeyPressWithoutKeyPressFieldRejects() throws {
