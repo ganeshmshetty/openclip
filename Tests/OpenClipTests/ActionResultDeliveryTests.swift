@@ -420,6 +420,41 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertFalse(toast.isLoading, "loading toast should fade once a description-free result lands")
     }
 
+    /// When a loading action returns a toast declaring `keepVisible: true`, the settled toast must
+    /// still auto-dismiss because the popup was already closed when loading started.
+    @MainActor
+    func testLoadingActionKeepVisibleToastAutoDismisses() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 30_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        controller.runLoadingAction(KeepVisibleToastLoadingAction(), with: controllerCurrentContext(controller), isSecondaryClick: false)
+        XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(toast.currentFeedback?.message, "Formatted")
+        XCTAssertFalse(toast.isLoading)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertFalse(toast.isShowing, "settled loading toast with keepVisible: true must auto-dismiss")
+    }
+
+    /// Hiding the popup controller must dismiss any keep-visible toast currently showing.
+    @MainActor
+    func testHideDismissesKeepVisibleToast() async throws {
+        let toast = ToastPanelController()
+        let controller = try shownController(resultHandler: RecordingHandler(),
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        controller.handleActionResult(.toast(StatusFeedback(message: "Pinned", style: .info, keepVisible: true)))
+        XCTAssertTrue(toast.isShowing)
+        controller.hide()
+        XCTAssertFalse(toast.isShowing, "hide() must dismiss any keepVisible toast")
+    }
+
     // MARK: - Secondary-click threading: runAction must propagate the click intent into the action context
 
     /// A right-click (secondary click) on an action must reach `perform` as
@@ -689,6 +724,20 @@ private final class MessageStubAction: Action {
     func perform(_ context: ActionContext) async throws -> ActionResult {
         try await Task.sleep(nanoseconds: 30_000_000)
         return .success
+    }
+}
+
+/// A `showsLoading` action that returns a toast with `keepVisible: true`.
+private final class KeepVisibleToastLoadingAction: Action {
+    let id = "stub.keepvisible"
+    let title = "Format"
+    let icon: ActionIcon = .symbol("text.alignleft")
+    var chrome: ActionChrome { ActionChrome(source: .builtin, showsLoading: true) }
+    func isEnabled(for context: ActionContext) -> Bool { true }
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
+    func perform(_ context: ActionContext) async throws -> ActionResult {
+        try await Task.sleep(nanoseconds: 20_000_000)
+        return .toast(StatusFeedback(message: "Formatted", style: .success, keepVisible: true))
     }
 }
 

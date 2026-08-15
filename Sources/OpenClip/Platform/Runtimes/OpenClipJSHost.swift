@@ -42,6 +42,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         /// Extension package directory. When non-nil the host enables the module bridge and wraps
         /// the script in module scaffolding; nil preserves the legacy single-file behavior.
         public var packageDirectory: URL?
+        /// The entry script's parent directory. When nil, defaults to packageDirectory.
+        public var entryDirectory: URL?
 
         public init(
             actionID: String,
@@ -52,7 +54,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
             rules: ExtensionActionRules,
             isAsync: Bool = false,
             timeout: TimeInterval? = nil,
-            packageDirectory: URL? = nil
+            packageDirectory: URL? = nil,
+            entryDirectory: URL? = nil
         ) {
             self.actionID = actionID
             self.scriptCode = scriptCode
@@ -63,6 +66,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             self.isAsync = isAsync
             self.timeout = timeout
             self.packageDirectory = packageDirectory
+            self.entryDirectory = entryDirectory
         }
     }
 
@@ -306,9 +310,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
         let wrappedScript: String
         if let packageDirectory = request.packageDirectory {
+            let entryDir = request.entryDirectory ?? packageDirectory
             wrappedScript = request.isAsync
-                ? asyncModuleWrappedScript(request.scriptCode, entryDirectory: packageDirectory.path)
-                : syncModuleWrappedScript(request.scriptCode, entryDirectory: packageDirectory.path)
+                ? asyncModuleWrappedScript(request.scriptCode, entryDirectory: entryDir.path)
+                : syncModuleWrappedScript(request.scriptCode, entryDirectory: entryDir.path)
         } else {
             wrappedScript = request.isAsync ? asyncWrappedScript(request.scriptCode) : syncWrappedScript(request.scriptCode)
         }

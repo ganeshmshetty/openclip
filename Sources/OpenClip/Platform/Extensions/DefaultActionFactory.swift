@@ -393,7 +393,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 optionStore: optionStore,
                 rules: rules,
                 isAsync: metadata.isAsync ?? false,
-                packageDirectory: directoryURL
+                packageDirectory: directoryURL,
+                entryDirectory: scriptURL.deletingLastPathComponent()
             )
         case "applescript", "scpt":
             guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else {

@@ -377,6 +377,9 @@ public class PopupWindowController {
     }
 
     public func hide() {
+        if toastController.currentFeedback?.keepVisible == true {
+            toastController.hide()
+        }
         modeStore.aiResult = nil
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
@@ -779,7 +782,8 @@ public class PopupWindowController {
     /// the script toast item in the tree presents itself, one toast per run.
     private func settleLoadingResult(_ result: ActionResult, delivery: DeliveryContext, suppressDeliveryToast: Bool = false) async {
         switch result {
-        case .toast(let feedback):
+        case .toast(var feedback):
+            feedback.keepVisible = false
             toastController.show(feedback)
         case .openConfiguration(let request):
             toastController.hide()

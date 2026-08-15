@@ -311,6 +311,27 @@ final class NewExtensionKindTests: XCTestCase {
             return XCTFail("Expected JavaScriptAction, got \(String(describing: action))")
         }
         XCTAssertEqual(js.packageDirectory, tempDir)
+        XCTAssertEqual(js.entryDirectory?.path, tempDir.path)
+    }
+
+    @MainActor
+    func testFactoryNestedScriptSetsEntryDirectory() async throws {
+        let factory = DefaultActionFactory()
+        let meta = ExtensionActionMetadata(title: "Nested", script: "src/main.js", type: "javascript")
+        let manifest = ExtensionMetadata(identifier: "com.test.nested", name: "Nested Test", actions: [meta])
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let srcDir = tempDir.appendingPathComponent("src")
+        try FileManager.default.createDirectory(at: srcDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        try "function action(){ return 'x'; }".write(to: srcDir.appendingPathComponent("main.js"), atomically: true, encoding: .utf8)
+
+        let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
+        guard let js = action as? JavaScriptAction else {
+            return XCTFail("Expected JavaScriptAction, got \(String(describing: action))")
+        }
+        XCTAssertEqual(js.packageDirectory, tempDir)
+        XCTAssertEqual(js.entryDirectory?.path, srcDir.path)
     }
 
     @MainActor
