@@ -182,9 +182,9 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
 }
 
 public struct ExtensionSecondaryDeclaration: Codable, Sendable, Equatable {
-    public let type: String      // "copy" | "paste" | "openURL" | "status" | "success" | "none"
+    public let type: String      // "copy" | "paste" | "openURL" | "toast" | "success" | "none"
     public let value: String?    // for copy/paste/openURL
-    public let message: String?  // for status
+    public let message: String?  // for toast
 }
 
 public struct ExtensionToastDeclaration: Codable, Sendable, Equatable {

@@ -56,7 +56,7 @@ def has_payload: has_script or has_scriptCode or has_url;
 def kind: ((.type // "url") | ascii_downcase);
 def known_kinds: ["url","urltemplate","js","javascript","applescript","shell","shellinline","script","scriptfile","textsnippet","snippet","text","websearch","web","search","keypress","keys","shortcut","keyboardshortcut","service","servicemenu","group","subactions"];
 def is_group: ((kind == "group") or (kind == "subactions"));
-def secondary_types: ["copy","paste","openURL","status","success","none"];
+def secondary_types: ["copy","paste","openURL","toast","success","none"];
 def toast_styles: ["success","error","info"];
 
 # Option metadata must be complete and unique; malformed options reject the manifest at decode.
@@ -82,9 +82,9 @@ def check_action($p):
       [
         (($self.secondary.type? | sv) as $st |
          if ($st | is_blank) then
-           "\($p): secondary requires a type (copy, paste, openURL, status, success, or none)"
+           "\($p): secondary requires a type (copy, paste, openURL, toast, success, or none)"
          elif (secondary_types | index($st)) == null then
-           "\($p): unknown secondary type \"\($st)\" (expected copy, paste, openURL, status, success, or none)"
+           "\($p): unknown secondary type \"\($st)\" (expected copy, paste, openURL, toast, success, or none)"
          else empty end),
         (if (($self | kind) == "js" or ($self | kind) == "javascript") then
            "\($p): secondary is not supported on javascript actions; branch on openclip.input.isSecondaryClick in the script instead"
