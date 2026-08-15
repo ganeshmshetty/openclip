@@ -65,6 +65,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let optionStore = KeychainActionOptionStore()
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
+            ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
             await ActionCoordinator.shared.loadInitialState()
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
@@ -147,6 +148,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let optionStore = KeychainActionOptionStore()
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
+            ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
             await ActionCoordinator.shared.loadInitialState()
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())

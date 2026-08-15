@@ -204,6 +204,7 @@
 		B493AA1195F09951711EA1AE /* DebugLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 643250CF0FF406A8F5AC587E /* DebugLogStore.swift */; };
 		B4DA8361B40017E09D1FF51A /* AppleScriptAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26747E7621DE707FAC1645A5 /* AppleScriptAction.swift */; };
 		B4F498590B58B62BA693B72C /* ExtensionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33B3004A90DD3BE1E64DD30 /* ExtensionManagerTests.swift */; };
+		B55BB49CA959B5D31651E12B /* ExtensionManagerTrustTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96D6E890504758E3F2DF897 /* ExtensionManagerTrustTests.swift */; };
 		B65680000C72C06585A1B730 /* DebugLogStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C251D684663DDC867A7E7C /* DebugLogStoreTests.swift */; };
 		B776223E716B18F4F53A4D3F /* AppRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = E21F7917E14860EA903D0552 /* AppRule.swift */; };
 		B7BFA2A49A47859753B93E6F /* DebugLogFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B826FB17017910B8919BF18F /* DebugLogFilterTests.swift */; };
@@ -506,6 +507,7 @@
 		A7BBC1C9D5BC350A1DE3769D /* InstalledExtensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledExtensionsView.swift; sourceTree = "<group>"; };
 		A85D6B583DAD8DA3E981C226 /* StatusFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusFeedback.swift; sourceTree = "<group>"; };
 		A8DAACCC7C82CE7BB96D5F0D /* CustomAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomAction.swift; sourceTree = "<group>"; };
+		A96D6E890504758E3F2DF897 /* ExtensionManagerTrustTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionManagerTrustTests.swift; sourceTree = "<group>"; };
 		A9AAC01C6AC9C779B9CD90F4 /* ActionResultDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionResultDelivery.swift; sourceTree = "<group>"; };
 		A9FE6EC05BD3919CC0867FA4 /* ExtensionPackageHashResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionPackageHashResolver.swift; sourceTree = "<group>"; };
 		AA25688B7F7CA6E74A8BDBDC /* ExtensionActionRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionActionRules.swift; sourceTree = "<group>"; };
@@ -1072,6 +1074,7 @@
 				301144A424F615703BABA2D0 /* DefaultActionFactoryTests.swift */,
 				6BCD81A735F9A377FDE4DB32 /* DefineActionTests.swift */,
 				D33B3004A90DD3BE1E64DD30 /* ExtensionManagerTests.swift */,
+				A96D6E890504758E3F2DF897 /* ExtensionManagerTrustTests.swift */,
 				042DA17A2486356DBB307B2F /* ExtensionManifestTests.swift */,
 				74011E62AB2E26EB03C81D18 /* ExtensionPackageHashResolverTests.swift */,
 				CA9398DA81538D9180678DA0 /* ExtensionRiskProfileTests.swift */,
@@ -1296,6 +1299,7 @@
 				CE759FD419A671CB23C175B8 /* DefaultActionFactoryTests.swift in Sources */,
 				EB0DB3A8EC936D90D0D35D98 /* DefineActionTests.swift in Sources */,
 				B4F498590B58B62BA693B72C /* ExtensionManagerTests.swift in Sources */,
+				B55BB49CA959B5D31651E12B /* ExtensionManagerTrustTests.swift in Sources */,
 				E4E9D257A248FF4238EFC61C /* ExtensionManifestTests.swift in Sources */,
 				7506B870AF172CBDCA33A42F /* ExtensionPackageHashResolverTests.swift in Sources */,
 				35BFB08CF65AFF406978D13D /* ExtensionRiskProfileTests.swift in Sources */,
