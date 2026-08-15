@@ -590,8 +590,6 @@ public class PopupWindowController {
             presentStatus(feedback)
         case .openConfiguration(let request):
             presentConfiguration(for: request)
-        case .keepVisible(let inner):
-            handleActionResult(inner, delivery: delivery)
         case .sequence(let items):
             for item in items { handleActionResult(item, delivery: delivery) }
         default:
@@ -609,7 +607,7 @@ public class PopupWindowController {
     /// buttons) pass through untouched via a nil `delivery`.
     @discardableResult
     private func handleEffect(_ result: ActionResult, delivery: DeliveryContext?) -> Task<Void, Never> {
-        guard let effect = result.effectForHandler else { return Task {} }
+        let effect = result
         return Task { @MainActor in
             do {
                 let delivered = await resolveDelivery(effect, delivery: delivery)
@@ -737,15 +735,10 @@ public class PopupWindowController {
         case .openConfiguration(let request):
             toastController.hide()
             presentConfiguration(for: request)
-        case .keepVisible(let inner):
-            await settleLoadingResult(inner, delivery: delivery)
         case .sequence(let items):
             for item in items { await settleLoadingResult(item, delivery: delivery) }
         default:
-            guard let effect = result.effectForHandler else {
-                toastController.hide()
-                return
-            }
+            let effect = result
             do {
                 let delivered = await resolveDelivery(effect, delivery: delivery)
                 if case .paste = effect, case .copy = delivered {

@@ -7,7 +7,7 @@
 // (OPENCLIP_TEXT, OPENCLIP_MATCHED, OPENCLIP_CAPTURE_N, OPENCLIP_BUNDLE_ID, OPENCLIP_ACTION_ID)
 // and runs it through the
 // shared ShellProcessRunner (one watchdog), then translates stdout JSON via ShellResultMapper and
-// applies the declarative after/stayVisible rules via ActionResultAdapter at the end of perform.
+// applies the declarative after rules via ActionResultAdapter at the end of perform.
 import Foundation
 
 public struct ScriptAction: Action {
@@ -87,8 +87,7 @@ public struct ScriptAction: Action {
 
         return ActionResultAdapter.apply(
             raw: raw,
-            after: rules?.after ?? .default,
-            stayVisible: rules?.stayVisible ?? false
+            after: rules?.after ?? .default
         )
     }
 }

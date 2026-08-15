@@ -43,8 +43,6 @@ public indirect enum ActionResult: Sendable {
 
     // MARK: - Flow combinators
 
-    /// Perform the inner result but never dismiss the popup as a result of it.
-    case keepVisible(ActionResult)
     /// Perform multiple results in order; the popup hides only if every item dismisses it.
     case sequence([ActionResult])
 
@@ -60,24 +58,17 @@ public indirect enum ActionResult: Sendable {
 
 extension ActionResult {
     /// Whether the popup should hide after this top-level result is handled. Computed once on the
-    /// top-level result (decision 8): `.showStatus` keeps the popup up, `.keepVisible`
-    /// explicitly suppresses dismissal, and a `.sequence` dismisses only when non-empty and every
-    /// item dismisses. Everything else (leaf effects, `.openConfiguration`) dismisses.
+    /// top-level result (decision 8): `.showStatus` keeps the popup up, and a `.sequence` dismisses
+    /// only when non-empty and every item dismisses. Everything else (leaf effects,
+    /// `.openConfiguration`) dismisses.
     public var dismissesPopup: Bool {
         switch self {
-        case .keepVisible, .showStatus:
+        case .showStatus:
             return false
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)
         default:
             return true // includes openConfiguration: hide bar, then open Preferences
         }
-    }
-
-    /// The effect a handler should actually execute, unwrapping `.keepVisible` so a leaf that was
-    /// wrapped for presentation still reaches the effect door when driven outside the tree-walk.
-    public var effectForHandler: ActionResult? {
-        if case .keepVisible(let inner) = self { return inner }
-        return self
     }
 }

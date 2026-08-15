@@ -89,8 +89,7 @@ final class ScriptJSONEffect: Decodable {
     }
 }
 
-/// Expanded shell stdout JSON protocol (plan Phase 6 Types). All fields except `type` are
-/// optional; `effect` is recursive for the keepVisible wrapper.
+/// Expanded shell stdout JSON protocol (plan Phase 6 Types). All fields except `type` are optional.
 struct ScriptJSONOutput: Decodable {
     let type: String
     let value: String?
@@ -188,9 +187,6 @@ enum ShellResultMapper {
             default: style = .info
             }
             return .showStatus(StatusFeedback(message: output.message ?? "", style: style))
-        case "keepVisible":
-            guard let effect = output.effect?.value else { return .success }
-            return .keepVisible(map(effect, actionID: actionID))
         case "configure":
             return .openConfiguration(ConfigurationRequest(
                 actionID: actionID,

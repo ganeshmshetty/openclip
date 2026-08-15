@@ -124,26 +124,6 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
 
-    func testScriptActionKeepVisibleJSONWrapsEffect() async throws {
-        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("keep_test_\(UUID().uuidString).sh")
-        let scriptContent = """
-        #!/bin/bash
-        echo '{"type":"keepVisible","effect":{"type":"copy","value":"X"}}'
-        """
-        try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
-
-        let action = ScriptAction(id: "test.keep", title: "Keep", icon: .symbol("terminal"), scriptURL: tempScript)
-        let result = try await action.perform(ActionContext(selectedText: "SampleInput"))
-
-        guard case .keepVisible(.copy(let text)) = result else {
-            return XCTFail("Expected .keepVisible(.copy), got \(result)")
-        }
-        XCTAssertEqual(text, "X")
-
-        try? FileManager.default.removeItem(at: tempScript)
-    }
-
     func testScriptActionAfterPasteResultOverridesRawCopy() async throws {
         let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("after_test_\(UUID().uuidString).sh")
         let scriptContent = """

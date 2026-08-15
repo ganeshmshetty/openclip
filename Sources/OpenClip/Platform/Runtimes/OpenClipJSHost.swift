@@ -4,7 +4,7 @@
 // Dedicated, testable JavaScriptCore bridge for JS extensions (plan §8, Phase 6). Exposes the full
 // read-only `openclip.*` author surface (input/matchedText/captures/app, read-only options, and the
 // effect API) and resolves collected effects into a RAW runtime ActionResult via a deterministic
-// resolution order — no declarative after/stayVisible translation here (that is
+// resolution order — no declarative after translation here (that is
 // ActionResultAdapter.apply, applied by the runtime's perform). JS exceptions surface as
 // `.showStatus(.error, message)` rather than throwing; Swift-level setup failures may throw.
 //
@@ -70,14 +70,11 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var configuration: ConfigurationRequest?
         public var keyPress: KeyPressSpec?
         public var shortcutName: String?
-        public var keepVisible: Bool
         public var notification: (title: String, body: String)?
         public var shareService: (identifier: String, text: String)?
         public var returnValue: String?
 
-        public init() {
-            self.keepVisible = false
-        }
+        public init() {}
     }
 
     /// One side-effecting JS call, kept in call order for `.sequence` resolution.
@@ -241,9 +238,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let showStatusBlock: @convention(block) (String, String?) -> Void = { message, style in
             collected.value.status = StatusFeedback(message: message, style: Self.mapStatusStyle(style ?? "info"))
         }
-        let keepVisibleBlock: @convention(block) () -> Void = {
-            collected.value.keepVisible = true
-        }
         let requireConfigurationBlock: @convention(block) (JSValue) -> Void = { value in
             collected.value.configuration = Self.parseConfiguration(value, actionID: request.actionID)
         }
@@ -257,7 +251,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(notifyBlock, forKeyedSubscript: "notify" as NSString)
         openclip.setObject(shareServiceBlock, forKeyedSubscript: "shareService" as NSString)
         openclip.setObject(showStatusBlock, forKeyedSubscript: "showStatus" as NSString)
-        openclip.setObject(keepVisibleBlock, forKeyedSubscript: "keepVisible" as NSString)
         openclip.setObject(requireConfigurationBlock, forKeyedSubscript: "requireConfiguration" as NSString)
 
         jsContext.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
@@ -463,8 +456,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
         // JS exceptions win over any partially-collected effects (do NOT throw for JS exceptions).
         if let exceptionMessage = evaluation.exceptionMessage {
-            let raw: ActionResult = .showStatus(StatusFeedback(message: exceptionMessage, style: .error))
-            return collected.keepVisible ? .keepVisible(raw) : raw
+            return .showStatus(StatusFeedback(message: exceptionMessage, style: .error))
         }
 
         // Deterministic resolution order (plan §8): configuration > status-only > effects
@@ -485,11 +477,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
             raw = .success
         }
 
-        // The runtime keepVisible flag wraps the resolved result UNCONDITIONALLY (resolution 3);
-        // the declarative stayVisible wrap is narrower and lives in ActionResultAdapter.
-        if collected.keepVisible {
-            return .keepVisible(raw)
-        }
         return raw
     }
 

@@ -205,15 +205,6 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(config.missingOptionIDs, ["apiKey"])
     }
 
-    func testKeepVisibleWrapsCopyUnconditionally() async throws {
-        let script = "openclip.keepVisible(); openclip.copy('keep');"
-        let result = try await host.run(makeRequest(script: script))
-        guard case .keepVisible(.copy(let text)) = result else {
-            return XCTFail("Expected .keepVisible(.copy), got \(result)")
-        }
-        XCTAssertEqual(text, "keep")
-    }
-
     func testInputCapturesExposed() async throws {
         let match = ActionMatchInfo(text: "a b", matchedText: "b", captures: ["c1", "c2"], sourceBundleID: nil)
         let request = OpenClipJSHost.Request(
@@ -295,8 +286,7 @@ final class OpenClipJSHostTests: XCTestCase {
         let raw = try await host.run(makeRequest(script: "function action() { return 'result'; }"))
         let applied = ActionResultAdapter.apply(
             raw: raw,
-            after: .pasteResult,
-            stayVisible: false
+            after: .pasteResult
         )
         guard case .paste(let text) = applied else {
             return XCTFail("Expected .paste after paste-result, got \(applied)")

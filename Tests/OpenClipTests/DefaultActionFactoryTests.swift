@@ -235,8 +235,7 @@ final class DefaultActionFactoryTests: XCTestCase {
             url: "https://example.com/?q={text}",
             regex: "^[a-z]+$",
             requirements: ActionRequirements(apps: ["com.allowed"], appsMode: .allow),
-            after: .showResult,
-            stayVisible: true
+            after: .showResult
         )
         let manifest = ExtensionMetadata(identifier: "com.test.rules", name: "Rules Test", actions: [actionMeta], options: nil)
 
@@ -251,7 +250,6 @@ final class DefaultActionFactoryTests: XCTestCase {
         XCTAssertEqual(action.rules?.legacyRegex, "^[a-z]+$")
         XCTAssertEqual(action.rules?.requirements?.apps, ["com.allowed"])
         XCTAssertEqual(action.rules?.after, .showResult)
-        XCTAssertTrue(action.rules?.stayVisible ?? false)
 
         // Allow-list filtering flows through ActionVisibility.
         let allowedContext = ActionContext(

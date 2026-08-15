@@ -177,8 +177,6 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         // them as no-ops so the switch stays exhaustive without crashing when one is routed here.
         case .showStatus, .openConfiguration, .sequence:
             break
-        case .keepVisible(let inner):
-            try await execute(inner, in: view)
 
         // Keyboard execution: keyPress posts a synthetic keystroke; runShortcut launches the
         // shortcuts CLI under the shared subprocess watchdog (thrown errors surface as a status).

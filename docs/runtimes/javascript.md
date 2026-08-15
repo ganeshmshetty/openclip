@@ -45,7 +45,6 @@ interface OpenClipBridge {
   runShortcut(name: string): void;       // Runs a macOS Shortcut (requires /usr/bin/shortcuts)
   notify(title: string, body: string): void;
   showStatus(message: string, style?: string): void; // style: "success" | "error" | "info"
-  keepVisible(): void;                   // Keep the popup open after the result
   requireConfiguration(payload: object): void; // { reason?: string, missing?: string[] }
 }
 ```
@@ -139,7 +138,6 @@ script enters its promise pump loop, the sync gate is released while the watchdo
 4. String return value → `.copy(string)`.
 5. Otherwise → `.success`.
 
-If `keepVisible()` was called, the resolved result is wrapped in `.keepVisible(...)`.
 A JavaScript exception produces `.showStatus(.error, message)` instead of throwing; the popup
 stays visible.
 

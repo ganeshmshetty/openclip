@@ -50,8 +50,8 @@ areas; stale debt notes are worse than none.
   to Swift-concurrency-pool starvation) and pipe output is read via GCD `readabilityHandler` (never
   a blocking `readToEnd()`, so a stuck child can't permanently consume a cooperative thread), with
   stdin seeded and closed synchronously so a script reading stdin always sees EOF.
-- **`ActionResultAdapter.apply` is the single after/stayVisible translator.** Runtimes return raw
-  results; each extension runtime's `perform` applies `rules.after`/`rules.stayVisible` via the
+- **`ActionResultAdapter.apply` is the single after translator.** Runtimes return raw
+  results; each extension runtime's `perform` applies `rules.after` via the
   adapter. `OpenClipJSHost.run` returns only raw results; async JS runs are guarded by the
   `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
 
