@@ -392,7 +392,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 chrome: extensionChrome,
                 optionStore: optionStore,
                 rules: rules,
-                isAsync: metadata.isAsync ?? false
+                isAsync: metadata.isAsync ?? false,
+                packageDirectory: directoryURL
             )
         case "applescript", "scpt":
             guard let code = try? String(contentsOf: scriptURL, encoding: .utf8), !code.isEmpty else {

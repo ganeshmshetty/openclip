@@ -24,6 +24,9 @@ public struct JavaScriptAction: ConfigurableAction {
     public let rules: ExtensionActionRules?
     /// When true the JS host runs asynchronously (promise awaiting + fetch polyfill + watchdog).
     public let isAsync: Bool
+    /// The extension package directory. When non-nil the JS host runs in module mode
+    /// (`require`/multi-file); nil means inline `scriptCode` keeps the legacy single-file behavior.
+    public let packageDirectory: URL?
 
     nonisolated public init(
         id: String,
@@ -34,7 +37,8 @@ public struct JavaScriptAction: ConfigurableAction {
         chrome: ActionChrome? = nil,
         optionStore: any ActionOptionReading = SettingsActionOptionStore(),
         rules: ExtensionActionRules? = nil,
-        isAsync: Bool = false
+        isAsync: Bool = false,
+        packageDirectory: URL? = nil
     ) {
         self.id = id
         self.title = title
@@ -51,6 +55,7 @@ public struct JavaScriptAction: ConfigurableAction {
         self.optionStore = optionStore
         self.rules = rules
         self.isAsync = isAsync
+        self.packageDirectory = packageDirectory
     }
 
     nonisolated public init(
@@ -62,9 +67,10 @@ public struct JavaScriptAction: ConfigurableAction {
         chrome: ActionChrome? = nil,
         optionStore: any ActionOptionReading = SettingsActionOptionStore(),
         rules: ExtensionActionRules? = nil,
-        isAsync: Bool = false
+        isAsync: Bool = false,
+        packageDirectory: URL? = nil
     ) {
-        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome, optionStore: optionStore, rules: rules, isAsync: isAsync)
+        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome, optionStore: optionStore, rules: rules, isAsync: isAsync, packageDirectory: packageDirectory)
     }
 
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -105,7 +111,8 @@ public struct JavaScriptAction: ConfigurableAction {
             options: actionOptions,
             optionStore: optionStore,
             rules: rules ?? ExtensionActionRules(),
-            isAsync: isAsync
+            isAsync: isAsync,
+            packageDirectory: packageDirectory
         )
         return try await OpenClipJSHost().run(request)
     }

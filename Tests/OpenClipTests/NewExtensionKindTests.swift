@@ -293,6 +293,43 @@ final class NewExtensionKindTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
+    // MARK: - JS module package directory
+
+    @MainActor
+    func testFactoryRoutesScriptFileToJavaScriptActionWithPackageDirectory() async throws {
+        let factory = DefaultActionFactory()
+        let meta = ExtensionActionMetadata(title: "File", script: "main.js", type: "js")
+        let manifest = ExtensionMetadata(identifier: "com.test.file", name: "File Test", actions: [meta])
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        try "function action(){ return 'x'; }".write(to: tempDir.appendingPathComponent("main.js"), atomically: true, encoding: .utf8)
+
+        let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
+        guard let js = action as? JavaScriptAction else {
+            return XCTFail("Expected JavaScriptAction, got \(String(describing: action))")
+        }
+        XCTAssertEqual(js.packageDirectory, tempDir)
+    }
+
+    @MainActor
+    func testFactoryInlineScriptCodeHasNilPackageDirectory() async throws {
+        let factory = DefaultActionFactory()
+        let meta = ExtensionActionMetadata(title: "Inline", type: "javascript", scriptCode: "function action(){ return 'x'; }")
+        let manifest = ExtensionMetadata(identifier: "com.test.inline", name: "Inline Test", actions: [meta])
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let action = await factory.createAction(metadata: meta, manifest: manifest, directoryURL: tempDir, index: 0)
+        guard let js = action as? JavaScriptAction else {
+            return XCTFail("Expected JavaScriptAction, got \(String(describing: action))")
+        }
+        XCTAssertNil(js.packageDirectory)
+    }
+
     @MainActor
     func testGroupActionHonoursRules() {
         let group = GroupAction(
