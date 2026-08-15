@@ -150,6 +150,97 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertEqual(manifest.version, "1.0.0")
     }
 
+    func testSecondaryToastAndSecondaryDecode() throws {
+        let json = """
+        {
+            "id": "clip",
+            "title": "Clip",
+            "type": "url",
+            "url": "https://example.com",
+            "secondary": {
+                "type": "copy",
+                "value": "{{query}}"
+            },
+            "toast": {
+                "message": "Copied",
+                "style": "success"
+            },
+            "secondaryToast": {
+                "message": "Copied (secondary)",
+                "style": "info"
+            }
+        }
+        """.data(using: .utf8)!
+        let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
+        XCTAssertEqual(action.secondary?.type, "copy")
+        XCTAssertEqual(action.secondary?.value, "{{query}}")
+        XCTAssertNil(action.secondary?.message)
+        XCTAssertEqual(action.toast?.message, "Copied")
+        XCTAssertEqual(action.toast?.style, "success")
+        XCTAssertEqual(action.secondaryToast?.message, "Copied (secondary)")
+        XCTAssertEqual(action.secondaryToast?.style, "info")
+    }
+
+    func testSecondaryToastDecodesWithDashAlias() throws {
+        let json = """
+        {
+            "id": "clip",
+            "type": "url",
+            "url": "https://example.com",
+            "secondary-toast": {
+                "message": "Copied",
+                "style": "info"
+            }
+        }
+        """.data(using: .utf8)!
+        let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
+        XCTAssertEqual(action.secondaryToast?.message, "Copied")
+        XCTAssertEqual(action.secondaryToast?.style, "info")
+    }
+
+    func testSecondaryDecodesOnNonJavascriptKinds() throws {
+        for kind in ["url", "shell", "applescript", "shortcut"] {
+            let json = """
+            {
+                "id": "a-\(kind)",
+                "type": "\(kind)",
+                "url": "https://example.com",
+                "secondary": { "type": "copy" }
+            }
+            """.data(using: .utf8)!
+            let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
+            XCTAssertNotNil(action.secondary, "secondary should decode on kind \(kind)")
+            XCTAssertEqual(action.secondary?.type, "copy")
+        }
+    }
+
+    func testSecondaryDecodesUnconditionallyOnJavascriptKind() throws {
+        let json = """
+        {
+            "id": "jsact",
+            "type": "javascript",
+            "scriptCode": "return 1;",
+            "secondary": { "type": "copy", "value": "x" }
+        }
+        """.data(using: .utf8)!
+        let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
+        XCTAssertEqual(action.secondary?.type, "copy", "decode carries secondary on any kind; the validator enforces kind-scoping")
+    }
+
+    func testToastDefaultsNilStyle() throws {
+        let json = """
+        {
+            "id": "clip",
+            "type": "url",
+            "url": "https://example.com",
+            "toast": { "message": "Done" }
+        }
+        """.data(using: .utf8)!
+        let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
+        XCTAssertEqual(action.toast?.message, "Done")
+        XCTAssertNil(action.toast?.style)
+    }
+
     func testEditActionSheetPreservesVersionAndCapabilities() throws {
         let manifest = ExtensionMetadata(
             identifier: "com.test.extension",

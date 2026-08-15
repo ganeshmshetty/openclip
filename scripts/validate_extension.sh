@@ -56,6 +56,8 @@ def has_payload: has_script or has_scriptCode or has_url;
 def kind: ((.type // "url") | ascii_downcase);
 def known_kinds: ["url","urltemplate","js","javascript","applescript","shell","shellinline","script","scriptfile","textsnippet","snippet","text","websearch","web","search","keypress","keys","shortcut","keyboardshortcut","service","servicemenu","group","subactions"];
 def is_group: ((kind == "group") or (kind == "subactions"));
+def secondary_types: ["copy","paste","openURL","status","success","none"];
+def toast_styles: ["success","error","info"];
 
 # Option metadata must be complete and unique; malformed options reject the manifest at decode.
 def option_dups($p):
@@ -75,6 +77,31 @@ def check_action($p):
        | $self.subActions[$i] | check_action("\($p).subActions[\($i)]")]
       | add
     else [] end;
+  def secondaryErrors:
+    if (($self.secondary? | type) == "object") then
+      [
+        (($self.secondary.type? | sv) as $st |
+         if ($st | is_blank) then
+           "\($p): secondary requires a type (copy, paste, openURL, status, success, or none)"
+         elif (secondary_types | index($st)) == null then
+           "\($p): unknown secondary type \"\($st)\" (expected copy, paste, openURL, status, success, or none)"
+         else empty end),
+        (if (($self | kind) == "js" or ($self | kind) == "javascript") then
+           "\($p): secondary is not supported on javascript actions; branch on openclip.input.isSecondaryClick in the script instead"
+         else empty end)
+      ]
+    else [] end;
+  def toastErrors($key):
+    (($self[$key]? | type) == "object") as $present |
+    if $present then
+      [
+        (($self[$key].style? | sv) as $ts |
+         if ($ts | is_blank) then empty
+         elif (toast_styles | index($ts)) == null then
+           "\($p): unknown \($key).style \"\($ts)\" (expected success, error, or info)"
+         else empty end)
+      ]
+    else [] end;
   ($self | option_dups($p)) +
   [
     (($self.type // "url") | ascii_downcase) as $t |
@@ -89,7 +116,7 @@ def check_action($p):
     else
       (if ($self | has_payload | not) then "\($p): missing required payload (url, script, or scriptCode)" else empty end)
     end
-  ] + subErrors;
+  ] + secondaryErrors + toastErrors("toast") + toastErrors("secondaryToast") + toastErrors("secondary-toast") + subErrors;
 
 # ---- top-level ----
 . as $m |
