@@ -3,7 +3,8 @@
 //
 // Owns the ToastPanel + its NSHostingView(ToastView) and the auto-dismiss timer. The single
 // status surface: replaces the removed inline banner. Info/error toasts auto-dismiss after
-// `autoDismissNanoseconds`; loading toasts have no timer and are cleared via swapTo/hide.
+// `autoDismissNanoseconds` unless `keepVisible`; loading and keep-visible toasts have no timer
+// and are cleared via swapTo/hide.
 import AppKit
 import SwiftUI
 import Core
@@ -44,9 +45,10 @@ public final class ToastPanelController {
         self.panel.contentView = container
     }
 
-    /// Shows (or replaces) a toast centered on an anchor point. Info/error start auto-dismiss;
-    /// loading does not. `anchorPoint` is the screen position the toast centers on;
-    /// when nil the previous anchor is reused, and when there is none the cursor is used.
+    /// Shows (or replaces) a toast centered on an anchor point. Info/error toasts auto-dismiss
+    /// unless `keepVisible`; loading and keep-visible toasts have no timer and are cleared via
+    /// `swapTo`/`hide`. `anchorPoint` is the screen position the toast centers on; when nil the
+    /// previous anchor is reused, and when there is none the cursor is used.
     public func show(_ feedback: StatusFeedback, anchorPoint: CGPoint? = nil) {
         dismissTask?.cancel()
         dismissTask = nil
@@ -62,16 +64,20 @@ public final class ToastPanelController {
         panel.contentView?.frame = NSRect(origin: .zero, size: fit)
         place(at: fit)
         panel.orderFrontRegardless()
-        if !feedback.isLoading {
+        if !feedback.isLoading && !feedback.keepVisible {
             startDismissal()
         }
     }
 
+    /// Shows a loading (spinner) toast. Loading toasts have no timer and are cleared via
+    /// `swapTo`/`hide`.
     public func showLoading(message: String, anchorPoint: CGPoint? = nil) {
         show(StatusFeedback(message: message, style: .info, isLoading: true), anchorPoint: anchorPoint)
     }
 
-    /// Replaces a loading toast with a settled status (and starts its auto-dismiss).
+    /// Replaces a loading toast with a settled status. Info/error statuses auto-dismiss unless
+    /// `keepVisible`; loading and keep-visible statuses have no timer and are cleared via a later
+    /// `swapTo`/`hide`.
     public func swapTo(_ feedback: StatusFeedback) {
         show(feedback)
     }
