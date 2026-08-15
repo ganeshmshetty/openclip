@@ -1,9 +1,10 @@
 // StatusFeedback.swift
 // OpenClip
 //
-// Pure Core value type describing a transient status the popup surfaces (decision 9/10): a message
+// Pure Core value type describing the transient toast the popup surfaces (decision 9/10): a message
 // with a style and an optional SF Symbol preset name. The app view maps style → color/symbol design
-// tokens when rendering; this type stays AppKit/SwiftUI-free.
+// tokens when rendering; this type stays AppKit/SwiftUI-free. `keepVisible: true` keeps the popup
+// open and stops auto-dismiss (defaults to dismissing).
 import Foundation
 
 public struct StatusFeedback: Sendable, Equatable {
@@ -19,12 +20,15 @@ public struct StatusFeedback: Sendable, Equatable {
     public var symbolName: String?
     /// True when this status renders a spinner instead of a symbol (loading/opening state).
     public var isLoading: Bool
+    /// True keeps the popup open and stops auto-dismiss; defaults to dismissing.
+    public var keepVisible: Bool
 
-    public init(message: String, style: Style, symbolName: String? = nil, isLoading: Bool = false) {
+    public init(message: String, style: Style, symbolName: String? = nil, isLoading: Bool = false, keepVisible: Bool = false) {
         self.message = message
         self.style = style
         self.symbolName = symbolName
         self.isLoading = isLoading
+        self.keepVisible = keepVisible
     }
 
     /// Builds an `.error` status for a thrown error, using the localized description when available.
