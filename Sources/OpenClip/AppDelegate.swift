@@ -133,11 +133,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         case .newPackage(let packageID, let name):
             postTrustNotification(title: "New Extension", body: "\(name) needs your review before it can run.", packageID: packageID)
         case .tampered(let packageID, let name):
-            postTrustNotification(title: "Extension Disabled", body: "\(name) was disabled because its files changed.", packageID: packageID)
+            postTrustNotification(title: "Extension Disabled", body: "\(name) was disabled because its files changed.", packageID: packageID, reason: .filesChanged)
         }
     }
 
-    private func postTrustNotification(title: String, body: String, packageID: String) {
+    private func postTrustNotification(title: String, body: String, packageID: String, reason: ExtensionGateReason? = nil) {
         Task {
             let center = UNUserNotificationCenter.current()
             let settings = await center.notificationSettings()
@@ -152,7 +152,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             let content = UNMutableNotificationContent()
             content.title = title
             content.body = body
-            content.userInfo = ["packageID": packageID]
+            var userInfo: [AnyHashable: Any] = ["packageID": packageID]
+            if let reason {
+                userInfo["reason"] = reason
+            }
+            content.userInfo = userInfo
             let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
             try? await center.add(request)
         }
@@ -160,9 +164,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         guard let packageID = response.notification.request.content.userInfo["packageID"] as? String else { return }
+        let reason = response.notification.request.content.userInfo["reason"] as? ExtensionGateReason
         await MainActor.run {
             statusBarController?.showPreferences()
-            NotificationCenter.default.post(name: .openClipOpenTrustModel, object: nil, userInfo: ["packageID": packageID])
+            var userInfo: [AnyHashable: Any] = ["packageID": packageID]
+            if let reason {
+                userInfo["reason"] = reason
+            }
+            NotificationCenter.default.post(name: .openClipOpenTrustModel, object: nil, userInfo: userInfo)
         }
     }
 
