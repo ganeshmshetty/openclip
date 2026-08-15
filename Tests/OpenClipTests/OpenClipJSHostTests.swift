@@ -180,8 +180,8 @@ final class OpenClipJSHostTests: XCTestCase {
     func testShowContentBridgeRemovedSurfacesError() async throws {
         let script = "openclip.showContent(h('stack', {}, [h('text', { content: 'Hello' })]));"
         let result = try await host.run(makeRequest(script: script))
-        guard case .showStatus(let feedback) = result else {
-            return XCTFail("Expected .showStatus, got \(result)")
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
         }
         XCTAssertEqual(feedback.style, .error, "calling the removed showContent bridge surfaces a JS error")
     }
@@ -189,8 +189,8 @@ final class OpenClipJSHostTests: XCTestCase {
     func testHHelperRemovedSurfacesError() async throws {
         let script = "h('text', { content: 'Hello' });"
         let result = try await host.run(makeRequest(script: script))
-        guard case .showStatus(let feedback) = result else {
-            return XCTFail("Expected .showStatus, got \(result)")
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
         }
         XCTAssertEqual(feedback.style, .error, "the h() helper is gone with the canvas feature")
     }
@@ -309,8 +309,8 @@ final class OpenClipJSHostTests: XCTestCase {
 
     func testExceptionReturnsErrorStatus() async throws {
         let result = try await host.run(makeRequest(script: "throw new Error('boom');"))
-        guard case .showStatus(let feedback) = result else {
-            return XCTFail("Expected .showStatus, got \(result)")
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
         }
         XCTAssertEqual(feedback.style, .error)
         XCTAssertTrue(feedback.message.contains("boom"))
@@ -358,8 +358,8 @@ final class OpenClipJSHostTests: XCTestCase {
 
     func testStatusOnlySurfacesStatusButStatusWithEffectFallsThrough() async throws {
         let statusOnly = try await host.run(makeRequest(script: "openclip.showStatus('Done', 'success');"))
-        guard case .showStatus(let feedback) = statusOnly else {
-            return XCTFail("Expected .showStatus, got \(statusOnly)")
+        guard case .toast(let feedback) = statusOnly else {
+            return XCTFail("Expected .toast, got \(statusOnly)")
         }
         XCTAssertEqual(feedback.message, "Done")
         XCTAssertEqual(feedback.style, .success)
@@ -371,12 +371,12 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "c")
     }
 
-    /// One-argument `showStatus` (no style) must default to `.info`, matching the optional-arg
+    /// One-argument `toast` (no style) must default to `.info`, matching the optional-arg
     /// contract used by the canvas bridge.
-    func testShowStatusDefaultsToInfoWhenStyleOmitted() async throws {
+    func testToastDefaultsToInfoWhenStyleOmitted() async throws {
         let result = try await host.run(makeRequest(script: "openclip.showStatus('Done');"))
-        guard case .showStatus(let feedback) = result else {
-            return XCTFail("Expected .showStatus, got \(result)")
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
         }
         XCTAssertEqual(feedback.message, "Done")
         XCTAssertEqual(feedback.style, .info)
@@ -427,8 +427,8 @@ final class OpenClipJSHostTests: XCTestCase {
     func testPromiseRejectionSurfacesErrorStatus() async throws {
         let request = makeRequest(script: "function action() { return Promise.reject(new Error('async-boom')); }", isAsync: true)
         let result = try await host.run(request)
-        guard case .showStatus(let feedback) = result else {
-            return XCTFail("Expected .showStatus, got \(result)")
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
         }
         XCTAssertEqual(feedback.style, .error)
         XCTAssertTrue(feedback.message.contains("async-boom"))
@@ -865,8 +865,8 @@ final class OpenClipJSHostTests: XCTestCase {
         let package = try makeModulePackage([:])
         let script = "function action() { require('./nope.js'); return 'x'; }"
         let result = try await host.run(makeModuleRequest(script: script, package: package))
-        guard case .showStatus(let feedback) = result else {
-            return XCTFail("Expected .showStatus, got \(result)")
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
         }
         XCTAssertEqual(feedback.style, .error)
         XCTAssertTrue(feedback.message.contains("Cannot find module"))
@@ -877,8 +877,8 @@ final class OpenClipJSHostTests: XCTestCase {
         let package = try makeModulePackage([:])
         let script = "function action() { require('fs'); }"
         let result = try await host.run(makeModuleRequest(script: script, package: package))
-        guard case .showStatus(let feedback) = result else {
-            return XCTFail("Expected .showStatus, got \(result)")
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
         }
         XCTAssertEqual(feedback.style, .error)
         XCTAssertTrue(feedback.message.contains("Node builtin"))

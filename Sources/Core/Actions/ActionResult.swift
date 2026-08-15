@@ -37,7 +37,7 @@ public indirect enum ActionResult: Sendable {
     // MARK: - Presentation results (presenter-owned; the effect handler treats these as no-ops)
 
     /// Surface a transient status (success/error/info) as a banner or corner badge. Keeps the popup open.
-    case showStatus(StatusFeedback)
+    case toast(StatusFeedback)
     /// Hide the popup and ask the user to configure the named action (opens Preferences → EditActionSheet).
     case openConfiguration(ConfigurationRequest)
 
@@ -58,12 +58,12 @@ public indirect enum ActionResult: Sendable {
 
 extension ActionResult {
     /// Whether the popup should hide after this top-level result is handled. Computed once on the
-    /// top-level result (decision 8): `.showStatus` keeps the popup up, and a `.sequence` dismisses
+    /// top-level result (decision 8): `.toast` keeps the popup up, and a `.sequence` dismisses
     /// only when non-empty and every item dismisses. Everything else (leaf effects,
     /// `.openConfiguration`) dismisses.
     public var dismissesPopup: Bool {
         switch self {
-        case .showStatus:
+        case .toast:
             return false
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)

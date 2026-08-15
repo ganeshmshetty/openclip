@@ -609,8 +609,8 @@ public class PopupWindowController {
     /// paste-vs-copy inputs; `nil` means the result is an explicit user request never re-decided.
     func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil) {
         switch result {
-        case .showStatus(let feedback):
-            presentStatus(feedback)
+        case .toast(let feedback):
+            presentToast(feedback)
         case .openConfiguration(let request):
             presentConfiguration(for: request)
         case .sequence(let items):
@@ -621,7 +621,7 @@ public class PopupWindowController {
     }
 
     /// Routes a leaf effect to DefaultActionResultHandler and surfaces any thrown error uniformly
-    /// (decision 9): an error becomes a `.showStatus(.error)` and the popup stays. Returns the task
+    /// (decision 9): an error becomes a `.toast(.error)` and the popup stays. Returns the task
     /// so a caller can await the posted effect.
     ///
     /// Applies the standardized paste-vs-copy delivery decision (`.paste` → `.copy` when the click
@@ -639,7 +639,7 @@ public class PopupWindowController {
                     toastController.show(toast, anchorPoint: panel?.centerPoint)
                 }
             } catch {
-                handleActionResult(.showStatus(StatusFeedback(error: error)))
+                handleActionResult(.toast(StatusFeedback(error: error)))
             }
         }
     }
@@ -725,7 +725,7 @@ public class PopupWindowController {
                 self.handleActionResult(result, delivery: delivery)
             } catch {
                 Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
-                self.handleActionResult(.showStatus(StatusFeedback(error: error)))
+                self.handleActionResult(.toast(StatusFeedback(error: error)))
             }
         }
     }
@@ -763,18 +763,18 @@ public class PopupWindowController {
                 await settleLoadingResult(result, delivery: delivery)
             } catch {
                 Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
-                await settleLoadingResult(.showStatus(StatusFeedback(error: error)), delivery: delivery)
+                await settleLoadingResult(.toast(StatusFeedback(error: error)), delivery: delivery)
             }
         }
     }
 
-    /// Resolves a loading action's result into the toast: `.showStatus` swaps to that status,
+    /// Resolves a loading action's result into the toast: `.toast` swaps to that status,
     /// a delivered result's companion toast (a paste→copy downgrade's "Copied", a declared per-click
     /// toast) swaps in, and everything else (`.success`, `.openURL`, honored paste, native copy)
     /// fades the spinner.
     private func settleLoadingResult(_ result: ActionResult, delivery: DeliveryContext) async {
         switch result {
-        case .showStatus(let feedback):
+        case .toast(let feedback):
             toastController.show(feedback)
         case .openConfiguration(let request):
             toastController.hide()
@@ -792,14 +792,14 @@ public class PopupWindowController {
                     toastController.hide()
                 }
             } catch {
-                await settleLoadingResult(.showStatus(StatusFeedback(error: error)), delivery: delivery)
+                await settleLoadingResult(.toast(StatusFeedback(error: error)), delivery: delivery)
             }
         }
     }
 
     /// Surfaces a StatusFeedback as the floating toast (the single status renderer). The toast
     /// is independent of the popup, so it shows whether the popup stays up or has already hidden.
-    private func presentStatus(_ feedback: StatusFeedback) {
+    private func presentToast(_ feedback: StatusFeedback) {
         toastController.show(feedback, anchorPoint: panel?.centerPoint)
     }
 

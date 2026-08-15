@@ -667,7 +667,7 @@ public struct PopupView: View {
                             Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
                             // Decision 9: a thrown perform error surfaces uniformly as an error status
                             // and the popup stays.
-                            onResult(.showStatus(StatusFeedback(error: error)))
+                            onResult(.toast(StatusFeedback(error: error)))
                         }
                     }
                 } label: {

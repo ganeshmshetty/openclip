@@ -341,7 +341,7 @@ public struct PopupSearchView: View {
                 let result = try await action.perform(performContext)
                 onResult(result)
             } catch {
-                onResult(.showStatus(StatusFeedback(error: error)))
+                onResult(.toast(StatusFeedback(error: error)))
             }
         }
     }

@@ -312,8 +312,8 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         }
 
         let result = try await action.perform(ActionContext(selectedText: "World"))
-        guard case .showStatus(let feedback) = result else {
-            return XCTFail("Expected an error status from the removed canvas bridge, got \(result)")
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected an error toast from the removed canvas bridge, got \(result)")
         }
         XCTAssertEqual(feedback.style, .error)
     }
