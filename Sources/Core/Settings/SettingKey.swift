@@ -41,11 +41,22 @@ public extension SettingKey where Value == [String: Int] {
     static var actionUsageRecency: SettingKey<[String: Int]> { SettingKey<[String: Int]>("actionUsageRecency", defaultValue: [:]) }
 }
 
+public extension SettingKey where Value == [String: String] {
+    /// packageID -> "seen" | "trusted" | "revoked"
+    static var extensionTrust: SettingKey<[String: String]> { SettingKey<[String: String]>("extension.trust", defaultValue: [:]) }
+    /// packageID -> content hash recorded at enable time (tamper-watch baseline)
+    static var extensionTrustHashes: SettingKey<[String: String]> { SettingKey<[String: String]>("extension.trustHashes", defaultValue: [:]) }
+    /// packageID -> "store" | "local"
+    static var extensionSources: SettingKey<[String: String]> { SettingKey<[String: String]>("extension.sources", defaultValue: [:]) }
+}
+
 public extension SettingKey where Value == Bool {
     static var isAppEnabled: SettingKey<Bool> { SettingKey<Bool>("isAppEnabled", defaultValue: true) }
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
     static var startAtLogin: SettingKey<Bool> { SettingKey<Bool>("startAtLogin", defaultValue: false) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
+    /// True once the one-time migration (auto-trust existing installs) has run.
+    static var extensionTrustMigrated: SettingKey<Bool> { SettingKey<Bool>("extension.trustMigrated", defaultValue: false) }
 }
 
 public extension SettingKey where Value == Double {
