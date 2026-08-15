@@ -39,6 +39,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var isAsync: Bool
         /// Watchdog budget. Defaults to `Constants.scriptTimeout` when nil (test override).
         public var timeout: TimeInterval?
+        /// Extension package directory. When non-nil the host enables the module bridge and wraps
+        /// the script in module scaffolding; nil preserves the legacy single-file behavior.
+        public var packageDirectory: URL?
 
         public init(
             actionID: String,
@@ -48,7 +51,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
             optionStore: any ActionOptionReading,
             rules: ExtensionActionRules,
             isAsync: Bool = false,
-            timeout: TimeInterval? = nil
+            timeout: TimeInterval? = nil,
+            packageDirectory: URL? = nil
         ) {
             self.actionID = actionID
             self.scriptCode = scriptCode
@@ -58,6 +62,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             self.rules = rules
             self.isAsync = isAsync
             self.timeout = timeout
+            self.packageDirectory = packageDirectory
         }
     }
 
