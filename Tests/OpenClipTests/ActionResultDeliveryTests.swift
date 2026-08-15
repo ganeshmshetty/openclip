@@ -207,6 +207,16 @@ final class ActionResultDeliveryTests: XCTestCase {
         }
     }
 
+    /// Polls the toast until it shows `message` or the deadline passes — waits for an action's
+    /// async `perform` to settle a `.showStatus` before the test proceeds.
+    @MainActor
+    private func awaitToastMessage(_ toast: ToastPanelController, _ message: String) async {
+        let deadline = Date().addingTimeInterval(3.0)
+        while toast.currentFeedback?.message != message && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+    }
+
     @MainActor
     private func shownController(resultHandler: ActionResultHandler,
                                  pasteProbe: PasteAvailabilityProbing,
@@ -488,6 +498,72 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         _ = try await awaitDelivery(from: handler)
         XCTAssertEqual(toast.currentFeedback, declared, "the declared primary toast must surface for a primary click")
+    }
+
+    // MARK: - Single-use declared delivery: a completion paste must not reuse a prior action's declaration
+
+    /// Completion buttons route `deliverResult(.paste(word))` straight in (PopupView `onResult`),
+    /// bypassing `onWillPerformAction`. Model the left-click bar flow: the prior action's declared
+    /// delivery is snapshotted into `pendingDelivery`, its non-dismissing `.showStatus` result
+    /// routes through `deliverResult` (which consumes and clears the declaration), and the
+    /// completion-word paste that follows must carry no declared secondary and fire no stale toast.
+    @MainActor
+    func testStaleDeclaredDeliveryDoesNotLeakOntoCompletionPaste() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        let working = StatusFeedback(message: "working", style: .info)
+        let declared = StatusFeedback(message: "Saved", style: .info)
+        controller.pendingDelivery = ActionDelivery(secondary: .paste("alt"), primaryToast: declared)
+        controller.deliverResult(.showStatus(working))
+        await awaitToastMessage(toast, "working")
+
+        controller.deliverResult(.paste("word"))
+
+        assertCase(try await awaitDelivery(from: handler), .paste("word"))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(toast.currentFeedback, working,
+                       "the prior action's declared delivery must not leak: the completion paste fires no stale toast")
+    }
+
+    // MARK: - Declared .paste secondary probes even on a secondary click
+
+    /// A declared `.paste` secondary is pasted on a secondary click: the probe must still run (the
+    /// force-copy short-circuit only applies when the click's outcome is a copy). With paste
+    /// available the declared paste secondary is delivered as a paste, not downgraded to copy.
+    @MainActor
+    func testDeclaredPasteSecondaryPastesOnSecondaryClickWhenCanPaste() async throws {
+        let handler = RecordingHandler()
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default)
+        defer { controller.hide() }
+
+        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(secondary: .paste("alt")))
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .paste("alt"))
+    }
+
+    /// The same declared `.paste` secondary on a secondary click, but the target cannot paste: the
+    /// probe runs (and answers no), downgrading the declared paste to a copy — never paste blindly.
+    @MainActor
+    func testDeclaredPasteSecondaryDowngradesToCopyWhenCannotPaste() async throws {
+        let handler = RecordingHandler()
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: false),
+                                             appPolicy: .default)
+        defer { controller.hide() }
+
+        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(secondary: .paste("alt")))
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .copy("alt"))
     }
 
     // MARK: - Builtin delivery declarations (uniform with extension actions)
