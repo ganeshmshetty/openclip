@@ -101,7 +101,9 @@ Common action fields (all OPTIONAL unless noted):
   "icon": "symbol(textformat.upper)",  // SF Symbol / local image / bare name (see below)
   "type": "javascript",                // default "url"
   "regex": ".*",                       // LEGACY pre-rules visibility gate (see §5)
-  "after": "copy-result",              // see §5b
+  "secondary": { "type": "copy", "value": "{text}" },  // secondary-click outcome; NON-JS kinds only (see §5b)
+  "toast": { "message": "Copied" },    // primary-click toast (see §5b)
+  "secondaryToast": { "message": "Copied" },  // secondary-click toast (see §5b)
   "requirements": { /* ... */ },       // see §5
   "options": [ /* per-action option overrides, see §4 */ ],
   "loading": true,                       // slow action: early-close + spinner toast, see §5d
@@ -371,28 +373,77 @@ also request configuration at script time via `openclip.requireConfiguration` �
 A malformed regex **enables** the action (defensive — a bad manifest never hides an action). With
 **no** rules attached, every extension action defaults to "enabled iff a non-blank selection exists".
 
-### 5b. `after`
+### 5b. Primary/secondary result delivery (`secondary`, `toast`, `secondaryToast`)
 
-`after` (`ActionAfterBehavior`, applied by `ActionResultAdapter`):
-
-- `copy-result` — a paste/copy outcome becomes `.copy`.
-- `paste-result` — a copy/paste outcome becomes `.paste`.
-- `show-result` — a copy/paste outcome degrades to the plain leaf result (copy/paste).
-- `none` — collapse any result to success.
-- `default` — unchanged. (Runtime presentations — content card/status/configuration/keyPress/shortcut/
-  sequence — always pass through regardless of `after`.)
-
-### 5c. Standardized paste-vs-copy delivery (leaf `.paste` results)
-
-A leaf `.paste(text)` result produced by any runtime is re-decided at the presenter by
+Every action run is a **delivery decision**: which result wins, and which companion toast (if any)
+surfaces. The pipeline — **Select → Probe → Toast** — is decided once per run by
 `ActionResultDelivery` (`Sources/Core/Actions/ActionResultDelivery.swift`) before the effect door
-runs. The rule (one choke point, applied to every text result):
+runs:
 
-1. **Right-click or ⇧-click** → always `.copy(text)`.
-2. The unified `PasteAvailability` decision says the target can't paste — a `denyPaste` per-app rule,
-   or the `PasteAvailabilityProbe` reports the AX Edit ▸ Paste disabled or
-   unavailable → `.copy(text)`.
-3. Otherwise → the action's requested `.paste(text)` is honored.
+1. **Select** — a **secondary** activation (right-click or ⇧-click) uses the action's declared
+   `secondary` outcome when one is declared; otherwise the raw runtime result wins, except a
+   secondary click on a `.paste` primary derives `.copy` (**the paste→copy default**). A primary
+   click always uses the raw result, so a non-paste primary with no declaration behaves the same on
+   both clicks.
+2. **Apply probe** — a chosen `.paste` is downgraded to `.copy` whenever the target cannot paste.
+   The **probe always applies**: to primary *and* secondary clicks, and to declared *and* derived
+   pastes alike — a paste is never delivered to a target that can't paste. The unified
+   `PasteAvailability` answer (a `denyPaste` per-app rule first, else the live `PasteAvailabilityProbe`
+   reporting the AX Edit ▸ Paste disabled/unavailable) says no → `.copy`.
+3. **Toast** — the click's declared toast (`toast` for primary, `secondaryToast` for secondary) wins;
+   otherwise the default **"Copied"** toast fires only when a paste context was delivered as a copy
+   (derived at select, declared, or downgraded by the probe) or a `.copyDefinition` is delivered.
+
+Only `.paste` outcomes are ever downgraded to `.copy`; an explicit `.copy` stays a copy, and
+non-text results (openURL, notify, keyPress, …) pass through untouched.
+
+**Declarable keys** (per action, all optional). The factory wraps any action declaring them in a
+`DeliveryDecoratedAction` carrying the mapped `ActionDelivery`; non-declaring actions stay plain
+(nil delivery) and inherit the paste→copy default. Builtins declare delivery the same way
+(`Action.delivery`).
+
+- **`secondary`** — the secondary-click outcome. **Scoped to non-JS kinds:** a `javascript` action
+  that declares `secondary` is rejected at install/load time (use the in-script
+  `openclip.input.isSecondaryClick` branch instead, §5c). Shape:
+
+  ```jsonc
+  "secondary": {
+    "type": "copy",        // "copy" | "paste" | "openURL" | "status" | "success" | "none"
+    "value": "{text}",     // value text for copy / paste / openURL
+    "message": "…"         // message for type "status"
+  }
+  ```
+
+  Example — a Look Up action that pastes on primary click and copies on secondary:
+
+  ```jsonc
+  {
+    "title": "Look Up",
+    "type": "url",
+    "url": "https://en.wikipedia.org/wiki/Special:Search?search={query}",
+    "secondary": { "type": "copy", "value": "{query}" }
+  }
+  ```
+
+  > **Fail-open note:** a `secondary` of type `copy`/`paste`/`openURL` whose `value` is missing (or
+  > an `openURL` with an unparseable `value`) silently becomes a no-op `.success` — declare `value`
+  > for those types. `status` reads `message`; `success`/`none` need neither.
+
+- **`toast`** / **`secondaryToast`** — a one-line companion toast shown after the action completes,
+  per click. Valid on **all** kinds. Shape:
+
+  ```jsonc
+  "toast": { "message": "Copied", "style": "success" },   // "success" | "error" | "info" (default success)
+  "secondaryToast": { "message": "Copied", "style": "success" }
+  ```
+
+  These are **delivery-side effects** — companion notices rendered by the floating toast surface,
+  not new `ActionResult` cases (§8). They do not change dismissal.
+
+**`after` is removed.** There is no `after` manifest key and no legacy result translator (the old
+`after` orchestration step and its adapter were deleted). Copy/paste forcing is expressed three ways: a declared
+`secondary` result (static kinds, above), the JS `openclip.input.isSecondaryClick` branch (JS,
+§5c), or the derived paste→copy default (secondary click on a paste primary, no declaration).
 
 The delivery inputs (click intent + app policy) are snapshotted when the action performs, *before*
 dismissal `hide()` clears the session context, so the per-app `denyPaste` rule still applies to
@@ -410,7 +461,30 @@ never re-decided — an explicit Paste always pastes.
 `.copy`/`.cut` and non-text results are never downgraded. This is a **presentation/delivery**
 decision (App target only) — Core stays pure; `canPaste` and the app policy are injected inputs.
 The per-app `denyPaste` toggle is user-editable in Preferences → Application Rules. Set
-`deny-paste` only via `AppRule`; a manifest has **no** delivery keys.
+`deny-paste` only via `AppRule`; a manifest has **no** `denyPaste` delivery key (delivery is
+declared via `secondary`/`toast`/`secondaryToast` above).
+
+### 5c. JS: imperative secondary via `openclip.input.isSecondaryClick`
+
+JavaScript actions cannot declare a manifest `secondary` (rejected at validation — see §5b). Instead
+the secondary behavior is authored **imperatively** in the script: branch on the read-only
+`openclip.input.isSecondaryClick` boolean (true for a right-click or ⇧-click) and emit an explicit
+effect for each path — `openclip.paste(...)` for the primary, `openclip.copy(...)` for the
+secondary — rather than relying on a string-return convention or a manifest `secondary`.
+
+```javascript
+function action(selection) {
+  if (openclip.input.isSecondaryClick) {
+    openclip.copy("Result: " + selection);   // secondary click → copy
+  } else {
+    openclip.paste("Result: " + selection);  // primary click → paste
+  }
+}
+```
+
+The chosen effect arrives at delivery as the action's primary result (`raw`); the paste→copy probe
+and the click's declared `toast`/`secondaryToast` still apply to it exactly as for static kinds
+(§5b). The non-branching effect path is the primary behavior.
 
 ### 5d. `loading` (slow actions)
 
@@ -486,7 +560,8 @@ vars: `OPENCLIP_TEXT`, `OPENCLIP_MATCHED`, `OPENCLIP_CAPTURE_1`…`N`, `OPENCLIP
 Read-only input context:
 
 - `openclip.input.text`, `openclip.input.matchedText`, `openclip.input.captures` (array),
-  `openclip.input.app.bundleID`, `openclip.input.app.name`
+  `openclip.input.app.bundleID`, `openclip.input.app.name`,
+  `openclip.input.isSecondaryClick` (true on a right-click or ⇧-click — see §5c)
 - `openclip.options` — `{ optionID: stringValue }` resolved through the option store
 - `openclip.option(id)` — functional form returning the same value string
 
@@ -531,8 +606,8 @@ return → `copy`; else `success`.
 
 ## 8. The ActionResult surface & JSON effect shapes
 
-`ActionResult` cases an extension can produce (via JS effects, script JSON, declarative
-`after`, or kind runtimes):
+`ActionResult` cases an extension can produce (via JS effects, script JSON, declared `secondary`
+outcomes, or kind runtimes):
 
 | Case | Meaning |
 | :--- | :--- |
@@ -553,6 +628,10 @@ return → `copy`; else `success`.
 
 Dismissal: `.showStatus` keeps the popup open; `.sequence` dismisses only when non-empty and all
 items dismiss; everything else (including `.openConfiguration`) dismisses.
+
+The **companion toast** resolved by delivery (the click's declared `toast`/`secondaryToast`, or the
+default "Copied") is a **delivery-side effect** — it is rendered by the floating toast surface and is
+*not* an `ActionResult` case, so it has no effect on dismissal (§5b).
 
 ### 8a. Shell/script JSON protocol (`ShellResultMapper`)
 
@@ -706,7 +785,8 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 - **Do not `switch action.id`** for presentation decisions — use `action.chrome`, icons, and
   data-driven fields. The `chrome`/`rowStyle`/`popupBehavior`/`source` you may see in the code are
   **computed by the app**, not manifest keys: a manifest has **no** `chrome`, `subtitle`, `badge`,
-  `keywords`, or `gesturePolicy` fields — do not write them.
+  `keywords`, `gesturePolicy`, or `after` fields — do not write them (`after` was removed; delivery
+  is declared via `secondary`/`toast`/`secondaryToast`, §5b).
 - **Do not write a `parentGroupID`** — groups use the id-prefix convention only (§3i); it was
   deliberately deferred.
 - **Do not invent JSON effect `type` strings** — the shell protocol accepts only the types in §8a.
@@ -726,8 +806,10 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 - Kind→runtime routing + chrome + id rule: `Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift`.
 - JS surface/resolution: `Sources/OpenClip/Platform/Runtimes/OpenClipJSHost.swift`.
 - Effect execution: `Sources/OpenClip/Platform/Effects/ActionResultHandler.swift`.
-- Result model: `Sources/Core/Actions/ActionResult.swift` (+ `ActionResultAdapter.swift`,
-  `StatusFeedback.swift`, `ConfigurationRequest.swift`).
+- Result model: `Sources/Core/Actions/ActionResult.swift` (+ `StatusFeedback.swift`,
+  `ConfigurationRequest.swift`).
+- Delivery model (primary/secondary + per-click toasts): `Sources/Core/Actions/ActionDelivery.swift`,
+  `Sources/Core/Actions/ActionResultDelivery.swift`, `Sources/Core/Actions/DeliveryDecoratedAction.swift`.
 - AI result card (native SwiftUI): `Sources/OpenClip/UI/Popup/AIResultCardView.swift`.
 - Visibility/required options: `Sources/Core/Actions/ActionVisibility.swift`, `ExtensionActionRules.swift`.
 - Options storage: `Sources/Core/Settings/ActionOptionStore.swift`, `SettingKey.swift`,

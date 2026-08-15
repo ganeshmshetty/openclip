@@ -118,11 +118,13 @@ that replaced the former interactive canvas.
   `flushPendingStatus`) are gone. `showsLoading` actions (manifest `"loading"`) early-close the
   popup with a spinner toast, swapping to a description, the resolved companion toast, or fading on
   a description-free result.
-- **Force-copy threading**: the click intent captured at mouse-down (`pendingClickIntent`) is threaded
-  into the perform context as `ActionContext.forceCopy` (right-click always; ⇧-click via
-  `PopupView`/`PopupSearchView`'s `onClickIntent` closure). Actions can branch on it — `DefineAction`
-  returns `.copyDefinition(word)` on a force-copy click so the effect door copies the dictionary
-  definition headlessly instead of opening Dictionary.app.
+- **Secondary-click threading**: the click intent captured at mouse-down (`pendingClickIntent`) is
+  threaded into the perform context as `ActionContext.isSecondaryClick` (right-click always; ⇧-click
+  via `PopupView`/`PopupSearchView`'s `onClickIntent` closure) and into the delivery snapshot
+  (`DeliveryContext.clickIntent`, alongside the action's declared `Action.delivery`). Actions can
+  branch on it — `DefineAction` returns `.copyDefinition(word)` on a secondary click (with a
+  declared `secondaryToast` "Copied definition") so the effect door copies the dictionary definition
+  headlessly instead of opening Dictionary.app.
 
 ---
 

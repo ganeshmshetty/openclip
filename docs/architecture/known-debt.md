@@ -50,9 +50,12 @@ areas; stale debt notes are worse than none.
   to Swift-concurrency-pool starvation) and pipe output is read via GCD `readabilityHandler` (never
   a blocking `readToEnd()`, so a stuck child can't permanently consume a cooperative thread), with
   stdin seeded and closed synchronously so a script reading stdin always sees EOF.
-- **`ActionResultAdapter.apply` is the single after translator.** Runtimes return raw
-  results; each extension runtime's `perform` applies `rules.after` via the
-  adapter. `OpenClipJSHost.run` returns only raw results; async JS runs are guarded by the
+- **Delivery is resolved by `ActionResultDelivery`, not per-runtime translation.** Runtimes
+  (`OpenClipJSHost.run`, `ShellResultMapper`, kind actions) return only raw results; the paste-vs-copy
+  delivery decision (Select → Probe → Toast) is applied downstream from the action's declared
+  `Action.delivery` (snapshotted per perform) plus the click intent and the unified paste
+  availability. The old `after` translator (the pre-refactor `after` orchestration step and its
+  adapter) is **fully removed**. Async JS runs are guarded by the
   `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
 
 ## Presentation / Rule Holes
@@ -116,9 +119,11 @@ areas; stale debt notes are worse than none.
   via the `onClickIntent` closure) and read by `DefineAction` to copy a definition headlessly. True
   modifier keys (⌘/⌥) still don't reach actions.
 - **Paste delivery is now standardized but has a probe reliance.** Leaf `.paste` results are
-  re-decided by `ActionResultDelivery` (App target) per the rule in the dev-guide §5c: right/⇧-click,
-  or the **unified** `PasteAvailability` answer (per-app rules win, AX `PasteAvailabilityProbe` fills
-  in) saying no → copy; otherwise paste. The delivery inputs are snapshotted at perform time — before
+  re-decided by `ActionResultDelivery` (App target) per the rule in the dev-guide §5b: a secondary
+  click uses the declared `secondary` outcome (else derives `.copy` from a `.paste` primary), and
+  the **unified** `PasteAvailability` answer (per-app rules win, AX `PasteAvailabilityProbe` fills
+  in) downgrades a chosen `.paste` to `.copy` when it says no; otherwise the requested paste is
+  honored. The delivery inputs are snapshotted at perform time — before
   the dismissing `hide()` clears the session context — so `denyPaste` holds even for pastes that
   dismiss the popup, and the AI card's Paste/Copy buttons are explicit requests
   (`performCardEffect`) that carry no delivery context and are never re-decided. The live probe
@@ -137,8 +142,10 @@ areas; stale debt notes are worse than none.
   intent and fed into `resolve`, and the returned tuple's toast is rendered directly — the manual
   `isDowngradedToCopy`/`isCopyDefinition` inline toast detection was removed in favor of the resolved
   `.toast`. Only the SwiftUI inline perform path snapshots via the new `onWillPerformAction` closure;
-  the completion-button paste path (`PopupView` `onResult(.paste(word))`) still uses the last
-  `pendingDelivery` (normally nil, since `hide()` clears it) rather than its own snapshot.
+  the completion-button paste path (`PopupView` `onResult(.paste(word))`) still reads the **last**
+  `pendingDelivery` (normally nil, since `hide()` clears it) rather than its own snapshot — a prior
+  non-dismissing action's declared `primaryToast` could leak onto a completion-word paste; suggested
+  fix: clear `pendingDelivery` right after the snapshot in `deliverResult` (single-use per perform).
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 

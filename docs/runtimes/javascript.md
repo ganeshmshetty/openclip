@@ -32,6 +32,7 @@ interface OpenClipBridge {
     matchedText: string;     // Text matched by the action's regex (falls back to text)
     captures: string[];      // Regex capture groups (empty when no regex)
     app: { bundleID: string; name: string }; // Frontmost source app
+    isSecondaryClick: boolean; // True on a right-click or ⇧-click activation
   };
   options: Record<string, string>; // Resolved option values (values only, read-only)
   option(id: string): string | undefined; // Functional form of options[id]
@@ -76,6 +77,29 @@ from the Keychain via `KeychainActionOptionStore`. Values land in `openclip.opti
 ```
 
 Define an `action(selection, options)` or `main(selection, options)` entry function.
+
+## Secondary click behavior (`isSecondaryClick`)
+
+A right-click or ⇧-click activation surfaces as `openclip.input.isSecondaryClick === true`. JS
+actions **cannot** declare a manifest `secondary` (rejected at validation), so a distinct secondary
+behavior is authored **imperatively**: branch on the flag and emit an explicit effect for each path —
+`openclip.paste(...)` for the primary, `openclip.copy(...)` for the secondary — rather than relying
+on a string-return convention.
+
+```javascript
+function action(selection) {
+  const result = selection.toUpperCase();
+  if (openclip.input.isSecondaryClick) {
+    openclip.copy(result);   // secondary click → copy
+  } else {
+    openclip.paste(result);  // primary click → paste
+  }
+}
+```
+
+The effect the branch picks becomes the action's primary result, so the standard delivery pipeline
+still applies to it (the paste→copy probe, and the click's declared `toast`/`secondaryToast`, see
+[`docs/developer-guide/AGENTS.md` §5b/§5c](../developer-guide/AGENTS.md)).
 
 ## Async Mode (`"async": true`)
 
