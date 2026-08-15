@@ -31,6 +31,15 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     /// Optional text for the loading spinner toast (shown while `loading: true`). When absent the
     /// host falls back to its default ("Opening <title>…").
     public let loadingMessage: String?
+    /// Declares how a secondary (right-click / option-click) activation behaves. Decoded
+    /// unconditionally — Core just carries it; the install-time validator enforces kind-scoping
+    /// (only non-scripting kinds may declare it, never `javascript`).
+    public let secondary: ExtensionSecondaryDeclaration?
+    /// Toast shown after the action completes successfully. Valid on all kinds.
+    public let toast: ExtensionToastDeclaration?
+    /// Toast shown after a secondary (right-click / option-click) activation completes. Valid on
+    /// all kinds.
+    public let secondaryToast: ExtensionToastDeclaration?
 
     public var kind: ExtensionActionKind {
         ExtensionActionKind(rawType: type ?? "url")
@@ -55,7 +64,10 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         shortcutName: String? = nil,
         menuRelevance: String? = nil,
         loading: Bool? = nil,
-        loadingMessage: String? = nil
+        loadingMessage: String? = nil,
+        secondary: ExtensionSecondaryDeclaration? = nil,
+        toast: ExtensionToastDeclaration? = nil,
+        secondaryToast: ExtensionToastDeclaration? = nil
     ) {
         self.id = id
         self.title = title
@@ -76,6 +88,9 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.menuRelevance = menuRelevance
         self.loading = loading
         self.loadingMessage = loadingMessage
+        self.secondary = secondary
+        self.toast = toast
+        self.secondaryToast = secondaryToast
     }
 
     public init(from decoder: Decoder) throws {
@@ -106,6 +121,10 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.menuRelevance = try container.decodeIfPresent(String.self, forKey: .menuRelevance)
         self.loading = try container.decodeIfPresent(Bool.self, forKey: .loading)
         self.loadingMessage = try container.decodeIfPresent(String.self, forKey: .loadingMessage)
+        self.secondary = try container.decodeIfPresent(ExtensionSecondaryDeclaration.self, forKey: .secondary)
+        self.toast = try container.decodeIfPresent(ExtensionToastDeclaration.self, forKey: .toast)
+        self.secondaryToast = try container.decodeIfPresent(ExtensionToastDeclaration.self, forKey: .secondaryToast)
+            ?? container.decodeIfPresent(ExtensionToastDeclaration.self, forKey: .secondaryToastDash)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -129,6 +148,9 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(menuRelevance, forKey: .menuRelevance)
         try container.encodeIfPresent(loading, forKey: .loading)
         try container.encodeIfPresent(loadingMessage, forKey: .loadingMessage)
+        try container.encodeIfPresent(secondary, forKey: .secondary)
+        try container.encodeIfPresent(toast, forKey: .toast)
+        try container.encodeIfPresent(secondaryToast, forKey: .secondaryToast)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -158,7 +180,22 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case menuRelevance = "menuRelevance"
         case loading = "loading"
         case loadingMessage = "loadingMessage"
+        case secondary = "secondary"
+        case toast = "toast"
+        case secondaryToast = "secondaryToast"
+        case secondaryToastDash = "secondary-toast"
     }
+}
+
+public struct ExtensionSecondaryDeclaration: Codable, Sendable, Equatable {
+    public let type: String      // "copy" | "paste" | "openURL" | "status" | "success" | "none"
+    public let value: String?    // for copy/paste/openURL
+    public let message: String?  // for status
+}
+
+public struct ExtensionToastDeclaration: Codable, Sendable, Equatable {
+    public let message: String
+    public let style: String?    // "success" | "error" | "info" (default success)
 }
 
 public struct ExtensionOptionMetadata: Sendable, Codable, Equatable {
