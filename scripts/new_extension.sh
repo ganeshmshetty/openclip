@@ -208,7 +208,7 @@ interface OpenClipBridge {
   runShortcut(name: string, input?: string): void;
   notify(title: string, body: string): void;
   shareService(identifier: string, text?: string): void;
-  showStatus(message: string, style?: 'success' | 'error' | 'info'): void;
+  toast(message: string, style?: 'success' | 'error' | 'info', options?: { keepVisible?: boolean }): void;
   requireConfiguration(request: OpenClipStatusRequest): void;
   fetch(url: string, options?: Record<string, unknown>): Promise<OpenClipFetchResponse>;
 }

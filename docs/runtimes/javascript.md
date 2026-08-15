@@ -45,7 +45,7 @@ interface OpenClipBridge {
   keyPress(key: string, modifiers: string[]): void; // e.g. openclip.keyPress("a", ["command"])
   runShortcut(name: string): void;       // Runs a macOS Shortcut (requires /usr/bin/shortcuts)
   notify(title: string, body: string): void;
-  showStatus(message: string, style?: string): void; // style: "success" | "error" | "info"
+  toast(message: string, style?: string, options?: { keepVisible?: boolean }): void; // style: "success" | "error" | "info"
   requireConfiguration(payload: object): void; // { reason?: string, missing?: string[] }
 }
 ```
@@ -55,7 +55,7 @@ Modifier names accepted by `keyPress`: `command`/`cmd`, `shift`, `option`/`alt`,
 letters `a`–`z`, digits `0`–`9`, or named keys like `return`, `space`, `escape`.
 
 The former canvas bridge (`showContent(tree, { size })` / `h()`) has been **removed**; calling
-those names surfaces a JS error (`.showStatus(.error)`).
+those names surfaces a JS error (`.toast(.error)`).
 
 ## Options & Preference Integration
 
@@ -107,7 +107,7 @@ In async mode the entry function may return a `Promise`. The wrapped script disp
 point through an internal `__openclip_dispatch` that settles the host's promise bridge — immediately
 for synchronous returns, via `.then`/catch for promises. A script with no `action`/`main` entry
 (top-level side effects only) still settles, so it never hangs. A rejected promise surfaces as
-`.showStatus(.error, message)`.
+`.toast(.error, message)`.
 
 ### `fetch(url, options)`
 
@@ -155,19 +155,20 @@ script enters its promise pump loop, the sync gate is released while the watchdo
 
 `OpenClipJSHost.run` resolves the outcome in a deterministic order:
 
-1. `requireConfiguration(...)` → `.openConfiguration`.
-2. `showStatus(...)` (with no effects) → `.showStatus`.
-3. Effects (paste/copy/cut/openURL/keyPress/runShortcut/notify) → single `.paste`/`.copy`/etc, or
+1. A JavaScript exception → `.toast(.error, message)` (never thrown as a Swift error).
+2. `requireConfiguration(...)` → `.openConfiguration`.
+3. `toast(...)` — alone → `.toast`, or coexisting with effects → `.sequence([.toast, …effects])`.
+4. Effects (paste/copy/cut/openURL/keyPress/runShortcut/notify) → single `.paste`/`.copy`/etc, or
    `.sequence` of them when multiple were called.
-4. String return value → `.copy(string)`.
-5. Otherwise → `.success`.
+5. String return value → `.paste(string)`.
+6. Otherwise → `.success`.
 
-A JavaScript exception produces `.showStatus(.error, message)` instead of throwing; the popup
-stays visible.
+A JavaScript exception produces `.toast(.error, message)` instead of throwing; the toast dismisses
+the popup by default (`keepVisible: true` keeps it open).
 
 ## Practical Examples
 
-### Prettify JSON (returns a string → copied)
+### Prettify JSON (returns a string → pasted)
 
 ```javascript
 function action(selection) {
