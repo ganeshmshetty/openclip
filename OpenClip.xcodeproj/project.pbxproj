@@ -114,6 +114,7 @@
 		701B65DCD6E9E9A69A6C7C13 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2582277236A4342581920E66 /* Assets.xcassets */; };
 		714F641630B8C17979890D5C /* ExtensionsAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208E1DDA96B874A04C415CE2 /* ExtensionsAPIClient.swift */; };
 		7265AF347B73B7E61A597E30 /* AppRulesTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F83E744E54478C7A60BEE112 /* AppRulesTab.swift */; };
+		72D406208C35164983A1EC13 /* OpenClipModuleLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E5F5E01EF86BB0AFEFEE150 /* OpenClipModuleLoaderTests.swift */; };
 		7546E6EDF913B225D0DD685F /* AXMenuNavigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 598184E10837E8D89E5722A1 /* AXMenuNavigator.swift */; };
 		75FF6A183690E816A427676C /* ActionRequirements.swift in Sources */ = {isa = PBXBuildFile; fileRef = B43E5D5739492C708E36DE7B /* ActionRequirements.swift */; };
 		7603337EB25026D9115894F3 /* CursorClassifierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB4D31C4F3399F8C4AE9BF7A /* CursorClassifierTests.swift */; };
@@ -255,6 +256,7 @@
 		EBE9FB46AD56F10020544D24 /* SelectionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F741E6F7B6D8F5B61A13F0F /* SelectionContext.swift */; };
 		ECEB7081869B1E2B4EE5219E /* BrowserScriptStrategyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90EB8C683EB3335797E03ACF /* BrowserScriptStrategyTests.swift */; };
 		ED408F095ADAD70E95B15D39 /* OpenClipJSHostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CB9BA0577EDDA7E174755C2 /* OpenClipJSHostTests.swift */; };
+		EE047575D4BBDD2F0D88A15C /* OpenClipModuleLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC570E95AD00AF13279BF5F1 /* OpenClipModuleLoader.swift */; };
 		EF3BE1F10E35A392B5F686F8 /* RecommendedExtensionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE6E52A608F70478CA1BB44 /* RecommendedExtensionsView.swift */; };
 		F2AE27E093E546BB9F84835F /* InstalledExtensionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7BBC1C9D5BC350A1DE3769D /* InstalledExtensionsView.swift */; };
 		F3838DAB280C70F3FF8196FF /* OpenClipJSHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2196A93CE938E3BCD2D73F /* OpenClipJSHost.swift */; };
@@ -342,6 +344,7 @@
 		1B1ED5E66BD010DECBA31B69 /* MacTextRetriever.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacTextRetriever.swift; sourceTree = "<group>"; };
 		1CC143F536CFEDFC4CD4B4BC /* TextSanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSanitizer.swift; sourceTree = "<group>"; };
 		1D1B055BC4EBEB77FCF23D59 /* AIAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAction.swift; sourceTree = "<group>"; };
+		1E5F5E01EF86BB0AFEFEE150 /* OpenClipModuleLoaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipModuleLoaderTests.swift; sourceTree = "<group>"; };
 		1E86D685379782075566534F /* ActionRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionRegistryTests.swift; sourceTree = "<group>"; };
 		1EE6E52A608F70478CA1BB44 /* RecommendedExtensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendedExtensionsView.swift; sourceTree = "<group>"; };
 		201CA35D10C8474B786349EE /* PasteAvailabilityProbeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteAvailabilityProbeTests.swift; sourceTree = "<group>"; };
@@ -556,6 +559,7 @@
 		E7F63399A1C7D78E9E1667DF /* GeneralTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralTabView.swift; sourceTree = "<group>"; };
 		E843649F2E5528CE1F44259F /* MenuActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuActionTests.swift; sourceTree = "<group>"; };
 		E97352E36DEEAE5F6A6AE6F5 /* OpenClip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenClip.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC570E95AD00AF13279BF5F1 /* OpenClipModuleLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipModuleLoader.swift; sourceTree = "<group>"; };
 		EDA9C8A4040E18E41E19E64A /* JavaScriptAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptAction.swift; sourceTree = "<group>"; };
 		EEF62694D77470DE4E2262E6 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		F092B5E7205F765F5BBB69A4 /* AddCustomActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCustomActionSheet.swift; sourceTree = "<group>"; };
@@ -678,6 +682,7 @@
 				4454ADFE0B327CA7F84F860F /* NamedServiceAction.swift */,
 				8B2196A93CE938E3BCD2D73F /* OpenClipJSHost.swift */,
 				A38209FD5C0082BD05CC8718 /* OpenClipJSHostSupport.swift */,
+				EC570E95AD00AF13279BF5F1 /* OpenClipModuleLoader.swift */,
 				C612A5C65039CA80623072E4 /* ShortcutAction.swift */,
 			);
 			path = Runtimes;
@@ -1050,6 +1055,7 @@
 				8898F579917FE375DDEE7778 /* MultiActionExtensionTests.swift */,
 				8B661E6EEBB238748D4D892E /* NewExtensionKindTests.swift */,
 				8CB9BA0577EDDA7E174755C2 /* OpenClipJSHostTests.swift */,
+				1E5F5E01EF86BB0AFEFEE150 /* OpenClipModuleLoaderTests.swift */,
 				3359F30EB7FC15DFC02A4D9B /* OpenClipSnippetParserTests.swift */,
 				201CA35D10C8474B786349EE /* PasteAvailabilityProbeTests.swift */,
 				3F2731480550C2912B357B1C /* PasteAvailabilityTests.swift */,
@@ -1268,6 +1274,7 @@
 				E94E8E1A91416CA1E54B9BFD /* MultiActionExtensionTests.swift in Sources */,
 				7D42035CA10D7F64198D4265 /* NewExtensionKindTests.swift in Sources */,
 				ED408F095ADAD70E95B15D39 /* OpenClipJSHostTests.swift in Sources */,
+				72D406208C35164983A1EC13 /* OpenClipModuleLoaderTests.swift in Sources */,
 				CB0F2118E3D0E7195D500A5D /* OpenClipSnippetParserTests.swift in Sources */,
 				7A6B2CBBA01D8F8A4E89D8DC /* PasteAvailabilityProbeTests.swift in Sources */,
 				184207DF1E09CEFFCC848F2B /* PasteAvailabilityTests.swift in Sources */,
@@ -1452,6 +1459,7 @@
 				E08C252C9ADA79A930825C1E /* OpenClipApp.swift in Sources */,
 				F3838DAB280C70F3FF8196FF /* OpenClipJSHost.swift in Sources */,
 				A218CCDA9C0BB59FE30FFFD7 /* OpenClipJSHostSupport.swift in Sources */,
+				EE047575D4BBDD2F0D88A15C /* OpenClipModuleLoader.swift in Sources */,
 				6B6EB24072E6FDB50051E1F5 /* OpenClipSnippetParser+DefaultFactory.swift in Sources */,
 				E349DDD966C6A17A8B49DAAA /* OpenURLAction.swift in Sources */,
 				D3C8C3EA66019AC8C95C551C /* PasteAvailabilityProbe.swift in Sources */,
