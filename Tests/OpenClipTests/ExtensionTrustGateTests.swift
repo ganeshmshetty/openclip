@@ -20,13 +20,13 @@ final class ExtensionTrustGateTests: XCTestCase {
 
     // Writes a single-action manifest package and returns its scanned actions (no gate).
     @MainActor
-    private func scannedActions(for packageID: String, name: String, script: String = "echo hi", minOpenClipVersion: String? = nil) async -> [any Action] {
+    private func scannedActions(for packageID: String, name: String, script: String = "echo hi", openClipVersion: String? = nil) async -> [any Action] {
         let pkg = tempDir.appendingPathComponent("\(name).openclipext")
         try! FileManager.default.createDirectory(at: pkg, withIntermediateDirectories: true)
         let manifestURL = pkg.appendingPathComponent("openclip.json")
-        let minVersionField = minOpenClipVersion.map { ",\"minOpenClipVersion\":\"\($0)\"" } ?? ""
+        let versionField = openClipVersion.map { ",\"openClipVersion\":\"\($0)\"" } ?? ""
         try! """
-        {"identifier":"\(packageID)","name":"\(name)"\(minVersionField),"actions":[
+        {"identifier":"\(packageID)","name":"\(name)"\(versionField),"actions":[
             {"title":"Run","type":"shell","script":"main.sh"}]}
         """.write(to: manifestURL, atomically: true, encoding: .utf8)
         let scriptURL = pkg.appendingPathComponent("main.sh")
@@ -35,8 +35,8 @@ final class ExtensionTrustGateTests: XCTestCase {
     }
 
     @MainActor
-    private func plan(packageID: String, name: String, trust: [String: String], hashes: [String: String], sources: [String: String], isMigrated: Bool, script: String = "echo hi", appVersion: String = "1.4.0", minOpenClipVersion: String? = nil) async throws -> ExtensionGatePlan {
-        let actions = await scannedActions(for: packageID, name: name, script: script, minOpenClipVersion: minOpenClipVersion)
+    private func plan(packageID: String, name: String, trust: [String: String], hashes: [String: String], sources: [String: String], isMigrated: Bool, script: String = "echo hi", appVersion: String = "1.4.0", openClipVersion: String? = nil) async throws -> ExtensionGatePlan {
+        let actions = await scannedActions(for: packageID, name: name, script: script, openClipVersion: openClipVersion)
         return ExtensionTrustGate.evaluate(
             actions: actions, in: tempDir,
             trust: trust, hashes: hashes, sources: sources,
@@ -120,12 +120,12 @@ func testChangedTrustedPackageFlipsToGatedAndNotifies() async throws {
     }
 
     @MainActor
-    func testMinOpenClipVersionGatesIncompatibleTrustedPackage() async throws {
+    func testOpenClipVersionGatesIncompatibleTrustedPackage() async throws {
         // Trusted + matching hash, but the package requires a newer app → gate on needsNewerApp,
         // NOT tampered (version check runs after trust resolution).
-        let first = try await plan(packageID: "com.t.minv", name: "MinV", trust: [:], hashes: [:], sources: [:], isMigrated: false, minOpenClipVersion: "2.0.0")
+        let first = try await plan(packageID: "com.t.minv", name: "MinV", trust: [:], hashes: [:], sources: [:], isMigrated: false, openClipVersion: "2.0.0")
         let hash = first.hashes["com.t.minv"]!
-        let p = try await plan(packageID: "com.t.minv", name: "MinV", trust: ["com.t.minv": "trusted"], hashes: ["com.t.minv": hash], sources: [:], isMigrated: true, appVersion: "1.4.0", minOpenClipVersion: "2.0.0")
+        let p = try await plan(packageID: "com.t.minv", name: "MinV", trust: ["com.t.minv": "trusted"], hashes: ["com.t.minv": hash], sources: [:], isMigrated: true, appVersion: "1.4.0", openClipVersion: "2.0.0")
         let gated = try XCTUnwrap(p.actions[0] as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .needsNewerApp(required: "2.0.0"))
         XCTAssertEqual(p.trust["com.t.minv"], "trusted", "a matching-hash trusted package must gate on needsNewerApp, not filesChanged")
@@ -136,13 +136,13 @@ func testChangedTrustedPackageFlipsToGatedAndNotifies() async throws {
     func testNeedsNewerAppForTrustedPackage() async throws {
         // Same trusted + matching-hash package: a satisfied requirement keeps the real action,
         // an unsatisfied one gates on needsNewerApp (never tampered).
-        let first = try await plan(packageID: "com.t.ver", name: "Ver", trust: [:], hashes: [:], sources: [:], isMigrated: false, minOpenClipVersion: "1.5.0")
+        let first = try await plan(packageID: "com.t.ver", name: "Ver", trust: [:], hashes: [:], sources: [:], isMigrated: false, openClipVersion: "1.5.0")
         let hash = first.hashes["com.t.ver"]!
-        let compatible = try await plan(packageID: "com.t.ver", name: "Ver", trust: ["com.t.ver": "trusted"], hashes: ["com.t.ver": hash], sources: [:], isMigrated: true, appVersion: "1.6.0", minOpenClipVersion: "1.5.0")
+        let compatible = try await plan(packageID: "com.t.ver", name: "Ver", trust: ["com.t.ver": "trusted"], hashes: ["com.t.ver": hash], sources: [:], isMigrated: true, appVersion: "1.6.0", openClipVersion: "1.5.0")
         XCTAssertFalse(compatible.actions[0] is GatedExtensionAction, "satisfied requirement keeps the real action")
         XCTAssertTrue(compatible.events.isEmpty)
 
-        let incompatible = try await plan(packageID: "com.t.ver", name: "Ver", trust: ["com.t.ver": "trusted"], hashes: ["com.t.ver": hash], sources: [:], isMigrated: true, appVersion: "1.4.0", minOpenClipVersion: "1.5.0")
+        let incompatible = try await plan(packageID: "com.t.ver", name: "Ver", trust: ["com.t.ver": "trusted"], hashes: ["com.t.ver": hash], sources: [:], isMigrated: true, appVersion: "1.4.0", openClipVersion: "1.5.0")
         let gated = try XCTUnwrap(incompatible.actions[0] as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .needsNewerApp(required: "1.5.0"))
         XCTAssertEqual(incompatible.trust["com.t.ver"], "trusted", "version gating must not flip a trusted package to seen")
