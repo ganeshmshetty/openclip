@@ -269,6 +269,19 @@ final class ManifestValidationTests: XCTestCase {
         XCTAssertEqual(validator.validate(manifest), [])
     }
 
+    func testMinOpenClipVersionDoesNotAffectValidation() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.minv",
+            "name": "Min V",
+            "minOpenClipVersion": "1.5.0",
+            "actions": [{ "title": "URL", "type": "url", "url": "https://example.com/{query}" }]
+        }
+        """)
+        XCTAssertEqual(validator.validate(manifest), [])
+        XCTAssertEqual(manifest.minOpenClipVersion, "1.5.0")
+    }
+
     // MARK: - record (schema version, declared version, fingerprint)
 
     func testRecordRecordsSchemaDeclaredVersionAndFingerprint() throws {

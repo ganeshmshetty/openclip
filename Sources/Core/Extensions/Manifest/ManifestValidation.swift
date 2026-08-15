@@ -9,7 +9,6 @@
 //
 // Pure Core — no AppKit/SwiftUI.
 import Foundation
-import CryptoKit
 
 /// A single reason a manifest fails validation, with an index path into the manifest
 /// (e.g. `"actions[0]"` or `"actions[0].subActions[2]"`) for grouping into a readable log line.
@@ -129,7 +128,7 @@ public struct ManifestValidator: Sendable {
         ManifestValidationRecord(
             schemaVersion: schemaVersion,
             declaredVersion: manifest.version,
-            fingerprint: data.map(Self.sha256Hex) ?? "",
+            fingerprint: data.map(ContentFingerprint.sha256Hex) ?? "",
             issues: validate(manifest)
         )
     }
@@ -199,10 +198,5 @@ public struct ManifestValidator: Sendable {
     /// their candidate fields are blank.
     private func hasExecutablePayload(_ fields: [String?]) -> Bool {
         !fields.allSatisfy(isBlank)
-    }
-
-    private static func sha256Hex(_ data: Data) -> String {
-        let digest = SHA256.hash(data: data)
-        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }

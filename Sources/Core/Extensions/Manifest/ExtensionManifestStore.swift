@@ -101,4 +101,20 @@ public enum ExtensionManifestStore {
         }
         return nil
     }
+
+    /// Returns the first manifest whose identifier equals `packageID` under `directory`, or nil.
+    public static func manifest(forPackageID: String, in directory: URL) -> ExtensionMetadata? {
+        guard let items = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) else {
+            return nil
+        }
+        for item in items {
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: item.path, isDirectory: &isDir), isDir.boolValue else { continue }
+            guard let manifestFile = manifestFileURL(in: item),
+                  let manifest = readManifest(at: manifestFile),
+                  manifest.identifier == forPackageID else { continue }
+            return manifest
+        }
+        return nil
+    }
 }

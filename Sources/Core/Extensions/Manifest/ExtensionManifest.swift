@@ -259,6 +259,9 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
     /// Declared runtime capabilities. The host's known-capability set is **empty** on day one, so
     /// any non-empty list rejects the manifest at load time (see `ManifestCapabilityGate`).
     public let capabilities: [String]?
+    /// Minimum OpenClip app version required to run this package (e.g. `"1.5.0"`). Min-only;
+    /// an older app loads the package but marks it incompatible. Absent → compatible with all.
+    public let minOpenClipVersion: String?
     
     public init(
         identifier: String,
@@ -266,7 +269,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         actions: [ExtensionActionMetadata],
         options: [ExtensionOptionMetadata]? = nil,
         version: String? = nil,
-        capabilities: [String]? = nil
+        capabilities: [String]? = nil,
+        minOpenClipVersion: String? = nil
     ) {
         self.identifier = identifier
         self.name = name
@@ -274,6 +278,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         self.options = options
         self.version = version
         self.capabilities = capabilities
+        self.minOpenClipVersion = minOpenClipVersion
     }
     
     public init(from decoder: Decoder) throws {
@@ -295,6 +300,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
             ?? container.decodeIfPresent([ExtensionOptionMetadata].self, forKey: .legacyOptions)
         self.version = try container.decodeIfPresent(String.self, forKey: .version)
         self.capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
+        self.minOpenClipVersion = try container.decodeIfPresent(String.self, forKey: .minOpenClipVersion)
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -305,6 +311,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         try container.encodeIfPresent(options, forKey: .options)
         try container.encodeIfPresent(version, forKey: .version)
         try container.encodeIfPresent(capabilities, forKey: .capabilities)
+        try container.encodeIfPresent(minOpenClipVersion, forKey: .minOpenClipVersion)
     }
     
     enum CodingKeys: String, CodingKey {
@@ -320,6 +327,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         case legacyOptions = "Options"
         case version = "version"
         case capabilities = "capabilities"
+        case minOpenClipVersion = "minOpenClipVersion"
     }
 }
 
