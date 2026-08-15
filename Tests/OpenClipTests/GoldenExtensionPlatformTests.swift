@@ -218,10 +218,10 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         
         // AppleScript Execution
         let asResult = try await asAction.perform(sampleContext)
-        if case .copy(let text) = asResult {
+        if case .paste(let text) = asResult {
             XCTAssertEqual(text, "AS:SampleInput")
         } else {
-            XCTFail("Expected .copy result for AppleScript action, got \(asResult)")
+            XCTFail("Expected .paste result for AppleScript action, got \(asResult)")
         }
         
         // Shell Execution

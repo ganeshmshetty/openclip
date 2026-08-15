@@ -76,6 +76,8 @@ public struct AppleScriptAction: ConfigurableAction {
             .replacingOccurrences(of: "\n", with: "\\n")
     }
 
+    /// Executes the snippet as `osascript`. Returned text is pasted on a primary click; a secondary
+    /// click derives copy via delivery (the paste→copy default).
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let rawText = context.selection.text
         let text = Self.escapeAppleScript(rawText)
@@ -121,7 +123,7 @@ public struct AppleScriptAction: ConfigurableAction {
         
         do {
             let output = try await AppleScriptRunner.shared.run(fullScript)
-            return output.isEmpty ? .success : .copy(output)
+            return output.isEmpty ? .success : .paste(output)
         } catch {
             Log.resultHandler.error("AppleScript action \(id, privacy: .public) failed: \(error.localizedDescription, privacy: .private)")
             return .failure(NSError(domain: "AppleScriptAction", code: 1, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]))
