@@ -31,10 +31,15 @@ public protocol Action: Sendable {
     func perform(_ context: ActionContext) async throws -> ActionResult
     
     var actionOptions: [ExtensionOption] { get }
+
+    /// Declares a secondary (⇧-click / secondary-click) result and per-click toasts. Defaults to
+    /// nil (derive secondary from the primary result); see `ActionDelivery`.
+    var delivery: ActionDelivery? { get }
 }
 
 public extension Action {
     var actionOptions: [ExtensionOption] { [] }
+    var delivery: ActionDelivery? { nil }
     var chrome: ActionChrome {
         ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin)
     }
