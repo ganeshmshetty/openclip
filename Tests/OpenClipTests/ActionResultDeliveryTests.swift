@@ -533,9 +533,9 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     // MARK: - One toast per run: a script toast wins over the delivery companion
 
-    /// A top-level `.toast` from a script suppresses the delivery companion: even with a declared
-    /// primary toast snapshotted onto the delivery, the script toast must win and the declared
-    /// toast must never surface (one toast per run).
+    /// A top-level sequence carrying a script toast suppresses the delivery companion for its
+    /// effects: even with a declared primary toast snapshotted onto the delivery, a `.copy` effect
+    /// must not surface the declared toast — the script toast wins (one toast per run).
     @MainActor
     func testScriptToastWinsOverDeclaredToast() async throws {
         let handler = RecordingHandler()
@@ -548,8 +548,9 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         let scriptToast = StatusFeedback(message: "saved", style: .info)
         controller.pendingDelivery = ActionDelivery(primaryToast: StatusFeedback(message: "declared", style: .info))
-        controller.deliverResult(.toast(scriptToast))
+        controller.deliverResult(.sequence([.toast(scriptToast), .copy("x")]))
 
+        assertCase(try await awaitDelivery(from: handler), .copy("x"))
         XCTAssertEqual(toast.currentFeedback, scriptToast,
                        "the script toast must win over the declared delivery companion")
     }
@@ -562,15 +563,15 @@ final class ActionResultDeliveryTests: XCTestCase {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
         let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
+                                             pasteProbe: FixedProbe(result: false),
                                              appPolicy: .default,
                                              toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         let scriptToast = StatusFeedback(message: "saved", style: .info)
-        controller.deliverResult(.sequence([.toast(scriptToast), .copy("x")]))
+        controller.deliverResult(.sequence([.toast(scriptToast), .paste("x")]))
 
-        _ = try await awaitDelivery(from: handler)
+        assertCase(try await awaitDelivery(from: handler), .copy("x"))
         XCTAssertEqual(toast.currentFeedback, scriptToast,
                        "the script toast must win over the default Copied toast")
     }
