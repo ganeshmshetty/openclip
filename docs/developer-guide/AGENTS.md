@@ -143,6 +143,18 @@ percent-encoded; the action opens the URL. `websearch` behaves identically.
 to the same runtime. Runs under the `openclip.*` bridge (§7). Option values are available as
 `openclip.options` / `openclip.option(id)` (§4).
 
+**Module mode (file scripts)**: a `script:` file action runs with CommonJS bindings in scope —
+`require`, `module`, `exports`, `__dirname` — so code can be split across local files
+(`require('./lib/helper.js')`). `require` resolves Node-style (exact file → `.js` append →
+`dir/index.js`) relative to the requiring file, and modules are cached per run (cycles get partial
+exports). Entry dispatch prefers `module.exports` as a function → `module.exports.action` →
+`module.exports.main` → in-scope `action` → in-scope `main`. Containment is the **package
+directory only**: `../` and symlink escapes are rejected (`.showStatus(.error)` with "resolves
+outside the extension package"), as are absolute paths and bare specifiers — Node builtins (`fs`,
+`os`, …) get an explicit "Node builtin" message, other bare names get "bundle npm libraries with
+esbuild". Inline `scriptCode` actions have **no** modules (byte-identical legacy behavior). The full
+contract is `docs/developer-guide/extensions-modules.md`.
+
 **Async mode**: set `"async": true` to run the script asynchronously — the entry function may return
 a `Promise` (which the host awaits) and a `fetch(url, options)` polyfill is available for HTTP calls
 (§7). Without the flag, scripts run synchronously and a promise-like return is ignored.
@@ -573,7 +585,9 @@ Read-only input context:
 
 Entry points: the code is wrapped in an IIFE; if you define `action(selection, options)` or
 `main(selection, options)` it is called with the selection and options dict; otherwise the top-level
-code runs. A returned non-null string maps to `.copy`.
+code runs. A returned non-null string maps to `.copy`. For a **file** script (`"script": "main.js"`),
+the code runs in module mode and `require('./…')` is available for local files within the package
+(§3b); inline `scriptCode` has no `require`.
 
 **Async mode (`"async": true`)** — the entry function may return a `Promise`; the host awaits it and
 a rejected promise surfaces as `.showStatus(.error)`. A script with no entry point (top-level side
@@ -730,9 +744,10 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 ## 10. Develop / iterate / test workflow
 
 1. **Scaffold or author** the folder. To start from a known-valid template, run
-   `./scripts/new_extension.sh <Name> [--type js|group|url]` — it writes a reverse-DNS
-   `openclip.json` (+ `main.js` for js) into `Extensions/raw/<Name>.openclipext/` and runs
-   the validator before reporting success. To author by hand:
+   `./scripts/new_extension.sh <Name> [--type js|group|url] [--with-npm]` — it writes a reverse-DNS
+   `openclip.json` (+ `main.js` for js, or a TypeScript + esbuild `src/` package when `--with-npm`)
+   into `Extensions/raw/<Name>.openclipext/` and runs the validator before reporting success (an npm
+   scaffold is validated post-build — see below). To author by hand:
    `mkdir ~/my-ext.openclipext && nano ~/my-ext.openclipext/openclip.json`
    (plus any `script.sh`/`main.js`/scripts it references, and optional local icon files).
 2. **Install** by copying into `~/.openclip/extensions`:
@@ -741,7 +756,8 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
    unpacked/copied accordingly if installed through the app's installer). Before copying, directory
    and `.zip` sources are checked against the loader's manifest rules by
    `scripts/validate_extension.sh` — the same rejects (unknown `type`, missing required field or
-   payload, bad/capability'd manifest, missing referenced script file) the app applies at load, so
+   payload, bad/capability'd manifest, missing referenced script file, missing `require()` targets,
+   npm package missing its built `dist/main.js`) the app applies at load, so
    an invalid package is **rejected here** (exit 1, nothing copied) instead of loading silently.
 3. **Reload**: the app scans `~/.openclip/extensions` at **startup** (`ActionCoordinator`
    `loadInitialState` → `ExtensionManager.loadExtensions`), so quit and relaunch OpenClip, or
@@ -750,6 +766,16 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 4. **Test**: select text anywhere, summon the popup, confirm the action appears and its enablement
    follows §5, then run it and inspect the effect (§8), including whether the popup hides or stays.
 5. **Iterate**: edit the folder and relaunch/reload; no build is needed.
+
+**npm / TypeScript bundles** (`--with-npm`): the scaffold writes a `package.json` + `src/` TypeScript
+package whose manifest `script` points at `dist/main.js` — the **shipped artifact**. Build contract:
+`npm install` once, `npm run build` after **every** edit to `src/`, **then**
+`install_extension.sh`. `validate_extension.sh` rejects an npm package with no `dist/main.js` (exit 1,
+"run 'npm install && npm run build'") and warns when it is stale versus `package.json`/`src/`.
+TypeScript works only through this bundle path — the host loader runs `.js` only (esbuild transpiles
+`.ts` to the CJS bundle); the ambient `openclip.*` types live in `src/openclip.d.ts`. Node builtins
+are rejected at build time by esbuild's browser platform. See
+`docs/developer-guide/extensions-modules.md`.
 
 ### Common failure modes
 
@@ -799,6 +825,10 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
 - **Do not block inside JS** — the async watchdog kills never-settling promises after 30 s
   (`Constants.scriptTimeout`), but keep scripts fast; `"async": true` is required for any script
   that needs `fetch` or to await a promise.
+- **Do not `require` bare or Node-builtin specifiers from a file script** — the host rejects them
+  (Node builtins with a "Node builtin" message, other bare names with a "bundle npm libraries with
+  esbuild" message); inline `scriptCode` has no `require` at all, and `require` may only reach files
+  inside the package directory. See `docs/developer-guide/extensions-modules.md`.
 - **Do not use `?key=` for Gemini/auth in URLs**; credentials go in headers, and secrets belong in
   Keychain-backed options, not in a manifest.
 
@@ -811,6 +841,7 @@ The `api` value is stored in the Keychain (never UserDefaults) and would be read
   `Sources/Core/Extensions/ExtensionManager.swift`.
 - Kind→runtime routing + chrome + id rule: `Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift`.
 - JS surface/resolution: `Sources/OpenClip/Platform/Runtimes/OpenClipJSHost.swift`.
+- Module resolution & containment: `Sources/OpenClip/Platform/Runtimes/OpenClipModuleLoader.swift`.
 - Effect execution: `Sources/OpenClip/Platform/Effects/ActionResultHandler.swift`.
 - Result model: `Sources/Core/Actions/ActionResult.swift` (+ `StatusFeedback.swift`,
   `ConfigurationRequest.swift`).

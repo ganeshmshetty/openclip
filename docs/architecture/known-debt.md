@@ -58,6 +58,20 @@ areas; stale debt notes are worse than none.
   adapter) is **fully removed**. Async JS runs are guarded by the
   `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
 
+## Extension JS Module Runtime
+
+- **JS file scripts run in module mode (CommonJS).** A `javascript` action with `"script"` gets
+  `require`/`module`/`exports`/`__dirname` and can split across local files; resolution is Node-style
+  and contained to the package directory (`OpenClipModuleLoader` + `Constants.isPathSafe`), with
+  `../`/symlink escapes, absolute paths, and bare/Node-builtin specifiers rejected. Inline
+  `scriptCode` actions have no modules (byte-identical legacy behavior).
+- **Third-party libraries live on the author side, not the host.** npm deps are bundled by the
+  author with esbuild (`--platform=browser --target=es2020`) into `dist/main.js`; the host loader is
+  **`.js`-only**, so TypeScript works only through the bundle path (`--with-npm` scaffold). Node
+  builtins are rejected at build time by the esbuild platform — they can never run.
+- **The capability-gating sandbox remains future work.** Extensions still execute in-process with
+  the app's user context; module containment bounds file reads but is not a privilege boundary.
+
 ## Presentation / Rule Holes
 
 - **No `switch action.id` fallback remains.** `ActionCustomizationManager.tableIcon()` resolves via
