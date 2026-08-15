@@ -161,5 +161,43 @@ if [ -n "$MISSING" ]; then
     exit 1
 fi
 
+# require() targets referenced by package .js files must exist inside the package.
+# Best-effort: only string-literal './' / '../' specifiers are scanned; the host loader remains
+# authoritative for resolution and containment.
+MISSING_REQ=""
+while IFS= read -r js_file; do
+    [ -n "$js_file" ] || continue
+    [ -f "$SRC_DIR/$js_file" ] || continue
+    script_dir="$(dirname "$js_file")"
+    while IFS= read -r spec; do
+        [ -n "$spec" ] || continue
+        target="$SRC_DIR/$script_dir/$spec"
+        if [ -f "$target" ] || [ -f "$target.js" ] || { [ -d "$target" ] && [ -f "$target/index.js" ]; }; then
+            continue
+        fi
+        MISSING_REQ="$MISSING_REQ $js_file -> require(\"$spec\")"
+    done < <(grep -oE 'require\(\s*["'"'"']\.\.?/[^"'"'"']*["'"'"']' "$SRC_DIR/$js_file" | sed -E -e 's/^require\(\s*["'"'"']//' -e 's/["'"'"']\)$//')
+done < <(jq -r '[.. | objects | .script?] | map(select(type == "string" and length > 0)) | unique[]' "$MANIFEST")
+
+if [ -n "$MISSING_REQ" ]; then
+    echo "validate_extension: $MANIFEST references missing require() targets:$MISSING_REQ" >&2
+    exit 1
+fi
+
+# npm bundles: package.json implies a build contract — dist/main.js must exist (error) and be
+# newer than package.json / src/ (warning, hot-edit workflows exist).
+if [ -f "$SRC_DIR/package.json" ]; then
+    if [ ! -f "$SRC_DIR/dist/main.js" ]; then
+        echo "validate_extension: $MANIFEST requires a build — run 'npm install && npm run build' in $SRC_DIR" >&2
+        exit 1
+    fi
+    if [ "$SRC_DIR/dist/main.js" -ot "$SRC_DIR/package.json" ]; then
+        echo "validate_extension: WARNING: dist/main.js is older than package.json — rebuild with 'npm run build'" >&2
+    fi
+    if find "$SRC_DIR/src" -type f \( -name '*.js' -o -name '*.ts' \) -newer "$SRC_DIR/dist/main.js" -print -quit 2>/dev/null | grep -q .; then
+        echo "validate_extension: WARNING: src/ is newer than dist/main.js — rebuild with 'npm run build'" >&2
+    fi
+fi
+
 echo "validate_extension: OK ($MANIFEST)"
 exit 0
