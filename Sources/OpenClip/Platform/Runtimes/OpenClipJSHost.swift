@@ -182,6 +182,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             matchedText: matchedText,
             captures: captures,
             sourceApp: request.context.selection.sourceApp,
+            isSecondaryClick: request.context.isSecondaryClick,
             options: optionsDict
         ) else {
             throw NSError(domain: Constants.actionErrorDomain,
@@ -507,12 +508,20 @@ public final class OpenClipJSHost: @unchecked Sendable {
         return values
     }
 
+    /// Builds the read-only `openclip.*` bridge object: `input` (text/matchedText/captures/app +
+    /// isSecondaryClick), a plain `options` dictionary, and the effect API installed by the caller.
+    ///
+    /// JS authoring of a secondary (right-click/⇧-click) behavior: branch on
+    /// `openclip.input.isSecondaryClick` and emit an explicit effect — `openclip.paste(...)` for the
+    /// primary path, `openclip.copy(...)` for the secondary — rather than relying on a string-return
+    /// convention or a manifest `secondary` (rejected on `javascript` by ManifestValidation).
     private static func makeOpenClipObject(
         in jsContext: JSContext,
         text: String,
         matchedText: String,
         captures: [String],
         sourceApp: AppIdentity,
+        isSecondaryClick: Bool,
         options: [String: Any]
     ) -> JSValue? {
         guard let openclip = JSValue(newObjectIn: jsContext),
@@ -524,6 +533,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         input.setObject(text, forKeyedSubscript: "text")
         input.setObject(matchedText, forKeyedSubscript: "matchedText")
         input.setObject(captures, forKeyedSubscript: "captures")
+        input.setObject(isSecondaryClick, forKeyedSubscript: "isSecondaryClick")
 
         app.setObject(sourceApp.bundleIdentifier ?? "", forKeyedSubscript: "bundleID")
         app.setObject(sourceApp.localizedName ?? "", forKeyedSubscript: "name")
