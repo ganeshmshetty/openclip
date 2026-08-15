@@ -26,6 +26,11 @@ func presentInstallExtensionPanel() {
                 _ = try await ExtensionManager.shared.installExtension(from: selectedURL)
                 await MainActor.run {
                     NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+                    if let packageID = ExtensionManager.shared.loadedActions
+                        .compactMap({ ActionIdentity.extensionPackageID(of: $0) })
+                        .first {
+                        NotificationCenter.default.post(name: .openClipOpenTrustModel, object: nil, userInfo: ["packageID": packageID])
+                    }
                 }
             } catch {
                 await MainActor.run {

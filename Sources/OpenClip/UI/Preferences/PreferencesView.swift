@@ -46,6 +46,7 @@ public struct PreferencesView: View {
     @State private var aiSubTab: AISubTab = .configure
     @State private var actionsSubTab: ActionsSubTab = .actions
     @State private var configuringAction: ConfigurationSheetItem?
+    @State private var trustReview: TrustReviewTarget? = nil
 
     private var installedExtensionCount: Int {
         ActionCoordinator.shared.actions.filter { ActionIdentity.isExtension($0) }.count
@@ -210,8 +211,16 @@ public struct PreferencesView: View {
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
             configuringAction = ConfigurationSheetItem(action: action, request: request)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openClipOpenTrustModel)) { notification in
+            guard let packageID = notification.userInfo?["packageID"] as? String else { return }
+            actionsSubTab = .installed
+            trustReview = TrustReviewTarget(packageID: packageID)
+        }
         .sheet(item: $configuringAction) { item in
             EditActionSheet(action: item.action, configurationRequest: item.request)
+        }
+        .sheet(item: $trustReview) { target in
+            TrustModelView(model: TrustModelViewModel.load(packageID: target.packageID))
         }
     }
     
