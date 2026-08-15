@@ -111,6 +111,11 @@ Notes:
   bridge it can already trigger L3-style effects (synthetic keys, Shortcuts, notifications) — the
   *intent* of the manifest author is the real capability boundary, which is why §2 says installing
   is trusting.
+- **JS module containment is not a sandbox.** JS file scripts (`"script"`) resolve `require()` only
+  inside their package directory — `../` and symlink escapes, absolute paths, and bare/Node-builtin
+  specifiers are rejected (`OpenClipModuleLoader` + `Constants.isPathSafe`). This bounds a script's
+  *file reads* to the package; it is not a privilege boundary (see §2 — JS still reaches the network,
+  pasteboard, and `openclip.*` effects).
 - **Subprocess watchdog.** Every subprocess-spawning runtime (`shell`, `scriptfile`, `shortcut`)
   is terminated past `Constants.scriptTimeout` (30 s) — a liveness guard, not a privilege guard.
 - **Secrets.** Option values of `type: "secret"` live in the Keychain and never reach
