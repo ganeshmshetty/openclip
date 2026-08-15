@@ -45,8 +45,7 @@ public struct PreferencesView: View {
     @State private var selectedTab: PreferenceTab = .general
     @State private var aiSubTab: AISubTab = .configure
     @State private var actionsSubTab: ActionsSubTab = .actions
-    @State private var configuringAction: ConfigurationSheetItem?
-    @State private var trustReview: TrustReviewTarget? = nil
+    @State private var activeSheet: PreferencesSheet?
 
     private var installedExtensionCount: Int {
         ActionCoordinator.shared.actions.filter { ActionIdentity.isExtension($0) }.count
@@ -209,19 +208,22 @@ public struct PreferencesView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenActionConfiguration)) { notification in
             guard let request = notification.userInfo?["request"] as? ConfigurationRequest,
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
-            configuringAction = ConfigurationSheetItem(action: action, request: request)
+            activeSheet = .configure(action: action, request: request)
         }
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenTrustModel)) { notification in
             guard let packageID = notification.userInfo?["packageID"] as? String else { return }
             let reason = notification.userInfo?["reason"] as? ExtensionGateReason
+            selectedTab = .actions
             actionsSubTab = .installed
-            trustReview = TrustReviewTarget(packageID: packageID, reason: reason)
+            activeSheet = .trust(packageID: packageID, reason: reason)
         }
-        .sheet(item: $configuringAction) { item in
-            EditActionSheet(action: item.action, configurationRequest: item.request)
-        }
-        .sheet(item: $trustReview) { target in
-            TrustModelView(model: TrustModelViewModel.load(packageID: target.packageID, reason: target.reason))
+        .sheet(item: $activeSheet) { route in
+            switch route {
+            case .configure(let action, let request):
+                EditActionSheet(action: action, configurationRequest: request)
+            case .trust(let packageID, let reason):
+                TrustModelView(model: TrustModelViewModel.load(packageID: packageID, reason: reason))
+            }
         }
     }
     
@@ -237,10 +239,17 @@ public struct PreferencesView: View {
 
 }
 
-/// Identifiable wrapper so a config sheet can be driven by `.sheet(item:)` with any `Action`,
-/// optionally carrying the `ConfigurationRequest` that opened it (reason banner + missing highlights).
-private struct ConfigurationSheetItem: Identifiable {
-    let action: any Action
-    let request: ConfigurationRequest?
-    var id: String { action.id }
+/// Single sheet route for Preferences presentations: either editing an action's configuration or
+/// reviewing a package's trust model. Identifiers are prefixed so a configure route can never
+/// collide with a trust route even when their underlying ids match.
+private enum PreferencesSheet: Identifiable {
+    case configure(action: any Action, request: ConfigurationRequest?)
+    case trust(packageID: String, reason: ExtensionGateReason?)
+
+    var id: String {
+        switch self {
+        case .configure(let action, _): return "configure:\(action.id)"
+        case .trust(let packageID, _): return "trust:\(packageID)"
+        }
+    }
 }

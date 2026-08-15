@@ -143,6 +143,21 @@ final class ExtensionManagerTrustTests: XCTestCase {
     }
 
     @MainActor
+    func testEnablePackageFailsClosedWhenFingerprintUnresolvable() async throws {
+        let store = MemorySettingsStore()
+        let manager = ExtensionManager.shared
+        manager.settingsStore = store
+        try writePackage(packageID: "com.t.enil", name: "ENil")
+        store.set(.extensionTrust, value: ["com.t.enil": "seen"])
+
+        // Break the manifest so no fingerprint can resolve; enablePackage must persist nothing.
+        try FileManager.default.removeItem(at: tempDir.appendingPathComponent("ENil.openclipext").appendingPathComponent("openclip.json"))
+        await manager.enablePackage(packageID: "com.t.enil", in: tempDir)
+        XCTAssertEqual(store.get(.extensionTrust)["com.t.enil"], "seen", "trust must not be persisted without a fingerprint")
+        XCTAssertNil(store.get(.extensionTrustHashes)["com.t.enil"], "no hash may be recorded")
+    }
+
+    @MainActor
     func testUnconfiguredManagerSkipsGatingEntirely() async throws {
         // settingsStore nil → raw behavior, existing tests stay green.
         let manager = ExtensionManager.shared

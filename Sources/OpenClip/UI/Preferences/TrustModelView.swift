@@ -96,6 +96,7 @@ public struct TrustModelView: View {
                     Button(role: .destructive, action: { Task { await perform(.disable) } }) {
                         Text("Disable")
                     }
+                    .disabled(isMutating)
                 } else {
                     Button(action: { Task { await perform(.enable) } }) {
                         Text("Enable")

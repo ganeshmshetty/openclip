@@ -8,18 +8,45 @@
 import Foundation
 
 public enum ExtensionPackageHashResolver {
-    /// SHA-256 over the manifest bytes then each referenced script file's bytes, in declaration
-    /// order (recursively through sub-actions). Never nil for a readable manifest.
+    /// SHA-256 over a framed sequence of components: the manifest first, then each referenced
+    /// script file's bytes in declaration order (recursively through sub-actions). Every component
+    /// is framed with its normalized relative path and an 8-byte big-endian length prefix for both
+    /// the path and the bytes, so the payload can never be assembled ambiguously. Unreadable
+    /// referenced scripts are skipped (as before); never nil for a readable manifest.
     public static func packageHash(manifestURL: URL, manifest: ExtensionMetadata) -> String? {
         guard let manifestData = try? Data(contentsOf: manifestURL) else { return nil }
-        var payload = manifestData
         let directory = manifestURL.deletingLastPathComponent()
+        var payload = Data()
+        appendComponent(&payload, relativePath: manifestURL.lastPathComponent, data: manifestData)
         for name in referencedScriptNames(actions: manifest.actions) {
             if let data = try? Data(contentsOf: directory.appendingPathComponent(name)) {
-                payload.append(data)
+                appendComponent(&payload, relativePath: name, data: data)
             }
         }
         return ContentFingerprint.sha256Hex(payload)
+    }
+
+    /// Appends a component framed as [path byte count][path bytes][data byte count][data bytes],
+    /// with all lengths 8-byte big-endian so the framing is unambiguous regardless of contents.
+    private static func appendComponent(_ payload: inout Data, relativePath: String, data: Data) {
+        appendLengthPrefixed(&payload, Data(normalizedRelativePath(relativePath).utf8))
+        appendLengthPrefixed(&payload, data)
+    }
+
+    private static func appendLengthPrefixed(_ payload: inout Data, _ bytes: Data) {
+        var length = UInt64(bytes.count).bigEndian
+        withUnsafeBytes(of: &length) { payload.append(contentsOf: $0) }
+        payload.append(bytes)
+    }
+
+    /// Collapses redundant separators/`.`/`..` segments and forces `/` separators, keeping the
+    /// path relative to the package directory.
+    private static func normalizedRelativePath(_ path: String) -> String {
+        var normalized = (path as NSString).standardizingPath
+        if normalized.hasPrefix("/") {
+            normalized = String(normalized.dropFirst())
+        }
+        return normalized
     }
 
     public static func fileHash(_ url: URL) -> String? {

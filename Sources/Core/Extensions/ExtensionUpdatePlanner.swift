@@ -21,7 +21,11 @@ public enum ExtensionUpdatePlanner {
     /// Store-sourced packages whose semver-parseable available version is strictly newer than the
     /// installed manifest version. Missing/unparseable versions on either side → not updatable.
     public static func updatablePackageIDs(storeItems: [ExtensionItem], installed: [InstalledPackageVersion]) -> [String] {
-        let storeByID = Dictionary(uniqueKeysWithValues: storeItems.map { ($0.id, $0) })
+        // Coalesce duplicate listings deterministically: later entries override earlier ones, so a
+        // malformed response with repeated IDs can't trap in Dictionary(uniqueKeysWithValues:).
+        let storeByID = storeItems.reduce(into: [String: ExtensionItem]()) { result, item in
+            result[item.id] = item
+        }
         return installed.compactMap { pkg in
             guard pkg.source == "store",
                   let storeItem = storeByID[pkg.packageID],

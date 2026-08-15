@@ -2,8 +2,9 @@
 // OpenClip
 //
 // Minimal semantic-version value type used for `openClipVersion` compatibility checks and
-// extension update comparisons. Tolerant parse: leading "v", a 1-3 component triplet, and any
-// trailing prerelease/build text are accepted (only the numeric triplet is compared).
+// extension update comparisons. Tolerant parse: leading "v" and any trailing prerelease/build
+// text are accepted, but the triplet itself must be exactly three ASCII integer components
+// (short or overflowing components are rejected outright).
 // Pure Core — no AppKit/SwiftUI.
 import Foundation
 
@@ -24,7 +25,9 @@ public struct SemanticVersion: Sendable, Equatable, Comparable {
         self = version
     }
 
-    /// Parses a version string. Returns nil for strings with no parseable numeric triplet.
+    /// Parses a version string. Requires a full 3-component triplet where every component is a
+    /// parseable ASCII integer (integer overflow and any short or empty component are rejected);
+    /// returns nil otherwise. Leading "v" and trailing prerelease/build text are still tolerated.
     public static func parse(_ string: String) -> SemanticVersion? {
         var value = string.trimmingCharacters(in: .whitespacesAndNewlines)
         if value.hasPrefix("v") || value.hasPrefix("V") {
@@ -35,14 +38,15 @@ public struct SemanticVersion: Sendable, Equatable, Comparable {
             value = String(value[..<stop])
         }
         let parts = value.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
-        guard !parts.isEmpty, parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) }) else {
-            return nil
-        }
-        func component(_ index: Int) -> Int {
-            guard parts.indices.contains(index), let n = Int(parts[index]) else { return 0 }
+        guard parts.count == 3 else { return nil }
+        func component(_ index: Int) -> Int? {
+            let part = parts[index]
+            // ASCII digits only, then a parse that also rejects overflow (Int(_:) returns nil).
+            guard part.allSatisfy({ $0.isASCII && $0.isNumber }), let n = Int(part) else { return nil }
             return n
         }
-        return SemanticVersion(component(0), component(1), component(2))
+        guard let major = component(0), let minor = component(1), let patch = component(2) else { return nil }
+        return SemanticVersion(major, minor, patch)
     }
 
     public static func < (lhs: SemanticVersion, rhs: SemanticVersion) -> Bool {

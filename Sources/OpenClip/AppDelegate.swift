@@ -167,11 +167,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let reason = (response.notification.request.content.userInfo["reason"] as? String).flatMap(ExtensionGateReason.init(plistTag:))
         await MainActor.run {
             statusBarController?.showPreferences()
-            var userInfo: [AnyHashable: Any] = ["packageID": packageID]
-            if let reason {
-                userInfo["reason"] = reason
+            Task { @MainActor in
+                var userInfo: [AnyHashable: Any] = ["packageID": packageID]
+                if let reason {
+                    userInfo["reason"] = reason
+                }
+                NotificationCenter.default.post(name: .openClipOpenTrustModel, object: nil, userInfo: userInfo)
             }
-            NotificationCenter.default.post(name: .openClipOpenTrustModel, object: nil, userInfo: userInfo)
         }
     }
 

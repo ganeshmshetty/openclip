@@ -182,9 +182,10 @@ public final class ExtensionManager: Sendable {
     
     /// Trust-model Enable: record the package's current content hash and mark it trusted, then
     /// reload so its real actions register. The only way to restore a gated/revoked package.
+    /// Fail-closed: nothing is persisted unless the content fingerprint resolves.
     public func enablePackage(packageID: String, in directory: URL = Constants.extensionsDirectory) async {
         guard let settings = self.settingsStore else { return }
-        let hash = ExtensionPackageHashResolver.packageHash(forPackageID: packageID, in: directory) ?? ""
+        guard let hash = ExtensionPackageHashResolver.packageHash(forPackageID: packageID, in: directory) else { return }
         var trust = settings.get(.extensionTrust)
         trust[packageID] = ExtensionTrustState.trusted.rawValue
         settings.set(.extensionTrust, value: trust)
