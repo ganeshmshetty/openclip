@@ -792,7 +792,7 @@ final class OpenClipJSHostTests: XCTestCase {
         return package
     }
 
-    private func makeModuleRequest(script: String, package: URL, isAsync: Bool = false, timeout: TimeInterval? = nil) -> OpenClipJSHost.Request {
+    private func makeModuleRequest(script: String, package: URL, entryDirectory: URL? = nil, isAsync: Bool = false, timeout: TimeInterval? = nil) -> OpenClipJSHost.Request {
         OpenClipJSHost.Request(
             actionID: "test.action",
             scriptCode: script,
@@ -802,8 +802,23 @@ final class OpenClipJSHostTests: XCTestCase {
             rules: ExtensionActionRules(),
             isAsync: isAsync,
             timeout: timeout,
-            packageDirectory: package
+            packageDirectory: package,
+            entryDirectory: entryDirectory
         )
+    }
+
+    func testNestedEntryModuleResolvesRelativeRequires() async throws {
+        let package = try makeModulePackage([
+            "src/helper.js": "module.exports = { greet: function(name) { return 'Hello ' + name; } };",
+            "src/main.js": "var h = require('./helper.js'); function action(text) { return h.greet(text); }"
+        ])
+        let srcDir = package.appendingPathComponent("src")
+        let script = try String(contentsOf: package.appendingPathComponent("src/main.js"), encoding: .utf8)
+        let result = try await host.run(makeModuleRequest(script: script, package: package, entryDirectory: srcDir))
+        guard case .paste(let text) = result else {
+            return XCTFail("Expected .paste, got \(result)")
+        }
+        XCTAssertEqual(text, "Hello hello")
     }
 
     func testModulePackageRequiresLocalHelper() async throws {

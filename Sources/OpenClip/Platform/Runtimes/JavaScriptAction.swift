@@ -27,6 +27,8 @@ public struct JavaScriptAction: ConfigurableAction {
     /// The extension package directory. When non-nil the JS host runs in module mode
     /// (`require`/multi-file); nil means inline `scriptCode` keeps the legacy single-file behavior.
     public let packageDirectory: URL?
+    /// The entry script directory. When nil, defaults to packageDirectory.
+    public let entryDirectory: URL?
 
     nonisolated public init(
         id: String,
@@ -38,7 +40,8 @@ public struct JavaScriptAction: ConfigurableAction {
         optionStore: any ActionOptionReading = SettingsActionOptionStore(),
         rules: ExtensionActionRules? = nil,
         isAsync: Bool = false,
-        packageDirectory: URL? = nil
+        packageDirectory: URL? = nil,
+        entryDirectory: URL? = nil
     ) {
         self.id = id
         self.title = title
@@ -56,6 +59,7 @@ public struct JavaScriptAction: ConfigurableAction {
         self.rules = rules
         self.isAsync = isAsync
         self.packageDirectory = packageDirectory
+        self.entryDirectory = entryDirectory
     }
 
     nonisolated public init(
@@ -68,9 +72,10 @@ public struct JavaScriptAction: ConfigurableAction {
         optionStore: any ActionOptionReading = SettingsActionOptionStore(),
         rules: ExtensionActionRules? = nil,
         isAsync: Bool = false,
-        packageDirectory: URL? = nil
+        packageDirectory: URL? = nil,
+        entryDirectory: URL? = nil
     ) {
-        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome, optionStore: optionStore, rules: rules, isAsync: isAsync, packageDirectory: packageDirectory)
+        self.init(id: id, title: title, icon: .symbol(iconSymbol), scriptCode: scriptCode, options: options, chrome: chrome, optionStore: optionStore, rules: rules, isAsync: isAsync, packageDirectory: packageDirectory, entryDirectory: entryDirectory)
     }
 
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -112,7 +117,8 @@ public struct JavaScriptAction: ConfigurableAction {
             optionStore: optionStore,
             rules: rules ?? ExtensionActionRules(),
             isAsync: isAsync,
-            packageDirectory: packageDirectory
+            packageDirectory: packageDirectory,
+            entryDirectory: entryDirectory
         )
         return try await OpenClipJSHost().run(request)
     }
