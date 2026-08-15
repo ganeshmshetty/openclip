@@ -35,6 +35,9 @@ public struct PopupView: View {
     public let onEnteredScopedSearch: (@MainActor (any Action) -> Void)?
     /// Called when an action is actually run (bar / palette / AI), so the controller can record usage.
     public let onActionPerformed: (@MainActor (String) -> Void)?
+    /// Called right before an action performs (before `onResult` can fire), so the controller can
+    /// snapshot the action's declared delivery for the paste-vs-copy decision.
+    public let onWillPerformAction: (@MainActor (any Action) -> Void)?
     /// Called when a `showsLoading` bar action is clicked: the controller early-closes the popup
     /// and runs the action via the loading toast flow instead of the inline perform path.
     public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
@@ -122,6 +125,7 @@ public struct PopupView: View {
         onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
         onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil,
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
+        onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary }
     ) {
@@ -136,6 +140,7 @@ public struct PopupView: View {
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
         self.onActionPerformed = onActionPerformed
+        self.onWillPerformAction = onWillPerformAction
         self.onRunLoadingAction = onRunLoadingAction
         self.onClickIntent = onClickIntent
         self.isStatic = isStatic
@@ -399,6 +404,7 @@ public struct PopupView: View {
                 runAIPreset(prompt: preset.prompt, title: preset.title)
             },
             onActionPerformed: onActionPerformed,
+            onWillPerformAction: onWillPerformAction,
             onRunLoadingAction: onRunLoadingAction,
             onClickIntent: onClickIntent
         )
@@ -640,6 +646,7 @@ public struct PopupView: View {
                     }
                     Task {
                         do {
+                            onWillPerformAction?(action)
                             onActionPerformed?(action.id)
                             // Match plumbing (approach A): re-run the shared visibility evaluator for
                             // this action and thread the match into the perform context so placeholders

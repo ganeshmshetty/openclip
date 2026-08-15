@@ -29,6 +29,9 @@ public struct PopupSearchView: View {
     public let usageRecency: [String: Int]
     /// Called when an action is actually run, so the controller can record usage.
     public let onActionPerformed: (@MainActor (String) -> Void)?
+    /// Called right before an action performs (before `onResult` can fire), so the controller can
+    /// snapshot the action's declared delivery for the paste-vs-copy decision.
+    public let onWillPerformAction: (@MainActor (any Action) -> Void)?
     /// Called when a `showsLoading` palette result is selected: the controller early-closes the
     /// popup and runs the action via the loading toast flow instead of the inline perform path.
     public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
@@ -102,6 +105,7 @@ public struct PopupSearchView: View {
         onExitScope: @escaping @MainActor () -> Void = {},
         onRunAI: @escaping @MainActor (String) -> Void = { _ in },
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
+        onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary }
     ) {
@@ -116,6 +120,7 @@ public struct PopupSearchView: View {
         self.onExitScope = onExitScope
         self.onRunAI = onRunAI
         self.onActionPerformed = onActionPerformed
+        self.onWillPerformAction = onWillPerformAction
         self.onRunLoadingAction = onRunLoadingAction
         self.onClickIntent = onClickIntent
         // Index once at entry: the palette is recreated on every search entry (mode + scope
@@ -320,6 +325,7 @@ public struct PopupSearchView: View {
             }
             // No loading callback wired up (e.g. a preview): fall through to the inline perform path.
         }
+        onWillPerformAction?(action)
         onActionPerformed?(action.id)
         Task { @MainActor in
             do {
