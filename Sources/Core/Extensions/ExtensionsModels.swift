@@ -13,6 +13,7 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
     public let category: String
     public let downloadCount: Int
     public let downloadURL: String
+    public let version: String?
     
     public init(
         id: String,
@@ -22,7 +23,8 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
         icon: String,
         category: String,
         downloadCount: Int,
-        downloadURL: String
+        downloadURL: String,
+        version: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -32,6 +34,7 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
         self.category = category
         self.downloadCount = downloadCount
         self.downloadURL = downloadURL
+        self.version = version
     }
 }
 

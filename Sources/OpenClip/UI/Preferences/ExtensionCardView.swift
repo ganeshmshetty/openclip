@@ -11,6 +11,7 @@ struct ExtensionCardView: View {
     @State private var isInstalling = false
     @State private var installError: String? = nil
     @State private var showSuccess = false
+    @ObservedObject private var updateManager = ExtensionUpdateManager.shared
 
     private var matchingInstalledAction: (any Action)? {
         // Generated action IDs are "<manifest.identifier>.action.<n>"; store item.id is
@@ -78,9 +79,22 @@ struct ExtensionCardView: View {
                 .padding(.vertical, 3)
                 .background(Capsule().fill(Color.primary.opacity(0.06)))
 
+                if let version = item.version {
+                    Text("v\(version)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+
                 Spacer()
 
                 if showSuccess || isInstalled {
+                    if isInstalled, updateManager.updatablePackageIDs.contains(item.id) {
+                        Button(action: { Task { try? await updateManager.update(packageID: item.id) } }) {
+                            Label("Update", systemImage: "arrow.down.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
                     Button(role: .destructive, action: {
                         if let action = matchingInstalledAction {
                             Task {
