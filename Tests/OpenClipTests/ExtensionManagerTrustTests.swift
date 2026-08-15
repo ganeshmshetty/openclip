@@ -105,6 +105,44 @@ final class ExtensionManagerTrustTests: XCTestCase {
     }
 
     @MainActor
+    func testStandaloneScriptWithDeclaredIdentifierStaysEnabled() async throws {
+        let store = MemorySettingsStore()
+        let manager = ExtensionManager.shared
+        manager.settingsStore = store
+        manager.actionFactory = DefaultActionFactory()
+        defer { manager.actionFactory = nil }
+
+        // A standalone script declaring `// identifier:` derives its package id from the header,
+        // not the filename, so packageHash(forPackageID:) must resolve the declared identifier.
+        let scriptURL = tempDir.appendingPathComponent("myid.sh")
+        try """
+        // identifier: com.myid
+        // Title: My ID Script
+        #!/bin/sh
+        echo hi
+        """.write(to: scriptURL, atomically: true, encoding: .utf8)
+
+        var events: [ExtensionTrustChange] = []
+        manager.onTrustChange = { events.append($0) }
+
+        // First load = migration: auto-trusts with the gate-computed hash.
+        await manager.loadExtensions(from: tempDir)
+        XCTAssertEqual(manager.loadedActions.count, 1)
+        XCTAssertFalse(manager.loadedActions[0] is GatedExtensionAction)
+        XCTAssertEqual(store.get(.extensionTrust)["com.myid"], "trusted")
+
+        // Re-enable through the trust model — this records the hash via
+        // packageHash(forPackageID:), which must resolve the declared identifier (I3).
+        await manager.enablePackage(packageID: "com.myid", in: tempDir)
+        XCTAssertEqual(store.get(.extensionTrustHashes)["com.myid"]?.count, 64)
+
+        // Reload after enable must not flip the package to tampered.
+        await manager.loadExtensions(from: tempDir)
+        XCTAssertFalse(manager.loadedActions[0] is GatedExtensionAction)
+        XCTAssertTrue(events.isEmpty)
+    }
+
+    @MainActor
     func testUnconfiguredManagerSkipsGatingEntirely() async throws {
         // settingsStore nil → raw behavior, existing tests stay green.
         let manager = ExtensionManager.shared

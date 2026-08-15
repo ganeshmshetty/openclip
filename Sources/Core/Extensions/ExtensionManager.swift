@@ -210,6 +210,7 @@ public final class ExtensionManager: Sendable {
         let fm = FileManager.default
         let items = try fm.contentsOfDirectory(at: targetDir, includingPropertiesForKeys: [.isDirectoryKey])
         var removed = false
+        var removedPackageID: String?
 
         for itemURL in items {
             // Skip hidden/staging dirs
@@ -231,6 +232,7 @@ public final class ExtensionManager: Sendable {
                         let actionIDPrefix = meta.identifier + "."
                         if actionID == meta.identifier || actionID.hasPrefix(actionIDPrefix) {
                             matched = true
+                            removedPackageID = meta.identifier
                             if let optionWriter {
                                 for (index, actionMeta) in meta.actions.enumerated() {
                                     let id = ExtensionManager.uniformActionID(metadata: actionMeta, manifest: meta, index: index)
@@ -255,6 +257,8 @@ public final class ExtensionManager: Sendable {
                 // Standalone script: generated id uses filename
                 if actionID.contains(itemURL.deletingPathExtension().lastPathComponent) {
                     matched = true
+                    // The standalone script's chrome package id equals its action id.
+                    removedPackageID = actionID
                 }
             }
 
@@ -268,6 +272,17 @@ public final class ExtensionManager: Sendable {
         guard removed else {
             throw NSError(domain: "ExtensionManager", code: 404,
                           userInfo: [NSLocalizedDescriptionKey: "No extension found for action \(actionID)."])
+        }
+        if let packageID = removedPackageID, let settings = self.settingsStore {
+            var sources = settings.get(.extensionSources)
+            sources.removeValue(forKey: packageID)
+            settings.set(.extensionSources, value: sources)
+            var trust = settings.get(.extensionTrust)
+            trust.removeValue(forKey: packageID)
+            settings.set(.extensionTrust, value: trust)
+            var hashes = settings.get(.extensionTrustHashes)
+            hashes.removeValue(forKey: packageID)
+            settings.set(.extensionTrustHashes, value: hashes)
         }
         onUnregister?(actionID)
         loadedActions.removeAll(where: { $0.id == actionID })

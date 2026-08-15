@@ -89,19 +89,31 @@ func testChangedTrustedPackageFlipsToGatedAndNotifies() async throws {
     }
 
     @MainActor
-    func testStorePackageAutoTrustsAndReTrusts() async throws {
+    func testStorePackageDriftIsTamperedLikeLocal() async throws {
         // Fresh store install (no record) → auto-trusted, no event.
         let p = try await plan(packageID: "com.t.store", name: "Store", trust: [:], hashes: [:], sources: ["com.t.store": "store"], isMigrated: true)
         XCTAssertFalse(p.actions[0] is GatedExtensionAction)
         XCTAssertEqual(p.trust["com.t.store"], "trusted")
         XCTAssertTrue(p.events.isEmpty)
 
-        // Drifted store package (stale hash) → re-trusted with the current hash, still no tamper event.
+        // Drifted store package (stale hash) → seen + tampered + gated .filesChanged,
+        // exactly like a local package. Only the update flow re-trusts.
         let hash = p.hashes["com.t.store"]!
         let p2 = try await plan(packageID: "com.t.store", name: "Store", trust: ["com.t.store": "trusted"], hashes: ["com.t.store": hash], sources: ["com.t.store": "store"], isMigrated: true, script: "echo updated")
-        XCTAssertFalse(p2.actions[0] is GatedExtensionAction, "a store update re-trusts")
-        XCTAssertEqual(p2.hashes["com.t.store"], p2.hashes["com.t.store"])
-        XCTAssertTrue(p2.events.isEmpty)
+        let gated = try XCTUnwrap(p2.actions[0] as? GatedExtensionAction)
+        XCTAssertEqual(gated.reason, .filesChanged)
+        XCTAssertEqual(p2.trust["com.t.store"], "seen")
+        XCTAssertEqual(p2.events, [.tampered(packageID: "com.t.store", name: "Store")])
+    }
+
+    @MainActor
+    func testFreshStoreInstallAutoTrustsEvenWhenMigrated() async throws {
+        // C1+I1 combination: a fresh store install (record == nil) auto-trusts even after the
+        // migration flag is set — the fresh-store branch must not consult migration.
+        let p = try await plan(packageID: "com.t.fresh", name: "Fresh", trust: [:], hashes: [:], sources: ["com.t.fresh": "store"], isMigrated: true)
+        XCTAssertFalse(p.actions[0] is GatedExtensionAction)
+        XCTAssertEqual(p.trust["com.t.fresh"], "trusted")
+        XCTAssertTrue(p.events.isEmpty)
     }
 
     @MainActor

@@ -189,7 +189,9 @@ private struct RecommendedExtensionRow: View {
                     installError = nil
                     Task {
                         do {
+                            ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
                             _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
+                            await ExtensionUpdateManager.shared.checkForUpdates()
                         } catch {
                             installError = error.localizedDescription
                         }
