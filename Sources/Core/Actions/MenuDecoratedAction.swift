@@ -28,6 +28,11 @@ public struct MenuDecoratedAction: Action, RelevanceProviding {
     public var chrome: ActionChrome { base.chrome }
     public var actionOptions: [ExtensionOption] { base.actionOptions }
 
+    /// Forwards any declared `ActionDelivery` from the base action so wrapping this
+    /// decorator around a delivery-declaring action (e.g. DeliveryDecoratedAction) never
+    /// shadows the declared delivery with the protocol's nil default.
+    public var delivery: ActionDelivery? { base.delivery }
+
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
         base.isEnabled(for: context)

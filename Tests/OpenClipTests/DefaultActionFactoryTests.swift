@@ -335,4 +335,87 @@ final class DefaultActionFactoryTests: XCTestCase {
 
         try? FileManager.default.removeItem(at: tempDir)
     }
+
+    // MARK: - Delivery declaration (manifest secondary/toast onto Action.delivery)
+
+    func testFactoryMapsManifestDeliveryOntoActionDelivery() async {
+        let factory = DefaultActionFactory()
+        let declaring = ExtensionActionMetadata(
+            id: "sec",
+            title: "Alt",
+            url: "https://example.com?q={query}",
+            type: "url",
+            secondary: ExtensionSecondaryDeclaration(type: "copy", value: "alternate", message: nil),
+            toast: ExtensionToastDeclaration(message: "Copied", style: "success"),
+            secondaryToast: ExtensionToastDeclaration(message: "Alt copied", style: "info")
+        )
+        let plain = ExtensionActionMetadata(
+            id: "open",
+            title: "Open",
+            url: "https://example.com?q={query}",
+            type: "url"
+        )
+        let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [declaring, plain], options: nil)
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        guard let action = await factory.createAction(metadata: declaring, manifest: manifest, directoryURL: tempDir, index: 0) as? DeliveryDecoratedAction else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("Declaring action should be wrapped in DeliveryDecoratedAction")
+        }
+        XCTAssertEqual(action.id, "pkg.sec")
+        XCTAssertTrue(action.base is URLTemplateAction)
+        guard case .copy(let value)? = action.delivery?.secondary else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("secondary should map to .copy")
+        }
+        XCTAssertEqual(value, "alternate")
+        XCTAssertEqual(action.delivery?.primaryToast, StatusFeedback(message: "Copied", style: .success))
+        XCTAssertEqual(action.delivery?.secondaryToast, StatusFeedback(message: "Alt copied", style: .info))
+
+        let plainAction = await factory.createAction(metadata: plain, manifest: manifest, directoryURL: tempDir, index: 1)
+        XCTAssertNil(plainAction?.delivery)
+        XCTAssertFalse(plainAction is DeliveryDecoratedAction)
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    func testFactoryComposesMenuAndDeliveryDecoration() async {
+        let factory = DefaultActionFactory()
+        let combo = ExtensionActionMetadata(
+            id: "combo",
+            title: "Combo",
+            url: "https://example.com?q={query}",
+            type: "url",
+            menuRelevance: "\\s",
+            secondary: ExtensionSecondaryDeclaration(type: "paste", value: "alt", message: nil)
+        )
+        let manifest = ExtensionMetadata(identifier: "pkg", name: "Pkg", actions: [combo], options: nil)
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        guard let menu = await factory.createAction(metadata: combo, manifest: manifest, directoryURL: tempDir, index: 0) as? MenuDecoratedAction else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("Both declarations should keep menuRelevance decoration outermost")
+        }
+        guard let delivery = menu.base as? DeliveryDecoratedAction else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("menuRelevance outer wrapper should carry the DeliveryDecoratedAction inside")
+        }
+        guard case .paste(let value)? = delivery.delivery?.secondary else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("secondary should map to .paste")
+        }
+        XCTAssertEqual(value, "alt")
+        // The declared delivery must stay reachable on the outermost wrapper the registry holds.
+        guard case .paste(let outerValue)? = menu.delivery?.secondary else {
+            try? FileManager.default.removeItem(at: tempDir)
+            return XCTFail("MenuDecoratedAction should forward delivery to its base")
+        }
+        XCTAssertEqual(outerValue, "alt")
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
 }
