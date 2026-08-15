@@ -239,10 +239,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         let context = ActionContext(selectedText: inputWithQuotes)
 
         let result = try await action.perform(context)
-        if case .copy(let output) = result {
+        if case .paste(let output) = result {
             XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), inputWithQuotes)
         } else {
-            XCTFail("Expected .copy result containing returned text, got \(result)")
+            XCTFail("Expected .paste result containing returned text, got \(result)")
         }
     }
 
@@ -258,10 +258,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         let context = ActionContext(selectedText: input)
 
         let result = try await action.perform(context)
-        if case .copy(let output) = result {
+        if case .paste(let output) = result {
             XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), input)
         } else {
-            XCTFail("Expected .copy result containing multiline text, got \(result)")
+            XCTFail("Expected .paste result containing multiline text, got \(result)")
         }
     }
 
@@ -278,10 +278,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         let action = AppleScriptAction(id: "test.applescript.onrun", title: "On Run", appleScriptCode: scriptCode)
         let context = ActionContext(selectedText: "hello")
         let result = try await action.perform(context)
-        if case .copy(let output) = result {
+        if case .paste(let output) = result {
             XCTAssertEqual(output, "AS:hello")
         } else {
-            XCTFail("Expected .copy result for on-run script, got \(result)")
+            XCTFail("Expected .paste result for on-run script, got \(result)")
         }
     }
 
