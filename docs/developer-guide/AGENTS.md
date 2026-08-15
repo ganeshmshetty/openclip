@@ -101,7 +101,7 @@ Common action fields (all OPTIONAL unless noted):
   "icon": "symbol(textformat.upper)",  // SF Symbol / local image / bare name (see below)
   "type": "javascript",                // default "url"
   "regex": ".*",                       // LEGACY pre-rules visibility gate (see §5)
-  "secondary": { "type": "copy", "value": "{text}" },  // secondary-click outcome; NON-JS kinds only (see §5b)
+  "secondary": { "type": "copy", "value": "Copied text" },  // secondary-click outcome; literal value, NON-JS kinds only (see §5b)
   "toast": { "message": "Copied" },    // primary-click toast (see §5b)
   "secondaryToast": { "message": "Copied" },  // secondary-click toast (see §5b)
   "requirements": { /* ... */ },       // see §5
@@ -409,19 +409,24 @@ non-text results (openURL, notify, keyPress, …) pass through untouched.
   ```jsonc
   "secondary": {
     "type": "copy",        // "copy" | "paste" | "openURL" | "status" | "success" | "none"
-    "value": "{text}",     // value text for copy / paste / openURL
+    "value": "Look up: https://example.com/search?q=selection",  // literal value for copy / paste / openURL
     "message": "…"         // message for type "status"
   }
   ```
 
-  Example — a Look Up action that pastes on primary click and copies on secondary:
+  `value` is a **literal string** — the factory maps it verbatim onto the `.copy`/`.paste`/`.openURL`
+  payload (`DefaultActionFactory.actionResult(from:)`), so **no** `{text}`/`{query}` placeholder
+  substitution happens for `secondary.value`. Use the JS `openclip.input.isSecondaryClick` branch or
+  a script-side expression if you need the selection in the payload.
+
+  Example — a Look Up action that opens the URL on primary click and copies on secondary:
 
   ```jsonc
   {
     "title": "Look Up",
     "type": "url",
     "url": "https://en.wikipedia.org/wiki/Special:Search?search={query}",
-    "secondary": { "type": "copy", "value": "{query}" }
+    "secondary": { "type": "copy", "value": "Look up: https://en.wikipedia.org/wiki/Special:Search?search=selection" }
   }
   ```
 
@@ -437,7 +442,8 @@ non-text results (openURL, notify, keyPress, …) pass through untouched.
   "secondaryToast": { "message": "Copied", "style": "success" }
   ```
 
-  These are **delivery-side effects** — companion notices rendered by the floating toast surface,
+  `secondary-toast` (dash form) is accepted as an alias for `secondaryToast`. These are
+  **delivery-side effects** — companion notices rendered by the floating toast surface,
   not new `ActionResult` cases (§8). They do not change dismissal.
 
 **`after` is removed.** There is no `after` manifest key and no legacy result translator (the old
@@ -484,7 +490,7 @@ function action(selection) {
 
 The chosen effect arrives at delivery as the action's primary result (`raw`); the paste→copy probe
 and the click's declared `toast`/`secondaryToast` still apply to it exactly as for static kinds
-(§5b). The non-branching effect path is the primary behavior.
+(§5b). The non-secondary branch (the `else` above) is the primary behavior.
 
 ### 5d. `loading` (slow actions)
 

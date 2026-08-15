@@ -95,7 +95,7 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `subActions` | Array | Sub-action objects for `type: "group"`; rendered as a sub-menu with IDs `<groupID>.<subID>`. |
 | `secondary` | Object | Optional. Secondary-click (right-click/⇧-click) outcome: `{ "type": "copy" | "paste" | "openURL" | "status" | "success" | "none", "value"?, "message"? }`. **Non-JS kinds only** — rejected on `javascript` (JS authors branch on `openclip.input.isSecondaryClick` in-script instead). |
 | `toast` | Object | Optional. Primary-click companion toast `{ "message": string, "style"?: "success" | "error" | "info" }` (default style `success`). Valid on all kinds. |
-| `secondaryToast` | Object | Optional. Secondary-click companion toast (same shape as `toast`). Valid on all kinds. |
+| `secondaryToast` | Object | Optional. Secondary-click companion toast (same shape as `toast`). Valid on all kinds. Dash alias: `secondary-toast`. |
 
 The `secondary`/`toast`/`secondaryToast` keys map onto the per-action `Action.delivery` (see
 [`docs/developer-guide/AGENTS.md` §5b](./AGENTS.md)); the delivery decision (Select → Probe →
