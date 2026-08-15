@@ -44,11 +44,20 @@ public struct InstalledExtensionsView: View {
     @State private var selectedExtensionID: String? = nil
     @State private var trustReview: TrustReviewTarget? = nil
     @State private var isReloading = false
+    @State private var updatingPackageID: String? = nil
+    @ObservedObject private var updateManager = ExtensionUpdateManager.shared
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Spacer()
+                if !updateManager.updatablePackageIDs.isEmpty {
+                    Button(action: { Task { await updateManager.updateAll() } }) {
+                        Label("Update All", systemImage: "arrow.down.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
                 Button(action: { Task { await reloadExtensions() } }) {
                     Label(isReloading ? "Reloading…" : "Reload", systemImage: "arrow.clockwise")
                 }
@@ -116,6 +125,16 @@ public struct InstalledExtensionsView: View {
                                 .controlSize(.small)
                             }
 
+                            if updateManager.updatablePackageIDs.contains(package.packageID) {
+                                Button(action: { Task { await updateOne(package.packageID) } }) {
+                                    Label(updatingPackageID == package.packageID ? "Updating…" : "Update", systemImage: "arrow.down.circle")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .disabled(updatingPackageID != nil)
+                            }
+
                             Button(role: .destructive, action: {
                                 uninstallExtension(actionID: package.representative.id)
                             }) {
@@ -143,7 +162,19 @@ public struct InstalledExtensionsView: View {
     private func reloadExtensions() async {
         isReloading = true
         await ExtensionManager.shared.loadExtensions()
+        await ExtensionUpdateManager.shared.checkForUpdates()
         isReloading = false
+        NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+    }
+
+    private func updateOne(_ packageID: String) async {
+        updatingPackageID = packageID
+        do {
+            try await updateManager.update(packageID: packageID)
+        } catch {
+            Log.extensions.error("Update failed for '\(packageID, privacy: .public)': \(error.localizedDescription)")
+        }
+        updatingPackageID = nil
         NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
     }
 
