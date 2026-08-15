@@ -46,21 +46,6 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertEqual(requirements.requiredOptions, ["prefix", "suffix"])
     }
 
-    func testAfterDecodes() throws {
-        let json = """
-        {
-            "id": "copy",
-            "title": "Copy",
-            "type": "url",
-            "url": "https://example.com",
-            "after": "paste-result"
-        }
-        """.data(using: .utf8)!
-        let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
-        XCTAssertEqual(action.after, .pasteResult)
-        XCTAssertEqual(action.requirements, nil)
-    }
-
     func testRulesRelevantMetadataDecodesTogether() throws {
         let json = """
         {
@@ -72,15 +57,13 @@ final class ExtensionManifestTests: XCTestCase {
             "requirements": {
                 "apps": ["com.allowed"],
                 "apps-mode": "allow"
-            },
-            "after": "show-result"
+            }
         }
         """.data(using: .utf8)!
         let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
         XCTAssertEqual(action.regex, "^[a-z]+$")
         XCTAssertEqual(action.requirements?.apps, ["com.allowed"])
         XCTAssertEqual(action.requirements?.appsMode, .allow)
-        XCTAssertEqual(action.after, .showResult)
     }
 
     func testMenuRelevanceDecodes() throws {

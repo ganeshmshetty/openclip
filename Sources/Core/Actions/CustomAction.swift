@@ -6,9 +6,8 @@
 // and executed seamlessly. The manifest shellInline/textSnippet paths attach ExtensionActionRules so
 // declarative visibility flows through the shared evaluator here too, and the factory stamps
 // `.extensionPkg` chrome so GUI-created actions share the extension trash path. All three type cases
-// end their perform with the declarative after translator (ActionResultAdapter); the
-// shellScript case runs through the shared ShellProcessRunner (one watchdog) with `replaceSelection`
-// deciding paste-vs-copy for plain-text stdout.
+// return their raw runtime result; the shellScript case runs through the shared ShellProcessRunner
+// (one watchdog) with `replaceSelection` deciding paste-vs-copy for plain-text stdout.
 import Foundation
 
 public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
@@ -109,10 +108,7 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
             }
         }
 
-        return ActionResultAdapter.apply(
-            raw: raw,
-            after: rules?.after ?? .default
-        )
+        return raw
     }
 }
 

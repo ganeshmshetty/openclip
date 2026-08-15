@@ -119,7 +119,6 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         let groupRules = ExtensionActionRules(
             requirements: metadata.requirements,
             legacyRegex: metadata.regex,
-            after: .default,
             compiledExpression: compiledExpression(for: metadata, actionID: groupID)
         )
         let groupChrome = ActionChrome(
@@ -250,13 +249,11 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         
         let options = mergedOptions(manifestOptions: manifest.options, actionOptions: metadata.options)
         
-        // Declarative visibility/behavior rules applied to every extension action this factory
-        // creates: requirements (regex, app allow/deny, requiresSelection) + legacy manifest
-        // `regex` + after-run behavior.
+        // Declarative visibility rules applied to every extension action this factory creates:
+        // requirements (regex, app allow/deny, requiresSelection) + legacy manifest `regex`.
         let rules = ExtensionActionRules(
             requirements: metadata.requirements,
             legacyRegex: metadata.regex,
-            after: metadata.after ?? .default,
             compiledExpression: compiledExpression(for: metadata, actionID: actionId)
         )
         

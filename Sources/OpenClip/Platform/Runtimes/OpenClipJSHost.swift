@@ -4,8 +4,8 @@
 // Dedicated, testable JavaScriptCore bridge for JS extensions (plan §8, Phase 6). Exposes the full
 // read-only `openclip.*` author surface (input/matchedText/captures/app, read-only options, and the
 // effect API) and resolves collected effects into a RAW runtime ActionResult via a deterministic
-// resolution order — no declarative after translation here (that is
-// ActionResultAdapter.apply, applied by the runtime's perform). JS exceptions surface as
+// resolution order — no declarative secondary/delivery translation here (that happens downstream
+// via the action's declared `delivery`). JS exceptions surface as
 // `.showStatus(.error, message)` rather than throwing; Swift-level setup failures may throw.
 //
 // Execution model: every run executes inside a `Task.detached` on a background thread — never the

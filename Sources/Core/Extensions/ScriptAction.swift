@@ -7,7 +7,7 @@
 // (OPENCLIP_TEXT, OPENCLIP_MATCHED, OPENCLIP_CAPTURE_N, OPENCLIP_BUNDLE_ID, OPENCLIP_ACTION_ID)
 // and runs it through the
 // shared ShellProcessRunner (one watchdog), then translates stdout JSON via ShellResultMapper and
-// applies the declarative after rules via ActionResultAdapter at the end of perform.
+// returns the raw runtime result (secondary/delivery handling happens downstream).
 import Foundation
 
 public struct ScriptAction: Action {
@@ -85,9 +85,6 @@ public struct ScriptAction: Action {
             raw = .success
         }
 
-        return ActionResultAdapter.apply(
-            raw: raw,
-            after: rules?.after ?? .default
-        )
+        return raw
     }
 }
