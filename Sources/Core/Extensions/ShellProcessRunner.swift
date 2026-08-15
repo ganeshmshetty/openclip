@@ -107,6 +107,7 @@ struct ScriptJSONOutput: Decodable {
     let body: String?
     let actions: [ScriptJSONEffect]?
     let identifier: String?
+    let keepVisible: Bool?
 }
 
 /// Maps shell stdout JSON into an `ActionResult` (plan §6 protocol). Returns nil when the output
@@ -179,14 +180,14 @@ enum ShellResultMapper {
                 userInfo: [NSLocalizedDescriptionKey: msg]
             )
             return .failure(err)
-        case "status":
+        case "toast":
             let style: StatusFeedback.Style
             switch output.style?.lowercased() {
             case "success": style = .success
             case "error": style = .error
             default: style = .info
             }
-            return .toast(StatusFeedback(message: output.message ?? "", style: style))
+            return .toast(StatusFeedback(message: output.message ?? "", style: style, keepVisible: output.keepVisible ?? false))
         case "configure":
             return .openConfiguration(ConfigurationRequest(
                 actionID: actionID,
