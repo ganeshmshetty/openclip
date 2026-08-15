@@ -125,8 +125,10 @@ struct ExtensionCardView: View {
                         installError = nil
                         Task {
                             do {
+                                ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
                                 _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
                                 showSuccess = true
+                                await updateManager.checkForUpdates()
                             } catch {
                                 installError = error.localizedDescription
                             }

@@ -12,6 +12,32 @@ public enum ExtensionGateReason: Sendable, Equatable {
     case filesChanged
     case needsNewerApp(required: String)
     case revoked
+
+    /// Plist-safe string encoding for `UNNotificationContent.userInfo` (which only accepts
+    /// plist types). `needsNewerApp` carries its required version after a colon.
+    public var plistTag: String {
+        switch self {
+        case .notEnabled: return "notEnabled"
+        case .filesChanged: return "filesChanged"
+        case .revoked: return "revoked"
+        case .needsNewerApp(let required): return "needsNewerApp:\(required)"
+        }
+    }
+
+    /// Reverse of `plistTag`. Unknown tags return nil.
+    public init?(plistTag: String) {
+        switch plistTag {
+        case "notEnabled": self = .notEnabled
+        case "filesChanged": self = .filesChanged
+        case "revoked": self = .revoked
+        default:
+            if plistTag.hasPrefix("needsNewerApp:") {
+                self = .needsNewerApp(required: String(plistTag.dropFirst("needsNewerApp:".count)))
+            } else {
+                return nil
+            }
+        }
+    }
 }
 
 /// Placeholder action registered in place of a package's real actions when the package must not
@@ -144,27 +170,24 @@ public enum ExtensionTrustGate {
                 }
             }
 
-            if source == "store" {
-                if record == "revoked" {
-                    gated(.revoked)
-                } else {
-                    // Store is the trust anchor: trust (or re-trust) with the current hash.
-                    writeTrusted()
-                    if source != (sources[packageID] ?? "local") {
-                        sources[packageID] = "store"
-                        sourcesChanged = true
-                    }
-                    if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
-                }
+            if source == "store", record == nil {
+                // Fresh store install = consent: trust with the current hash. The install path
+                // seeds `extensionSources` before the load; this branch must not consult the
+                // migration flag either way.
+                writeTrusted()
+                if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
+            } else if record == "revoked" {
+                // Explicit user "no" survives updates regardless of source.
+                gated(.revoked)
             } else if record == "trusted", hashes[packageID] == currentHash {
                 if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
             } else if record == "trusted" {
+                // Any content drift — store-sourced packages included — is a tamper. Only the
+                // update flow re-trusts (via ExtensionUpdateManager.update → enablePackage).
                 trust[packageID] = "seen"
                 trustChanged = true
                 events.append(.tampered(packageID: packageID, name: name))
                 gated(.filesChanged)
-            } else if record == "revoked" {
-                gated(.revoked)
             } else if record == nil {
                 if !newMigrated {
                     // First launch after upgrade: auto-trust everything present.

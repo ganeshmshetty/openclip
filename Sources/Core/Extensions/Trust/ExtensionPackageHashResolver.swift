@@ -59,6 +59,27 @@ public enum ExtensionPackageHashResolver {
                 if synthesized == forPackageID {
                     return fileHash(item)
                 }
+                // A standalone script may declare its package id in its header; resolve by that
+                // too, mirroring how the loader derives the action id.
+                if declaredIdentifier(of: item) == forPackageID {
+                    return fileHash(item)
+                }
+            }
+        }
+        return nil
+    }
+
+    /// The identifier a standalone script declares in its header (`# Identifier:`,
+    /// `// Identifier:`, or lowercase `// identifier:`), trimmed like the loader does.
+    private static func declaredIdentifier(of scriptURL: URL) -> String? {
+        guard let content = try? String(contentsOf: scriptURL, encoding: .utf8) else { return nil }
+        let lines = content.components(separatedBy: .newlines).prefix(Constants.maxHeaderLinesToScan)
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix(Constants.identifierPrefixHash)
+                || trimmed.hasPrefix(Constants.identifierPrefixSlash)
+                || trimmed.hasPrefix("// identifier:") {
+                return String(trimmed.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).last ?? "").trimmingCharacters(in: .whitespaces)
             }
         }
         return nil

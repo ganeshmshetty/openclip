@@ -154,7 +154,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             content.body = body
             var userInfo: [AnyHashable: Any] = ["packageID": packageID]
             if let reason {
-                userInfo["reason"] = reason
+                userInfo["reason"] = reason.plistTag
             }
             content.userInfo = userInfo
             let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
@@ -164,7 +164,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         guard let packageID = response.notification.request.content.userInfo["packageID"] as? String else { return }
-        let reason = response.notification.request.content.userInfo["reason"] as? ExtensionGateReason
+        let reason = (response.notification.request.content.userInfo["reason"] as? String).flatMap(ExtensionGateReason.init(plistTag:))
         await MainActor.run {
             statusBarController?.showPreferences()
             var userInfo: [AnyHashable: Any] = ["packageID": packageID]
@@ -173,6 +173,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             }
             NotificationCenter.default.post(name: .openClipOpenTrustModel, object: nil, userInfo: userInfo)
         }
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
     }
 
     private func showOnboarding() {
@@ -255,7 +259,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             
             Task { @MainActor in
                 do {
+                    ExtensionManager.shared.prepareInstall(source: "store", packageID: extID)
                     _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(downloadURL, extensionID: extID)
+                    await ExtensionUpdateManager.shared.checkForUpdates()
                 } catch {
                     Log.extensions.error("Failed to install extension '\(extID, privacy: .public)' from host \(host, privacy: .public): \(error.localizedDescription, privacy: .private)")
                     let failure = NSAlert()

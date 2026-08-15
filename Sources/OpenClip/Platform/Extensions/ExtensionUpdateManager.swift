@@ -51,15 +51,31 @@ public final class ExtensionUpdateManager: ObservableObject {
     }
 
     /// Updates one package: marks its source as store (already true) and re-installs from the
-    /// store download URL. Because an update is a store action and the trust gate re-trusts
-    /// non-revoked store packages, no extra trust write is needed.
+    /// store download URL. The gate no longer blanket-re-trusts store packages, so update
+    /// explicitly re-trusts (and re-records the hash) after the reinstall unless the package was
+    /// revoked — a revoked package stays revoked.
     public func update(packageID: String) async throws {
         guard let item = await storeItem(for: packageID), let url = URL(string: item.downloadURL) else {
             throw NSError(domain: "ExtensionUpdateManager", code: 404,
                           userInfo: [NSLocalizedDescriptionKey: "No store listing for \(packageID)."])
         }
+        let settings = DefaultSettingsStore.shared
+        let wasRevoked = settings.get(.extensionTrust)[packageID] == ExtensionTrustState.revoked.rawValue
+        if !wasRevoked {
+            // Pre-mark seen and drop the recorded hash so the intermediate load inside the
+            // install doesn't fire a spurious tamper event for a legitimate update.
+            var trust = settings.get(.extensionTrust)
+            trust[packageID] = ExtensionTrustState.seen.rawValue
+            settings.set(.extensionTrust, value: trust)
+            var hashes = settings.get(.extensionTrustHashes)
+            hashes.removeValue(forKey: packageID)
+            settings.set(.extensionTrustHashes, value: hashes)
+        }
         ExtensionManager.shared.prepareInstall(source: "store", packageID: packageID)
         _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: packageID)
+        if !wasRevoked {
+            await ExtensionManager.shared.enablePackage(packageID: packageID)
+        }
         await checkForUpdates()
     }
 
