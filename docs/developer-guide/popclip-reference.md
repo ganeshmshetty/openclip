@@ -20,7 +20,7 @@ metadata, `actions` (one of 7 declarative types), filter `requirements`, `option
 **Model parity with OpenClip's `.openclipext`:** OpenClip's package format (directory +
 `openclip.json` manifest + scripts + local icons, action kinds url/javascript/applescript/shell/
 shortcut/service/group, options incl. Keychain `secret`, `requirements` regex/apps/requiredOptions,
-`after` + `stayVisible`) is clearly modelled on the same lineage. The two are close cousins.
+`after`) is clearly modelled on the same lineage. The two are close cousins.
 
 **Meaningful capabilities PopClip has that OpenClip currently lacks** (from OpenClip's developer-guide):
 
@@ -32,7 +32,7 @@ shortcut/service/group, options incl. Keychain `secret`, `requirements` regex/ap
 | **iCloud sync of extensions + action layout + settings + secrets**, optional. | No sync. | [rel2026.7] |
 | **Rich JS/TS runtime**: CommonJS `require()` of files *and ~20 bundled npm libs* (axios, linkedom, turndown…), XHR/network via `network` entitlement, async/await + settle-flag spinner, dynamic action population function, submenus, JSON<->plist, TypeScript transpile, `auth`/OAuth sign-in flow with keychain `authSecret` + `expiresIn`. | JS host is inline JS (JavaScriptCore) bridge with `openclip.*` effects + optional async+`fetch` polyfill; no module/`require`, no TS, no xhr entitlement, no sign-in flow. | [js-env], [js-actions], [js-modules], [changelog] |
 | **Contextual requirement vocabulary**: `url`, `isurl`, `urls`, `email`/`emails`, `path`, `paste`, `cut`, `formatting`, `option-foo=bar`, and **text narrowing** (a `url` req narrows the working text to the detected URL; `popclip.input.regexResult`, `fullText`). | `requirements` are regex + apps allow/deny + requiredOptions; no URL/email/path/paste/format detectors or text narrowing. | [actions] |
-| **`before`/`after` orchestration steps** (`copy/cut/paste`, `paste-plain`, `copy-selection`, `popclip-appear`; then `copy-result`/`paste-result`/`preview-result`/`show-result`/`show-status`) | Has `after` (`copy-result`/`paste-result`/`show-result`/`none`) + `stayVisible`, but no general `before` step and no `show-status`/`preview-result` | [actions] |
+| **`before`/`after` orchestration steps** (`copy/cut/paste`, `paste-plain`, `copy-selection`, `popclip-appear`; then `copy-result`/`paste-result`/`preview-result`/`show-result`/`show-status`) | Has `after` (`copy-result`/`paste-result`/`show-result`/`none`), but no general `before` step and no `show-status`/`preview-result` | [actions] |
 | **`app` dependency gate**: `checkInstalled` + `bundle identifiers` + install link | Only bundle-id filter for reveal, no "install me if missing" | [actions] |
 | **Options UI & option types**: `string`/`boolean`/`multiple`/`secret`(Keychain)/`heading`; `multiline`, `allow other`, `allow none`, `value labels`, `inset`, icon-on-boolean, clickable links in description; sign-in "auth service label" | `string`/`boolean`/`multiple`/`secret`(Keychain) in Preferences; no multiline/allow-other/heading/links or sign-in UI | [config], [changelog] 2026.7 |
 | **Icon spec system** — text ("ABC"), SF Symbol, Iconify (200k), inline SVG/data URI, PNG/SVG file, and modifiers (`square filled circle search strike`, `flip-x`, `scale=…`, `rotate=…`, `preserve-color`, `monospaced`) | icon is `symbol(...)` SF Symbol / local file / bare name | [icons] |

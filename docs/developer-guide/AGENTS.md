@@ -40,7 +40,7 @@ The loader decodes `~/.openclip/extensions/<dir>/openclip.json` (legacy names `m
   "name": "Word Tools",
 
   // OPTIONAL. Declared package version. "version" is not used for loading; it is recorded in the
-  // validation log line (e.g. "Loaded extension manifest <id> (v1.0.1, schema 2, ...)").
+  // validation log line (e.g. "Loaded extension manifest <id> (v1.0.1, schema 1, ...)").
   "version": "1.0.0",
 
   // OPTIONAL. Declared runtime capabilities. The host's known-capability set is EMPTY on day one,
@@ -102,7 +102,6 @@ Common action fields (all OPTIONAL unless noted):
   "type": "javascript",                // default "url"
   "regex": ".*",                       // LEGACY pre-rules visibility gate (see §5)
   "after": "copy-result",              // see §5b
-  "stayVisible": true,                 // see §5b (alias "stay-visible")
   "requirements": { /* ... */ },       // see §5
   "options": [ /* per-action option overrides, see §4 */ ],
   "loading": true,                       // slow action: early-close + spinner toast, see §5d
@@ -372,7 +371,7 @@ also request configuration at script time via `openclip.requireConfiguration` �
 A malformed regex **enables** the action (defensive — a bad manifest never hides an action). With
 **no** rules attached, every extension action defaults to "enabled iff a non-blank selection exists".
 
-### 5b. `after` and `stayVisible`
+### 5b. `after`
 
 `after` (`ActionAfterBehavior`, applied by `ActionResultAdapter`):
 
@@ -381,11 +380,7 @@ A malformed regex **enables** the action (defensive — a bad manifest never hid
 - `show-result` — a copy/paste outcome degrades to the plain leaf result (copy/paste).
 - `none` — collapse any result to success.
 - `default` — unchanged. (Runtime presentations — content card/status/configuration/keyPress/shortcut/
-  sequence/keepVisible — always pass through regardless of `after`.)
-
-`stayVisible: true` wraps the (normalized) result in `.keepVisible` so the popup **stays open**
-when it would otherwise dismiss. This is also how a plain-text script keeps the menu up after a
-paste.
+  sequence — always pass through regardless of `after`.)
 
 ### 5c. Standardized paste-vs-copy delivery (leaf `.paste` results)
 
@@ -424,7 +419,7 @@ blocks until it launches). On click the popup closes immediately and a `[spinner
 toast appears; when the result lands the toast swaps to a description — "Copied" on a
 paste→copy downgrade, or the action's error status — or fades when the result carries none
 (`.success`, an opened URL, an honored paste, a native copy). It is presentation metadata only: it
-never changes the result/dismissal semantics of `.showStatus`/`.keepVisible`.
+never changes the result/dismissal semantics of `.showStatus`.
 
 The spinner's message is `loadingMessage` when declared (a static string, used verbatim), otherwise
 the host falls back to `Opening <title>…`. Example:
@@ -520,13 +515,12 @@ Side effects (each appends an effect; multiple effects run as a `.sequence` in c
 - `openclip.showStatus(message, style)` — style `"success"`|`"error"`|`"info"` (else `"info"`)
 - `openclip.showContent(...)` / `h()` — **removed**: the interactive-canvas bridge no longer
   exists; calling these names surfaces a JS error (`.showStatus(.error)`).
-- `openclip.keepVisible()` — wraps the resolved result so the popup stays open
 - `openclip.requireConfiguration({ reason, missing: ["optID"] })` — open config sheet for this action
 
 Deterministic resolution order (`OpenClipJSHost.run`): **JS exception → `.showStatus(error)`** (JS
 throws never propagate as Swift errors); else `requireConfiguration` → `openConfiguration`;
 `showStatus` with no other effects → `showStatus`; effects → single/`sequence`; function string
-return → `copy`; else `success`. `keepVisible()` wraps the final result unconditionally.
+return → `copy`; else `success`.
 
 > Execution runs on a background thread (never the `MainActor`); async scripts are guarded by a
 > 30-second watchdog (`Constants.scriptTimeout`, `TimeoutFlag` pattern) — a never-settling promise
@@ -538,7 +532,7 @@ return → `copy`; else `success`. `keepVisible()` wraps the final result uncond
 ## 8. The ActionResult surface & JSON effect shapes
 
 `ActionResult` cases an extension can produce (via JS effects, script JSON, declarative
-`after`/`stayVisible`, or kind runtimes):
+`after`, or kind runtimes):
 
 | Case | Meaning |
 | :--- | :--- |
@@ -552,14 +546,13 @@ return → `copy`; else `success`. `keepVisible()` wraps the final result uncond
 | `.notify(title:, body:)` | post a notification (best-effort; needs authorization) |
 | `.showStatus(StatusFeedback)` | transient status; **keeps popup open** |
 | `.openConfiguration(ConfigurationRequest)` | hide popup, open the action's config sheet |
-| `.keepVisible(ActionResult)` | perform inner result but never dismiss |
 | `.sequence([ActionResult])` | run in order; popup hides only if all dismiss |
 | `.keyPress(KeyPressSpec)` | post synthetic key event |
 | `.runShortcut(name:, input:)` | run a Shortcuts shortcut with input |
 | `.none` | no effect |
 
-Dismissal: `.showStatus`/`.keepVisible` keep the popup open; `.sequence` dismisses only when
-non-empty and all items dismiss; everything else (including `.openConfiguration`) dismisses.
+Dismissal: `.showStatus` keeps the popup open; `.sequence` dismisses only when non-empty and all
+items dismiss; everything else (including `.openConfiguration`) dismisses.
 
 ### 8a. Shell/script JSON protocol (`ShellResultMapper`)
 
@@ -571,7 +564,6 @@ except `shareService`'s `identifier`, which is required):
 { "type": "copy",  "value": "text" }                                  // .copy
 { "type": "openURL", "value": "https://..." }                         // .openURL
 { "type": "status", "message": "Done", "style": "success" }           // "success"|"error"|"info"
-{ "type": "keepVisible", "effect": { "type": "paste", "value": "x" } }// .keepVisible(recursive)
 { "type": "configure", "reason": "...", "missing": ["opt"] }          // .openConfiguration
 { "type": "shareService", "identifier": "com.apple.Notes.SharingExtension", "value": "text" } // .shareService — identifier REQUIRED
 ```

@@ -6,7 +6,7 @@
 // when rules are attached. perform short-circuits to `.openConfiguration` when a declaratively
 // required option has no resolved value (Phase 7), then delegates to OpenClipJSHost (the dedicated,
 // testable bridge that exposes the read-only openclip.* surface) for the RAW runtime result, and
-// finally applies the declarative after/stayVisible rules via ActionResultAdapter.
+// finally applies the declarative after rules via ActionResultAdapter.
 import Foundation
 import JavaScriptCore
 import Core
@@ -110,8 +110,7 @@ public struct JavaScriptAction: ConfigurableAction {
         let raw = try await OpenClipJSHost().run(request)
         return ActionResultAdapter.apply(
             raw: raw,
-            after: rules?.after ?? .default,
-            stayVisible: rules?.stayVisible ?? false
+            after: rules?.after ?? .default
         )
     }
 }

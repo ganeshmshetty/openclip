@@ -63,7 +63,6 @@ Supported `type` values:
 - `"copy"` → `ActionResult.copy(value)` (copies text to system clipboard).
 - `"openURL"` → `ActionResult.openURL(URL)` (opens URL in default browser; URL parsed from `value`).
 - `"status"` → `ActionResult.showStatus` (`message`, `style`: `"success"`/`"error"`/`"info"`).
-- `"keepVisible"` → wraps a nested `effect` payload so the popup stays open.
 - `"configure"` → `ActionResult.openConfiguration` (`reason`, `missing: [optionID]`).
 
 `"showContent"` is **not** accepted — a decoded-but-unknown `type` maps to `.success`.

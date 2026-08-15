@@ -46,20 +46,18 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertEqual(requirements.requiredOptions, ["prefix", "suffix"])
     }
 
-    func testAfterAndStayVisibleDecode() throws {
+    func testAfterDecodes() throws {
         let json = """
         {
             "id": "copy",
             "title": "Copy",
             "type": "url",
             "url": "https://example.com",
-            "after": "paste-result",
-            "stay-visible": true
+            "after": "paste-result"
         }
         """.data(using: .utf8)!
         let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
         XCTAssertEqual(action.after, .pasteResult)
-        XCTAssertEqual(action.stayVisible, true)
         XCTAssertEqual(action.requirements, nil)
     }
 
@@ -75,8 +73,7 @@ final class ExtensionManifestTests: XCTestCase {
                 "apps": ["com.allowed"],
                 "apps-mode": "allow"
             },
-            "after": "show-result",
-            "stay-visible": true
+            "after": "show-result"
         }
         """.data(using: .utf8)!
         let action = try JSONDecoder().decode(ExtensionActionMetadata.self, from: json)
@@ -84,7 +81,6 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertEqual(action.requirements?.apps, ["com.allowed"])
         XCTAssertEqual(action.requirements?.appsMode, .allow)
         XCTAssertEqual(action.after, .showResult)
-        XCTAssertTrue(action.stayVisible ?? false)
     }
 
     func testMenuRelevanceDecodes() throws {

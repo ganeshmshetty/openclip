@@ -11,12 +11,7 @@ final class ActionResultDismissPolicyTests: XCTestCase {
         XCTAssertTrue(ActionResult.openConfiguration(request).dismissesPopup)
     }
 
-    func testKeepVisibleSuppressesDismissal() {
-        XCTAssertFalse(ActionResult.keepVisible(.copy("x")).dismissesPopup)
-    }
-
     func testSequenceDismissesOnlyWhenAllItemsDismiss() {
-        XCTAssertFalse(ActionResult.sequence([.copy("x"), .keepVisible(.copy("y"))]).dismissesPopup)
         XCTAssertTrue(ActionResult.sequence([.copy("x"), .paste("y")]).dismissesPopup)
         // An empty sequence never dismisses.
         XCTAssertFalse(ActionResult.sequence([]).dismissesPopup)
@@ -43,23 +38,5 @@ final class ActionResultDismissPolicyTests: XCTestCase {
         let status = StatusFeedback(error: DummyError())
         XCTAssertEqual(status.style, .error)
         XCTAssertFalse(ActionResult.showStatus(status).dismissesPopup)
-    }
-
-    // MARK: - effectForHandler
-
-    func testEffectForHandlerUnwrapsKeepVisible() {
-        if case .copy(let text) = ActionResult.keepVisible(.copy("x")).effectForHandler {
-            XCTAssertEqual(text, "x")
-        } else {
-            XCTFail("Expected effectForHandler to unwrap .keepVisible into .copy")
-        }
-    }
-
-    func testEffectForHandlerPassesThroughLeaf() {
-        if case .paste(let text) = ActionResult.paste("y").effectForHandler {
-            XCTAssertEqual(text, "y")
-        } else {
-            XCTFail("Expected effectForHandler to pass .paste through unchanged")
-        }
     }
 }

@@ -64,9 +64,9 @@ Validation rules:
 3. **Capabilities.** Any declared `capabilities` entry outside the host's known set rejects the
    manifest (see §4).
 4. **Bookkeeping.** Each validated manifest produces a `ManifestValidationRecord` carrying the
-   host's supported **schema version** (`"2"`), the manifest's declared `version` when present, and
+   host's supported **schema version** (`"1"`), the manifest's declared `version` when present, and
    a **SHA-256 content fingerprint** of the raw manifest bytes — logged on every successful load for
-   observability (`Loaded extension manifest <id> (v<version>, schema 2, <n> action(s), sha256 …)`).
+   observability (`Loaded extension manifest <id> (v<version>, schema 1, <n> action(s), sha256 …)`).
 
 A manifest that fails to **decode** at all (malformed JSON, missing required `identifier`/`name`) is
 also rejected and logged, via `ExtensionManifestStore.decodeManifest` (throwing), which replaced the
