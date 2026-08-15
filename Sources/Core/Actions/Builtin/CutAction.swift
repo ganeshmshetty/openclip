@@ -2,6 +2,9 @@
 // OpenClip
 //
 // Implements the standard cut action that returns a clipboard cut result for selected text.
+//
+// Delivery: no `delivery` declared (default nil). A secondary click keeps the cut primary (no
+// derived copy for a cut), and there is no declared toast — matching the default behavior.
 import Foundation
 
 public struct CutAction: ConfigurableAction, PasteRequiringAction {

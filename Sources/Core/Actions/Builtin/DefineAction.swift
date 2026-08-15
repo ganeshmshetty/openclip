@@ -10,6 +10,13 @@ public struct DefineAction: ConfigurableAction {
     public let preferenceIconName = "character.book.closed"
     public let icon = ActionIcon.symbol("character.book.closed")
 
+    /// Declares a secondary-click toast: when `perform` returns `.copyDefinition` (secondary
+    /// click), the popup surfaces "Copied definition" instead of a silent copy. The secondary
+    /// outcome itself is code-branched in `perform` via `context.isSecondaryClick`.
+    public var delivery: ActionDelivery? {
+        ActionDelivery(secondaryToast: StatusFeedback(message: "Copied definition", style: .success))
+    }
+
     public init() {}
 
     
