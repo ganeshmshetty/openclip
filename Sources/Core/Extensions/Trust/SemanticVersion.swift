@@ -1,7 +1,7 @@
 // SemanticVersion.swift
 // OpenClip
 //
-// Minimal semantic-version value type used for `minOpenClipVersion` compatibility checks and
+// Minimal semantic-version value type used for `openClipVersion` compatibility checks and
 // extension update comparisons. Tolerant parse: leading "v", a 1-3 component triplet, and any
 // trailing prerelease/build text are accepted (only the numeric triplet is compared).
 // Pure Core — no AppKit/SwiftUI.

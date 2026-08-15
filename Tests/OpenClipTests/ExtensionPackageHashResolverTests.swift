@@ -17,13 +17,13 @@ final class ExtensionPackageHashResolverTests: XCTestCase {
     }
 
     @MainActor
-    func testMinOpenClipVersionDecodes() throws {
+    func testOpenClipVersionDecodes() throws {
         let data = Data("""
-        {"identifier":"com.t.v","name":"V","minOpenClipVersion":"1.5.0",
+        {"identifier":"com.t.v","name":"V","openClipVersion":"1.5.0",
          "actions":[{"title":"A","type":"url","url":"https://x.com/{query}"}]}
         """.utf8)
         let manifest = try ExtensionManifestStore.decodeManifest(from: data)
-        XCTAssertEqual(manifest.minOpenClipVersion, "1.5.0")
+        XCTAssertEqual(manifest.openClipVersion, "1.5.0")
     }
 
     func testManifestHashChangesWhenScriptChanges() throws {
