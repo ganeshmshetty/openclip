@@ -241,8 +241,14 @@ public final class OpenClipJSHost: @unchecked Sendable {
             collected.value.shareService = (identifier: identifier, text: cleanedInput)
             effects.value.append(.shareService(identifier: identifier, text: cleanedInput))
         }
-        let toastBlock: @convention(block) (String, String?) -> Void = { message, style in
-            collected.value.toast = StatusFeedback(message: message, style: Self.mapToastStyle(style ?? "info"))
+        let toastBlock: @convention(block) (String, String?, JSValue?) -> Void = { message, style, options in
+            let keepVisible: Bool
+            if let options, !options.isUndefined, !options.isNull {
+                keepVisible = options.objectForKeyedSubscript("keepVisible")?.toBool() ?? false
+            } else {
+                keepVisible = false
+            }
+            collected.value.toast = StatusFeedback(message: message, style: Self.mapToastStyle(style ?? "info"), keepVisible: keepVisible)
         }
         let requireConfigurationBlock: @convention(block) (JSValue) -> Void = { value in
             collected.value.configuration = Self.parseConfiguration(value, actionID: request.actionID)
@@ -256,7 +262,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(runShortcutBlock, forKeyedSubscript: "runShortcut" as NSString)
         openclip.setObject(notifyBlock, forKeyedSubscript: "notify" as NSString)
         openclip.setObject(shareServiceBlock, forKeyedSubscript: "shareService" as NSString)
-        openclip.setObject(toastBlock, forKeyedSubscript: "showStatus" as NSString)
+        openclip.setObject(toastBlock, forKeyedSubscript: "toast" as NSString)
         openclip.setObject(requireConfigurationBlock, forKeyedSubscript: "requireConfiguration" as NSString)
 
         // Module bridge: in module mode (packageDirectory != nil) the wrapper prelude calls
@@ -587,20 +593,26 @@ public final class OpenClipJSHost: @unchecked Sendable {
             return .toast(StatusFeedback(message: exceptionMessage, style: .error))
         }
 
-        // Deterministic resolution order (plan §8): configuration > status-only > effects
-        // (in call order, sequence when >1) > function string return > success.
+        // Deterministic resolution order: configuration > toast (coexisting with effects) > effects
+        // (in call order, sequence when >1) > function string return (pastes) > success.
         let effects = evaluation.effects
         let raw: ActionResult
         if let configuration = collected.configuration {
             raw = .openConfiguration(configuration)
-        } else if let toast = collected.toast, effects.isEmpty {
-            raw = .toast(toast)
+        } else if let toast = collected.toast {
+            if effects.isEmpty {
+                raw = .toast(toast)
+            } else {
+                let input = request.context.match?.matchedText ?? request.context.selection.text
+                let mapped = effects.map { effectResult($0, input: input) }
+                raw = mapped.count == 1 ? .sequence([.toast(toast), mapped[0]]) : .sequence([.toast(toast)] + mapped)
+            }
         } else if !effects.isEmpty {
             let input = request.context.match?.matchedText ?? request.context.selection.text
             let mapped = effects.map { effectResult($0, input: input) }
             raw = mapped.count == 1 ? mapped[0] : .sequence(mapped)
         } else if let returnValue = evaluation.asyncReturnValue ?? collected.returnValue {
-            raw = .copy(returnValue)
+            raw = .paste(returnValue)
         } else {
             raw = .success
         }
