@@ -600,23 +600,25 @@ public class PopupWindowController {
         if result.dismissesPopup {
             hide()
         }
-        handleActionResult(result, delivery: delivery)
+        handleActionResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
     }
 
     /// Walks an ActionResult produced by a perform, rendering presentation results in the popup and
     /// routing leaf effects to the effect handler. Never hides the popup per-item — dismissal is
     /// decided once on the top-level result via `dismissesPopup`. `delivery` carries the captured
     /// paste-vs-copy inputs; `nil` means the result is an explicit user request never re-decided.
-    func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil) {
+    /// `suppressDeliveryToast` is true when the top-level result contains a `.toast`: every effect's
+    /// delivery companion toast is skipped so the script toast wins (one toast per run).
+    func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil, suppressDeliveryToast: Bool = false) {
         switch result {
         case .toast(let feedback):
             presentToast(feedback)
         case .openConfiguration(let request):
             presentConfiguration(for: request)
         case .sequence(let items):
-            for item in items { handleActionResult(item, delivery: delivery) }
+            for item in items { handleActionResult(item, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast) }
         default:
-            handleEffect(result, delivery: delivery)
+            handleEffect(result, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
         }
     }
 
@@ -629,13 +631,13 @@ public class PopupWindowController {
     /// text results routed here are re-decided; explicit user requests (the AI card's Paste/Copy
     /// buttons) pass through untouched via a nil `delivery`.
     @discardableResult
-    private func handleEffect(_ result: ActionResult, delivery: DeliveryContext?) -> Task<Void, Never> {
+    private func handleEffect(_ result: ActionResult, delivery: DeliveryContext?, suppressDeliveryToast: Bool = false) -> Task<Void, Never> {
         let effect = result
         return Task { @MainActor in
             do {
-                let resolved = await resolveDelivery(effect, delivery: delivery)
+                let resolved = await resolveDelivery(effect, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
-                if let toast = resolved.toast {
+                if let toast = resolved.toast, !suppressDeliveryToast {
                     toastController.show(toast, anchorPoint: panel?.centerPoint)
                 }
             } catch {
@@ -652,7 +654,7 @@ public class PopupWindowController {
     /// probe runs only when a paste outcome is actually on the table (the raw result is a paste, or
     /// a declared secondary is a paste); the declared secondary and per-click toasts still apply to
     /// any result.
-    private func resolveDelivery(_ result: ActionResult, delivery: DeliveryContext?) async -> (result: ActionResult, toast: StatusFeedback?) {
+    private func resolveDelivery(_ result: ActionResult, delivery: DeliveryContext?, suppressDeliveryToast: Bool = false) async -> (result: ActionResult, toast: StatusFeedback?) {
         guard let delivery else { return (result, nil) }
         // A declared `.paste` secondary is pasted on a secondary click, so the probe must run for it
         // too: the force-copy short-circuit below applies only when the click's outcome is a copy.
@@ -674,12 +676,13 @@ public class PopupWindowController {
         } else {
             canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
         }
-        return ActionResultDelivery.resolve(
+        let resolved = ActionResultDelivery.resolve(
             raw: result,
             clickIntent: delivery.clickIntent,
             canPaste: canPaste,
             delivery: delivery.delivery ?? .none
         )
+        return (resolved.result, suppressDeliveryToast ? nil : resolved.toast)
     }
 
     private func isPaste(_ result: ActionResult?) -> Bool {
@@ -722,7 +725,7 @@ public class PopupWindowController {
                 if result.dismissesPopup {
                     self.hide()
                 }
-                self.handleActionResult(result, delivery: delivery)
+                self.handleActionResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
             } catch {
                 Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
                 self.handleActionResult(.toast(StatusFeedback(error: error)))
@@ -760,7 +763,7 @@ public class PopupWindowController {
         Task { @MainActor in
             do {
                 let result = try await action.perform(performContext)
-                await settleLoadingResult(result, delivery: delivery)
+                await settleLoadingResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
             } catch {
                 Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
                 await settleLoadingResult(.toast(StatusFeedback(error: error)), delivery: delivery)
@@ -771,8 +774,10 @@ public class PopupWindowController {
     /// Resolves a loading action's result into the toast: `.toast` swaps to that status,
     /// a delivered result's companion toast (a paste→copy downgrade's "Copied", a declared per-click
     /// toast) swaps in, and everything else (`.success`, `.openURL`, honored paste, native copy)
-    /// fades the spinner.
-    private func settleLoadingResult(_ result: ActionResult, delivery: DeliveryContext) async {
+    /// fades the spinner. When `suppressDeliveryToast` is true (the top-level result already carries
+    /// a `.toast`), the delivery companion is skipped and whatever toast is showing is left alone —
+    /// the script toast item in the tree presents itself, one toast per run.
+    private func settleLoadingResult(_ result: ActionResult, delivery: DeliveryContext, suppressDeliveryToast: Bool = false) async {
         switch result {
         case .toast(let feedback):
             toastController.show(feedback)
@@ -780,15 +785,15 @@ public class PopupWindowController {
             toastController.hide()
             presentConfiguration(for: request)
         case .sequence(let items):
-            for item in items { await settleLoadingResult(item, delivery: delivery) }
+            for item in items { await settleLoadingResult(item, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast) }
         default:
             let effect = result
             do {
-                let resolved = await resolveDelivery(effect, delivery: delivery)
+                let resolved = await resolveDelivery(effect, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
-                if let toast = resolved.toast {
+                if let toast = resolved.toast, !suppressDeliveryToast {
                     toastController.swapTo(toast)
-                } else {
+                } else if !suppressDeliveryToast {
                     toastController.hide()
                 }
             } catch {

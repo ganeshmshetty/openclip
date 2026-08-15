@@ -504,7 +504,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     /// Completion buttons route `deliverResult(.paste(word))` straight in (PopupView `onResult`),
     /// bypassing `onWillPerformAction`. Model the left-click bar flow: the prior action's declared
-    /// delivery is snapshotted into `pendingDelivery`, its non-dismissing `.toast` result
+    /// delivery is snapshotted into `pendingDelivery`, its dismissing `.toast` result
     /// routes through `deliverResult` (which consumes and clears the declaration), and the
     /// completion-word paste that follows must carry no declared secondary and fire no stale toast.
     @MainActor
@@ -529,6 +529,50 @@ final class ActionResultDeliveryTests: XCTestCase {
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(toast.currentFeedback, working,
                        "the prior action's declared delivery must not leak: the completion paste fires no stale toast")
+    }
+
+    // MARK: - One toast per run: a script toast wins over the delivery companion
+
+    /// A top-level `.toast` from a script suppresses the delivery companion: even with a declared
+    /// primary toast snapshotted onto the delivery, the script toast must win and the declared
+    /// toast must never surface (one toast per run).
+    @MainActor
+    func testScriptToastWinsOverDeclaredToast() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        let scriptToast = StatusFeedback(message: "saved", style: .info)
+        controller.pendingDelivery = ActionDelivery(primaryToast: StatusFeedback(message: "declared", style: .info))
+        controller.deliverResult(.toast(scriptToast))
+
+        XCTAssertEqual(toast.currentFeedback, scriptToast,
+                       "the script toast must win over the declared delivery companion")
+    }
+
+    /// A top-level sequence carrying a script toast suppresses the delivery companion for its
+    /// effects: the paste→copy downgrade's default "Copied" toast must not surface alongside the
+    /// script toast (one toast per run).
+    @MainActor
+    func testScriptToastSuppressesDefaultCopiedToast() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        let scriptToast = StatusFeedback(message: "saved", style: .info)
+        controller.deliverResult(.sequence([.toast(scriptToast), .copy("x")]))
+
+        _ = try await awaitDelivery(from: handler)
+        XCTAssertEqual(toast.currentFeedback, scriptToast,
+                       "the script toast must win over the default Copied toast")
     }
 
     // MARK: - Declared .paste secondary probes even on a secondary click

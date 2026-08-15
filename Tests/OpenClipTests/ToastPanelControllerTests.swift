@@ -75,4 +75,12 @@ final class ToastPanelControllerTests: XCTestCase {
         XCTAssertTrue(controller.isShowing, "loading toast must not auto-dismiss")
         controller.hide()
     }
+
+    func testKeepVisibleToastHasNoTimer() async throws {
+        let controller = ToastPanelController(autoDismissNanoseconds: 20_000_000)
+        controller.show(StatusFeedback(message: "Stick", style: .info, keepVisible: true))
+        try await Task.sleep(nanoseconds: 150_000_000)
+        XCTAssertTrue(controller.isShowing, "keep-visible toast must not auto-dismiss")
+        controller.hide()
+    }
 }
