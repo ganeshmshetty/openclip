@@ -81,7 +81,7 @@ final class OpenClipJSHostTests: XCTestCase {
         MockURLProtocol.capturedRequests.removeAll()
     }
 
-    private func makeContext(selectedText: String = "hello", match: ActionMatchInfo? = nil) -> ActionContext {
+    private func makeContext(selectedText: String = "hello", match: ActionMatchInfo? = nil, isSecondaryClick: Bool = false) -> ActionContext {
         let selection = SelectionContext(
             text: selectedText,
             sourceApp: AppIdentity(bundleIdentifier: "com.host.test", localizedName: "HostTestApp"),
@@ -89,7 +89,7 @@ final class OpenClipJSHostTests: XCTestCase {
             timestamp: Date(),
             appPolicy: .default
         )
-        return ActionContext(selection: selection, match: match)
+        return ActionContext(selection: selection, isSecondaryClick: isSecondaryClick, match: match)
     }
 
     private func makeRequest(
@@ -97,12 +97,13 @@ final class OpenClipJSHostTests: XCTestCase {
         options: [ExtensionOption] = [],
         rules: ExtensionActionRules = ExtensionActionRules(),
         isAsync: Bool = false,
-        timeout: TimeInterval? = nil
+        timeout: TimeInterval? = nil,
+        isSecondaryClick: Bool = false
     ) -> OpenClipJSHost.Request {
         OpenClipJSHost.Request(
             actionID: "test.action",
             scriptCode: script,
-            context: makeContext(),
+            context: makeContext(isSecondaryClick: isSecondaryClick),
             options: options,
             optionStore: optionStore,
             rules: rules,
@@ -220,6 +221,22 @@ final class OpenClipJSHostTests: XCTestCase {
             return XCTFail("Expected .copy, got \(result)")
         }
         XCTAssertEqual(text, "c1,c2")
+    }
+
+    func testInputIsSecondaryClickFlagBranchesScript() async throws {
+        let script = "function action(t){ return openclip.input.isSecondaryClick ? 'secondary' : 'primary'; }"
+
+        let primary = try await host.run(makeRequest(script: script, isSecondaryClick: false))
+        guard case .copy(let primaryText) = primary else {
+            return XCTFail("Expected .copy for primary click, got \(primary)")
+        }
+        XCTAssertEqual(primaryText, "primary")
+
+        let secondary = try await host.run(makeRequest(script: script, isSecondaryClick: true))
+        guard case .copy(let secondaryText) = secondary else {
+            return XCTFail("Expected .copy for secondary click, got \(secondary)")
+        }
+        XCTAssertEqual(secondaryText, "secondary")
     }
 
     func testInputMatchedTextAndAppExposed() async throws {
