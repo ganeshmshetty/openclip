@@ -39,6 +39,8 @@ struct PopupPreview: View {
         return ActionContext(selection: context, modifiers: [])
     }
 
+    @AppStorage(SettingKey.popupScale.name) private var popupScale: Double = SettingKey.popupScale.defaultValue
+
     var body: some View {
         VStack(spacing: 12) {
             Text("Popup Preview")
@@ -53,7 +55,6 @@ struct PopupPreview: View {
                 isStatic: true,
                 modeStore: PopupModeStore()
             ) { _ in }
-                .scaleEffect(1.1)
                 .padding(.vertical, 8)
         }
         .frame(maxWidth: .infinity, minHeight: 140)

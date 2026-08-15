@@ -48,6 +48,11 @@ public extension SettingKey where Value == Bool {
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
 }
 
+public extension SettingKey where Value == Double {
+    /// Visual scaling factor for the popup (1.0 = 100%).
+    static var popupScale: SettingKey<Double> { SettingKey<Double>("popupScale", defaultValue: 1.0) }
+}
+
 public extension SettingKey where Value == Data? {
     static var actionCustomizations: SettingKey<Data?> { SettingKey<Data?>("action.customizations", defaultValue: nil) }
 }

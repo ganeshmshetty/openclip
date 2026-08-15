@@ -8,6 +8,12 @@
 import CoreGraphics
 
 public enum PopupMetrics {
+    /// Corner radius for popup action bars and content cards.
+    public static let popupCornerRadius: CGFloat = 10.0
+    /// Corner radius for the action-search palette.
+    public static let searchCornerRadius: CGFloat = 10.0
+    /// Corner radius for floating toast bubbles.
+    public static let toastCornerRadius: CGFloat = 14.0
     public static let popupPadding: CGFloat = 8.0
     /// Cursor distance (pt) beyond which the popup auto-dismisses (suspended in search/content mode).
     public static let popupDismissalDistance: CGFloat = 160.0

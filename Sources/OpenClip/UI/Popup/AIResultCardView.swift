@@ -92,7 +92,7 @@ public struct AIResultCardView: View {
     // MARK: Chrome
 
     private func cardChrome<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: PopupMetrics.popupCornerRadius, style: .continuous)
         let borderColor: Color = colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
         return content()
             .background(

@@ -142,7 +142,7 @@ public struct PopupSearchView: View {
             }
         }
         .frame(width: 280)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: PopupMetrics.searchCornerRadius, style: .continuous))
         .onPreferenceChange(SearchHoverFramePreferenceKey.self) { frames in
             hoverFrames = frames
             updateHoveredTarget(for: hoverState.location)
