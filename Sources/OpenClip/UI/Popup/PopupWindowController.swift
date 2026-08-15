@@ -623,7 +623,7 @@ public class PopupWindowController {
     }
 
     /// Routes a leaf effect to DefaultActionResultHandler and surfaces any thrown error uniformly
-    /// (decision 9): an error becomes a `.toast(.error)` and the popup stays. Returns the task
+    /// (decision 9): an error becomes a dismissing `.toast(.error)`. Returns the task
     /// so a caller can await the posted effect.
     ///
     /// Applies the standardized paste-vs-copy delivery decision (`.paste` → `.copy` when the click

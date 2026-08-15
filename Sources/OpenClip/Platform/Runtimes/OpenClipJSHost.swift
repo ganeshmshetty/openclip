@@ -605,7 +605,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             } else {
                 let input = request.context.match?.matchedText ?? request.context.selection.text
                 let mapped = effects.map { effectResult($0, input: input) }
-                raw = mapped.count == 1 ? .sequence([.toast(toast), mapped[0]]) : .sequence([.toast(toast)] + mapped)
+                raw = .sequence([.toast(toast)] + mapped)
             }
         } else if !effects.isEmpty {
             let input = request.context.match?.matchedText ?? request.context.selection.text
