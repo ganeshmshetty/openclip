@@ -766,4 +766,157 @@ final class OpenClipJSHostTests: XCTestCase {
         }
         XCTAssertEqual(text, "ran")
     }
+
+    // MARK: - JS modules (packageDirectory != nil)
+
+    /// Writes a temp package and returns its URL; files map "rel/path" -> content.
+    private func makeModulePackage(_ files: [String: String]) throws -> URL {
+        let package = FileManager.default.temporaryDirectory.appendingPathComponent("host-module-\(UUID().uuidString)")
+        for (path, content) in files {
+            let url = package.appendingPathComponent(path)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try content.write(to: url, atomically: true, encoding: .utf8)
+        }
+        addTeardownBlock { try? FileManager.default.removeItem(at: package) }
+        return package
+    }
+
+    private func makeModuleRequest(script: String, package: URL, isAsync: Bool = false, timeout: TimeInterval? = nil) -> OpenClipJSHost.Request {
+        OpenClipJSHost.Request(
+            actionID: "test.action",
+            scriptCode: script,
+            context: makeContext(),
+            options: [],
+            optionStore: optionStore,
+            rules: ExtensionActionRules(),
+            isAsync: isAsync,
+            timeout: timeout,
+            packageDirectory: package
+        )
+    }
+
+    func testModulePackageRequiresLocalHelper() async throws {
+        let package = try makeModulePackage([
+            "lib/helper.js": "module.exports = { upper: function(s) { return s.toUpperCase(); } };"
+        ])
+        let script = "function action(text) { return require('./lib/helper.js').upper(text); }"
+        let result = try await host.run(makeModuleRequest(script: script, package: package))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "HELLO")
+    }
+
+    func testCJSModuleExportsActionEntryForm() async throws {
+        let package = try makeModulePackage([:])
+        let script = "module.exports = { action: function(selection, options) { return 'cjs'; } };"
+        let result = try await host.run(makeModuleRequest(script: script, package: package))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "cjs")
+    }
+
+    func testDirectFunctionExportEntryForm() async throws {
+        let package = try makeModulePackage([:])
+        let script = "module.exports = function action() { return 'direct'; };"
+        let result = try await host.run(makeModuleRequest(script: script, package: package))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "direct")
+    }
+
+    func testModuleCacheAndSingletonAcrossRequires() async throws {
+        let package = try makeModulePackage([
+            "libB.js": "var n = (globalThis.__loads = (globalThis.__loads || 0) + 1); module.exports = { n: n };",
+            "libA.js": "module.exports = { b: require('./libB.js') };"
+        ])
+        let script = """
+        var a = require('./libA.js');
+        var a2 = require('./libA.js');
+        var b = require('./libB.js');
+        function action() { return a.b.n + '|' + b.n + '|' + (a === a2) + '|' + (a.b === b); }
+        """
+        let result = try await host.run(makeModuleRequest(script: script, package: package))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "1|1|true|true")
+    }
+
+    func testModuleCycleResolvesWithPartialExports() async throws {
+        let package = try makeModulePackage([
+            "a.js": "module.exports.fromB = require('./b.js').name;",
+            "b.js": "module.exports.name = 'bee'; module.exports.aLoaded = (typeof require('./a.js') === 'object');"
+        ])
+        let script = """
+        var a = require('./a.js');
+        function action() { return a.fromB + '|' + require('./b.js').aLoaded; }
+        """
+        let result = try await host.run(makeModuleRequest(script: script, package: package))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "bee|true")
+    }
+
+    func testMissingModuleShowsErrorStatus() async throws {
+        let package = try makeModulePackage([:])
+        let script = "function action() { require('./nope.js'); return 'x'; }"
+        let result = try await host.run(makeModuleRequest(script: script, package: package))
+        guard case .showStatus(let feedback) = result else {
+            return XCTFail("Expected .showStatus, got \(result)")
+        }
+        XCTAssertEqual(feedback.style, .error)
+        XCTAssertTrue(feedback.message.contains("Cannot find module"))
+        XCTAssertTrue(feedback.message.contains("nope.js"))
+    }
+
+    func testNodeBuiltinRequireShowsErrorStatus() async throws {
+        let package = try makeModulePackage([:])
+        let script = "function action() { require('fs'); }"
+        let result = try await host.run(makeModuleRequest(script: script, package: package))
+        guard case .showStatus(let feedback) = result else {
+            return XCTFail("Expected .showStatus, got \(result)")
+        }
+        XCTAssertEqual(feedback.style, .error)
+        XCTAssertTrue(feedback.message.contains("Node builtin"))
+        XCTAssertTrue(feedback.message.contains("fs"))
+    }
+
+    func testAsyncModulePackageResolvesHelper() async throws {
+        let package = try makeModulePackage([
+            "lib/up.js": "module.exports = { up: function(s) { return s.toUpperCase(); } };"
+        ])
+        let script = "module.exports = { action: async function(text) { return require('./lib/up.js').up(text); } };"
+        let result = try await host.run(makeModuleRequest(script: script, package: package, isAsync: true))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "HELLO")
+    }
+
+    func testJavaScriptActionPerformThreadsPackageDirectory() async throws {
+        let package = try makeModulePackage([
+            "u.js": "module.exports = function(s) { return s.toUpperCase(); };"
+        ])
+        let action = JavaScriptAction(
+            id: "pkg.main",
+            title: "Pkg",
+            iconSymbol: "terminal",
+            scriptCode: "function action(t) { return require('./u.js')(t); }",
+            options: [],
+            chrome: nil,
+            optionStore: MemoryOptionStore(),
+            rules: nil,
+            isAsync: false,
+            packageDirectory: package
+        )
+        let result = try await action.perform(makeContext())
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "HELLO")
+    }
 }

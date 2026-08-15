@@ -259,6 +259,33 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(showStatusBlock, forKeyedSubscript: "showStatus" as NSString)
         openclip.setObject(requireConfigurationBlock, forKeyedSubscript: "requireConfiguration" as NSString)
 
+        // Module bridge: in module mode (packageDirectory != nil) the wrapper prelude calls
+        // `openclip.__resolveModule(dir, specifier)` to resolve a require on the host side via
+        // OpenClipModuleLoader, returning `{ ok, path, dir, source }` or `{ ok: false, message }`.
+        if let packageDirectory = request.packageDirectory {
+            let resolveModuleBlock: @convention(block) (String, String) -> [String: Any] = { dirString, specifier in
+                let requiringDirectory = URL(fileURLWithPath: dirString, isDirectory: true)
+                do {
+                    let resolved = try OpenClipModuleLoader.load(
+                        specifier: specifier,
+                        requiringDirectory: requiringDirectory,
+                        packageRoot: packageDirectory
+                    )
+                    return [
+                        "ok": true,
+                        "path": resolved.url.path,
+                        "dir": resolved.directoryURL.path,
+                        "source": resolved.source
+                    ]
+                } catch let error as ModuleResolutionError {
+                    return ["ok": false, "message": error.message]
+                } catch {
+                    return ["ok": false, "message": (error as NSError).localizedDescription]
+                }
+            }
+            openclip.setObject(resolveModuleBlock, forKeyedSubscript: "__resolveModule" as NSString)
+        }
+
         jsContext.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
         jsContext.evaluateScript("openclip.option = function(id) { return openclip.options[id]; }")
         if request.isAsync, let promiseState {
@@ -271,7 +298,14 @@ public final class OpenClipJSHost: @unchecked Sendable {
             )
         }
 
-        let wrappedScript = request.isAsync ? asyncWrappedScript(request.scriptCode) : syncWrappedScript(request.scriptCode)
+        let wrappedScript: String
+        if let packageDirectory = request.packageDirectory {
+            wrappedScript = request.isAsync
+                ? asyncModuleWrappedScript(request.scriptCode, entryDirectory: packageDirectory.path)
+                : syncModuleWrappedScript(request.scriptCode, entryDirectory: packageDirectory.path)
+        } else {
+            wrappedScript = request.isAsync ? asyncWrappedScript(request.scriptCode) : syncWrappedScript(request.scriptCode)
+        }
         let jsResult = jsContext.evaluateScript(wrappedScript)
 
         if timeoutFlag.isTimedOut {
@@ -452,6 +486,94 @@ public final class OpenClipJSHost: @unchecked Sendable {
             openclip.__resolve(null);
             return null;
         })();
+        """
+    }
+
+    /// Module-mode sync wrapper. The prelude runs at wrapper top level so `module`/`require` are
+    /// visible to the entry `scriptCode`; dispatch prefers `module.exports` (function or
+    /// `.action`/`.main`) and falls back to in-scope `action`/`main` for legacy single-file scripts.
+    private static func syncModuleWrappedScript(_ scriptCode: String, entryDirectory: String) -> String {
+        """
+        \(modulePrelude(entryDirectory: entryDirectory))
+        var selection = openclip.input.text;
+        var options = openclip.options;
+        \(scriptCode)
+        (function() {
+            var __entry;
+            if (typeof module.exports === 'function') __entry = module.exports;
+            else if (typeof module.exports.action === 'function') __entry = module.exports.action;
+            else if (typeof module.exports.main === 'function') __entry = module.exports.main;
+            else if (typeof action === 'function') __entry = action;
+            else if (typeof main === 'function') __entry = main;
+            if (__entry) return __entry(selection, options);
+            return null;
+        })();
+        """
+    }
+
+    /// Module-mode async wrapper: same prelude/dispatch as the sync variant, but routes the entry
+    /// through `__openclip_dispatch` so promise returns settle the bridge promise.
+    private static func asyncModuleWrappedScript(_ scriptCode: String, entryDirectory: String) -> String {
+        """
+        var __openclip_dispatch = function(fn, selection, options) {
+            var result;
+            try {
+                result = fn(selection, options);
+            } catch (e) {
+                openclip.__reject(e);
+                return null;
+            }
+            if (result !== null && result !== undefined && typeof result.then === 'function') {
+                result.then(
+                    function(value) { openclip.__resolve(value); },
+                    function(error) { openclip.__reject(error); }
+                );
+                return null;
+            }
+            openclip.__resolve(result);
+            return null;
+        };
+        \(modulePrelude(entryDirectory: entryDirectory))
+        var selection = openclip.input.text;
+        var options = openclip.options;
+        \(scriptCode)
+        (function() {
+            var __entry;
+            if (typeof module.exports === 'function') __entry = module.exports;
+            else if (typeof module.exports.action === 'function') __entry = module.exports.action;
+            else if (typeof module.exports.main === 'function') __entry = module.exports.main;
+            else if (typeof action === 'function') __entry = action;
+            else if (typeof main === 'function') __entry = main;
+            if (__entry) return __openclip_dispatch(__entry, selection, options);
+            openclip.__resolve(null);
+            return null;
+        })();
+        """
+    }
+
+    /// Module scaffolding: per-run cache (cache-first so cycles get partial exports) and a
+    /// per-directory `require` bound via `__require.bind(null, dir)` so nested requires resolve
+    /// relative to the requiring file (Node semantics). `__dirname` is the entry directory.
+    private static func modulePrelude(entryDirectory: String) -> String {
+        let escaped = entryDirectory
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return """
+        var __moduleCache = {};
+        var __require = function(dir, specifier) {
+            var r = openclip.__resolveModule(dir, specifier);
+            if (!r.ok) throw new Error(r.message);
+            if (__moduleCache[r.path] !== undefined) return __moduleCache[r.path];
+            var m = { exports: {} };
+            __moduleCache[r.path] = m.exports;
+            (new Function('require', 'module', 'exports', '__dirname', r.source))(__require.bind(null, r.dir), m, m.exports, r.dir);
+            __moduleCache[r.path] = m.exports;
+            return m.exports;
+        };
+        var require = __require.bind(null, "\(escaped)");
+        var module = { exports: {} };
+        var exports = module.exports;
+        var __dirname = "\(escaped)";
         """
     }
 
