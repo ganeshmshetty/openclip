@@ -2,6 +2,10 @@
 // OpenClip
 //
 // Implements the standard paste action that triggers clipboard paste simulation.
+//
+// Delivery: no `delivery` declared (default nil), so the paste→copy default applies — a secondary
+// click (or a primary click when paste is unavailable) derives `.copy` and shows the default
+// "Copied" toast. Builtins and extensions therefore behave identically.
 import Foundation
 
 public struct PasteAction: ConfigurableAction, PasteRequiringAction {

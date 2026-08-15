@@ -2,6 +2,9 @@
 // OpenClip
 //
 // Implements the standard copy action that returns a clipboard copy result for selected text.
+//
+// Delivery: no `delivery` declared (default nil). A secondary click copies (a copy primary is its
+// own secondary), and the resolver's default toast already says "Copied" — nothing to add.
 import Foundation
 
 public struct CopyAction: ConfigurableAction {
