@@ -18,7 +18,7 @@ public struct InstalledExtensionsView: View {
         let packageID: String
         let title: String
         let representative: any Action
-
+        let gated: GatedExtensionAction?
         var id: String { packageID }
     }
 
@@ -32,22 +32,30 @@ public struct InstalledExtensionsView: View {
                 titles[packageID] = name
             }
         }
+        let trust = DefaultSettingsStore.shared.get(.extensionTrust)
         return representatives
             .map { packageID, action in
-                PackageRow(packageID: packageID, title: titles[packageID] ?? packageID, representative: action)
+                let gated = action as? GatedExtensionAction
+                return PackageRow(packageID: packageID, title: titles[packageID] ?? packageID, representative: action, gated: gated)
             }
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
 
     @State private var selectedExtensionID: String? = nil
+    @State private var trustReview: TrustReviewTarget? = nil
+    @State private var isReloading = false
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Spacer()
-                Button(action: {
-                    presentInstallExtensionPanel()
-                }) {
+                Button(action: { Task { await reloadExtensions() } }) {
+                    Label(isReloading ? "Reloading…" : "Reload", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isReloading)
+                Button(action: { presentInstallExtensionPanel() }) {
                     Label("Install File…", systemImage: "square.and.arrow.down")
                 }
                 .buttonStyle(.bordered)
@@ -91,6 +99,23 @@ public struct InstalledExtensionsView: View {
 
                             Spacer()
 
+                            if let gated = package.gated {
+                                Text(badge(for: gated.reason))
+                                    .font(.caption2.weight(.medium))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color.orange.opacity(0.15)))
+                                    .foregroundColor(.orange)
+                            }
+                            if let gated = package.gated {
+                                Button(action: { trustReview = TrustReviewTarget(packageID: package.packageID) }) {
+                                    Label(reviewLabel(for: gated.reason), systemImage: "eye")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+
                             Button(role: .destructive, action: {
                                 uninstallExtension(actionID: package.representative.id)
                             }) {
@@ -110,6 +135,32 @@ public struct InstalledExtensionsView: View {
             }
         }
         .padding(12)
+        .sheet(item: $trustReview) { target in
+            TrustModelView(model: TrustModelViewModel.load(packageID: target.packageID))
+        }
+    }
+
+    private func reloadExtensions() async {
+        isReloading = true
+        await ExtensionManager.shared.loadExtensions()
+        isReloading = false
+        NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+    }
+
+    private func badge(for reason: ExtensionGateReason) -> String {
+        switch reason {
+        case .notEnabled: return "New"
+        case .filesChanged: return "Changed"
+        case .revoked: return "Disabled"
+        case .needsNewerApp: return "Needs Update"
+        }
+    }
+
+    private func reviewLabel(for reason: ExtensionGateReason) -> String {
+        switch reason {
+        case .revoked: return "Enable"
+        default: return "Review"
+        }
     }
 
     private func uninstallExtension(actionID: String) {
