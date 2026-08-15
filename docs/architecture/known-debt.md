@@ -110,7 +110,8 @@ areas; stale debt notes are worse than none.
 ## Unused / Latent
 
 - **`ActionContext.modifiers` is currently unused.** No action reads it; `PopupWindowController`
-  passes `modifiers: []`. The click intent itself *is* plumbed: `ActionContext.forceCopy` is set from
+  passes `modifiers: []`. The click intent itself *is* plumbed: `ActionContext.isSecondaryClick` is
+  set from
   the captured `pendingClickIntent` by the bar/palette perform paths (right-click always; ⇧-click
   via the `onClickIntent` closure) and read by `DefineAction` to copy a definition headlessly. True
   modifier keys (⌘/⌥) still don't reach actions.

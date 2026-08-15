@@ -31,7 +31,7 @@ final class PasteAvailabilityTests: XCTestCase {
 
     func testDenyPastePolicyForcesCopyThroughUnifiedValue() {
         let canPaste = PasteAvailability.effective(policy: AppPolicyContext(denyPaste: true), probe: true) ?? false
-        let result = ActionResultDelivery.resolve(raw: .paste("hello"), clickIntent: .leftClick, canPaste: canPaste)
+        let result = ActionResultDelivery.resolve(raw: .paste("hello"), clickIntent: .primary, canPaste: canPaste)
         guard case .copy(let text) = result else { return XCTFail("denyPaste must force a copy") }
         XCTAssertEqual(text, "hello")
     }

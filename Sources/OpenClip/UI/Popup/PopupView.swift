@@ -123,7 +123,7 @@ public struct PopupView: View {
         onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil,
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
-        onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .leftClick }
+        onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary }
     ) {
         self.actions = actions
         self.context = context
@@ -648,7 +648,7 @@ public struct PopupView: View {
                             let performContext = ActionContext(
                                 selection: context.selection,
                                 modifiers: context.modifiers,
-                                forceCopy: onClickIntent() == .forceCopy,
+                                isSecondaryClick: onClickIntent() == .secondary,
                                 match: match
                             )
                             let result = try await action.perform(performContext)
