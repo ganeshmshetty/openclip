@@ -401,7 +401,6 @@ public struct EditActionSheet: View {
             type: newType,
             scriptCode: newScriptCode,
             requirements: meta.requirements,
-            after: meta.after,
             options: meta.options,
             subActions: meta.subActions,
             keyPress: meta.keyPress,

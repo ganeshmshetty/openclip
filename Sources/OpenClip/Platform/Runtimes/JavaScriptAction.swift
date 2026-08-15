@@ -5,8 +5,8 @@
 // Settings Door. Enablement and match resolution delegate to the shared ActionVisibility evaluator
 // when rules are attached. perform short-circuits to `.openConfiguration` when a declaratively
 // required option has no resolved value (Phase 7), then delegates to OpenClipJSHost (the dedicated,
-// testable bridge that exposes the read-only openclip.* surface) for the RAW runtime result, and
-// finally applies the declarative after rules via ActionResultAdapter.
+// testable bridge that exposes the read-only openclip.* surface) for the RAW runtime result.
+// Secondary/delivery handling happens downstream via the action's declared `delivery`.
 import Foundation
 import JavaScriptCore
 import Core
@@ -107,10 +107,6 @@ public struct JavaScriptAction: ConfigurableAction {
             rules: rules ?? ExtensionActionRules(),
             isAsync: isAsync
         )
-        let raw = try await OpenClipJSHost().run(request)
-        return ActionResultAdapter.apply(
-            raw: raw,
-            after: rules?.after ?? .default
-        )
+        return try await OpenClipJSHost().run(request)
     }
 }

@@ -299,14 +299,10 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "result")
     }
 
-    func testAdapterAppliesAfterToFunctionStringReturn() async throws {
+    func testFunctionStringReturnProducesRawCopyResult() async throws {
         let raw = try await host.run(makeRequest(script: "function action() { return 'result'; }"))
-        let applied = ActionResultAdapter.apply(
-            raw: raw,
-            after: .pasteResult
-        )
-        guard case .paste(let text) = applied else {
-            return XCTFail("Expected .paste after paste-result, got \(applied)")
+        guard case .copy(let text) = raw else {
+            return XCTFail("Expected .copy, got \(raw)")
         }
         XCTAssertEqual(text, "result")
     }

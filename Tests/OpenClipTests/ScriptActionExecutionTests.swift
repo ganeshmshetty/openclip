@@ -124,8 +124,8 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
 
-    func testScriptActionAfterPasteResultOverridesRawCopy() async throws {
-        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("after_test_\(UUID().uuidString).sh")
+    func testScriptActionReturnsRawCopyResult() async throws {
+        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("raw_copy_test_\(UUID().uuidString).sh")
         let scriptContent = """
         #!/bin/bash
         echo '{"type":"copy","value":"X"}'
@@ -134,16 +134,16 @@ final class ScriptActionExecutionTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
 
         let action = ScriptAction(
-            id: "test.after",
-            title: "After",
+            id: "test.rawcopy",
+            title: "Raw Copy",
             icon: .symbol("terminal"),
             scriptURL: tempScript,
-            rules: ExtensionActionRules(after: .pasteResult)
+            rules: ExtensionActionRules()
         )
         let result = try await action.perform(ActionContext(selectedText: "SampleInput"))
 
-        guard case .paste(let text) = result else {
-            return XCTFail("Expected .paste (raw .copy overridden by paste-result), got \(result)")
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy (raw runtime result), got \(result)")
         }
         XCTAssertEqual(text, "X")
 

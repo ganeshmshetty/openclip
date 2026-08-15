@@ -1,7 +1,7 @@
 // ActionRequirements.swift
 // OpenClip
 //
-// Defines declarative action requirements and after-run behavior for extension manifest actions.
+// Defines declarative action requirements for extension manifest actions.
 // Schema-only in Phase 1: these types decode but are not yet enforced by any runtime.
 import Foundation
 
@@ -76,12 +76,4 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         case requiredOptionsDash = "required-options"
         case expression
     }
-}
-
-public enum ActionAfterBehavior: String, Codable, Sendable {
-    case copyResult = "copy-result"
-    case pasteResult = "paste-result"
-    case showResult = "show-result"
-    case none = "none"
-    case `default` = "default"
 }

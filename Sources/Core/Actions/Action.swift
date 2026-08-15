@@ -12,6 +12,16 @@ public enum ActionIcon: Sendable, Equatable {
     case text(String)
 }
 
+public extension ActionIcon {
+    /// The SF Symbol name for symbol icons; nil for local/url/text icons.
+    var symbolName: String? {
+        switch self {
+        case .symbol(let name): return name
+        case .local, .url, .text: return nil
+        }
+    }
+}
+
 public protocol Action: Sendable {
     var id: String { get }
     var title: String { get }
