@@ -318,6 +318,21 @@ final class ScriptActionExecutionTests: XCTestCase {
         let failRes = ShellResultMapper.actionResult(from: "{\"type\":\"fail\",\"message\":\"Broken\"}", actionID: "a")
         guard case .failure(let err) = failRes else { return XCTFail("Expected .failure") }
         XCTAssertEqual((err as NSError).localizedDescription, "Broken")
+
+        let toastRes = ShellResultMapper.actionResult(from: "{\"type\":\"toast\",\"message\":\"Saved\",\"style\":\"success\",\"keepVisible\":true}", actionID: "a")
+        guard case .toast(let fb) = toastRes else { return XCTFail("Expected .toast") }
+        XCTAssertEqual(fb.message, "Saved")
+        XCTAssertEqual(fb.style, .success)
+        XCTAssertTrue(fb.keepVisible)
+
+        let toastPlainRes = ShellResultMapper.actionResult(from: "{\"type\":\"toast\",\"message\":\"Note\",\"style\":\"info\"}", actionID: "a")
+        guard case .toast(let plainFb) = toastPlainRes else { return XCTFail("Expected .toast") }
+        XCTAssertEqual(plainFb.message, "Note")
+        XCTAssertEqual(plainFb.style, .info)
+        XCTAssertFalse(plainFb.keepVisible)
+
+        let legacyStatusRes = ShellResultMapper.actionResult(from: "{\"type\":\"status\",\"message\":\"Old\"}", actionID: "a")
+        guard case .success = legacyStatusRes else { return XCTFail("Expected .success for removed \"status\" type") }
     }
 }
 
