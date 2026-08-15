@@ -43,6 +43,11 @@ The loader decodes `~/.openclip/extensions/<dir>/openclip.json` (legacy names `m
   // validation log line (e.g. "Loaded extension manifest <id> (v1.0.1, schema 1, ...)").
   "version": "1.0.0",
 
+  // OPTIONAL. Minimum OpenClip version this package requires ("1.2.3"). Min-only and decode-only:
+  // an incompatible package still loads but is gated "Needs Update" until the app is newer (see
+  // §11). Absent or malformed → treated as compatible.
+  "openClipVersion": "1.2.3",
+
   // OPTIONAL. Declared runtime capabilities. The host's known-capability set is EMPTY on day one,
   // so any non-empty list here REJECTS the manifest at load time. Reserved for future use; do not
   // write it yet.
@@ -816,7 +821,50 @@ are rejected at build time by esbuild's browser platform. See
 
 ---
 
-## 11. Do NOT
+## 11. Trust & consent lifecycle
+
+Extensions are **fail-closed**: nothing in a package runs until the user **enables** it once. Each
+package is tracked in `SettingsStore` by its `manifest.identifier` under three SettingKeys —
+`extension.trust` (state), `extension.trustHashes` (content hash recorded at enable), and
+`extension.sources` (`"store"` or `"local"`).
+
+Per-package trust states:
+
+- `seen` — detected but never enabled; its actions are gated (registered but not runnable).
+- `trusted` — enabled; the package's content hash was recorded at enable time.
+- `revoked` — explicitly disabled; stays disabled until re-enabled.
+
+The single consent surface is the **trust model sheet**. How each install path reaches it:
+
+- **Manual drop** (copy a folder into `~/.openclip/extensions` while running) → "New Extension"
+  notification → clicking it opens the trust model → Enable → runs.
+- **Install File…** → the trust model opens immediately (no notification) → Enable → runs.
+- **Store install** → the store click *is* consent: the package auto-trusts and runs immediately,
+  with no trust model and no notification.
+
+**Tamper-watch**: the package's content hash is recorded at enable and re-verified at every load. A
+`trusted` package whose files changed is **auto-disabled** — trust flips back to `seen`, an
+"Extension Disabled" notification fires, and its actions are gated as `filesChanged`. Reviewing it
+shows a "Files changed" warning; re-enabling re-records the new hash. **Reload never re-trusts.**
+
+**`openClipVersion`** is min-only and decode-only (§2): a package declaring a minimum newer than
+the running app still loads but is gated "Needs Update" — its actions don't run until the app is
+updated. Absent or malformed → compatible.
+
+**Updates are manual and store-packages-only.** A store package gets a per-package **Update** button
+next to Delete plus an **Update All**; there is no auto-update. An update is a fresh store install,
+so it re-trusts with the new content hash — except a `revoked` package, which stays revoked.
+
+**Migration**: the first launch after upgrade auto-trusts every package already present (one-time),
+so pre-existing extensions keep working with zero action.
+
+> Capability *enforcement* remains future work — consent today is binary (package-level trust), not
+> per-capability. JIT permission prompts and gating of `fetch`/`keyPress`/`runShortcut` are not yet
+> wired.
+
+---
+
+## 12. Do NOT
 
 - **Do not put AppKit/SwiftUI in Core** — extension *parsing* (`OpenClipSnippetParser`) and model
   types in `Sources/Core/` are pure; keep them free of UI imports.
@@ -844,7 +892,7 @@ are rejected at build time by esbuild's browser platform. See
 
 ---
 
-## 12. Source of truth recap (for confident auditing)
+## 13. Source of truth recap (for confident auditing)
 
 - Manifest model & decoding: `Sources/Core/Extensions/Manifest/ExtensionManifest.swift`,
   `ExtensionActionKind.swift`, `ActionRequirements.swift`; loading in

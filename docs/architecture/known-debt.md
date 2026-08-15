@@ -69,8 +69,13 @@ areas; stale debt notes are worse than none.
   author with esbuild (`--platform=browser --target=es2020`) into `dist/main.js`; the host loader is
   **`.js`-only**, so TypeScript works only through the bundle path (`--with-npm` scaffold). Node
   builtins are rejected at build time by the esbuild platform — they can never run.
-- **The capability-gating sandbox remains future work.** Extensions still execute in-process with
-  the app's user context; module containment bounds file reads but is not a privilege boundary.
+- **The consent gate has landed; capability *enforcement* remains future work.** Nothing runs until
+  a package is enabled (fail-closed trust states `seen`/`trusted`/`revoked` behind a single
+  trust-model consent surface), and a tamper-watch auto-disables a trusted package whose content
+  hash changed at a later load. Still future: JIT permission prompts, gating `fetch`/`keyPress`/
+  `runShortcut`, seeding `ManifestCapabilityGate`, and a JS honesty-scan acting on mismatches.
+  Extensions still execute in-process with the app's user context; module containment bounds file
+  reads but is not a privilege boundary.
 
 ## Presentation / Rule Holes
 
