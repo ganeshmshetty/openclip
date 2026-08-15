@@ -148,14 +148,77 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
     /// Wraps a created action in `MenuDecoratedAction` when its manifest metadata declares
     /// `menuRelevance`, stamping the action with sub-menu relevance without changing its
     /// identity. Non-declaring actions pass through unchanged.
+    ///
+    /// Delivery-declaring actions (manifest `secondary`/`toast`/`secondaryToast`) are wrapped in
+    /// `DeliveryDecoratedAction` carrying the mapped `ActionDelivery`. The wraps compose: the
+    /// menuRelevance wrapper stays outermost so `RelevanceProviding` surfaces on the registered
+    /// action, with `MenuDecoratedAction` forwarding `delivery` through to the inner wrapper.
     private func decorate(_ action: any Action, metadata: ExtensionActionMetadata) -> any Action {
-        guard metadata.menuRelevance != nil else {
-            return action
+        var result = action
+        if let delivery = delivery(from: metadata) {
+            result = DeliveryDecoratedAction(base: result, delivery: delivery)
         }
-        return MenuDecoratedAction(
-            base: action,
-            menuRelevanceRegex: metadata.menuRelevance
+        if metadata.menuRelevance != nil {
+            result = MenuDecoratedAction(
+                base: result,
+                menuRelevanceRegex: metadata.menuRelevance
+            )
+        }
+        return result
+    }
+
+    /// Builds the declared `ActionDelivery` from manifest metadata, or nil when none of
+    /// secondary/toast/secondaryToast is declared (preserving the current nil-delivery default).
+    private func delivery(from metadata: ExtensionActionMetadata) -> ActionDelivery? {
+        guard metadata.secondary != nil || metadata.toast != nil || metadata.secondaryToast != nil else {
+            return nil
+        }
+        return ActionDelivery(
+            secondary: metadata.secondary.map(actionResult(from:)),
+            primaryToast: metadata.toast.map(statusFeedback(from:)),
+            secondaryToast: metadata.secondaryToast.map(statusFeedback(from:))
         )
+    }
+
+    /// Maps a manifest `secondary` declaration onto the `ActionResult` it stands for, reusing
+    /// `ShellResultMapper`'s stdout vocabulary where the two overlap: copy/paste/openURL/status
+    /// map to the same result shapes, `success` is the mapper's fallback, and an unknown type
+    /// fails open to `.success` (mirroring the mapper's default case). `none` is the small pure
+    /// addition — the empty result for an explicitly no-op secondary.
+    private func actionResult(from secondary: ExtensionSecondaryDeclaration) -> ActionResult {
+        switch secondary.type {
+        case Constants.actionTypeCopy:
+            guard let value = secondary.value else { return .success }
+            return .copy(value)
+        case Constants.actionTypePaste:
+            guard let value = secondary.value else { return .success }
+            return .paste(value)
+        case Constants.actionTypeOpenURL:
+            guard let value = secondary.value, let url = URL(string: value) else { return .success }
+            return .openURL(url)
+        case "status":
+            return .showStatus(StatusFeedback(message: secondary.message ?? "", style: .info))
+        case "success":
+            return .success
+        case "none":
+            return .none
+        default:
+            return .success
+        }
+    }
+
+    /// Maps a manifest `toast`/`secondaryToast` declaration onto the `StatusFeedback` it renders.
+    /// `style` mirrors `ShellResultMapper`'s status mapping, defaulting to `.success` (the
+    /// validator's whitelist default) when absent or unknown.
+    private func statusFeedback(from toast: ExtensionToastDeclaration) -> StatusFeedback {
+        let style: StatusFeedback.Style
+        switch toast.style?.lowercased() {
+        case "success": style = .success
+        case "error": style = .error
+        case "info": style = .info
+        default: style = .success
+        }
+        return StatusFeedback(message: toast.message, style: style)
     }
 
     /// Renders a single executable Action for a manifest entry, or nil when the entry is a `.group`

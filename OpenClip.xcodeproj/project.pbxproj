@@ -181,6 +181,7 @@
 		A14729C1ADC7E7C780F75E60 /* KeyPressSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71D66B03CE90BB5DD34187BD /* KeyPressSpec.swift */; };
 		A218CCDA9C0BB59FE30FFFD7 /* OpenClipJSHostSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38209FD5C0082BD05CC8718 /* OpenClipJSHostSupport.swift */; };
 		A255B2AD8EDA8F740EABEE0F /* SelectionGatePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8018BA605653ACD93A6A6BF6 /* SelectionGatePolicy.swift */; };
+		A301D330D05E4BA3B4CD1DC0 /* DeliveryDecoratedAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3B10512A0215F842296CC1 /* DeliveryDecoratedAction.swift */; };
 		A32E8105B852A0AF20AC8945 /* PopupPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFEE1DAE171FE965EB13F090 /* PopupPanelTests.swift */; };
 		A4B07F7C0AA32D61F32510D5 /* DynamicActionConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3675FDD7BC06CF3B3CBDA003 /* DynamicActionConfigView.swift */; };
 		A4E5C8D67CA65BB32559291A /* DefaultAppRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 074DF8EB3340407D7E993ED7 /* DefaultAppRules.swift */; };
@@ -461,6 +462,7 @@
 		8D8A87C79135F4CF21CF2AF8 /* SelectionRetrievalCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionRetrievalCoordinatorTests.swift; sourceTree = "<group>"; };
 		8E8782CDF24448F374DA0038 /* ActionOptionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionOptionStore.swift; sourceTree = "<group>"; };
 		8F17F7CFF919FB8A8779E0F9 /* CustomActionDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomActionDraft.swift; sourceTree = "<group>"; };
+		8F3B10512A0215F842296CC1 /* DeliveryDecoratedAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeliveryDecoratedAction.swift; sourceTree = "<group>"; };
 		8F741E6F7B6D8F5B61A13F0F /* SelectionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionContext.swift; sourceTree = "<group>"; };
 		905AC1128EFCA584DF52AD70 /* CalculateAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculateAction.swift; sourceTree = "<group>"; };
 		90B84517D03AB3D9A5BB0D1D /* AIServiceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIServiceManager.swift; sourceTree = "<group>"; };
@@ -899,6 +901,7 @@
 				58A3A4C1ECD9EF519BE8134B /* ConfigurableAction.swift */,
 				C29A7771E75FA4091D2066E2 /* ConfigurationRequest.swift */,
 				A8DAACCC7C82CE7BB96D5F0D /* CustomAction.swift */,
+				8F3B10512A0215F842296CC1 /* DeliveryDecoratedAction.swift */,
 				AA25688B7F7CA6E74A8BDBDC /* ExtensionActionRules.swift */,
 				B7534A2D6FD5368B237CB5C5 /* ExtensionOption.swift */,
 				B0ACC75077CD6CBA3991371E /* GroupAction.swift */,
@@ -1339,6 +1342,7 @@
 				4AB80D47D3E30B72061B9910 /* CutAction.swift in Sources */,
 				A4E5C8D67CA65BB32559291A /* DefaultAppRules.swift in Sources */,
 				6EC03FC169D6016DF45D4632 /* DefineAction.swift in Sources */,
+				A301D330D05E4BA3B4CD1DC0 /* DeliveryDecoratedAction.swift in Sources */,
 				926C459D71E49552DDA18213 /* ExtensionActionKind.swift in Sources */,
 				FA9CCA6EBD8B042DEA531176 /* ExtensionActionRules.swift in Sources */,
 				6BDAAEBA357BE286266250A6 /* ExtensionManager.swift in Sources */,
