@@ -23,6 +23,9 @@ public struct ManifestValidationIssue: Sendable, Equatable {
         case unknownCapability(String)
         /// An action's option identifier is defined more than once.
         case duplicateOptionIdentifier(String)
+        /// A `javascript` action declares `secondary`, which is reserved for non-scripting kinds;
+        /// JS authors branch on `openclip.input.isSecondaryClick` instead.
+        case secondaryOnJavaScriptAction
     }
 
     public let kind: Kind
@@ -45,6 +48,8 @@ extension ManifestValidationIssue: CustomStringConvertible {
             return "\(path): unknown capability \"\(name)\""
         case .duplicateOptionIdentifier(let identifier):
             return "\(path): duplicate option identifier \"\(identifier)\""
+        case .secondaryOnJavaScriptAction:
+            return "\(path): `secondary` is not supported on javascript actions; branch on `openclip.input.isSecondaryClick` in the script instead"
         }
     }
 }
@@ -161,6 +166,9 @@ public struct ManifestValidator: Sendable {
             if !hasExecutablePayload([action.url, action.script, action.scriptCode]) {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("url/script/scriptCode"), path: path))
             }
+        }
+        if action.kind == .js && action.secondary != nil {
+            issues.append(ManifestValidationIssue(kind: .secondaryOnJavaScriptAction, path: path))
         }
         if let options = action.options {
             issues.append(contentsOf: validateOptions(options, path: path))
