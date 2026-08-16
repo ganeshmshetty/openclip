@@ -15,7 +15,7 @@ public struct RecommendedExtensionsView: View {
     public init() {}
 
     private var installedExtensionCount: Int {
-        coordinator.actions.filter { ActionIdentity.isExtension($0) }.count
+        ActionIdentity.installedPackageIDs(in: coordinator.actions).count
     }
 
     private var recommended: [ExtensionItem] {

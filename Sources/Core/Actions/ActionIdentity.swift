@@ -25,7 +25,13 @@ public enum ActionIdentity {
     /// The extension package identifier for an extension-loaded action, if any.
     public static func extensionPackageID(of action: any Action) -> String? {
         if case .extensionPkg(let packageID) = action.chrome.source { return packageID }
+        if case .extensionPkg(let name) = action.chrome.badge { return name }
         return nil
+    }
+
+    /// The set of unique installed extension package IDs present in an action list.
+    public static func installedPackageIDs(in actions: [any Action]) -> Set<String> {
+        Set(actions.compactMap { extensionPackageID(of: $0) })
     }
 
     /// True for AI-preset actions (`.ai` source) — reachable via the palette and Preferences,

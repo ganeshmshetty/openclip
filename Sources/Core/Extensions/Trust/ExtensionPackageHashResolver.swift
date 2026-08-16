@@ -16,13 +16,52 @@ public enum ExtensionPackageHashResolver {
     public static func packageHash(manifestURL: URL, manifest: ExtensionMetadata) -> String? {
         guard let manifestData = try? Data(contentsOf: manifestURL) else { return nil }
         let directory = manifestURL.deletingLastPathComponent()
+        let canonicalDirectory = directory.resolvingSymlinksInPath().standardizedFileURL
+        let canonicalDirPath = canonicalDirectory.path.hasSuffix("/") ? canonicalDirectory.path : canonicalDirectory.path + "/"
         var payload = Data()
         appendComponent(&payload, relativePath: manifestURL.lastPathComponent, data: manifestData)
+        
+        var visited = Set<String>()
+        visited.insert(normalizedRelativePath(manifestURL.lastPathComponent))
+        
         for name in referencedScriptNames(actions: manifest.actions) {
-            if let data = try? Data(contentsOf: directory.appendingPathComponent(name)) {
-                appendComponent(&payload, relativePath: name, data: data)
+            let scriptURL = directory.appendingPathComponent(name)
+            guard Constants.isPathSafe(destinationURL: scriptURL, baseDirectory: canonicalDirectory) else { continue }
+            let canonicalScript = scriptURL.resolvingSymlinksInPath().standardizedFileURL
+            guard canonicalScript.path.hasPrefix(canonicalDirPath) else { continue }
+            let rel = String(canonicalScript.path.dropFirst(canonicalDirPath.count))
+            let normalized = normalizedRelativePath(rel)
+            visited.insert(normalized)
+            if let data = try? Data(contentsOf: canonicalScript) {
+                appendComponent(&payload, relativePath: normalized, data: data)
             }
         }
+
+        if let enumerator = FileManager.default.enumerator(
+            at: canonicalDirectory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) {
+            var extraFiles: [(relativePath: String, url: URL)] = []
+            for case let fileURL as URL in enumerator {
+                guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
+                      values.isRegularFile == true else { continue }
+                let canonicalFile = fileURL.resolvingSymlinksInPath().standardizedFileURL
+                guard canonicalFile.path.hasPrefix(canonicalDirPath) else { continue }
+                let rel = String(canonicalFile.path.dropFirst(canonicalDirPath.count))
+                let normalized = normalizedRelativePath(rel)
+                if !visited.contains(normalized) {
+                    extraFiles.append((relativePath: rel, url: canonicalFile))
+                }
+            }
+            extraFiles.sort { $0.relativePath < $1.relativePath }
+            for extra in extraFiles {
+                if let data = try? Data(contentsOf: extra.url) {
+                    appendComponent(&payload, relativePath: extra.relativePath, data: data)
+                }
+            }
+        }
+        
         return ContentFingerprint.sha256Hex(payload)
     }
 

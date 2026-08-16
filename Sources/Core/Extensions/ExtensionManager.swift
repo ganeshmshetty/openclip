@@ -166,8 +166,35 @@ public final class ExtensionManager: Sendable {
             try fm.copyItem(at: sourceURL, to: destinationURL)
         }
         
+        // Resolve installed package identifier so we return only actions belonging to this package.
+        let installedPackageID: String?
+        var isDestDir: ObjCBool = false
+        if fm.fileExists(atPath: destinationURL.path, isDirectory: &isDestDir), isDestDir.boolValue {
+            if let manifestURL = ExtensionManifestStore.manifestFileURL(in: destinationURL),
+               let manifest = ExtensionManifestStore.readManifest(at: manifestURL) {
+                installedPackageID = manifest.identifier
+            } else {
+                installedPackageID = nil
+            }
+        } else {
+            if let action = await Self.loadStandaloneScriptExtension(scriptURL: destinationURL, factory: self.actionFactory) {
+                installedPackageID = ActionIdentity.extensionPackageID(of: action) ?? action.id
+            } else {
+                installedPackageID = "\(Constants.customIdentifierPrefix)\(destinationURL.lastPathComponent)"
+            }
+        }
+
         // Reload extensions to activate installed action(s)
         await loadExtensions(from: targetDir)
+
+        if let installedPackageID {
+            let newlyInstalled = loadedActions.filter {
+                ActionIdentity.extensionPackageID(of: $0) == installedPackageID || $0.id == installedPackageID
+            }
+            if !newlyInstalled.isEmpty {
+                return newlyInstalled
+            }
+        }
         return loadedActions
     }
     
