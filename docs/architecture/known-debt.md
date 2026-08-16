@@ -180,6 +180,15 @@ areas; stale debt notes are worse than none.
   the popup open for the card render (Task 4) — dismissal for `.text` is decided by the controller's
   `shouldDismiss`, not `dismissesPopup`. The loading re-show path (`settleLoadingResult`)
   re-creates the popup from the pre-early-close selection snapshot to present the card.
+  - **Re-show binds to the current frontmost app.** The loading-preview re-show
+    (`settleLoadingResult`) re-creates the popup from the selection snapshot, but `hide()`
+    clears `previousFrontmostApp`, so the re-show re-captures whatever is frontmost at settle
+    time — if the user switched apps during a multi-second spinner, dismissal reactivates that
+    app. The card's paste probe correctly targets the snapshotted app; only dismissal's
+    reactivation is affected.
+  - **`.text` inside a `.sequence` is unhandled.** Runtimes emit `.text` only as a lone result
+    today, so a `.text` inside a sequence is defensive-only; if the runtime surface ever grows to
+    emit `.text` in sequences, the tree-walk needs explicit handling.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 

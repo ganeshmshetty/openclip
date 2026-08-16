@@ -703,7 +703,8 @@ public class PopupWindowController {
         // below applies only when the click's outcome is a copy.
         let declaredSecondaryIsPaste = delivery.clickIntent == .secondary && isPaste(delivery.delivery?.secondary)
         let preference = delivery.preference
-        let textPrefersPaste = isText(result) && preference == .paste
+        let declaredSecondaryOverrides = delivery.clickIntent == .secondary && delivery.delivery?.secondary != nil
+        let textPrefersPaste = isText(result) && preference == .paste && !declaredSecondaryOverrides
         let couldPaste = isPaste(result) || declaredSecondaryIsPaste || textPrefersPaste
         // The unified paste decision: per-app rules (assume/deny paste) answer definitively and
         // skip the AX walk entirely (no Accessibility dependency for those apps); a force-copy click
