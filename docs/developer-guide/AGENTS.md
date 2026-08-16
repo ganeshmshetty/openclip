@@ -424,6 +424,15 @@ runs:
 Only `.paste` outcomes are ever downgraded to `.copy`; an explicit `.copy` stays a copy, and
 non-text results (openURL, notify, keyPress, …) pass through untouched.
 
+**Implicit returned text is user-governed.** A runtime that "just returns a string" (JS string
+return, AppleScript output, shell plain-text stdout, a text snippet) produces a `.text` result —
+a *presentation* result that is not delivered directly. The user's **General-tab setting** ("When an
+action returns text") decides, per click: **preview** (render the text in the native AI result card,
+popup stays open), **paste** (probe applies as usual), or **copy**. Defaults: primary pastes,
+secondary copies — identical to today. The picker never governs explicit outcomes (`openclip.paste`
+effects, JSON effects, declared `secondary`, builtins); a declared `secondary` still wins for static
+kinds even when the raw result is `.text`.
+
 **Declarable keys** (per action, all optional). The factory wraps any action declaring them in a
 `DeliveryDecoratedAction` carrying the mapped `ActionDelivery`; non-declaring actions stay plain
 (nil delivery) and inherit the paste→copy default. Builtins declare delivery the same way
@@ -669,7 +678,8 @@ outcomes, or kind runtimes):
 
 Dismissal: `.toast` dismisses the popup by default (`keepVisible: true` keeps it open); `.sequence`
 dismisses only when non-empty and all items dismiss (a `keepVisible` toast forces it open);
-everything else (including `.openConfiguration`) dismisses.
+everything else (including `.openConfiguration`) dismisses. `.text` never auto-dismisses (preview
+keeps the popup open; paste/copy dismiss via the resolved outcome).
 
 The **companion toast** resolved by delivery (the click's declared `toast`/`secondaryToast`, or the
 default "Copied") is a **delivery-side effect** — it is rendered by the floating toast surface and is
