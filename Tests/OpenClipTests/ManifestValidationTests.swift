@@ -274,12 +274,12 @@ final class ManifestValidationTests: XCTestCase {
         {
             "identifier": "com.example.minv",
             "name": "Min V",
-            "openClipVersion": "1.5.0",
+            "minOpenClipVersion": "1.5.0",
             "actions": [{ "title": "URL", "type": "url", "url": "https://example.com/{query}" }]
         }
         """)
         XCTAssertEqual(validator.validate(manifest), [])
-        XCTAssertEqual(manifest.openClipVersion, "1.5.0")
+        XCTAssertEqual(manifest.minOpenClipVersion, "1.5.0")
     }
 
     // MARK: - record (schema version, declared version, fingerprint)

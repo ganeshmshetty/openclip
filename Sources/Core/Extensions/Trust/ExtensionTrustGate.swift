@@ -152,7 +152,7 @@ public enum ExtensionTrustGate {
             let currentHash = ExtensionPackageHashResolver.packageHash(for: representative, in: directory)
             let record = trust[packageID]
             let source = sources[packageID] ?? "local"
-            let required = ExtensionManifestStore.manifest(forPackageID: packageID, in: directory)?.openClipVersion
+            let required = ExtensionManifestStore.manifest(forPackageID: packageID, in: directory)?.minOpenClipVersion
             let compatible = isCompatible(appVersion: appVersion, required: required)
 
             func gated(_ reason: ExtensionGateReason) {
