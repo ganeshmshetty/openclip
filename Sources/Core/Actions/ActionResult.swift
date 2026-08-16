@@ -15,6 +15,13 @@ public indirect enum ActionResult: Sendable {
     case copy(String)
     case cut(String)
     case paste(String)
+    /// Implicitly returned text — a JS string return, AppleScript output, shell plain-text stdout,
+    /// or a text snippet. Unlike `.paste`, it carries no delivery decision: the user's per-click
+    /// preference (General tab → "When an action returns text") decides preview / paste / copy in
+    /// `ActionResultDelivery.resolve`. Explicit effects (openclip.paste/copy, JSON effects, declared
+    /// `secondary`) are never re-decided. Does not auto-dismiss the popup; the controller decides
+    /// dismissal from the resolved outcome.
+    case text(String)
     case showServices(String)
 
     /// Look up `word` in the system dictionaries headlessly (no app launch) and copy its definition
@@ -66,6 +73,10 @@ extension ActionResult {
         switch self {
         case .toast(let feedback):
             return !feedback.keepVisible
+        case .text:
+            // Implicit returned text is a presentation result: dismissal is decided by the
+            // controller from the resolved outcome (preview keeps the popup open; paste/copy dismiss).
+            return false
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)
         default:
@@ -78,6 +89,7 @@ extension ActionResult {
     public var containsToast: Bool {
         switch self {
         case .toast: return true
+        case .text: return false
         case .sequence(let items): return items.contains(where: \.containsToast)
         default: return false
         }

@@ -18,6 +18,13 @@ final class ActionDeliveryTests: XCTestCase {
         XCTAssertEqual(t, "x")
         XCTAssertEqual(d.primaryToast, toast)
     }
+    func testTextEquality() {
+        let d1 = ActionDelivery(secondary: .text("hello"))
+        let d2 = ActionDelivery(secondary: .text("hello"))
+        let d3 = ActionDelivery(secondary: .text("world"))
+        XCTAssertEqual(d1, d2)
+        XCTAssertNotEqual(d1, d3)
+    }
     /// Every conformer gets the nil default without declaring it.
     func testProtocolDefaultIsNil() {
         struct NoDelivery: Action {
