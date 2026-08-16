@@ -12,11 +12,15 @@ struct GeneralTab: View {
     /// Backed by the settings store — the single owner of `isAppEnabled`. Seeded at init and kept
     /// in sync with external changes (status-bar toggle) via the shared state-changed notification.
     @State private var isAppEnabled: Bool
+    @State private var primaryBehavior: String
+    @State private var secondaryBehavior: String
     @ObservedObject private var launchManager = LaunchAtLoginManager.shared
     @ObservedObject private var permissionManager = PermissionManager.shared
 
     init() {
         _isAppEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isAppEnabled))
+        _primaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.primaryClickBehavior))
+        _secondaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.secondaryClickBehavior))
     }
     
     var body: some View {
@@ -96,6 +100,56 @@ struct GeneralTab: View {
                     Toggle("", isOn: $launchManager.isEnabled)
                         .labelsHidden()
                         .accessibilityLabel("Start at Login")
+                }
+                .padding(.vertical, 4)
+            }
+
+            Section(header: Text("When an action returns text")) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Primary click")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text("What happens to returned text on a primary click")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Picker("Primary click", selection: $primaryBehavior) {
+                        ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
+                            Text(pref.rawValue.capitalized).tag(pref.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
+                    .onChange(of: primaryBehavior) { _, newValue in
+                        DefaultSettingsStore.shared.set(.primaryClickBehavior, value: newValue)
+                    }
+                }
+                .padding(.vertical, 4)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Secondary click")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text("What happens to returned text on a right-click or ⇧-click")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Picker("Secondary click", selection: $secondaryBehavior) {
+                        ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
+                            Text(pref.rawValue.capitalized).tag(pref.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
+                    .onChange(of: secondaryBehavior) { _, newValue in
+                        DefaultSettingsStore.shared.set(.secondaryClickBehavior, value: newValue)
+                    }
                 }
                 .padding(.vertical, 4)
             }

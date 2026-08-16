@@ -42,4 +42,24 @@ final class SettingsStoreTests: XCTestCase {
         store.set(.popupScale, value: 1.2)
         XCTAssertEqual(store.get(.popupScale), 1.2)
     }
+
+    func testResultDeliveryDefaults() {
+        XCTAssertEqual(store.get(.primaryClickBehavior), "paste")
+        XCTAssertEqual(store.get(.secondaryClickBehavior), "copy")
+    }
+
+    func testResultDeliveryRoundTrip() {
+        store.set(.primaryClickBehavior, value: "preview")
+        store.set(.secondaryClickBehavior, value: "paste")
+        XCTAssertEqual(store.get(.primaryClickBehavior), "preview")
+        XCTAssertEqual(store.get(.secondaryClickBehavior), "paste")
+    }
+
+    func testResultDeliveryPreferenceMapping() {
+        XCTAssertEqual(ResultDeliveryPreference.allCases, [.preview, .paste, .copy])
+        XCTAssertEqual(ResultDeliveryPreference(rawValue: "preview"), .preview)
+        XCTAssertEqual(ResultDeliveryPreference(rawValue: "paste"), .paste)
+        XCTAssertEqual(ResultDeliveryPreference(rawValue: "copy"), .copy)
+        XCTAssertNil(ResultDeliveryPreference(rawValue: "bogus"))
+    }
 }
