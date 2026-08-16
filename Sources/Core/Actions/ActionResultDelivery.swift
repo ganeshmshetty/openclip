@@ -18,6 +18,16 @@
 // no UserDefaults; `canPaste` is the injected, already-unified answer so this is unit-testable.
 import Foundation
 
+/// The user's chosen behavior when an action implicitly returns text (the General-tab setting,
+/// "When an action returns text"). `.preview` renders the text in the AI result card;
+/// `.paste`/`.copy` deliver it directly. Core never reads the setting itself — the controller
+/// injects the per-click value into `resolve`.
+public enum ResultDeliveryPreference: String, CaseIterable, Sendable, Equatable {
+    case preview
+    case paste
+    case copy
+}
+
 public enum ActionResultDelivery {
     /// How the user triggered the action — used to decide delivery. The popup populates this from
     /// the click that ran the action (right-click or a ⇧-modifier click maps to `.secondary`).
@@ -49,13 +59,15 @@ public enum ActionResultDelivery {
     ///   - canPaste: the unified paste availability (rules + probe) for the target app; callers
     ///     pre-resolve it via `PasteAvailability.effective`, treating unknown as cannot-paste.
     ///   - delivery: the action's declared secondary outcome and per-click toasts.
+    ///   - preference: the user's result delivery preference for implicitly returned text (`.text`).
     public static func resolve(
         raw: ActionResult,
         clickIntent: ClickIntent,
         canPaste: Bool,
-        delivery: ActionDelivery
+        delivery: ActionDelivery,
+        preference: ResultDeliveryPreference? = nil
     ) -> (result: ActionResult, toast: StatusFeedback?) {
-        let selected = select(raw: raw, clickIntent: clickIntent, delivery: delivery)
+        let selected = select(raw: raw, clickIntent: clickIntent, delivery: delivery, preference: preference)
         let delivered = applyProbe(to: selected, canPaste: canPaste)
         let toast = toast(for: raw, selected: selected, delivered: delivered, clickIntent: clickIntent, delivery: delivery)
         return (delivered, toast)
@@ -64,9 +76,21 @@ public enum ActionResultDelivery {
     // MARK: - Decision pipeline
 
     /// Step 1 — Select: which result the delivery starts from.
-    private static func select(raw: ActionResult, clickIntent: ClickIntent, delivery: ActionDelivery) -> ActionResult {
+    private static func select(raw: ActionResult, clickIntent: ClickIntent, delivery: ActionDelivery, preference: ResultDeliveryPreference?) -> ActionResult {
         if clickIntent == .secondary, let declared = delivery.secondary {
+            // Declared outcomes always win over the picker.
             return declared
+        }
+        if case .text(let text) = raw {
+            // Implicit returned text is governed by the user's per-click preference; nil → the
+            // legacy default (primary pastes, secondary copies). `.preview` stays `.text` — a
+            // presentation marker the controller renders in the AI result card, never delivered.
+            let resolved = preference ?? (clickIntent == .secondary ? .copy : .paste)
+            switch resolved {
+            case .preview: return raw
+            case .paste: return .paste(text)
+            case .copy: return .copy(text)
+            }
         }
         if clickIntent == .secondary, case .paste(let text) = raw {
             // Legacy default: a secondary click on a paste primary copies.

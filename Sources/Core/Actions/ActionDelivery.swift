@@ -41,7 +41,8 @@ extension ActionDelivery {
             case (.success, .success), (.simulatePaste, .simulatePaste), (.none, .none):
                 return true
             case (.copy(let x), .copy(let y)), (.cut(let x), .cut(let y)),
-                 (.paste(let x), .paste(let y)), (.showServices(let x), .showServices(let y)),
+                 (.paste(let x), .paste(let y)), (.text(let x), .text(let y)),
+                 (.showServices(let x), .showServices(let y)),
                  (.copyDefinition(let x), .copyDefinition(let y)):
                 return x == y
             case (.openURL(let x), .openURL(let y)):

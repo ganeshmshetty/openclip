@@ -11,14 +11,15 @@ final class ActionResultDeliveryTests: XCTestCase {
     }
 
     /// Asserts `result` equals `expected` by pattern matching (ActionResult is not Equatable).
-    private func assertCase(_ result: ActionResult, _ expected: ActionResult, file: StaticString = #filePath, line: UInt = #line) {
+    private func assertCase(_ result: ActionResult, _ expected: ActionResult, _ message: String = "", file: StaticString = #filePath, line: UInt = #line) {
         switch (result, expected) {
-        case (.paste(let a), .paste(let b)): XCTAssertEqual(a, b, file: file, line: line)
-        case (.copy(let a), .copy(let b)): XCTAssertEqual(a, b, file: file, line: line)
-        case (.cut(let a), .cut(let b)): XCTAssertEqual(a, b, file: file, line: line)
-        case (.openURL(let a), .openURL(let b)): XCTAssertEqual(a, b, file: file, line: line)
-        case (.success, .success), (.none, .none): XCTAssertTrue(true, file: file, line: line)
-        default: XCTFail("unexpected result \(result)", file: file, line: line)
+        case (.paste(let a), .paste(let b)): XCTAssertEqual(a, b, message, file: file, line: line)
+        case (.copy(let a), .copy(let b)): XCTAssertEqual(a, b, message, file: file, line: line)
+        case (.text(let a), .text(let b)): XCTAssertEqual(a, b, message, file: file, line: line)
+        case (.cut(let a), .cut(let b)): XCTAssertEqual(a, b, message, file: file, line: line)
+        case (.openURL(let a), .openURL(let b)): XCTAssertEqual(a, b, message, file: file, line: line)
+        case (.success, .success), (.none, .none): XCTAssertTrue(true, message, file: file, line: line)
+        default: XCTFail(message.isEmpty ? "unexpected result \(result)" : "\(message): unexpected result \(result)", file: file, line: line)
         }
     }
 
@@ -155,6 +156,63 @@ final class ActionResultDeliveryTests: XCTestCase {
         let t = StatusFeedback(message: "Copied alt", style: .success)
         let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: ActionDelivery(secondaryToast: t))
         XCTAssertEqual(toast, t)
+    }
+
+    // MARK: - Implicit returned text (.text) + user preference
+
+    func testTextWithPastePreferencePastesWhenCanPaste() {
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none, preference: .paste)
+        assertCase(r, .paste("hello"))
+        XCTAssertNil(toast, "an honored paste fires no companion toast")
+    }
+
+    func testTextWithPastePreferenceCopiesWhenCannotPaste() {
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .paste)
+        assertCase(r, .copy("hello"))
+        XCTAssertEqual(toast?.message, "Copied", "a paste context delivered as a copy fires the default Copied toast")
+    }
+
+    func testTextWithCopyPreferenceCopiesWithoutToast() {
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none, preference: .copy)
+        assertCase(r, .copy("hello"))
+        XCTAssertNil(toast, "a native copy fires no companion toast")
+    }
+
+    func testTextWithPreviewPreferenceStaysText() {
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none, preference: .preview)
+        assertCase(r, .text("hello"))
+        XCTAssertNil(toast)
+    }
+
+    func testTextWithPreviewPreferenceIgnoresProbe() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .preview)
+        assertCase(r, .text("hello"))
+    }
+
+    func testTextNilPreferencePrimaryDefaultsToPaste() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none)
+        assertCase(r, .paste("hello"))
+    }
+
+    func testTextNilPreferenceSecondaryDefaultsToCopy() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, canPaste: true, delivery: .none)
+        assertCase(r, .copy("hello"))
+    }
+
+    func testDeclaredSecondaryWinsOverTextPreference() {
+        let d = ActionDelivery(secondary: .openURL(URL(string: "https://alt")!))
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("a"), clickIntent: .secondary, canPaste: true, delivery: d, preference: .preview)
+        assertCase(r, .openURL(URL(string: "https://alt")!))
+    }
+
+    func testPreferenceIsNoOpForExplicitPaste() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .preview)
+        assertCase(r, .copy("a"), "an explicit .paste is never previewed — the probe downgrade still applies")
+    }
+
+    func testPreferenceIsNoOpForExplicitCopy() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .copy("a"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .preview)
+        assertCase(r, .copy("a"))
     }
 
     // MARK: - RuleEngine propagates denyPaste

@@ -27,6 +27,11 @@ final class ActionResultDismissPolicyTests: XCTestCase {
         XCTAssertTrue(ActionResult.failure(DummyError()).dismissesPopup)
     }
 
+    func testTextDoesNotDismissPopup() {
+        XCTAssertFalse(ActionResult.text("x").dismissesPopup)
+        XCTAssertFalse(ActionResult.sequence([.copy("x"), .text("y")]).dismissesPopup)
+    }
+
     func testToastDismissesPopupByDefault() {
         XCTAssertTrue(ActionResult.toast(.init(message: "ok", style: .success)).dismissesPopup)
         XCTAssertTrue(ActionResult.toast(.init(message: "boom", style: .error)).dismissesPopup)
@@ -52,6 +57,8 @@ final class ActionResultDismissPolicyTests: XCTestCase {
         XCTAssertTrue(ActionResult.toast(.init(message: "t", style: .info)).containsToast)
         XCTAssertTrue(ActionResult.sequence([.copy("x"), .toast(.init(message: "t", style: .info))]).containsToast)
         XCTAssertFalse(ActionResult.copy("x").containsToast)
+        XCTAssertFalse(ActionResult.text("x").containsToast)
         XCTAssertFalse(ActionResult.sequence([.copy("x"), .paste("y")]).containsToast)
+        XCTAssertFalse(ActionResult.sequence([.copy("x"), .text("y")]).containsToast)
     }
 }
