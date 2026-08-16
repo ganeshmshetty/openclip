@@ -93,9 +93,25 @@ public enum ExtensionManifestStore {
                 let manifestURL = item.appendingPathComponent(name)
                 guard let manifest = readManifest(at: manifestURL),
                       manifest.identifier == packageID else { continue }
-                for (index, meta) in manifest.actions.enumerated()
-                where ExtensionManager.uniformActionID(metadata: meta, manifest: manifest, index: index) == action.id {
-                    return LocatedManifest(manifestURL: manifestURL, manifest: manifest, targetIndex: index)
+                func matchesSubActions(_ subActions: [ExtensionActionMetadata], parentID: String) -> Bool {
+                    for (subIndex, sub) in subActions.enumerated() {
+                        let subID = "\(parentID).\(sub.id ?? String(subIndex))"
+                        if action.id == subID { return true }
+                        if let nested = sub.subActions, matchesSubActions(nested, parentID: subID) {
+                            return true
+                        }
+                    }
+                    return false
+                }
+
+                for (index, meta) in manifest.actions.enumerated() {
+                    let actionID = ExtensionManager.uniformActionID(metadata: meta, manifest: manifest, index: index)
+                    if actionID == action.id {
+                        return LocatedManifest(manifestURL: manifestURL, manifest: manifest, targetIndex: index)
+                    }
+                    if let subActions = meta.subActions, matchesSubActions(subActions, parentID: actionID) {
+                        return LocatedManifest(manifestURL: manifestURL, manifest: manifest, targetIndex: index)
+                    }
                 }
             }
         }

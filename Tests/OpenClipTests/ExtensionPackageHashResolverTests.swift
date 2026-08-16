@@ -114,6 +114,49 @@ final class ExtensionPackageHashResolverTests: XCTestCase {
         XCTAssertNil(ExtensionManifestStore.manifest(forPackageID: "com.t.missing", in: tempDir))
     }
 
+    func testReferencedScriptEscapingViaParentTraversalIsSkipped() throws {
+        let outsideScript = tempDir.appendingPathComponent("outside.sh")
+        try "echo outside".write(to: outsideScript, atomically: true, encoding: .utf8)
+
+        let pkg = tempDir.appendingPathComponent("escape.openclipext")
+        try FileManager.default.createDirectory(at: pkg, withIntermediateDirectories: true)
+        let manifestURL = pkg.appendingPathComponent("openclip.json")
+        try """
+        {"identifier":"com.t.escape","name":"Escape","actions":[{"title":"A","type":"script","script":"../outside.sh"}]}
+        """.write(to: manifestURL, atomically: true, encoding: .utf8)
+
+        let manifest = ExtensionManifestStore.readManifest(at: manifestURL)!
+        let hash1 = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+
+        // Modifying the outside script must not change the package hash since it was skipped
+        try "echo modified".write(to: outsideScript, atomically: true, encoding: .utf8)
+        let hash2 = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+        XCTAssertEqual(hash1, hash2, "outside script via traversal must be ignored by packageHash")
+    }
+
+    func testReferencedScriptSymlinkEscapingIsSkipped() throws {
+        let outsideScript = tempDir.appendingPathComponent("outside_symlink.sh")
+        try "echo outside".write(to: outsideScript, atomically: true, encoding: .utf8)
+
+        let pkg = tempDir.appendingPathComponent("symlink.openclipext")
+        try FileManager.default.createDirectory(at: pkg, withIntermediateDirectories: true)
+        let manifestURL = pkg.appendingPathComponent("openclip.json")
+        let symlinkURL = pkg.appendingPathComponent("link.sh")
+        try FileManager.default.createSymbolicLink(at: symlinkURL, withDestinationURL: outsideScript)
+
+        try """
+        {"identifier":"com.t.symlink","name":"Symlink","actions":[{"title":"A","type":"script","script":"link.sh"}]}
+        """.write(to: manifestURL, atomically: true, encoding: .utf8)
+
+        let manifest = ExtensionManifestStore.readManifest(at: manifestURL)!
+        let hash1 = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+
+        // Modifying the outside script targeted by symlink must not change the package hash
+        try "echo modified".write(to: outsideScript, atomically: true, encoding: .utf8)
+        let hash2 = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+        XCTAssertEqual(hash1, hash2, "outside script via symlink must be ignored by packageHash")
+    }
+
     private func writePackage(identifier: String, manifestURL: URL, scriptURL: URL, script: String) throws {
         try """
         {"identifier":"\(identifier)","name":"Pkg","actions":[{"title":"A","type":"script","script":"main.sh"}]}

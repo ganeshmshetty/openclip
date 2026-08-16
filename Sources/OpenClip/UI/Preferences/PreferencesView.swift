@@ -46,9 +46,10 @@ public struct PreferencesView: View {
     @State private var aiSubTab: AISubTab = .configure
     @State private var actionsSubTab: ActionsSubTab = .actions
     @State private var activeSheet: PreferencesSheet?
+    @ObservedObject private var coordinator = ActionCoordinator.shared
 
     private var installedExtensionCount: Int {
-        ActionCoordinator.shared.actions.filter { ActionIdentity.isExtension($0) }.count
+        ActionIdentity.installedPackageIDs(in: coordinator.actions).count
     }
 
     public init() {}
