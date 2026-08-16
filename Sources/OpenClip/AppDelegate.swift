@@ -73,7 +73,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ExtensionManager.shared.onTrustChange = { [weak self] change in
                 self?.handleTrustChange(change)
             }
-            await ActionCoordinator.shared.loadInitialState()
+            await ActionCoordinator.shared.loadInitialState(
+                dictionaryLookup: DictionaryLookupFactory.systemLookup
+            )
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
             ActionCoordinator.shared.register(action: CompletionAction())
@@ -209,7 +211,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
-            await ActionCoordinator.shared.loadInitialState()
+            await ActionCoordinator.shared.loadInitialState(
+                dictionaryLookup: DictionaryLookupFactory.systemLookup
+            )
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
             ActionCoordinator.shared.register(action: CompletionAction())

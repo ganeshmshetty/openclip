@@ -1037,12 +1037,10 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     // MARK: - Builtin delivery declarations (uniform with extension actions)
 
-    /// DefineAction keeps its `context.isSecondaryClick` code branch (`.copyDefinition`) and
-    /// declares a secondary toast, so a secondary click surfaces "Copied definition" instead of a
-    /// silent copy.
-    func testDefineDeclaresSecondaryToast() {
-        XCTAssertNotNil(DefineAction().delivery?.secondaryToast,
-                        "DefineAction must declare a secondary toast for its code-branched .copyDefinition")
+    /// DefineAction relies on the default nil delivery: delivery is fully picker-governed.
+    func testDefineDeclaresNoDelivery() {
+        XCTAssertNil(DefineAction().delivery,
+                     "DefineAction must rely on the default nil delivery (picker-governed)")
     }
 
     /// PasteAction relies on the default nil delivery: the resolver derives `.copy` for a secondary

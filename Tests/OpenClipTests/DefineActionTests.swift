@@ -4,17 +4,36 @@ import AppKit
 @testable import Core
 
 final class DefineActionTests: XCTestCase {
+    private let sampleDefinitions: [String: String] = [
+        "serendipity": "the occurrence and development of events by chance in a happy or beneficial way.",
+        "epiphany": "a moment of sudden and great revelation or realization."
+    ]
+
+    private func makeMockLookup() -> @Sendable (String) -> String? {
+        let defs = sampleDefinitions
+        return { word in
+            defs[word.lowercased()]
+        }
+    }
+
     @MainActor
     func testDefineActionSmartTrigger() async throws {
-        let action = DefineAction()
+        let action = DefineAction(lookup: makeMockLookup())
         let app = AppIdentity(NSRunningApplication.current)
         
-        // Single word -> Enabled
+        // Single word with definition -> Enabled
         let wordContext = ActionContext(
             selection: SelectionContext(text: "serendipity", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
             modifiers: []
         )
-        XCTAssertTrue(action.isEnabled(for: wordContext), "DefineAction should be enabled for single words")
+        XCTAssertTrue(action.isEnabled(for: wordContext), "DefineAction should be enabled for single words with definitions")
+
+        // Single word without definition -> Disabled
+        let nonExistentContext = ActionContext(
+            selection: SelectionContext(text: "nonexistentword", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+            modifiers: []
+        )
+        XCTAssertFalse(action.isEnabled(for: nonExistentContext), "DefineAction should be disabled for words without definitions")
         
         // Multi-word phrase -> Disabled
         let phraseContext = ActionContext(
@@ -47,7 +66,7 @@ final class DefineActionTests: XCTestCase {
     
     @MainActor
     func testDefineActionExecution() async throws {
-        let action = DefineAction()
+        let action = DefineAction(lookup: makeMockLookup())
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "epiphany", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
@@ -55,17 +74,16 @@ final class DefineActionTests: XCTestCase {
         )
         
         let result = try await action.perform(context)
-        if case .openURL(let url) = result {
-            XCTAssertEqual(url.scheme, "dict")
-            XCTAssertTrue(url.absoluteString.contains("epiphany"))
+        if case .text(let definition) = result {
+            XCTAssertEqual(definition, "a moment of sudden and great revelation or realization.")
         } else {
-            XCTFail("Expected openURL with dict:// scheme for DefineAction")
+            XCTFail("Expected text result for DefineAction, got \(result)")
         }
     }
 
     @MainActor
-    func testDefineActionSecondaryClickReturnsCopyDefinition() async throws {
-        let action = DefineAction()
+    func testDefineActionSecondaryClickReturnsText() async throws {
+        let action = DefineAction(lookup: makeMockLookup())
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "epiphany", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
@@ -74,9 +92,10 @@ final class DefineActionTests: XCTestCase {
         )
 
         let result = try await action.perform(context)
-        guard case .copyDefinition(let word) = result else {
-            return XCTFail("Expected copyDefinition for a secondary click, got \(result)")
+        if case .text(let definition) = result {
+            XCTAssertEqual(definition, "a moment of sudden and great revelation or realization.")
+        } else {
+            XCTFail("Expected text result for secondary click on DefineAction, got \(result)")
         }
-        XCTAssertEqual(word, "epiphany")
     }
 }

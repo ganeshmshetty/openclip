@@ -69,7 +69,6 @@ public extension SettingKey where Value == Data? {
 }
 
 public extension SettingKey where Value == String {
-    static var calculateMode: SettingKey<String> { SettingKey<String>("action.calculate.mode", defaultValue: "paste") }
     static var calendarProvider: SettingKey<String> { SettingKey<String>("action.calendar.provider", defaultValue: "native") }
     static var searchURL: SettingKey<String> { SettingKey<String>("action.search.url", defaultValue: "https://www.google.com/search?q={query}") }
 

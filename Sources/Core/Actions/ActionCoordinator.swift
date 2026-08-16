@@ -36,7 +36,8 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     
     public func loadInitialState(
         extensionsDirectory: URL = Constants.extensionsDirectory,
-        rulesURL: URL = Constants.rulesFileURL
+        rulesURL: URL = Constants.rulesFileURL,
+        dictionaryLookup: @escaping @Sendable (String) -> String? = { _ in nil }
     ) async {
         // Wire the extension manager to the registry through callbacks — it never touches
         // ActionRegistry directly.
@@ -48,7 +49,10 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         }
 
         // 1. Core builtins
-        let coreBuiltins = BuiltinRegistry.makeCoreBuiltins(settingsStore: settingsStore)
+        let coreBuiltins = BuiltinRegistry.makeCoreBuiltins(
+            settingsStore: settingsStore,
+            dictionaryLookup: dictionaryLookup
+        )
         registry.register(builtIns: coreBuiltins)
         
         // 2. Disk extensions (manifests, standalone scripts, snippets) & app rules
