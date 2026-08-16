@@ -517,6 +517,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         while controller.modeStore.canPaste == nil && Date() < deadline {
             try? await Task.sleep(nanoseconds: 20_000_000)
         }
+        XCTAssertNotNil(controller.modeStore.canPaste, "preview card must resolve paste availability before rendering")
         XCTAssertNotEqual(controller.modeStore.canPaste, false)
     }
 
