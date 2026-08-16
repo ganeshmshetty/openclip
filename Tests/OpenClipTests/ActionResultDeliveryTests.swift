@@ -417,7 +417,10 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         controller.deliverResult(.text("hello"))
 
-        try await Task.sleep(nanoseconds: 50_000_000)
+        let deadline = Date().addingTimeInterval(3.0)
+        while (controller.modeStore.mode != .content || !controller.isVisible) && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
         XCTAssertTrue(handler.results.isEmpty, "preview must not deliver any effect")
         XCTAssertTrue(controller.isVisible, "preview keeps the popup open")
         XCTAssertEqual(controller.modeStore.mode, .content)
@@ -441,7 +444,10 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         controller.deliverResult(.text("hello"))
 
-        try await Task.sleep(nanoseconds: 50_000_000)
+        let deadline = Date().addingTimeInterval(3.0)
+        while controller.modeStore.canPaste != false && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
         XCTAssertEqual(controller.modeStore.canPaste, false, "preview card must gate Paste on the probe answer")
     }
 
@@ -460,7 +466,10 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         controller.deliverResult(.text("hello"))
 
-        try await Task.sleep(nanoseconds: 50_000_000)
+        let deadline = Date().addingTimeInterval(3.0)
+        while controller.modeStore.canPaste == nil && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
         XCTAssertNotEqual(controller.modeStore.canPaste, false)
     }
 
@@ -478,8 +487,17 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.pendingActionTitle = "My Action"
 
         controller.deliverResult(.text("hello"))
-        try await Task.sleep(nanoseconds: 50_000_000)
+
+        var deadline = Date().addingTimeInterval(3.0)
+        while (controller.modeStore.mode != .content || !controller.isVisible) && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
         controller.exitContent()
+
+        deadline = Date().addingTimeInterval(3.0)
+        while controller.modeStore.mode != .actions && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
 
         XCTAssertEqual(controller.modeStore.mode, .actions)
         XCTAssertNil(controller.modeStore.aiResult)
