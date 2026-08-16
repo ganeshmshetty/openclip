@@ -625,7 +625,7 @@ public class PopupWindowController {
         let delivery = deliverySnapshot()
         pendingDelivery = nil
         pendingActionTitle = nil
-        if shouldDismiss(result, preference: delivery.preference) {
+        if shouldDismiss(result, delivery: delivery) {
             hide()
         }
         handleActionResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
@@ -664,6 +664,20 @@ public class PopupWindowController {
         return Task { @MainActor in
             do {
                 let resolved = await resolveDelivery(effect, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
+                if case .text(let text) = resolved.result {
+                    // Preview preference: render the returned text in the native AI result card
+                    // without delivering any effect. The popup stays open (a top-level `.text` never
+                    // dismisses via dismissesPopup); Esc collapses via exitContent. Probe paste
+                    // availability when it was never probed (production passes the trigger-site probe
+                    // answer into show(for:pasteAvailable:); nil here means it was skipped) so the
+                    // card gates its Paste button on the real answer — an unknown probe answer still
+                    // normalizes to cannot-paste (safe default).
+                    if modeStore.canPaste == nil {
+                        modeStore.canPaste = await pasteProbe.canPaste(in: delivery?.application, policy: delivery?.policy ?? .default) ?? false
+                    }
+                    showAIContent(text: text, isError: false, title: delivery?.actionTitle ?? "Action")
+                    return
+                }
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
                 if let toast = resolved.toast, !suppressDeliveryToast {
                     toastController.show(toast, anchorPoint: panel?.centerPoint)
@@ -735,12 +749,22 @@ public class PopupWindowController {
         return true
     }
 
-    /// Dismissal for a top-level result: an implicit `.text` follows its resolved outcome (preview
-    /// keeps the popup open; paste/copy dismiss like any paste today), everything else uses
-    /// `dismissesPopup` as-is.
-    private func shouldDismiss(_ result: ActionResult, preference: ResultDeliveryPreference) -> Bool {
-        if isText(result) && preference != .preview { return true }
-        return result.dismissesPopup
+    /// Dismissal for a top-level result: the popup stays open exactly when the actual *resolved*
+    /// outcome is `.text` (preview) and dismisses otherwise. Mirroring the resolver's Select step
+    /// synchronously (before the delivery task runs) keeps dismissal consistent with the delivered
+    /// outcome: a declared secondary beats the picker, so a `.text` raw result whose declared
+    /// secondary dismisses still dismisses. `canPaste` is irrelevant here — every probe outcome
+    /// (an honored paste or a downgraded copy) dismisses.
+    private func shouldDismiss(_ result: ActionResult, delivery: DeliveryContext) -> Bool {
+        let resolved = ActionResultDelivery.resolve(
+            raw: result,
+            clickIntent: delivery.clickIntent,
+            canPaste: false,
+            delivery: delivery.delivery ?? .none,
+            preference: delivery.preference
+        ).result
+        if isText(resolved) { return false }
+        return resolved.dismissesPopup
     }
 
     /// Performs an action directly (the right-click path, which the bar's SwiftUI Button never
@@ -755,10 +779,11 @@ public class PopupWindowController {
         }
         let clickIntent: ActionResultDelivery.ClickIntent = isSecondaryClick ? .secondary : .primary
         pendingClickIntent = clickIntent
-        // Snapshot the action's declared delivery with the rest of the delivery inputs, before the
-        // perform await and before hide() can clear it.
-        pendingDelivery = action.delivery
-        pendingActionTitle = action.title
+        // The declared delivery + title are snapshotted into the DeliveryContext below — this
+        // perform path's only consumer. Unlike the bar/search path, no `onWillPerformAction`
+        // precedes it, so `pendingDelivery`/`pendingActionTitle` must stay untouched: a later
+        // `deliverResult` (e.g. a completion-paste from a preview card) must never reuse this
+        // perform's declaration.
         let preference = preference(for: clickIntent)
         let delivery = DeliveryContext(
             policy: context.selection.appPolicy,
@@ -780,7 +805,7 @@ public class PopupWindowController {
         Task { @MainActor in
             do {
                 let result = try await action.perform(performContext)
-                if self.shouldDismiss(result, preference: preference) {
+                if self.shouldDismiss(result, delivery: delivery) {
                     self.hide()
                 }
                 self.handleActionResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
@@ -798,9 +823,10 @@ public class PopupWindowController {
     func runLoadingAction(_ action: any Action, with context: ActionContext, isSecondaryClick: Bool) {
         let clickIntent: ActionResultDelivery.ClickIntent = isSecondaryClick ? .secondary : .primary
         pendingClickIntent = clickIntent
-        // Snapshot the action's declared delivery before the early hide clears the session state.
-        pendingDelivery = action.delivery
-        pendingActionTitle = action.title
+        // The declared delivery + title are snapshotted into the DeliveryContext below — this
+        // perform path's only consumer. Unlike the bar/search path, no `onWillPerformAction`
+        // precedes it, so `pendingDelivery`/`pendingActionTitle` must stay untouched: a later
+        // `deliverResult` must never reuse this perform's declaration.
         let delivery = DeliveryContext(
             policy: context.selection.appPolicy,
             clickIntent: clickIntent,
@@ -853,6 +879,19 @@ public class PopupWindowController {
             let effect = result
             do {
                 let resolved = await resolveDelivery(effect, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
+                if case .text(let text) = resolved.result {
+                    // Preview preference on a loading action: the popup early-closed for the spinner,
+                    // so hide the spinner and re-show the popup as a content-mode card, anchored to
+                    // the original selection (captured before the early close). Re-probe so the card
+                    // gates its Paste button on the real answer.
+                    toastController.hide()
+                    if let selection = delivery.selection {
+                        let canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
+                        show(for: selection, pasteAvailable: canPaste)
+                        showAIContent(text: text, isError: false, title: delivery.actionTitle ?? "Action")
+                    }
+                    return
+                }
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
                 if let toast = resolved.toast, !suppressDeliveryToast {
                     toastController.swapTo(toast)
