@@ -46,7 +46,7 @@ The loader decodes `~/.openclip/extensions/<dir>/openclip.json` (legacy names `m
   // OPTIONAL. Minimum OpenClip version this package requires ("1.2.3"). Min-only and decode-only:
   // an incompatible package still loads but is gated "Needs Update" until the app is newer (see
   // §11). Absent or malformed → treated as compatible.
-  "openClipVersion": "1.2.3",
+  "minOpenClipVersion": "1.2.3",
 
   // OPTIONAL. Declared runtime capabilities. The host's known-capability set is EMPTY on day one,
   // so any non-empty list here REJECTS the manifest at load time. Reserved for future use; do not
@@ -866,7 +866,7 @@ The single consent surface is the **trust model sheet**. How each install path r
 "Extension Disabled" notification fires, and its actions are gated as `filesChanged`. Reviewing it
 shows a "Files changed" warning; re-enabling re-records the new hash. **Reload never re-trusts.**
 
-**`openClipVersion`** is min-only and decode-only (§2): a package declaring a minimum newer than
+**`minOpenClipVersion`** is min-only and decode-only (§2): a package declaring a minimum newer than
 the running app still loads but is gated "Needs Update" — its actions don't run until the app is
 updated. Absent or malformed → compatible.
 
