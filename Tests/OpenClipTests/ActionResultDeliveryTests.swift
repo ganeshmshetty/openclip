@@ -398,6 +398,200 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertFalse(controller.isVisible)
     }
 
+    // MARK: - Preview routing (implicit .text → AI result card)
+
+    /// Preview preference on a primary click keeps the popup open and renders the returned text in
+    /// the native AI result card (content mode) with the performing action's title — no effect is
+    /// delivered to the handler.
+    @MainActor
+    func testTextPreviewKeepsPopupOpenAndShowsCard() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             settingsStore: store)
+        defer { controller.hide() }
+        controller.pendingActionTitle = "My Action"
+
+        controller.deliverResult(.text("hello"))
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertTrue(handler.results.isEmpty, "preview must not deliver any effect")
+        XCTAssertTrue(controller.isVisible, "preview keeps the popup open")
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        XCTAssertEqual(controller.modeStore.aiResult?.text, "hello")
+        XCTAssertEqual(controller.modeStore.aiResult?.title, "My Action")
+        XCTAssertFalse(controller.modeStore.aiResult?.isError ?? true)
+    }
+
+    /// Preview with cannot-paste hides the card's Paste button (modeStore.canPaste == false).
+    @MainActor
+    func testTextPreviewHidesPasteWhenCannotPaste() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: false),
+                                             appPolicy: .default,
+                                             settingsStore: store)
+        defer { controller.hide() }
+        controller.pendingActionTitle = "My Action"
+
+        controller.deliverResult(.text("hello"))
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(controller.modeStore.canPaste, false, "preview card must gate Paste on the probe answer")
+    }
+
+    /// Preview with can-paste keeps Paste visible on the card.
+    @MainActor
+    func testTextPreviewKeepsPasteWhenCanPaste() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             settingsStore: store)
+        defer { controller.hide() }
+        controller.pendingActionTitle = "My Action"
+
+        controller.deliverResult(.text("hello"))
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertNotEqual(controller.modeStore.canPaste, false)
+    }
+
+    /// Esc collapses the preview card back to the actions bar (exitContent) without hiding the popup.
+    @MainActor
+    func testTextPreviewEscCollapsesToBar() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             settingsStore: store)
+        defer { controller.hide() }
+        controller.pendingActionTitle = "My Action"
+
+        controller.deliverResult(.text("hello"))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        controller.exitContent()
+
+        XCTAssertEqual(controller.modeStore.mode, .actions)
+        XCTAssertNil(controller.modeStore.aiResult)
+        XCTAssertTrue(controller.isVisible, "collapsing the card never hides the popup")
+    }
+
+    /// A loading action with preview preference: the spinner hides and the popup re-shows as a
+    /// content-mode card using the original selection.
+    @MainActor
+    func testLoadingTextPreviewReshowsPopupAsCard() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast,
+                                             settingsStore: store)
+        defer { controller.hide(); toast.hide() }
+
+        controller.runLoadingAction(SlowTextStubAction(text: "loaded"), with: controllerCurrentContext(controller), isSecondaryClick: false)
+        XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while controller.modeStore.mode != .content && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+
+        XCTAssertFalse(toast.isLoading, "the spinner must hide when the preview card re-shows")
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        XCTAssertEqual(controller.modeStore.aiResult?.text, "loaded")
+        XCTAssertEqual(controller.modeStore.aiResult?.title, "Slow Text")
+        XCTAssertTrue(controller.isVisible, "the popup must re-show as the preview card")
+        XCTAssertTrue(handler.results.isEmpty)
+    }
+
+    /// A loading action with a paste preference keeps the existing settle path (deliver + spinner
+    /// swap/hide) — no re-show.
+    @MainActor
+    func testLoadingTextPastePreferenceDeliversNormally() async throws {
+        let handler = RecordingHandler()
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default)
+        defer { controller.hide() }
+
+        controller.runLoadingAction(SlowTextStubAction(text: "loaded"), with: controllerCurrentContext(controller), isSecondaryClick: false)
+
+        assertCase(try await awaitDelivery(from: handler), .paste("loaded"))
+    }
+
+    // MARK: - Preview routing review follow-ups (declared secondary + pending-state leak)
+
+    /// A declared secondary beats the picker even when the raw result is `.text` with a preview
+    /// preference: the popup must dismiss with the declared outcome (e.g. openURL), not stay open
+    /// for a card that never renders. `shouldDismiss` verifies the actual resolved outcome.
+    @MainActor
+    func testTextPreviewWithDeclaredSecondaryDismisses() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.secondaryClickBehavior, value: "preview")
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             settingsStore: store)
+        defer { controller.hide() }
+
+        let url = URL(string: "https://alt")!
+        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(secondary: .openURL(url)), performResult: .text("a"))
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .openURL(url))
+        XCTAssertFalse(controller.isVisible, "a dismissing declared secondary must dismiss even when the raw .text preference is preview")
+    }
+
+    /// The right-click perform path (runAction) snapshots the action's declared delivery into its
+    /// own DeliveryContext and must not leave `pendingActionTitle`/`pendingDelivery` behind for a
+    /// later completion-paste `deliverResult` — the preview card's title comes from the snapshotted
+    /// context, and the completion paste must fire no stale declared toast.
+    @MainActor
+    func testRunActionPreviewDoesNotLeakDeclaredDeliveryOntoCompletionPaste() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast,
+                                             settingsStore: store)
+        defer { controller.hide(); toast.hide() }
+
+        let declared = StatusFeedback(message: "Saved", style: .info)
+        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(primaryToast: declared), performResult: .text("a"))
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: false)
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while controller.modeStore.mode != .content && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertEqual(controller.modeStore.aiResult?.title, "Declared", "the preview card must show the performing action's title")
+        XCTAssertNil(controller.pendingActionTitle, "runAction must not leave pendingActionTitle behind")
+        XCTAssertNil(controller.pendingDelivery, "runAction must not leave pendingDelivery behind")
+
+        controller.deliverResult(.paste("word"))
+
+        assertCase(try await awaitDelivery(from: handler), .paste("word"))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertNil(toast.currentFeedback, "the completion paste must not fire a stale declared toast")
+    }
+
     /// Left-click + probe says cannot paste → copy.
     @MainActor
     func testDeliverResultCopiesWhenProbeSaysCannotPaste() async throws {
