@@ -398,6 +398,53 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertFalse(controller.isVisible)
     }
 
+    // MARK: - Builtin explicit paste/copy never governed by the picker (controller level)
+
+    /// Builtins author explicit outcomes (Copy/Cut/Paste/Calculate/Completion). Even with the
+    /// primary picker set to `.preview`, an explicit `.paste` must be delivered as authored (probe
+    /// still applies) and dismiss — never routed to the AI result card. Guards the spec's "the
+    /// picker never fights an explicit effect" contract at the controller seam, where the `.text`
+    /// preview branch could otherwise shadow a future regression.
+    @MainActor
+    func testExplicitPasteDeliversNotPreviewedWithPreviewPreference() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             settingsStore: store)
+        defer { controller.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .paste("hello"))
+        XCTAssertFalse(controller.isVisible, "an explicit paste must dismiss like a paste today")
+        XCTAssertEqual(controller.modeStore.mode, .actions, "an explicit paste must never open the preview card")
+        XCTAssertNil(controller.modeStore.aiResult)
+    }
+
+    /// An explicit `.copy` with a `.preview` preference stays a native copy (no card, no toast).
+    @MainActor
+    func testExplicitCopyDeliversNotPreviewedWithPreviewPreference() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast,
+                                             settingsStore: store)
+        defer { controller.hide(); toast.hide() }
+
+        controller.deliverResult(.copy("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
+        XCTAssertNil(toast.currentFeedback, "a native copy fires no companion toast")
+        XCTAssertEqual(controller.modeStore.mode, .actions, "an explicit copy must never open the preview card")
+    }
+
     // MARK: - Preview routing (implicit .text → AI result card)
 
     /// Preview preference on a primary click keeps the popup open and renders the returned text in
