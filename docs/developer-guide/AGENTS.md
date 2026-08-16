@@ -180,8 +180,9 @@ an `osascript` subprocess; the selection is injected as a top-level `property OP
 AppleScript names are case-insensitive), and
 `{text}`/`{query}`/`{matched}`/`{captureN}` placeholders are substituted (unencoded, §6b). Both
 authoring styles are supported: bare top-level statements **or** an explicit `on run … end run`
-handler. A non-empty string the script returns becomes `.paste`. Errors become `.failure` (shown as
-an error toast).
+handler. A non-empty string the script returns becomes `.text` — implicitly returned text, delivered
+per the user's per-click preference (preview/paste/copy, §5b), defaulting to today's paste behavior.
+Errors become `.failure` (shown as an error toast).
 
 ### 3d. shell (inline or file)
 
@@ -199,7 +200,7 @@ an error toast).
 
 The command is executed **with a 30-second kill watchdog** (`Constants.scriptTimeout`) and a
 non-zero exit surfaces as an error status. Selection/match data arrive via env vars (§6c), and
-stdout is interpreted per §8 (JSON effects, plain-text paste, or empty-text success).
+stdout is interpreted per §8 (JSON effects, plain-text implicit return, or empty-text success).
 
 ### 3e. textsnippet
 
@@ -212,7 +213,7 @@ stdout is interpreted per §8 (JSON effects, plain-text paste, or empty-text suc
 ```
 
 Holds a template in `scriptCode`; `{text}`/`{query}` etc. are substituted (unencoded) and the result
-is pasted, replacing the selection.
+is implicitly returned (`.text`), delivered per the user's per-click preference (§5b).
 
 ### 3f. keypress
 
@@ -401,7 +402,11 @@ runs:
    `secondary` outcome when one is declared; otherwise the raw runtime result wins, except a
    secondary click on a `.paste` primary derives `.copy` (**the paste→copy default**). A primary
    click always uses the raw result, so a non-paste primary with no declaration behaves the same on
-   both clicks.
+   both clicks. An **implicitly returned `.text`** (JS string return, AppleScript output, shell
+   stdout, text snippet) is resolved to preview/paste/copy by the **per-click preference** — the
+   General tab's "When an action returns text" pickers (`primaryClickBehavior` for a primary click,
+   `secondaryClickBehavior` for a secondary click; defaults primary=paste, secondary=copy); a
+   `.preview` preference keeps the popup open for the card render instead of delivering.
 2. **Apply probe** — a chosen `.paste` is downgraded to `.copy` whenever the target cannot paste.
    The **probe always applies**: to primary *and* secondary clicks, and to declared *and* derived
    pastes alike — a paste is never delivered to a target that can't paste. The unified
@@ -596,7 +601,8 @@ Read-only input context:
 
 Entry points: the code is wrapped in an IIFE; if you define `action(selection, options)` or
 `main(selection, options)` it is called with the selection and options dict; otherwise the top-level
-code runs. A returned non-null string maps to `.paste`. For a **file** script (`"script": "main.js"`),
+code runs. A returned non-null string maps to `.text` (implicitly returned text — delivered per the
+user's per-click preference, §5b). For a **file** script (`"script": "main.js"`),
 the code runs in module mode and `require('./…')` is available for local files within the package
 (§3b); inline `scriptCode` has no `require`.
 
@@ -628,7 +634,8 @@ Side effects (each appends an effect; multiple effects run as a `.sequence` in c
 Deterministic resolution order (`OpenClipJSHost.run`): **JS exception → `.toast(.error)`** (JS throws
 never propagate as Swift errors); else `requireConfiguration` → `.openConfiguration`; a `toast`
 alone → `.toast`, or coexisting with effects → `.sequence([.toast, …effects])`; effects →
-single/`sequence`; function string return → `.paste(returnValue)`; else `.success`.
+single/`sequence`; function string return → `.text(returnValue)` (implicitly returned text, resolved
+per the click's preference); else `.success`.
 
 > Execution runs on a background thread (never the `MainActor`); async scripts are guarded by a
 > 30-second watchdog (`Constants.scriptTimeout`, `TimeoutFlag` pattern) — a never-settling promise
@@ -648,6 +655,7 @@ outcomes, or kind runtimes):
 | `.copy(String)` | copy to pasteboard |
 | `.cut(String)` | copy + delete selection (delete key) |
 | `.paste(String)` | paste text (replaces selection / frontmost app) |
+| `.text(String)` | implicitly returned text (JS string return / AppleScript output / shell stdout / text snippet); no delivery decision — the per-click preference resolves it to preview/paste/copy |
 | `.openURL(URL)` | open the URL |
 | `.showServices(String)` | macOS share picker on the text |
 | `.shareService(identifier:, text:)` | invoke a specific macOS sharing service by identifier (e.g. Notes inline popup) |
@@ -682,7 +690,8 @@ except `shareService`'s `identifier`, which is required):
 { "type": "shareService", "identifier": "com.apple.Notes.SharingExtension", "value": "text" } // .shareService — identifier REQUIRED
 ```
 
-Unknown `type` → `.success`. If stdout is **not** valid JSON, the plain text is **pasted**; empty
+Unknown `type` → `.success`. If stdout is **not** valid JSON, the plain text is **implicitly
+returned** (`.text`, delivered per the user's per-click preference); empty
 stdout → `.success`. A non-zero exit (or hitting the 30 s watchdog) becomes an error status. These
 are the *only* script JSON `type` values the runtime accepts. **`"showContent"` is not one of
 them** — a `"showContent"` type falls into the unknown branch and maps to `.success`.

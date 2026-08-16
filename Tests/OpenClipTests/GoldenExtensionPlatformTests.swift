@@ -197,10 +197,10 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         // Test JS Default Options Execution
         let sampleContext = ActionContext(selectedText: "SampleInput")
         let defaultJSResult = try await jsAction.perform(sampleContext)
-        if case .paste(let text) = defaultJSResult {
+        if case .text(let text) = defaultJSResult {
             XCTAssertEqual(text, "JS_DEFAULT: SAMPLEINPUT")
         } else {
-            XCTFail("Expected .paste result for JS action, got \(defaultJSResult)")
+            XCTFail("Expected .text result for JS action, got \(defaultJSResult)")
         }
         
         // Test JS Custom Option Override via the injected option store
@@ -208,28 +208,28 @@ final class GoldenExtensionPlatformTests: XCTestCase {
         optionStore.setStringValue("CUSTOM_PREFIX: ", actionID: "com.golden.js.action", option: jsOption)
         
         let customJSResult = try await jsAction.perform(sampleContext)
-        if case .paste(let text) = customJSResult {
+        if case .text(let text) = customJSResult {
             XCTAssertEqual(text, "CUSTOM_PREFIX: SAMPLEINPUT")
         } else {
-            XCTFail("Expected .paste result with custom option override, got \(customJSResult)")
+            XCTFail("Expected .text result with custom option override, got \(customJSResult)")
         }
         
         // --- Execution Verification for Other Runtimes ---
         
         // AppleScript Execution
         let asResult = try await asAction.perform(sampleContext)
-        if case .paste(let text) = asResult {
+        if case .text(let text) = asResult {
             XCTAssertEqual(text, "AS:SampleInput")
         } else {
-            XCTFail("Expected .paste result for AppleScript action, got \(asResult)")
+            XCTFail("Expected .text result for AppleScript action, got \(asResult)")
         }
         
         // Shell Execution
         let shResult = try await shAction.perform(sampleContext)
-        if case .paste(let text) = shResult {
+        if case .text(let text) = shResult {
             XCTAssertEqual(text.trimmingCharacters(in: .whitespacesAndNewlines), "SH:SampleInput")
         } else {
-            XCTFail("Expected .paste result for Shell action, got \(shResult)")
+            XCTFail("Expected .text result for Shell action, got \(shResult)")
         }
         
         // URL Execution

@@ -73,7 +73,7 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
 
         case .textSnippet(let template):
             let formatted = TextPlaceholderEngine.replacePlaceholders(in: template, context: context, urlEncode: false)
-            raw = .paste(formatted) // mapped from replaceSelection(formatted)
+            raw = .text(formatted) // implicitly returned text, governed by the user's per-click preference
 
         case .shellScript(let script, let replaceSelection):
             let match = context.match

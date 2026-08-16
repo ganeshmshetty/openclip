@@ -246,13 +246,13 @@ final class ActionVisibilityTests: XCTestCase {
         let context = ActionContext(selectedText: "a@b.com", bundleID: "com.test.app")
         let matchContext = ActionContext(selection: context.selection, modifiers: context.modifiers, match: action.matchInfo(for: context))
         let result = try await action.perform(matchContext)
-        if case .paste(let text) = result {
+        if case .text(let text) = result {
             XCTAssertEqual(
                 text.trimmingCharacters(in: .whitespacesAndNewlines),
                 "MATCHED=a@b.com CAPTURE1=a BUNDLE=com.test.app"
             )
         } else {
-            XCTFail("Expected .paste result, got \(result)")
+            XCTFail("Expected .text result, got \(result)")
         }
     }
 

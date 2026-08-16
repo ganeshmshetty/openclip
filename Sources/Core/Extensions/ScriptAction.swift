@@ -75,12 +75,13 @@ public struct ScriptAction: Action {
             stdinText: text
         ))
 
-        // Raw runtime result: JSON stdout wins, plain-text stdout pastes, empty stdout succeeds.
+        // Raw runtime result: JSON stdout wins, plain-text stdout is implicitly returned text
+        // (governed by the user's per-click preference), empty stdout succeeds.
         let raw: ActionResult
         if let jsonResult = ShellResultMapper.actionResult(from: output.stdout, actionID: id) {
             raw = jsonResult
         } else if !output.stdout.isEmpty {
-            raw = .paste(output.stdout)
+            raw = .text(output.stdout)
         } else {
             raw = .success
         }

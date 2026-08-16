@@ -53,8 +53,8 @@ final class ActionOptionStoreTests: XCTestCase {
         store.setStringValue("CUSTOM: ", actionID: action.id, option: option)
 
         let result = try await action.perform(ActionContext(selectedText: "hello"))
-        guard case .paste(let text) = result else {
-            return XCTFail("Expected .paste result, got \(result)")
+        guard case .text(let text) = result else {
+            return XCTFail("Expected .text result, got \(result)")
         }
         XCTAssertEqual(text, "CUSTOM: HELLO")
     }
@@ -71,8 +71,8 @@ final class ActionOptionStoreTests: XCTestCase {
         )
 
         let result = try await action.perform(ActionContext(selectedText: "hello"))
-        guard case .paste(let text) = result else {
-            return XCTFail("Expected .paste result, got \(result)")
+        guard case .text(let text) = result else {
+            return XCTFail("Expected .text result, got \(result)")
         }
         XCTAssertEqual(text, "DEFAULT: HELLO")
     }

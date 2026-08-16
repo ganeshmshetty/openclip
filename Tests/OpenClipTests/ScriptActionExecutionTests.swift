@@ -16,7 +16,7 @@ private extension ActionContext {
 }
 
 final class ScriptActionExecutionTests: XCTestCase {
-    func testScriptActionPlainStdoutReturnsPasteResult() async throws {
+    func testScriptActionPlainStdoutReturnsTextResult() async throws {
         let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("echo_test_\(UUID().uuidString).sh")
         let scriptContent = """
         #!/bin/bash
@@ -29,10 +29,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         let context = ActionContext(selectedText: "SampleInput")
         let result = try await action.perform(context)
         
-        if case .paste(let text) = result {
+        if case .text(let text) = result {
             XCTAssertEqual(text.trimmingCharacters(in: .whitespacesAndNewlines), "Processed: SampleInput")
         } else {
-            XCTFail("Expected .paste result for plain stdout, got \(result)")
+            XCTFail("Expected .text result for plain stdout, got \(result)")
         }
         
         try? FileManager.default.removeItem(at: tempScript)
@@ -50,10 +50,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         let action = ScriptAction(id: "test.actionid", title: "ActionID", icon: .symbol("terminal"), scriptURL: tempScript)
         let result = try await action.perform(ActionContext(selectedText: "SampleInput"))
 
-        if case .paste(let text) = result {
+        if case .text(let text) = result {
             XCTAssertEqual(text.trimmingCharacters(in: .whitespacesAndNewlines), "test.actionid")
         } else {
-            XCTFail("Expected .paste result echoing the action id, got \(result)")
+            XCTFail("Expected .text result echoing the action id, got \(result)")
         }
 
         try? FileManager.default.removeItem(at: tempScript)
@@ -74,10 +74,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         let context = ActionContext(selectedText: "SampleInput")
         let result = try await action.perform(context)
         
-        if case .paste(let text) = result {
+        if case .text(let text) = result {
             XCTAssertEqual(text.trimmingCharacters(in: .whitespacesAndNewlines), "PASS_ENV")
         } else {
-            XCTFail("Expected .paste result with PASS_ENV, got \(result)")
+            XCTFail("Expected .text result with PASS_ENV, got \(result)")
         }
         
         try? FileManager.default.removeItem(at: tempScript)
@@ -239,10 +239,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         let context = ActionContext(selectedText: inputWithQuotes)
 
         let result = try await action.perform(context)
-        if case .paste(let output) = result {
+        if case .text(let output) = result {
             XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), inputWithQuotes)
         } else {
-            XCTFail("Expected .paste result containing returned text, got \(result)")
+            XCTFail("Expected .text result containing returned text, got \(result)")
         }
     }
 
@@ -258,10 +258,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         let context = ActionContext(selectedText: input)
 
         let result = try await action.perform(context)
-        if case .paste(let output) = result {
+        if case .text(let output) = result {
             XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), input)
         } else {
-            XCTFail("Expected .paste result containing multiline text, got \(result)")
+            XCTFail("Expected .text result containing multiline text, got \(result)")
         }
     }
 
@@ -278,10 +278,10 @@ final class ScriptActionExecutionTests: XCTestCase {
         let action = AppleScriptAction(id: "test.applescript.onrun", title: "On Run", appleScriptCode: scriptCode)
         let context = ActionContext(selectedText: "hello")
         let result = try await action.perform(context)
-        if case .paste(let output) = result {
+        if case .text(let output) = result {
             XCTAssertEqual(output, "AS:hello")
         } else {
-            XCTFail("Expected .paste result for on-run script, got \(result)")
+            XCTFail("Expected .text result for on-run script, got \(result)")
         }
     }
 
