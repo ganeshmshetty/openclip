@@ -178,7 +178,8 @@ areas; stale debt notes are worse than none.
   secondary-copy): a paste preference probes like any paste and downgrades to copy when the target
   can't paste, a copy preference delivers a native copy with no toast, and a preview preference keeps
   the popup open for the card render (Task 4) — dismissal for `.text` is decided by the controller's
-  `shouldDismiss`, not `dismissesPopup`.
+  `shouldDismiss`, not `dismissesPopup`. The loading re-show path (`settleLoadingResult`)
+  re-creates the popup from the pre-early-close selection snapshot to present the card.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 
