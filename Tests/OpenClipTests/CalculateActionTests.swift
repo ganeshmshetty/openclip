@@ -24,7 +24,7 @@ final class CalculateActionTests: XCTestCase {
     
     @MainActor
     func testCalculateActionExecution() async throws {
-        let action = CalculateAction(settingsStore: MemorySettingsStore())
+        let action = CalculateAction()
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "100 * 2.5", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
@@ -32,10 +32,10 @@ final class CalculateActionTests: XCTestCase {
         )
         
         let result = try await action.perform(context)
-        if case .paste(let newText) = result {
+        if case .text(let newText) = result {
             XCTAssertEqual(newText, "250", "Math calculation 100 * 2.5 should equal 250")
         } else {
-            XCTFail("Expected paste result for CalculateAction")
+            XCTFail("Expected text result for CalculateAction")
         }
     }
 
@@ -60,7 +60,7 @@ final class CalculateActionTests: XCTestCase {
 
     @MainActor
     func testModuloExpressionEvaluates() async throws {
-        let action = CalculateAction(settingsStore: MemorySettingsStore())
+        let action = CalculateAction()
         let app = AppIdentity(NSRunningApplication.current)
         let context = ActionContext(
             selection: SelectionContext(text: "5 % 2", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
@@ -68,16 +68,16 @@ final class CalculateActionTests: XCTestCase {
         )
         XCTAssertTrue(action.isEnabled(for: context), "5 % 2 should be calculable")
         let result = try await action.perform(context)
-        if case .paste(let newText) = result {
+        if case .text(let newText) = result {
             XCTAssertEqual(newText, "1", "5 % 2 should equal 1")
         } else {
-            XCTFail("Expected paste result for modulo expression")
+            XCTFail("Expected text result for modulo expression")
         }
     }
 
     @MainActor
     func testUnaryMinusAndParenthesesEvaluate() async throws {
-        let action = CalculateAction(settingsStore: MemorySettingsStore())
+        let action = CalculateAction()
         let app = AppIdentity(NSRunningApplication.current)
         let cases: [(input: String, expected: String)] = [
             ("-5", "-5"),
@@ -92,10 +92,10 @@ final class CalculateActionTests: XCTestCase {
             )
             XCTAssertTrue(action.isEnabled(for: context), "\(testCase.input) should be calculable")
             let result = try await action.perform(context)
-            if case .paste(let newText) = result {
+            if case .text(let newText) = result {
                 XCTAssertEqual(newText, testCase.expected, "\(testCase.input) should equal \(testCase.expected)")
             } else {
-                XCTFail("Expected paste result for \(testCase.input)")
+                XCTFail("Expected text result for \(testCase.input)")
             }
         }
     }
