@@ -36,7 +36,8 @@ public struct DefineAction: ConfigurableAction {
         
         guard !isURL && !hasMathSymbol else { return false }
         
-        return lookup(text) != nil
+        guard let definition = lookup(text), !definition.isEmpty else { return false }
+        return true
     }
     
     @MainActor

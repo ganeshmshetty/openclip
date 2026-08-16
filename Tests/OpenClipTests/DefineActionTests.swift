@@ -55,6 +55,15 @@ final class DefineActionTests: XCTestCase {
             modifiers: []
         )
         XCTAssertFalse(action.isEnabled(for: urlContext), "DefineAction should be disabled for URLs")
+
+        // Empty-string definition -> Disabled (isEnabled must match perform, which returns .none)
+        let emptyDefContext = ActionContext(
+            selection: SelectionContext(text: "emptydef", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+            modifiers: []
+        )
+        let emptyLookup: @Sendable (String) -> String? = { _ in "" }
+        let emptyAction = DefineAction(lookup: emptyLookup)
+        XCTAssertFalse(emptyAction.isEnabled(for: emptyDefContext), "DefineAction should be disabled when lookup returns an empty definition")
         
         // Long paragraph (>40 chars or >3 words) -> Disabled
         let paragraphContext = ActionContext(
