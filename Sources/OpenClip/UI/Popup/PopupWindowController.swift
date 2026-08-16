@@ -53,6 +53,12 @@ public class PopupWindowController {
     /// tests so a test can model the `onWillPerformAction` snapshot directly.
     var pendingDelivery: ActionDelivery? = nil
 
+    /// The most recent bar/palette action's title, for the preview card header. Set by the perform
+    /// paths (`onWillPerformAction`, `runAction`, `runLoadingAction`) alongside `pendingDelivery`,
+    /// consumed once by the next `deliverResult` snapshot (which clears it), reset by hide(). Internal
+    /// for tests.
+    var pendingActionTitle: String? = nil
+
     /// Probes whether the frontmost app supports Paste. Injected for tests.
     private let pasteProbe: PasteAvailabilityProbing
 
@@ -60,12 +66,17 @@ public class PopupWindowController {
     /// the popup panel: it shows whether the popup is up or has already hidden. Injected for tests.
     private let toastController: ToastPanelController
 
+    /// The settings store resolving the per-click result-delivery preference. Injected for tests.
+    private let settingsStore: SettingsStore
+
     public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
                 pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe(),
-                toastController: ToastPanelController = ToastPanelController()) {
+                toastController: ToastPanelController = ToastPanelController(),
+                settingsStore: SettingsStore = DefaultSettingsStore.shared) {
         self.resultHandler = resultHandler
         self.pasteProbe = pasteProbe
         self.toastController = toastController
+        self.settingsStore = settingsStore
     }
 
     /// Kicks off the paste-availability probe for the given target app (rules first, then the AX
@@ -146,6 +157,7 @@ public class PopupWindowController {
             },
             onWillPerformAction: { [weak self] action in
                 self?.pendingDelivery = action.delivery
+                self?.pendingActionTitle = action.title
             },
             onRunLoadingAction: { [weak self] action in
                 guard let self, let context = self.currentActionContext else { return }
@@ -387,6 +399,7 @@ public class PopupWindowController {
         // declared delivery is snapshotted per-perform, so a stale value must not leak either.
         pendingClickIntent = .primary
         pendingDelivery = nil
+        pendingActionTitle = nil
         isRightClickInProgress = false
         modeStore.mode = .actions
         modeStore.scope = nil
@@ -575,6 +588,14 @@ public class PopupWindowController {
         /// `exitKeyMode()` reactivates exactly this app on hide — so the snapshot is the same app
         /// `pasteProbe` must inspect, without reading frontmost state after hide or an await.
         let application: NSRunningApplication?
+        /// The user's chosen behavior for this click (preview/paste/copy), resolved from the two
+        /// General-tab settings at snapshot time.
+        let preference: ResultDeliveryPreference
+        /// The performing action's title — the preview card header. nil for explicit user requests.
+        let actionTitle: String?
+        /// The selection context captured before any early-close (loading actions), used to re-show
+        /// the popup as a preview card. nil when the popup never closed.
+        let selection: SelectionContext?
     }
 
     /// Snapshots the delivery inputs from the current session state. Called on the main actor,
@@ -585,7 +606,10 @@ public class PopupWindowController {
             policy: currentActionContext?.selection.appPolicy ?? .default,
             clickIntent: pendingClickIntent,
             delivery: pendingDelivery,
-            application: NSWorkspace.shared.frontmostApplication
+            application: NSWorkspace.shared.frontmostApplication,
+            preference: preference(for: pendingClickIntent),
+            actionTitle: pendingActionTitle,
+            selection: currentActionContext?.selection
         )
     }
 
@@ -600,7 +624,8 @@ public class PopupWindowController {
     func deliverResult(_ result: ActionResult) {
         let delivery = deliverySnapshot()
         pendingDelivery = nil
-        if result.dismissesPopup {
+        pendingActionTitle = nil
+        if shouldDismiss(result, preference: delivery.preference) {
             hide()
         }
         handleActionResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
@@ -660,21 +685,24 @@ public class PopupWindowController {
     private func resolveDelivery(_ result: ActionResult, delivery: DeliveryContext?, suppressDeliveryToast: Bool = false) async -> (result: ActionResult, toast: StatusFeedback?) {
         guard let delivery else { return (result, nil) }
         // A declared `.paste` secondary is pasted on a secondary click, so the probe must run for it
-        // too: the force-copy short-circuit below applies only when the click's outcome is a copy.
+        // too; likewise a `.text` result whose user preference is paste. The force-copy short-circuit
+        // below applies only when the click's outcome is a copy.
         let declaredSecondaryIsPaste = delivery.clickIntent == .secondary && isPaste(delivery.delivery?.secondary)
-        let couldPaste = isPaste(result) || declaredSecondaryIsPaste
+        let preference = delivery.preference
+        let textPrefersPaste = isText(result) && preference == .paste
+        let couldPaste = isPaste(result) || declaredSecondaryIsPaste || textPrefersPaste
         // The unified paste decision: per-app rules (assume/deny paste) answer definitively and
         // skip the AX walk entirely (no Accessibility dependency for those apps); a force-copy click
         // (a secondary click whose outcome is a copy — derived, or a non-paste declared secondary)
-        // also skips it (the outcome is a copy regardless). A declared `.paste` secondary is the
-        // exception: its outcome is a paste, so the probe still runs. Otherwise probe the target app
-        // and treat unknown availability as cannot-paste — the safe default: never paste blindly
-        // when we cannot confirm the target supports it. The target is the snapshotted app captured
-        // before hide(), never frontmost state read after suspension.
+        // also skips it (the outcome is a copy regardless). A declared `.paste` secondary or a
+        // `.text`+paste preference is the exception: the outcome is a paste, so the probe still runs.
+        // Otherwise probe the target app and treat unknown availability as cannot-paste — the safe
+        // default: never paste blindly when we cannot confirm the target supports it. The target is
+        // the snapshotted app captured before hide(), never frontmost state read after suspension.
         let canPaste: Bool
         if !couldPaste {
             canPaste = false // unused: `resolve` only consults it for a selected `.paste`
-        } else if (delivery.clickIntent == .secondary && !declaredSecondaryIsPaste) || !PasteAvailability.needsProbe(policy: delivery.policy) {
+        } else if (delivery.clickIntent == .secondary && !(declaredSecondaryIsPaste || textPrefersPaste)) || !PasteAvailability.needsProbe(policy: delivery.policy) {
             canPaste = PasteAvailability.effective(policy: delivery.policy, probe: nil) ?? false
         } else {
             canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
@@ -683,7 +711,8 @@ public class PopupWindowController {
             raw: result,
             clickIntent: delivery.clickIntent,
             canPaste: canPaste,
-            delivery: delivery.delivery ?? .none
+            delivery: delivery.delivery ?? .none,
+            preference: preference
         )
         return (resolved.result, suppressDeliveryToast ? nil : resolved.toast)
     }
@@ -691,6 +720,27 @@ public class PopupWindowController {
     private func isPaste(_ result: ActionResult?) -> Bool {
         guard case .paste = result else { return false }
         return true
+    }
+
+    /// Resolves the user's chosen behavior for a click from the two General-tab settings. Unknown
+    /// stored values fall back to the defaults (primary paste, secondary copy).
+    private func preference(for clickIntent: ActionResultDelivery.ClickIntent) -> ResultDeliveryPreference {
+        let key: SettingKey<String> = clickIntent == .primary ? .primaryClickBehavior : .secondaryClickBehavior
+        return ResultDeliveryPreference(rawValue: settingsStore.get(key))
+            ?? (clickIntent == .primary ? .paste : .copy)
+    }
+
+    private func isText(_ result: ActionResult) -> Bool {
+        guard case .text = result else { return false }
+        return true
+    }
+
+    /// Dismissal for a top-level result: an implicit `.text` follows its resolved outcome (preview
+    /// keeps the popup open; paste/copy dismiss like any paste today), everything else uses
+    /// `dismissesPopup` as-is.
+    private func shouldDismiss(_ result: ActionResult, preference: ResultDeliveryPreference) -> Bool {
+        if isText(result) && preference != .preview { return true }
+        return result.dismissesPopup
     }
 
     /// Performs an action directly (the right-click path, which the bar's SwiftUI Button never
@@ -708,11 +758,16 @@ public class PopupWindowController {
         // Snapshot the action's declared delivery with the rest of the delivery inputs, before the
         // perform await and before hide() can clear it.
         pendingDelivery = action.delivery
+        pendingActionTitle = action.title
+        let preference = preference(for: clickIntent)
         let delivery = DeliveryContext(
             policy: context.selection.appPolicy,
             clickIntent: clickIntent,
             delivery: action.delivery,
-            application: NSWorkspace.shared.frontmostApplication
+            application: NSWorkspace.shared.frontmostApplication,
+            preference: preference,
+            actionTitle: action.title,
+            selection: context.selection
         )
         usageStore.record(action.id)
         let match = action.matchInfo(for: context)
@@ -725,7 +780,7 @@ public class PopupWindowController {
         Task { @MainActor in
             do {
                 let result = try await action.perform(performContext)
-                if result.dismissesPopup {
+                if self.shouldDismiss(result, preference: preference) {
                     self.hide()
                 }
                 self.handleActionResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
@@ -745,11 +800,15 @@ public class PopupWindowController {
         pendingClickIntent = clickIntent
         // Snapshot the action's declared delivery before the early hide clears the session state.
         pendingDelivery = action.delivery
+        pendingActionTitle = action.title
         let delivery = DeliveryContext(
             policy: context.selection.appPolicy,
             clickIntent: clickIntent,
             delivery: action.delivery,
-            application: NSWorkspace.shared.frontmostApplication
+            application: NSWorkspace.shared.frontmostApplication,
+            preference: preference(for: clickIntent),
+            actionTitle: action.title,
+            selection: context.selection
         )
         usageStore.record(action.id)
         let match = action.matchInfo(for: context)

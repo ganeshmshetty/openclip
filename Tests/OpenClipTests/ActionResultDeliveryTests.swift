@@ -279,9 +279,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     private func shownController(resultHandler: ActionResultHandler,
                                  pasteProbe: PasteAvailabilityProbing,
                                  appPolicy: AppPolicyContext,
-                                 toastController: ToastPanelController = ToastPanelController()) throws -> PopupWindowController {
+                                 toastController: ToastPanelController = ToastPanelController(),
+                                 settingsStore: SettingsStore = MemorySettingsStore()) throws -> PopupWindowController {
         guard NSScreen.main != nil else { throw XCTSkip("no screen") }
-        let controller = PopupWindowController(resultHandler: resultHandler, pasteProbe: pasteProbe, toastController: toastController)
+        let controller = PopupWindowController(resultHandler: resultHandler, pasteProbe: pasteProbe, toastController: toastController, settingsStore: settingsStore)
         let context = SelectionContext(
             text: "hello",
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
@@ -324,6 +325,77 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.handleActionResult(.paste("hello"))
 
         assertCase(try await awaitDelivery(from: handler), .paste("hello"))
+    }
+
+    // MARK: - Implicit .text delivery wiring (defaults preserved)
+
+    /// Default settings (primary = paste): an implicit `.text` result delivers a paste and dismisses
+    /// the popup — identical to today's string-return behavior.
+    @MainActor
+    func testTextDeliversPasteAndDismissesWithDefaultSettings() async throws {
+        let handler = RecordingHandler()
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default)
+        defer { controller.hide() }
+
+        controller.deliverResult(.text("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .paste("hello"))
+        XCTAssertFalse(controller.isVisible, "a .text result with a paste preference must dismiss like a paste today")
+    }
+
+    /// Default primary = paste + cannot paste → copy with the default "Copied" toast.
+    @MainActor
+    func testTextDeliversCopyAndCopiedToastWhenCannotPaste() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: false),
+                                             appPolicy: .default,
+                                             toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        controller.deliverResult(.text("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
+        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
+    }
+
+    /// User picks copy for the primary click: `.text` delivers a native copy (no toast) and dismisses.
+    @MainActor
+    func testTextDeliversCopyWhenPreferenceIsCopy() async throws {
+        let handler = RecordingHandler()
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "copy")
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default,
+                                             toastController: toast,
+                                             settingsStore: store)
+        defer { controller.hide(); toast.hide() }
+
+        controller.deliverResult(.text("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
+        XCTAssertNil(toast.currentFeedback, "a native copy fires no companion toast")
+    }
+
+    /// A secondary click with the default secondary = copy: `.text` copies without a toast.
+    @MainActor
+    func testTextSecondaryCopiesWithDefaultSettings() async throws {
+        let handler = RecordingHandler()
+        let controller = try shownController(resultHandler: handler,
+                                             pasteProbe: FixedProbe(result: true),
+                                             appPolicy: .default)
+        defer { controller.hide() }
+
+        let stub = TextStubAction()
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
+        XCTAssertFalse(controller.isVisible)
     }
 
     /// Left-click + probe says cannot paste → copy.
@@ -835,6 +907,36 @@ private final class DeclaredDeliveryStub: Action, @unchecked Sendable {
     func isEnabled(for context: ActionContext) -> Bool { true }
     func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
     func perform(_ context: ActionContext) async throws -> ActionResult { performResult }
+}
+
+/// An action whose perform returns implicitly returned text (a `.text` result), like the JS string
+/// return / AppleScript output / shell stdout / text snippet runtimes.
+private final class TextStubAction: Action, @unchecked Sendable {
+    let id = "stub.text"
+    let title = "Text Action"
+    let icon: ActionIcon = .symbol("text.alignleft")
+    var chrome: ActionChrome { ActionChrome(source: .builtin) }
+    private let result: ActionResult
+    init(result: ActionResult = .text("hello")) { self.result = result }
+    func isEnabled(for context: ActionContext) -> Bool { true }
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
+    func perform(_ context: ActionContext) async throws -> ActionResult { result }
+}
+
+/// A `showsLoading` action returning `.text` after a short delay (loading + preview re-show path).
+private final class SlowTextStubAction: Action, @unchecked Sendable {
+    let id = "stub.slowtext"
+    let title = "Slow Text"
+    let icon: ActionIcon = .symbol("text.alignleft")
+    var chrome: ActionChrome { ActionChrome(source: .builtin, showsLoading: true) }
+    private let text: String
+    init(text: String = "loaded") { self.text = text }
+    func isEnabled(for context: ActionContext) -> Bool { true }
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
+    func perform(_ context: ActionContext) async throws -> ActionResult {
+        try await Task.sleep(nanoseconds: 30_000_000)
+        return .text(text)
+    }
 }
 
 /// Lock-protected capture box for the context an action performed with (synchronous accessors, so

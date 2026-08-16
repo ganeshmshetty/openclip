@@ -51,9 +51,12 @@ areas; stale debt notes are worse than none.
   a blocking `readToEnd()`, so a stuck child can't permanently consume a cooperative thread), with
   stdin seeded and closed synchronously so a script reading stdin always sees EOF.
 - **Delivery is resolved by `ActionResultDelivery`, not per-runtime translation.** Runtimes
-  (`OpenClipJSHost.run`, `ShellResultMapper`, kind actions) return only raw results; the paste-vs-copy
-  delivery decision (Select → Probe → Toast) is applied downstream from the action's declared
-  `Action.delivery` (snapshotted per perform) plus the click intent and the unified paste
+  (`OpenClipJSHost.run`, `ShellResultMapper`, kind actions) return only raw results; implicitly
+  returned text (JS string return, AppleScript output, shell stdout, text snippets) is emitted as
+  `.text` and the paste-vs-copy/preview delivery decision (Select → Probe → Toast) is applied
+  downstream from the user's per-click preference (General-tab `primaryClickBehavior`/
+  `secondaryClickBehavior`) plus the action's declared `Action.delivery` (snapshotted per perform),
+  the click intent, and the unified paste
   availability. The old `after` translator (the pre-refactor `after` orchestration step and its
   adapter) is **fully removed**. Async JS runs are guarded by the
   `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
@@ -169,7 +172,13 @@ areas; stale debt notes are worse than none.
   so a prior non-dismissing action's declared delivery can never leak onto a completion paste. The
   force-copy probe short-circuit skips the AX walk for a secondary click whose outcome is a copy;
   a declared `.paste` secondary is the exception and still probes, so it is honored when the target
-  can paste (and downgrades to copy when it cannot).
+  can paste (and downgrades to copy when it cannot). Since Task 3, implicitly returned text
+  (runtimes emit `.text`, never auto-dismissing) is resolved per the user's per-click preference
+  from the two General-tab settings (`preference(for:)`, unknown values fall back to primary-paste/
+  secondary-copy): a paste preference probes like any paste and downgrades to copy when the target
+  can't paste, a copy preference delivers a native copy with no toast, and a preview preference keeps
+  the popup open for the card render (Task 4) — dismissal for `.text` is decided by the controller's
+  `shouldDismiss`, not `dismissesPopup`.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 

@@ -599,7 +599,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         }
 
         // Deterministic resolution order: configuration > toast (coexisting with effects) > effects
-        // (in call order, sequence when >1) > function string return (pastes) > success.
+        // (in call order, sequence when >1) > function string return (.text) > success.
         let effects = evaluation.effects
         let raw: ActionResult
         if let configuration = collected.configuration {
@@ -617,7 +617,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
             let mapped = effects.map { effectResult($0, input: input) }
             raw = mapped.count == 1 ? mapped[0] : .sequence(mapped)
         } else if let returnValue = evaluation.asyncReturnValue ?? collected.returnValue {
-            raw = .paste(returnValue)
+            // raw = .text(returnValue) — implicitly returned text, governed by the user's per-click preference
+            raw = .text(returnValue)
         } else {
             raw = .success
         }
