@@ -12,7 +12,7 @@ public final class ExtensionsAPIClient: Sendable {
         self.baseURL = baseURL
     }
     
-    public func buildURL(query: String = "", category: String = "All", page: Int = 1, limit: Int = 12) -> URL? {
+    public func buildURL(query: String = "", page: Int = 1, limit: Int = 12) -> URL? {
         var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
         var queryItems = [
             URLQueryItem(name: "page", value: "\(page)"),
@@ -21,15 +21,12 @@ public final class ExtensionsAPIClient: Sendable {
         if !query.trimmingCharacters(in: .whitespaces).isEmpty {
             queryItems.append(URLQueryItem(name: "q", value: query.trimmingCharacters(in: .whitespaces)))
         }
-        if category != "All" {
-            queryItems.append(URLQueryItem(name: "category", value: category.lowercased()))
-        }
         components?.queryItems = queryItems
         return components?.url
     }
     
-    public func fetchExtensions(query: String = "", category: String = "All", page: Int = 1, limit: Int = 12) async throws -> ExtensionsPageResponse {
-        guard let url = buildURL(query: query, category: category, page: page, limit: limit) else {
+    public func fetchExtensions(query: String = "", page: Int = 1, limit: Int = 12) async throws -> ExtensionsPageResponse {
+        guard let url = buildURL(query: query, page: page, limit: limit) else {
             throw NSError(domain: "ExtensionsAPIClient", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL components"])
         }
         

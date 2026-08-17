@@ -26,27 +26,22 @@ struct GeneralTab: View {
     var body: some View {
         Form {
             Section(header: Text("General Controls")) {
-                // Row 1: Enable OpenClip
+                // Row 1: Appear Automatically
                 HStack {
                     HStack(spacing: 12) {
-                        Image(systemName: "power")
+                        Image(systemName: "cursorarrow")
                             .font(.system(size: 16))
                             .foregroundColor(isAppEnabled ? .accentColor : .secondary)
                             .frame(width: 22, alignment: .center)
                         
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Enable OpenClip")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text(isAppEnabled ? "Active & monitoring text selection" : "OpenClip is paused")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        Text("Appear Automatically")
+                            .font(.body)
+                            .fontWeight(.medium)
                     }
                     Spacer()
                     Toggle("", isOn: $isAppEnabled)
                         .labelsHidden()
-                        .accessibilityLabel("Enable OpenClip")
+                        .accessibilityLabel("Appear Automatically")
                         .onChange(of: isAppEnabled) { _, newValue in
                             DefaultSettingsStore.shared.set(.isAppEnabled, value: newValue)
                             NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
@@ -65,14 +60,9 @@ struct GeneralTab: View {
                             .foregroundColor(.accentColor)
                             .frame(width: 22, alignment: .center)
                         
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Trigger Popup Shortcut")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text("Global hotkey to manually trigger OpenClip HUD")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        Text("Trigger Popup Shortcut")
+                            .font(.body)
+                            .fontWeight(.medium)
                     }
                     Spacer()
                     KeyboardShortcuts.Recorder(for: .togglePopup)
@@ -87,14 +77,9 @@ struct GeneralTab: View {
                             .foregroundColor(.accentColor)
                             .frame(width: 22, alignment: .center)
                         
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Start at Login")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text("Launch OpenClip automatically when logging in")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        Text("Start at Login")
+                            .font(.body)
+                            .fontWeight(.medium)
                     }
                     Spacer()
                     Toggle("", isOn: $launchManager.isEnabled)
@@ -104,13 +89,13 @@ struct GeneralTab: View {
                 .padding(.vertical, 4)
             }
 
-            Section(header: Text("When an action returns text")) {
+            Section(header: Text("Action Results")) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Primary click")
                             .font(.body)
                             .fontWeight(.medium)
-                        Text("What happens to returned text on a primary click")
+                        Text("Left click")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -134,7 +119,7 @@ struct GeneralTab: View {
                         Text("Secondary click")
                             .font(.body)
                             .fontWeight(.medium)
-                        Text("What happens to returned text on a right-click or ⇧-click")
+                        Text("Right click or ⇧-click")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

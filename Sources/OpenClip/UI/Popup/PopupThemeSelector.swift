@@ -20,6 +20,7 @@ struct PopupThemeSelector: View {
     @AppStorage(SettingKey.popupTheme.name) private var theme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
     @AppStorage(SettingKey.popupScale.name) private var popupScale: Double = SettingKey.popupScale.defaultValue
+    @AppStorage(SettingKey.popupPageSize.name) private var pageSize: Int = SettingKey.popupPageSize.defaultValue
 
     private struct AppearanceOption: Identifiable {
         let label: String
@@ -35,10 +36,10 @@ struct PopupThemeSelector: View {
     private var isGlassOn: Bool { category == .glass }
 
     /// Shared tray geometry for both Theme and Mode rows.
-    private var trayHeight: CGFloat { 34 }
-    private var trayContentHeight: CGFloat { trayHeight - 6 }
-    private var segmentWidth: CGFloat { 72 }
-    private var modeSegmentWidth: CGFloat { 48 }
+    private var trayHeight: CGFloat { 26 }
+    private var trayContentHeight: CGFloat { trayHeight - 4 }
+    private var segmentWidth: CGFloat { 56 }
+    private var modeSegmentWidth: CGFloat { 38 }
 
     private var themeOptions: [AppearanceOption] {
         [
@@ -63,12 +64,40 @@ struct PopupThemeSelector: View {
         themeColor = value
     }
 
+    private var isAllDefault: Bool {
+        theme == SettingKey.popupTheme.defaultValue &&
+        themeColor == SettingKey.popupThemeColor.defaultValue &&
+        popupScale == SettingKey.popupScale.defaultValue &&
+        pageSize == SettingKey.popupPageSize.defaultValue
+    }
+
+    private func resetToDefaults() {
+        theme = SettingKey.popupTheme.defaultValue
+        themeColor = SettingKey.popupThemeColor.defaultValue
+        popupScale = SettingKey.popupScale.defaultValue
+        pageSize = SettingKey.popupPageSize.defaultValue
+    }
+
     var body: some View {
         Form {
             Section {
                 themeRow
                 modeRow
                 sizeRow
+                paginationRow
+            } footer: {
+                HStack {
+                    Spacer()
+                    Button("Reset to Defaults") {
+                        resetToDefaults()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundColor(.accentColor)
+                    .disabled(isAllDefault)
+                    .opacity(isAllDefault ? 0.4 : 1.0)
+                }
+                .padding(.top, 6)
             }
         }
         .formStyle(.grouped)
@@ -77,7 +106,7 @@ struct PopupThemeSelector: View {
 
     private var themeRow: some View {
         HStack(spacing: 12) {
-            rowTitle(icon: "paintbrush.fill", title: "Theme", subtitle: "Classic solid colors or glass material")
+            rowTitle(icon: "paintbrush.fill", title: "Popup Theme")
             Spacer()
             labelSegments(
                 options: themeOptions,
@@ -85,12 +114,13 @@ struct PopupThemeSelector: View {
                 select: { theme = $0 }
             )
         }
-        .padding(.vertical, 4)
+        .frame(minHeight: 24)
+        .padding(.vertical, 3)
     }
 
     private var modeRow: some View {
         HStack(spacing: 12) {
-            rowTitle(icon: "circle.lefthalf.filled", title: "Mode", subtitle: "System, Light or Dark appearance")
+            rowTitle(icon: "circle.lefthalf.filled", title: "Color Mode")
             Spacer()
             iconTiles(
                 options: appearanceOptions,
@@ -98,47 +128,70 @@ struct PopupThemeSelector: View {
                 select: selectAppearance
             )
         }
-        .padding(.vertical, 4)
+        .frame(minHeight: 24)
+        .padding(.vertical, 3)
     }
 
     private var sizeRow: some View {
         HStack(spacing: 12) {
             rowTitle(
                 icon: "arrow.up.left.and.arrow.down.right",
-                title: "Size",
-                subtitle: "\(Int(round(popupScale * 100)))% scaling"
+                title: "Popup Scale"
             )
             Spacer()
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Slider(value: $popupScale, in: 0.8...1.2, step: 0.05)
-                    .frame(width: 140)
-                Button("Reset") {
-                    popupScale = 1.0
-                }
-                .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundColor(.accentColor)
-                .opacity(popupScale == 1.0 ? 0.4 : 1.0)
-                .disabled(popupScale == 1.0)
+                    .accessibilityLabel("Popup Scale")
+                    .accessibilityValue("\(Int(round(popupScale * 100)))%")
+                    .frame(width: 120)
+                Text("\(Int(round(popupScale * 100)))%")
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 42, alignment: .trailing)
             }
         }
-        .padding(.vertical, 4)
+        .frame(minHeight: 24)
+        .padding(.vertical, 3)
     }
 
-    private func rowTitle(icon: String, title: String, subtitle: String) -> some View {
+    private var pageSizeBinding: Binding<Double> {
+        Binding<Double>(
+            get: { Double(pageSize) },
+            set: { pageSize = Int(round($0)) }
+        )
+    }
+
+    private var paginationRow: some View {
+        HStack(spacing: 12) {
+            rowTitle(
+                icon: "square.grid.2x2",
+                title: "Actions Per Page"
+            )
+            Spacer()
+            HStack(spacing: 8) {
+                Slider(value: pageSizeBinding, in: 3...12, step: 1)
+                    .accessibilityLabel("Actions Per Page")
+                    .accessibilityValue("\(pageSize)")
+                    .frame(width: 120)
+                Text("\(pageSize)")
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 42, alignment: .trailing)
+            }
+        }
+        .frame(minHeight: 24)
+        .padding(.vertical, 3)
+    }
+
+    private func rowTitle(icon: String, title: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(.system(size: 15))
                 .foregroundColor(.accentColor)
-                .frame(width: 22, alignment: .center)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.body)
-                    .fontWeight(.medium)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+                .frame(width: 20, alignment: .center)
+            Text(title)
+                .font(.body)
+                .fontWeight(.medium)
         }
     }
 
@@ -151,7 +204,7 @@ struct PopupThemeSelector: View {
         HStack(spacing: 0) {
             ForEach(options) { option in
                 if option.value != options[0].value {
-                    hairline(height: 20)
+                    hairline(height: 12)
                 }
                 segmentButton(
                     label: option.label,
@@ -160,7 +213,7 @@ struct PopupThemeSelector: View {
                 )
             }
         }
-        .padding(3)
+        .padding(2)
         .frame(height: trayHeight)
         .background(segmentContainerBackground)
         .overlay(segmentContainerBorder)
@@ -175,7 +228,7 @@ struct PopupThemeSelector: View {
         HStack(spacing: 0) {
             ForEach(options) { option in
                 if option.value != options[0].value {
-                    hairline(height: 20)
+                    hairline(height: 12)
                 }
                 tileButton(
                     label: option.label,
@@ -185,19 +238,19 @@ struct PopupThemeSelector: View {
                 )
             }
         }
-        .padding(3)
+        .padding(2)
         .frame(height: trayHeight)
         .background(segmentContainerBackground)
         .overlay(segmentContainerBorder)
     }
 
     private var segmentContainerBackground: some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
             .fill(Color.primary.opacity(0.055))
     }
 
     private var segmentContainerBorder: some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
             .stroke(Color.primary.opacity(0.08), lineWidth: 1)
     }
 
@@ -215,13 +268,13 @@ struct PopupThemeSelector: View {
     ) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundColor(isSelected ? .white : .primary)
                 .frame(width: segmentWidth, height: trayContentHeight)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 6)
                 .contentShape(Rectangle())
                 .background(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(isSelected ? Color.accentColor : Color.clear)
                 )
         }
@@ -236,14 +289,14 @@ struct PopupThemeSelector: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundColor(isSelected ? .white : .primary)
                 .frame(width: modeSegmentWidth, height: trayContentHeight)
                 .contentShape(Rectangle())
                 .help(label)
                 .accessibilityLabel(label)
                 .background(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(isSelected ? Color.accentColor : Color.clear)
                 )
         }

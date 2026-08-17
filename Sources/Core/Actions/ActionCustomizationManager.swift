@@ -118,8 +118,23 @@ public final class ActionCustomizationManager: ObservableObject, ActionPresentin
         if let symbol = ov?.customIconSymbol, !symbol.isEmpty {
             return .symbol(symbol)
         }
+        // `preferenceIconName` is an SF Symbol name. For builtins it is hand-written (Cut/Copy/Paste
+        // expose real symbols despite `.text` icons); for extension actions it is *derived* from the
+        // icon, and that derivation is only valid for `.symbol` icons — `.local` degrades to the
+        // filename (e.g. "snail.svg") and `.url` to the URL, neither a symbol. Swap in the preference
+        // symbol for `.symbol`/`.text` icons, keep the real icon for `.local`/`.url`.
         if let configurable = action as? any ConfigurableAction {
-            return .symbol(configurable.preferenceIconName)
+            switch action.icon {
+            case .symbol:
+                return .symbol(configurable.preferenceIconName)
+            case .text:
+                if ActionIdentity.isBuiltin(action) {
+                    return .symbol(configurable.preferenceIconName)
+                }
+                return action.icon
+            case .local, .url:
+                return action.icon
+            }
         }
         return action.icon
     }

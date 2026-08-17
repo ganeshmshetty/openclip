@@ -15,7 +15,7 @@ final class ExtensionsStoreIntegrationTests: XCTestCase {
 
     func testExtensionsAPIClientURLBuilding() {
         let client = ExtensionsAPIClient.shared
-        let url = client.buildURL(query: "search", category: "Developer", page: 1, limit: 12)
+        let url = client.buildURL(query: "search", page: 1, limit: 12)
         XCTAssertNotNil(url)
         XCTAssertEqual(url?.host, "getopenclip.vercel.app")
     }

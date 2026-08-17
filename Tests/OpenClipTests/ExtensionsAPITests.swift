@@ -29,14 +29,13 @@ final class ExtensionsAPITests: XCTestCase {
         XCTAssertEqual(response.extensions.first?.downloadCount, 1250)
     }
 
-    func testExtensionsAPIClientConstructsURLWithQueryAndCategory() {
+    func testExtensionsAPIClientConstructsURLWithQueryAndPage() {
         let client = ExtensionsAPIClient(baseURL: URL(string: "https://openclip.app/api/v1/extensions")!)
-        let url = client.buildURL(query: "search", category: "Developer", page: 2, limit: 12)
+        let url = client.buildURL(query: "search", page: 2, limit: 12)
         
         XCTAssertEqual(url?.scheme, "https")
         XCTAssertEqual(url?.host, "openclip.app")
         XCTAssertTrue(url?.absoluteString.contains("q=search") == true)
-        XCTAssertTrue(url?.absoluteString.contains("category=developer") == true)
         XCTAssertTrue(url?.absoluteString.contains("page=2") == true)
     }
 }

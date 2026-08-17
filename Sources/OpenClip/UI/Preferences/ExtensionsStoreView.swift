@@ -11,7 +11,6 @@ import Core
 @MainActor
 public final class ExtensionsStoreViewModel: ObservableObject {
     @Published public var searchQuery: String = ""
-    @Published public var selectedCategory: String = "All"
     @Published public var extensions: [ExtensionItem] = []
     @Published public var isLoading: Bool = false
     @Published public var currentPage: Int = 1
@@ -24,7 +23,7 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
-        if let response = try? await ExtensionsAPIClient.shared.fetchExtensions(query: searchQuery, category: selectedCategory, page: currentPage) {
+        if let response = try? await ExtensionsAPIClient.shared.fetchExtensions(query: searchQuery, page: currentPage) {
             self.extensions.append(contentsOf: response.extensions)
             self.totalPages = response.totalPages
             self.currentPage += 1
@@ -74,20 +73,6 @@ public struct ExtensionStoreView: View {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.primary.opacity(0.06))
             )
-
-            Picker("", selection: $viewModel.selectedCategory) {
-                Text("All Categories").tag("All")
-                Text("Search").tag("Search")
-                Text("Writing").tag("Writing")
-                Text("Productivity").tag("Productivity")
-                Text("Developer").tag("Developer")
-                Text("Utilities").tag("Utilities")
-            }
-            .pickerStyle(.menu)
-            .frame(width: 140)
-            .onChange(of: viewModel.selectedCategory) { _, _ in
-                Task { await viewModel.resetAndFetch() }
-            }
 
             Spacer()
 

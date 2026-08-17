@@ -161,23 +161,65 @@ if [ -n "$MISSING" ]; then
     exit 1
 fi
 
-# require() targets referenced by package .js files must exist inside the package.
-# Best-effort: only string-literal './' / '../' specifiers are scanned; the host loader remains
-# authoritative for resolution and containment.
+# require() targets referenced by package .js files must exist inside the package,
+# including transitive dependencies: the host loader evaluates requires recursively
+# from every loaded module (modulePrelude → __resolveModule), so a module that
+# require()s another module must be scanned too. Best-effort: only string-literal
+# './' / '../' specifiers are scanned; the host loader remains authoritative for
+# resolution and containment.
 MISSING_REQ=""
-while IFS= read -r js_file; do
+SCANNED=""
+# Physical package root (resolves symlinks, like the host's standardizedFileURL) so
+# queue paths and the SRC_DIR prefix strip stay aligned.
+ABS_SRC="$(cd "$SRC_DIR" && pwd -P)"
+# Worklist of relative .js paths still to scan, seeded with the manifest-referenced
+# script files. Each item is appended with a trailing newline so the pop below is
+# always able to advance (bash 3.2 has no arrays).
+QUEUE=""
+while IFS= read -r script; do
+    [ -n "$script" ] || continue
+    [ -f "$SRC_DIR/$script" ] || continue
+    QUEUE="${QUEUE}${script}"$'\n'
+done < <(jq -r '[.. | objects | .script?] | map(select(type == "string" and length > 0)) | unique[]' "$MANIFEST")
+
+while [ -n "$QUEUE" ]; do
+    js_file="${QUEUE%%$'\n'*}"
+    QUEUE="${QUEUE#*$'\n'}"
     [ -n "$js_file" ] || continue
-    [ -f "$SRC_DIR/$js_file" ] || continue
+
+    # Cycle guard: require() graphs can be cyclic; skip files already scanned.
+    if printf '%s\n' "$SCANNED" | grep -Fqx "$js_file"; then
+        continue
+    fi
+    SCANNED="$SCANNED
+$js_file"
+
     script_dir="$(dirname "$js_file")"
     while IFS= read -r spec; do
         [ -n "$spec" ] || continue
         target="$SRC_DIR/$script_dir/$spec"
-        if [ -f "$target" ] || [ -f "$target.js" ] || { [ -d "$target" ] && [ -f "$target/index.js" ]; }; then
-            continue
+        found=""
+        if [ -f "$target" ]; then
+            found="$target"
+        elif [ -f "$target.js" ]; then
+            found="$target.js"
+        elif [ -d "$target" ] && [ -f "$target/index.js" ]; then
+            found="$target/index.js"
         fi
-        MISSING_REQ="$MISSING_REQ $js_file -> require(\"$spec\")"
+        if [ -n "$found" ]; then
+            # A resolved .js module may itself require() further files — queue it.
+            # Normalize ./ and ../ segments (as the host loader does) so the
+            # recursive dirname resolution stays clean.
+            norm="$(cd "$(dirname "$found")" && pwd -P)/$(basename "$found")"
+            case "$norm" in
+                "$ABS_SRC"/*.js) QUEUE="${QUEUE}${norm#$ABS_SRC/}"$'\n' ;;
+                *) MISSING_REQ="$MISSING_REQ $js_file -> require(\"$spec\")" ;;
+            esac
+        else
+            MISSING_REQ="$MISSING_REQ $js_file -> require(\"$spec\")"
+        fi
     done < <(grep -oE 'require\(\s*["'"'"']\.\.?/[^"'"'"']*["'"'"']' "$SRC_DIR/$js_file" | sed -E -e 's/^require\(\s*["'"'"']//' -e 's/["'"'"']\)?$//')
-done < <(jq -r '[.. | objects | .script?] | map(select(type == "string" and length > 0)) | unique[]' "$MANIFEST")
+done
 
 if [ -n "$MISSING_REQ" ]; then
     echo "validate_extension: $MANIFEST references missing require() targets:$MISSING_REQ" >&2

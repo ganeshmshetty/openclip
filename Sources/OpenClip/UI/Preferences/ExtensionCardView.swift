@@ -34,10 +34,10 @@ struct ExtensionCardView: View {
                 ZStack {
                     AnyIconView(iconId: item.icon.hasPrefix("symbol:") ? String(item.icon.dropFirst(7)) : item.icon)
                         .frame(width: 18, height: 18)
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(.primary)
                 }
                 .frame(width: 36, height: 36)
-                .background(Color.accentColor.opacity(0.12))
+                .background(Color.primary.opacity(0.06))
                 .cornerRadius(8)
 
                 VStack(alignment: .leading, spacing: 2) {

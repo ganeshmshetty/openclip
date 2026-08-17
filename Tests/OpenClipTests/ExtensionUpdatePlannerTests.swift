@@ -3,7 +3,7 @@ import XCTest
 
 final class ExtensionUpdatePlannerTests: XCTestCase {
     private func item(_ id: String, version: String?) -> ExtensionItem {
-        ExtensionItem(id: id, name: id, description: "", author: "x", icon: "", category: "Utilities", downloadCount: 0, downloadURL: "https://example.com/\(id).zip", version: version)
+        ExtensionItem(id: id, name: id, description: "", author: "x", icon: "", downloadCount: 0, downloadURL: "https://example.com/\(id).zip", version: version)
     }
 
     func testNewerStoreVersionMarksUpdatable() {

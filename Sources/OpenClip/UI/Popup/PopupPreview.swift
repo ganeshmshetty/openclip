@@ -4,8 +4,8 @@
 // Static visual preview of the popup bar rendered with a fixed action set
 // (Search, Copy, Cut, Paste, Share + AI), mirroring how the real bar will look
 // for the currently selected theme. It is intentionally decoupled from the live
-// action registry so it always shows the same canonical actions. Shared by the
-// Preferences Appearance tab and the onboarding Finish step.
+// action registry so it always shows the same canonical actions. Used by the
+// Preferences Appearance tab.
 import SwiftUI
 import AppKit
 import Core

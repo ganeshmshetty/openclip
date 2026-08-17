@@ -10,7 +10,6 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
     public let description: String
     public let author: String
     public let icon: String
-    public let category: String
     public let downloadCount: Int
     public let downloadURL: String
     public let version: String?
@@ -21,7 +20,6 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
         description: String,
         author: String,
         icon: String,
-        category: String,
         downloadCount: Int,
         downloadURL: String,
         version: String? = nil
@@ -31,7 +29,6 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
         self.description = description
         self.author = author
         self.icon = icon
-        self.category = category
         self.downloadCount = downloadCount
         self.downloadURL = downloadURL
         self.version = version
