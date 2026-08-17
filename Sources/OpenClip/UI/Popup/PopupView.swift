@@ -51,6 +51,7 @@ public struct PopupView: View {
     @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
     @AppStorage(SettingKey.popupScale.name) private var popupScale: Double = SettingKey.popupScale.defaultValue
+    @AppStorage(SettingKey.popupPageSize.name) private var pageSize: Int = SettingKey.popupPageSize.defaultValue
     @Environment(\.colorScheme) private var colorScheme
 
     private var themeCategory: PopupThemeModel.Category {
@@ -105,7 +106,6 @@ public struct PopupView: View {
     private var chevronWidth: CGFloat { 26 * scale }
     private var barButtonHeight: CGFloat { 26 * scale }
     private var cornerRadius: CGFloat { PopupMetrics.popupCornerRadius * scale }
-    private let pageSize = 7
 
 
     @MainActor
@@ -783,7 +783,7 @@ public struct PopupView: View {
             }
         case .local(let url):
             if let nsImage = LocalIconCache.shared.image(for: url) {
-                Image(nsImage: nsImage).resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
+                Image(nsImage: nsImage).resizable().renderingMode(.template).aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
             } else {
                 Image(systemName: "exclamationmark.triangle")
             }

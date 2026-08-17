@@ -27,12 +27,19 @@ final class LocalIconCache {
     }
 
     /// Returns the decoded image for `url`, reading and decoding the file at most once.
+    /// Images are marked as templates (like `IconifySVGView` does for iconify SVGs) so every
+    /// local icon tints to the theme's foreground — pure black/white — regardless of the file's
+    /// own colors.
     func image(for url: URL) -> NSImage? {
         let key = url.path as NSString
         if let cached = cache.object(forKey: key) {
             return cached.image
         }
-        let image = NSImage(contentsOf: url)
+        guard let image = NSImage(contentsOf: url) else {
+            cache.setObject(Entry(nil), forKey: key)
+            return nil
+        }
+        image.isTemplate = true
         cache.setObject(Entry(image), forKey: key)
         return image
     }

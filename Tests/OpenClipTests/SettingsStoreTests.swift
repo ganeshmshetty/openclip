@@ -43,6 +43,12 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.get(.popupScale), 1.2)
     }
 
+    func testPopupPageSizeReadWrite() {
+        XCTAssertEqual(store.get(.popupPageSize), 7)
+        store.set(.popupPageSize, value: 5)
+        XCTAssertEqual(store.get(.popupPageSize), 5)
+    }
+
     func testResultDeliveryDefaults() {
         XCTAssertEqual(store.get(.primaryClickBehavior), "paste")
         XCTAssertEqual(store.get(.secondaryClickBehavior), "copy")

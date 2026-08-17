@@ -189,17 +189,10 @@ public class PopupWindowController {
 
     public var isVisible: Bool { panel?.isVisible ?? false }
 
-    /// Hotkey-driven mode toggle: actions → search palette → dismiss.
+    /// Hotkey-driven toggle: dismisses the popup if already visible.
     public func toggleMode() {
         guard panel?.isVisible == true else { return }
-        switch modeStore.mode {
-        case .actions:
-            enterSearch()
-        case .search:
-            hide()
-        case .content:
-            exitContent()
-        }
+        hide()
     }
 
     /// Records the app that was frontmost before the panel made itself key (search, or later the

@@ -19,13 +19,9 @@ public struct AIConfigureForm: View {
         Form {
             Section {
                 Toggle(isOn: $aiManager.isAIEnabled) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable AI Features")
-                            .font(.headline)
-                        Text("Show AI tools in the text selection popup bar")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    Text("Enable AI Actions")
+                        .font(.body)
+                        .fontWeight(.medium)
                 }
                 .toggleStyle(.switch)
             }
@@ -53,13 +49,11 @@ public struct AIConfigureForm: View {
 
             Section(header: Text("Provider Settings")) {
                 if aiManager.activeProviderType == .apple {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label("Apple Intelligence (On-Device)", systemImage: "applelogo")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Text("Uses native macOS Writing Tools & on-device models. Zero API key needed, 100% private.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    HStack(spacing: 8) {
+                        Image(systemName: "applelogo")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("Apple Intelligence (On-Device)")
+                            .font(.system(size: 13, weight: .medium))
                     }
                     .padding(.vertical, 4)
                 } else if aiManager.activeProviderType == .cloud {
@@ -105,46 +99,24 @@ public struct AIConfigureForm: View {
                             .foregroundColor(.red)
                     }
                 } else if aiManager.activeProviderType == .ollama {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Ollama Server Endpoint")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        TextField("http://localhost:11434", text: $aiManager.ollamaURL)
-                            .textFieldStyle(.roundedBorder)
-
-                        Text("Model Name")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        TextField("llama3", text: $aiManager.ollamaModel)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    .padding(.vertical, 4)
+                    TextField("Server Endpoint", text: $aiManager.ollamaURL, prompt: Text("http://localhost:11434"))
+                    TextField("Model Name", text: $aiManager.ollamaModel, prompt: Text("llama3"))
                 } else if aiManager.activeProviderType == .browser {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Picker("Default Chatbot", selection: $aiManager.browserPreset) {
-                            Text("ChatGPT (OpenAI)").tag("chatgpt")
-                            Text("Claude (Anthropic)").tag("claude")
-                            Text("Perplexity AI").tag("perplexity")
-                            Text("Google Gemini").tag("gemini")
-                            Text("DeepSeek").tag("deepseek")
-                            Text("Custom URL...").tag("custom")
-                        }
-
-                        if aiManager.browserPreset == "custom" {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Custom Web URL")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                TextField("https://custom-ai.com/?q={text}", text: $aiManager.browserURLTemplate)
-                                    .textFieldStyle(.roundedBorder)
-                                Text("Use **{text}** as a placeholder for the prompt and selection.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.top, 4)
-                        }
+                    Picker("Default Chatbot", selection: $aiManager.browserPreset) {
+                        Text("ChatGPT (OpenAI)").tag("chatgpt")
+                        Text("Claude (Anthropic)").tag("claude")
+                        Text("Perplexity AI").tag("perplexity")
+                        Text("Google Gemini").tag("gemini")
+                        Text("DeepSeek").tag("deepseek")
+                        Text("Custom URL...").tag("custom")
                     }
-                    .padding(.vertical, 4)
+
+                    if aiManager.browserPreset == "custom" {
+                        TextField("Custom Web URL", text: $aiManager.browserURLTemplate, prompt: Text("https://custom-ai.com/?q={text}"))
+                        Text("Use **{text}** as a placeholder for the prompt and selection.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .disabled(!aiManager.isAIEnabled)

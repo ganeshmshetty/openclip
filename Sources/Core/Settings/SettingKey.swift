@@ -59,6 +59,11 @@ public extension SettingKey where Value == Bool {
     static var extensionTrustMigrated: SettingKey<Bool> { SettingKey<Bool>("extension.trustMigrated", defaultValue: false) }
 }
 
+public extension SettingKey where Value == Int {
+    /// Number of actions displayed per page in the popup bar (default 7).
+    static var popupPageSize: SettingKey<Int> { SettingKey<Int>("popupPageSize", defaultValue: 7) }
+}
+
 public extension SettingKey where Value == Double {
     /// Visual scaling factor for the popup (1.0 = 100%).
     static var popupScale: SettingKey<Double> { SettingKey<Double>("popupScale", defaultValue: 1.0) }
@@ -72,8 +77,8 @@ public extension SettingKey where Value == String {
     static var calendarProvider: SettingKey<String> { SettingKey<String>("action.calendar.provider", defaultValue: "native") }
     static var searchURL: SettingKey<String> { SettingKey<String>("action.search.url", defaultValue: "https://www.google.com/search?q={query}") }
 
-    /// The user's chosen behavior when an action implicitly returns text (General tab →
-    /// "When an action returns text"): "preview" | "paste" | "copy". The raw `ResultDeliveryPreference`
+    /// The user's chosen behavior when an action returns text (General tab →
+    /// "Action Results"): "preview" | "paste" | "copy". The raw `ResultDeliveryPreference`
     /// values; defaults preserve today's behavior (primary pastes, secondary copies).
     static var primaryClickBehavior: SettingKey<String> { SettingKey<String>("resultDelivery.primary", defaultValue: "paste") }
     static var secondaryClickBehavior: SettingKey<String> { SettingKey<String>("resultDelivery.secondary", defaultValue: "copy") }

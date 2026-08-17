@@ -41,6 +41,7 @@ public struct ActionIconView: View {
             if let nsImage = LocalIconCache.shared.image(for: url) {
                 Image(nsImage: nsImage)
                     .resizable()
+                    .renderingMode(.template)
                     .scaledToFit()
                     .frame(width: size, height: size)
             } else {

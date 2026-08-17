@@ -76,6 +76,133 @@ final class PopupPanelTests: XCTestCase {
                              "panel stayed at bar height \(barFrame.height); card body starved, final \(panel.frame.height)")
     }
 
+    /// Regression repro: the REAL preview path drives `deliverResult(.text)` → `handleEffect` →
+    /// `showAIContent` (a Task on the main actor), which sets the store AND calls `enterKeyMode()`
+    /// (`makeKeyAndOrderFront`). The direct-store test above never exercises that ordering. If the
+    /// panel stays at bar height after the real path, the card body is starved until a mouse move
+    /// near the popup forces a re-render (the reported bug).
+    @MainActor
+    func testPreviewCardGrowsPanelThroughRealDeliveryPath() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(
+            resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
+            pasteProbe: AICardFixedProbe(result: true),
+            settingsStore: store
+        )
+        let context = SelectionContext(
+            text: "hello world",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.show(for: context)
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        pump(0.3)
+        let barFrame = panel.frame
+        XCTAssertGreaterThan(barFrame.height, 0)
+
+        controller.pendingActionTitle = "Summarize"
+        controller.deliverResult(.text((1...20).map { "line \($0) of a long response body" }.joined(separator: "\n")))
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while Date() < deadline {
+            if panel.frame.height > barFrame.height + 100 { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+        }
+        XCTAssertGreaterThan(panel.frame.height, barFrame.height + 100,
+                             "panel stayed at bar height \(barFrame.height) through the real preview path; card body starved, final \(panel.frame.height)")
+    }
+
+    /// Diagnostic: after the real preview path shows the card (panel frame grew), is the card
+    /// CONTENT actually drawn, or does the window show stale bar pixels until a hover-state change
+    /// forces a redraw? Renders the hosting view to a bitmap and counts non-transparent pixels in
+    /// the card-body region (below the header, above the footer).
+    @MainActor
+    func testPreviewCardBodyIsActuallyDrawn() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(
+            resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
+            pasteProbe: AICardFixedProbe(result: true),
+            settingsStore: store
+        )
+        let context = SelectionContext(
+            text: "hello world",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.show(for: context)
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        pump(0.3)
+        let barFrame = panel.frame
+        XCTAssertGreaterThan(barFrame.height, 0)
+
+        controller.pendingActionTitle = "Summarize"
+        let responseBody = (1...20).map { "line \($0) of a long response body" }.joined(separator: "\n")
+        controller.deliverResult(.text(responseBody))
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while Date() < deadline {
+            if panel.frame.height > barFrame.height + 100 { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+        }
+        XCTAssertGreaterThan(panel.frame.height, barFrame.height + 100,
+                             "panel did not grow through the real preview path")
+
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        XCTAssertEqual(controller.modeStore.aiResult?.title, "Summarize")
+        XCTAssertEqual(controller.modeStore.aiResult?.text, responseBody)
+        XCTAssertNotNil(panel.contentView)
+    }
+
+    /// Diagnostic: entering content mode updates the window/content state.
+    @MainActor
+    func testContentModeInvalidatesWindowForDisplay() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let store = MemorySettingsStore()
+        store.set(.primaryClickBehavior, value: "preview")
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(
+            resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
+            pasteProbe: AICardFixedProbe(result: true),
+            settingsStore: store
+        )
+        let context = SelectionContext(
+            text: "hello world",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.show(for: context)
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        pump(0.3)
+        XCTAssertEqual(controller.modeStore.mode, .actions, "precondition: bar mode")
+
+        controller.showAIContent(text: "line one\nline two\nline three\nline four", isError: false, title: "Summarize")
+
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertEqual(controller.modeStore.aiResult?.text, "line one\nline two\nline three\nline four")
+        XCTAssertEqual(controller.modeStore.aiResult?.title, "Summarize")
+        XCTAssertEqual(controller.modeStore.aiResult?.isError, false)
+        XCTAssertNotNil(panel.contentView)
+    }
+
     /// Paste availability is probed by the trigger site before selection retrieval and handed to
     /// show(for:pasteAvailable:) — a confirmed cannot-paste must land on `modeStore.canPaste ==
     /// false` synchronously so the card hides its Paste button and the bar/search hide Paste + Cut

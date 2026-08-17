@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Renders the multi-step first-launch onboarding flow: Welcome (accessibility),
-// AI assistant configuration, recommended extensions, then a Finish summary.
+// AI assistant configuration, then recommended extensions.
 // Drawn as a solid rounded card (border + shadow) on a transparent borderless
 // window — a wizard is content, not navigation, so no Liquid Glass surface.
 import SwiftUI
@@ -13,7 +13,6 @@ public enum OnboardingStep: Int, CaseIterable, Identifiable, Sendable {
     case welcome = 0
     case ai = 1
     case extensions = 2
-    case finish = 3
 
     public var id: Int { rawValue }
 
@@ -22,7 +21,6 @@ public enum OnboardingStep: Int, CaseIterable, Identifiable, Sendable {
         case .welcome: return "Welcome"
         case .ai: return "AI Assistant"
         case .extensions: return "Extensions"
-        case .finish: return "Finish"
         }
     }
 }
@@ -98,7 +96,6 @@ public struct OnboardingView: View {
                 case .welcome: welcomeContent
                 case .ai: aiContent
                 case .extensions: extensionsContent
-                case .finish: finishContent
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -119,14 +116,14 @@ public struct OnboardingView: View {
                 Spacer()
 
                 Button {
-                    if step == .finish {
+                    if step == .extensions {
                         DefaultSettingsStore.shared.set(.hasCompletedOnboarding, value: true)
                         onComplete()
                     } else {
-                        step = OnboardingStep(rawValue: step.rawValue + 1) ?? .finish
+                        step = OnboardingStep(rawValue: step.rawValue + 1) ?? .extensions
                     }
                 } label: {
-                    Text(step == .finish ? "Get Started" : "Continue →")
+                    Text(step == .extensions ? "Get Started" : "Continue →")
                         .font(.system(size: 13, weight: .medium))
                         .padding(.horizontal, 18)
                         .padding(.vertical, 5)
@@ -225,21 +222,6 @@ public struct OnboardingView: View {
 
     private var extensionsContent: some View {
         RecommendedExtensionsView()
-    }
-
-    // MARK: - Finish
-
-    private var finishContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Preview your popup bar and choose how it looks.")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                PopupPreview()
-                PopupThemeSelector()
-            }
-        }
-        .scrollContentBackground(.hidden)
     }
 }
 
