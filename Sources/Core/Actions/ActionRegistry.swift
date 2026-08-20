@@ -163,7 +163,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         let enabledGroupIDs = Set(
             actions
                 .filter { $0.chrome.popupBehavior == .showSubActions }
-                .filter(passes)
+                .filter { passes($0) }
                 .map { $0.id }
         )
 
