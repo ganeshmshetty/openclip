@@ -64,7 +64,8 @@ final class ActionResultHandlerTests: XCTestCase {
         let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         let store = MemorySettingsStore()
         store.set(.completionCopyToClipboard, value: false)
-        let handler = DefaultActionResultHandler(settingsStore: store, pasteboard: isolatedPasteboard)
+        let testDelay: TimeInterval = 0.05
+        let handler = DefaultActionResultHandler(settingsStore: store, pasteboard: isolatedPasteboard, pasteboardRestoreDelay: testDelay)
         
         isolatedPasteboard.clearContents()
         isolatedPasteboard.setString("OriginalItem", forType: .string)
@@ -76,7 +77,7 @@ final class ActionResultHandlerTests: XCTestCase {
         isolatedPasteboard.setString("UserNewCopy", forType: .string)
 
         // Wait for restore delay
-        try await Task.sleep(nanoseconds: UInt64((Constants.pasteboardRestoreDelay + 0.1) * 1_000_000_000))
+        try await Task.sleep(nanoseconds: UInt64((testDelay + 0.05) * 1_000_000_000))
 
         // Ensure user's new copy was NOT overwritten by stale restore task
         let currentText = isolatedPasteboard.string(forType: .string)

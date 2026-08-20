@@ -131,9 +131,14 @@ public struct AIResultCardView: View {
             .accessibilityLabel("Back to actions")
             .onHover { isChevronHovered = $0 }
 
-            Image(systemName: "sparkles")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.accentColor)
+            if payload.isStreaming {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.accentColor)
+            }
             Text(payload.title)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))

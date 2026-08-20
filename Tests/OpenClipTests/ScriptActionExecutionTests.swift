@@ -216,7 +216,7 @@ final class ScriptActionExecutionTests: XCTestCase {
                 arguments: [],
                 environment: [:],
                 stdinText: nil,
-                timeout: 1.0
+                timeout: 0.1
             ))
             XCTFail("Expected watchdog timeout")
         } catch {
@@ -225,6 +225,61 @@ final class ScriptActionExecutionTests: XCTestCase {
             XCTAssertTrue(nsError.localizedDescription.contains("timed out"),
                           "expected timeout error, got \(nsError.localizedDescription)")
         }
+
+        try? FileManager.default.removeItem(at: tempScript)
+    }
+
+    /// Large stdout output spanning multiple pipe buffer chunks must be completely and
+    /// cleanly accumulated without truncation.
+    func testScriptActionLargeOutputIsCapturedCompletely() async throws {
+        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("large_output_\(UUID().uuidString).sh")
+        let scriptContent = """
+        #!/bin/bash
+        for i in $(seq 1 5000); do
+            echo "Line $i: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        done
+        """
+        try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
+
+        let output = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+            executableURL: tempScript,
+            arguments: [],
+            environment: [:],
+            stdinText: nil,
+            timeout: 5.0
+        ))
+
+        let lines = output.stdout.split(separator: "\n")
+        XCTAssertEqual(lines.count, 5000)
+        XCTAssertEqual(lines.first, "Line 1: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        XCTAssertEqual(lines.last, "Line 5000: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+
+        try? FileManager.default.removeItem(at: tempScript)
+    }
+
+    /// When a script spawns a background grandchild process that inherits the pipe fds,
+    /// finish must not hang indefinitely waiting for EOF on the pipe.
+    func testScriptActionGrandchildHoldingPipeDoesNotHang() async throws {
+        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("grandchild_pipe_\(UUID().uuidString).sh")
+        let scriptContent = """
+        #!/bin/bash
+        (sleep 5) &
+        echo "ParentDone"
+        exit 0
+        """
+        try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
+
+        let output = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+            executableURL: tempScript,
+            arguments: [],
+            environment: [:],
+            stdinText: nil,
+            timeout: 2.0
+        ))
+
+        XCTAssertEqual(output.stdout.trimmingCharacters(in: .whitespacesAndNewlines), "ParentDone")
 
         try? FileManager.default.removeItem(at: tempScript)
     }

@@ -38,19 +38,28 @@ class StatusBarController {
         
         let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
         let toggleItem = NSMenuItem(
-            title: isEnabled ? "Disable OpenClip" : "Enable OpenClip",
+            title: "Appear Automatically",
             action: #selector(toggleEnabled),
             keyEquivalent: ""
         )
         toggleItem.target = self
+        toggleItem.state = isEnabled ? .on : .off
         menu.addItem(toggleItem)
         self.toggleEnabledItem = toggleItem
         
         menu.addItem(NSMenuItem.separator())
         
-        let prefsItem = NSMenuItem(title: "Preferences...", action: #selector(showPreferences), keyEquivalent: ",")
+        let prefsItem = NSMenuItem(title: "Preferences", action: #selector(showPreferences), keyEquivalent: ",")
         prefsItem.target = self
         menu.addItem(prefsItem)
+
+        let reportItem = NSMenuItem(title: "Report an Issue", action: #selector(openReportIssue), keyEquivalent: "")
+        reportItem.target = self
+        menu.addItem(reportItem)
+
+        let updateItem = NSMenuItem(title: "Check for Updates", action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
         
         menu.addItem(NSMenuItem.separator())
         
@@ -73,6 +82,16 @@ class StatusBarController {
         let isEnabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
         updateStatusItem(isEnabled: isEnabled)
     }
+
+    @objc private func openReportIssue() {
+        if let url = URL(string: "https://github.com/ganeshmshetty/openclip/issues") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    @objc private func checkForUpdates() {
+        AppUpdateManager.shared.checkForUpdates()
+    }
     
     /// Decision 8 config-open path: an action requested its configuration. The popup has already
     /// hidden; open Preferences and hand the request to the coordinator so PreferencesView can
@@ -82,7 +101,7 @@ class StatusBarController {
     }
     
     public func updateStatusItem(isEnabled: Bool) {
-        toggleEnabledItem?.title = isEnabled ? "Disable OpenClip" : "Enable OpenClip"
+        toggleEnabledItem?.state = isEnabled ? .on : .off
         updateStatusIcon(isEnabled: isEnabled)
     }
     

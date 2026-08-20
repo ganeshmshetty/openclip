@@ -845,7 +845,7 @@ are rejected at build time by esbuild's browser platform. See
 Extensions are **fail-closed**: nothing in a package runs until the user **enables** it once. Each
 package is tracked in `SettingsStore` by its `manifest.identifier` under three SettingKeys —
 `extension.trust` (state), `extension.trustHashes` (content hash recorded at enable), and
-`extension.sources` (`"store"` or `"local"`).
+`extension.sources` (`"store"`, `"package"`, or `"developer"`/`"local"`).
 
 Per-package trust states:
 
@@ -855,16 +855,18 @@ Per-package trust states:
 
 The single consent surface is the **trust model sheet**. How each install path reaches it:
 
-- **Manual drop** (copy a folder into `~/.openclip/extensions` while running) → "New Extension"
+- **Developer / Manual drop** (copy or author a folder in `~/.openclip/extensions`, source `"developer"`) → "New Extension"
   notification → clicking it opens the trust model → Enable → runs.
-- **Install File…** → the trust model opens immediately (no notification) → Enable → runs.
-- **Store install** → the store click *is* consent: the package auto-trusts and runs immediately,
+- **Install File…** (sideloaded archive, source `"package"`) → the trust model opens immediately (no notification) → Enable → runs.
+- **Store install** (in-app catalog, source `"store"`) → the store click *is* consent: the package auto-trusts and runs immediately,
   with no trust model and no notification.
 
-**Tamper-watch**: the package's content hash is recorded at enable and re-verified at every load. A
-`trusted` package whose files changed is **auto-disabled** — trust flips back to `seen`, an
-"Extension Disabled" notification fires, and its actions are gated as `filesChanged`. Reviewing it
-shows a "Files changed" warning; re-enabling re-records the new hash. **Reload never re-trusts.**
+**Tamper-watch vs Live Hot-Reload**:
+- **Store & Package extensions** (`"store"`, `"package"`): **Strict Tamper-Watch**. A `trusted` package whose files changed
+  outside an official update flow is **auto-disabled** — trust flips back to `seen`, an "Extension Disabled" notification fires,
+  and its actions are gated as `filesChanged`. Reviewing it in Preferences allows re-enabling.
+- **Developer extensions** (`"developer"`, `"local"`): **Live Hot-Reload**. File edits during development are intentional; the
+  gate automatically updates the stored SHA-256 fingerprint and hot-reloads the actions without gating, disabling, or sending spam alerts.
 
 **`minOpenClipVersion`** is min-only and decode-only (§2): a package declaring a minimum newer than
 the running app still loads but is gated "Needs Update" — its actions don't run until the app is

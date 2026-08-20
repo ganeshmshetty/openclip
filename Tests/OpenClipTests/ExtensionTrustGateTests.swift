@@ -69,23 +69,58 @@ final class ExtensionTrustGateTests: XCTestCase {
     }
 
     @MainActor
-func testTrustedPackageWithMatchingHashRuns() async throws {
+    func testTrustedPackageWithMatchingHashRuns() async throws {
         let first = try await plan(packageID: "com.t.t", name: "T", trust: [:], hashes: [:], sources: [:], isMigrated: false)
-        let hash = first.hashes["com.t.t"] ?? "missing"
+        let hash = try XCTUnwrap(first.hashes["com.t.t"])
         let p = try await plan(packageID: "com.t.t", name: "T", trust: ["com.t.t": "trusted"], hashes: ["com.t.t": hash], sources: [:], isMigrated: true)
         XCTAssertFalse(p.actions[0] is GatedExtensionAction)
         XCTAssertTrue(p.events.isEmpty)
     }
 
     @MainActor
-func testChangedTrustedPackageFlipsToGatedAndNotifies() async throws {
-        let first = try await plan(packageID: "com.t.tam", name: "Tam", trust: [:], hashes: [:], sources: [:], isMigrated: false)
-        let hash = first.hashes["com.t.tam"] ?? "missing"
-        let p = try await plan(packageID: "com.t.tam", name: "Tam", trust: ["com.t.tam": "trusted"], hashes: ["com.t.tam": hash], sources: [:], isMigrated: true, script: "echo edited")
+    func testChangedTrustedPackageFlipsToGatedAndNotifies() async throws {
+        let first = try await plan(packageID: "com.t.tam", name: "Tam", trust: [:], hashes: [:], sources: ["com.t.tam": "package"], isMigrated: false)
+        let hash = try XCTUnwrap(first.hashes["com.t.tam"])
+        let p = try await plan(packageID: "com.t.tam", name: "Tam", trust: ["com.t.tam": "trusted"], hashes: ["com.t.tam": hash], sources: ["com.t.tam": "package"], isMigrated: true, script: "echo edited")
         let gated = try XCTUnwrap(p.actions[0] as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .filesChanged)
         XCTAssertEqual(p.trust["com.t.tam"], "seen")
         XCTAssertEqual(p.events, [.tampered(packageID: "com.t.tam", name: "Tam")])
+    }
+
+    @MainActor
+    func testMissingSourceTreatedAsNonDeveloperAndTamperDetected() async throws {
+        let first = try await plan(packageID: "com.t.nosrc", name: "NoSrc", trust: [:], hashes: [:], sources: [:], isMigrated: false)
+        let hash = try XCTUnwrap(first.hashes["com.t.nosrc"])
+        let p = try await plan(packageID: "com.t.nosrc", name: "NoSrc", trust: ["com.t.nosrc": "trusted"], hashes: ["com.t.nosrc": hash], sources: [:], isMigrated: true, script: "echo edited")
+        let gated = try XCTUnwrap(p.actions[0] as? GatedExtensionAction)
+        XCTAssertEqual(gated.reason, .filesChanged)
+        XCTAssertEqual(p.trust["com.t.nosrc"], "seen")
+        XCTAssertEqual(p.events, [.tampered(packageID: "com.t.nosrc", name: "NoSrc")])
+    }
+
+    @MainActor
+    func testUnrecognizedSourceTreatedAsNonDeveloperAndTamperDetected() async throws {
+        let first = try await plan(packageID: "com.t.badsrc", name: "BadSrc", trust: [:], hashes: [:], sources: ["com.t.badsrc": "invalid_source_type"], isMigrated: false)
+        let hash = try XCTUnwrap(first.hashes["com.t.badsrc"])
+        let p = try await plan(packageID: "com.t.badsrc", name: "BadSrc", trust: ["com.t.badsrc": "trusted"], hashes: ["com.t.badsrc": hash], sources: ["com.t.badsrc": "invalid_source_type"], isMigrated: true, script: "echo edited")
+        let gated = try XCTUnwrap(p.actions[0] as? GatedExtensionAction)
+        XCTAssertEqual(gated.reason, .filesChanged)
+        XCTAssertEqual(p.trust["com.t.badsrc"], "seen")
+        XCTAssertEqual(p.events, [.tampered(packageID: "com.t.badsrc", name: "BadSrc")])
+    }
+
+    @MainActor
+    func testDeveloperExtensionAutoRehashesOnEdit() async throws {
+        let first = try await plan(packageID: "com.t.dev", name: "Dev", trust: [:], hashes: [:], sources: ["com.t.dev": "developer"], isMigrated: false)
+        let initialHash = try XCTUnwrap(first.hashes["com.t.dev"])
+        let p = try await plan(packageID: "com.t.dev", name: "Dev", trust: ["com.t.dev": "trusted"], hashes: ["com.t.dev": initialHash], sources: ["com.t.dev": "developer"], isMigrated: true, script: "echo edited")
+        XCTAssertFalse(p.actions[0] is GatedExtensionAction)
+        XCTAssertEqual(p.trust["com.t.dev"], "trusted")
+        let updatedHash = try XCTUnwrap(p.hashes["com.t.dev"])
+        XCTAssertNotEqual(updatedHash, initialHash)
+        XCTAssertEqual(updatedHash.count, 64)
+        XCTAssertTrue(p.events.isEmpty)
     }
 
     @MainActor

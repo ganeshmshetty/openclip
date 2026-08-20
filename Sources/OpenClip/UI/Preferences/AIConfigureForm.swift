@@ -9,9 +9,15 @@ import SwiftUI
 public struct AIConfigureForm: View {
     @ObservedObject private var aiManager = AIServiceManager.shared
 
-    @State private var fetchedModels: [String] = []
-    @State private var isFetchingModels: Bool = false
-    @State private var fetchError: String? = nil
+    @State private var fetchedCloudModels: [String] = []
+    @State private var isFetchingCloudModels: Bool = false
+    @State private var cloudFetchError: String? = nil
+    @State private var cloudFetchGeneration: Int = 0
+
+    @State private var fetchedOllamaModels: [String] = []
+    @State private var isFetchingOllamaModels: Bool = false
+    @State private var ollamaFetchError: String? = nil
+    @State private var ollamaFetchGeneration: Int = 0
 
     public init() {}
 
@@ -73,7 +79,7 @@ public struct AIConfigureForm: View {
 
                     HStack(spacing: 8) {
                         let defaultModels = aiManager.cloudServiceProvider.defaultModels
-                        let combinedModels = Array(Set(defaultModels + fetchedModels + [aiManager.cloudModel])).sorted()
+                        let combinedModels = Array(Set(defaultModels + fetchedCloudModels + [aiManager.cloudModel])).sorted()
 
                         Picker("Model", selection: $aiManager.cloudModel) {
                             ForEach(combinedModels, id: \.self) { m in
@@ -82,7 +88,7 @@ public struct AIConfigureForm: View {
                         }
 
                         Button(action: fetchModels) {
-                            if isFetchingModels {
+                            if isFetchingCloudModels {
                                 ProgressView().controlSize(.small)
                             } else {
                                 Image(systemName: "arrow.triangle.2.circlepath")
@@ -90,17 +96,43 @@ public struct AIConfigureForm: View {
                         }
                         .buttonStyle(.borderless)
                         .help("Fetch available models live from API")
-                        .disabled(aiManager.cloudAPIKey.isEmpty || isFetchingModels)
+                        .disabled(aiManager.cloudAPIKey.isEmpty || isFetchingCloudModels)
                     }
 
-                    if let fetchError {
-                        Text("Query failed: \(fetchError)")
+                    if let cloudFetchError {
+                        Text("Query failed: \(cloudFetchError)")
                             .font(.caption)
                             .foregroundColor(.red)
                     }
                 } else if aiManager.activeProviderType == .ollama {
                     TextField("Server Endpoint", text: $aiManager.ollamaURL, prompt: Text("http://localhost:11434"))
-                    TextField("Model Name", text: $aiManager.ollamaModel, prompt: Text("llama3"))
+                    HStack(spacing: 8) {
+                        let defaultOllamaModels = ["llama3", "llama3.1", "mistral", "qwen2.5", "deepseek-r1"]
+                        let combinedOllamaModels = Array(Set(defaultOllamaModels + fetchedOllamaModels + [aiManager.ollamaModel])).sorted()
+
+                        Picker("Model Name", selection: $aiManager.ollamaModel) {
+                            ForEach(combinedOllamaModels, id: \.self) { m in
+                                Text(m).tag(m)
+                            }
+                        }
+
+                        Button(action: fetchOllamaModels) {
+                            if isFetchingOllamaModels {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Fetch installed models from local Ollama instance")
+                        .disabled(isFetchingOllamaModels)
+                    }
+
+                    if let ollamaFetchError {
+                        Text("Query failed: \(ollamaFetchError)")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                 } else if aiManager.activeProviderType == .browser {
                     Picker("Default Chatbot", selection: $aiManager.browserPreset) {
                         Text("ChatGPT (OpenAI)").tag("chatgpt")
@@ -126,26 +158,78 @@ public struct AIConfigureForm: View {
     }
 
     private func fetchModels() {
-        isFetchingModels = true
-        fetchError = nil
+        cloudFetchGeneration += 1
+        let currentGeneration = cloudFetchGeneration
+        let targetProvider = aiManager.cloudServiceProvider
+        let targetCustomURL = aiManager.cloudCustomURL
+        let targetAPIKey = aiManager.cloudAPIKey
+
+        isFetchingCloudModels = true
+        cloudFetchError = nil
         Task {
             do {
                 let models = try await CloudAPIProvider.fetchAvailableModels(
-                    apiKey: aiManager.cloudAPIKey,
-                    provider: aiManager.cloudServiceProvider,
-                    customBaseURL: aiManager.cloudCustomURL
+                    apiKey: targetAPIKey,
+                    provider: targetProvider,
+                    customBaseURL: targetCustomURL
                 )
                 await MainActor.run {
-                    self.fetchedModels = models
-                    self.isFetchingModels = false
+                    guard currentGeneration == self.cloudFetchGeneration,
+                          aiManager.cloudServiceProvider == targetProvider,
+                          aiManager.cloudCustomURL == targetCustomURL,
+                          aiManager.cloudAPIKey == targetAPIKey else {
+                        return
+                    }
+                    self.fetchedCloudModels = models
+                    self.isFetchingCloudModels = false
                     if let first = models.first, !models.contains(aiManager.cloudModel) {
                         aiManager.cloudModel = first
                     }
                 }
             } catch {
                 await MainActor.run {
-                    self.fetchError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                    self.isFetchingModels = false
+                    guard currentGeneration == self.cloudFetchGeneration,
+                          aiManager.cloudServiceProvider == targetProvider,
+                          aiManager.cloudCustomURL == targetCustomURL,
+                          aiManager.cloudAPIKey == targetAPIKey else {
+                        return
+                    }
+                    self.cloudFetchError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    self.isFetchingCloudModels = false
+                }
+            }
+        }
+    }
+
+    private func fetchOllamaModels() {
+        ollamaFetchGeneration += 1
+        let currentGeneration = ollamaFetchGeneration
+        let targetURL = aiManager.ollamaURL
+
+        isFetchingOllamaModels = true
+        ollamaFetchError = nil
+        Task {
+            do {
+                let models = try await OllamaProvider.fetchAvailableModels(baseURL: targetURL)
+                await MainActor.run {
+                    guard currentGeneration == self.ollamaFetchGeneration,
+                          aiManager.ollamaURL == targetURL else {
+                        return
+                    }
+                    self.fetchedOllamaModels = models
+                    self.isFetchingOllamaModels = false
+                    if let first = models.first, !models.contains(aiManager.ollamaModel) {
+                        aiManager.ollamaModel = first
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    guard currentGeneration == self.ollamaFetchGeneration,
+                          aiManager.ollamaURL == targetURL else {
+                        return
+                    }
+                    self.ollamaFetchError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    self.isFetchingOllamaModels = false
                 }
             }
         }

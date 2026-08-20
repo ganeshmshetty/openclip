@@ -18,7 +18,7 @@ public struct DynamicActionConfigView: View {
     public init(
         actionID: String,
         options: [ExtensionOption],
-        optionStore: any ActionOptionReading & ActionOptionWriting = KeychainActionOptionStore(),
+        optionStore: any ActionOptionReading & ActionOptionWriting = SecretActionOptionStore(),
         missingOptionIDs: Set<String> = []
     ) {
         self.actionID = actionID

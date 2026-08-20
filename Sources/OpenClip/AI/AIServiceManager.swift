@@ -26,18 +26,15 @@ public final class AIServiceManager: ObservableObject {
     @AppStorage("aiActiveProvider") public var activeProviderRaw: String = AIProviderType.apple.rawValue {
         willSet { objectWillChange.send() }
     }
-    // API key is stored in the Keychain (not UserDefaults) via KeychainStore.
+    // API key is stored in ~/.openclip/secrets.json via SecretStore.
     @Published public var cloudAPIKey: String {
         didSet {
             if cloudAPIKey.isEmpty {
-                KeychainStore.delete(account: Self.cloudAPIKeyAccount)
+                SecretStore.delete(account: Self.cloudAPIKeyAccount)
             } else {
-                let didStore = KeychainStore.set(cloudAPIKey, account: Self.cloudAPIKeyAccount)
+                let didStore = SecretStore.set(cloudAPIKey, account: Self.cloudAPIKeyAccount)
                 if !didStore {
-                    // Keychain writes can fail (e.g. keychain locked, ACL mismatch). Don't leave the
-                    // observable value claiming a key that won't survive restart — revert so the
-                    // caller/UI can see the change was not persisted.
-                    Log.settings.error("Failed to persist cloud API key to Keychain; reverting value.")
+                    Log.settings.error("Failed to persist cloud API key to SecretStore; reverting value.")
                     cloudAPIKey = oldValue
                 }
             }
@@ -69,14 +66,14 @@ public final class AIServiceManager: ObservableObject {
     }
 
     public static let defaultPresets: [AIActionPreset] = [
-        AIActionPreset(id: "proofread", title: "Proofread", prompt: "Fix spelling and grammar errors", isEnabled: true),
-        AIActionPreset(id: "rewrite", title: "Rewrite", prompt: "Rephrase and polish text", isEnabled: true),
-        AIActionPreset(id: "summarize", title: "Summarize", prompt: "Summarize text into key points", isEnabled: true),
-        AIActionPreset(id: "explain", title: "Explain", prompt: "Explain this text or concept simply", isEnabled: true),
-        AIActionPreset(id: "translate", title: "Translate", prompt: "Translate text into English", isEnabled: true),
-        AIActionPreset(id: "fix_code", title: "Fix Code", prompt: "Analyze and fix bugs in selected code", isEnabled: false),
-        AIActionPreset(id: "make_shorter", title: "Make Shorter", prompt: "Make text concise and brief", isEnabled: false),
-        AIActionPreset(id: "formal_tone", title: "Formal Tone", prompt: "Rewrite text in a professional and formal tone", isEnabled: false)
+        AIActionPreset(id: "proofread", title: "Proofread", prompt: "Fix all spelling, punctuation, and grammatical errors while preserving the original wording, tone, and formatting", isEnabled: true),
+        AIActionPreset(id: "rewrite", title: "Rewrite", prompt: "Rewrite to improve clarity, flow, and vocabulary while keeping the original meaning and language", isEnabled: true),
+        AIActionPreset(id: "summarize", title: "Summarize", prompt: "Provide a concise bulleted summary capturing the key points", isEnabled: true),
+        AIActionPreset(id: "explain", title: "Explain", prompt: "Explain the core concept clearly and concisely in simple terms", isEnabled: true),
+        AIActionPreset(id: "translate", title: "Translate", prompt: "Translate the text accurately into natural English", isEnabled: true),
+        AIActionPreset(id: "fix_code", title: "Fix Code", prompt: "Fix bugs, syntax errors, and logic issues in this code snippet. Return only the raw working code without markdown code blocks or explanations", isEnabled: false),
+        AIActionPreset(id: "make_shorter", title: "Make Shorter", prompt: "Condense this text to be as concise as possible while keeping all essential information", isEnabled: false),
+        AIActionPreset(id: "formal_tone", title: "Formal Tone", prompt: "Rewrite this text in a polished, professional, and formal tone", isEnabled: false)
     ]
 
     private static let presetDecodeFailureLogged = OSAllocatedUnfairLock(initialState: false)
@@ -143,14 +140,11 @@ public final class AIServiceManager: ObservableObject {
     private static let cloudAPIKeyAccount = "aiCloudAPIKey"
 
     private init() {
-        // Load the API key from the Keychain, migrating any legacy UserDefaults value on first launch.
-        if let stored = KeychainStore.get(account: Self.cloudAPIKeyAccount) {
+        // Load the API key from the SecretStore (~/.openclip/secrets.json)
+        if let stored = SecretStore.get(account: Self.cloudAPIKeyAccount) {
             self.cloudAPIKey = stored
         } else if let legacy = UserDefaults.standard.string(forKey: "aiCloudAPIKey"), !legacy.isEmpty {
-            // Persist to the Keychain before dropping the legacy value. If storage fails, keep the
-            // legacy value in UserDefaults so the credential is not lost and the migration retries
-            // on the next launch. (Property observers don't fire during init, so set explicitly.)
-            if KeychainStore.set(legacy, account: Self.cloudAPIKeyAccount) {
+            if SecretStore.set(legacy, account: Self.cloudAPIKeyAccount) {
                 UserDefaults.standard.removeObject(forKey: "aiCloudAPIKey")
             }
             self.cloudAPIKey = legacy

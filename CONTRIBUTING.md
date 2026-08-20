@@ -48,7 +48,8 @@ Prefer the `scripts/` wrappers over raw `xcodebuild`/`xcodegen`. Full list is in
 | Task | Command |
 | :--- | :--- |
 | Quick compile gate | `timeout -k 5 60 xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -destination 'platform=macOS' build` |
-| Full test suite | `timeout -k 10 60 ./scripts/test.sh` |
+| Core domain tests (<1s) | `./scripts/test.sh core` |
+| Full test suite (0 skips) | `timeout -k 10 60 ./scripts/test.sh` |
 | Single test class | `./scripts/test.sh SettingsStoreTests` |
 | Run the app | `./scripts/dev_run.sh` |
 | Package a Release | `./scripts/package_app.sh` |

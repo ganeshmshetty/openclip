@@ -96,7 +96,7 @@ public final class ExtensionManager: Sendable {
     }
     
     /// Installs a new extension package (.openclipext folder, .zip archive, or script file) into ~/.openclip/extensions
-    public func installExtension(from sourceURL: URL, targetDir: URL = Constants.extensionsDirectory) async throws -> [any Action] {
+    public func installExtension(from sourceURL: URL, targetDir: URL = Constants.extensionsDirectory, source: String? = nil) async throws -> [any Action] {
         let fm = FileManager.default
         if !fm.fileExists(atPath: targetDir.path) {
             try fm.createDirectory(at: targetDir, withIntermediateDirectories: true)
@@ -184,6 +184,15 @@ public final class ExtensionManager: Sendable {
             }
         }
 
+        // Record package source if not already explicitly recorded (e.g. file packages default to "package")
+        if let installedPackageID {
+            if let source {
+                prepareInstall(source: source, packageID: installedPackageID)
+            } else if self.settingsStore?.get(.extensionSources)[installedPackageID] == nil {
+                prepareInstall(source: ExtensionSource.package.rawValue, packageID: installedPackageID)
+            }
+        }
+
         // Reload extensions to activate installed action(s)
         await loadExtensions(from: targetDir)
 
@@ -201,6 +210,14 @@ public final class ExtensionManager: Sendable {
     /// Seeds `extensionSources[packageID] = source` ahead of a load so store installs auto-trust
     /// during the subsequent gating pass. Call before `loadExtensions`/`installExtension`.
     public func prepareInstall(source: String, packageID: String) {
+        guard let settings = self.settingsStore else { return }
+        var sources = settings.get(.extensionSources)
+        sources[packageID] = source
+        settings.set(.extensionSources, value: sources)
+    }
+
+    /// Sets or updates the extension source ("store", "package", "developer").
+    public func setSource(_ source: String, for packageID: String) {
         guard let settings = self.settingsStore else { return }
         var sources = settings.get(.extensionSources)
         sources[packageID] = source

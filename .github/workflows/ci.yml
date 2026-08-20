@@ -10,7 +10,7 @@ on:
 jobs:
   test-and-build:
     name: Build & Unit Test
-    runs-on: macos-26
+    runs-on: macos-14
 
     steps:
       - name: Checkout repository
@@ -18,14 +18,14 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Install Tools (XcodeGen & xcbeautify)
+        run: brew install xcodegen xcbeautify
 
       - name: Generate Xcode Project
         run: xcodegen generate
 
-      - name: Run Unit Tests
-        run: ./scripts/test.sh --unit
+      - name: Run Full Test Suite (0 skips)
+        run: ./scripts/test.sh
 
       - name: Build App (Release)
-        run: xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -configuration Release -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO build
+        run: ./scripts/package_app.sh

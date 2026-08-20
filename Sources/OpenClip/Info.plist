@@ -31,5 +31,13 @@
 	<string>1</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/ganeshmshetty/openclip/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>JbyKx5LUkYkM+ovsJ1NPDR2W+1ptfdsu6b51KBsKhWo=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 </dict>
 </plist>

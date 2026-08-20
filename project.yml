@@ -28,6 +28,10 @@ targets:
             CFBundleURLSchemes:
               - openclip
         LSUIElement: true
+        SUFeedURL: https://github.com/ganeshmshetty/openclip/releases/latest/download/appcast.xml
+        SUPublicEDKey: JbyKx5LUkYkM+ovsJ1NPDR2W+1ptfdsu6b51KBsKhWo=
+        SUScheduledCheckInterval: 86400
+        SUEnableAutomaticChecks: true
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
@@ -47,6 +51,7 @@ targets:
       - package: KeyboardShortcuts
       - package: SDWebImageSwiftUI
       - package: SDWebImageSVGCoder
+      - package: Sparkle
   OpenClipTests:
     type: bundle.unit-test
     platform: macOS
@@ -69,3 +74,6 @@ packages:
   SDWebImageSVGCoder:
     url: https://github.com/SDWebImage/SDWebImageSVGCoder
     from: 1.7.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.6.4

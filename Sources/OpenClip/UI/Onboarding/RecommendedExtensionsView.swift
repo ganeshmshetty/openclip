@@ -90,7 +90,7 @@ public struct RecommendedExtensionsView: View {
             guard response == .OK, let selectedURL = panel.url else { return }
             Task {
                 do {
-                    _ = try await ExtensionManager.shared.installExtension(from: selectedURL)
+                    _ = try await ExtensionManager.shared.installExtension(from: selectedURL, source: ExtensionSource.package.rawValue)
                     await MainActor.run {
                         NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
                     }

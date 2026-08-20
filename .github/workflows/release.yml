@@ -12,7 +12,7 @@ permissions:
 jobs:
   package-and-release:
     name: Package App & Create Release
-    runs-on: macos-26
+    runs-on: macos-14
 
     steps:
       - name: Checkout repository
@@ -23,15 +23,47 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Package App (.zip and .dmg)
-        run: ./scripts/package_app.sh
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
+      - name: Download Sparkle CLI Tools
+        run: |
+          mkdir -p /tmp/sparkle scripts/bin
+          SPARKLE_SHA256="50612a06038abc931f16011d7903b8326a362c1074dabccb718404ce8e585f0b"
+          curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz" -o /tmp/Sparkle-2.6.4.tar.xz
+          echo "$SPARKLE_SHA256  /tmp/Sparkle-2.6.4.tar.xz" | shasum -a 256 -c -
+          tar xJ -f /tmp/Sparkle-2.6.4.tar.xz -C /tmp/sparkle
+          cp -R /tmp/sparkle/bin/. scripts/bin/
+
+      - name: Build & Package Release (.zip, .dmg, & appcast.xml)
+        id: build_package
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          ./scripts/release_update.sh "$VERSION"
 
       - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/OpenClip.zip
-            build/OpenClip.dmg
+            build/release/*.zip
+            build/release/*.dmg
+            build/release/appcast.xml
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref, '-') }}
           generate_release_notes: true
+
+      - name: Update Homebrew Tap
+        uses: mislav/bump-homebrew-formula-action@v3
+        if: "!contains(github.ref, '-')"
+        with:
+          formula-name: openclip
+          formula-path: Casks/openclip.rb
+          homebrew-tap: ganeshmshetty/homebrew-tap
+          download-url: https://github.com/ganeshmshetty/openclip/releases/download/${{ github.ref_name }}/OpenClip-v${{ steps.build_package.outputs.version }}.zip
+          commit-message: "openclip ${{ steps.build_package.outputs.version }}"
+        env:
+          COMMITTER_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}

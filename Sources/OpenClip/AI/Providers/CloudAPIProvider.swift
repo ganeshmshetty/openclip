@@ -21,112 +21,299 @@ public final class CloudAPIProvider: AIProvider {
         self.customBaseURL = customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    public func process(prompt: String, text: String) async throws -> String {
-        let input = try AIRequestSupport.requireNonEmptyText(text)
-        guard !apiKey.isEmpty else {
-            throw AIError.missingAPIKey
-        }
+    public func processStream(prompt: String, text: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let input: String
+            do {
+                input = try AIRequestSupport.requireNonEmptyText(text)
+            } catch {
+                continuation.finish(throwing: error)
+                return
+            }
 
-        let instruction = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        let userContent = instruction.isEmpty ? input : "\(instruction): \(input)"
+            guard !apiKey.isEmpty else {
+                continuation.finish(throwing: AIError.missingAPIKey)
+                return
+            }
 
-        switch serviceProvider {
-        case .anthropic:
-            return try await processAnthropic(userContent: userContent)
-        case .google:
-            return try await processGemini(userContent: userContent)
-        case .openai, .deepseek, .groq, .openrouter, .custom:
-            let baseURL = effectiveBaseURL
-            return try await processOpenAICompatible(userContent: userContent, baseURL: baseURL)
+            let systemInstruction = AIRequestSupport.systemPrompt(for: prompt)
+            let userContent = AIRequestSupport.userContent(for: input)
+
+            let streamTask: Task<Void, Never>
+            switch serviceProvider {
+            case .anthropic:
+                streamTask = Task {
+                    do {
+                        for try await chunk in self.streamAnthropic(systemPrompt: systemInstruction, userContent: userContent) {
+                            continuation.yield(chunk)
+                        }
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: error)
+                    }
+                }
+            case .google:
+                streamTask = Task {
+                    do {
+                        for try await chunk in self.streamGemini(systemPrompt: systemInstruction, userContent: userContent) {
+                            continuation.yield(chunk)
+                        }
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: error)
+                    }
+                }
+            case .openai, .deepseek, .groq, .openrouter, .custom:
+                let baseURL = effectiveBaseURL
+                streamTask = Task {
+                    do {
+                        for try await chunk in self.streamOpenAICompatible(systemPrompt: systemInstruction, userContent: userContent, baseURL: baseURL) {
+                            continuation.yield(chunk)
+                        }
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: error)
+                    }
+                }
+            }
+
+            continuation.onTermination = { _ in
+                streamTask.cancel()
+            }
         }
     }
 
-    public var effectiveBaseURL: String {
-        if serviceProvider == .custom {
-            return customBaseURL.isEmpty ? "https://api.openai.com/v1" : customBaseURL
+    public static func resolveBaseURL(provider: CloudServiceProvider, customBaseURL: String = "") -> String {
+        let trimmed = customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return trimmed
         }
-        return serviceProvider.defaultBaseURL
+        return provider.defaultBaseURL
+    }
+
+    public var effectiveBaseURL: String {
+        Self.resolveBaseURL(provider: serviceProvider, customBaseURL: customBaseURL)
+    }
+
+    private func isOpenAIReasoningModel(_ model: String) -> Bool {
+        guard serviceProvider == .openai else { return false }
+        let lastComponent = model.split(separator: "/").last.map(String.init) ?? model
+        let lower = lastComponent.lowercased()
+        return lower.hasPrefix("o1") || lower.hasPrefix("o3")
     }
 
     // MARK: - OpenAI-compatible chat completions
 
-    private func processOpenAICompatible(userContent: String, baseURL: String) async throws -> String {
-        let endpoint = baseURL.hasSuffix("/") ? "\(baseURL)chat/completions" : "\(baseURL)/chat/completions"
-        guard let url = URL(string: endpoint) else {
-            throw AIError.invalidURL(endpoint)
-        }
+    private func streamOpenAICompatible(systemPrompt: String, userContent: String, baseURL: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let base = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
+                    let endpoint = "\(base)/chat/completions"
+                    guard let url = URL(string: endpoint) else {
+                        continuation.finish(throwing: AIError.invalidURL(endpoint))
+                        return
+                    }
 
-        var request = URLRequest(url: url, timeoutInterval: AIRequestSupport.timeoutInterval)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    var request = URLRequest(url: url, timeoutInterval: AIRequestSupport.timeoutInterval)
+                    request.httpMethod = "POST"
+                    request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body = OpenAIChatRequest(
-            model: model,
-            messages: [
-                .init(role: "system", content: AIRequestSupport.systemPrompt),
-                .init(role: "user", content: userContent)
-            ]
-        )
-        request.httpBody = try JSONEncoder().encode(body)
+                    let systemRole = isOpenAIReasoningModel(model) ? "developer" : "system"
+                    let body = OpenAIChatRequest(
+                        model: model,
+                        messages: [
+                            .init(role: systemRole, content: systemPrompt),
+                            .init(role: "user", content: userContent)
+                        ],
+                        stream: true
+                    )
+                    request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw AIError.invalidResponse
-        }
-        guard http.statusCode == 200 else {
-            throw AIRequestSupport.httpErrorMessage(status: http.statusCode, data: data)
-        }
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    guard let http = response as? HTTPURLResponse else {
+                        continuation.finish(throwing: AIError.invalidResponse)
+                        return
+                    }
+                    guard http.statusCode == 200 else {
+                        var errorBytes = Data()
+                        for try await byte in bytes {
+                            errorBytes.append(byte)
+                            if errorBytes.count > 1024 { break }
+                        }
+                        continuation.finish(throwing: AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes))
+                        return
+                    }
 
-        let decoded = try JSONDecoder().decode(OpenAIChatResponse.self, from: data)
-        let rawContent = decoded.choices?.first?.message?.content?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let content = AIRequestSupport.extractResultText(rawContent)
-        guard !content.isEmpty else {
-            throw AIError.invalidResponse
+                    struct StreamChunk: Decodable {
+                        struct Choice: Decodable {
+                            struct Delta: Decodable {
+                                let content: String?
+                            }
+                            let delta: Delta?
+                        }
+                        let choices: [Choice]?
+                    }
+
+                    for try await line in bytes.lines {
+                        guard !Task.isCancelled else { break }
+                        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard trimmed.hasPrefix("data:") else { continue }
+                        let dataStr = String(trimmed.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+                        if dataStr == "[DONE]" { break }
+                        guard let chunkData = dataStr.data(using: .utf8) else { continue }
+                        if let decoded = try? JSONDecoder().decode(StreamChunk.self, from: chunkData),
+                           let content = decoded.choices?.first?.delta?.content, !content.isEmpty {
+                            continuation.yield(content)
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
         }
-        return content
     }
 
     // MARK: - Anthropic Messages API
 
-    private func processAnthropic(userContent: String) async throws -> String {
-        guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
-            throw AIError.invalidURL("https://api.anthropic.com/v1/messages")
-        }
+    private func streamAnthropic(systemPrompt: String, userContent: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let base = effectiveBaseURL.hasSuffix("/") ? String(effectiveBaseURL.dropLast()) : effectiveBaseURL
+                    let endpoint = "\(base)/messages"
+                    guard let url = URL(string: endpoint) else {
+                        continuation.finish(throwing: AIError.invalidURL(endpoint))
+                        return
+                    }
 
-        var request = URLRequest(url: url, timeoutInterval: AIRequestSupport.timeoutInterval)
-        request.httpMethod = "POST"
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    var request = URLRequest(url: url, timeoutInterval: AIRequestSupport.timeoutInterval)
+                    request.httpMethod = "POST"
+                    request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+                    request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body = AnthropicMessagesRequest(
-            model: model,
-            maxTokens: 1024,
-            system: AIRequestSupport.systemPrompt,
-            messages: [.init(role: "user", content: userContent)]
-        )
-        request.httpBody = try JSONEncoder().encode(body)
+                    let body = AnthropicMessagesRequest(
+                        model: model,
+                        maxTokens: 4096,
+                        system: systemPrompt,
+                        messages: [.init(role: "user", content: userContent)],
+                        stream: true
+                    )
+                    request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw AIError.invalidResponse
-        }
-        guard http.statusCode == 200 else {
-            throw AIRequestSupport.httpErrorMessage(status: http.statusCode, data: data)
-        }
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    guard let http = response as? HTTPURLResponse else {
+                        continuation.finish(throwing: AIError.invalidResponse)
+                        return
+                    }
+                    guard http.statusCode == 200 else {
+                        var errorBytes = Data()
+                        for try await byte in bytes {
+                            errorBytes.append(byte)
+                            if errorBytes.count > 1024 { break }
+                        }
+                        continuation.finish(throwing: AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes))
+                        return
+                    }
 
-        let decoded = try JSONDecoder().decode(AnthropicMessagesResponse.self, from: data)
-        let rawContent = decoded.content?
-            .compactMap { $0.text }
-            .joined(separator: "\n")
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let content = AIRequestSupport.extractResultText(rawContent)
-        guard !content.isEmpty else {
-            throw AIError.invalidResponse
+                    struct AnthropicDeltaEvent: Decodable {
+                        struct Delta: Decodable {
+                            let type: String?
+                            let text: String?
+                        }
+                        let type: String?
+                        let delta: Delta?
+                    }
+
+                    for try await line in bytes.lines {
+                        guard !Task.isCancelled else { break }
+                        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard trimmed.hasPrefix("data:") else { continue }
+                        let dataStr = String(trimmed.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+                        if dataStr == "[DONE]" { break }
+                        guard let chunkData = dataStr.data(using: .utf8) else { continue }
+                        if let decoded = try? JSONDecoder().decode(AnthropicDeltaEvent.self, from: chunkData),
+                           let text = decoded.delta?.text, !text.isEmpty {
+                            continuation.yield(text)
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
         }
-        return content
+    }
+
+    // MARK: - Google Gemini API
+
+    private func streamGemini(systemPrompt: String, userContent: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let base = effectiveBaseURL.hasSuffix("/") ? String(effectiveBaseURL.dropLast()) : effectiveBaseURL
+                    let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? model
+                    let endpoint = "\(base)/models/\(encodedModel):streamGenerateContent?alt=sse"
+                    guard let url = URL(string: endpoint) else {
+                        continuation.finish(throwing: AIError.invalidURL(endpoint))
+                        return
+                    }
+
+                    var request = URLRequest(url: url, timeoutInterval: AIRequestSupport.timeoutInterval)
+                    request.httpMethod = "POST"
+                    request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                    let body = GeminiChatRequest(
+                        systemInstruction: .init(parts: [.init(text: systemPrompt)]),
+                        contents: [.init(parts: [.init(text: userContent)])]
+                    )
+                    request.httpBody = try JSONEncoder().encode(body)
+
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    guard let http = response as? HTTPURLResponse else {
+                        continuation.finish(throwing: AIError.invalidResponse)
+                        return
+                    }
+                    guard http.statusCode == 200 else {
+                        var errorBytes = Data()
+                        for try await byte in bytes {
+                            errorBytes.append(byte)
+                            if errorBytes.count > 1024 { break }
+                        }
+                        continuation.finish(throwing: AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes))
+                        return
+                    }
+
+                    for try await line in bytes.lines {
+                        guard !Task.isCancelled else { break }
+                        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard trimmed.hasPrefix("data:") else { continue }
+                        let dataStr = String(trimmed.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard let chunkData = dataStr.data(using: .utf8) else { continue }
+                        if let decoded = try? JSONDecoder().decode(GeminiChatResponse.self, from: chunkData),
+                           let text = decoded.candidates?.first?.content?.parts?.first?.text, !text.isEmpty {
+                            continuation.yield(text)
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
+        }
     }
 
     public static func fetchAvailableModels(apiKey: String, provider: CloudServiceProvider, customBaseURL: String = "") async throws -> [String] {
@@ -135,19 +322,20 @@ public final class CloudAPIProvider: AIProvider {
             throw AIError.missingAPIKey
         }
 
+        let baseURL = resolveBaseURL(provider: provider, customBaseURL: customBaseURL)
         switch provider {
         case .anthropic:
-            return try await fetchAnthropicModels(apiKey: trimmedKey)
+            return try await fetchAnthropicModels(apiKey: trimmedKey, baseURL: baseURL)
         case .google:
-            return try await fetchGeminiModels(apiKey: trimmedKey)
+            return try await fetchGeminiModels(apiKey: trimmedKey, baseURL: baseURL)
         case .openai, .deepseek, .groq, .openrouter, .custom:
-            let baseURL = provider == .custom ? (customBaseURL.isEmpty ? "https://api.openai.com/v1" : customBaseURL) : provider.defaultBaseURL
-            return try await fetchOpenAICompatibleModels(apiKey: trimmedKey, baseURL: baseURL)
+            return try await fetchOpenAICompatibleModels(apiKey: trimmedKey, baseURL: baseURL, provider: provider)
         }
     }
 
-    private static func fetchOpenAICompatibleModels(apiKey: String, baseURL: String) async throws -> [String] {
-        let endpoint = baseURL.hasSuffix("/") ? "\(baseURL)models" : "\(baseURL)/models"
+    private static func fetchOpenAICompatibleModels(apiKey: String, baseURL: String, provider: CloudServiceProvider) async throws -> [String] {
+        let base = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
+        let endpoint = "\(base)/models"
         guard let url = URL(string: endpoint) else {
             throw AIError.invalidURL(endpoint)
         }
@@ -168,17 +356,23 @@ public final class CloudAPIProvider: AIProvider {
 
         let decoded = try JSONDecoder().decode(ModelListResponse.self, from: data)
         let modelIds = (decoded.data ?? []).map { $0.id }
-        let filtered = modelIds.filter { id in
-            let l = id.lowercased()
-            return l.contains("gpt") || l.contains("o1") || l.contains("o3") || l.contains("chat")
-        }.sorted()
-
-        return filtered.isEmpty ? modelIds.sorted() : filtered
+        
+        if provider == .openai {
+            let filtered = modelIds.filter { id in
+                let l = id.lowercased()
+                return l.contains("gpt") || l.contains("o1") || l.contains("o3") || l.contains("chat")
+            }.sorted()
+            return filtered.isEmpty ? modelIds.sorted() : filtered
+        } else {
+            return modelIds.sorted()
+        }
     }
 
-    private static func fetchAnthropicModels(apiKey: String) async throws -> [String] {
-        guard let url = URL(string: "https://api.anthropic.com/v1/models") else {
-            throw AIError.invalidURL("https://api.anthropic.com/v1/models")
+    private static func fetchAnthropicModels(apiKey: String, baseURL: String) async throws -> [String] {
+        let base = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
+        let endpoint = "\(base)/models"
+        guard let url = URL(string: endpoint) else {
+            throw AIError.invalidURL(endpoint)
         }
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
@@ -200,9 +394,11 @@ public final class CloudAPIProvider: AIProvider {
         return (decoded.data ?? []).map { $0.id }.sorted()
     }
 
-    private static func fetchGeminiModels(apiKey: String) async throws -> [String] {
-        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models") else {
-            throw AIError.invalidURL("https://generativelanguage.googleapis.com/v1beta/models")
+    private static func fetchGeminiModels(apiKey: String, baseURL: String) async throws -> [String] {
+        let base = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
+        let endpoint = "\(base)/models"
+        guard let url = URL(string: endpoint) else {
+            throw AIError.invalidURL(endpoint)
         }
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
@@ -225,41 +421,5 @@ public final class CloudAPIProvider: AIProvider {
         }.filter { $0.contains("gemini") }.sorted()
 
         return ids.isEmpty ? ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"] : ids
-    }
-
-    // MARK: - Google Gemini API
-
-    private func processGemini(userContent: String) async throws -> String {
-        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
-            throw AIError.invalidURL("https://generativelanguage.googleapis.com/v1beta/models/\(model)")
-        }
-
-        var request = URLRequest(url: url, timeoutInterval: AIRequestSupport.timeoutInterval)
-        request.httpMethod = "POST"
-        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body = GeminiChatRequest(
-            systemInstruction: .init(parts: [.init(text: AIRequestSupport.systemPrompt)]),
-            contents: [.init(parts: [.init(text: userContent)])]
-        )
-        request.httpBody = try JSONEncoder().encode(body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw AIError.invalidResponse
-        }
-        guard http.statusCode == 200 else {
-            throw AIRequestSupport.httpErrorMessage(status: http.statusCode, data: data)
-        }
-
-        let decoded = try JSONDecoder().decode(GeminiChatResponse.self, from: data)
-        let rawContent = decoded.candidates?.first?.content?.parts?.first?.text?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let content = AIRequestSupport.extractResultText(rawContent)
-        guard !content.isEmpty else {
-            throw AIError.invalidResponse
-        }
-        return content
     }
 }

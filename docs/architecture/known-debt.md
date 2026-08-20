@@ -16,9 +16,10 @@ areas; stale debt notes are worse than none.
   `popupThemeColor`) now reference `SettingKey` definitions instead of raw literals. Migrating to
   `SettingsStore` is ongoing — **don't add new direct call sites.** (`startAtLogin` was consolidated
   onto `SettingKey.startAtLogin` — `LaunchAtLoginManager` persists through `DefaultSettingsStore`.)
-- **Secrets live in the Keychain, not UserDefaults.** Sensitive credentials (the cloud AI API key)
-  must use `KeychainStore` (generic-password `SecItem` wrapper, `kSecAttrAccessibleAfterFirstUnlock`).
-  `AIServiceManager.cloudAPIKey` is `@Published`, backed by `KeychainStore` (account `aiCloudAPIKey`);
+- **Secrets live in SecretStore, not UserDefaults or macOS Keychain.** Sensitive credentials
+  (the cloud AI API key and action secret options) use `SecretStore` (`~/.openclip/secrets.json`
+  with 0600 POSIX permissions), replacing macOS Keychain to avoid code-signing ACL prompts.
+  `AIServiceManager.cloudAPIKey` is `@Published`, backed by `SecretStore` (account `aiCloudAPIKey`);
   do not convert it back to `@AppStorage`. A one-time migration reads the old `UserDefaults`
   `"aiCloudAPIKey"` key, then deletes it.
 - **`isAppEnabled` is consolidated** onto `SettingKey.isAppEnabled` — status bar, hotkey gate, and
@@ -268,11 +269,10 @@ areas; stale debt notes are worse than none.
   `CalculateActionTests`, `ActionRegistryTests`, `GoldenExtensionPlatformTests`, and
   `ActionCustomizationTests`. Prefer it (or `DefaultSettingsStore(userDefaults: suiteName)`) over
   writing the real preferences domain.
-- **Deliberate live-integration tests remain (documented):** `TextRetrieverTests` writes the real
-  system clipboard (restores afterward; no pasteboard seam exists), `KeychainActionOptionStoreTests`
-  hits the real macOS Keychain (UUID-unique accounts, deleted in tearDown), and
-  `ScriptActionExecutionTests`/`ActionResultHandlerTests` spawn real subprocesses in temp dirs. These are
-  bounded, self-restoring integration checks — leave them unless a real seam is added.
+- **Isolated in-memory test doubles and seams.** Store-backed tests use `MemorySettingsStore`
+  rather than writing the real preferences domain, `SecretActionOptionStoreTests` redirects to a
+  temporary file (`SecretStore.setFileURLForTesting`), and `TextRetrieverTests` injects a stub coordinator,
+  eliminating live system pasteboard/keychain mutation during test runs.
 - **Removed slow/flaky/environment-dependent tests:** the Apple Intelligence live-model test
   (`testAppleIntelligenceMatchesPresetPrompts`) made
   real on-device `LanguageModelSession` calls; `DebugLogEndToEndTests` polled `OSLogStore`

@@ -21,6 +21,15 @@ final class ContextualFilteringTests: XCTestCase {
         
         let paddedContext = createMockContext(with: "  https://apple.com  ")
         XCTAssertTrue(action.isEnabled(for: paddedContext))
+
+        let embeddedContext = createMockContext(with: "Visit https://apple.com for more info")
+        XCTAssertTrue(action.isEnabled(for: embeddedContext))
+
+        let bareDomainContext = createMockContext(with: "github.com/torvalds/linux")
+        XCTAssertTrue(action.isEnabled(for: bareDomainContext))
+
+        let localhostContext = createMockContext(with: "localhost:3000")
+        XCTAssertTrue(action.isEnabled(for: localhostContext))
     }
     
     @MainActor
@@ -28,13 +37,13 @@ final class ContextualFilteringTests: XCTestCase {
         let action = SearchAction()
         
         let urlContext = createMockContext(with: "https://google.com")
-        XCTAssertFalse(action.isEnabled(for: urlContext))
+        XCTAssertTrue(action.isEnabled(for: urlContext))
         
         let plainTextContext = createMockContext(with: "macOS swift development")
         XCTAssertTrue(action.isEnabled(for: plainTextContext))
         
         let paddedUrlContext = createMockContext(with: "  https://google.com  ")
-        XCTAssertFalse(action.isEnabled(for: paddedUrlContext))
+        XCTAssertTrue(action.isEnabled(for: paddedUrlContext))
         
         let emptyContext = createMockContext(with: "   ")
         XCTAssertFalse(action.isEnabled(for: emptyContext))

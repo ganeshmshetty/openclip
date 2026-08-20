@@ -60,6 +60,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     private let settingsStore: SettingsStore
     private let keyboardPoster: KeyboardEventPosting
     private let pasteboard: NSPasteboard
+    private let pasteboardRestoreDelay: TimeInterval
     private let dictionaryLookup: DictionaryLookup
     private var pendingRestoreTask: Task<Void, Never>?
 
@@ -71,6 +72,19 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         self.keyboardPoster = keyboardPoster
         self.pasteboard = pasteboard
         self.dictionaryLookup = dictionaryLookup
+        self.pasteboardRestoreDelay = Constants.pasteboardRestoreDelay
+    }
+
+    public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
+                keyboardPoster: KeyboardEventPosting = SessionEventTapPoster(),
+                pasteboard: NSPasteboard = .general,
+                dictionaryLookup: @escaping DictionaryLookup = DictionaryLookupFactory.systemLookup,
+                pasteboardRestoreDelay: TimeInterval = Constants.pasteboardRestoreDelay) {
+        self.settingsStore = settingsStore
+        self.keyboardPoster = keyboardPoster
+        self.pasteboard = pasteboard
+        self.dictionaryLookup = dictionaryLookup
+        self.pasteboardRestoreDelay = pasteboardRestoreDelay
     }
 
 
@@ -139,7 +153,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
                 
                 pendingRestoreTask = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: UInt64(Constants.pasteboardRestoreDelay * 1_000_000_000))
+                    try? await Task.sleep(nanoseconds: UInt64(self.pasteboardRestoreDelay * 1_000_000_000))
                     guard !Task.isCancelled else { return }
                     if pasteboard.changeCount == changeCountAfterSet {
                         snapshot.restore(to: pasteboard, transientMarkers: true)

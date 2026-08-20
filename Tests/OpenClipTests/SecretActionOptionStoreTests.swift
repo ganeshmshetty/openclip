@@ -2,13 +2,13 @@ import XCTest
 @testable import Core
 @testable import OpenClip
 
-/// Exercises the composite `KeychainActionOptionStore` against the real macOS Keychain: secrets go
-/// to Keychain and never to UserDefaults; non-secrets round-trip through SettingsStore. Every
-/// account written is deleted in tearDown, and each run uses a unique actionID prefix so accounts
-/// never collide across runs.
-final class KeychainActionOptionStoreTests: XCTestCase {
-    private var store: KeychainActionOptionStore!
-    private let actionIDPrefix = "com.test.keychain.\(UUID().uuidString)"
+/// Exercises the composite `SecretActionOptionStore` against the file-backed `SecretStore`: secrets go
+/// to SecretStore (~/.openclip/secrets.json) and never to UserDefaults; non-secrets round-trip through SettingsStore.
+final class SecretActionOptionStoreTests: XCTestCase {
+    private var store: SecretActionOptionStore!
+    private let actionIDPrefix = "com.test.secret.\(UUID().uuidString)"
+    private var tempDir: URL!
+    private var tempFileURL: URL!
 
     private var writtenAccounts: [String] = []
     private var writtenDefaultsKeys: [String] = []
@@ -24,29 +24,37 @@ final class KeychainActionOptionStoreTests: XCTestCase {
     }
 
     private func account(for actionID: String, option: ExtensionOption) -> String {
-        ActionOptionKey.keychainAccount(actionID: actionID, optionID: option.identifier)
+        ActionOptionKey.defaultsKey(actionID: actionID, optionID: option.identifier)
     }
 
     override func setUp() {
         super.setUp()
-        store = KeychainActionOptionStore()
+        tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        tempFileURL = tempDir.appendingPathComponent("secrets.json")
+        SecretStore.setFileURLForTesting(tempFileURL)
+        store = SecretActionOptionStore()
         writtenAccounts = []
         writtenDefaultsKeys = []
     }
 
     override func tearDown() {
         for account in writtenAccounts {
-            _ = KeychainStore.delete(account: account)
+            _ = SecretStore.delete(account: account)
         }
         for key in writtenDefaultsKeys {
             UserDefaults.standard.removeObject(forKey: key)
         }
         writtenAccounts = []
         writtenDefaultsKeys = []
+
+        SecretStore.setFileURLForTesting(Constants.secretsFileURL)
+        if let tempDir {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
         super.tearDown()
     }
 
-    func testSecretWritesToKeychainAndNeverUserDefaults() {
+    func testSecretWritesToSecretStoreAndNeverUserDefaults() {
         let option = secretOption("apiKey")
         let aid = actionID("writeSecret")
         let account = account(for: aid, option: option)
@@ -54,7 +62,7 @@ final class KeychainActionOptionStoreTests: XCTestCase {
 
         store.setStringValue("supersecret", actionID: aid, option: option)
 
-        XCTAssertEqual(KeychainStore.get(account: account), "supersecret")
+        XCTAssertEqual(SecretStore.get(account: account), "supersecret")
         XCTAssertNil(
             UserDefaults.standard.string(forKey: ActionOptionKey.defaultsKey(actionID: aid, optionID: option.identifier)),
             "Secret option values must never be stored in UserDefaults"
@@ -69,23 +77,23 @@ final class KeychainActionOptionStoreTests: XCTestCase {
         XCTAssertEqual(store.stringValue(actionID: actionID("unset2"), option: withoutDefault), "")
     }
 
-    func testEmptySetAndClearDeleteKeychainEntry() {
+    func testEmptySetAndClearDeleteSecretStoreEntry() {
         let option = secretOption("apiKey")
         let aid = actionID("clearSecret")
         let account = account(for: aid, option: option)
         writtenAccounts.append(account)
 
         store.setStringValue("v", actionID: aid, option: option)
-        XCTAssertEqual(KeychainStore.get(account: account), "v")
+        XCTAssertEqual(SecretStore.get(account: account), "v")
 
         store.setStringValue("", actionID: aid, option: option)
-        XCTAssertNil(KeychainStore.get(account: account), "Empty secret value should delete the Keychain entry")
+        XCTAssertNil(SecretStore.get(account: account), "Empty secret value should delete the SecretStore entry")
 
         store.setStringValue("v2", actionID: aid, option: option)
-        XCTAssertEqual(KeychainStore.get(account: account), "v2")
+        XCTAssertEqual(SecretStore.get(account: account), "v2")
 
         store.clearValue(actionID: aid, option: option)
-        XCTAssertNil(KeychainStore.get(account: account), "clearValue should delete the Keychain entry")
+        XCTAssertNil(SecretStore.get(account: account), "clearValue should delete the SecretStore entry")
     }
 
     func testNonSecretRoundTripsThroughSettingsStore() {
@@ -101,8 +109,6 @@ final class KeychainActionOptionStoreTests: XCTestCase {
         XCTAssertEqual(store.stringValue(actionID: aid, option: option), "DEFAULT")
     }
 
-    /// Exit criterion: no legacy UserDefaults→Keychain migration/scrub path. Even a stale UserDefaults
-    /// value under the secret's defaults key must NOT be read, migrated, or scrubbed into the Keychain.
     func testSecretHasNoUserDefaultsReadOrMigrationFallback() {
         let option = secretOption("apiKey", defaultValue: "DEFAULT")
         let aid = actionID("noFallback")
@@ -115,8 +121,17 @@ final class KeychainActionOptionStoreTests: XCTestCase {
             "Secret reads must not fall back to UserDefaults"
         )
         XCTAssertNil(
-            KeychainStore.get(account: account(for: aid, option: option)),
-            "No legacy UserDefaults secret should be migrated into the Keychain"
+            SecretStore.get(account: account(for: aid, option: option)),
+            "No legacy UserDefaults secret should be migrated into the SecretStore"
         )
+    }
+
+    func testSecretStoreFilePermissions() {
+        XCTAssertTrue(SecretStore.set("test-key-value", account: "testAccount"))
+        XCTAssertEqual(SecretStore.get(account: "testAccount"), "test-key-value")
+
+        let attrs = try? FileManager.default.attributesOfItem(atPath: tempFileURL.path)
+        let posix = attrs?[.posixPermissions] as? NSNumber
+        XCTAssertEqual(posix?.intValue, 0o600, "Secrets file must have 0600 POSIX permissions")
     }
 }
