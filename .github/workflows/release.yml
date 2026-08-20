@@ -20,6 +20,11 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Select Xcode 16
+        uses: maxim-lobarev/setup-xcode@v1
+        with:
+          xcode-version: '16'
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
