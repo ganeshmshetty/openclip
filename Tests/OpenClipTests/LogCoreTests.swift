@@ -18,17 +18,20 @@ private final class TestLogSink: LogSink, @unchecked Sendable {
     }
 }
 
-@MainActor
 final class LogCoreTests: XCTestCase {
-    override func setUp() {
-        super.setUp()
-        TestIsolation.reset()
-        Log.removeAllSinks()
+    override func setUp() async throws {
+        try await super.setUp()
+        await MainActor.run {
+            TestIsolation.reset()
+            Log.removeAllSinks()
+        }
     }
 
-    override func tearDown() {
-        Log.removeAllSinks()
-        super.tearDown()
+    override func tearDown() async throws {
+        await MainActor.run {
+            Log.removeAllSinks()
+        }
+        try await super.tearDown()
     }
 
     func testLogLevelComparisonAndDisplayName() {

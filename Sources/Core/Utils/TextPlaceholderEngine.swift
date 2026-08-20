@@ -24,7 +24,7 @@ public struct TextPlaceholderEngine {
     public static func replacePlaceholders(
         in template: String,
         context: ActionContext,
-        urlEncode: Bool
+        urlEncode: Bool = true
     ) -> String {
         replace(
             in: template,

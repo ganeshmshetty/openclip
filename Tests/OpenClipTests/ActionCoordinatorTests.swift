@@ -1,13 +1,13 @@
 import XCTest
 @testable import Core
 
-@MainActor
 final class ActionCoordinatorTests: XCTestCase {
-    override func setUp() {
-        super.setUp()
-        TestIsolation.reset()
+    override func setUp() async throws {
+        try await super.setUp()
+        await MainActor.run { TestIsolation.reset() }
     }
 
+    @MainActor
     func testActionCoordinatorResolvesActionsForContext() async {
         let coordinator = ActionCoordinator.shared
         await coordinator.loadInitialState()
@@ -26,6 +26,7 @@ final class ActionCoordinatorTests: XCTestCase {
         XCTAssertFalse(resolved.isEmpty, "ActionCoordinator should resolve active actions for context")
     }
     
+    @MainActor
     func testRegisteringCustomActionUpdatesActionsList() async {
         let coordinator = ActionCoordinator.shared
         struct MockAction: Action {

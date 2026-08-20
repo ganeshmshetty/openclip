@@ -301,9 +301,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testDeliverResultAppliesDenyPasteDespiteDismissingHide() async throws {
         let handler = RecordingHandler()
         // Probe would happily paste; the denyPaste policy alone must force a copy.
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: AppPolicyContext(denyPaste: true))
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: AppPolicyContext(denyPaste: true))
         defer { controller.hide() }
 
         controller.deliverResult(.paste("hello"))
@@ -316,9 +316,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testNilDeliveryPassesPasteThroughUntouched() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: false),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         controller.handleActionResult(.paste("hello"))
@@ -333,9 +333,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testTextDeliversPasteAndDismissesWithDefaultSettings() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         controller.deliverResult(.text("hello"))
@@ -349,10 +349,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testTextDeliversCopyAndCopiedToastWhenCannotPaste() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: false),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         controller.deliverResult(.text("hello"))
@@ -368,11 +368,11 @@ final class ActionResultDeliveryTests: XCTestCase {
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "copy")
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast,
+                                         settingsStore: store)
         defer { controller.hide(); toast.hide() }
 
         controller.deliverResult(.text("hello"))
@@ -385,9 +385,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testTextSecondaryCopiesWithDefaultSettings() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         let stub = TextStubAction()
@@ -409,10 +409,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "preview")
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         settingsStore: store)
         defer { controller.hide() }
 
         controller.deliverResult(.paste("hello"))
@@ -430,11 +430,11 @@ final class ActionResultDeliveryTests: XCTestCase {
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "preview")
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast,
+                                         settingsStore: store)
         defer { controller.hide(); toast.hide() }
 
         controller.deliverResult(.copy("hello"))
@@ -454,10 +454,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "preview")
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         settingsStore: store)
         defer { controller.hide() }
         controller.pendingActionTitle = "My Action"
 
@@ -481,10 +481,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "preview")
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: false),
-                                             appPolicy: .default,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: .default,
+                                         settingsStore: store)
         defer { controller.hide() }
         controller.pendingActionTitle = "My Action"
 
@@ -503,10 +503,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "preview")
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         settingsStore: store)
         defer { controller.hide() }
         controller.pendingActionTitle = "My Action"
 
@@ -526,10 +526,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "preview")
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         settingsStore: store)
         defer { controller.hide() }
         controller.pendingActionTitle = "My Action"
 
@@ -559,11 +559,11 @@ final class ActionResultDeliveryTests: XCTestCase {
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "preview")
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast,
+                                         settingsStore: store)
         defer { controller.hide(); toast.hide() }
 
         controller.runLoadingAction(SlowTextStubAction(text: "loaded"), with: controllerCurrentContext(controller), isSecondaryClick: false)
@@ -587,9 +587,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testLoadingTextPastePreferenceDeliversNormally() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         controller.runLoadingAction(SlowTextStubAction(text: "loaded"), with: controllerCurrentContext(controller), isSecondaryClick: false)
@@ -607,10 +607,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
         store.set(.secondaryClickBehavior, value: "preview")
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         settingsStore: store)
         defer { controller.hide() }
 
         let url = URL(string: "https://alt")!
@@ -631,11 +631,11 @@ final class ActionResultDeliveryTests: XCTestCase {
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "preview")
         let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast,
-                                             settingsStore: store)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast,
+                                         settingsStore: store)
         defer { controller.hide(); toast.hide() }
 
         let declared = StatusFeedback(message: "Saved", style: .info)
@@ -661,9 +661,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testDeliverResultCopiesWhenProbeSaysCannotPaste() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: false),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         controller.deliverResult(.paste("hello"))
@@ -675,9 +675,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testDeliverResultPastesWhenCanPaste() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         controller.deliverResult(.paste("hello"))
@@ -693,10 +693,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testDowngradeToCopyShowsCopiedToast() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: false),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         controller.deliverResult(.paste("hello"))
@@ -711,10 +711,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testDeliveryFailureDoesNotShowCopiedToast() async throws {
         let handler = FailingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: false),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         controller.deliverResult(.paste("hello"))
@@ -732,10 +732,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testNativeCopyShowsNoToast() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         controller.deliverResult(.copy("hello"))
@@ -750,10 +750,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testToastRoutesToToast() async throws {
         let toast = ToastPanelController()
-        let controller = try shownController(resultHandler: RecordingHandler(),
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: RecordingHandler(),
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
         controller.handleActionResult(.toast(StatusFeedback(message: "hello", style: .info)))
         XCTAssertEqual(toast.currentFeedback?.message, "hello")
@@ -769,10 +769,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testLoadingActionShowsSpinnerThenFades() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         controller.runLoadingAction(SlowStubAction(), with: controllerCurrentContext(controller), isSecondaryClick: false)
@@ -799,10 +799,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testLoadingActionUsesCustomLoadingMessage() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         controller.runLoadingAction(MessageStubAction(), with: controllerCurrentContext(controller), isSecondaryClick: false)
@@ -818,10 +818,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testLoadingActionKeepVisibleToastAutoDismisses() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 30_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         controller.runLoadingAction(KeepVisibleToastLoadingAction(), with: controllerCurrentContext(controller), isSecondaryClick: false)
@@ -840,10 +840,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testHideDismissesKeepVisibleToast() async throws {
         let toast = ToastPanelController()
-        let controller = try shownController(resultHandler: RecordingHandler(),
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: RecordingHandler(),
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         controller.handleActionResult(.toast(StatusFeedback(message: "Pinned", style: .info, keepVisible: true)))
         XCTAssertTrue(toast.isShowing)
         controller.hide()
@@ -858,9 +858,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testRunActionThreadsSecondaryClickIntoActionContext() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         let probe = SecondaryClickProbeAction()
@@ -874,9 +874,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testRunActionDefaultsSecondaryClickToFalse() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         let probe = SecondaryClickProbeAction()
@@ -895,10 +895,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testRunActionDeliversDeclaredSecondaryAndToast() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         let url = URL(string: "https://alt")!
@@ -916,10 +916,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testRunActionShowsDeclaredPrimaryToast() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         let declared = StatusFeedback(message: "Saved", style: .info)
@@ -941,10 +941,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testStaleDeclaredDeliveryDoesNotLeakOntoCompletionPaste() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         let working = StatusFeedback(message: "working", style: .info)
@@ -970,10 +970,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testScriptToastWinsOverDeclaredToast() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         let scriptToast = StatusFeedback(message: "saved", style: .info)
@@ -992,10 +992,10 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testScriptToastSuppressesDefaultCopiedToast() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: false),
-                                             appPolicy: .default,
-                                             toastController: toast)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: .default,
+                                         toastController: toast)
         defer { controller.hide(); toast.hide() }
 
         let scriptToast = StatusFeedback(message: "saved", style: .info)
@@ -1014,9 +1014,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testDeclaredPasteSecondaryPastesOnSecondaryClickWhenCanPaste() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: true),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         let stub = DeclaredDeliveryStub(delivery: ActionDelivery(secondary: .paste("alt")))
@@ -1030,9 +1030,9 @@ final class ActionResultDeliveryTests: XCTestCase {
     @MainActor
     func testDeclaredPasteSecondaryDowngradesToCopyWhenCannotPaste() async throws {
         let handler = RecordingHandler()
-        let controller = try shownController(resultHandler: handler,
-                                             pasteProbe: FixedProbe(result: false),
-                                             appPolicy: .default)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: .default)
         defer { controller.hide() }
 
         let stub = DeclaredDeliveryStub(delivery: ActionDelivery(secondary: .paste("alt")))

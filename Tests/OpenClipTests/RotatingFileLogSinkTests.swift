@@ -5,20 +5,21 @@ import XCTest
 final class RotatingFileLogSinkTests: XCTestCase {
     private var tempDirectory: URL!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         tempDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("OpenClipLogTests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         if let tempDirectory {
             try? FileManager.default.removeItem(at: tempDirectory)
         }
-        super.tearDown()
+        try await super.tearDown()
     }
 
+    @MainActor
     func testLogSinkCreatesFileAndWritesEntries() throws {
         let sink = RotatingFileLogSink(
             logDirectory: tempDirectory,
@@ -42,6 +43,7 @@ final class RotatingFileLogSinkTests: XCTestCase {
         XCTAssertTrue(content.contains("notice extensions Loaded extension foo"))
     }
 
+    @MainActor
     func testLogSinkRotatesWhenSizeExceedsCap() throws {
         // Use a small cap (120 bytes) to force rotation with few lines
         let sink = RotatingFileLogSink(
@@ -72,6 +74,7 @@ final class RotatingFileLogSinkTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: backup3.path), "Max backups is 2, so .3 should not exist")
     }
 
+    @MainActor
     func testConcurrentWritesAreThreadSafe() throws {
         let sink = RotatingFileLogSink(
             logDirectory: tempDirectory,

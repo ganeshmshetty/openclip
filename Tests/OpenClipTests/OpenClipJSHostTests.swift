@@ -68,7 +68,6 @@ final class LockedArray<T: Sendable>: @unchecked Sendable {
     }
 }
 
-@MainActor
 final class OpenClipJSHostTests: XCTestCase {
     private var host: OpenClipJSHost!
     private var optionStore: MemoryOptionStore!
@@ -683,7 +682,10 @@ final class OpenClipJSHostTests: XCTestCase {
         let group = DispatchGroup()
         let queue = DispatchQueue(label: "fetchbox.race", attributes: .concurrent)
         let addLock = NSLock()
-        var added: [URLSessionDataTask] = []
+        final class AddedTracker: @unchecked Sendable {
+            var list: [URLSessionDataTask] = []
+        }
+        let added = AddedTracker()
 
         let producerCount = 8
         let perProducer = 100
@@ -692,7 +694,7 @@ final class OpenClipJSHostTests: XCTestCase {
                 for _ in 0..<perProducer {
                     let task = session.dataTask(with: URLRequest(url: URL(string: "https://example.com/x")!))
                     addLock.lock()
-                    added.append(task)
+                    added.list.append(task)
                     addLock.unlock()
                     box.add(task)
                 }
@@ -704,7 +706,7 @@ final class OpenClipJSHostTests: XCTestCase {
         group.wait()
 
         addLock.lock()
-        let all = added
+        let all = added.list
         addLock.unlock()
         XCTAssertEqual(all.count, producerCount * perProducer)
         // Cancelled tasks end up in either `.canceling` or `.completed`; a task that escaped

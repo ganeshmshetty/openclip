@@ -82,7 +82,7 @@ public final class OllamaProvider: AIProvider {
         guard let url = URL(string: "\(normalized)/api/tags") else {
             throw AIError.invalidURL("\(normalized)/api/tags")
         }
-        var request = URLRequest(url: url, timeoutInterval: 5)
+        let request = URLRequest(url: url, timeoutInterval: 5)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw AIError.invalidResponse

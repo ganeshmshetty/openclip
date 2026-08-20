@@ -257,7 +257,7 @@ struct IconifySVGView: View {
     /// the SVG decode (synchronous CPU work) also happens off-main. Previously `Data(contentsOf:)`
     /// blocked the main thread for the whole fetch on the view's main-actor task.
     private nonisolated func fetchSVGImage(iconId: String) async -> IconImageBox? {
-        if let cached = await IconSVGCache.shared.get(iconId) { return IconImageBox(image: cached) }
+        if let cached = await IconSVGCache.shared.get(iconId) { return cached }
 
         let parts = iconId.split(separator: ":", maxSplits: 1)
         guard parts.count == 2,
@@ -280,8 +280,9 @@ struct IconifySVGView: View {
 
         // Set as template so AppKit / SwiftUI renders it as a white vector mask
         decoded.isTemplate = true
-        await IconSVGCache.shared.set(iconId, image: decoded)
-        return IconImageBox(image: decoded)
+        let box = IconImageBox(image: decoded)
+        await IconSVGCache.shared.set(iconId, box: box)
+        return box
     }
 }
 
@@ -290,13 +291,13 @@ struct IconifySVGView: View {
 /// Boxes a decoded icon so it can cross the actor boundary after off-main decoding. `NSImage` is
 /// not `Sendable`, but the image is fully decoded off-main and only handed to the main-actor view
 /// to render, so this transfer is safe.
-private struct IconImageBox: @unchecked Sendable {
+fileprivate struct IconImageBox: @unchecked Sendable {
     let image: NSImage
 }
 
-actor IconSVGCache {
+fileprivate actor IconSVGCache {
     static let shared = IconSVGCache()
-    private var store: [String: NSImage] = [:]
-    func get(_ key: String) -> NSImage? { store[key] }
-    func set(_ key: String, image: NSImage) { store[key] = image }
+    private var store: [String: IconImageBox] = [:]
+    func get(_ key: String) -> IconImageBox? { store[key] }
+    func set(_ key: String, box: IconImageBox) { store[key] = box }
 }

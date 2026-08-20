@@ -7,25 +7,28 @@ import XCTest
 @testable import Core
 @testable import OpenClip
 
-@MainActor
 final class LogExporterTests: XCTestCase {
     private var tempDirectory: URL!
     private var previousSharedSink: RotatingFileLogSink?
 
-    override func setUp() {
-        super.setUp()
-        previousSharedSink = RotatingFileLogSink.shared
+    override func setUp() async throws {
+        try await super.setUp()
+        let sink = await MainActor.run { RotatingFileLogSink.shared }
+        previousSharedSink = sink
         tempDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("OpenClipLogExporterTests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
     }
 
-    override func tearDown() {
-        RotatingFileLogSink.shared = previousSharedSink
+    override func tearDown() async throws {
+        let prev = previousSharedSink
+        await MainActor.run {
+            RotatingFileLogSink.shared = prev
+        }
         if let tempDirectory {
             try? FileManager.default.removeItem(at: tempDirectory)
         }
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testExportLogsCreatesZipArchiveWithLogFiles() async throws {
@@ -106,6 +109,7 @@ final class LogExporterTests: XCTestCase {
         XCTAssertFalse(unzipOutput.stdout.contains("other.log"))
     }
 
+    @MainActor
     func testExportLogsFlushesSharedSink() async throws {
         let sink = RotatingFileLogSink(
             logDirectory: tempDirectory,
@@ -128,6 +132,7 @@ final class LogExporterTests: XCTestCase {
         XCTAssertTrue(contents.contains(message), "Flush should ensure recent writes are committed before zip")
     }
 
+    @MainActor
     func testShowLogsInFinderCreatesDirectoryIfNotPresent() {
         let logsSubdir = tempDirectory.appendingPathComponent("NestedLogs")
         XCTAssertFalse(FileManager.default.fileExists(atPath: logsSubdir.path))

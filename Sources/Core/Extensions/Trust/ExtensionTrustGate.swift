@@ -118,12 +118,12 @@ public enum ExtensionTrustGate {
     ) -> ExtensionGatePlan {
         var trust = trust
         var hashes = hashes
-        var sources = sources
+        let sources = sources
         var newMigrated = isMigrated
         var migratedChanged = false
         var trustChanged = false
         var hashesChanged = false
-        var sourcesChanged = false
+        let sourcesChanged = false
         var events: [ExtensionTrustChange] = []
         var result: [any Action] = []
 

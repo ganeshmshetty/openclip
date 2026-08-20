@@ -129,7 +129,8 @@ public struct AXElementInspector {
     /// from a CF value is diagnosed as an unconditional cast, so the CF type ID is checked first.
     private static func axElement(_ value: CFTypeRef?) -> AXUIElement? {
         guard let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
-        return value as! AXUIElement
+        let element: AXUIElement = value as! AXUIElement
+        return element
     }
 
     /// The selection bounds for a text range via `kAXBoundsForRangeParameterizedAttribute`,

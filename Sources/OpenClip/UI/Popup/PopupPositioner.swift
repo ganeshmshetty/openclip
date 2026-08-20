@@ -37,7 +37,7 @@ public struct PopupPositioner: Sendable {
         let popupWidth = max(0, min(width, maxPopupWidth))
 
         // --- Horizontal: center on release X, clamp to edges ---
-        var x = releaseX - popupWidth / 2
+        let x = releaseX - popupWidth / 2
         return max(screenBounds.minX + padding, min(x, screenBounds.maxX - popupWidth - padding))
     }
 

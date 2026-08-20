@@ -99,8 +99,8 @@ fi
 DOWNLOAD_PREFIX="https://github.com/ganeshmshetty/openclip/releases/download/v$VERSION/"
 
 if [ -n "${SPARKLE_ED_PRIVATE_KEY:-}" ]; then
-    "$GENERATE_APPCAST" \
-        --ed-key-file <(echo "$SPARKLE_ED_PRIVATE_KEY") \
+    printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | "$GENERATE_APPCAST" \
+        --ed-key-file - \
         --download-url-prefix "$DOWNLOAD_PREFIX" \
         -o appcast.xml \
         "$BUILD_DIR"
@@ -128,7 +128,7 @@ if ! grep -q 'sparkle:edSignature=' "$BUILD_DIR/appcast.xml"; then
 
     if [ -n "$SIGN_UPDATE" ] && [ -x "$SIGN_UPDATE" ]; then
         if [ -n "${SPARKLE_ED_PRIVATE_KEY:-}" ]; then
-            SIG=$(echo "$SPARKLE_ED_PRIVATE_KEY" | "$SIGN_UPDATE" --ed-key-file - -p "$BUILD_DIR/$ZIP_NAME" 2>/dev/null || true)
+            SIG=$(printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | "$SIGN_UPDATE" --ed-key-file - -p "$BUILD_DIR/$ZIP_NAME" 2>/dev/null || true)
         else
             SIG=$("$SIGN_UPDATE" --account openclip -p "$BUILD_DIR/$ZIP_NAME" 2>/dev/null || true)
         fi

@@ -185,7 +185,8 @@ public struct AXMenuNavigator {
 
     private static func axElement(_ value: CFTypeRef?) -> AXUIElement? {
         guard let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
-        return value as! AXUIElement
+        let element: AXUIElement = value as! AXUIElement
+        return element
     }
 
     // MARK: - Localized titles

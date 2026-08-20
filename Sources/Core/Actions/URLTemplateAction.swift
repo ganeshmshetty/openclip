@@ -60,7 +60,7 @@ public struct URLTemplateAction: Action, Sendable {
         // no-ops.
         let trimmed = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let performContext: ActionContext
-        if let match = context.match {
+        if context.match != nil {
             performContext = context
         } else {
             performContext = ActionContext(

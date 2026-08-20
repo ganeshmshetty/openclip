@@ -2,10 +2,9 @@ import XCTest
 @testable import Core
 
 final class RuleEngineTests: XCTestCase {
-    @MainActor
     override func setUp() async throws {
         try await super.setUp()
-        TestIsolation.reset()
+        await MainActor.run { TestIsolation.reset() }
     }
     
     func testJSONDecodingWithKebabCase() throws {
