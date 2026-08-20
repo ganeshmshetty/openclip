@@ -6,6 +6,7 @@
 // placeholder for agent (LSUIElement) apps; reading the resource avoids that path.
 import AppKit
 
+@MainActor
 enum AppIcon {
     static var image: NSImage {
         if let icon = Bundle.main.image(forResource: "AppIcon") {
