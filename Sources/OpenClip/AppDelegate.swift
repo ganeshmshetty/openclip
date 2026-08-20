@@ -8,7 +8,7 @@ import SwiftUI
 import Core
 import SDWebImage
 import SDWebImageSVGCoder
-import UserNotifications
+@preconcurrency import UserNotifications
 
 /// Manages the application lifecycle and permissions.
 @MainActor
@@ -117,15 +117,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            let enabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
-            if enabled {
-                let granted = PermissionManager.shared.isAccessibilityGranted
-                let onboarded = DefaultSettingsStore.shared.get(.hasCompletedOnboarding)
-                if granted && onboarded {
-                    self?.selectionMonitor?.start()
+            let explicitState = notification.object as? Bool
+            Task { @MainActor in
+                let enabled = explicitState ?? DefaultSettingsStore.shared.get(.isAppEnabled)
+                if enabled {
+                    let granted = PermissionManager.shared.isAccessibilityGranted
+                    let onboarded = DefaultSettingsStore.shared.get(.hasCompletedOnboarding)
+                    if granted && onboarded {
+                        self?.selectionMonitor?.start()
+                    }
+                } else {
+                    self?.selectionMonitor?.stop()
                 }
-            } else {
-                self?.selectionMonitor?.stop()
             }
         }
     }

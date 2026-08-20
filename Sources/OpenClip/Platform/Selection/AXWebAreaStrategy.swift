@@ -9,9 +9,11 @@ import Core
 public struct AXWebAreaStrategy {
     /// Canonical AX attribute string for a web area's selected text marker range.
     public static let selectedTextMarkerRangeAttribute = "AXSelectedTextMarkerRange"
+    private static let stringForTextMarkerRangeAttribute = "AXStringForTextMarkerRange"
+    private static let boundsForTextMarkerRangeAttribute = "AXBoundsForTextMarkerRange"
 
     /// kAXSelectedTextMarkerRange → AXStringForTextMarkerRange; bounds via
-    /// kAXBoundsForTextMarkerRangeParameterizedAttribute.
+    /// AXBoundsForTextMarkerRange.
     public static func read(from target: AXElementInspector.Target) -> TextResult? {
         // Marker-range path. The marker range must actually be an AXTextMarkerRange before
         // the live web area is asked to resolve it; under a fixture it is a plain object and
@@ -52,21 +54,21 @@ public struct AXWebAreaStrategy {
     }
 
     /// Resolve a text marker range to its string via the
-    /// kAXStringForTextMarkerRangeParameterizedAttribute parameterized attribute.
+    /// AXStringForTextMarkerRange parameterized attribute.
     private static func string(for element: AXUIElement, markerRange: AXTextMarkerRange) -> String? {
         var value: CFTypeRef?
         guard AXUIElementCopyParameterizedAttributeValue(
-            element, kAXStringForTextMarkerRangeParameterizedAttribute as CFString, markerRange, &value
+            element, stringForTextMarkerRangeAttribute as CFString, markerRange, &value
         ) == .success else { return nil }
         return value as? String
     }
 
     /// The bounds for a text marker range via the
-    /// kAXBoundsForTextMarkerRangeParameterizedAttribute parameterized attribute.
+    /// AXBoundsForTextMarkerRange parameterized attribute.
     private static func bounds(for element: AXUIElement, markerRange: AXTextMarkerRange) -> CGRect? {
         var value: CFTypeRef?
         guard AXUIElementCopyParameterizedAttributeValue(
-            element, kAXBoundsForTextMarkerRangeParameterizedAttribute as CFString, markerRange, &value
+            element, boundsForTextMarkerRangeAttribute as CFString, markerRange, &value
         ) == .success,
             let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
         var rect = CGRect.zero

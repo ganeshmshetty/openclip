@@ -5,7 +5,7 @@
 // opening, key event simulations, and user notifications (via UNUserNotificationCenter).
 import Foundation
 import AppKit
-import UserNotifications
+@preconcurrency import UserNotifications
 import CoreServices
 import Core
 
