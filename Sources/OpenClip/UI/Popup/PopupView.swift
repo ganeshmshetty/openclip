@@ -19,9 +19,9 @@ public struct PopupView: View {
     public let onContentSizeChange: (@MainActor (CGSize) -> Void)?
     /// active=true when AI is running or showing result; cardAboveBar=true when the card should render above the bar
     public let onAIStateChange: (@MainActor (Bool, Bool) -> Void)?
-    /// Called with (resultText, isError, title) when the AI result is ready to show in the AI result
+    /// Called with (resultText, isError, title, isStreaming) when the AI result is updated to show in the AI result
     /// card; `title` is the producing preset's title (falls back to "AI Tools" in the card).
-    public let onAIResult: (@MainActor (String, Bool, String) -> Void)?
+    public let onAIResult: (@MainActor (String, Bool, String, Bool) -> Void)?
     /// Called when the AI result card should collapse back to the bar (back chevron).
     public let onExitContent: @MainActor () -> Void
     /// The AI result card's Paste/Copy buttons — explicit user requests routed through the
@@ -124,7 +124,7 @@ public struct PopupView: View {
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
-        onAIResult: (@MainActor (String, Bool, String) -> Void)? = nil,
+        onAIResult: (@MainActor (String, Bool, String, Bool) -> Void)? = nil,
         onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
         onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil,
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
@@ -428,30 +428,55 @@ public struct PopupView: View {
         let selectionText = context.selection.text
         aiTask = Task { @MainActor in
             isProcessingAI = true
+            modeStore.isProcessingAI = true
             defer {
                 if !Task.isCancelled {
                     isProcessingAI = false
+                    modeStore.isProcessingAI = false
                 }
             }
 
             do {
                 let provider = aiManager.currentProvider
-                let response = try await provider.process(prompt: prompt, text: selectionText)
-                guard !Task.isCancelled else { return }
+                if provider.type == .browser {
+                    _ = try await provider.process(prompt: prompt, text: selectionText)
+                    guard !Task.isCancelled else { return }
+                    onResult(.success)
+                    return
+                }
 
-                if provider.type == .browser || response.isEmpty {
-                    if response.isEmpty { onResult(.success) }
+                var accumulated = ""
+                var hasYielded = false
+
+                for try await chunk in provider.processStream(prompt: prompt, text: selectionText) {
+                    guard !Task.isCancelled else { return }
+                    accumulated += chunk
+                    let cleaned = AIRequestSupport.extractResultText(accumulated)
+                    if !cleaned.isEmpty {
+                        hasYielded = true
+                        onAIResult?(cleaned, false, title, true)
+                    }
+                }
+
+                guard !Task.isCancelled else { return }
+                let finalResponse = AIRequestSupport.extractResultText(accumulated)
+                if finalResponse.isEmpty {
+                    if !hasYielded {
+                        throw AIError.invalidResponse
+                    }
                 } else {
-                    onAIResult?(response, false, title)
+                    onAIResult?(finalResponse, false, title, false)
                 }
             } catch is CancellationError {
                 // no-op
             } catch let error as AIError where error == .cancelled {
                 // no-op
+            } catch let error as URLError where error.code == .cancelled {
+                // no-op
             } catch {
                 guard !Task.isCancelled else { return }
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                onAIResult?(message, true, title)
+                onAIResult?(message, true, title, false)
             }
         }
     }
@@ -460,6 +485,7 @@ public struct PopupView: View {
         aiTask?.cancel()
         aiTask = nil
         isProcessingAI = false
+        modeStore.isProcessingAI = false
     }
 
     // MARK: - Completion Mode Bar Layout
@@ -521,7 +547,7 @@ public struct PopupView: View {
                 onEnterSearch()
             } label: {
                 Image(systemName: "command")
-                    .font(.system(size: 13 * scale, weight: .medium))
+                    .font(.system(size: 13 * scale, weight: .regular))
                     .foregroundColor(isHovered ? .white : affordanceForeground)
                     .frame(width: buttonWidth, height: barButtonHeight)
                     .background(isHovered ? Color.accentColor : Color.clear)
@@ -559,7 +585,7 @@ public struct PopupView: View {
             onResult(.paste(word))
         } label: {
             Text(word)
-                .font(.system(size: 13 * scale, weight: .medium))
+                .font(.system(size: 13 * scale, weight: .regular))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .foregroundColor(isHovered ? .white : restForeground)
@@ -592,7 +618,7 @@ public struct PopupView: View {
         let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
 
         let labelView = iconView(for: action.displayIcon(using: presenter))
-            .font(.system(size: 13 * scale, weight: .medium))
+            .font(.system(size: 13 * scale, weight: .regular))
             .foregroundColor(isHovered ? .white : restForeground)
             .padding(.horizontal, {
                 if case .text = action.displayIcon(using: presenter) { return 7.0 * scale }
@@ -693,7 +719,7 @@ public struct PopupView: View {
         let isHovered = hoveredTarget == target
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 11 * scale, weight: .semibold))
+                .font(.system(size: 11 * scale, weight: .medium))
                 .foregroundColor(isHovered ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
                 .frame(width: chevronWidth, height: barButtonHeight)
                 .background(isHovered ? Color.accentColor : Color.clear)
@@ -789,7 +815,7 @@ public struct PopupView: View {
             }
         case .text(let text):
             Text(text)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 13, weight: .regular))
         }
     }
 }

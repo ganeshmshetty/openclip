@@ -232,7 +232,7 @@ public struct PopupSearchView: View {
         } else {
             return AnyView(
                 Image(systemName: "command")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
             )
         }
@@ -274,11 +274,11 @@ public struct PopupSearchView: View {
         } label: {
             HStack(spacing: 8) {
                 iconView(for: rowIcon(for: item.action))
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 13, weight: .regular))
                     .frame(width: 16)
                     .foregroundColor(isSelected ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
                 Text(item.title)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 13, weight: .regular))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .foregroundColor(isSelected ? .white : PopupThemeModel.restForeground(for: effectiveTheme))

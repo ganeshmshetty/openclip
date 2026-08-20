@@ -151,7 +151,8 @@ public enum ExtensionTrustGate {
             )
             let currentHash = ExtensionPackageHashResolver.packageHash(for: representative, in: directory)
             let record = trust[packageID]
-            let source = sources[packageID] ?? "local"
+            let source = sources[packageID].flatMap(ExtensionSource.init)
+            let isDeveloperSource = source?.isDeveloper ?? false
             let required = ExtensionManifestStore.manifest(forPackageID: packageID, in: directory)?.minOpenClipVersion
             let compatible = isCompatible(appVersion: appVersion, required: required)
 
@@ -174,7 +175,7 @@ public enum ExtensionTrustGate {
                 return true
             }
 
-            if source == "store", record == nil {
+            if source == .store, record == nil {
                 // Fresh store install = consent: trust with the current hash. The install path
                 // seeds `extensionSources` before the load; this branch must not consult the
                 // migration flag either way.
@@ -189,13 +190,19 @@ public enum ExtensionTrustGate {
             } else if record == "trusted", let currentHash, hashes[packageID] == currentHash {
                 if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
             } else if record == "trusted" {
-                // Any content drift — an unresolvable fingerprint included, store-sourced
-                // packages included — is a tamper. Only the update flow re-trusts
-                // (via ExtensionUpdateManager.update → enablePackage).
-                trust[packageID] = "seen"
-                trustChanged = true
-                events.append(.tampered(packageID: packageID, name: name))
-                gated(.filesChanged)
+                if isDeveloperSource, let currentHash {
+                    // Developer / local workspace: live hot-reload on file edits, auto-update stored fingerprint
+                    hashes[packageID] = currentHash
+                    hashesChanged = true
+                    if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
+                } else {
+                    // Store or Packaged extension: unexpected content drift is a tamper!
+                    // Only the update flow re-trusts (via ExtensionUpdateManager.update → enablePackage).
+                    trust[packageID] = "seen"
+                    trustChanged = true
+                    events.append(.tampered(packageID: packageID, name: name))
+                    gated(.filesChanged)
+                }
             } else if record == nil {
                 if !newMigrated {
                     // First launch after upgrade: auto-trust everything present.

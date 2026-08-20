@@ -79,11 +79,11 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
         try writeFile("manifest_ext.openclipext/openclip.json")
 
         watcher.pollOnce() // first differing tick
-        let count = await probe.fire()
+        let count = await probe.fire(expected: 0)
         XCTAssertEqual(count, 0, "A single differing tick must not fire yet")
 
         watcher.pollOnce() // second agreeing tick → settle
-        let countAfterSettle = await probe.fire()
+        let countAfterSettle = await probe.fire(expected: 1)
         XCTAssertEqual(countAfterSettle, 1)
     }
 
@@ -100,11 +100,11 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
 
         try writeFile("b.sh") // still mid-change
         watcher.pollOnce() // tick 2: pending slides forward, not settled
-        let count = await probe.fire()
+        let count = await probe.fire(expected: 0)
         XCTAssertEqual(count, 0)
 
         watcher.pollOnce() // tick 3: agrees with tick 2 → settle
-        let countAfterSettle = await probe.fire()
+        let countAfterSettle = await probe.fire(expected: 1)
         XCTAssertEqual(countAfterSettle, 1)
     }
 
@@ -118,7 +118,7 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
 
         watcher.pollOnce()
         watcher.pollOnce()
-        let count = await probe.fire()
+        let count = await probe.fire(expected: 0)
         XCTAssertEqual(count, 0)
     }
 
@@ -133,13 +133,13 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
         try writeFile("a.sh")
         watcher.pollOnce()
         watcher.pollOnce()
-        let count = await probe.fire()
+        let count = await probe.fire(expected: 1)
         XCTAssertEqual(count, 1)
 
         // Directory disappears wholesale — must not fire (would be a transient state).
         try FileManager.default.removeItem(at: tempDir)
         watcher.pollOnce()
-        let count2 = await probe.fire()
+        let count2 = await probe.fire(expected: 1)
         XCTAssertEqual(count2, 1)
     }
 
@@ -156,22 +156,21 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
         watcher.pollOnce() // settle → reload 1 starts, suspends in bump()
 
         // Wait until reload 1 is genuinely in flight (bump suspended).
-        while probe.isInFlight == false {
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        var count = await probe.fire()
+        let inFlight = await probe.waitForInFlight()
+        XCTAssertTrue(inFlight, "reload 1 should be in flight")
+        var count = await probe.fire(expected: 1)
         XCTAssertEqual(count, 1)
 
         // A change settles while reload 1 is still running — must not fire a second in parallel.
         try writeFile("b.sh")
         watcher.pollOnce()
         watcher.pollOnce()
-        count = await probe.fire()
+        count = await probe.fire(expected: 1)
         XCTAssertEqual(count, 1, "No parallel reload while one is in flight")
 
         // Release reload 1; the deferred reload 2 must then fire exactly once.
         probe.release()
-        let finalCount = await probe.fire()
+        let finalCount = await probe.fire(expected: 2)
         XCTAssertEqual(finalCount, 2)
         probe.release() // unblock any leftover suspended bump
     }
@@ -191,8 +190,24 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
             isInFlight = false
         }
 
-        func fire() async -> Int {
-            try? await Task.sleep(for: .milliseconds(50))
+        func waitForInFlight(timeout: TimeInterval = 3.0) async -> Bool {
+            let deadline = Date().addingTimeInterval(timeout)
+            while !isInFlight && Date() < deadline {
+                try? await Task.sleep(for: .milliseconds(5))
+            }
+            return isInFlight
+        }
+
+        func fire(expected: Int = 1, timeout: TimeInterval = 2.0) async -> Int {
+            let deadline = Date().addingTimeInterval(timeout)
+            while fireCount < expected && Date() < deadline {
+                try? await Task.sleep(for: .milliseconds(5))
+            }
+            if expected == 0 {
+                for _ in 0..<5 {
+                    await Task.yield()
+                }
+            }
             return fireCount
         }
 

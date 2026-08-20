@@ -43,6 +43,7 @@ private final class PipeAccumulator: @unchecked Sendable {
     private let lock = NSLock()
     private var buffer = Data()
     private let eofGroup = DispatchGroup()
+    private var isFinished = false
 
     init(fileHandle: FileHandle) {
         self.handle = fileHandle
@@ -52,24 +53,53 @@ private final class PipeAccumulator: @unchecked Sendable {
         eofGroup.enter()
         handle.readabilityHandler = { [weak self] fh in
             guard let self else { return }
-            let chunk = fh.availableData
             self.lock.lock()
+            defer { self.lock.unlock() }
+            guard !self.isFinished else { return }
+            let chunk = fh.availableData
             if chunk.isEmpty {
+                self.isFinished = true
                 self.handle.readabilityHandler = nil
-                self.lock.unlock()
                 self.eofGroup.leave()
             } else {
                 self.buffer.append(chunk)
-                self.lock.unlock()
             }
         }
     }
 
     /// Drains pending output and closes the handle. Bounded: waits at most `grace` seconds for EOF
     /// so a grandchild still holding the pipe can't block the caller indefinitely.
-    func finish(grace: TimeInterval = 2) {
+    func finish(grace: TimeInterval = 0.05) {
         _ = eofGroup.wait(timeout: .now() + grace)
+        lock.lock()
+        defer { lock.unlock() }
+        guard !isFinished else {
+            try? handle.close()
+            return
+        }
+        isFinished = true
         handle.readabilityHandler = nil
+
+        let fd = handle.fileDescriptor
+        if fd >= 0 {
+            let flags = fcntl(fd, F_GETFL)
+            if flags >= 0 {
+                _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+            }
+
+            var chunkBuf = [UInt8](repeating: 0, count: 16384)
+            var drainIterations = 0
+            let maxDrainIterations = 256
+            while drainIterations < maxDrainIterations {
+                let bytesRead = read(fd, &chunkBuf, chunkBuf.count)
+                if bytesRead > 0 {
+                    buffer.append(contentsOf: chunkBuf[0..<bytesRead])
+                    drainIterations += 1
+                } else {
+                    break
+                }
+            }
+        }
         try? handle.close()
     }
 

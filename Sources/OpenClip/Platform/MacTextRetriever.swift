@@ -10,13 +10,16 @@ import Core
 
 @MainActor
 internal final class MacTextRetriever: TextRetrieving {
+    private let coordinator: SelectionRetrievalCoordinator
 
-    internal init() {}
+    internal init(coordinator: SelectionRetrievalCoordinator = SelectionRetrievalCoordinator()) {
+        self.coordinator = coordinator
+    }
 
     // MARK: - TextRetrieving
 
     internal func retrieveTextResult(for app: AppIdentity, policy: AppPolicyContext) async -> TextResult? {
-        await SelectionRetrievalCoordinator().retrieve(
+        await coordinator.retrieve(
             for: app,
             policy: policy,
             cursor: CursorClassifier.current

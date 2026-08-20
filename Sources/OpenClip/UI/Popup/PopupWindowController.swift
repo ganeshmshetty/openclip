@@ -17,7 +17,7 @@ import Core
 
 @MainActor
 public class PopupWindowController {
-    private var panel: PopupPanel?
+    var panel: PopupPanel?
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var currentContext: SelectionContext?
@@ -142,9 +142,11 @@ public class PopupWindowController {
             onContentSizeChange: { [weak self] size in
                 self?.resizePanel(to: size)
             },
-            onAIStateChange: { _, _ in },
-            onAIResult: { [weak self] text, isError, title in
-                self?.showAIContent(text: text, isError: isError, title: title)
+            onAIStateChange: { [weak self] active, _ in
+                self?.modeStore.isProcessingAI = active
+            },
+            onAIResult: { [weak self] text, isError, title, isStreaming in
+                self?.showAIContent(text: text, isError: isError, title: title, isStreaming: isStreaming)
             },
             onHoveredActionChanged: { [weak self] action in
                 self?.updateHoveredAction(action)
@@ -187,7 +189,18 @@ public class PopupWindowController {
         setupMonitors()
     }
 
-    public var isVisible: Bool { panel?.isVisible ?? false }
+    public var isVisible: Bool { (panel?.isVisible == true) || (currentContext != nil) }
+
+    /// Starts a session without creating AppKit window monitors or ordering windows on screen. Internal for tests.
+    func startTestSession(for context: SelectionContext, pasteAvailable: Bool? = nil) {
+        isMenuTracking = false
+        currentContext = context
+        captureFrontmostAppIfNeeded()
+        let actionContext = ActionContext(selection: context, modifiers: [])
+        currentActionContext = actionContext
+        modeStore.mode = .actions
+        modeStore.canPaste = pasteAvailable
+    }
 
     /// Hotkey-driven toggle: dismisses the popup if already visible.
     public func toggleMode() {
@@ -301,12 +314,49 @@ public class PopupWindowController {
     /// re-decision — an explicit Paste always pastes. Probes (AX) whether the target app can paste
     /// so the card can hide its Paste button; the probe targets the captured source app, never
     /// OpenClip itself. Internal for tests.
-    func showAIContent(text: String, isError: Bool, title: String) {
-        modeStore.aiResult = AIResultPayload(text: text, isError: isError, title: title)
-        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
-        panel?.recenterXOnResize = true
-        modeStore.mode = .content
-        enterKeyMode()
+    func showAIContent(text: String, isError: Bool, title: String, isStreaming: Bool = false) {
+        modeStore.isProcessingAI = isStreaming
+        modeStore.aiResult = AIResultPayload(text: text, isError: isError, title: title, isStreaming: isStreaming)
+        if modeStore.mode != .content {
+            panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+            panel?.recenterXOnResize = true
+            modeStore.mode = .content
+            enterKeyMode()
+        }
+
+        // Tell the hosting view its intrinsic content size has changed so AppKit
+        // re-measures on the next display cycle (the mode change schedules a SwiftUI
+        // re-evaluation, but NSHostingView won't re-measure without this nudge).
+        panel?.contentView?.invalidateIntrinsicContentSize()
+        panel?.contentView?.layoutSubtreeIfNeeded()
+        if let fittingSize = panel?.contentView?.fittingSize {
+            let size = sanitizedPopupSize(fittingSize)
+            resizePanel(to: size)
+        }
+        // Retry after the current AppKit display cycle completes — DispatchQueue.main.async
+        // fires after the run-loop turn, unlike Task.yield() which only yields in the
+        // cooperative pool without guaranteeing a display pass.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.panel?.contentView?.invalidateIntrinsicContentSize()
+            self.panel?.contentView?.layoutSubtreeIfNeeded()
+            if let fittingSize = self.panel?.contentView?.fittingSize {
+                let size = self.sanitizedPopupSize(fittingSize)
+                self.resizePanel(to: size)
+            }
+        }
+        // Safety-net retry for the first content-mode entry where SwiftUI swaps
+        // the entire view tree (bar → AIResultCardView) and needs an extra
+        // layout pass to settle.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self, self.modeStore.mode == .content else { return }
+            self.panel?.contentView?.invalidateIntrinsicContentSize()
+            self.panel?.contentView?.layoutSubtreeIfNeeded()
+            if let fittingSize = self.panel?.contentView?.fittingSize {
+                let size = self.sanitizedPopupSize(fittingSize)
+                self.resizePanel(to: size)
+            }
+        }
     }
 
     /// Collapses the AI result card back to the actions bar. Never hides the popup.
@@ -394,6 +444,7 @@ public class PopupWindowController {
         pendingDelivery = nil
         pendingActionTitle = nil
         isRightClickInProgress = false
+        modeStore.isProcessingAI = false
         modeStore.mode = .actions
         modeStore.scope = nil
         panel?.pinBottomEdgeOnResize = false
@@ -460,8 +511,8 @@ public class PopupWindowController {
             updatePopupHover(at: NSEvent.mouseLocation)
             let cursorLoc = NSEvent.mouseLocation
             // Distance dismissal suspends in search mode (typing elsewhere must not dismiss the
-            // palette) and while the AI result card is open (modal); it is active otherwise.
-            let distanceDismissActive = modeStore.mode != .search && modeStore.mode != .content
+            // palette), while the AI result card is open (modal), and while AI is actively processing; it is active otherwise.
+            let distanceDismissActive = modeStore.mode != .search && modeStore.mode != .content && !modeStore.isProcessingAI
             if distanceDismissActive, let panel = panel {
                 let frame = panel.frame
                 let dx = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
@@ -838,7 +889,7 @@ public class PopupWindowController {
             isSecondaryClick: isSecondaryClick,
             match: match
         )
-        let anchorPoint = panel?.centerPoint
+        let anchorPoint = panel?.centerPoint ?? context.selection.cursorPosition
         hide()
         let message = action.chrome.loadingMessage ?? "Opening \(action.title)…"
         toastController.showLoading(message: message, anchorPoint: anchorPoint)
@@ -901,7 +952,8 @@ public class PopupWindowController {
     /// Surfaces a StatusFeedback as the floating toast (the single status renderer). The toast
     /// is independent of the popup, so it shows whether the popup stays up or has already hidden.
     private func presentToast(_ feedback: StatusFeedback) {
-        toastController.show(feedback, anchorPoint: panel?.centerPoint)
+        let anchor = panel?.centerPoint ?? currentContext?.cursorPosition
+        toastController.show(feedback, anchorPoint: anchor)
     }
 
     /// Decision 8 config-open path: the popup has already hidden (`.openConfiguration` dismisses it);

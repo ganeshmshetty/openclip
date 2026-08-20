@@ -50,4 +50,18 @@ public final class BrowserRedirectProvider: AIProvider {
         }
         return "Opened in browser"
     }
+
+    public func processStream(prompt: String, text: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let result = try await process(prompt: prompt, text: text)
+                    continuation.yield(result)
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
 }

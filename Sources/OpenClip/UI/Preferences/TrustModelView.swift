@@ -64,6 +64,14 @@ public struct TrustModelView: View {
                     Label("Store", systemImage: "checkmark.seal")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                } else if model.source == "package" {
+                    Label("Package", systemImage: "shippingbox")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Label("Developer", systemImage: "hammer")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
 

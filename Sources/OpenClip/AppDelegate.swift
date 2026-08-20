@@ -66,7 +66,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         UNUserNotificationCenter.current().delegate = self
 
         Task {
-            let optionStore = KeychainActionOptionStore()
+            let optionStore = SecretActionOptionStore()
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
@@ -207,7 +207,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     /// from the in-memory buffer with 0ms indexing lag, prints them, and exits.
     private func runDumpLogsCommand(_ options: DebugLogCommand.DumpOptions) {
         Task {
-            let optionStore = KeychainActionOptionStore()
+            let optionStore = SecretActionOptionStore()
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared

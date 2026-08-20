@@ -8,7 +8,7 @@ public final class ExtensionsAPIClient: Sendable {
     public static let shared = ExtensionsAPIClient()
     public let baseURL: URL
     
-    public init(baseURL: URL = URL(string: "https://getopenclip.vercel.app/api/v1/extensions")!) {
+    public init(baseURL: URL = URL(string: "https://getopenclip.app/api/v1/extensions")!) {
         self.baseURL = baseURL
     }
     

@@ -12,6 +12,13 @@ struct OpenAIChatRequest: Encodable, Sendable {
     }
     let model: String
     let messages: [Message]
+    let stream: Bool?
+
+    init(model: String, messages: [Message], stream: Bool? = nil) {
+        self.model = model
+        self.messages = messages
+        self.stream = stream
+    }
 }
 
 struct OpenAIChatResponse: Decodable, Sendable {
@@ -34,12 +41,22 @@ struct AnthropicMessagesRequest: Encodable, Sendable {
     let maxTokens: Int
     let system: String?
     let messages: [Message]
+    let stream: Bool?
+
+    init(model: String, maxTokens: Int, system: String?, messages: [Message], stream: Bool? = nil) {
+        self.model = model
+        self.maxTokens = maxTokens
+        self.system = system
+        self.messages = messages
+        self.stream = stream
+    }
 
     enum CodingKeys: String, CodingKey {
         case model
         case maxTokens = "max_tokens"
         case system
         case messages
+        case stream
     }
 }
 

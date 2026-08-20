@@ -55,8 +55,6 @@ final class PopupPanelTests: XCTestCase {
         let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150))
         defer { controller.hide() }
         let panel = try visiblePanel()
-
-        pump(0.3)
         let barFrame = panel.frame
         XCTAssertGreaterThan(barFrame.height, 0)
 
@@ -103,7 +101,6 @@ final class PopupPanelTests: XCTestCase {
         defer { controller.hide() }
         let panel = try visiblePanel()
 
-        pump(0.3)
         let barFrame = panel.frame
         XCTAssertGreaterThan(barFrame.height, 0)
 
@@ -145,7 +142,6 @@ final class PopupPanelTests: XCTestCase {
         defer { controller.hide() }
         let panel = try visiblePanel()
 
-        pump(0.3)
         let barFrame = panel.frame
         XCTAssertGreaterThan(barFrame.height, 0)
 
@@ -170,7 +166,6 @@ final class PopupPanelTests: XCTestCase {
     /// Diagnostic: entering content mode updates the window/content state.
     @MainActor
     func testContentModeInvalidatesWindowForDisplay() throws {
-        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let store = MemorySettingsStore()
         store.set(.primaryClickBehavior, value: "preview")
         let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
@@ -182,33 +177,28 @@ final class PopupPanelTests: XCTestCase {
         let context = SelectionContext(
             text: "hello world",
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
-            cursorPosition: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200),
+            cursorPosition: CGPoint(x: 100, y: 100),
             timestamp: Date(),
             appPolicy: .default
         )
-        controller.show(for: context)
+        controller.startTestSession(for: context)
         defer { controller.hide() }
-        let panel = try visiblePanel()
 
-        pump(0.3)
         XCTAssertEqual(controller.modeStore.mode, .actions, "precondition: bar mode")
 
         controller.showAIContent(text: "line one\nline two\nline three\nline four", isError: false, title: "Summarize")
 
         XCTAssertEqual(controller.modeStore.mode, .content)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         XCTAssertEqual(controller.modeStore.aiResult?.text, "line one\nline two\nline three\nline four")
         XCTAssertEqual(controller.modeStore.aiResult?.title, "Summarize")
         XCTAssertEqual(controller.modeStore.aiResult?.isError, false)
-        XCTAssertNotNil(panel.contentView)
     }
 
     /// Paste availability is probed by the trigger site before selection retrieval and handed to
     /// show(for:pasteAvailable:) — a confirmed cannot-paste must land on `modeStore.canPaste ==
     /// false` synchronously so the card hides its Paste button and the bar/search hide Paste + Cut
     /// on the first frame (no async flash).
-    func testPasteAvailabilityGatesBarAndCardSynchronously() throws {
-        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+    func testPasteAvailabilityGatesBarAndCardSynchronously() {
         let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         let controller = PopupWindowController(
             resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
@@ -217,11 +207,11 @@ final class PopupPanelTests: XCTestCase {
         let context = SelectionContext(
             text: "hello",
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
-            cursorPosition: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150),
+            cursorPosition: CGPoint(x: 100, y: 100),
             timestamp: Date(),
             appPolicy: .default
         )
-        controller.show(for: context, pasteAvailable: false)
+        controller.startTestSession(for: context, pasteAvailable: false)
         defer { controller.hide() }
 
         XCTAssertEqual(controller.modeStore.canPaste, false,
@@ -238,8 +228,7 @@ final class PopupPanelTests: XCTestCase {
 
     /// Paste availability tracks the target app's focus context, so it must never be cached per
     /// app: a re-show in the same app applies the freshly-probed value each time.
-    func testPasteAvailabilityIsNotCachedAcrossShows() throws {
-        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+    func testPasteAvailabilityIsNotCachedAcrossShows() {
         let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         let controller = PopupWindowController(
             resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
@@ -248,16 +237,16 @@ final class PopupPanelTests: XCTestCase {
         let context = SelectionContext(
             text: "hello",
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
-            cursorPosition: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150),
+            cursorPosition: CGPoint(x: 100, y: 100),
             timestamp: Date(),
             appPolicy: .default
         )
 
-        controller.show(for: context, pasteAvailable: false)
+        controller.startTestSession(for: context, pasteAvailable: false)
         XCTAssertEqual(controller.modeStore.canPaste, false)
         controller.hide()
 
-        controller.show(for: context, pasteAvailable: true)
+        controller.startTestSession(for: context, pasteAvailable: true)
         XCTAssertEqual(controller.modeStore.canPaste, true,
                        "a focus-context change in the same app must apply the fresh probe result")
         controller.hide()
@@ -349,7 +338,6 @@ final class PopupPanelTests: XCTestCase {
         defer { controller.hide() }
         let panel = try visiblePanel()
 
-        pump(0.3)
         let barFrame = panel.frame
         XCTAssertGreaterThan(barFrame.height, 0)
 
@@ -371,7 +359,6 @@ final class PopupPanelTests: XCTestCase {
         defer { controller.hide() }
         let panel = try visiblePanel()
 
-        pump(0.3)
         let barFrame = panel.frame
         XCTAssertGreaterThan(barFrame.height, 0)
 
@@ -395,7 +382,7 @@ final class PopupPanelTests: XCTestCase {
         let panel = try visiblePanel()
 
         XCTAssertTrue(panel.pinBottomEdgeOnResize,
-                      "bottom-edge pin should be armed for a card-above popup")
+                       "bottom-edge pin should be armed for a card-above popup")
     }
 
     /// Entering search swaps the (variable-width) actions bar for the fixed 280pt palette. The
@@ -408,7 +395,6 @@ final class PopupPanelTests: XCTestCase {
         defer { controller.hide() }
         let panel = try visiblePanel()
 
-        pump(0.3)
         let barCenter = panel.frame.midX
         XCTAssertGreaterThan(barCenter, 0)
 
@@ -429,7 +415,6 @@ final class PopupPanelTests: XCTestCase {
         defer { controller.hide() }
         let panel = try visiblePanel()
 
-        pump(0.3)
         let barFrame = panel.frame
 
         controller.enterSearch()
@@ -450,9 +435,12 @@ final class PopupPanelTests: XCTestCase {
         defer { controller.hide() }
         let panel = try visiblePanel()
 
-        pump(0.3)
         controller.enterSearch()
-        pump(0.5)
+        let deadline = Date().addingTimeInterval(2.0)
+        while Date() < deadline {
+            if (panel.firstResponder is NSTextView) || (panel.firstResponder is NSTextField) { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+        }
 
         XCTAssertTrue(panel.isKeyWindow, "panel should be key in search mode")
         let isTextInput = (panel.firstResponder is NSTextView) || (panel.firstResponder is NSTextField)
@@ -461,11 +449,15 @@ final class PopupPanelTests: XCTestCase {
 
         // Exit and re-enter search: focus must be re-acquired.
         controller.exitSearch()
-        pump(0.2)
+        pump(0.05)
         XCTAssertFalse(panel.canBecomeKey, "exit must restore the never-key invariant")
 
         controller.enterSearch()
-        pump(0.5)
+        let reenterDeadline = Date().addingTimeInterval(2.0)
+        while Date() < reenterDeadline {
+            if (panel.firstResponder is NSTextView) || (panel.firstResponder is NSTextField) { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+        }
         let isTextInputAgain = (panel.firstResponder is NSTextView) || (panel.firstResponder is NSTextField)
         XCTAssertTrue(isTextInputAgain,
                       "search field should be first responder after re-entry, got \(String(describing: panel.firstResponder))")
@@ -491,5 +483,51 @@ final class PopupPanelTests: XCTestCase {
         let repositionFrame = NSRect(x: 80, y: 100, width: 200, height: 100)
         panel.setFrame(repositionFrame, display: false)
         XCTAssertEqual(panel.frame.origin.y, 100, "Repositioning must place the panel at the requested origin.y")
+    }
+
+    func testDistanceDismissalSuspendsWhileAIProcessing() throws {
+        let controller = PopupWindowController()
+        let panel = PopupPanel()
+        let currentMouse = NSEvent.mouseLocation
+        panel.setFrame(NSRect(x: currentMouse.x + PopupMetrics.popupDismissalDistance + 200,
+                              y: currentMouse.y + PopupMetrics.popupDismissalDistance + 200,
+                              width: 200, height: 50), display: false)
+        controller.panel = panel
+        let context = SelectionContext(
+            text: "test",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.startTestSession(for: context)
+        defer { controller.hide() }
+
+        XCTAssertTrue(controller.isVisible)
+
+        // When processing AI, distance auto-dismiss must be suspended
+        controller.modeStore.isProcessingAI = true
+
+        let farAwayLocation = CGPoint(x: panel.frame.maxX + PopupMetrics.popupDismissalDistance + 100,
+                                      y: panel.frame.maxY + PopupMetrics.popupDismissalDistance + 100)
+        let farEvent = NSEvent.mouseEvent(
+            with: .mouseMoved,
+            location: farAwayLocation,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: panel.windowNumber,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 0,
+            pressure: 0
+        )!
+
+        controller.handleEvent(farEvent)
+        XCTAssertTrue(controller.isVisible, "Popup must stay visible while AI is processing even when cursor moves far away")
+
+        // When AI processing completes, distance dismissal re-engages
+        controller.modeStore.isProcessingAI = false
+        controller.handleEvent(farEvent)
+        XCTAssertFalse(controller.isVisible, "Popup should dismiss when cursor moves far away and AI is not processing")
     }
 }

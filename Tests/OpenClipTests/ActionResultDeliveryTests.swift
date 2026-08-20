@@ -248,7 +248,7 @@ final class ActionResultDeliveryTests: XCTestCase {
     private func awaitDelivery(from handler: RecordingHandler) async throws -> ActionResult {
         let deadline = Date().addingTimeInterval(3.0)
         while handler.results.isEmpty && Date() < deadline {
-            try await Task.sleep(nanoseconds: 20_000_000)
+            try await Task.sleep(nanoseconds: 2_000_000)
         }
         XCTAssertFalse(handler.results.isEmpty, "effect delivery never reached the handler")
         return handler.results.first!
@@ -261,7 +261,7 @@ final class ActionResultDeliveryTests: XCTestCase {
     private func awaitLoadingFade(toast: ToastPanelController) async {
         let deadline = Date().addingTimeInterval(3.0)
         while toast.isLoading && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
     }
 
@@ -271,7 +271,7 @@ final class ActionResultDeliveryTests: XCTestCase {
     private func awaitToastMessage(_ toast: ToastPanelController, _ message: String) async {
         let deadline = Date().addingTimeInterval(3.0)
         while toast.currentFeedback?.message != message && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
     }
 
@@ -280,8 +280,7 @@ final class ActionResultDeliveryTests: XCTestCase {
                                  pasteProbe: PasteAvailabilityProbing,
                                  appPolicy: AppPolicyContext,
                                  toastController: ToastPanelController = ToastPanelController(),
-                                 settingsStore: SettingsStore = MemorySettingsStore()) throws -> PopupWindowController {
-        guard NSScreen.main != nil else { throw XCTSkip("no screen") }
+                                 settingsStore: SettingsStore = MemorySettingsStore()) -> PopupWindowController {
         let controller = PopupWindowController(resultHandler: resultHandler, pasteProbe: pasteProbe, toastController: toastController, settingsStore: settingsStore)
         let context = SelectionContext(
             text: "hello",
@@ -290,7 +289,7 @@ final class ActionResultDeliveryTests: XCTestCase {
             timestamp: Date(),
             appPolicy: appPolicy
         )
-        controller.show(for: context)
+        controller.startTestSession(for: context)
         return controller
     }
 
@@ -465,8 +464,8 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.text("hello"))
 
         let deadline = Date().addingTimeInterval(3.0)
-        while (controller.modeStore.mode != .content || !controller.isVisible) && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 20_000_000)
+        while controller.modeStore.mode != .content && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
         XCTAssertTrue(handler.results.isEmpty, "preview must not deliver any effect")
         XCTAssertTrue(controller.isVisible, "preview keeps the popup open")
@@ -493,7 +492,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         let deadline = Date().addingTimeInterval(3.0)
         while controller.modeStore.canPaste != false && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
         XCTAssertEqual(controller.modeStore.canPaste, false, "preview card must gate Paste on the probe answer")
     }
@@ -515,7 +514,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         let deadline = Date().addingTimeInterval(3.0)
         while controller.modeStore.canPaste == nil && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
         XCTAssertNotNil(controller.modeStore.canPaste, "preview card must resolve paste availability before rendering")
         XCTAssertNotEqual(controller.modeStore.canPaste, false)
@@ -537,14 +536,14 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.text("hello"))
 
         var deadline = Date().addingTimeInterval(3.0)
-        while (controller.modeStore.mode != .content || !controller.isVisible) && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 20_000_000)
+        while controller.modeStore.mode != .content && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
         controller.exitContent()
 
         deadline = Date().addingTimeInterval(3.0)
         while controller.modeStore.mode != .actions && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
 
         XCTAssertEqual(controller.modeStore.mode, .actions)
@@ -572,7 +571,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         let deadline = Date().addingTimeInterval(3.0)
         while controller.modeStore.mode != .content && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
 
         XCTAssertFalse(toast.isLoading, "the spinner must hide when the preview card re-shows")
@@ -645,7 +644,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         let deadline = Date().addingTimeInterval(3.0)
         while controller.modeStore.mode != .content && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
         XCTAssertEqual(controller.modeStore.aiResult?.title, "Declared", "the preview card must show the performing action's title")
         XCTAssertNil(controller.pendingActionTitle, "runAction must not leave pendingActionTitle behind")
@@ -720,7 +719,10 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         controller.deliverResult(.paste("hello"))
 
-        try await Task.sleep(nanoseconds: 50_000_000)
+        let deadline = Date().addingTimeInterval(3.0)
+        while toast.currentFeedback == nil && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 2_000_000)
+        }
         XCTAssertNotEqual(toast.currentFeedback?.message, "Copied")
         XCTAssertEqual(toast.currentFeedback?.style, .error)
     }
@@ -824,10 +826,13 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         controller.runLoadingAction(KeepVisibleToastLoadingAction(), with: controllerCurrentContext(controller), isSecondaryClick: false)
         XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
-        try await Task.sleep(nanoseconds: 50_000_000)
+        await awaitLoadingFade(toast: toast)
         XCTAssertEqual(toast.currentFeedback?.message, "Formatted")
         XCTAssertFalse(toast.isLoading)
-        try await Task.sleep(nanoseconds: 100_000_000)
+        let deadline = Date().addingTimeInterval(3.0)
+        while toast.isShowing && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 2_000_000)
+        }
         XCTAssertFalse(toast.isShowing, "settled loading toast with keepVisible: true must auto-dismiss")
     }
 

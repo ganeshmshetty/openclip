@@ -1,7 +1,7 @@
 // AboutTabView.swift
 // OpenClip
 //
-// The About preferences tab: app icon, name, version, and diagnostics.
+// The About preferences tab: app identity, version, software updates, links, and diagnostics.
 // Split out of PreferencesView.swift.
 import SwiftUI
 import AppKit
@@ -12,68 +12,139 @@ import Core
 struct AboutTab: View {
     @State private var isExporting = false
     @State private var exportError: String?
+    @ObservedObject private var updateManager = AppUpdateManager.shared
+
+    private var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
+    }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(nsImage: AppIcon.image)
-                .resizable()
-                .frame(width: 80, height: 80)
-            
-            VStack(spacing: 4) {
+        VStack(spacing: 0) {
+            Spacer(minLength: 16)
+
+            // ── App Identity ──
+            VStack(spacing: 6) {
+                Image(nsImage: AppIcon.image)
+                    .resizable()
+                    .frame(width: 76, height: 76)
+                    .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+                    .padding(.bottom, 2)
+
                 Text("OpenClip")
-                    .font(.title).bold()
-                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0")")
+                    .font(.system(size: 20, weight: .bold))
+
+                Text("Version \(version)")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
+
+                Text("Instant actions for selected text on macOS")
+                    .font(.system(size: 13))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: 320)
+                    .padding(.top, 2)
             }
-            
-            Text("The open-source text selection action tool for macOS.")
-                .font(.body)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 40)
 
+            // ── Updates Card ──
+            HStack(spacing: 12) {
+                Toggle("", isOn: $updateManager.automaticallyChecksForUpdates)
+                    .labelsHidden()
+                    .controlSize(.mini)
+                    .accessibilityLabel("Check for Updates Automatically")
+                Text("Auto-update")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if let lastCheck = updateManager.lastUpdateCheckDate {
+                    Text(Self.shortTimeAgo(lastCheck))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+
+                Button {
+                    updateManager.checkForUpdates()
+                } label: {
+                    Text("Check for Updates")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!updateManager.canCheckForUpdates)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color(NSColor.controlBackgroundColor).opacity(0.7))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .padding(.top, 20)
+
+            // ── Links & Diagnostics ──
             VStack(spacing: 8) {
-                Text("Diagnostics")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-                    .textCase(.uppercase)
+                HStack(spacing: 8) {
+                    actionButton("Website", icon: "globe") {
+                        openURL("https://getopenclip.app")
+                    }
+                    actionButton("GitHub", icon: "chevron.left.forwardslash.chevron.right") {
+                        openURL("https://github.com/ganeshmshetty/openclip")
+                    }
+                    actionButton("Issues", icon: "ant") {
+                        openURL("https://github.com/ganeshmshetty/openclip/issues")
+                    }
+                }
 
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     Button {
                         exportLogs()
                     } label: {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 5) {
                             if isExporting {
                                 ProgressView()
-                                    .controlSize(.small)
+                                    .controlSize(.mini)
                             } else {
-                                Image(systemName: "arrow.down.doc.fill")
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 11))
                             }
-                            Text("Export Logs…")
+                            Text(isExporting ? "Exporting…" : "Export Logs")
+                                .font(.system(size: 12))
                         }
                     }
                     .buttonStyle(.bordered)
+                    .controlSize(.small)
                     .disabled(isExporting)
 
                     Button {
                         LogExporter.showLogsInFinder()
                     } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "folder.fill")
-                            Text("Show in Finder")
+                        HStack(spacing: 5) {
+                            Image(systemName: "folder")
+                                .font(.system(size: 11))
+                            Text("Reveal Log File")
+                                .font(.system(size: 12))
                         }
                     }
                     .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, 14)
 
-            Spacer()
+            // ── Footer ──
+            Text("Open source under MIT License")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .padding(.top, 16)
+
+            Spacer(minLength: 24)
         }
-        .padding(20)
+        .frame(maxWidth: 380)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 24)
         .alert("Export Logs Failed", isPresented: Binding(
             get: { exportError != nil },
             set: { if !$0 { exportError = nil } }
@@ -84,6 +155,41 @@ struct AboutTab: View {
         } message: {
             Text(exportError ?? "An unknown error occurred.")
         }
+    }
+
+    // MARK: - Helpers
+
+    private func actionButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 11))
+                Text(title)
+                    .font(.system(size: 12))
+            }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+    }
+
+    private func openURL(_ string: String) {
+        if let url = URL(string: string) {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    /// Returns a short, static "time ago" string that doesn't live-tick.
+    private static func shortTimeAgo(_ date: Date) -> String {
+        let seconds = Int(-date.timeIntervalSinceNow)
+        if seconds < 60 { return "just now" }
+        let minutes = seconds / 60
+        if minutes < 60 { return "\(minutes)m ago" }
+        let hours = minutes / 60
+        if hours < 24 { return "\(hours)h ago" }
+        let days = hours / 24
+        if days == 1 { return "yesterday" }
+        if days < 7 { return "\(days)d ago" }
+        return date.formatted(.dateTime.month(.abbreviated).day())
     }
 
     private func exportLogs() {

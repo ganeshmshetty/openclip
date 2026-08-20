@@ -30,10 +30,6 @@ public struct SearchAction: ConfigurableAction {
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasURLPrefix = text.hasPrefix("http://") || text.hasPrefix("https://") || text.hasPrefix("www.")
-        if hasURLPrefix {
-            return false
-        }
         return !text.isEmpty
     }
     

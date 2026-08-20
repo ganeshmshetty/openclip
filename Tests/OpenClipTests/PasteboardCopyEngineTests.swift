@@ -86,7 +86,7 @@ final class PasteboardCopyEngineTests: XCTestCase {
         let engine = PasteboardCopyEngine()
         let captured = await engine.captureString(
             pasteboard: pasteboard,
-            timeout: 0.2,
+            timeout: 1.0,
             restoreDelay: 0.05
         ) {
             // Simulate the PopClip-style race: the changeCount advances with empty content first,

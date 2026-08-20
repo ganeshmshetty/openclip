@@ -717,7 +717,7 @@ final class OpenClipJSHostTests: XCTestCase {
     // MARK: - Watchdog
 
     func testTimeoutThrowsForNeverSettlingPromise() async throws {
-        let request = makeRequest(script: "function action() { return new Promise(function() {}); }", isAsync: true, timeout: 0.25)
+        let request = makeRequest(script: "function action() { return new Promise(function() {}); }", isAsync: true, timeout: 0.05)
         do {
             _ = try await host.run(request)
             return XCTFail("Expected timeout to throw")

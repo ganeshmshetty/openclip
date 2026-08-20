@@ -12,6 +12,17 @@ public enum ExtensionTrustState: String, Sendable, Codable, Equatable {
     case revoked   // user explicitly disabled it
 }
 
+public enum ExtensionSource: String, Sendable, Codable, Equatable {
+    case store      // Installed from the in-app Store
+    case package    // Installed via in-app file package picker (.zip, .openclipext)
+    case developer  // Live local / developer workspace
+    case local      // Legacy alias for developer / local
+
+    public var isDeveloper: Bool {
+        self == .developer || self == .local
+    }
+}
+
 /// Events surfaced to the app target (via `ExtensionManager.onTrustChange`) so it can post
 /// user notifications. Emitted by the trust gate, never by UI.
 public enum ExtensionTrustChange: Sendable, Equatable {

@@ -93,7 +93,7 @@ public struct PreferencesView: View {
                 // Bottom footer icons (Help and GitHub - NO TEXT)
                 HStack(spacing: 14) {
                     Button(action: {
-                        if let url = URL(string: "https://getopenclip.vercel.app/help") {
+                        if let url = URL(string: "https://getopenclip.app/docs") {
                             NSWorkspace.shared.open(url)
                         }
                     }) {
@@ -102,8 +102,8 @@ public struct PreferencesView: View {
                             .foregroundColor(.primary)
                     }
                     .buttonStyle(.plain)
-                    .help("Help Center")
-                    .accessibilityLabel("Help Center")
+                    .help("Documentation")
+                    .accessibilityLabel("Documentation")
                     
                     Button(action: {
                         if let url = URL(string: "https://github.com/ganeshmshetty/openclip") {

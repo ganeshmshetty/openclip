@@ -24,6 +24,8 @@ public final class RemoteExtensionInstaller: Sendable {
         "objects.githubusercontent.com",
         "raw.githubusercontent.com",
         "getopenclip.vercel.app",
+        "getopenclip.app",
+        "www.getopenclip.app",
         "openclip.app",
     ]
     

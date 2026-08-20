@@ -19,6 +19,7 @@ public struct InstalledExtensionsView: View {
         let title: String
         let representative: any Action
         let gated: GatedExtensionAction?
+        let source: ExtensionSource
         var id: String { packageID }
     }
 
@@ -32,11 +33,13 @@ public struct InstalledExtensionsView: View {
                 titles[packageID] = name
             }
         }
-        let trust = DefaultSettingsStore.shared.get(.extensionTrust)
+        let sources = DefaultSettingsStore.shared.get(.extensionSources)
         return representatives
             .map { packageID, action in
                 let gated = action as? GatedExtensionAction
-                return PackageRow(packageID: packageID, title: titles[packageID] ?? packageID, representative: action, gated: gated)
+                let srcStr = sources[packageID] ?? ExtensionSource.developer.rawValue
+                let source = ExtensionSource(rawValue: srcStr) ?? .developer
+                return PackageRow(packageID: packageID, title: titles[packageID] ?? packageID, representative: action, gated: gated, source: source)
             }
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
@@ -99,8 +102,16 @@ public struct InstalledExtensionsView: View {
                             .cornerRadius(8)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(package.title)
-                                    .font(.system(size: 13, weight: .semibold))
+                                HStack(spacing: 6) {
+                                    Text(package.title)
+                                        .font(.system(size: 13, weight: .semibold))
+                                    Text(sourceTag(for: package.source))
+                                        .font(.system(size: 10, weight: .medium))
+                                        .padding(.horizontal, 4)
+                                        .padding(.vertical, 1)
+                                        .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                                        .foregroundColor(.secondary)
+                                }
                                 Text(package.packageID)
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
@@ -184,6 +195,14 @@ public struct InstalledExtensionsView: View {
         case .filesChanged: return "Changed"
         case .revoked: return "Disabled"
         case .needsNewerApp: return "Needs Update"
+        }
+    }
+
+    private func sourceTag(for source: ExtensionSource) -> String {
+        switch source {
+        case .store: return "Store"
+        case .package: return "Package"
+        case .developer, .local: return "Developer"
         }
     }
 

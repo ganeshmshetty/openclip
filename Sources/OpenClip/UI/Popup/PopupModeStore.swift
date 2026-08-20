@@ -26,21 +26,25 @@ public final class PopupModeStore: ObservableObject {
     /// card's Paste button and the bar/search Paste + Cut actions; `nil` (unknown/probing) and
     /// `true` keep them visible.
     @Published public var canPaste: Bool? = nil
+    /// True while an asynchronous AI action is executing, used to suspend distance auto-dismiss.
+    @Published public var isProcessingAI: Bool = false
 
     public init() {}
 }
 
 /// The payload of the native AI result card: the provider's response text, whether it is an
-/// error message (drives the card's styling), and the producing preset's title.
+/// error message (drives the card's styling), the producing preset's title, and streaming state.
 public struct AIResultPayload: Sendable, Equatable {
     public let text: String
     public let isError: Bool
     public let title: String
+    public let isStreaming: Bool
 
-    public init(text: String, isError: Bool, title: String = "AI Tools") {
+    public init(text: String, isError: Bool, title: String = "AI Tools", isStreaming: Bool = false) {
         self.text = text
         self.isError = isError
         self.title = title
+        self.isStreaming = isStreaming
     }
 }
 

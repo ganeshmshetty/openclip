@@ -61,6 +61,7 @@ final class ExtensionManagerTrustTests: XCTestCase {
         let manager = ExtensionManager.shared
         manager.settingsStore = store
         try writePackage(packageID: "com.t.tf", name: "TF")
+        manager.prepareInstall(source: "package", packageID: "com.t.tf")
 
         var events: [ExtensionTrustChange] = []
         manager.onTrustChange = { events.append($0) }
@@ -88,6 +89,31 @@ final class ExtensionManagerTrustTests: XCTestCase {
         let revoked = try XCTUnwrap(manager.loadedActions.first as? GatedExtensionAction)
         XCTAssertEqual(revoked.reason, .revoked)
         XCTAssertEqual(store.get(.extensionTrust)["com.t.tf"], "revoked")
+    }
+
+    @MainActor
+    func testDeveloperLiveHotReloadAutoRehashes() async throws {
+        let store = MemorySettingsStore()
+        let manager = ExtensionManager.shared
+        manager.settingsStore = store
+        try writePackage(packageID: "com.t.dev", name: "Dev")
+        manager.prepareInstall(source: "developer", packageID: "com.t.dev")
+
+        var events: [ExtensionTrustChange] = []
+        manager.onTrustChange = { events.append($0) }
+
+        await manager.loadExtensions(from: tempDir) // migration → trusted
+        let initialHash = store.get(.extensionTrustHashes)["com.t.dev"]
+        XCTAssertNotNil(initialHash)
+
+        // Edit the script: developer extension seamlessly auto-rehashes and stays runnable!
+        try writePackage(packageID: "com.t.dev", name: "Dev", script: "echo updated")
+        await manager.loadExtensions(from: tempDir)
+        XCTAssertFalse(manager.loadedActions[0] is GatedExtensionAction)
+        XCTAssertEqual(store.get(.extensionTrust)["com.t.dev"], "trusted")
+        let updatedHash = store.get(.extensionTrustHashes)["com.t.dev"]
+        XCTAssertNotEqual(initialHash, updatedHash)
+        XCTAssertTrue(events.isEmpty)
     }
 
     @MainActor

@@ -34,6 +34,7 @@ public enum Constants {
     public static let imageExtensions: [String] = [".png", ".jpg", ".jpeg", ".icns", ".gif", ".svg"]
     
     public static let rulesFileURL: URL = URL(fileURLWithPath: ("~/.openclip/rules.json" as NSString).expandingTildeInPath)
+    public static let secretsFileURL: URL = URL(fileURLWithPath: ("~/.openclip/secrets.json" as NSString).expandingTildeInPath)
     
     // Extension System Constants
     public static let extensionsDirectory: URL = URL(fileURLWithPath: ("~/.openclip/extensions" as NSString).expandingTildeInPath)

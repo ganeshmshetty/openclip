@@ -148,7 +148,7 @@ public struct EditActionSheet: View {
                                 DynamicActionConfigView(
                                     actionID: action.id,
                                     options: action.actionOptions,
-                                    optionStore: KeychainActionOptionStore(),
+                                    optionStore: SecretActionOptionStore(),
                                     missingOptionIDs: Set(configurationRequest?.missingOptionIDs ?? [])
                                 )
                             }

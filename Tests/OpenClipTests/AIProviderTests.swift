@@ -113,11 +113,61 @@ final class AIProviderTests: XCTestCase {
             .httpStatus(500, "boom"),
             .httpStatus(404, nil),
             .unsupportedModel("gemini"),
+            .providerUnavailable("Apple Intelligence is not available on this device"),
             .requestTooLarge,
             .cancelled
         ]
         for error in errors {
             XCTAssertFalse(error.errorDescription?.isEmpty ?? true)
         }
+    }
+
+    // MARK: - Extract Result & Reasoning Tags
+
+    func testExtractResultText() {
+        // Standard XML tags
+        XCTAssertEqual(AIRequestSupport.extractResultText("<result>Clean text</result>"), "Clean text")
+        XCTAssertEqual(AIRequestSupport.extractResultText("<output>Clean output</output>"), "Clean output")
+        
+        // DeepSeek/reasoning <think> tag stripping
+        let thinkingOutput = "<think>Analyzing grammar and spelling...</think><result>Corrected sentence.</result>"
+        XCTAssertEqual(AIRequestSupport.extractResultText(thinkingOutput), "Corrected sentence.")
+
+        // Unclosed <think> during streaming should return empty to suppress raw thinking tokens
+        let partialThink = "<think>Analyzing user prompt..."
+        XCTAssertEqual(AIRequestSupport.extractResultText(partialThink), "")
+
+        // Unclosed <result> tag during streaming should return in-progress content
+        let partialResult = "<result>In progress streaming text"
+        XCTAssertEqual(AIRequestSupport.extractResultText(partialResult), "In progress streaming text")
+
+        // Empty closed tags should fall back to original text rather than returning closing tag
+        XCTAssertEqual(AIRequestSupport.extractResultText("<result></result>"), "<result></result>")
+        XCTAssertEqual(AIRequestSupport.extractResultText("<output>   </output>"), "<output>   </output>")
+
+        // Plain text without tags
+        XCTAssertEqual(AIRequestSupport.extractResultText("Simple raw response"), "Simple raw response")
+    }
+
+    func testCloudAPIEffectiveBaseURL() {
+        let defaultOpenAI = CloudAPIProvider(apiKey: "key", model: "gpt-4o", serviceProvider: .openai)
+        XCTAssertEqual(defaultOpenAI.effectiveBaseURL, "https://api.openai.com/v1")
+
+        let customAnthropic = CloudAPIProvider(apiKey: "key", model: "claude-3-5-sonnet", serviceProvider: .anthropic, customBaseURL: "https://my-proxy.internal/v1")
+        XCTAssertEqual(customAnthropic.effectiveBaseURL, "https://my-proxy.internal/v1")
+    }
+
+    func testSystemPromptAndUserContentFormatting() {
+        let customPrompt = "Translate into pirate English"
+        let systemPrompt = AIRequestSupport.systemPrompt(for: customPrompt)
+        XCTAssertTrue(systemPrompt.contains("Task:\nTranslate into pirate English"))
+        XCTAssertTrue(systemPrompt.contains("Output ONLY the transformed text"))
+        XCTAssertTrue(systemPrompt.contains("<result>...</result>"))
+
+        let emptyTaskPrompt = AIRequestSupport.systemPrompt(for: "  ")
+        XCTAssertFalse(emptyTaskPrompt.contains("Task:"))
+
+        let userContent = AIRequestSupport.userContent(for: "Hello World")
+        XCTAssertEqual(userContent, "<text>\nHello World\n</text>")
     }
 }
