@@ -68,24 +68,17 @@ struct ToastView: View {
 
         Group {
             if isGlass {
-                if #available(macOS 26.0, *) {
-                    content
-                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous))
-                        .compositingGroup()
-                        .shadow(color: .black.opacity(0.22), radius: 5, x: 0, y: 2)
-                } else {
-                    content
-                        .background(
-                            RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
-                                .stroke(glassBorderColor, lineWidth: 1.0)
-                        )
-                        .shadow(color: .black.opacity(0.22), radius: 5, x: 0, y: 2)
-                }
+                content
+                    .background(
+                        RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
+                            .stroke(glassBorderColor, lineWidth: 1.0)
+                    )
+                    .shadow(color: Color.black.opacity(0.22), radius: 5, x: 0, y: 2)
             } else {
                 content
                     .background(opaqueBackground)
@@ -94,7 +87,7 @@ struct ToastView: View {
                         RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
                             .stroke(opaqueBorder, lineWidth: 1.0)
                     )
-                    .shadow(color: .black.opacity(effectiveTheme == "light" ? 0.14 : 0.28), radius: 5, x: 0, y: 2)
+                    .shadow(color: Color.black.opacity(effectiveTheme == "light" ? 0.14 : 0.28), radius: 5, x: 0, y: 2)
             }
         }
         .environment(\.colorScheme, effectiveColorScheme)

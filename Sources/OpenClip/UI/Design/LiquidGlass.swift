@@ -20,24 +20,14 @@ public enum LiquidGlassVariant {
 
 @MainActor
 public extension View {
-    /// Renders the view as a Liquid Glass surface on macOS 26+, or an ultra-thin
-    /// standard material on macOS 14-15 so the UI keeps a similar frosted look.
+    /// Renders the view as a glass surface using ultra-thin material for a frosted look.
     func glassSurface(
         _ variant: LiquidGlassVariant = .regular,
         cornerRadius: CGFloat = 14
     ) -> some View {
-        Group {
-            if #available(macOS 26.0, *) {
-                glassEffect(
-                    variant == .regular ? .regular : .clear,
-                    in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                )
-            } else {
-                background(
-                    .ultraThinMaterial,
-                    in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                )
-            }
-        }
+        background(
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        )
     }
 }

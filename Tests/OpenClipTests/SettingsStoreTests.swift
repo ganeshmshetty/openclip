@@ -13,18 +13,21 @@ final class SettingsStoreTests: XCTestCase {
         store = DefaultSettingsStore(userDefaults: userDefaults)
     }
 
+    @MainActor
     func testTypedSettingReadWrite() {
         XCTAssertEqual(store.get(.actionOrder), [])
         store.set(.actionOrder, value: ["builtin.copy", "builtin.paste"])
         XCTAssertEqual(store.get(.actionOrder), ["builtin.copy", "builtin.paste"])
     }
 
+    @MainActor
     func testDisabledActionIDsDefault() {
         XCTAssertTrue(store.get(.disabledActionIDs).isEmpty)
         store.set(.disabledActionIDs, value: ["builtin.search"])
         XCTAssertEqual(store.get(.disabledActionIDs), ["builtin.search"])
     }
 
+    @MainActor
     func testActionOptionKeyNameAndRoundTrip() {
         let key = SettingKey.actionOption(actionID: "com.test.action", optionID: "prefix")
         XCTAssertEqual(key.name, "action.com.test.action.option.prefix")
@@ -37,23 +40,27 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.get(key), "")
     }
 
+    @MainActor
     func testPopupScaleReadWrite() {
         XCTAssertEqual(store.get(.popupScale), 1.0)
         store.set(.popupScale, value: 1.2)
         XCTAssertEqual(store.get(.popupScale), 1.2)
     }
 
+    @MainActor
     func testPopupPageSizeReadWrite() {
         XCTAssertEqual(store.get(.popupPageSize), 7)
         store.set(.popupPageSize, value: 5)
         XCTAssertEqual(store.get(.popupPageSize), 5)
     }
 
+    @MainActor
     func testResultDeliveryDefaults() {
         XCTAssertEqual(store.get(.primaryClickBehavior), "paste")
         XCTAssertEqual(store.get(.secondaryClickBehavior), "copy")
     }
 
+    @MainActor
     func testResultDeliveryRoundTrip() {
         store.set(.primaryClickBehavior, value: "preview")
         store.set(.secondaryClickBehavior, value: "paste")

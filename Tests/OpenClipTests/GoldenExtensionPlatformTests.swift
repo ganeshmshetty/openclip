@@ -39,29 +39,30 @@ final class GoldenExtensionPlatformTests: XCTestCase {
     var tempDir: URL!
     fileprivate var optionStore: MemoryOptionStore!
 
-    @MainActor
     override func setUp() async throws {
         try await super.setUp()
-        TestIsolation.reset()
+        await MainActor.run {
+            TestIsolation.reset()
+        }
+        let store = MemoryOptionStore()
+        await MainActor.run {
+            ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: store)
+            ExtensionManager.shared.onRegister = { [registry = ActionRegistry.shared] action in
+                registry.register(action: action)
+            }
+        }
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        optionStore = MemoryOptionStore()
-        ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
-        // Make this test self-contained: mirror the production callback wiring
-        // (ActionCoordinator.loadInitialState) so loaded extensions register into the shared
-        // registry here rather than depending on state leaked from an earlier test class.
-        ExtensionManager.shared.onRegister = { [registry = ActionRegistry.shared] action in
-            registry.register(action: action)
-        }
+        optionStore = store
     }
 
-    @MainActor
     override func tearDown() async throws {
         if let tempDir = tempDir {
             try? FileManager.default.removeItem(at: tempDir)
         }
-        ExtensionManager.shared.actionFactory = nil
+        await MainActor.run {
+            ExtensionManager.shared.actionFactory = nil
+        }
         try await super.tearDown()
     }
     

@@ -221,9 +221,9 @@ final class PopupPanelTests: XCTestCase {
     /// Paste and Cut require a paste-capable target; Copy does not. The bar/search hide exactly the
     /// `PasteRequiringAction` set when the probe reports cannot-paste.
     func testPasteAndCutArePasteRequiringActions() {
-        XCTAssertTrue(PasteAction() is any PasteRequiringAction)
-        XCTAssertTrue(CutAction() is any PasteRequiringAction)
-        XCTAssertFalse(CopyAction() is any PasteRequiringAction)
+        XCTAssertTrue((PasteAction() as Any) is any PasteRequiringAction)
+        XCTAssertTrue((CutAction() as Any) is any PasteRequiringAction)
+        XCTAssertFalse((CopyAction() as Any) is any PasteRequiringAction)
     }
 
     /// Paste availability tracks the target app's focus context, so it must never be cached per
@@ -274,7 +274,7 @@ final class PopupPanelTests: XCTestCase {
 
     /// Returns the popup panel after show(for:) has mounted it.
     private func shownPanel(for cursor: CGPoint) throws -> PopupWindowController {
-        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        guard NSScreen.main != nil else { throw XCTSkip("no screen") }
         let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
         let context = SelectionContext(

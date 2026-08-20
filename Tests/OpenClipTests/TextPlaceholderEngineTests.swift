@@ -40,9 +40,10 @@ final class TextPlaceholderEngineTests: XCTestCase {
         XCTAssertEqual(url, "https://example.com/a%40b.com/a/b.com/com.test")
     }
 
-    func testLegacyBareOverloadStillSubstitutesTextAndQuery() {
-        XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "https://google.com/search?q={text}", with: "hello world"), "https://google.com/search?q=hello%20world")
-        XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "echo {query}", with: "hello world", urlEncode: false), "echo hello world")
+    func testBareContextSubstitutesTextAndQuery() {
+        let context = ActionContext(selectedText: "hello world")
+        XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "https://google.com/search?q={text}", context: context), "https://google.com/search?q=hello%20world")
+        XCTAssertEqual(TextPlaceholderEngine.replacePlaceholders(in: "echo {query}", context: context, urlEncode: false), "echo hello world")
     }
 
     func testNoCascadingSubstitutions() {

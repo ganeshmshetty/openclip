@@ -12,7 +12,7 @@ permissions:
 jobs:
   package-and-release:
     name: Package App & Create Release
-    runs-on: macos-14
+    runs-on: macos-26
 
     steps:
       - name: Checkout repository
@@ -20,10 +20,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Select Xcode 16
+      - name: Select Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.2'
+          xcode-version: '26.6'
 
       - name: Install XcodeGen
         run: brew install xcodegen

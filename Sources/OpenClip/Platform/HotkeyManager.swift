@@ -29,7 +29,7 @@ public final class HotkeyManager {
                 }
 
                 let frontApp = NSWorkspace.shared.frontmostApplication ?? NSRunningApplication.current
-                let policy = await RuleEngine.shared.resolvePolicies(for: frontApp.bundleIdentifier ?? "")
+                let policy = RuleEngine.shared.resolvePolicies(for: frontApp.bundleIdentifier ?? "")
                 let appIdentity = AppIdentity(frontApp)
 
                 // Start the paste-availability probe now, in parallel with selection retrieval, so

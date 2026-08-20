@@ -4,13 +4,15 @@ import SwiftUI
 import Core
 @testable import OpenClip
 
-@MainActor
 final class ToastPanelControllerTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
-        try XCTSkipUnless(NSScreen.main != nil, "no screen")
+        try await MainActor.run {
+            try XCTSkipUnless(NSScreen.main != nil, "no screen")
+        }
     }
 
+    @MainActor
     func testShowPresentsFeedbackAndShows() {
         let controller = ToastPanelController(autoDismissNanoseconds: 100_000_000)
         controller.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"))
@@ -23,6 +25,7 @@ final class ToastPanelControllerTests: XCTestCase {
     /// Regression: the toast must size from laid-out content — not the hosting view's stale/large
     /// fitting size, and not the `.preferredContentSize` option (which reports 0 and lets the window
     /// auto-size to a constrained measurement that truncates the message to just the icon).
+    @MainActor
     func testShownFrameIsCompactAndHoldsMessage() {
         let controller = ToastPanelController()
         controller.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"))
@@ -32,6 +35,7 @@ final class ToastPanelControllerTests: XCTestCase {
         controller.hide()
     }
 
+    @MainActor
     func testShowLoadingFlag() {
         let controller = ToastPanelController()
         controller.showLoading(message: "Opening Apple Music…")
@@ -40,6 +44,7 @@ final class ToastPanelControllerTests: XCTestCase {
         controller.hide()
     }
 
+    @MainActor
     func testSwapToReplacesContent() {
         let controller = ToastPanelController()
         controller.showLoading(message: "Opening…")
@@ -50,6 +55,7 @@ final class ToastPanelControllerTests: XCTestCase {
     }
 
     /// The toast must center on the anchor point, not the cursor.
+    @MainActor
     func testShowCentersOnAnchorPoint() {
         let controller = ToastPanelController()
         let anchor = CGPoint(x: 500, y: 400)
@@ -61,6 +67,7 @@ final class ToastPanelControllerTests: XCTestCase {
         controller.hide()
     }
 
+    @MainActor
     func testAutoDismissAfterDuration() async throws {
         let controller = ToastPanelController(autoDismissNanoseconds: 5_000_000)
         controller.show(StatusFeedback(message: "Copied", style: .success))
@@ -71,6 +78,7 @@ final class ToastPanelControllerTests: XCTestCase {
         XCTAssertFalse(controller.isShowing, "info toast should auto-dismiss")
     }
 
+    @MainActor
     func testLoadingToastHasNoTimer() async throws {
         let controller = ToastPanelController(autoDismissNanoseconds: 5_000_000)
         controller.showLoading(message: "Opening…")
@@ -79,6 +87,7 @@ final class ToastPanelControllerTests: XCTestCase {
         controller.hide()
     }
 
+    @MainActor
     func testKeepVisibleToastHasNoTimer() async throws {
         let controller = ToastPanelController(autoDismissNanoseconds: 5_000_000)
         controller.show(StatusFeedback(message: "Stick", style: .info, keepVisible: true))

@@ -2,24 +2,24 @@ import XCTest
 import AppKit
 @testable import OpenClip
 
-@MainActor
 final class LocalIconCacheTests: XCTestCase {
     private var tempDirectoryURL: URL!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         tempDirectoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("LocalIconCacheTests_\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tempDirectoryURL, withIntermediateDirectories: true)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         if let tempDirectoryURL {
             try? FileManager.default.removeItem(at: tempDirectoryURL)
         }
-        super.tearDown()
+        try await super.tearDown()
     }
 
+    @MainActor
     func testValidImageIsCached() throws {
         let fileURL = tempDirectoryURL.appendingPathComponent("valid_icon.png")
         let image = NSImage(size: NSSize(width: 16, height: 16))
@@ -43,6 +43,7 @@ final class LocalIconCacheTests: XCTestCase {
         XCTAssertNotNil(loaded2)
     }
 
+    @MainActor
     func testMissingFileIsCachedAsNegativeEntry() throws {
         let missingFileURL = tempDirectoryURL.appendingPathComponent("missing_icon_\(UUID().uuidString).png")
 

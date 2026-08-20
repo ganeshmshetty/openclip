@@ -27,8 +27,8 @@ final class SecretActionOptionStoreTests: XCTestCase {
         ActionOptionKey.defaultsKey(actionID: actionID, optionID: option.identifier)
     }
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         tempFileURL = tempDir.appendingPathComponent("secrets.json")
         SecretStore.setFileURLForTesting(tempFileURL)
@@ -37,7 +37,7 @@ final class SecretActionOptionStoreTests: XCTestCase {
         writtenDefaultsKeys = []
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         for account in writtenAccounts {
             _ = SecretStore.delete(account: account)
         }
@@ -46,12 +46,11 @@ final class SecretActionOptionStoreTests: XCTestCase {
         }
         writtenAccounts = []
         writtenDefaultsKeys = []
-
         SecretStore.setFileURLForTesting(Constants.secretsFileURL)
         if let tempDir {
             try? FileManager.default.removeItem(at: tempDir)
         }
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testSecretWritesToSecretStoreAndNeverUserDefaults() {

@@ -12,6 +12,7 @@ import SDWebImageSwiftUI
 
 // MARK: - Popup View
 
+@MainActor
 public struct PopupView: View {
     public let actions: [any Action]
     public let context: ActionContext
@@ -230,12 +231,16 @@ public struct PopupView: View {
                 }
             )
             .onPreferenceChange(PopupHoverFramePreferenceKey.self) { frames in
-                hoverFrames = frames
-                updateHoveredTarget(for: hoverState.location)
+                MainActor.assumeIsolated {
+                    hoverFrames = frames
+                    updateHoveredTarget(for: hoverState.location)
+                }
             }
             .onPreferenceChange(PopupContentSizePreferenceKey.self) { size in
-                guard size.width > 0, size.height > 0 else { return }
-                onContentSizeChange?(size)
+                MainActor.assumeIsolated {
+                    guard size.width > 0, size.height > 0 else { return }
+                    onContentSizeChange?(size)
+                }
             }
             .onReceive(hoverState.$location) { location in
                 updateHoveredTarget(for: location)
@@ -285,34 +290,17 @@ public struct PopupView: View {
         let baseView = Group {
             if effectiveTheme == "glass" {
                 let glassBorderColor: Color = effectiveColorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
-                
-                if #available(macOS 26, *) {
-                    barStack
-                        .background(
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .stroke(glassBorderColor, lineWidth: 1.0)
-                        )
-                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                        .compositingGroup()
-                        .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
-                } else {
-                    barStack
-                        .background(
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .stroke(glassBorderColor, lineWidth: 1.0)
-                        )
-                        .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
-                }
+                barStack
+                    .background(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .stroke(glassBorderColor, lineWidth: 1.0)
+                    )
+                    .shadow(color: Color.black.opacity(0.28), radius: 6, x: 0, y: 3)
             } else {
                 barStack
                     .background(opaqueBackground)
@@ -321,7 +309,7 @@ public struct PopupView: View {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .stroke(opaqueBorder, lineWidth: 1.0)
                     )
-                    .shadow(color: .black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 6, x: 0, y: 3)
+                    .shadow(color: Color.black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 6, x: 0, y: 3)
             }
         }
 
@@ -522,7 +510,6 @@ public struct PopupView: View {
             }
 
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
-                let isLast = index == pagedActions.count - 1
                 let showDivider = true
                 let isHovered = hoveredTarget == .action(index)
                 actionButton(action: action, index: index, isHovered: isHovered, showDivider: showDivider)
