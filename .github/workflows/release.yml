@@ -48,6 +48,10 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           ./scripts/release_update.sh "$VERSION"
+          ZIP_FILE="build/release/OpenClip-v${VERSION}.zip"
+          SHA256=$(shasum -a 256 "$ZIP_FILE" | awk '{print $1}')
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "Built OpenClip v$VERSION with SHA256: $SHA256"
 
       - name: Create GitHub Release
         id: create_release
@@ -60,15 +64,32 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref, '-') }}
           generate_release_notes: true
+          overwrite: true
 
       - name: Update Homebrew Tap
-        uses: mislav/bump-homebrew-formula-action@v3
         if: "!contains(github.ref, '-')"
-        with:
-          formula-name: openclip
-          formula-path: Casks/openclip.rb
-          homebrew-tap: ganeshmshetty/homebrew-tap
-          download-url: https://github.com/ganeshmshetty/openclip/releases/download/${{ github.ref_name }}/OpenClip-v${{ steps.build_package.outputs.version }}.zip
-          commit-message: "openclip ${{ steps.build_package.outputs.version }}"
         env:
-          COMMITTER_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+          TOKEN: ${{ secrets.TAP_GITHUB_TOKEN || secrets.HOMEBREW_TAP_TOKEN || secrets.PAT }}
+          VERSION: ${{ steps.build_package.outputs.version }}
+          SHA256: ${{ steps.build_package.outputs.sha256 }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning ::No TAP_GITHUB_TOKEN or HOMEBREW_TAP_TOKEN secret configured. Skipping Homebrew tap update."
+            exit 0
+          fi
+          echo "==> Updating ganeshmshetty/homebrew-tap cask..."
+          rm -rf /tmp/homebrew-tap
+          git clone "https://x-access-token:${TOKEN}@github.com/ganeshmshetty/homebrew-tap.git" /tmp/homebrew-tap
+          cd /tmp/homebrew-tap
+          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" Casks/openclip.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256}\"/" Casks/openclip.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/openclip.rb
+          if git diff --staged --quiet; then
+            echo "No changes to Casks/openclip.rb"
+          else
+            git commit -m "openclip ${VERSION}"
+            git push origin master
+            echo "Successfully updated ganeshmshetty/homebrew-tap Casks/openclip.rb to v${VERSION} (${SHA256})"
+          fi
