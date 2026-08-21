@@ -2,15 +2,33 @@ import XCTest
 @testable import Core
 
 final class ActionCoordinatorTests: XCTestCase {
+    private var tempDir: URL!
+    private var tempExtensionsDir: URL!
+    private var tempRulesURL: URL!
+
     override func setUp() async throws {
         try await super.setUp()
         await MainActor.run { TestIsolation.reset() }
+        tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("ActionCoordinatorTests-\(UUID().uuidString)")
+        tempExtensionsDir = tempDir.appendingPathComponent("extensions")
+        tempRulesURL = tempDir.appendingPathComponent("rules.json")
+        try FileManager.default.createDirectory(at: tempExtensionsDir, withIntermediateDirectories: true)
+    }
+
+    override func tearDown() async throws {
+        if let tempDir {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
+        try await super.tearDown()
     }
 
     @MainActor
     func testActionCoordinatorResolvesActionsForContext() async {
         let coordinator = ActionCoordinator.shared
-        await coordinator.loadInitialState()
+        await coordinator.loadInitialState(
+            extensionsDirectory: tempExtensionsDir,
+            rulesURL: tempRulesURL
+        )
         
         let app = AppIdentity(bundleIdentifier: "com.apple.Safari", localizedName: "Safari")
         let selection = SelectionContext(

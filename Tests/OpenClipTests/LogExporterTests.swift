@@ -13,7 +13,10 @@ final class LogExporterTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        let sink = await MainActor.run { RotatingFileLogSink.shared }
+        let sink = await MainActor.run {
+            TestIsolation.reset()
+            return RotatingFileLogSink.shared
+        }
         previousSharedSink = sink
         tempDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("OpenClipLogExporterTests-\(UUID().uuidString)")

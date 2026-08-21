@@ -69,7 +69,7 @@ private final class PipeAccumulator: @unchecked Sendable {
 
     /// Drains pending output and closes the handle. Bounded: waits at most `grace` seconds for EOF
     /// so a grandchild still holding the pipe can't block the caller indefinitely.
-    func finish(grace: TimeInterval = 0.05) {
+    func finish(grace: TimeInterval = 2.0) {
         _ = eofGroup.wait(timeout: .now() + grace)
         lock.lock()
         defer { lock.unlock() }
@@ -79,6 +79,7 @@ private final class PipeAccumulator: @unchecked Sendable {
         }
         isFinished = true
         handle.readabilityHandler = nil
+        eofGroup.leave()
 
         let fd = handle.fileDescriptor
         if fd >= 0 {
@@ -95,6 +96,8 @@ private final class PipeAccumulator: @unchecked Sendable {
                 if bytesRead > 0 {
                     buffer.append(contentsOf: chunkBuf[0..<bytesRead])
                     drainIterations += 1
+                } else if bytesRead < 0 && errno == EINTR {
+                    continue
                 } else {
                     break
                 }
@@ -336,6 +339,9 @@ public enum ShellProcessRunner {
             }
 
             process.waitUntilExit()
+            watchdog.cancel()
+            outReader.finish()
+            errReader.finish()
 
             if timeoutFlag.isTimedOut {
                 throw NSError(domain: Constants.actionErrorDomain,

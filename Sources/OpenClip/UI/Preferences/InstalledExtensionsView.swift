@@ -95,10 +95,10 @@ public struct InstalledExtensionsView: View {
                         HStack(spacing: 12) {
                             ZStack {
                                 ActionIconView(icon: package.representative.displayIcon(using: ActionCustomizationManager.shared), size: 16)
-                                    .foregroundColor(.accentColor)
+                                    .foregroundColor(.primary)
                             }
                             .frame(width: 36, height: 36)
-                            .background(Color.accentColor.opacity(0.12))
+                            .background(Color.primary.opacity(0.06))
                             .cornerRadius(8)
 
                             VStack(alignment: .leading, spacing: 2) {
