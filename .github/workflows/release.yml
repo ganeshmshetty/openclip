@@ -68,6 +68,7 @@ jobs:
 
       - name: Update Homebrew Tap
         if: "!contains(github.ref, '-')"
+        continue-on-error: true
         env:
           TOKEN: ${{ secrets.TAP_GITHUB_TOKEN || secrets.HOMEBREW_TAP_TOKEN || secrets.PAT }}
           VERSION: ${{ steps.build_package.outputs.version }}
