@@ -12,6 +12,7 @@ struct GeneralTab: View {
     /// Backed by the settings store — the single owner of `isAppEnabled`. Seeded at init and kept
     /// in sync with external changes (status-bar toggle) via the shared state-changed notification.
     @State private var isAppEnabled: Bool
+    @State private var isMouseHoldEnabled: Bool
     @State private var primaryBehavior: String
     @State private var secondaryBehavior: String
     @ObservedObject private var launchManager = LaunchAtLoginManager.shared
@@ -19,6 +20,7 @@ struct GeneralTab: View {
 
     init() {
         _isAppEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isAppEnabled))
+        _isMouseHoldEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isMouseHoldEnabled))
         _primaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.primaryClickBehavior))
         _secondaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.secondaryClickBehavior))
     }
@@ -68,6 +70,28 @@ struct GeneralTab: View {
                     KeyboardShortcuts.Recorder(for: .togglePopup)
                 }
                 .padding(.vertical, 4)
+
+                // Row 3: Hold Mouse to Trigger
+                HStack {
+                    HStack(spacing: 12) {
+                        Image(systemName: "hand.tap")
+                            .font(.system(size: 16))
+                            .foregroundColor(isMouseHoldEnabled ? .accentColor : .secondary)
+                            .frame(width: 22, alignment: .center)
+                        
+                        Text("Hold Mouse to Trigger")
+                            .font(.body)
+                            .fontWeight(.medium)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $isMouseHoldEnabled)
+                        .labelsHidden()
+                        .accessibilityLabel("Hold Mouse to Trigger")
+                        .onChange(of: isMouseHoldEnabled) { _, newValue in
+                            DefaultSettingsStore.shared.set(.isMouseHoldEnabled, value: newValue)
+                        }
+                }
+                .padding(.vertical, 4)
                 
                 // Row 3: Start at Login
                 HStack {
@@ -91,14 +115,9 @@ struct GeneralTab: View {
 
             Section(header: Text("Action Results")) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Primary click")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("Left click")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    Text("Primary click")
+                        .font(.body)
+                        .fontWeight(.medium)
                     Spacer()
                     Picker("Primary click", selection: $primaryBehavior) {
                         ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
@@ -115,14 +134,9 @@ struct GeneralTab: View {
                 .padding(.vertical, 4)
 
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Secondary click")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("Right click or ⇧-click")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    Text("Secondary click")
+                        .font(.body)
+                        .fontWeight(.medium)
                     Spacer()
                     Picker("Secondary click", selection: $secondaryBehavior) {
                         ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
@@ -148,14 +162,9 @@ struct GeneralTab: View {
                             .foregroundColor(permissionManager.isAccessibilityGranted ? .green : .orange)
                             .frame(width: 22, alignment: .center)
                         
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Accessibility Access")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text(permissionManager.isAccessibilityGranted ? "Active permission for text detection" : "Required to detect selected text in apps")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        Text("Accessibility Access")
+                            .font(.body)
+                            .fontWeight(.medium)
                     }
                     
                     Spacer()

@@ -17,7 +17,7 @@ public struct CalendarAction: ConfigurableAction {
                 label: "Calendar Destination",
                 type: .multiple,
                 defaultValue: "native",
-                options: ["native", "google"]
+                options: ["native", "busycal", "fantastical", "apple", "google"]
             )
         ]
     }
@@ -42,15 +42,52 @@ public struct CalendarAction: ConfigurableAction {
             return .failure(NSError(domain: Constants.actionErrorDomain, code: Constants.actionErrorCode, userInfo: nil))
         }
         
-        let provider = settingsStore.get(.calendarProvider)
-        if provider == "google" {
+        let provider = resolveProvider()
+        switch provider {
+        case "google":
             return .openURL(makeGoogleCalendarURL(title: text, startDate: date))
-        } else {
+
+        case "busycal":
+            if let encoded = text.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed),
+               let url = URL(string: "busycalevent://new/\(encoded)") {
+                return .openURL(url)
+            }
+            if let icsURL = makeNativeCalendarICSURL(title: text, startDate: date) {
+                return .openURL(icsURL)
+            }
+            return .openURL(makeGoogleCalendarURL(title: text, startDate: date))
+
+        case "fantastical":
+            if let encoded = text.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed),
+               let url = URL(string: "x-fantastical3://parse?sentence=\(encoded)") {
+                return .openURL(url)
+            }
+            if let icsURL = makeNativeCalendarICSURL(title: text, startDate: date) {
+                return .openURL(icsURL)
+            }
+            return .openURL(makeGoogleCalendarURL(title: text, startDate: date))
+
+        case "apple", "native":
+            fallthrough
+        default:
             if let icsURL = makeNativeCalendarICSURL(title: text, startDate: date) {
                 return .openURL(icsURL)
             }
             return .openURL(makeGoogleCalendarURL(title: text, startDate: date))
         }
+    }
+
+    private func resolveProvider() -> String {
+        let optionKey = SettingKey.actionOption(actionID: id, optionID: "provider", default: "native")
+        let configured = settingsStore.get(optionKey)
+        if !configured.isEmpty {
+            return configured.lowercased()
+        }
+        let legacy = settingsStore.get(.calendarProvider)
+        if !legacy.isEmpty {
+            return legacy.lowercased()
+        }
+        return "native"
     }
 
     private static let dateDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
@@ -79,7 +116,7 @@ public struct CalendarAction: ConfigurableAction {
         """
 
         let tempDir = FileManager.default.temporaryDirectory
-        let fileURL = tempDir.appendingPathComponent("OpenClipEvent.ics")
+        let fileURL = tempDir.appendingPathComponent("OpenClipEvent-\(UUID().uuidString.prefix(8)).ics")
         do {
             try icsContent.write(to: fileURL, atomically: true, encoding: .utf8)
             return fileURL

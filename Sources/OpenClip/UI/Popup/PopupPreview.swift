@@ -39,7 +39,7 @@ struct PopupPreview: View {
         return ActionContext(selection: context, modifiers: [])
     }
 
-    @AppStorage(SettingKey.popupScale.name) private var popupScale: Double = SettingKey.popupScale.defaultValue
+    @AppStorage(SettingKey.popupScale.name) private var popupScale: Int = SettingKey.popupScale.defaultValue
 
     var body: some View {
         VStack(spacing: 12) {

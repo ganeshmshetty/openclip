@@ -77,5 +77,37 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertTrue(task?.isCancelled == true)
         XCTAssertNil(monitor.debounceTask)
     }
+
+    func testStopCancelsPendingMouseHoldTask() {
+        let store = MemorySettingsStore()
+        store.set(.mouseHoldDuration, value: 0.3)
+        let monitor = MacSelectionMonitor(settingsStore: store)
+
+        monitor.start()
+        monitor.stop()
+
+        XCTAssertNil(monitor.mouseHoldTask)
+    }
+
+    func testDisabledMouseHoldDurationDoesNotSpawnTask() {
+        let store = MemorySettingsStore()
+        store.set(.mouseHoldDuration, value: 0.0)
+        let monitor = MacSelectionMonitor(settingsStore: store)
+
+        monitor.start()
+        XCTAssertNil(monitor.mouseHoldTask)
+        monitor.stop()
+    }
+
+    func testIsMouseHoldEnabledFalseDoesNotSpawnTask() {
+        let store = MemorySettingsStore()
+        store.set(.isMouseHoldEnabled, value: false)
+        store.set(.mouseHoldDuration, value: 0.3)
+        let monitor = MacSelectionMonitor(settingsStore: store)
+
+        monitor.start()
+        XCTAssertNil(monitor.mouseHoldTask)
+        monitor.stop()
+    }
 }
 

@@ -105,6 +105,9 @@ public enum Constants {
     /// Throttle interval (seconds) for keyboard selection gestures (Cmd+A, Shift+arrow) to prevent rapid repeated retrievals while holding keys.
     public static let keyboardSelectionDebounceInterval: TimeInterval = 0.15
 
+    /// Default duration (seconds) of holding the mouse button down to trigger the popup.
+    public static let defaultMouseHoldDuration: TimeInterval = 0.3
+
     /// Cap on in-flight synchronous JS evaluations. A CPU-bound synchronous script cannot be
     /// interrupted in modern JavaScriptCore (JSVirtualMachine.invalidate is gone), so each stuck
     /// script permanently parks a cooperative-pool thread; refusing new synchronous evaluations

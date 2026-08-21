@@ -100,6 +100,44 @@ final class CalculateActionTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testExtendedMathExpressionsAndSanitization() async throws {
+        let action = CalculateAction()
+        let app = AppIdentity(NSRunningApplication.current)
+        let cases: [(input: String, expected: String)] = [
+            ("10 × 5", "50"),
+            ("100 ÷ 4", "25"),
+            ("100 – 20", "80"), // En-dash (smart dash)
+            ("100 — 20", "80"), // Em-dash
+            ("100 − 20", "80"), // Unicode minus
+            ("5 + 5 =", "10"),
+            ("12 * 4 = ", "48"),
+            ("25 + 15 = ?", "40"),
+            ("$50 + $20", "70"),
+            ("€100 - €20", "80"),
+            ("£15 * 3", "45"),
+            ("¥500 + ¥200", "700"),
+            ("2^8", "256"),
+            ("10^3", "1000"),
+            ("5 x 10", "50"),
+            ("100 * 20%", "20"),
+            ("1,000 * 2.5", "2500")
+        ]
+        for testCase in cases {
+            let context = ActionContext(
+                selection: SelectionContext(text: testCase.input, sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+                modifiers: []
+            )
+            XCTAssertTrue(action.isEnabled(for: context), "\(testCase.input) should be calculable")
+            let result = try await action.perform(context)
+            if case .text(let newText) = result {
+                XCTAssertEqual(newText, testCase.expected, "\(testCase.input) should equal \(testCase.expected)")
+            } else {
+                XCTFail("Expected text result for \(testCase.input)")
+            }
+        }
+    }
+
     // MARK: - MathEvaluator (deterministic parser, replaces crash-prone NSExpression)
 
     func testMathEvaluatorBasicArithmetic() {
@@ -108,6 +146,9 @@ final class CalculateActionTests: XCTestCase {
             ("100 * 2.5", 250),
             ("1 + 2 - 3 * 4 / 2", -3),
             ("5 % 2", 1),
+            ("100 * 20%", 20),
+            ("2^8", 256),
+            ("2**3", 8),
             (".5 + 0.5", 1)
         ]
         for testCase in cases {
@@ -123,7 +164,8 @@ final class CalculateActionTests: XCTestCase {
             ("-5", -5),
             ("(-5)", -5),
             ("1-(-2)", 3),
-            ("(1+2)*3", 9)
+            ("(1+2)*3", 9),
+            ("(-2)^3", -8)
         ]
         for testCase in cases {
             guard let value = MathEvaluator.evaluate(testCase.input) else {

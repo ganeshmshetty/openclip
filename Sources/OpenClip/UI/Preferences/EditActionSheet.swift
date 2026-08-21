@@ -326,9 +326,7 @@ public struct EditActionSheet: View {
     }
     
     private func resetAppearance() {
-        if isBuiltin {
-            ActionCustomizationManager.shared.resetOverride(for: action.id)
-        }
+        ActionCustomizationManager.shared.resetOverride(for: action.id)
         // Manifest-backed and builtin both re-read current on-disk state, discarding unsaved edits.
         loadInitialState()
     }
@@ -336,14 +334,14 @@ public struct EditActionSheet: View {
     // MARK: - Saving
     
     private func saveChanges() async -> Bool {
+        saveAppearanceOverride()
         if isBuiltin {
-            saveBuiltinOverride()
             return true
         }
         return await saveManifestChanges()
     }
     
-    private func saveBuiltinOverride() {
+    private func saveAppearanceOverride() {
         let titleOverride: String? = (customTitle.isEmpty || customTitle == action.title) ? nil : customTitle
         let symbolOverride: String? = iconSymbol.isEmpty ? nil : iconSymbol
         let textOverride: String? = (displayMode == 1) ? (customTitle.isEmpty ? action.title : customTitle) : nil
@@ -435,9 +433,9 @@ public struct EditActionSheet: View {
             return false
         }
         
-        // Manifest edits supersede any legacy appearance override for this action.
-        ActionCustomizationManager.shared.resetOverride(for: action.id)
-        await ExtensionManager.shared.loadExtensions()
+        // Re-enable/re-trust package with its newly computed fingerprint so tamper detection
+        // does not falsely flag authorized preferences edits.
+        await ExtensionManager.shared.enablePackage(packageID: state.manifest.identifier)
         return true
     }
 }
