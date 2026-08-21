@@ -33,14 +33,14 @@ public enum SecretStore {
         lock.lock()
         defer { lock.unlock() }
         let store = loadCacheLocked()
-        return store[account]
+        return store?[account]
     }
 
     @discardableResult
     public static func set(_ value: String, account: String) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        var store = loadCacheLocked()
+        guard var store = loadCacheLocked() else { return false }
         store[account] = value
         guard saveToDiskLocked(store) else { return false }
         _cache = store
@@ -51,7 +51,7 @@ public enum SecretStore {
     public static func delete(account: String) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        var store = loadCacheLocked()
+        guard var store = loadCacheLocked() else { return false }
         guard store.removeValue(forKey: account) != nil else { return true }
         guard saveToDiskLocked(store) else { return false }
         _cache = store
@@ -60,24 +60,32 @@ public enum SecretStore {
 
     // MARK: - Private Disk Storage
 
-    private static func loadCacheLocked() -> [String: String] {
+    private static func loadCacheLocked() -> [String: String]? {
         if let cache = _cache {
             return cache
         }
 
-        var loaded: [String: String] = [:]
         if FileManager.default.fileExists(atPath: fileURL.path) {
-            if let data = try? Data(contentsOf: fileURL),
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
-                loaded = json
-            }
-        } else {
-            // One-time legacy migration: check if legacy Keychain had aiCloudAPIKey
-            if let migrated = readLegacyKeychainLocked() {
-                loaded["aiCloudAPIKey"] = migrated
-                if saveToDiskLocked(loaded) {
-                    deleteLegacyKeychainLocked()
+            do {
+                let data = try Data(contentsOf: fileURL)
+                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: String] else {
+                    Log.settings.error("Secrets file at \(fileURL.path) is not a valid JSON dictionary of strings")
+                    return nil
                 }
+                _cache = json
+                return json
+            } catch {
+                Log.settings.error("Failed to read secrets file at \(fileURL.path): \(error.localizedDescription)")
+                return nil
+            }
+        }
+
+        var loaded: [String: String] = [:]
+        // One-time legacy migration: check if legacy Keychain had aiCloudAPIKey
+        if let migrated = readLegacyKeychainLocked() {
+            loaded["aiCloudAPIKey"] = migrated
+            if saveToDiskLocked(loaded) {
+                deleteLegacyKeychainLocked()
             }
         }
 
@@ -87,8 +95,8 @@ public enum SecretStore {
 
     @discardableResult
     private static func saveToDiskLocked(_ data: [String: String]) -> Bool {
+        let directory = fileURL.deletingLastPathComponent()
         do {
-            let directory = fileURL.deletingLastPathComponent()
             if !FileManager.default.fileExists(atPath: directory.path) {
                 try FileManager.default.createDirectory(
                     at: directory,
@@ -96,13 +104,35 @@ public enum SecretStore {
                     attributes: [FileAttributeKey.posixPermissions: 0o700]
                 )
             }
+        } catch {
+            Log.settings.error("Failed to create secrets directory \(directory.path): \(error.localizedDescription)")
+            return false
+        }
 
+        let tempFileURL = directory.appendingPathComponent(".\(fileURL.lastPathComponent).\(UUID().uuidString).tmp")
+        defer {
+            if FileManager.default.fileExists(atPath: tempFileURL.path) {
+                try? FileManager.default.removeItem(at: tempFileURL)
+            }
+        }
+
+        do {
             let jsonData = try JSONSerialization.data(withJSONObject: data, options: [.prettyPrinted, .sortedKeys])
-            try jsonData.write(to: fileURL, options: [.atomic])
-            try FileManager.default.setAttributes(
-                [FileAttributeKey.posixPermissions: 0o600],
-                ofItemAtPath: fileURL.path
-            )
+            guard FileManager.default.createFile(
+                atPath: tempFileURL.path,
+                contents: jsonData,
+                attributes: [FileAttributeKey.posixPermissions: 0o600]
+            ) else {
+                Log.settings.error("Failed to create staged secrets file at \(tempFileURL.path)")
+                return false
+            }
+
+            guard rename(tempFileURL.path, fileURL.path) == 0 else {
+                let err = errno
+                Log.settings.error("Failed to atomically install secrets file at \(fileURL.path): \(String(cString: strerror(err)))")
+                return false
+            }
+
             return true
         } catch {
             Log.settings.error("Failed to write secrets to \(fileURL.path): \(error.localizedDescription)")

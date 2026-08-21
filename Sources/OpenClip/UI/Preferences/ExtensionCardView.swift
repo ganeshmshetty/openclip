@@ -29,17 +29,8 @@ struct ExtensionCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Header Row: Icon + Name & Author
+            // Header Row: Name & Author
             HStack(spacing: 12) {
-                ZStack {
-                    AnyIconView(iconId: item.icon.hasPrefix("symbol:") ? String(item.icon.dropFirst(7)) : item.icon)
-                        .frame(width: 18, height: 18)
-                        .foregroundColor(.primary)
-                }
-                .frame(width: 36, height: 36)
-                .background(Color.primary.opacity(0.06))
-                .cornerRadius(8)
-
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
                         .font(.system(size: 13, weight: .bold))

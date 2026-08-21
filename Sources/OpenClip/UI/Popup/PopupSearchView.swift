@@ -81,16 +81,10 @@ public struct PopupSearchView: View {
     /// every one of those reads. Recomputed exactly once per query change (and per scope rebuild).
     @State private var results: [ActionSearchIndex] = []
 
-    private var visibleResultCount: Int {
-        min(results.count, PopupMetrics.searchMaxRows)
-    }
-
-    /// Scroll-viewport height: full rows up to `searchMaxRows`, plus a partial extra row when
-    /// more results exist so the next action peeks and signals scrollability.
+    /// Scroll-viewport height: constant height based on searchMaxRows + peek fraction so the
+    /// search palette maintains a stable size and does not collapse or jump as the user types.
     private var resultsViewportHeight: CGFloat {
-        let base = CGFloat(visibleResultCount) * PopupMetrics.searchResultRowHeight
-        guard results.count > visibleResultCount else { return base }
-        return base + PopupMetrics.searchPeekRowFraction * PopupMetrics.searchResultRowHeight
+        (CGFloat(PopupMetrics.searchMaxRows) + PopupMetrics.searchPeekRowFraction) * PopupMetrics.searchResultRowHeight
     }
 
     public init(
@@ -248,10 +242,21 @@ public struct PopupSearchView: View {
     private var resultsList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
-                        resultRow(item: item, index: index)
-                            .id(item.id)
+                if results.isEmpty {
+                    VStack {
+                        Spacer()
+                        Text("No matching actions")
+                            .font(.system(size: 13))
+                            .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, minHeight: resultsViewportHeight)
+                } else {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
+                            resultRow(item: item, index: index)
+                                .id(item.id)
+                        }
                     }
                 }
             }

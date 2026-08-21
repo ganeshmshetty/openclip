@@ -133,4 +133,49 @@ final class SecretActionOptionStoreTests: XCTestCase {
         let posix = attrs?[.posixPermissions] as? NSNumber
         XCTAssertEqual(posix?.intValue, 0o600, "Secrets file must have 0600 POSIX permissions")
     }
+
+    func testSecretStoreAtomicOverwriteReplacesWith0600AndCleansStagingFiles() throws {
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        FileManager.default.createFile(atPath: tempFileURL.path, contents: "{}".data(using: .utf8), attributes: [.posixPermissions: 0o644])
+
+        var attrs = try FileManager.default.attributesOfItem(atPath: tempFileURL.path)
+        var posix = (attrs[.posixPermissions] as? NSNumber)?.intValue
+        XCTAssertEqual(posix, 0o644)
+
+        XCTAssertTrue(SecretStore.set("new-secret", account: "account1"))
+        XCTAssertEqual(SecretStore.get(account: "account1"), "new-secret")
+
+        attrs = try FileManager.default.attributesOfItem(atPath: tempFileURL.path)
+        posix = (attrs[.posixPermissions] as? NSNumber)?.intValue
+        XCTAssertEqual(posix, 0o600, "Overwritten secrets file must have 0600 POSIX permissions")
+
+        let files = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
+        XCTAssertEqual(files, ["secrets.json"], "No staged temporary files should remain")
+    }
+
+    func testSecretStoreStagedFailureCleansUpAndLeavesNoInsecureFile() throws {
+        let blockingFile = tempDir.appendingPathComponent("not_a_dir")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: blockingFile.path, contents: Data())
+
+        let invalidSecretFile = blockingFile.appendingPathComponent("secrets.json")
+        SecretStore.setFileURLForTesting(invalidSecretFile)
+
+        XCTAssertFalse(SecretStore.set("val", account: "acc"))
+    }
+
+    func testSecretStoreCorruptedFileFailsHardWithoutOverwritingOrCaching() throws {
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        let corruptedPayload = "corrupted-non-json-data".data(using: .utf8)!
+        FileManager.default.createFile(atPath: tempFileURL.path, contents: corruptedPayload, attributes: [.posixPermissions: 0o600])
+
+        XCTAssertNil(SecretStore.get(account: "apiKey"), "get must return nil on unparseable secrets file")
+        XCTAssertFalse(SecretStore.set("newval", account: "apiKey"), "set must return false and not overwrite corrupted file")
+        XCTAssertFalse(SecretStore.delete(account: "apiKey"), "delete must return false on corrupted file")
+
+        let diskContent = try Data(contentsOf: tempFileURL)
+        XCTAssertEqual(diskContent, corruptedPayload, "Corrupted file must not be overwritten or wiped on failed operations")
+    }
 }
+
+

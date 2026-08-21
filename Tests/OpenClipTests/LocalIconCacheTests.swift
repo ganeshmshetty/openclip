@@ -7,6 +7,9 @@ final class LocalIconCacheTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        await MainActor.run {
+            TestIsolation.reset()
+        }
         tempDirectoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("LocalIconCacheTests_\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tempDirectoryURL, withIntermediateDirectories: true)
