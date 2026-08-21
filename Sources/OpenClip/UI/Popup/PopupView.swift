@@ -51,7 +51,7 @@ public struct PopupView: View {
 
     @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
-    @AppStorage(SettingKey.popupScale.name) private var popupScale: Double = SettingKey.popupScale.defaultValue
+    @AppStorage(SettingKey.popupScale.name) private var popupScale: Int = SettingKey.popupScale.defaultValue
     @AppStorage(SettingKey.popupPageSize.name) private var pageSize: Int = SettingKey.popupPageSize.defaultValue
     @Environment(\.colorScheme) private var colorScheme
 
@@ -101,11 +101,14 @@ public struct PopupView: View {
     /// Completions are computed exactly once per show — the selection text is fixed for this view's
     /// lifetime — and cached, so NSSpellChecker dictionary work never runs inside `body`.
     @State private var cachedCompletions: [String]
+    @State private var activeTooltip: (text: String, frame: CGRect)? = nil
+    @State private var tooltipTask: Task<Void, Never>? = nil
+    @State private var isTooltipHot: Bool = false
 
-    private var scale: CGFloat { CGFloat(popupScale) }
-    private var buttonWidth: CGFloat { 36 * scale }
-    private var chevronWidth: CGFloat { 26 * scale }
-    private var barButtonHeight: CGFloat { 26 * scale }
+    private var scale: CGFloat { PopupMetrics.scaleMultiplier(for: popupScale) }
+    private var buttonWidth: CGFloat { 40 * scale }
+    private var chevronWidth: CGFloat { 29 * scale }
+    private var barButtonHeight: CGFloat { 29 * scale }
     private var cornerRadius: CGFloat { PopupMetrics.popupCornerRadius * scale }
 
 
@@ -224,6 +227,21 @@ public struct PopupView: View {
         barContent
             .padding(16)
             .coordinateSpace(name: "popupHoverSpace")
+            .overlay(alignment: .topLeading) {
+                GeometryReader { geo in
+                    if let tooltip = activeTooltip {
+                        PopupTooltipContainer(
+                            text: tooltip.text,
+                            targetFrame: tooltip.frame,
+                            containerWidth: geo.size.width,
+                            effectiveTheme: effectiveTheme,
+                            isDark: effectiveColorScheme == .dark
+                        )
+                        .transition(.opacity)
+                    }
+                }
+                .allowsHitTesting(false)
+            }
             .background(
                 GeometryReader { proxy in
                     Color.clear
@@ -245,10 +263,22 @@ public struct PopupView: View {
             .onReceive(hoverState.$location) { location in
                 updateHoveredTarget(for: location)
             }
+            .onChange(of: hoveredTarget) { _, newTarget in
+                updateTooltip(for: newTarget)
+            }
+            .onChange(of: modeStore.mode) { _, newMode in
+                if newMode != .actions {
+                    activeTooltip = nil
+                    tooltipTask?.cancel()
+                    isTooltipHot = false
+                }
+            }
             .onChange(of: isProcessingAI) { _, active in
                 onAIStateChange?(active, aiCardAboveBar)
             }
             .onDisappear {
+                activeTooltip = nil
+                tooltipTask?.cancel()
                 cancelAITask()
             }
     }
@@ -534,7 +564,7 @@ public struct PopupView: View {
                 onEnterSearch()
             } label: {
                 Image(systemName: "command")
-                    .font(.system(size: 13 * scale, weight: .regular))
+                    .font(.system(size: 14 * scale, weight: .regular))
                     .foregroundColor(isHovered ? .white : affordanceForeground)
                     .frame(width: buttonWidth, height: barButtonHeight)
                     .background(isHovered ? Color.accentColor : Color.clear)
@@ -550,7 +580,6 @@ public struct PopupView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Search all actions")
             .accessibilityLabel("Search all actions")
             .popupHoverTarget(.search)
             .onHover { isHovering in
@@ -572,12 +601,12 @@ public struct PopupView: View {
             onResult(.paste(word))
         } label: {
             Text(word)
-                .font(.system(size: 13 * scale, weight: .regular))
+                .font(.system(size: 14 * scale, weight: .regular))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .foregroundColor(isHovered ? .white : restForeground)
-                .frame(maxWidth: 140 * scale)
-                .padding(.horizontal, 10 * scale)
+                .frame(maxWidth: 154 * scale)
+                .padding(.horizontal, 11 * scale)
                 .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
                 .background(isHovered ? Color.accentColor : Color.clear)
                 .overlay(alignment: .trailing) {
@@ -605,10 +634,9 @@ public struct PopupView: View {
         let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
 
         let labelView = iconView(for: action.displayIcon(using: presenter))
-            .font(.system(size: 13 * scale, weight: .regular))
             .foregroundColor(isHovered ? .white : restForeground)
             .padding(.horizontal, {
-                if case .text = action.displayIcon(using: presenter) { return 7.0 * scale }
+                if case .text = action.displayIcon(using: presenter) { return 6.0 * scale }
                 return 0.0
             }())
             .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
@@ -632,7 +660,6 @@ public struct PopupView: View {
                 labelView
             }
             .buttonStyle(.plain)
-            .help(action.displayTitle(using: presenter))
             .accessibilityLabel(action.displayTitle(using: presenter))
             .popupHoverTarget(.action(index))
             .onHover { isHovering in
@@ -706,7 +733,7 @@ public struct PopupView: View {
         let isHovered = hoveredTarget == target
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 11 * scale, weight: .medium))
+                .font(.system(size: 12 * scale, weight: .medium))
                 .foregroundColor(isHovered ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
                 .frame(width: chevronWidth, height: barButtonHeight)
                 .background(isHovered ? Color.accentColor : Color.clear)
@@ -773,37 +800,64 @@ public struct PopupView: View {
         }
     }
 
-    // MARK: - Icon Helper
+    // MARK: - Tooltip Management
 
-    @ViewBuilder
-    private func iconView(for icon: ActionIcon) -> some View {
-        switch icon {
-        case .symbol(let name):
-            if name.contains(":") {
-                // Iconify format "prefix:name" — render via SDWebImage + SVGCoder
-                AnyIconView(iconId: name)
-                    .frame(width: 14, height: 14)
-            } else {
-                Image(systemName: name)
+    private func tooltipText(for target: PopupHoverTarget) -> String? {
+        switch target {
+        case .action(let index):
+            guard index < pagedActions.count else { return nil }
+            return pagedActions[index].displayTitle(using: presenter)
+        case .search:
+            return "Search all actions"
+        case .chevron(let glyph):
+            switch glyph {
+            case "chevron.left": return "Previous page"
+            case "chevron.right": return "Next page"
+            case "chevron.down": return "Show completions"
+            case "chevron.up": return "Back to actions"
+            default: return glyph
             }
-        case .url(let url):
-            AsyncImage(url: url) { phase in
-                if let image = phase.image {
-                    image.resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
-                } else {
-                    Image(systemName: phase.error != nil ? "exclamationmark.triangle" : "circle.dashed")
+        case .completion(let index):
+            guard index < cachedCompletions.count else { return nil }
+            return cachedCompletions[index]
+        }
+    }
+
+    private func updateTooltip(for target: PopupHoverTarget?) {
+        tooltipTask?.cancel()
+        guard !isStatic, modeStore.mode == .actions, let target, let text = tooltipText(for: target), let targetFrame = hoverFrames[target] else {
+            withAnimation(.easeOut(duration: 0.1)) {
+                activeTooltip = nil
+            }
+            tooltipTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled else { return }
+                isTooltipHot = false
+            }
+            return
+        }
+
+        if isTooltipHot {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                activeTooltip = (text: text, frame: targetFrame)
+            }
+        } else {
+            tooltipTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                guard !Task.isCancelled else { return }
+                isTooltipHot = true
+                withAnimation(.easeOut(duration: 0.15)) {
+                    activeTooltip = (text: text, frame: targetFrame)
                 }
             }
-        case .local(let url):
-            if let nsImage = LocalIconCache.shared.image(for: url) {
-                Image(nsImage: nsImage).resizable().renderingMode(.template).aspectRatio(contentMode: .fit).frame(width: 14, height: 14)
-            } else {
-                Image(systemName: "exclamationmark.triangle")
-            }
-        case .text(let text):
-            Text(text)
-                .font(.system(size: 13, weight: .regular))
         }
+    }
+
+    // MARK: - Icon Helper
+ 
+    @ViewBuilder
+    private func iconView(for icon: ActionIcon) -> some View {
+        ActionIconView(icon: icon, size: 15, scale: scale)
     }
 }
 

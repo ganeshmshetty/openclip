@@ -52,6 +52,7 @@ public extension SettingKey where Value == [String: String] {
 
 public extension SettingKey where Value == Bool {
     static var isAppEnabled: SettingKey<Bool> { SettingKey<Bool>("isAppEnabled", defaultValue: true) }
+    static var isMouseHoldEnabled: SettingKey<Bool> { SettingKey<Bool>("isMouseHoldEnabled", defaultValue: true) }
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
     static var startAtLogin: SettingKey<Bool> { SettingKey<Bool>("startAtLogin", defaultValue: false) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
@@ -62,11 +63,13 @@ public extension SettingKey where Value == Bool {
 public extension SettingKey where Value == Int {
     /// Number of actions displayed per page in the popup bar (default 7).
     static var popupPageSize: SettingKey<Int> { SettingKey<Int>("popupPageSize", defaultValue: 7) }
+    /// Visual scaling level for the popup from 1 to 5 (3 = Normal / Default).
+    static var popupScale: SettingKey<Int> { SettingKey<Int>("popupScale", defaultValue: 3) }
 }
 
 public extension SettingKey where Value == Double {
-    /// Visual scaling factor for the popup (1.0 = 100%).
-    static var popupScale: SettingKey<Double> { SettingKey<Double>("popupScale", defaultValue: 1.0) }
+    /// Duration in seconds the mouse must be held down to trigger the popup (0.0 = disabled).
+    static var mouseHoldDuration: SettingKey<Double> { SettingKey<Double>("mouseHoldDuration", defaultValue: 0.3) }
 }
 
 public extension SettingKey where Value == Data? {

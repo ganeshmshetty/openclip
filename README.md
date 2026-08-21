@@ -1,27 +1,40 @@
 <div align="center">
 
-<img src="./docs/images/openclip-icon.png" alt="OpenClip icon" align="center" height="96" />
+<img src="./assets/app-icon.png" alt="OpenClip icon" align="center" width="96" height="96" />
 
 # OpenClip
 
-**A lightweight floating popup utility for macOS that turns any selected text into instant actions.**
+**Instant actions for selected text on macOS.**
 
 [![macOS](https://img.shields.io/badge/macOS-14.0+-black?style=flat-square&logo=apple&logoColor=white)](https://support.apple.com/sonoma)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange?style=flat-square&logo=swift&logoColor=white)](https://www.swift.org)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+[![Homebrew](https://img.shields.io/badge/Homebrew-OpenClip-ffcc00?style=flat-square&logo=homebrew&logoColor=black)](https://github.com/ganeshmshetty/homebrew-tap)
 
 [Features](#features) • [Installation](#installation) • [Getting started](#getting-started) • [Extending](#extending-openclip) • [Building from source](#building-from-source) • [Documentation](#documentation) • [License](#license)
 
+<br />
+
+<img src="./assets/all.gif" alt="OpenClip Walkthrough" width="720" style="border-radius: 8px;" />
+
 </div>
 
-Select any text in any app, and OpenClip appears with contextual actions — copy, cut, paste, web
-search, definitions, your scripts, and extensions. A hotkey turns the popup into a fuzzy
-**action-search palette** that can reach any action in your catalog without leaving the popup.
+Select any text in any app, and OpenClip appears with contextual actions — copy, transform, calculate, AI writing, or custom extensions. Press <kbd>⌥⌘C</kbd> to open a fuzzy search palette over your entire action library.
 
 > [!NOTE]
-> OpenClip reads selected text in real time through macOS Accessibility APIs — it never touches or
-> pollutes your clipboard while monitoring, and it logs or stores nothing about your selections.
+> **100% On-Device & Privacy First**: OpenClip reads selections live via macOS Accessibility APIs. It never touches or pollutes your clipboard history while monitoring, and stores zero data.
+
+---
 
 ## Features
+
+| **Action Search Palette (<kbd>⌥⌘C</kbd>)** | **Inline AI Writing & Tools** |
+| :---: | :---: |
+| <img src="./assets/search-palette.png" width="380" /> | <img src="./assets/ai-tools.png" width="380" /> |
+| *Reach any action across your catalog instantly* | *Summarize, translate, or rewrite natively inline* |
+| **Instant Math Evaluation** | **In-App Extension Store** |
+| <img src="./assets/math.png" width="380" /> | <img src="./assets/in-app-extensions.png" width="380" /> |
+| *Calculate math expressions on highlighted text* | *One-click install custom JS/Shell/AppleScript tools* |
 
 - **Instant contextual popup** — select text anywhere and a floating bar appears with the actions that make sense for it. Actions with no live selection (like Copy/Cut) drop out automatically, and a selection-free popup falls back to the current clipboard contents.
 - **Action-search palette** — press <kbd>⌥⌘C</kbd> to turn the bar into a fuzzy search field over the *entire* action catalog, including disabled actions. Results are ranked by recency, then bar order, so your most-used actions float to the top.
@@ -34,9 +47,20 @@ search, definitions, your scripts, and extensions. A hotkey turns the popup into
 - **App-specific rules** — scope actions to apps with allow/deny rules, selection regexes, and required options that prompt the user when missing.
 - **Fast by design** — Swift 6 with strict concurrency, a pure `Core` domain module, and a hover model that never re-evaluates the whole view per mouse move.
 
+---
+
 ## Installation
 
-1. Download the latest release (`.zip`) from the [releases page](https://github.com/ganeshmshetty/openclip/releases).
+### Homebrew (Recommended)
+
+```bash
+brew tap ganeshmshetty/homebrew-tap
+brew install --cask openclip
+```
+
+### Direct Download
+
+1. Download the latest release (`.dmg` or `.zip`) from the [releases page](https://github.com/ganeshmshetty/openclip/releases).
 2. Drag `OpenClip.app` into your `/Applications` folder.
 3. Launch OpenClip and grant **Accessibility** permission when prompted:
 

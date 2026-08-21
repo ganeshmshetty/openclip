@@ -19,13 +19,19 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     private var keyDownMonitor: Any?
     internal var debounceTask: Task<Void, Never>?
     private var mouseDownMonitor: Any?
+    private var mouseDragMonitor: Any?
+    internal var mouseHoldTask: Task<Void, Never>?
     private var mouseDownLocation: CGPoint?
+    private var triggeredByHold: Bool = false
+    private let settingsStore: SettingsStore
     
     /// Key codes (ANSI/QWERTY) that signal a selection gesture worth retrieving.
     private static let selectAllKeyCode: UInt16 = 0x00      // kVK_ANSI_A
     private static let arrowKeyCodes: Set<UInt16> = [0x7B, 0x7C, 0x7D, 0x7E]  // left/right/down/up
     
-    internal init() {}
+    internal init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
+        self.settingsStore = settingsStore
+    }
     
     internal func start() {
         guard monitor == nil else { return }
@@ -37,7 +43,14 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // swift_task_isCurrentExecutorWithFlagsImpl after long uptime (known Swift 6 runtime
             // bug); MainActor.assumeIsolated avoids that path.
             MainActor.assumeIsolated {
-                self?.mouseDownLocation = point
+                self?.handleMouseDown(at: point)
+            }
+        }
+
+        mouseDragMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] _ in
+            let point = NSEvent.mouseLocation
+            MainActor.assumeIsolated {
+                self?.handleMouseDragged(at: point)
             }
         }
         
@@ -64,6 +77,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     internal func stop() {
         debounceTask?.cancel()
         debounceTask = nil
+        mouseHoldTask?.cancel()
+        mouseHoldTask = nil
         if let monitor = monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
@@ -71,6 +86,10 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         if let mouseDownMonitor = mouseDownMonitor {
             NSEvent.removeMonitor(mouseDownMonitor)
             self.mouseDownMonitor = nil
+        }
+        if let mouseDragMonitor = mouseDragMonitor {
+            NSEvent.removeMonitor(mouseDragMonitor)
+            self.mouseDragMonitor = nil
         }
         if let keyDownMonitor = keyDownMonitor {
             NSEvent.removeMonitor(keyDownMonitor)
@@ -110,11 +129,105 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     }
     
     // MARK: - Event handling
-    
+
+    private func handleMouseDown(at point: CGPoint) {
+        mouseDownLocation = point
+        triggeredByHold = false
+        mouseHoldTask?.cancel()
+
+        guard settingsStore.get(.isMouseHoldEnabled) else { return }
+        let holdDuration = settingsStore.get(.mouseHoldDuration)
+        guard holdDuration > 0 else { return }
+
+        mouseHoldTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: UInt64(holdDuration * 1_000_000_000))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            guard let app = NSWorkspace.shared.frontmostApplication else { return }
+            if let bundleID = app.bundleIdentifier, AppFilter.isExcluded(bundleID: bundleID) {
+                return
+            }
+
+            let currentPoint = NSEvent.mouseLocation
+            if let downPoint = self.mouseDownLocation {
+                let dx = currentPoint.x - downPoint.x
+                let dy = currentPoint.y - downPoint.y
+                guard (dx * dx + dy * dy) <= 25.0 else { return }
+            }
+
+            self.triggeredByHold = true
+            let policy = RuleEngine.shared.resolvePolicies(for: app.bundleIdentifier ?? "")
+            let appIdentity = AppIdentity(app)
+            let probeTask = self.preparePasteProbe?(app, policy)
+
+            var retrievedText = ""
+            var selectionBounds: CGRect? = nil
+            var isClipboardFallback = false
+
+            if let result = await SelectionRetrievalCoordinator().retrieve(
+                for: appIdentity,
+                policy: policy,
+                cursor: CursorClassifier.current
+            ) {
+                retrievedText = result.text
+                selectionBounds = result.bounds
+            }
+
+            // If no text was actively selected, inherit the clipboard content
+            if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let pasteboard = NSPasteboard.general
+                if let clipboard = pasteboard.string(forType: .string),
+                   !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    retrievedText = clipboard
+                    isClipboardFallback = true
+                }
+            }
+
+            guard !Task.isCancelled else { return }
+            guard TextSanitizer.isSubstantial(retrievedText),
+                  retrievedText.utf8.count <= Constants.maxTextLength else { return }
+
+            let context = SelectionContext(
+                text: retrievedText,
+                sourceApp: appIdentity,
+                cursorPosition: currentPoint,
+                mouseDownLocation: self.mouseDownLocation,
+                selectionBounds: selectionBounds,
+                timestamp: Date(),
+                appPolicy: policy,
+                isClipboardFallback: isClipboardFallback
+            )
+            let canPaste = await probeTask?.value
+            guard !Task.isCancelled else { return }
+            self.onSelection?(context, canPaste)
+        }
+    }
+
+    private func handleMouseDragged(at point: CGPoint) {
+        guard let downPoint = mouseDownLocation else { return }
+        let dx = point.x - downPoint.x
+        let dy = point.y - downPoint.y
+        if (dx * dx + dy * dy) > 25.0 {
+            mouseHoldTask?.cancel()
+            mouseHoldTask = nil
+        }
+    }
+
     private func handleMouseUp(app: NSRunningApplication, cursor: CGPoint, clickCount: Int) {
+        mouseHoldTask?.cancel()
+        mouseHoldTask = nil
+        let wasHold = triggeredByHold
+        triggeredByHold = false
+
         let downPoint = mouseDownLocation
         mouseDownLocation = nil
-        
+
+        // If hold-to-popup already triggered during this mouse press, don't duplicate on release
+        guard !wasHold else { return }
+
         debounceTask?.cancel()
         
         debounceTask = Task { @MainActor in

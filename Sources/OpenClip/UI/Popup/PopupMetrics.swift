@@ -8,8 +8,8 @@
 import CoreGraphics
 
 public enum PopupMetrics {
-    /// Corner radius for popup action bars and content cards.
-    public static let popupCornerRadius: CGFloat = 10.0
+    /// Corner radius for popup action bars and content cards (normalized baseline).
+    public static let popupCornerRadius: CGFloat = 11.0
     /// Corner radius for the action-search palette.
     public static let searchCornerRadius: CGFloat = 10.0
     /// Corner radius for floating toast bubbles.
@@ -42,4 +42,17 @@ public enum PopupMetrics {
     /// How long an info/error toast stays up before auto-dismissing (0.5 s). Loading toasts have
     /// no timer — they live until the action's result lands.
     public static let toastDurationNanoseconds: UInt64 = 500_000_000
+
+    /// Converts a 1...5 discrete scale level to a visual scaling multiplier.
+    /// Level 3 is the normal default (1.0).
+    public static func scaleMultiplier(for level: Int) -> CGFloat {
+        switch level {
+        case 1: return 0.85
+        case 2: return 0.925
+        case 3: return 1.00
+        case 4: return 1.10
+        case 5: return 1.22
+        default: return 1.00
+        }
+    }
 }

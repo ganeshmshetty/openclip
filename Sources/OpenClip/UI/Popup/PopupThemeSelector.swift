@@ -19,7 +19,7 @@ import Core
 struct PopupThemeSelector: View {
     @AppStorage(SettingKey.popupTheme.name) private var theme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
-    @AppStorage(SettingKey.popupScale.name) private var popupScale: Double = SettingKey.popupScale.defaultValue
+    @AppStorage(SettingKey.popupScale.name) private var popupScale: Int = SettingKey.popupScale.defaultValue
     @AppStorage(SettingKey.popupPageSize.name) private var pageSize: Int = SettingKey.popupPageSize.defaultValue
 
     private struct AppearanceOption: Identifiable {
@@ -140,14 +140,21 @@ struct PopupThemeSelector: View {
             )
             Spacer()
             HStack(spacing: 8) {
-                Slider(value: $popupScale, in: 0.8...1.2, step: 0.05)
-                    .accessibilityLabel("Popup Scale")
-                    .accessibilityValue("\(Int(round(popupScale * 100)))%")
-                    .frame(width: 120)
-                Text("\(Int(round(popupScale * 100)))%")
+                Slider(
+                    value: Binding(
+                        get: { Double(popupScale) },
+                        set: { popupScale = max(1, min(5, Int(round($0)))) }
+                    ),
+                    in: 1...5,
+                    step: 1
+                )
+                .accessibilityLabel("Popup Scale")
+                .accessibilityValue("\(popupScale)")
+                .frame(width: 120)
+                Text("\(popupScale)")
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(.secondary)
-                    .frame(width: 42, alignment: .trailing)
+                    .frame(width: 32, alignment: .trailing)
             }
         }
         .frame(minHeight: 24)

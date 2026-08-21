@@ -106,7 +106,7 @@ struct DynamicOptionRowView: View {
                 if let choices = option.options, !choices.isEmpty {
                     Picker(option.label, selection: binding) {
                         ForEach(choices, id: \.self) { choice in
-                            Text(choice).tag(choice)
+                            Text(choiceDisplayLabel(choice)).tag(choice)
                         }
                     }
                     .pickerStyle(.menu)
@@ -128,6 +128,17 @@ struct DynamicOptionRowView: View {
                     .textFieldStyle(.roundedBorder)
                     .missingFieldHighlight(isMissing)
             }
+        }
+    }
+
+    private func choiceDisplayLabel(_ choice: String) -> String {
+        switch choice.lowercased() {
+        case "native": return "Native (Default .ics)"
+        case "busycal": return "BusyCal"
+        case "fantastical": return "Fantastical"
+        case "apple": return "Apple Calendar"
+        case "google": return "Google Calendar"
+        default: return choice.capitalized
         }
     }
 }

@@ -42,9 +42,9 @@ final class SettingsStoreTests: XCTestCase {
 
     @MainActor
     func testPopupScaleReadWrite() {
-        XCTAssertEqual(store.get(.popupScale), 1.0)
-        store.set(.popupScale, value: 1.2)
-        XCTAssertEqual(store.get(.popupScale), 1.2)
+        XCTAssertEqual(store.get(.popupScale), 3)
+        store.set(.popupScale, value: 4)
+        XCTAssertEqual(store.get(.popupScale), 4)
     }
 
     @MainActor

@@ -18,9 +18,9 @@ enum MathEvaluator {
 
     // MARK: - Tokens
 
-    private enum Token {
+    private enum Token: Equatable {
         case number(Double)
-        case plus, minus, times, divide, mod
+        case plus, minus, times, divide, mod, power, percent
         case leftParen, rightParen
     }
 
@@ -59,9 +59,24 @@ enum MathEvaluator {
             switch c {
             case "+": result.append(.plus)
             case "-": result.append(.minus)
-            case "*": result.append(.times)
+            case "*":
+                if i + 1 < chars.count && chars[i + 1] == "*" {
+                    result.append(.power)
+                    i += 1
+                } else {
+                    result.append(.times)
+                }
             case "/": result.append(.divide)
-            case "%": result.append(.mod)
+            case "^": result.append(.power)
+            case "%":
+                // If the next non-space char is a number or operand, it's binary modulo; otherwise it's postfix percent.
+                var k = i + 1
+                while k < chars.count && chars[k] == " " { k += 1 }
+                if k < chars.count && (chars[k].isNumber || chars[k] == "(" || chars[k] == ".") {
+                    result.append(.mod)
+                } else {
+                    result.append(.percent)
+                }
             case "(": result.append(.leftParen)
             case ")": result.append(.rightParen)
             default: return []
@@ -71,9 +86,12 @@ enum MathEvaluator {
         return result
     }
 
-    // MARK: - Recursive descent:  expr := term (('+'|'-') term)*
-    //                               term := factor (('*'|'/'|'%') factor)*
-    //                             factor := ('-'|'+') factor | number | '(' expr ')'
+    // MARK: - Recursive descent:
+    //   expr    := term (('+'|'-') term)*
+    //   term    := power (('*'|'/'|'%') power)*
+    //   power   := factor ('^' factor)*
+    //   factor  := ('-'|'+') factor | primary
+    //   primary := (number | '(' expr ')') ('%')?
 
     private static func parseExpression(tokens: inout [Token], pos: inout Int) -> Double? {
         guard let term = parseTerm(tokens: &tokens, pos: &pos) else { return nil }
@@ -96,27 +114,40 @@ enum MathEvaluator {
     }
 
     private static func parseTerm(tokens: inout [Token], pos: inout Int) -> Double? {
-        guard let factor = parseFactor(tokens: &tokens, pos: &pos) else { return nil }
-        var value = factor
+        guard let p = parsePower(tokens: &tokens, pos: &pos) else { return nil }
+        var value = p
         while pos < tokens.count {
             switch tokens[pos] {
             case .times:
                 pos += 1
-                guard let rhs = parseFactor(tokens: &tokens, pos: &pos) else { return nil }
+                guard let rhs = parsePower(tokens: &tokens, pos: &pos) else { return nil }
                 value *= rhs
             case .divide:
                 pos += 1
-                guard let rhs = parseFactor(tokens: &tokens, pos: &pos) else { return nil }
+                guard let rhs = parsePower(tokens: &tokens, pos: &pos) else { return nil }
                 guard rhs != 0 else { return nil }
                 value /= rhs
             case .mod:
                 pos += 1
-                guard let rhs = parseFactor(tokens: &tokens, pos: &pos) else { return nil }
+                guard let rhs = parsePower(tokens: &tokens, pos: &pos) else { return nil }
                 guard rhs != 0 else { return nil }
                 value = value.truncatingRemainder(dividingBy: rhs)
             default:
                 return value
             }
+        }
+        return value
+    }
+
+    private static func parsePower(tokens: inout [Token], pos: inout Int) -> Double? {
+        guard let factor = parseFactor(tokens: &tokens, pos: &pos) else { return nil }
+        var value = factor
+        while pos < tokens.count, tokens[pos] == .power {
+            pos += 1
+            guard let rhs = parseFactor(tokens: &tokens, pos: &pos) else { return nil }
+            let res = pow(value, rhs)
+            guard !res.isNaN && !res.isInfinite else { return nil }
+            value = res
         }
         return value
     }
@@ -131,17 +162,32 @@ enum MathEvaluator {
         case .plus:
             pos += 1
             return parseFactor(tokens: &tokens, pos: &pos)
+        default:
+            return parsePrimary(tokens: &tokens, pos: &pos)
+        }
+    }
+
+    private static func parsePrimary(tokens: inout [Token], pos: inout Int) -> Double? {
+        guard pos < tokens.count else { return nil }
+        var value: Double
+        switch tokens[pos] {
         case .number(let number):
             pos += 1
-            return number
+            value = number
         case .leftParen:
             pos += 1
             guard let inner = parseExpression(tokens: &tokens, pos: &pos) else { return nil }
             guard pos < tokens.count, case .rightParen = tokens[pos] else { return nil }
             pos += 1
-            return inner
-        case .rightParen, .times, .divide, .mod:
+            value = inner
+        default:
             return nil
         }
+
+        if pos < tokens.count, tokens[pos] == .percent {
+            pos += 1
+            value = value / 100.0
+        }
+        return value
     }
 }
