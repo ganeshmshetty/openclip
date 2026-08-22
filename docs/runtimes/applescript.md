@@ -13,14 +13,15 @@ Selection Context ---> AppleScriptAction.perform(_:)
               AppleScriptRunner (osascript subprocess)
                          |   ShellProcessRunner.run (30s watchdog)
                          v
-  ActionResult (.copy / .success / .failure)
+  ActionResult (.text / .success / .failure)
 ```
 
 1. **Environment Setup**: The selected text string is sanitized by escaping double quotes (`"` $\rightarrow$ `\"`).
-2. **Variable Injection**: OpenClip prepends variable declarations to the script string before execution:
+2. **Variable Injection**: OpenClip prepends top-level `property` declarations to the script before execution:
   ```applescript
-  set OPENCLIP_TEXT to "<escaped_selected_text>"
-  set openclip_text to "<escaped_selected_text>"
+  property OPENCLIP_TEXT : "<escaped_selected_text>"
+  property OPENCLIP_HTML : "<escaped_selected_html>"
+  property OPENCLIP_RTF : "<escaped_selected_rtf>"
   ```
 3. **Subprocess Execution**: The script runs as an `/usr/bin/osascript` subprocess through
    [`AppleScriptRunner`](../../Sources/OpenClip/Platform/AppleScriptRunner.swift), which delegates
@@ -71,7 +72,9 @@ return (upperText as text)
 
 `AppleScriptAction` reads the script's stdout (the value osascript prints for the last statement):
 
-- **String Return Value**: If the script returns a non-empty string value, `AppleScriptAction` returns `ActionResult.copy(str)` to copy the generated result to the pasteboard.
+- **String Return Value**: If the script returns a non-empty string value, `AppleScriptAction`
+  returns `ActionResult.text(str)` — implicitly returned text, delivered per the user's per-click
+  preference (preview/paste/copy; a secondary click derives copy via delivery).
 - **No Return Value (empty)**: If the script executes without returning text, it returns `ActionResult.success`.
 - **Error Handling**: On a non-zero subprocess exit (the AppleScript error text goes to stderr), the runtime returns `ActionResult.failure(error)` with the error message.
 - **Timeout**: If the subprocess is still running after `Constants.scriptTimeout`, the watchdog terminates it and execution surfaces as a timeout failure.

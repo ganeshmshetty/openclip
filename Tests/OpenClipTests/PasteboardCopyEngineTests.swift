@@ -19,14 +19,14 @@ final class PasteboardCopyEngineTests: XCTestCase {
         pasteboard.setString("Original", forType: .string)
 
         let engine = PasteboardCopyEngine()
-        let captured = await engine.captureString(pasteboard: pasteboard) {
+        let captured = await engine.capture(pasteboard: pasteboard) {
             pasteboard.clearContents()
             pasteboard.setString("Copied", forType: .string)
         }
 
-        XCTAssertEqual(captured, "Copied")
+        XCTAssertEqual(captured?.text, "Copied")
 
-        // The original is restored synchronously before captureString returns — no delayed cleanup
+        // The original is restored synchronously before capture returns — no delayed cleanup
         // task that could race and leave the copied text behind.
         XCTAssertEqual(pasteboard.string(forType: .string), "Original")
 
@@ -42,14 +42,14 @@ final class PasteboardCopyEngineTests: XCTestCase {
         pasteboard.setString("Original", forType: .string)
 
         let engine = PasteboardCopyEngine()
-        let captured = await engine.captureString(pasteboard: pasteboard) {
+        let captured = await engine.capture(pasteboard: pasteboard) {
             pasteboard.clearContents()
             pasteboard.setString("Original", forType: .string)
         }
 
         // The changeCount advances, so the write is accepted even though the value matches the
         // archived original (a re-copy of the same text is a legitimate copy).
-        XCTAssertEqual(captured, "Original")
+        XCTAssertEqual(captured?.text, "Original")
     }
 
     @MainActor
@@ -58,7 +58,7 @@ final class PasteboardCopyEngineTests: XCTestCase {
         pasteboard.setString("Original", forType: .string)
 
         let engine = PasteboardCopyEngine()
-        let captured = await engine.captureString(
+        let captured = await engine.capture(
             pasteboard: pasteboard,
             timeout: 0.05,
             restoreDelay: 0.05
@@ -81,7 +81,7 @@ final class PasteboardCopyEngineTests: XCTestCase {
         pasteboard.setString("Original", forType: .string)
 
         let engine = PasteboardCopyEngine()
-        let captured = await engine.captureString(
+        let captured = await engine.capture(
             pasteboard: pasteboard,
             timeout: 1.0,
             restoreDelay: 0.05
@@ -97,7 +97,49 @@ final class PasteboardCopyEngineTests: XCTestCase {
             }
         }
 
-        XCTAssertEqual(captured, "Real selection")
+        XCTAssertEqual(captured?.text, "Real selection")
+    }
+
+    @MainActor
+    func testCaptureReadsHtmlAndRtfRepresentations() async throws {
+        let pasteboard = makePasteboard()
+        pasteboard.setString("Original", forType: .string)
+
+        let engine = PasteboardCopyEngine()
+        let captured = await engine.capture(pasteboard: pasteboard) {
+            pasteboard.clearContents()
+            pasteboard.setString("Rich selection", forType: .string)
+            pasteboard.setString("<b>Rich selection</b>", forType: .html)
+            pasteboard.setString("{\\rtf1 Rich selection}", forType: .rtf)
+        }
+
+        XCTAssertEqual(captured?.text, "Rich selection")
+        XCTAssertEqual(captured?.html, "<b>Rich selection</b>")
+        XCTAssertEqual(captured?.rtf, "{\\rtf1 Rich selection}")
+        XCTAssertEqual(pasteboard.string(forType: .string), "Original")
+    }
+
+    @MainActor
+    func testCaptureConvertsRTFToHTMLWhenNoHTMLRepresentation() async throws {
+        let pasteboard = makePasteboard()
+        pasteboard.setString("Original", forType: .string)
+
+        let attributed = NSAttributedString(string: "Rich selection")
+        let rtfData = try attributed.data(
+            from: NSRange(location: 0, length: attributed.length),
+            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
+        )
+
+        let engine = PasteboardCopyEngine()
+        let captured = await engine.capture(pasteboard: pasteboard) {
+            pasteboard.clearContents()
+            pasteboard.setString("Rich selection", forType: .string)
+            pasteboard.setData(rtfData, forType: .rtf)
+        }
+
+        XCTAssertEqual(captured?.text, "Rich selection")
+        XCTAssertNotNil(captured?.html)
+        XCTAssertTrue(captured?.html?.contains("Rich selection") == true)
     }
 
     @MainActor

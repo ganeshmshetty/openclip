@@ -141,6 +141,8 @@ struct ScriptJSONOutput: Decodable {
     let actions: [ScriptJSONEffect]?
     let identifier: String?
     let keepVisible: Bool?
+    let html: String?
+    let rtf: String?
 }
 
 /// Maps shell stdout JSON into an `ActionResult` (plan §6 protocol). Returns nil when the output
@@ -176,6 +178,12 @@ enum ShellResultMapper {
         case Constants.actionTypeCopy:
             guard let value = output.value else { return .success }
             return .copy(value)
+        case Constants.actionTypePasteContent, "paste-content":
+            let payload = RichPasteboardPayload(plainText: output.value, rtf: output.rtf, html: output.html)
+            return .pasteContent(payload)
+        case Constants.actionTypeCopyContent, "copy-content":
+            let payload = RichPasteboardPayload(plainText: output.value, rtf: output.rtf, html: output.html)
+            return .copyContent(payload)
         case "cut":
             return .cut(output.value ?? "")
         case Constants.actionTypeOpenURL, "url":

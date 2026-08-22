@@ -29,6 +29,8 @@ that broke the action. Filter it with `log stream --predicate 'subsystem == "com
 interface OpenClipBridge {
   input: {
     text: string;            // Full selected text
+    html: string;            // Source-app HTML (when available, else empty)
+    rtf: string;             // Source-app RTF (when available, else empty)
     matchedText: string;     // Text matched by the action's regex (falls back to text)
     captures: string[];      // Regex capture groups (empty when no regex)
     app: { bundleID: string; name: string }; // Frontmost source app
@@ -40,6 +42,8 @@ interface OpenClipBridge {
   // Effect functions (call order is preserved):
   paste(value: string): void;
   copy(value: string): void;
+  pasteContent(payload: { 'public.utf8-plain-text'?: string; 'public.html'?: string; 'public.rtf'?: string } | { text?: string; html?: string; rtf?: string }): void;
+  copyContent(payload: { 'public.utf8-plain-text'?: string; 'public.html'?: string; 'public.rtf'?: string } | { text?: string; html?: string; rtf?: string }): void;
   cut(value: string): void;
   openURL(urlString: string): void;      // Invalid URLs are ignored
   keyPress(key: string, modifiers: string[]): void; // e.g. openclip.keyPress("a", ["command"])
@@ -158,9 +162,12 @@ script enters its promise pump loop, the sync gate is released while the watchdo
 1. A JavaScript exception → `.toast(.error, message)` (never thrown as a Swift error).
 2. `requireConfiguration(...)` → `.openConfiguration`.
 3. `toast(...)` — alone → `.toast`, or coexisting with effects → `.sequence([.toast, …effects])`.
-4. Effects (paste/copy/cut/openURL/keyPress/runShortcut/notify) → single `.paste`/`.copy`/etc, or
-   `.sequence` of them when multiple were called.
-5. String return value → `.paste(string)`.
+4. Effects (paste/copy/pasteContent/copyContent/cut/openURL/keyPress/runShortcut/notify) → single
+   `.paste`/`.copy`/etc, or `.sequence` of them when multiple were called. `pasteContent`/
+   `copyContent` payloads are read via either key style (`public.utf8-plain-text`/`public.html`/
+   `public.rtf` or `text`/`html`/`rtf`); a payload with none of the three is ignored (no effect).
+5. String return value → `.text(string)` — implicitly returned text, delivered per the user's
+   per-click preference (preview/paste/copy).
 6. Otherwise → `.success`.
 
 A JavaScript exception produces `.toast(.error, message)` instead of throwing; the toast dismisses

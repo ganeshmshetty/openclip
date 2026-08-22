@@ -60,9 +60,13 @@ public enum Constants {
     
     public static let actionTypePaste: String = "paste"
     public static let actionTypeCopy: String = "copy"
+    public static let actionTypePasteContent: String = "pasteContent"
+    public static let actionTypeCopyContent: String = "copyContent"
     public static let actionTypeOpenURL: String = "openURL"
     
     public static let envVarText: String = "OPENCLIP_TEXT"
+    public static let envVarHTML: String = "OPENCLIP_HTML"
+    public static let envVarRTF: String = "OPENCLIP_RTF"
     public static let envVarMatched: String = "OPENCLIP_MATCHED"
     public static let envVarCapturePrefix: String = "OPENCLIP_CAPTURE_"
     public static let envVarBundleID: String = "OPENCLIP_BUNDLE_ID"

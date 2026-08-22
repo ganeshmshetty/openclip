@@ -5,6 +5,24 @@
 import Foundation
 
 public enum DefaultAppRules: Sendable {
+    /// Wildcard-aware bundle-id match: exact equality, or a trailing-`.*` prefix rule
+    /// (`com.google.Chrome.*` matches both `com.google.Chrome` and any child namespace).
+    /// The single source of truth for bundle matching — raw `Set.contains` against the group
+    /// arrays silently misses every pattern entry.
+    public static func matches(pattern: String, bundleID: String) -> Bool {
+        if pattern == "*" { return true }
+        if pattern == bundleID { return true }
+        if pattern.hasSuffix(".*") {
+            let prefix = String(pattern.dropLast(2))
+            return bundleID == prefix || bundleID.hasPrefix(prefix + ".")
+        }
+        return false
+    }
+
+    public static func matchesAny(_ patterns: [String], bundleID: String) -> Bool {
+        patterns.contains { matches(pattern: $0, bundleID: bundleID) }
+    }
+
     public static let safariGroup: [String] = [
         "com.apple.Safari",
         "com.apple.SafariTechnologyPreview",
@@ -44,7 +62,6 @@ public enum DefaultAppRules: Sendable {
     ]
     
     public static let nativeApps: [String] = [
-        "com.apple.Notes",
         "com.apple.TextEdit",
         "com.apple.mail",
         "com.apple.finder",
@@ -89,6 +106,7 @@ public enum DefaultAppRules: Sendable {
         "com.rstudio.positron",
         
         // Notes, Knowledge & Markdown
+        "com.apple.Notes",
         "notion.id",
         "md.obsidian",
         "net.shinyfrog.bear",

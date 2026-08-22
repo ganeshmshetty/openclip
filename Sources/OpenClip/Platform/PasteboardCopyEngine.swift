@@ -25,14 +25,14 @@ public struct PasteboardCopyEngine {
     ///     observably slower to stabilize.
     ///   - restoreDelay: Seconds to wait before restoring the archived original items on success.
     ///   - trigger: Performs the actual copy (AX menu press or keyboard event).
-    /// - Returns: The new string on the pasteboard, or `nil` when the changeCount never advances
-    ///   or the copied string is empty.
-    public func captureString(
+    /// - Returns: The copied text plus HTML/RTF when the source app wrote those representations,
+    ///   or `nil` when the changeCount never advances or the copied text is empty.
+    public func capture(
         pasteboard: NSPasteboard = .general,
         timeout: TimeInterval? = nil,
         restoreDelay: TimeInterval = Constants.pasteboardRestoreDelay,
         trigger: CopyTrigger
-    ) async -> String? {
+    ) async -> TextResult? {
         let snapshot = PasteboardSnapshot.capture(pasteboard)
         let initialChangeCount = pasteboard.changeCount
 
@@ -41,36 +41,29 @@ public struct PasteboardCopyEngine {
         let resolvedTimeout = timeout ?? Self.pollingTimeout()
         let pollInterval: TimeInterval = 0.002
         let deadline = Date().addingTimeInterval(resolvedTimeout)
-        var text: String?
+        var result: TextResult?
 
-        // A changeCount advance alone is not enough: some apps write a transient/empty string while
-        // the pasteboard is still being updated (or a clipboard manager is racing the same copy), so
-        // keep polling until non-empty text appears or the deadline passes.
         while Date() < deadline && !Task.isCancelled {
             if pasteboard.changeCount != initialChangeCount {
                 if let candidate = pasteboard.string(forType: .string),
                    Self.hasSelection(candidate) {
-                    text = candidate
+                    let html = pasteboard.string(forType: .html) ?? Self.htmlFromRTF(pasteboard)
+                    let rtf = pasteboard.string(forType: .rtf)
+                    result = TextResult(text: candidate, bounds: nil, html: html, rtf: rtf)
                     break
                 }
             }
             try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
         }
 
-        guard let text else {
+        guard let result else {
             Log.selection.debug("Copy engine: no non-empty pasteboard text within deadline; restoring immediately")
             snapshot.restore(to: pasteboard, transientMarkers: true)
             return nil
         }
 
-        // Restore the original pasteboard synchronously before returning. The captured string is
-        // already held in memory, so there is no reason to leave it on the general pasteboard (the
-        // reference implementation restores with a zero interval after the poll completes). An async
-        // delayed restore is both unnecessary and unreliable here: it races later clipboard writes
-        // and can leave the copied text visible in clipboard managers.
         snapshot.restore(to: pasteboard, transientMarkers: true)
-
-        return text
+        return result
     }
 
     /// Per-app copy polling timeout. Safari is the observed outlier needing more time for its
@@ -85,5 +78,19 @@ public struct PasteboardCopyEngine {
     /// Returns `true` only when `text` is non-nil and contains visible, substantial characters.
     public static func hasSelection(_ text: String?) -> Bool {
         TextSanitizer.isSubstantial(text)
+    }
+
+    /// Converts a pasteboard's RTF data into HTML. Apps that copy rich text without an HTML
+    /// representation (e.g. Obsidian reading mode) expose the formatting only as RTF; the markdown
+    /// converter consumes HTML, so normalize here via NSAttributedString rather than reading the
+    /// raw RTF control codes as a string.
+    private static func htmlFromRTF(_ pasteboard: NSPasteboard) -> String? {
+        guard let rtfData = pasteboard.data(forType: .rtf),
+              let attributed = NSAttributedString(rtf: rtfData, documentAttributes: nil),
+              let htmlData = try? attributed.data(
+                  from: NSRange(location: 0, length: attributed.length),
+                  documentAttributes: [.documentType: NSAttributedString.DocumentType.html]
+              ) else { return nil }
+        return String(data: htmlData, encoding: .utf8)
     }
 }

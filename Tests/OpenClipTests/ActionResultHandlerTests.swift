@@ -83,5 +83,29 @@ final class ActionResultHandlerTests: XCTestCase {
         let currentText = isolatedPasteboard.string(forType: .string)
         XCTAssertEqual(currentText, "UserNewCopy", "Pasteboard restore must be skipped when changeCount moved")
     }
+
+    func testCopyContentHandlerWritesMultiTypePasteboard() async throws {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let handler = DefaultActionResultHandler(pasteboard: isolatedPasteboard)
+        let payload = RichPasteboardPayload(plainText: "Plain copy", rtf: "{\\rtf1 RTF copy}", html: "<b>HTML copy</b>")
+        try await handler.handle(.copyContent(payload), in: nil)
+
+        XCTAssertEqual(isolatedPasteboard.string(forType: .string), "Plain copy")
+        XCTAssertEqual(isolatedPasteboard.string(forType: .html), "<b>HTML copy</b>")
+        XCTAssertEqual(isolatedPasteboard.string(forType: .rtf), "{\\rtf1 RTF copy}")
+    }
+
+    func testPasteContentHandlerWritesMultiTypePasteboard() async throws {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let store = MemorySettingsStore()
+        store.set(.completionCopyToClipboard, value: true)
+        let handler = DefaultActionResultHandler(settingsStore: store, pasteboard: isolatedPasteboard)
+        let payload = RichPasteboardPayload(plainText: "Plain paste", rtf: "{\\rtf1 RTF paste}", html: "<i>HTML paste</i>")
+        try await handler.handle(.pasteContent(payload), in: nil)
+
+        XCTAssertEqual(isolatedPasteboard.string(forType: .string), "Plain paste")
+        XCTAssertEqual(isolatedPasteboard.string(forType: .html), "<i>HTML paste</i>")
+        XCTAssertEqual(isolatedPasteboard.string(forType: .rtf), "{\\rtf1 RTF paste}")
+    }
 }
 

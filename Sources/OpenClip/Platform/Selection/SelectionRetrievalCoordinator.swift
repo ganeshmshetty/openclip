@@ -14,7 +14,7 @@ public struct SelectionRetrievalCoordinator: Sendable {
     public typealias TargetProvider = @Sendable () -> AXElementInspector.Target
     public typealias BrowserReader = @Sendable (String) async -> BrowserScriptStrategy.BrowserResult?
     public typealias CopyTrigger = PasteboardCopyEngine.CopyTrigger
-    public typealias CopyCapture = @Sendable (CopyTrigger) async -> String?
+    public typealias CopyCapture = @Sendable (CopyTrigger) async -> TextResult?
 
     /// Dedicated concurrent queue for blocking AX work (the inspect snapshot and the Edit ▸ Copy
     /// AXPress). Concurrent so a blocked accessibility call cannot prevent later inspectWithWatchdog
@@ -61,8 +61,8 @@ public struct SelectionRetrievalCoordinator: Sendable {
     /// change, and restore. A `@MainActor` call (PasteboardCopyEngine is main-actor-isolated), so it
     /// is referenced from the default argument via this static instead of a default-arg closure.
     @usableFromInline
-    static func defaultCopyCapture(_ trigger: CopyTrigger) async -> String? {
-        await PasteboardCopyEngine().captureString(trigger: trigger)
+    static func defaultCopyCapture(_ trigger: CopyTrigger) async -> TextResult? {
+        await PasteboardCopyEngine().capture(trigger: trigger)
     }
 
     /// Reads the current selection for `app` under `policy`, or `nil` when the gate rejects the
@@ -132,19 +132,56 @@ public struct SelectionRetrievalCoordinator: Sendable {
                 } else {
                     Log.selection.debug("coordinator: primary \(strategy.rawValue, privacy: .public) succeeded for \(bundleID, privacy: .public)")
                 }
-                return result
+                return await enrichRichContent(result, strategy: strategy, app: app, target: target)
             }
         }
         Log.selection.debug("coordinator: all strategies exhausted for \(bundleID, privacy: .public); no selection")
         return nil
     }
 
-    private static let browserBundleIDs: Set<String> = Set(
+    /// A text-only win on web content silently lacks the page's rich markup (AX exposes only plain
+    /// text), so HTML-consuming actions receive an empty representation. When the winning strategy
+    /// cannot carry HTML/RTF and the context is a web area or known browser, re-read the selection
+    /// through a real copy capture (archive → ⌘C → poll → restore): browsers write public.html /
+    /// public.rtf for selections. The captured result replaces the AX read; a failed or still-plain
+    /// capture returns the original untouched.
+    private func enrichRichContent(
+        _ result: TextResult,
+        strategy: RetrievalStrategy,
+        app: AppIdentity,
+        target: AXElementInspector.Target
+    ) async -> TextResult {
+        guard result.html == nil && result.rtf == nil else { return result }
+        guard strategy != .keyboardCopy && strategy != .menuCopy else { return result }
+        let bundleIsBrowser = Self.isScriptableBrowser(app.bundleIdentifier)
+        guard bundleIsBrowser || target.webArea != nil || target.role == "AXWebArea" else { return result }
+        Log.selection.debug("coordinator: text-only web selection; enriching via pasteboard rich capture")
+        guard let captured = Self.nonBlank(await run(.keyboardCopy, app: app, target: target)),
+              captured.html != nil || captured.rtf != nil else {
+            return result
+        }
+        return TextResult(
+            text: captured.text,
+            bounds: result.bounds ?? captured.bounds,
+            html: captured.html,
+            rtf: captured.rtf
+        )
+    }
+
+    /// Bundle-id PATTERNS of scriptable browsers, matched with `DefaultAppRules` wildcard
+    /// semantics. A raw Set lookup here silently missed every pattern entry (e.g.
+    /// `com.google.Chrome.*`), so Chromium-family apps never reached the AppleScript read.
+    private static let browserBundlePatterns: [String] = Array(Set(
         DefaultAppRules.safariGroup
             + DefaultAppRules.chromiumGroup
             + DefaultAppRules.firefoxGroup
             + DefaultAppRules.arcGroup
-    )
+    ))
+
+    private static func isScriptableBrowser(_ bundleIdentifier: String?) -> Bool {
+        guard let bundleIdentifier else { return false }
+        return DefaultAppRules.matchesAny(browserBundlePatterns, bundleID: bundleIdentifier)
+    }
 
     private static let strictlyNativeBundleIDs: Set<String> = Set(
         DefaultAppRules.nativeApps
@@ -220,10 +257,10 @@ public struct SelectionRetrievalCoordinator: Sendable {
             // Only browsers can answer over the JS bridge; a non-browser would just burn an osascript
             // subprocess and a timeout before falling through.
             guard let bundleIdentifier = app.bundleIdentifier,
-                  Self.browserBundleIDs.contains(bundleIdentifier) else { return nil }
+                  Self.isScriptableBrowser(app.bundleIdentifier) else { return nil }
             if let browserResult = await browserRead(bundleIdentifier),
                !browserResult.text.isEmpty {
-                return TextResult(text: browserResult.text, bounds: target.bounds)
+                return TextResult(text: browserResult.text, bounds: target.bounds, html: browserResult.html)
             }
             return nil
 
@@ -249,8 +286,8 @@ public struct SelectionRetrievalCoordinator: Sendable {
             default:
                 return nil
             }
-            guard let text = await copyCapture(trigger) else { return nil }
-            return TextResult(text: text, bounds: target.bounds)
+            guard let captured = await copyCapture(trigger) else { return nil }
+            return TextResult(text: captured.text, bounds: target.bounds, html: captured.html, rtf: captured.rtf)
         }
     }
 

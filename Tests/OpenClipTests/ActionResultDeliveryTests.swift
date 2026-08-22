@@ -128,6 +128,52 @@ final class ActionResultDeliveryTests: XCTestCase {
         assertCase(r, .copy("a"))
     }
 
+    // MARK: - Rich content delivery (pasteContent/copyContent)
+
+    private func assertPayload(_ result: ActionResult, _ expected: ActionResult, _ message: String = "", file: StaticString = #filePath, line: UInt = #line) {
+        switch (result, expected) {
+        case (.pasteContent(let a), .pasteContent(let b)), (.copyContent(let a), .copyContent(let b)):
+            XCTAssertEqual(a.plainText, b.plainText, message, file: file, line: line)
+            XCTAssertEqual(a.html, b.html, message, file: file, line: line)
+            XCTAssertEqual(a.rtf, b.rtf, message, file: file, line: line)
+        default:
+            XCTFail(message.isEmpty ? "unexpected result \(result)" : "\(message): unexpected result \(result)", file: file, line: line)
+        }
+    }
+
+    private var richPayload: RichPasteboardPayload {
+        RichPasteboardPayload(plainText: "hi", rtf: nil, html: "<b>hi</b>")
+    }
+
+    func testPrimaryRichPasteStaysPasteWhenTargetCanPaste() {
+        let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .primary, canPaste: true, delivery: .none)
+        assertPayload(r, .pasteContent(richPayload))
+        XCTAssertNil(toast)
+    }
+
+    func testProbeDowngradesRichPasteWhenTargetCannotPaste() {
+        let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .primary, canPaste: false, delivery: .none)
+        assertPayload(r, .copyContent(richPayload))
+        XCTAssertEqual(toast?.message, "Copied")
+    }
+
+    func testSecondaryClickOnRichPasteDerivesCopyContent() {
+        let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .secondary, canPaste: true, delivery: .none)
+        assertPayload(r, .copyContent(richPayload))
+        XCTAssertEqual(toast?.message, "Copied")
+    }
+
+    func testSecondaryClickOnRichPasteDowngradesCopyWhenTargetCannotPaste() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .secondary, canPaste: false, delivery: .none)
+        assertPayload(r, .copyContent(richPayload))
+    }
+
+    func testExplicitCopyContentNeverDowngraded() {
+        let (r, toast) = ActionResultDelivery.resolve(raw: .copyContent(richPayload), clickIntent: .primary, canPaste: true, delivery: .none)
+        assertPayload(r, .copyContent(richPayload))
+        XCTAssertNil(toast)
+    }
+
     // MARK: - Toast
 
     func testDefaultCopiedToastOnDerivedCopy() {

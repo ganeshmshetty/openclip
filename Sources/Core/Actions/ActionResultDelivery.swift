@@ -4,18 +4,20 @@
 // The single, pure decision that standardizes how a text-producing result is delivered (paste vs
 // copy) and which companion toast (if any) surfaces. The pipeline is Select → Probe → Toast:
 //   * Select which result wins — a declared `delivery.secondary` for a secondary click, else the
-//     primary `raw` (with the legacy default: a secondary click on a paste primary copies). The
-//     declarative secondary is the declared *outcome* for static kinds/builtins; the JS imperative
-//     branch (openclip.input.isSecondaryClick) is chosen in-script and simply arrives as `raw`.
-//   * Apply probe — a `.paste` is never pasted into a target that cannot paste (the unified
-//     `PasteAvailability` answer — per-app rules first, AX probe fallback — says no): it becomes
-//     `.copy`.
+//     primary `raw` (with the legacy default: a secondary click on a paste primary copies; the
+//     rich analogue derives `.copyContent` from `.pasteContent`). The declarative secondary is the
+//     declared *outcome* for static kinds/builtins; the JS imperative branch
+//     (openclip.input.isSecondaryClick) is chosen in-script and simply arrives as `raw`.
+//   * Apply probe — a `.paste`/`.pasteContent` is never pasted into a target that cannot paste
+//     (the unified `PasteAvailability` answer — per-app rules first, AX probe fallback — says no):
+//     it becomes `.copy`/`.copyContent`.
 //   * Toast — the click's declared toast (`primaryToast`/`secondaryToast`) wins; otherwise the
 //     default "Copied" toast fires only when a paste context was delivered as a copy (derived or
 //     declared) or when a `.copyDefinition` is delivered.
-// Only `.paste` outcomes are ever downgraded to `.copy`; an explicit `.copy` stays a copy, and
-// non-text results (openURL, notify, keyPress, ...) pass through untouched. Pure Core — no AppKit,
-// no UserDefaults; `canPaste` is the injected, already-unified answer so this is unit-testable.
+// Only paste outcomes are ever downgraded (`.paste`→`.copy`, `.pasteContent`→`.copyContent`); an
+// explicit copy stays a copy, and non-text results (openURL, notify, keyPress, ...) pass through
+// untouched. Pure Core — no AppKit, no UserDefaults; `canPaste` is the injected, already-unified
+// answer so this is unit-testable.
 import Foundation
 
 /// The user's chosen behavior when an action implicitly returns text (the General-tab setting,
@@ -96,17 +98,25 @@ public enum ActionResultDelivery {
             // Legacy default: a secondary click on a paste primary copies.
             return .copy(text)
         }
+        if clickIntent == .secondary, case .pasteContent(let payload) = raw {
+            // Rich analogue: a secondary click on a rich-paste primary copies the payload.
+            return .copyContent(payload)
+        }
         return raw
     }
 
-    /// Step 2 — Apply probe: a chosen `.paste` is never delivered to a target that cannot paste.
-    /// Single choke point for the `guard case .paste` downgrade.
+    /// Step 2 — Apply probe: a chosen `.paste`/`.pasteContent` is never delivered to a target that
+    /// cannot paste. Single choke point for the paste→copy downgrade (plain and rich alike).
     private static func applyProbe(to selected: ActionResult, canPaste: Bool) -> ActionResult {
-        guard case .paste(let text) = selected else {
-            // `.copy`, `.cut`, and all non-text results are never downgraded.
+        switch selected {
+        case .paste(let text):
+            return canPaste ? .paste(text) : .copy(text)
+        case .pasteContent(let payload):
+            return canPaste ? .pasteContent(payload) : .copyContent(payload)
+        default:
+            // `.copy`, `.copyContent`, `.cut`, and all non-text results are never downgraded.
             return selected
         }
-        return canPaste ? .paste(text) : .copy(text)
     }
 
     /// Step 3 — Toast: the click's declared toast wins; the default "Copied" toast fires only when
@@ -126,11 +136,23 @@ public enum ActionResultDelivery {
         if case .copyDefinition = delivered {
             return copiedToast
         }
-        guard case .copy = delivered else { return nil }
-        // The pre-probe result was a paste context (selected `.paste` downgraded by the probe, or a
-        // paste primary derived/declared into `.copy` at select) that delivered `.copy`.
-        if case .paste = selected { return copiedToast }
-        if case .paste = raw { return copiedToast }
+        // A paste context delivered as a copy (plain or rich) shows the default "Copied".
+        guard deliveredIsCopyOutcome(delivered) else { return nil }
+        if wasPasteContext(selected) || wasPasteContext(raw) { return copiedToast }
         return nil
+    }
+
+    private static func deliveredIsCopyOutcome(_ result: ActionResult) -> Bool {
+        switch result {
+        case .copy, .copyContent: return true
+        default: return false
+        }
+    }
+
+    private static func wasPasteContext(_ result: ActionResult) -> Bool {
+        switch result {
+        case .paste, .pasteContent: return true
+        default: return false
+        }
     }
 }

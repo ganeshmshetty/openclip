@@ -196,7 +196,8 @@ public struct PreferencesView: View {
                 .frame(maxWidth: Self.detailContentMaxWidth)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                // General's grouped form runs edge-to-edge to the window bottom; other tabs keep breathing room.
+                .padding(.bottom, selectedTab == .general ? 0 : 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

@@ -26,6 +26,13 @@ public struct CopyAction: ConfigurableAction {
     
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
+        if context.selection.html != nil || context.selection.rtf != nil {
+            return .copyContent(RichPasteboardPayload(
+                plainText: context.selection.text,
+                rtf: context.selection.rtf,
+                html: context.selection.html
+            ))
+        }
         return .copy(context.selection.text)
     }
 }

@@ -15,6 +15,8 @@ public struct SelectionContext: Sendable {
     public let appPolicy: AppPolicyContext
     /// True when the text came from the clipboard (shortcut triggered with no selection), not from a live selection.
     public let isClipboardFallback: Bool
+    public let html: String?
+    public let rtf: String?
     
     public init(
         text: String,
@@ -24,7 +26,9 @@ public struct SelectionContext: Sendable {
         selectionBounds: CGRect? = nil,
         timestamp: Date,
         appPolicy: AppPolicyContext,
-        isClipboardFallback: Bool = false
+        isClipboardFallback: Bool = false,
+        html: String? = nil,
+        rtf: String? = nil
     ) {
         self.text = text
         self.sourceApp = sourceApp
@@ -34,5 +38,7 @@ public struct SelectionContext: Sendable {
         self.timestamp = timestamp
         self.appPolicy = appPolicy
         self.isClipboardFallback = isClipboardFallback
+        self.html = html
+        self.rtf = rtf
     }
 }

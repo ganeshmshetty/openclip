@@ -28,118 +28,102 @@ struct ExtensionCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Header Row: Name & Author
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
                     Text(item.name)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
                     Text("@\(item.author)")
                         .font(.caption2)
                         .foregroundColor(.secondary)
-                }
-                Spacer()
-            }
-
-            // Description
-            Text(item.description)
-                .font(.system(size: 12))
-                .lineLimit(2)
-                .foregroundColor(.secondary)
-                .frame(minHeight: 32, alignment: .topLeading)
-
-            if let err = installError {
-                Text("⚠︎ \(err)")
-                    .font(.caption2)
-                    .foregroundColor(.red)
-                    .lineLimit(2)
-            }
-
-            // Footer Row: Downloads Pill & Action Button
-            HStack {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.down.circle")
-                        .font(.caption2)
-                    Text("\(item.downloadCount)")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                }
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.primary.opacity(0.06)))
-
-                if let version = item.version {
-                    Text("v\(version)")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                if showSuccess || isInstalled {
-                    if isInstalled, updateManager.updatablePackageIDs.contains(item.id) {
-                        Button(action: { Task { try? await updateManager.update(packageID: item.id) } }) {
-                            Label("Update", systemImage: "arrow.down.circle")
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .lineLimit(1)
+                    if let version = item.version {
+                        Text("v\(version)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
                     }
-                    Button(role: .destructive, action: {
-                        if let action = matchingInstalledAction {
-                            Task {
-                                do {
-                                    try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
-                                } catch {
-                                    Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
-                                }
-                                await MainActor.run {
-                                    showSuccess = false
-                                    NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
-                                }
-                            }
-                        }
-                    }) {
-                        Label("Uninstall", systemImage: "trash")
+                }
+                if let err = installError {
+                    Text("⚠︎ \(err)")
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                        .lineLimit(1)
+                } else {
+                    Text(item.description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 3) {
+                Image(systemName: "arrow.down.circle")
+                Text("\(item.downloadCount)")
+            }
+            .font(.caption2)
+            .foregroundColor(.secondary)
+
+            if showSuccess || isInstalled {
+                if isInstalled, updateManager.updatablePackageIDs.contains(item.id) {
+                    Button(action: { Task { try? await updateManager.update(packageID: item.id) } }) {
+                        Label("Update", systemImage: "arrow.down.circle")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .tint(.red)
-                } else {
-                    Button(isInstalling ? "Installing..." : "Install") {
-                        guard let url = URL(string: item.downloadURL) else {
-                            installError = "Invalid download URL."
-                            return
-                        }
-                        isInstalling = true
-                        installError = nil
+                }
+                Button(role: .destructive, action: {
+                    if let action = matchingInstalledAction {
                         Task {
                             do {
-                                ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
-                                _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
-                                showSuccess = true
-                                await updateManager.checkForUpdates()
+                                try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
                             } catch {
-                                installError = error.localizedDescription
+                                Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
                             }
-                            isInstalling = false
+                            await MainActor.run {
+                                showSuccess = false
+                                NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+                            }
                         }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(isInstalling)
+                }) {
+                    Label("Uninstall", systemImage: "trash")
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(.red)
+            } else {
+                Button(isInstalling ? "Installing..." : "Install") {
+                    guard let url = URL(string: item.downloadURL) else {
+                        installError = "Invalid download URL."
+                        return
+                    }
+                    isInstalling = true
+                    installError = nil
+                    Task {
+                        do {
+                            ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
+                            _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
+                            showSuccess = true
+                            await updateManager.checkForUpdates()
+                        } catch {
+                            installError = error.localizedDescription
+                        }
+                        isInstalling = false
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(isInstalling)
             }
         }
-        .padding(14)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Color.primary.opacity(0.04))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
     }
 }
