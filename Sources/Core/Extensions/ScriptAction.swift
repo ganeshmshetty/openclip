@@ -57,6 +57,14 @@ public struct ScriptAction: Action {
 
         var env = ProcessInfo.processInfo.environment
         env[Constants.envVarText] = text
+        env.removeValue(forKey: Constants.envVarHTML)
+        env.removeValue(forKey: Constants.envVarRTF)
+        if let html = context.selection.html {
+            env[Constants.envVarHTML] = html
+        }
+        if let rtf = context.selection.rtf {
+            env[Constants.envVarRTF] = rtf
+        }
         env[Constants.envVarMatched] = match?.matchedText ?? text
         env[Constants.envVarActionID] = id
         if let bundleID = match?.sourceBundleID ?? context.selection.sourceApp.bundleIdentifier {

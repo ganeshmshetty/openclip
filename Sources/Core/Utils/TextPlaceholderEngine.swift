@@ -18,6 +18,8 @@ public struct TextPlaceholderEngine {
 
     /// Context-aware overload supporting:
     /// - `{text}`, `{query}` — the full selection text
+    /// - `{html}` — the selection HTML (if captured)
+    /// - `{rtf}` — the selection RTF (if captured)
     /// - `{matched}` — the regex-matched substring (full selection if no regex)
     /// - `{capture1}`…`{captureN}` or `{1}`…`{N}` — regex capture groups 1...n
     /// - `{bundleID}` — the source app bundle identifier (empty if unavailable)
@@ -29,6 +31,8 @@ public struct TextPlaceholderEngine {
         replace(
             in: template,
             text: context.match?.text ?? context.selection.text,
+            html: context.selection.html,
+            rtf: context.selection.rtf,
             matched: context.match?.matchedText ?? context.selection.text,
             captures: context.match?.captures ?? [],
             bundleID: context.match?.sourceBundleID ?? context.selection.sourceApp.bundleIdentifier,
@@ -41,6 +45,8 @@ public struct TextPlaceholderEngine {
     private static func replace(
         in template: String,
         text: String,
+        html: String? = nil,
+        rtf: String? = nil,
         matched: String,
         captures: [String],
         bundleID: String?,
@@ -53,6 +59,8 @@ public struct TextPlaceholderEngine {
         var replacements: [String: String] = [
             "text": encode(text),
             "query": encode(text),
+            "html": encode(html ?? ""),
+            "rtf": encode(rtf ?? ""),
             "matched": encode(matched),
             "bundleID": encode(bundleID ?? "")
         ]

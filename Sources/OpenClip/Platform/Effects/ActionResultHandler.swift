@@ -113,6 +113,13 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             pasteboard.clearContents()
             pasteboard.setString(text, forType: .string)
 
+        case .copyContent(let payload):
+            pendingRestoreTask?.cancel()
+            pendingRestoreTask = nil
+            let pasteboard = self.pasteboard
+            pasteboard.clearContents()
+            writePayload(payload, to: pasteboard)
+
         case .copyDefinition(let word):
             pendingRestoreTask?.cancel()
             pendingRestoreTask = nil
@@ -139,26 +146,16 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             pendingRestoreTask?.cancel()
             pendingRestoreTask = nil
             let pasteboard = self.pasteboard
-            let copyToClipboard = settingsStore.get(.completionCopyToClipboard)
+            deliverPaste(to: pasteboard) {
+                pasteboard.setString(text, forType: .string)
+            }
 
-            if copyToClipboard {
-                pasteboard.clearContents()
-                pasteboard.setString(text, forType: .string)
-                postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
-            } else {
-                let snapshot = PasteboardSnapshot.capture(pasteboard)
-                pasteboard.clearContents()
-                pasteboard.setString(text, forType: .string)
-                let changeCountAfterSet = pasteboard.changeCount
-                postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
-                
-                pendingRestoreTask = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: UInt64(self.pasteboardRestoreDelay * 1_000_000_000))
-                    guard !Task.isCancelled else { return }
-                    if pasteboard.changeCount == changeCountAfterSet {
-                        snapshot.restore(to: pasteboard, transientMarkers: true)
-                    }
-                }
+        case .pasteContent(let payload):
+            pendingRestoreTask?.cancel()
+            pendingRestoreTask = nil
+            let pasteboard = self.pasteboard
+            deliverPaste(to: pasteboard) {
+                writePayload(payload, to: pasteboard)
             }
 
         case .openURL(let url):
@@ -234,6 +231,43 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         content.body = body
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         try await center.add(request)
+    }
+
+    private func writePayload(_ payload: RichPasteboardPayload, to pasteboard: NSPasteboard) {
+        if let rtf = payload.rtf, let rtfData = rtf.data(using: .utf8) {
+            pasteboard.setData(rtfData, forType: .rtf)
+        }
+        if let html = payload.html {
+            pasteboard.setString(html, forType: .html)
+        }
+        if let text = payload.plainText {
+            pasteboard.setString(text, forType: .string)
+        }
+    }
+
+    /// Writes `write` onto the pasteboard then synthesizes ⌘V, honoring the per-click copy
+    /// preference and restoring the previous pasteboard contents when the frontmost app ignores
+    /// the paste (changeCount unchanged).
+    private func deliverPaste(to pasteboard: NSPasteboard, write: () -> Void) {
+        if settingsStore.get(.completionCopyToClipboard) {
+            pasteboard.clearContents()
+            write()
+            postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
+        } else {
+            let snapshot = PasteboardSnapshot.capture(pasteboard)
+            pasteboard.clearContents()
+            write()
+            let changeCountAfterSet = pasteboard.changeCount
+            postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
+
+            pendingRestoreTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(self.pasteboardRestoreDelay * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                if pasteboard.changeCount == changeCountAfterSet {
+                    snapshot.restore(to: pasteboard, transientMarkers: true)
+                }
+            }
+        }
     }
 
     /// Posts a synthetic key press (key + modifiers from a `KeyPressSpec`) to the frontmost app.

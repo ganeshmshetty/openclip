@@ -80,6 +80,14 @@ public struct CustomAction: Action, Codable, Sendable, Equatable {
 
             var env = ProcessInfo.processInfo.environment
             env[Constants.envVarText] = text
+            env.removeValue(forKey: Constants.envVarHTML)
+            env.removeValue(forKey: Constants.envVarRTF)
+            if let html = context.selection.html {
+                env[Constants.envVarHTML] = html
+            }
+            if let rtf = context.selection.rtf {
+                env[Constants.envVarRTF] = rtf
+            }
             env[Constants.envVarMatched] = match?.matchedText ?? text
             if let bundleID = match?.sourceBundleID ?? context.selection.sourceApp.bundleIdentifier {
                 env[Constants.envVarBundleID] = bundleID

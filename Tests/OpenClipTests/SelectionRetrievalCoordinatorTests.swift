@@ -160,7 +160,8 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testBrowserScriptNilFallsBackToWebArea() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.webAreaTarget(selectedText: "web fallback") },
-            browserRead: { _ in nil }
+            browserRead: { _ in nil },
+            copyCapture: { _ in nil }
         )
         let policy = AppPolicyContext(retrievalMode: .browserScript)
         let result = await coordinator.retrieve(
@@ -174,7 +175,8 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testBrowserScriptEmptyFallsBackToWebArea() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.webAreaTarget(selectedText: "web fallback") },
-            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "") }
+            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "") },
+            copyCapture: { _ in nil }
         )
         let policy = AppPolicyContext(retrievalMode: .browserScript)
         let result = await coordinator.retrieve(
@@ -185,12 +187,34 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(result?.text, "web fallback")
     }
 
+    func testChromiumPatternBundleReachesBrowserReadWithoutEnrichment() async {
+        final class Counter: @unchecked Sendable { var calls = 0 }
+        let counter = Counter()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.webAreaTarget(selectedText: "ax text") },
+            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "js text", html: "<b>js</b> text") },
+            copyCapture: { _ in
+                counter.calls += 1
+                return TextResult(text: "captured")
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.google.Chrome"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "js text")
+        XCTAssertEqual(result?.html, "<b>js</b> text")
+        XCTAssertEqual(counter.calls, 0)
+    }
+
     // MARK: - Copy modes
 
     func testMenuCopyProceedsWithoutConfirmedSelection() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: nil) },
-            copyCapture: { _ in "captured via menu copy" }
+            copyCapture: { _ in TextResult(text: "captured via menu copy") }
         )
         let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .default)
         let result = await coordinator.retrieve(
@@ -206,7 +230,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         // above it — even when the target happens to expose AX text.
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: "ax text") },
-            copyCapture: { _ in "captured via menu copy" }
+            copyCapture: { _ in TextResult(text: "captured via menu copy") }
         )
         let policy = AppPolicyContext(retrievalMode: .menuCopy)
         let result = await coordinator.retrieve(
@@ -220,7 +244,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testKeyboardCopyStartsAtKeyboardCopyEvenWhenAXTextAvailable() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: "ax text") },
-            copyCapture: { _ in "captured keyboard copy" }
+            copyCapture: { _ in TextResult(text: "captured keyboard copy") }
         )
         let policy = AppPolicyContext(retrievalMode: .keyboardCopy)
         let result = await coordinator.retrieve(
@@ -307,7 +331,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testSelectAllMenuCopySkippedOnNonTextElement() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: nil, role: "AXOutline") },
-            copyCapture: { _ in "should not copy rows" }
+            copyCapture: { _ in TextResult(text: "should not copy rows") }
         )
         let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .lenient)
         let result = await coordinator.retrieve(
@@ -322,7 +346,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testSelectAllMenuCopySkippedOnNonTextElementWithoutSelection() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: "row text", role: "AXTable") },
-            copyCapture: { _ in "should not copy" }
+            copyCapture: { _ in TextResult(text: "should not copy") }
         )
         let policy = AppPolicyContext(retrievalMode: .keyboardCopy)
         let result = await coordinator.retrieve(
@@ -337,7 +361,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testSelectAllMenuCopyProceedsOnTextElement() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: nil, role: "AXTextArea") },
-            copyCapture: { _ in "captured select-all text" }
+            copyCapture: { _ in TextResult(text: "captured select-all text") }
         )
         let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .lenient)
         let result = await coordinator.retrieve(
@@ -368,7 +392,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testAXTextControlFallsBackToCopyWhenAXReadIsEmpty() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: nil, role: "AXTextArea") },
-            copyCapture: { _ in "copied fallback" }
+            copyCapture: { _ in TextResult(text: "copied fallback") }
         )
         let policy = AppPolicyContext(retrievalMode: .axTextControl)
         let result = await coordinator.retrieve(
@@ -383,7 +407,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.webAreaTarget(selectedText: "") },
             browserRead: { _ in nil },
-            copyCapture: { _ in "browser copy fallback" }
+            copyCapture: { _ in TextResult(text: "browser copy fallback") }
         )
         let policy = AppPolicyContext(retrievalMode: .browserScript)
         let result = await coordinator.retrieve(
@@ -412,7 +436,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testRetrieveRejectsWhitespaceOnlyCopyCapture() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: nil, role: "AXTextArea") },
-            copyCapture: { _ in "  " }
+            copyCapture: { _ in TextResult(text: "  ") }
         )
         let policy = AppPolicyContext(retrievalMode: .menuCopy, gate: .lenient)
         let result = await coordinator.retrieve(
@@ -426,7 +450,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
     func testBlankAXTextFallsThroughToCopyFallback() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: "   \t  ") },
-            copyCapture: { _ in "copied text" }
+            copyCapture: { _ in TextResult(text: "copied text") }
         )
         let policy = AppPolicyContext(retrievalMode: .axTextControl)
         let result = await coordinator.retrieve(
@@ -437,15 +461,31 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(result?.text, "copied text")
     }
 
-    func testStrictlyNativeAppDoesNotFallbackToKeyboardCopy() async {
+    func testStrictlyNativeAppDoesNotFallbackToKeyboardCopy() async throws {
         final class Counter: @unchecked Sendable { var calls = 0 }
         let counter = Counter()
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: nil) },
             copyCapture: { _ in
                 counter.calls += 1
-                return "unexpected copy"
+                return TextResult(text: "unexpected copy")
             }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        let nativeBundleID = try XCTUnwrap(DefaultAppRules.nativeApps.first)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: nativeBundleID),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(result)
+        XCTAssertEqual(counter.calls, 0)
+    }
+
+    func testNotesResolvesKeyboardCopyFallback() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            copyCapture: { _ in TextResult(text: "copied from notes") }
         )
         let policy = AppPolicyContext(retrievalMode: .axTextControl)
         let result = await coordinator.retrieve(
@@ -453,8 +493,85 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
             policy: policy,
             cursor: .unknown
         )
-        XCTAssertNil(result)
+        XCTAssertEqual(result?.text, "copied from notes")
+    }
+
+    // MARK: - Rich-content enrichment
+
+    func testTextOnlyWebAreaWinEnrichesFromPasteboardCapture() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.webAreaTarget(selectedText: "plain selection") },
+            browserRead: { _ in nil },
+            copyCapture: { _ in TextResult(text: "rich selection", html: "<b>rich</b> selection") }
+        )
+        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.google.Chrome"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "rich selection")
+        XCTAssertEqual(result?.html, "<b>rich</b> selection")
+    }
+
+    func testNativeAppTextOnlyWinDoesNotFireCopyCapture() async throws {
+        final class Counter: @unchecked Sendable { var calls = 0 }
+        let counter = Counter()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: "native text") },
+            copyCapture: { _ in
+                counter.calls += 1
+                return TextResult(text: "unexpected", html: "<b>unexpected</b>")
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        let nativeBundleID = try XCTUnwrap(DefaultAppRules.nativeApps.first)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: nativeBundleID),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "native text")
+        XCTAssertNil(result?.html)
         XCTAssertEqual(counter.calls, 0)
+    }
+
+    func testRichBrowserWinSkipsEnrichmentCapture() async {
+        final class Counter: @unchecked Sendable { var calls = 0 }
+        let counter = Counter()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.webAreaTarget(selectedText: "ax text") },
+            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "browser text", html: "<i>browser</i> text") },
+            copyCapture: { _ in
+                counter.calls += 1
+                return TextResult(text: "captured", html: "<b>captured</b>")
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.google.Chrome"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "browser text")
+        XCTAssertEqual(result?.html, "<i>browser</i> text")
+        XCTAssertEqual(counter.calls, 0)
+    }
+
+    func testEnrichmentKeepsOriginalWhenCaptureYieldsNoRichContent() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.webAreaTarget(selectedText: "plain selection") },
+            browserRead: { _ in nil },
+            copyCapture: { _ in TextResult(text: "plain capture") }
+        )
+        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.google.Chrome"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "plain selection")
+        XCTAssertNil(result?.html)
     }
 
     func testHungAXInspectTimesOutAndFailsFastWhileOccupied() async {

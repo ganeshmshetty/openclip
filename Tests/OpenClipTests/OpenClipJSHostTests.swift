@@ -97,12 +97,13 @@ final class OpenClipJSHostTests: XCTestCase {
         rules: ExtensionActionRules = ExtensionActionRules(),
         isAsync: Bool = false,
         timeout: TimeInterval? = nil,
-        isSecondaryClick: Bool = false
+        isSecondaryClick: Bool = false,
+        context: ActionContext? = nil
     ) -> OpenClipJSHost.Request {
         OpenClipJSHost.Request(
             actionID: "test.action",
             scriptCode: script,
-            context: makeContext(isSecondaryClick: isSecondaryClick),
+            context: context ?? makeContext(isSecondaryClick: isSecondaryClick),
             options: options,
             optionStore: optionStore,
             rules: rules,
@@ -946,5 +947,73 @@ final class OpenClipJSHostTests: XCTestCase {
             return XCTFail("Expected .text, got \(result)")
         }
         XCTAssertEqual(text, "HELLO")
+    }
+
+    func testInputHtmlAndRtf() async throws {
+        let selection = SelectionContext(
+            text: "Hello",
+            sourceApp: AppIdentity(bundleIdentifier: "com.apple.Safari", localizedName: "Safari"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default,
+            html: "<b>Hello</b>",
+            rtf: "{\\rtf1 Hello}"
+        )
+        let context = ActionContext(selection: selection)
+        let script = "function action() { return openclip.input.html + ' | ' + openclip.input.rtf; }"
+        let request = makeRequest(script: script, context: context)
+        let result = try await host.run(request)
+        guard case .text(let text) = result else {
+            return XCTFail("Expected .text, got \(result)")
+        }
+        XCTAssertEqual(text, "<b>Hello</b> | {\\rtf1 Hello}")
+    }
+
+    func testPasteContentWithUTIKeys() async throws {
+        let script = """
+        function action() {
+            openclip.pasteContent({
+                'public.utf8-plain-text': 'Plain',
+                'public.html': '<i>Italic</i>',
+                'public.rtf': '{\\\\rtf1 RTF}'
+            });
+        }
+        """
+        let result = try await host.run(makeRequest(script: script))
+        guard case .pasteContent(let payload) = result else {
+            return XCTFail("Expected .pasteContent, got \(result)")
+        }
+        XCTAssertEqual(payload.plainText, "Plain")
+        XCTAssertEqual(payload.html, "<i>Italic</i>")
+        XCTAssertEqual(payload.rtf, "{\\rtf1 RTF}")
+    }
+
+    func testCopyContentWithShorthandKeys() async throws {
+        let script = """
+        function action() {
+            openclip.copyContent({
+                text: 'Plain Copy',
+                html: '<b>Bold Copy</b>',
+                rtf: '{\\\\rtf1 Bold}'
+            });
+        }
+        """
+        let result = try await host.run(makeRequest(script: script))
+        guard case .copyContent(let payload) = result else {
+            return XCTFail("Expected .copyContent, got \(result)")
+        }
+        XCTAssertEqual(payload.plainText, "Plain Copy")
+        XCTAssertEqual(payload.html, "<b>Bold Copy</b>")
+        XCTAssertEqual(payload.rtf, "{\\rtf1 Bold}")
+    }
+
+    func testRichPayloadWithNoRepresentationIsIgnored() async throws {
+        for call in ["openclip.pasteContent({})", "openclip.copyContent({})"] {
+            let script = "function action() { \(call); }"
+            let result = try await host.run(makeRequest(script: script))
+            guard case .success = result else {
+                return XCTFail("Expected .success for \(call), got \(result)")
+            }
+        }
     }
 }

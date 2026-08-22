@@ -35,6 +35,8 @@ Selection Context ---> Process Instance ---> Inject Environment & write stdin
 | Environment Variable | Description |
 | :--- | :--- |
 | `OPENCLIP_TEXT` | Full text selected by the user. |
+| `OPENCLIP_HTML` | HTML markup of the selection (if captured). |
+| `OPENCLIP_RTF` | RTF markup of the selection (if captured). |
 | `OPENCLIP_MATCHED` | Text matched by the action's regex (falls back to the full selection). |
 | `OPENCLIP_CAPTURE_N` | Regex capture group `N` (1-based), one per group. |
 | `OPENCLIP_BUNDLE_ID` | Bundle identifier of the frontmost/source app. |
@@ -61,6 +63,8 @@ Scripts can return a JSON payload to specify explicit platform actions:
 Supported `type` values:
 - `"paste"` → `ActionResult.paste(value)` (replaces selection in target application).
 - `"copy"` → `ActionResult.copy(value)` (copies text to system clipboard).
+- `"pasteContent"` → `ActionResult.pasteContent` (rich multi-type paste; fields: `value` = plain text, `html`, `rtf`).
+- `"copyContent"` → `ActionResult.copyContent` (rich multi-type copy; same fields as `"pasteContent"`).
 - `"openURL"` → `ActionResult.openURL(URL)` (opens URL in default browser; URL parsed from `value`).
 - `"toast"` → `ActionResult.toast` (`message`, `style`: `"success"`/`"error"`/`"info"`, `keepVisible` optional, default `false`).
 - `"configure"` → `ActionResult.openConfiguration` (`reason`, `missing: [optionID]`).
@@ -69,7 +73,9 @@ Supported `type` values:
 
 ### Mode 2: Plain Text Output Fallback
 
-If `stdout` contains non-JSON plain text, `ScriptAction` treats the raw output as replacement text and returns `ActionResult.paste(stdoutString)`.
+If `stdout` contains non-JSON plain text, `ScriptAction` treats the raw output as implicitly
+returned text and returns `ActionResult.text(stdoutString)` — delivered per the user's per-click
+preference (preview/paste/copy).
 
 ---
 

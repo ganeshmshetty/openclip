@@ -165,6 +165,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
             var retrievedText = ""
             var selectionBounds: CGRect? = nil
+            var selectionHTML: String?
+            var selectionRTF: String?
             var isClipboardFallback = false
 
             if let result = await SelectionRetrievalCoordinator().retrieve(
@@ -174,6 +176,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             ) {
                 retrievedText = result.text
                 selectionBounds = result.bounds
+                selectionHTML = result.html
+                selectionRTF = result.rtf
             }
 
             // If no text was actively selected, inherit the clipboard content
@@ -198,7 +202,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                 selectionBounds: selectionBounds,
                 timestamp: Date(),
                 appPolicy: policy,
-                isClipboardFallback: isClipboardFallback
+                isClipboardFallback: isClipboardFallback,
+                html: selectionHTML,
+                rtf: selectionRTF
             )
             let canPaste = await probeTask?.value
             guard !Task.isCancelled else { return }
@@ -341,7 +347,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             mouseDownLocation: mouseDownLocation,
             selectionBounds: result.bounds,
             timestamp: Date(),
-            appPolicy: policy
+            appPolicy: policy,
+            html: result.html,
+            rtf: result.rtf
         )
         let canPaste = await probeTask?.value
         guard !Task.isCancelled else { return }

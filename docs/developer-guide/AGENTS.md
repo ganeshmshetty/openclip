@@ -175,10 +175,9 @@ a `Promise` (which the host awaits) and a `fetch(url, options)` polyfill is avai
 ```
 
 Inline via `scriptCode`, or file via `"script": "main.applescript"` (or `.scpt`). The script runs as
-an `osascript` subprocess; the selection is injected as a top-level `property OPENCLIP_TEXT`
-(accessible by the bare name `OPENCLIP_TEXT` — `openclip_text` is the same identifier, as
-AppleScript names are case-insensitive), and
-`{text}`/`{query}`/`{matched}`/`{captureN}` placeholders are substituted (unencoded, §6b). Both
+an `osascript` subprocess; the selection is injected as top-level properties `property OPENCLIP_TEXT`,
+`property OPENCLIP_HTML`, and `property OPENCLIP_RTF` (accessible by bare names `OPENCLIP_TEXT`, `OPENCLIP_HTML`, `OPENCLIP_RTF`), and
+`{text}`/`{query}`/`{html}`/`{rtf}`/`{matched}`/`{captureN}` placeholders are substituted (unencoded, §6b). Both
 authoring styles are supported: bare top-level statements **or** an explicit `on run … end run`
 handler. A non-empty string the script returns becomes `.text` — implicitly returned text, delivered
 per the user's per-click preference (preview/paste/copy, §5b), defaulting to today's paste behavior.
@@ -199,7 +198,7 @@ Errors become `.failure` (shown as an error toast).
   file named by `"script"` (default `script.sh`) from the package dir and runs it directly.
 
 The command is executed **with a 30-second kill watchdog** (`Constants.scriptTimeout`) and a
-non-zero exit surfaces as an error status. Selection/match data arrive via env vars (§6c), and
+non-zero exit surfaces as an error status. Selection/match data arrive via env vars (`$OPENCLIP_TEXT`, `$OPENCLIP_HTML`, `$OPENCLIP_RTF`, §6c), and
 stdout is interpreted per §8 (JSON effects, plain-text implicit return, or empty-text success).
 
 ### 3e. textsnippet
@@ -407,11 +406,12 @@ runs:
    General tab's "When an action returns text" pickers (`primaryClickBehavior` for a primary click,
    `secondaryClickBehavior` for a secondary click; defaults primary=paste, secondary=copy); a
    `.preview` preference keeps the popup open for the card render instead of delivering.
-2. **Apply probe** — a chosen `.paste` is downgraded to `.copy` whenever the target cannot paste.
-   The **probe always applies**: to primary *and* secondary clicks, and to declared *and* derived
-   pastes alike — a paste is never delivered to a target that can't paste. The unified
-   `PasteAvailability` answer (a `denyPaste` per-app rule first, else the live `PasteAvailabilityProbe`
-   reporting the AX Edit ▸ Paste disabled/unavailable) says no → `.copy`.
+2. **Apply probe** — a chosen `.paste` is downgraded to `.copy` whenever the target cannot paste,
+   and the rich analogue downgrades `.pasteContent` to `.copyContent`. The **probe always applies**:
+   to primary *and* secondary clicks, and to declared *and* derived pastes alike — a paste is never
+   delivered to a target that can't paste. The unified `PasteAvailability` answer (a `denyPaste`
+   per-app rule first, else the live `PasteAvailabilityProbe` reporting the AX Edit ▸ Paste
+   disabled/unavailable) says no → `.copy`.
 3. **Toast** — the click's declared toast (`toast` for primary, `secondaryToast` for secondary) wins;
    otherwise the default **"Copied"** toast fires only when a paste context was delivered as a copy
    (derived at select, declared, or downgraded by the probe) or a `.copyDefinition` is delivered.
@@ -421,8 +421,10 @@ runs:
    "Copied"**. The default "Copied" is a **delivery-side** fallback, not a script surface — it never
    overrides, or appears alongside, a script's own toast.
 
-Only `.paste` outcomes are ever downgraded to `.copy`; an explicit `.copy` stays a copy, and
-non-text results (openURL, notify, keyPress, …) pass through untouched.
+Only paste outcomes are ever downgraded (`.paste`→`.copy`, `.pasteContent`→`.copyContent`); an
+explicit copy stays a copy, and non-text results (openURL, notify, keyPress, …) pass through
+untouched. A secondary click on a rich-paste primary derives `.copyContent`, mirroring the plain
+paste→copy default.
 
 **Implicit returned text is user-governed.** A runtime that "just returns a string" (JS string
 return, AppleScript output, shell plain-text stdout, a text snippet) produces a `.text` result —
@@ -500,7 +502,7 @@ focus context, which can differ between shows in the same app. Card
 Paste/Copy are explicit user requests: they carry no delivery context and are
 never re-decided — an explicit Paste always pastes.
 
-`.copy`/`.cut` and non-text results are never downgraded. This is a **presentation/delivery**
+`.copy`/`.copyContent`/`.cut` and non-text results are never downgraded. This is a **presentation/delivery**
 decision (App target only) — Core stays pure; `canPaste` and the app policy are injected inputs.
 The per-app `denyPaste` toggle is user-editable in Preferences → Application Rules. Set
 `deny-paste` only via `AppRule`; a manifest has **no** `denyPaste` delivery key (delivery is
@@ -602,7 +604,8 @@ vars: `OPENCLIP_TEXT`, `OPENCLIP_MATCHED`, `OPENCLIP_CAPTURE_1`…`N`, `OPENCLIP
 
 Read-only input context:
 
-- `openclip.input.text`, `openclip.input.matchedText`, `openclip.input.captures` (array),
+- `openclip.input.text`, `openclip.input.html` (source-app HTML or empty), `openclip.input.rtf` (source-app RTF or empty),
+  `openclip.input.matchedText`, `openclip.input.captures` (array),
   `openclip.input.app.bundleID`, `openclip.input.app.name`,
   `openclip.input.isSecondaryClick` (true on a right-click or ⇧-click — see §5c)
 - `openclip.options` — `{ optionID: stringValue }` resolved through the option store
@@ -625,6 +628,8 @@ Side effects (each appends an effect; multiple effects run as a `.sequence` in c
 
 - `openclip.paste(text)`
 - `openclip.copy(text)`
+- `openclip.pasteContent({ 'public.utf8-plain-text': text, 'public.html': html, 'public.rtf': rtf })` — multi-type rich paste (also accepts shorthand `{ text, html, rtf }`)
+- `openclip.copyContent({ 'public.utf8-plain-text': text, 'public.html': html, 'public.rtf': rtf })` — multi-type rich copy (also accepts shorthand `{ text, html, rtf }`)
 - `openclip.cut(text)`
 - `openclip.openURL(url)`
 - `openclip.keyPress(key, ["command","shift","option","control", ...])`
@@ -661,9 +666,11 @@ outcomes, or kind runtimes):
 | Case | Meaning |
 | :--- | :--- |
 | `.success` | no side effect |
-| `.copy(String)` | copy to pasteboard |
+| `.copy(String)` | copy plain text to pasteboard |
+| `.copyContent(RichPasteboardPayload)` | multi-type rich copy to pasteboard (text, HTML, RTF) |
 | `.cut(String)` | copy + delete selection (delete key) |
-| `.paste(String)` | paste text (replaces selection / frontmost app) |
+| `.paste(String)` | paste plain text (replaces selection / frontmost app) |
+| `.pasteContent(RichPasteboardPayload)` | multi-type rich paste (text, HTML, RTF) |
 | `.text(String)` | implicitly returned text (JS string return / AppleScript output / shell stdout / text snippet); no delivery decision — the per-click preference resolves it to preview/paste/copy |
 | `.openURL(URL)` | open the URL |
 | `.showServices(String)` | macOS share picker on the text |
@@ -694,6 +701,8 @@ except `shareService`'s `identifier`, which is required):
 ```jsonc
 { "type": "paste", "value": "text" }                                  // .paste
 { "type": "copy",  "value": "text" }                                  // .copy
+{ "type": "pasteContent", "value": "text", "html": "<b>...</b>", "rtf": "..." } // .pasteContent (rich multi-type paste)
+{ "type": "copyContent",  "value": "text", "html": "<b>...</b>", "rtf": "..." } // .copyContent (rich multi-type copy)
 { "type": "openURL", "value": "https://..." }                         // .openURL
 { "type": "toast", "message": "Done", "style": "success", "keepVisible": true } // .toast — style "success"|"error"|"info"; keepVisible optional (default false)
 { "type": "configure", "reason": "...", "missing": ["opt"] }          // .openConfiguration

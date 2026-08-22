@@ -81,16 +81,20 @@ public struct AppleScriptAction: ConfigurableAction {
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let rawText = context.selection.text
         let text = Self.escapeAppleScript(rawText)
+        let html = Self.escapeAppleScript(context.selection.html ?? "")
+        let rtf = Self.escapeAppleScript(context.selection.rtf ?? "")
 
         let escapedSelection = SelectionContext(
-            text: Self.escapeAppleScript(context.selection.text),
+            text: text,
             sourceApp: context.selection.sourceApp,
             cursorPosition: context.selection.cursorPosition,
             mouseDownLocation: context.selection.mouseDownLocation,
             selectionBounds: context.selection.selectionBounds,
             timestamp: context.selection.timestamp,
             appPolicy: context.selection.appPolicy,
-            isClipboardFallback: context.selection.isClipboardFallback
+            isClipboardFallback: context.selection.isClipboardFallback,
+            html: html,
+            rtf: rtf
         )
 
         let escapedMatch = context.match.map { match in
@@ -110,14 +114,14 @@ public struct AppleScriptAction: ConfigurableAction {
 
         let scriptWithVars = TextPlaceholderEngine.replacePlaceholders(in: appleScriptCode, context: escapedContext, urlEncode: false)
         
-        // Inject the selection as a top-level `property` rather than top-level `set` statements.
+        // Inject the selection as top-level `property` declarations rather than top-level `set` statements.
         // AppleScript forbids combining top-level statements with an explicit `on run` handler
         // (error -2752), so the old global/set preamble silently broke any script written with
         // `on run ... end run`. A `property` declaration coexists with BOTH authoring styles.
-        // `OPENCLIP_TEXT` and `openclip_text` are the same identifier (AppleScript names are
-        // case-insensitive), so one property serves both names.
         let fullScript = """
         property OPENCLIP_TEXT : "\(text)"
+        property OPENCLIP_HTML : "\(html)"
+        property OPENCLIP_RTF : "\(rtf)"
         \(scriptWithVars)
         """
         

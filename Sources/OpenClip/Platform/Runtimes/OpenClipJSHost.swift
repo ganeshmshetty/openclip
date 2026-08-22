@@ -74,6 +74,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var openURL: URL?
         public var paste: String?
         public var copy: String?
+        public var pasteContent: RichPasteboardPayload?
+        public var copyContent: RichPasteboardPayload?
         public var cut: String?
         public var toast: StatusFeedback?
         public var configuration: ConfigurationRequest?
@@ -90,6 +92,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
     enum Effect: Sendable {
         case paste(String)
         case copy(String)
+        case pasteContent(RichPasteboardPayload)
+        case copyContent(RichPasteboardPayload)
         case cut(String)
         case openURL(URL)
         case keyPress(KeyPressSpec)
@@ -188,6 +192,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         guard let openclip = makeOpenClipObject(
             in: jsContext,
             text: text,
+            html: request.context.selection.html,
+            rtf: request.context.selection.rtf,
             matchedText: matchedText,
             captures: captures,
             sourceApp: request.context.selection.sourceApp,
@@ -206,6 +212,16 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let copyBlock: @convention(block) (String) -> Void = { value in
             collected.value.copy = value
             effects.value.append(.copy(value))
+        }
+        let pasteContentBlock: @convention(block) (JSValue?) -> Void = { value in
+            guard let payload = Self.parseRichPayload(value) else { return }
+            collected.value.pasteContent = payload
+            effects.value.append(.pasteContent(payload))
+        }
+        let copyContentBlock: @convention(block) (JSValue?) -> Void = { value in
+            guard let payload = Self.parseRichPayload(value) else { return }
+            collected.value.copyContent = payload
+            effects.value.append(.copyContent(payload))
         }
         let cutBlock: @convention(block) (String) -> Void = { value in
             collected.value.cut = value
@@ -260,6 +276,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
         openclip.setObject(pasteBlock, forKeyedSubscript: "paste" as NSString)
         openclip.setObject(copyBlock, forKeyedSubscript: "copy" as NSString)
+        openclip.setObject(pasteContentBlock, forKeyedSubscript: "pasteContent" as NSString)
+        openclip.setObject(copyContentBlock, forKeyedSubscript: "copyContent" as NSString)
         openclip.setObject(cutBlock, forKeyedSubscript: "cut" as NSString)
         openclip.setObject(openURLBlock, forKeyedSubscript: "openURL" as NSString)
         openclip.setObject(keyPressBlock, forKeyedSubscript: "keyPress" as NSString)
@@ -630,6 +648,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         switch effect {
         case .paste(let text): return .paste(text)
         case .copy(let text): return .copy(text)
+        case .pasteContent(let payload): return .pasteContent(payload)
+        case .copyContent(let payload): return .copyContent(payload)
         case .cut(let text): return .cut(text)
         case .openURL(let url): return .openURL(url)
         case .keyPress(let spec): return .keyPress(spec)
@@ -637,6 +657,40 @@ public final class OpenClipJSHost: @unchecked Sendable {
         case .notify(let title, let body): return .notify(title: title, body: body)
         case .shareService(let identifier, let text): return .shareService(identifier: identifier, text: text)
         }
+    }
+
+    private static func parseRichPayload(_ value: JSValue?) -> RichPasteboardPayload? {
+        guard let value, value.isObject else { return nil }
+        var plainText: String?
+        var rtf: String?
+        var html: String?
+
+        let plainKeys = ["public.utf8-plain-text", "text", "plainText", "string"]
+        for k in plainKeys {
+            if let val = value.objectForKeyedSubscript(k), !val.isUndefined && !val.isNull {
+                plainText = val.toString()
+                break
+            }
+        }
+
+        let rtfKeys = ["public.rtf", "rtf"]
+        for k in rtfKeys {
+            if let val = value.objectForKeyedSubscript(k), !val.isUndefined && !val.isNull {
+                rtf = val.toString()
+                break
+            }
+        }
+
+        let htmlKeys = ["public.html", "html"]
+        for k in htmlKeys {
+            if let val = value.objectForKeyedSubscript(k), !val.isUndefined && !val.isNull {
+                html = val.toString()
+                break
+            }
+        }
+
+        guard plainText != nil || rtf != nil || html != nil else { return nil }
+        return RichPasteboardPayload(plainText: plainText, rtf: rtf, html: html)
     }
 
     private static func optionValues(for request: Request) -> [String: Any] {
@@ -663,6 +717,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
     private static func makeOpenClipObject(
         in jsContext: JSContext,
         text: String,
+        html: String?,
+        rtf: String?,
         matchedText: String,
         captures: [String],
         sourceApp: AppIdentity,
@@ -676,6 +732,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         }
 
         input.setObject(text, forKeyedSubscript: "text")
+        input.setObject(html ?? "", forKeyedSubscript: "html")
+        input.setObject(rtf ?? "", forKeyedSubscript: "rtf")
         input.setObject(matchedText, forKeyedSubscript: "matchedText")
         input.setObject(captures, forKeyedSubscript: "captures")
         input.setObject(isSecondaryClick, forKeyedSubscript: "isSecondaryClick")

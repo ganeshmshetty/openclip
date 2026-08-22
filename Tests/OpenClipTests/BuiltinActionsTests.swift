@@ -23,6 +23,29 @@ final class BuiltinActionsTests: XCTestCase {
             XCTFail("Expected .copy result")
         }
     }
+
+    @MainActor
+    func testCopyActionWithRichText() async throws {
+        let action = CopyAction()
+        let selection = SelectionContext(
+            text: "test string",
+            sourceApp: AppIdentity(bundleIdentifier: "com.apple.Safari", localizedName: "Safari"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default,
+            html: "<b>test string</b>",
+            rtf: "{\\rtf1 test string}"
+        )
+        let context = ActionContext(selection: selection)
+        let result = try await action.perform(context)
+        if case .copyContent(let payload) = result {
+            XCTAssertEqual(payload.plainText, "test string")
+            XCTAssertEqual(payload.html, "<b>test string</b>")
+            XCTAssertEqual(payload.rtf, "{\\rtf1 test string}")
+        } else {
+            XCTFail("Expected .copyContent result when HTML/RTF present")
+        }
+    }
     
     @MainActor
     func testPasteAction() async throws {

@@ -200,7 +200,6 @@ struct GeneralTab: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .padding(.horizontal, 12)
-        .padding(.bottom, 12)
         .onAppear { permissionManager.startMonitoring() }
         .onDisappear { permissionManager.stopMonitoring() }
     }

@@ -125,13 +125,7 @@ public final class RuleEngine: ObservableObject, Sendable {
     }
     
     private func matchPattern(_ pattern: String, with bundleId: String) -> Bool {
-        if pattern == "*" { return true }
-        if pattern == bundleId { return true }
-        if pattern.hasSuffix(".*") {
-            let prefix = String(pattern.dropLast(2))
-            return bundleId == prefix || bundleId.hasPrefix(prefix + ".")
-        }
-        return false
+        DefaultAppRules.matches(pattern: pattern, bundleID: bundleId)
     }
     
     public static let defaultRules: [AppRule] = DefaultAppRules.catalog

@@ -9,7 +9,10 @@ final class BrowserScriptStrategyTests: XCTestCase {
         let script = BrowserScriptStrategy.textScriptSource(bundleIdentifier: "com.apple.Safari")
         XCTAssertTrue(script.contains("tell application id \"com.apple.Safari\""))
         XCTAssertTrue(script.contains("tell front document"))
-        XCTAssertTrue(script.contains("do JavaScript \"window.getSelection().toString()\""))
+        XCTAssertTrue(script.contains("do JavaScript"))
+        XCTAssertTrue(script.contains("getSelection"))
+        XCTAssertTrue(script.contains("cloneContents"))
+        XCTAssertTrue(script.contains("JSON.stringify"))
         XCTAssertFalse(script.contains("active tab"))
         XCTAssertFalse(script.contains("execute javascript"))
     }
@@ -27,7 +30,9 @@ final class BrowserScriptStrategyTests: XCTestCase {
         let script = BrowserScriptStrategy.textScriptSource(bundleIdentifier: "com.google.Chrome")
         XCTAssertTrue(script.contains("tell application id \"com.google.Chrome\""))
         XCTAssertTrue(script.contains("tell active tab of front window"))
-        XCTAssertTrue(script.contains("execute javascript \"window.getSelection().toString()\""))
+        XCTAssertTrue(script.contains("execute javascript"))
+        XCTAssertTrue(script.contains("getSelection"))
+        XCTAssertTrue(script.contains("cloneContents"))
         XCTAssertFalse(script.contains("front document"))
         XCTAssertFalse(script.contains("do JavaScript"))
     }
@@ -35,7 +40,8 @@ final class BrowserScriptStrategyTests: XCTestCase {
     func testFirefoxTextScriptUsesActiveTabExecuteJavascript() {
         let script = BrowserScriptStrategy.textScriptSource(bundleIdentifier: "org.mozilla.firefox")
         XCTAssertTrue(script.contains("tell active tab of front window"))
-        XCTAssertTrue(script.contains("execute javascript \"window.getSelection().toString()\""))
+        XCTAssertTrue(script.contains("execute javascript"))
+        XCTAssertTrue(script.contains("getSelection"))
     }
 
     func testArcTextScriptUsesActiveTabExecuteJavascript() {

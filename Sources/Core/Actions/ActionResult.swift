@@ -15,6 +15,10 @@ public indirect enum ActionResult: Sendable {
     case copy(String)
     case cut(String)
     case paste(String)
+    /// Rich multi-type paste (plain text, RTF, HTML).
+    case pasteContent(RichPasteboardPayload)
+    /// Rich multi-type copy (plain text, RTF, HTML).
+    case copyContent(RichPasteboardPayload)
     /// Implicitly returned text — a JS string return, AppleScript output, shell plain-text stdout,
     /// or a text snippet. Unlike `.paste`, it carries no delivery decision: the user's per-click
     /// preference (General tab → "When an action returns text") decides preview / paste / copy in

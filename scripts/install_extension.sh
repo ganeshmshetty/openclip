@@ -54,6 +54,9 @@ FILENAME="$(basename "$SRC_PATH")"
 DEST_PATH="$EXT_DIR/$FILENAME"
 
 echo "Installing $SRC_PATH to $DEST_PATH..."
+# Replace any existing package wholesale: `cp -R src dest` nests inside an
+# existing destination directory, which would leave stale files behind.
+rm -rf "$DEST_PATH"
 cp -R "$SRC_PATH" "$DEST_PATH"
 
 echo "Extension installed to $DEST_PATH"
