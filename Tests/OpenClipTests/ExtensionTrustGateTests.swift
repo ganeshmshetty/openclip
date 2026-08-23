@@ -59,13 +59,13 @@ final class ExtensionTrustGateTests: XCTestCase {
     }
 
     @MainActor
-    func testNewLocalPackageAfterMigrationIsGatedAndNotifies() async throws {
+    func testNewLocalPackageAfterMigrationIsSilentlyGated() async throws {
         let p = try await plan(packageID: "com.t.new", name: "New", trust: [:], hashes: [:], sources: [:], isMigrated: true)
         XCTAssertEqual(p.actions.count, 1)
         let gated = try XCTUnwrap(p.actions[0] as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .notEnabled)
         XCTAssertEqual(p.trust["com.t.new"], "seen")
-        XCTAssertEqual(p.events, [.newPackage(packageID: "com.t.new", name: "New")])
+        XCTAssertTrue(p.events.isEmpty)
     }
 
     @MainActor
@@ -78,14 +78,14 @@ final class ExtensionTrustGateTests: XCTestCase {
     }
 
     @MainActor
-    func testChangedTrustedPackageFlipsToGatedAndNotifies() async throws {
+    func testChangedTrustedPackageFlipsToSilentlyGated() async throws {
         let first = try await plan(packageID: "com.t.tam", name: "Tam", trust: [:], hashes: [:], sources: ["com.t.tam": "package"], isMigrated: false)
         let hash = try XCTUnwrap(first.hashes["com.t.tam"])
         let p = try await plan(packageID: "com.t.tam", name: "Tam", trust: ["com.t.tam": "trusted"], hashes: ["com.t.tam": hash], sources: ["com.t.tam": "package"], isMigrated: true, script: "echo edited")
         let gated = try XCTUnwrap(p.actions[0] as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .filesChanged)
         XCTAssertEqual(p.trust["com.t.tam"], "seen")
-        XCTAssertEqual(p.events, [.tampered(packageID: "com.t.tam", name: "Tam")])
+        XCTAssertTrue(p.events.isEmpty)
     }
 
     @MainActor
@@ -96,7 +96,7 @@ final class ExtensionTrustGateTests: XCTestCase {
         let gated = try XCTUnwrap(p.actions[0] as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .filesChanged)
         XCTAssertEqual(p.trust["com.t.nosrc"], "seen")
-        XCTAssertEqual(p.events, [.tampered(packageID: "com.t.nosrc", name: "NoSrc")])
+        XCTAssertTrue(p.events.isEmpty)
     }
 
     @MainActor
@@ -107,7 +107,7 @@ final class ExtensionTrustGateTests: XCTestCase {
         let gated = try XCTUnwrap(p.actions[0] as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .filesChanged)
         XCTAssertEqual(p.trust["com.t.badsrc"], "seen")
-        XCTAssertEqual(p.events, [.tampered(packageID: "com.t.badsrc", name: "BadSrc")])
+        XCTAssertTrue(p.events.isEmpty)
     }
 
     @MainActor
@@ -131,14 +131,14 @@ final class ExtensionTrustGateTests: XCTestCase {
         XCTAssertEqual(p.trust["com.t.store"], "trusted")
         XCTAssertTrue(p.events.isEmpty)
 
-        // Drifted store package (stale hash) → seen + tampered + gated .filesChanged,
+        // Drifted store package (stale hash) → seen + gated .filesChanged,
         // exactly like a local package. Only the update flow re-trusts.
         let hash = p.hashes["com.t.store"]!
         let p2 = try await plan(packageID: "com.t.store", name: "Store", trust: ["com.t.store": "trusted"], hashes: ["com.t.store": hash], sources: ["com.t.store": "store"], isMigrated: true, script: "echo updated")
         let gated = try XCTUnwrap(p2.actions[0] as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .filesChanged)
         XCTAssertEqual(p2.trust["com.t.store"], "seen")
-        XCTAssertEqual(p2.events, [.tampered(packageID: "com.t.store", name: "Store")])
+        XCTAssertTrue(p2.events.isEmpty)
     }
 
     @MainActor
@@ -148,6 +148,15 @@ final class ExtensionTrustGateTests: XCTestCase {
         let p = try await plan(packageID: "com.t.fresh", name: "Fresh", trust: [:], hashes: [:], sources: ["com.t.fresh": "store"], isMigrated: true)
         XCTAssertFalse(p.actions[0] is GatedExtensionAction)
         XCTAssertEqual(p.trust["com.t.fresh"], "trusted")
+        XCTAssertTrue(p.events.isEmpty)
+    }
+
+    @MainActor
+    func testFreshPackageInstallAutoTrustsEvenWhenMigrated() async throws {
+        // Explicit file install (source == .package, record == nil) auto-trusts immediately.
+        let p = try await plan(packageID: "com.t.filepkg", name: "FilePkg", trust: [:], hashes: [:], sources: ["com.t.filepkg": "package"], isMigrated: true)
+        XCTAssertFalse(p.actions[0] is GatedExtensionAction)
+        XCTAssertEqual(p.trust["com.t.filepkg"], "trusted")
         XCTAssertTrue(p.events.isEmpty)
     }
 
@@ -184,7 +193,7 @@ final class ExtensionTrustGateTests: XCTestCase {
         let gated = try XCTUnwrap(p.actions[0] as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .filesChanged)
         XCTAssertEqual(p.trust["com.t.niltrust"], "seen", "unverifiable trusted package flips to seen")
-        XCTAssertEqual(p.events, [.tampered(packageID: "com.t.niltrust", name: "NilTrust")])
+        XCTAssertTrue(p.events.isEmpty)
         XCTAssertEqual(p.hashes["com.t.niltrust"], "oldhash", "the stale hash must be left untouched, not replaced by an empty one")
     }
 
@@ -242,5 +251,20 @@ final class ExtensionTrustGateTests: XCTestCase {
         XCTAssertEqual(gated.id, "com.t.g")
         XCTAssertEqual(GatedExtensionAction.reviewMessage(for: .notEnabled), "This extension isn't enabled yet — review it in Preferences.")
         XCTAssertEqual(GatedExtensionAction.reviewMessage(for: .needsNewerApp(required: "2.0.0")), "This extension needs OpenClip 2.0.0 or newer.")
+    }
+
+    @MainActor
+    func testGatedActionExcludedFromAvailableActionsAndSearchCatalog() async throws {
+        let registry = ActionRegistry(settingsStore: store)
+        let gated = GatedExtensionAction(
+            packageID: "com.t.gated", title: "Gated", icon: .symbol("wand.and.stars"),
+            chrome: ActionChrome(badge: .extensionPkg("Gated"), rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: "com.t.gated")),
+            reason: .filesChanged
+        )
+        registry.register(action: gated)
+        let selection = SelectionContext(text: "hello", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let ctx = ActionContext(selection: selection, modifiers: [])
+        XCTAssertTrue(registry.availableActions(for: ctx).isEmpty, "gated action must never appear in floating popup")
+        XCTAssertTrue(registry.searchCatalog(for: ctx).isEmpty, "gated action must never appear in search catalog")
     }
 }

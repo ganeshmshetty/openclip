@@ -13,7 +13,7 @@ final class PopupPanelTests: XCTestCase {
     }
 
     func testToastDurationConstant() {
-        XCTAssertEqual(PopupMetrics.toastDurationNanoseconds, 500_000_000)
+        XCTAssertEqual(PopupMetrics.toastDurationNanoseconds, 1_200_000_000)
     }
 
     func testToastFittingSizeIsOneLine() throws {
@@ -186,12 +186,95 @@ final class PopupPanelTests: XCTestCase {
 
         XCTAssertEqual(controller.modeStore.mode, .actions, "precondition: bar mode")
 
-        controller.showAIContent(text: "line one\nline two\nline three\nline four", isError: false, title: "Summarize")
+        controller.showAIContent(text: "line one\nline two\nline three\nline four", isError: false, title: "Summarize", session: controller.aiSessionID)
 
         XCTAssertEqual(controller.modeStore.mode, .content)
         XCTAssertEqual(controller.modeStore.aiResult?.text, "line one\nline two\nline three\nline four")
         XCTAssertEqual(controller.modeStore.aiResult?.title, "Summarize")
         XCTAssertEqual(controller.modeStore.aiResult?.isError, false)
+    }
+
+    // MARK: - AI streaming session isolation
+
+    private func makeSessionController() -> (PopupWindowController, SelectionContext) {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(
+            resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
+            pasteProbe: AICardFixedProbe(result: true),
+            settingsStore: MemorySettingsStore()
+        )
+        let context = SelectionContext(
+            text: "session text",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: CGPoint(x: 100, y: 100),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.startTestSession(for: context)
+        return (controller, context)
+    }
+
+    /// Regression: a stream that outlived its popup kept delivering chunks through the shared
+    /// mode store — flipping a NEW selection's popup into content mode and re-sticking
+    /// isProcessingAI after hide() cleared it. Session-stamped deliveries must be dropped.
+    func testStaleSessionAIChunkCannotHijackCurrentSession() {
+        let (controller, _) = makeSessionController()
+        let staleSession = controller.aiSessionID
+
+        controller.hide() // dismiss mid-stream ends the session…
+
+        // …but the zombie stream keeps delivering under the OLD token:
+        controller.setAIProcessing(true, session: staleSession)
+        XCTAssertFalse(controller.modeStore.isProcessingAI,
+                       "stale processing flag must not stick into the next session")
+        controller.showAIContent(text: "old chunks", isError: false, title: "Old", isStreaming: true, session: staleSession)
+        XCTAssertEqual(controller.modeStore.mode, .actions,
+                       "stale chunk must not flip the popup into content mode")
+        XCTAssertNil(controller.modeStore.aiResult,
+                     "stale chunk must not populate the result card")
+
+        // The live session still works normally.
+        let live = controller.aiSessionID
+        controller.showAIContent(text: "fresh", isError: false, title: "New", isStreaming: true, session: live)
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        XCTAssertEqual(controller.modeStore.aiResult?.text, "fresh")
+    }
+
+    /// Regression: cancellation was tied to SwiftUI view teardown, which races (or misses) when
+    /// the panel is reused across sessions. hide() must cancel the registered stream itself.
+    func testHideCancelsRegisteredStreamingTask() {
+        let (controller, _) = makeSessionController()
+
+        let task = Task { @MainActor in
+            _ = try? await Task.sleep(nanoseconds: 10_000_000_000) // would outlive the session
+        }
+        // Registration seam is exactly what PopupView hands the controller at spawn.
+        controller.activeStreamingTask = task
+
+        controller.hide()
+
+        XCTAssertTrue(task.isCancelled, "hide() must cancel the session's streaming task")
+        XCTAssertNil(controller.activeStreamingTask)
+    }
+
+    /// A fresh show() starts a new AI session even if hide() was skipped (re-show path), so
+    /// deliveries stamped by the previous session are dead on arrival.
+    func testShowBumpsAISessionOverPreviousOne() throws {
+        let (controller, context) = makeSessionController()
+        let firstSession = controller.aiSessionID
+
+        guard NSScreen.main != nil else { throw XCTSkip("no screen") }
+        controller.show(for: context)
+
+        XCTAssertNotEqual(controller.aiSessionID, firstSession,
+                          "show(for:) must start a new AI session")
+        XCTAssertNil(controller.activeStreamingTask)
+
+        controller.showAIContent(text: "pre-show chunk", isError: false, title: "Old",
+                                 isStreaming: true, session: firstSession)
+        XCTAssertEqual(controller.modeStore.mode, .actions,
+                       "chunk from the pre-show session must not flip the new popup")
+        controller.hide()
     }
 
     /// Paste availability is probed by the trigger site before selection retrieval and handed to
@@ -270,6 +353,66 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertTrue(panel.canBecomeMain)
         panel.allowsKey = false
         XCTAssertFalse(panel.canBecomeKey)
+    }
+
+    /// The transparent shadow ring around the bar must be outside the clickable region, so clicks
+    /// in the visible shadow fall through to the app underneath instead of being swallowed by the
+    /// panel frame (which previously made dismissal impossible there).
+    func testShadowRingIsOutsideClickableRegion() {
+        let bounds = NSRect(x: 0, y: 0, width: 200, height: 80)
+        let inset = PopupMetrics.popupShadowInset
+
+        // Center of the content area: belongs to the popup.
+        XCTAssertTrue(PopupPanel.ContentView.isInsideClickableRegion(
+            point: NSPoint(x: bounds.midX, y: bounds.midY), bounds: bounds))
+        // Just inside the shadow ring boundary (16pt from each edge): still the popup's.
+        XCTAssertTrue(PopupPanel.ContentView.isInsideClickableRegion(
+            point: NSPoint(x: inset + 1, y: inset + 1), bounds: bounds))
+        // Inside the ring itself (e.g. 4pt from the corner): NOT the popup's — click-through.
+        XCTAssertFalse(PopupPanel.ContentView.isInsideClickableRegion(
+            point: NSPoint(x: 4, y: 4), bounds: bounds))
+        XCTAssertFalse(PopupPanel.ContentView.isInsideClickableRegion(
+            point: NSPoint(x: inset - 1, y: bounds.midY), bounds: bounds))
+    }
+
+    /// The live panel's root view must apply the same rule: points in the shadow ring report as
+    /// non-mouse points so the window server routes those clicks to windows below.
+    func testLiveContentViewExcludesShadowRingFromHitTesting() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150))
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+        let contentView = try XCTUnwrap(panel.contentView as? PopupPanel.ContentView,
+                                        "popup must mount PopupPanel.ContentView as its root")
+        let bounds = contentView.bounds
+
+        XCTAssertTrue(contentView.isMousePoint(NSPoint(x: bounds.midX, y: bounds.midY), in: bounds),
+                      "content-area point must hit-test to the popup")
+        XCTAssertFalse(contentView.isMousePoint(NSPoint(x: 2, y: 2), in: bounds),
+                       "shadow-ring point must not hit-test to the popup (click-through)")
+    }
+
+    /// Dismissal decisions must treat the transparent shadow ring as outside-the-popup: a press
+    /// in the ring hides the popup instead of counting as bar content. This pins the fix where
+    /// `handleEvent` used `panel.frame.contains(...)` and shadow clicks did nothing at all.
+    func testShadowRingPressDoesNotCountAsBarContent() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150))
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+        let frame = panel.frame
+
+        // Deep in the transparent ring near a frame corner: outside interactive content…
+        XCTAssertFalse(controller.isOverPanelContent(
+            CGPoint(x: frame.minX + 2, y: frame.minY + 2)),
+            "shadow-ring point must not count as bar content (press there must dismiss)")
+        // …while the actual content area still counts as the bar.
+        XCTAssertTrue(controller.isOverPanelContent(
+            CGPoint(x: frame.midX, y: frame.midY)),
+            "content-area point must still count as bar content")
+        // And anywhere outside the frame remains an ordinary dismiss click.
+        XCTAssertFalse(controller.isOverPanelContent(
+            CGPoint(x: frame.maxX + 50, y: frame.midY)))
     }
 
     /// Returns the popup panel after show(for:) has mounted it.

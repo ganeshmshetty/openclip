@@ -8,9 +8,16 @@ import Core
 public struct CursorClassifier {
     /// Maps the current system cursor to its `CursorClass`. Resolves known system cursor singletons
     /// in O(1) without bitmap decoding, falling back to lightweight silhouette analysis for custom cursors.
+    ///
+    /// Reads `NSCursor.currentSystem`, NOT `NSCursor.current`: `current` is process-local
+    /// AppKit state — the cursor *this application* last set — so for a background agent like
+    /// OpenClip it reports the default arrow even when the frontmost app shows an I-beam over a
+    /// text field. That silently disabled every hover-context gate built on this classifier (e.g.
+    /// the hold-trigger clipboard fallback). `currentSystem` asks the window server for the cursor
+    /// actually on screen; `current` remains only as a fallback if the query is unavailable.
     @MainActor
     public static var current: CursorClass {
-        let cursor = NSCursor.current
+        let cursor = NSCursor.currentSystem ?? NSCursor.current
         if cursor == .iBeam || cursor == .iBeamCursorForVerticalLayout {
             return .beam
         }

@@ -137,7 +137,9 @@ public enum ExtensionPackageHashResolver {
 
     /// The identifier a standalone script declares in its header (`# Identifier:`,
     /// `// Identifier:`, or lowercase `// identifier:`), trimmed like the loader does.
-    private static func declaredIdentifier(of scriptURL: URL) -> String? {
+    /// Shared with uninstall matching — any code resolving a standalone script's package id
+    /// must use this, never filename substring heuristics.
+    static func declaredIdentifier(of scriptURL: URL) -> String? {
         guard let content = try? String(contentsOf: scriptURL, encoding: .utf8) else { return nil }
         let lines = content.components(separatedBy: .newlines).prefix(Constants.maxHeaderLinesToScan)
         for line in lines {

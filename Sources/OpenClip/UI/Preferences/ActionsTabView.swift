@@ -26,13 +26,13 @@ struct ActionsTab: View {
     /// multi-action packages get a package header (whole-package toggle) before their actions;
     /// single-action packages and builtins stay flat.
     private enum ListRow: Identifiable {
-        case packageHeader(packageID: String, title: String)
+        case packageHeader(packageID: String, title: String, gatedReason: ExtensionGateReason?)
         case groupParent(any Action)
         case action(any Action, nestedUnder: String?)
 
         var id: String {
             switch self {
-            case .packageHeader(let packageID, _): return "pkg.\(packageID)"
+            case .packageHeader(let packageID, _, _): return "pkg.\(packageID)"
             case .groupParent(let action): return "group.\(action.id)"
             case .action(let action, _): return action.id
             }
@@ -91,7 +91,8 @@ struct ActionsTab: View {
                             } else {
                                 title = packageID
                             }
-                            rows.append(.packageHeader(packageID: packageID, title: title))
+                            let gatedReason = (action as? GatedExtensionAction)?.reason
+                            rows.append(.packageHeader(packageID: packageID, title: title, gatedReason: gatedReason))
                         }
                     }
                     rows.append(.action(action, nestedUnder: nil))
@@ -148,8 +149,8 @@ struct ActionsTab: View {
                 Section {
                     ForEach(visibleRows) { row in
                         switch row {
-                        case .packageHeader(let packageID, let title):
-                            PackageHeaderRowView(packageID: packageID, title: title, disabledPackages: $disabledPackages)
+                        case .packageHeader(let packageID, let title, let gatedReason):
+                            PackageHeaderRowView(packageID: packageID, title: title, gatedReason: gatedReason, disabledPackages: $disabledPackages)
                                 .tag(row.id)
                         case .groupParent(let action):
                             ActionRowView(
@@ -257,6 +258,40 @@ struct ActionsTab: View {
                     guard var preset = AIServiceManager.shared.preset(forActionID: action.id) else { return }
                     preset.isEnabled = enabled
                     AIServiceManager.shared.updatePreset(preset)
+                }
+            )
+        }
+        if let gated = action as? GatedExtensionAction {
+            return Binding(
+                get: { false },
+                set: { enabled in
+                    if enabled {
+                        disabledActionIDs.remove(action.id)
+                        disabledPackages.remove(gated.packageID)
+                        Task {
+                            await ExtensionManager.shared.enablePackage(packageID: gated.packageID)
+                            NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+                        }
+                    }
+                }
+            )
+        }
+        if let packageID = ActionIdentity.extensionPackageID(of: action) {
+            return Binding(
+                get: { !disabledActionIDs.contains(action.id) && !disabledPackages.contains(packageID) },
+                set: { enabled in
+                    if enabled {
+                        disabledActionIDs.remove(action.id)
+                        if disabledPackages.contains(packageID) {
+                            disabledPackages.remove(packageID)
+                            Task {
+                                await ExtensionManager.shared.enablePackage(packageID: packageID)
+                                NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+                            }
+                        }
+                    } else {
+                        disabledActionIDs.insert(action.id)
+                    }
                 }
             )
         }
@@ -396,6 +431,13 @@ struct ActionRowView: View {
             Text(presentationModel.title)
                 .font(.system(size: 12, weight: .medium))
 
+            if let gated = action as? GatedExtensionAction, let tooltip = gateTooltip(for: gated.reason) {
+                Image(systemName: "info.circle.fill")
+                    .font(.system(size: 11))
+                    .foregroundColor(.red)
+                    .help(tooltip)
+            }
+
             Spacer()
             
             // Right-aligned controls (Remove | Toggle | Gear). The Remove and Gear buttons belong
@@ -487,16 +529,25 @@ struct ActionRowView: View {
 struct PackageHeaderRowView: View {
     let packageID: String
     let title: String
+    let gatedReason: ExtensionGateReason?
     @Binding var disabledPackages: Set<String>
     
     var isEnabled: Binding<Bool> {
         Binding<Bool>(
-            get: { !disabledPackages.contains(packageID) },
+            get: { gatedReason == nil && !disabledPackages.contains(packageID) },
             set: { enabled in
                 if enabled {
                     disabledPackages.remove(packageID)
+                    Task {
+                        await ExtensionManager.shared.enablePackage(packageID: packageID)
+                        NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+                    }
                 } else {
                     disabledPackages.insert(packageID)
+                    Task {
+                        await ExtensionManager.shared.disablePackage(packageID: packageID)
+                        NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
+                    }
                 }
             }
         )
@@ -515,6 +566,13 @@ struct PackageHeaderRowView: View {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.secondary)
+
+            if let gatedReason, let tooltip = gateTooltip(for: gatedReason) {
+                Image(systemName: "info.circle.fill")
+                    .font(.system(size: 11))
+                    .foregroundColor(.red)
+                    .help(tooltip)
+            }
             
             Spacer()
             
@@ -529,5 +587,18 @@ struct PackageHeaderRowView: View {
         }
         .padding(.trailing, 14)
         .padding(.vertical, 1)
+    }
+}
+
+private func gateTooltip(for reason: ExtensionGateReason) -> String? {
+    switch reason {
+    case .filesChanged:
+        return "This extension was modified externally. Toggle on to verify and re-enable."
+    case .notEnabled:
+        return "New extension found in folder. Toggle on to enable."
+    case .needsNewerApp(let required):
+        return "This extension requires OpenClip \(required) or newer."
+    case .revoked:
+        return nil
     }
 }

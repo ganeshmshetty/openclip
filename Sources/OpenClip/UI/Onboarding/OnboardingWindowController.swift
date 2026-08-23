@@ -8,9 +8,17 @@ import SwiftUI
 @MainActor
 public final class OnboardingWindowController: NSWindowController {
 
+    /// Borderless windows cannot become key by default; without this override every
+    /// TextField/SecureField in the onboarding steps would be unusable (same rule
+    /// PopupPanel handles with its `allowsKey` gate).
+    private final class KeyableWindow: NSWindow {
+        override var canBecomeKey: Bool { true }
+        override var canBecomeMain: Bool { true }
+    }
+
     public convenience init(onComplete: @escaping @MainActor () -> Void) {
         // Start with a generous rect; the view drives the window size via fixedSize
-        let window = NSWindow(
+        let window = KeyableWindow(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 600),
             styleMask: [.borderless],
             backing: .buffered,

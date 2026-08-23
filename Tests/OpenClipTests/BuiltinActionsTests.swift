@@ -67,14 +67,58 @@ final class BuiltinActionsTests: XCTestCase {
     func testSearchAction() async throws {
         let action = SearchAction()
         let context = createMockContext(with: "test search")
-        
+
         XCTAssertTrue(action.isEnabled(for: context))
-        
+
         let result = try await action.perform(context)
         if case .openURL(let url) = result {
             XCTAssertEqual(url.absoluteString, "https://www.google.com/search?q=test%20search")
         } else {
             XCTFail("Expected .openURL result")
+        }
+    }
+
+    /// The Preferences edit sheet writes the `url` option via SettingsActionOptionStore
+    /// (key `action.builtin.search.option.url`); perform() must honor it, not just the
+    /// legacy pre-option-store key.
+    @MainActor
+    func testSearchActionUsesConfiguredURLOption() async throws {
+        let store = MemorySettingsStore()
+        store.set(SettingKey.actionOption(actionID: "builtin.search", optionID: "url"),
+                  value: "https://duckduckgo.com/?q={query}")
+        let action = SearchAction(settingsStore: store)
+        let result = try await action.perform(createMockContext(with: "test search"))
+        if case .openURL(let url) = result {
+            XCTAssertEqual(url.absoluteString, "https://duckduckgo.com/?q=test%20search")
+        } else {
+            XCTFail("Expected .openURL result")
+        }
+    }
+
+    /// Values stored under the legacy `action.search.url` key (written before the option
+    /// store existed) keep working; the option key takes precedence over it.
+    @MainActor
+    func testSearchActionFallsBackToLegacyKeyAndPrefersOption() async throws {
+        let legacyOnly = MemorySettingsStore()
+        legacyOnly.set(.searchURL, value: "https://bing.com/search?q={query}")
+        let legacyResult = try await SearchAction(settingsStore: legacyOnly)
+            .perform(createMockContext(with: "x"))
+        if case .openURL(let url) = legacyResult {
+            XCTAssertEqual(url.absoluteString, "https://bing.com/search?q=x")
+        } else {
+            XCTFail("Expected .openURL result from legacy key")
+        }
+
+        let both = MemorySettingsStore()
+        both.set(.searchURL, value: "https://bing.com/search?q={query}")
+        both.set(SettingKey.actionOption(actionID: "builtin.search", optionID: "url"),
+                 value: "https://duckduckgo.com/?q={query}")
+        let bothResult = try await SearchAction(settingsStore: both)
+            .perform(createMockContext(with: "x"))
+        if case .openURL(let url) = bothResult {
+            XCTAssertEqual(url.absoluteString, "https://duckduckgo.com/?q=x")
+        } else {
+            XCTFail("Expected .openURL result with option taking precedence")
         }
     }
     

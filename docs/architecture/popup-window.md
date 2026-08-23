@@ -23,7 +23,7 @@ The floating popup panel subsystem presents contextual actions near the user's c
 - **Window Style**: `.nonactivatingPanel`, `.borderless`
 - **Window Level**: `.popUpMenu` (sits above all normal, floating, and status-bar windows; only system menus and the screen saver stack higher). The panel is deliberately **never** the key window by default; making it key would steal keyboard focus from the active app and swallow keystrokes. There are two scoped exceptions — action-search mode and content (AI-card) mode: `PopupPanel.allowsKey` gates `canBecomeKey`/`canBecomeMain`, enabled by `PopupWindowController.enterSearch()` and `enterKeyMode()` (search and content both route through the same `enterKeyMode()`/`exitKeyMode()` primitives).
 - **Properties**: `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = false` (SwiftUI draws its own shadow; a panel shadow causes double artifacts). `pinBottomEdgeOnResize` (search/content mode only) re-anchors content-driven growth — see *Action-Search Palette & Panel Growth* below.
-- **Shadow inset**: `PopupView` keeps ≥16pt of SwiftUI padding around the bar and AI result card so the SwiftUI shadow renders *inside* the panel rather than being clipped at its edge. If a shadow looks cut off, increase the padding — never re-enable the panel shadow.
+- **Shadow inset**: `PopupView` keeps `PopupMetrics.popupShadowInset` (16pt) of SwiftUI padding around the bar and AI result card so the SwiftUI shadow renders *inside* the panel rather than being clipped at its edge. If a shadow looks cut off, increase the padding — never re-enable the panel shadow. That padding ring is fully transparent but still part of the window frame, which originally made shadow clicks do *nothing*: the panel was topmost at those pixels, the local event counted as "in the bar", and no app received the click. Two layers now handle it: (1) every click/right-click dismissal check uses `isOverPanelContent` (frame minus ring), so a press in the shadow always dismisses; (2) while the pointer hovers the ring, `updatePopupHover` sets `panel.ignoresMouseEvents = true`, so the click genuinely falls through to the app underneath and the global monitor observes it. The ignores-toggle requires global monitoring (Accessibility); without AX, layer 1 alone still guarantees dismissal, though the underlying app won't receive the swallowed ring click.
 
 ### 2. [`PopupWindowController`](../../Sources/OpenClip/UI/Popup/PopupWindowController.swift)
 - **Responsibility**: Controls window creation, display lifecycle, event monitoring, hover tracking, and the popup mode state machine (actions bar ↔ search palette ↔ content/AI-card).
@@ -109,10 +109,10 @@ that replaced the former interactive canvas.
   cannot-paste hides. Nothing is cached: with no rule, paste availability tracks the target app's
   *focus context* (editable field vs read-only view), so every show re-probes. The perform-time
   delivery re-decision reads the same unified value (`resolveDelivery`).
-- **Status**: every `StatusFeedback` renders as a floating one-line toast at the cursor via
+- **Status**: every `StatusFeedback` renders as a floating one-line toast anchored to the popup frame (flipping above when clamped, or centered on the main screen when no anchor exists) via
   `ToastPanelController` (`ToastPanel` + SwiftUI `ToastView`), independent of the popup — it shows
   whether the bar is up or already hidden. Info/error toasts auto-dismiss after
-  `PopupMetrics.toastDurationNanoseconds` (0.5 s) unless `keepVisible: true`, which disables
+  `PopupMetrics.toastDurationNanoseconds` (1.8 s) unless `keepVisible: true`, which disables
   auto-dismiss; the paste→copy downgrade surfaces a "Copied"
   toast, or an action's declared per-click toast (`Action.delivery` `primaryToast`/`secondaryToast`)
   when one is declared (a script-emitted `.toast` suppresses these — one toast per run). The inline banner and its queue (`modeStore.statusBanner`, `pendingStatus`,

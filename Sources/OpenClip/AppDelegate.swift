@@ -12,7 +12,7 @@ import SDWebImageSVGCoder
 
 /// Manages the application lifecycle and permissions.
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     private var selectionMonitor: (any SelectionMonitoring)?
     private var popupController: PopupWindowController?
@@ -20,6 +20,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private var extensionsWatcher: ExtensionsDirectoryWatcher?
 
     private var onboardingWindowController: OnboardingWindowController?
+    private var coachMarkController: CoachMarkController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Register logging sinks (Rotating File Appender and In-Memory Buffer)
@@ -62,17 +63,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         // Setup global shortcut hotkey manager
         HotkeyManager.shared.setup(popupController: controller)
 
-        // Route trust-change events to user notifications; clicking one opens the trust model.
-        UNUserNotificationCenter.current().delegate = self
-
         Task {
             let optionStore = SecretActionOptionStore()
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
-            ExtensionManager.shared.onTrustChange = { [weak self] change in
-                self?.handleTrustChange(change)
-            }
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )
@@ -94,6 +89,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         macMonitor.onSelection = { [weak self] context, canPaste in
             let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
             if isEnabled {
+                // A real selection means the user has seen (or no longer needs) the nudge.
+                self?.coachMarkController?.dismiss()
                 self?.popupController?.show(for: context, pasteAvailable: canPaste)
             }
         }
@@ -108,8 +105,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         
         if !isGranted || !completedOnboarding {
             showOnboarding()
-        } else if isAppEnabled {
-            selectionMonitor?.start()
+        } else {
+            if isAppEnabled {
+                selectionMonitor?.start()
+            }
+            // Relaunches after onboarding still show the one-time nudge until it's dismissed once.
+            showPostOnboardingCoachMark()
         }
 
         NotificationCenter.default.addObserver(
@@ -133,67 +134,33 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
     }
     
-    private func handleTrustChange(_ change: ExtensionTrustChange) {
-        switch change {
-        case .newPackage(let packageID, let name):
-            postTrustNotification(title: "New Extension", body: "\(name) needs your review before it can run.", packageID: packageID)
-        case .tampered(let packageID, let name):
-            postTrustNotification(title: "Extension Disabled", body: "\(name) was disabled because its files changed.", packageID: packageID, reason: .filesChanged)
-        }
-    }
 
-    private func postTrustNotification(title: String, body: String, packageID: String, reason: ExtensionGateReason? = nil) {
-        Task {
-            let center = UNUserNotificationCenter.current()
-            let settings = await center.notificationSettings()
-            var authorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
-            if settings.authorizationStatus == .notDetermined {
-                authorized = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
-            }
-            guard authorized else {
-                Log.extensions.warning("Trust notification skipped: notifications not authorized")
-                return
-            }
-            let content = UNMutableNotificationContent()
-            content.title = title
-            content.body = body
-            var userInfo: [AnyHashable: Any] = ["packageID": packageID]
-            if let reason {
-                userInfo["reason"] = reason.plistTag
-            }
-            content.userInfo = userInfo
-            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-            try? await center.add(request)
-        }
-    }
-
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard let packageID = response.notification.request.content.userInfo["packageID"] as? String else { return }
-        let reason = (response.notification.request.content.userInfo["reason"] as? String).flatMap(ExtensionGateReason.init(plistTag:))
-        await MainActor.run {
-            statusBarController?.showPreferences()
-            Task { @MainActor in
-                var userInfo: [AnyHashable: Any] = ["packageID": packageID]
-                if let reason {
-                    userInfo["reason"] = reason
-                }
-                NotificationCenter.default.post(name: .openClipOpenTrustModel, object: nil, userInfo: userInfo)
-            }
-        }
-    }
-
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
-    }
 
     private func showOnboarding() {
+        // Deliberately no post-finish window dump: completing (or skipping) onboarding hands
+        // control straight back with a one-time "try it" coach-mark — the user's next step is to
+        // select text, not read Preferences.
         onboardingWindowController = OnboardingWindowController { [weak self] in
             if DefaultSettingsStore.shared.get(.isAppEnabled) {
                 self?.selectionMonitor?.start()
             }
-            self?.statusBarController?.showPreferences()
+            self?.showPostOnboardingCoachMark()
         }
         onboardingWindowController?.showWindow(nil)
+    }
+
+    /// One-time post-onboarding nudge: teaches the primary gesture ("select any text") when
+    /// Accessibility is in place, or offers a Preferences shortcut when the user skipped it.
+    /// `CoachMarkController` self-guards on its persisted seen-flag, so this is safe to call from
+    /// both the onboarding-completion path and subsequent launches until it's been dismissed once.
+    private func showPostOnboardingCoachMark() {
+        let controller = CoachMarkController(
+            accessibilityGranted: PermissionManager.shared.isAccessibilityGranted,
+            onSetupAction: { [weak self] in
+                self?.statusBarController?.showPreferences()
+            })
+        coachMarkController = controller
+        controller.show(anchorFrame: statusBarController?.statusItemButtonFrame)
     }
 
     /// Starts the extensions-directory watcher so extension changes are hot-reloaded without a relaunch.

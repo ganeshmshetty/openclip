@@ -54,16 +54,54 @@ final class ToastPanelControllerTests: XCTestCase {
         controller.hide()
     }
 
-    /// The toast must center on the anchor point, not the cursor.
+    /// The toast must attach just below the anchored popup frame, centered on it — linked to the
+    /// popup surface, never the cursor.
     @MainActor
-    func testShowCentersOnAnchorPoint() {
+    func testAnchorsBelowPopupFrameCenteredOnIt() {
         let controller = ToastPanelController()
-        let anchor = CGPoint(x: 500, y: 400)
-        controller.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorPoint: anchor)
-        let size = controller.panelFrame.size
-        XCTAssertEqual(controller.panelFrame.midX, anchor.x, accuracy: 1)
-        XCTAssertEqual(controller.panelFrame.midY, anchor.y, accuracy: 1)
-        XCTAssertGreaterThan(size.width, 0)
+        let popup = NSRect(x: 400, y: 420, width: 220, height: 44)
+        controller.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorFrame: popup)
+        XCTAssertEqual(controller.panelFrame.midX, popup.midX, accuracy: 1)
+        XCTAssertEqual(controller.panelFrame.maxY, popup.minY - PopupMetrics.toastAnchorGap, accuracy: 1)
+        XCTAssertEqual(controller.lastAnchorFrame, popup)
+        XCTAssertGreaterThan(controller.panelFrame.width, 0)
+        controller.hide()
+    }
+
+    /// Near the screen bottom there is no room below: the toast flips above the popup's top edge.
+    @MainActor
+    func testFlipsAbovePopupWhenNoRoomBelow() throws {
+        let visible = try XCTUnwrap(NSScreen.main?.visibleFrame)
+        let controller = ToastPanelController()
+        let popup = NSRect(x: 300, y: visible.minY + 2, width: 200, height: 40)
+        controller.show(StatusFeedback(message: "Copied", style: .success), anchorFrame: popup)
+        XCTAssertEqual(controller.panelFrame.minY, popup.maxY + PopupMetrics.toastAnchorGap, accuracy: 1)
+        XCTAssertEqual(controller.panelFrame.midX, popup.midX, accuracy: 1)
+        controller.hide()
+    }
+
+    /// A follow-up show without an anchor (e.g. a loading spinner settling) stays attached to the
+    /// same popup frame instead of moving.
+    @MainActor
+    func testShowWithoutAnchorReusesLastPopupFrame() {
+        let controller = ToastPanelController()
+        let popup = NSRect(x: 500, y: 460, width: 240, height: 44)
+        controller.showLoading(message: "Opening…", anchorFrame: popup)
+        controller.swapTo(StatusFeedback(message: "Done", style: .info))
+        XCTAssertEqual(controller.panelFrame.midX, popup.midX, accuracy: 1)
+        XCTAssertEqual(controller.panelFrame.maxY, popup.minY - PopupMetrics.toastAnchorGap, accuracy: 1)
+        controller.hide()
+    }
+
+    /// With no anchor at all the toast centers deterministically on the main screen — it must
+    /// never fall back to chasing the pointer.
+    @MainActor
+    func testWithoutAnyAnchorCentersOnMainScreenNotCursor() throws {
+        let visible = try XCTUnwrap(NSScreen.main?.visibleFrame)
+        let controller = ToastPanelController()
+        controller.show(StatusFeedback(message: "Copied", style: .success))
+        XCTAssertNil(controller.lastAnchorFrame)
+        XCTAssertEqual(controller.panelFrame.midX, visible.midX, accuracy: 1)
         controller.hide()
     }
 

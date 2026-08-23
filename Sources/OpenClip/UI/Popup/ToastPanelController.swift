@@ -5,6 +5,11 @@
 // status surface: replaces the removed inline banner. Info/error toasts auto-dismiss after
 // `autoDismissNanoseconds` unless `keepVisible`; loading and keep-visible toasts have no timer
 // and are cleared via swapTo/hide.
+//
+// Toasts are linked to the popup that produced them: each show takes an anchor frame (the
+// popup's screen frame) and the bubble attaches just below it — flipping above when there is no
+// room below — clamped to the visible frame. There is deliberately no pointer fallback: an
+// unanchored toast centers on the main screen rather than chasing the cursor.
 import AppKit
 import SwiftUI
 import Core
@@ -16,16 +21,16 @@ public final class ToastPanelController {
     public var isShowing: Bool { panel.isVisible }
     /// The toast panel's current frame (screen coords). Internal for tests.
     var panelFrame: NSRect { panel.frame }
-    /// The screen point the toast last anchored to (screen coords); nil when the toast fell back to
-    /// the cursor. Internal for tests — lets tests assert a toast anchored to the popup, not cursor.
-    var lastAnchorPoint: CGPoint? { _lastAnchorPoint }
+    /// The popup frame the toast last anchored to (screen coords); nil when none was ever given.
+    /// Internal for tests — lets tests assert a toast anchored to the popup, not the cursor.
+    var lastAnchorFrame: NSRect? { _lastAnchorFrame }
 
     private let panel: ToastPanel
     private let autoDismissNanoseconds: UInt64
     private var dismissTask: Task<Void, Never>?
     private let hostingView: NSHostingView<ToastView>
-    /// The screen point the toast should center on; nil falls back to the cursor.
-    private var _lastAnchorPoint: CGPoint?
+    /// The popup frame the toast should attach to; nil falls back to main-screen centering.
+    private var _lastAnchorFrame: NSRect?
 
     public init(panel: ToastPanel = ToastPanel(),
                 autoDismissNanoseconds: UInt64 = PopupMetrics.toastDurationNanoseconds) {
@@ -45,16 +50,16 @@ public final class ToastPanelController {
         self.panel.contentView = container
     }
 
-    /// Shows (or replaces) a toast centered on an anchor point. Info/error toasts auto-dismiss
+    /// Shows (or replaces) a toast attached to the popup's frame. Info/error toasts auto-dismiss
     /// unless `keepVisible`; loading and keep-visible toasts have no timer and are cleared via
-    /// `swapTo`/`hide`. `anchorPoint` is the screen position the toast centers on; when nil the
-    /// previous anchor is reused, and when there is none the cursor is used.
-    public func show(_ feedback: StatusFeedback, anchorPoint: CGPoint? = nil) {
+    /// `swapTo`/`hide`. `anchorFrame` is the popup's screen frame; when nil the previous anchor is
+    /// reused, and with no anchor at all the toast centers on the main screen.
+    public func show(_ feedback: StatusFeedback, anchorFrame: NSRect? = nil) {
         dismissTask?.cancel()
         dismissTask = nil
         currentFeedback = feedback
         isLoading = feedback.isLoading
-        if let anchorPoint { _lastAnchorPoint = anchorPoint }
+        if let anchorFrame { _lastAnchorFrame = anchorFrame }
         hostingView.rootView = ToastView(feedback: feedback)
         // Size from the freshly-set content, not a stale pre-layout measurement: without a layout
         // pass the hosting view reports a large default fitting size and the toast renders oversized.
@@ -71,8 +76,8 @@ public final class ToastPanelController {
 
     /// Shows a loading (spinner) toast. Loading toasts have no timer and are cleared via
     /// `swapTo`/`hide`.
-    public func showLoading(message: String, anchorPoint: CGPoint? = nil) {
-        show(StatusFeedback(message: message, style: .info, isLoading: true), anchorPoint: anchorPoint)
+    public func showLoading(message: String, anchorFrame: NSRect? = nil) {
+        show(StatusFeedback(message: message, style: .info, isLoading: true), anchorFrame: anchorFrame)
     }
 
     /// Replaces a loading toast with a settled status. Info/error statuses auto-dismiss unless
@@ -98,18 +103,32 @@ public final class ToastPanelController {
         }
     }
 
-    /// Centers the toast on the anchor point (falling back to the cursor), clamped to the
-    /// visible frame.
+    /// Attaches the toast to the anchored popup frame: horizontally centered on it, sitting just
+    /// below its bottom edge — flipping above its top edge when there is no room below — clamped
+    /// to the visible frame.
     private func place(at size: CGSize) {
-        // Pick the screen from the anchor point (or the cursor when there is no anchor), never the
-        // centered toast origin: near screen edges the toast origin can land on the wrong screen.
-        let reference = _lastAnchorPoint ?? NSEvent.mouseLocation
-        var origin = CGPoint(x: reference.x - size.width / 2, y: reference.y - size.height / 2)
-        if let screen = NSScreen.screens.first(where: { $0.frame.contains(reference) }) ?? NSScreen.main {
-            let vf = screen.visibleFrame
-            origin.x = min(max(origin.x, vf.minX), vf.maxX - size.width)
-            origin.y = min(max(origin.y, vf.minY), vf.maxY - size.height)
+        guard let anchor = _lastAnchorFrame else {
+            // No popup has anchored this session: center on the main screen. Deliberately never
+            // the pointer — a toast is linked to the surface that produced it, not the cursor.
+            centerOnScreen(size: size)
+            return
         }
+        let screen = NSScreen.screens.first { $0.frame.intersects(anchor) } ?? NSScreen.main
+        let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+        let gap = PopupMetrics.toastAnchorGap
+        var origin = CGPoint(x: anchor.midX - size.width / 2,
+                             y: anchor.minY - size.height - gap)
+        if origin.y < visible.minY {
+            origin.y = anchor.maxY + gap
+        }
+        origin.x = min(max(origin.x, visible.minX), max(visible.minX, visible.maxX - size.width))
+        origin.y = min(max(origin.y, visible.minY), max(visible.minY, visible.maxY - size.height))
+        panel.setFrame(NSRect(origin: origin, size: size), display: true)
+    }
+
+    private func centerOnScreen(size: CGSize) {
+        let visible = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+        let origin = CGPoint(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
     }
 }

@@ -175,9 +175,9 @@ public enum ExtensionTrustGate {
                 return true
             }
 
-            if source == .store, record == nil {
-                // Fresh store install = consent: trust with the current hash. The install path
-                // seeds `extensionSources` before the load; this branch must not consult the
+            if (source == .store || source == .package), record == nil {
+                // Fresh store or package install = consent: trust with the current hash. The install
+                // path seeds `extensionSources` before the load; this branch must not consult the
                 // migration flag either way.
                 if writeTrusted() {
                     if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
@@ -196,11 +196,10 @@ public enum ExtensionTrustGate {
                     hashesChanged = true
                     if compatible { real() } else { gated(.needsNewerApp(required: required ?? "")) }
                 } else {
-                    // Store or Packaged extension: unexpected content drift is a tamper!
-                    // Only the update flow re-trusts (via ExtensionUpdateManager.update → enablePackage).
+                    // Store or Packaged extension: unexpected content drift is a silent disable!
+                    // Only the update flow or user toggle in Preferences re-trusts.
                     trust[packageID] = "seen"
                     trustChanged = true
-                    events.append(.tampered(packageID: packageID, name: name))
                     gated(.filesChanged)
                 }
             } else if record == nil {
@@ -214,7 +213,6 @@ public enum ExtensionTrustGate {
                 } else {
                     trust[packageID] = "seen"
                     trustChanged = true
-                    events.append(.newPackage(packageID: packageID, name: name))
                     gated(.notEnabled)
                 }
             } else {

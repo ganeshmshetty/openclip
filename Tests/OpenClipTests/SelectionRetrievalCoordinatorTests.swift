@@ -574,39 +574,134 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertNil(result?.html)
     }
 
-    func testHungAXInspectTimesOutAndFailsFastWhileOccupied() async {
-        let inspectStarted = expectation(description: "inspect started")
-        let unblockInspect = expectation(description: "unblock inspect")
-        
+    // MARK: - Inspect concurrency gate
+
+    /// Regression: overlapping gestures (quick re-selection, double-click, hotkey+monitor races)
+    /// used to fail fast on the single AX slot — popup for neither selection. Each concurrent
+    /// read now gets its own permit and delivers independently.
+    func testConcurrentRetrievesBothDeliver() async {
+        let inspectStarted = expectation(description: "both inspects started")
+        inspectStarted.expectedFulfillmentCount = 2
+        inspectStarted.assertForOverFulfill = true
+        let unblock = DispatchSemaphore(value: 0)
+
         let coordinator = SelectionRetrievalCoordinator(
             inspect: {
                 inspectStarted.fulfill()
-                _ = XCTWaiter.wait(for: [unblockInspect], timeout: 0.5)
-                return Self.textFieldTarget(selectedText: "eventual text")
+                unblock.wait()
+                return Self.textFieldTarget(selectedText: "overlap text")
             }
         )
-        
         let policy = AppPolicyContext(retrievalMode: .axTextControl)
-        
-        // Launch first retrieve that will hang in inspect
+
         async let firstResult = coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.test.app"),
             policy: policy,
             cursor: .unknown
         )
-        
-        await fulfillment(of: [inspectStarted], timeout: 1.0)
-        
-        // Second concurrent retrieve should fail fast because axSlot is occupied
-        let secondResult = await coordinator.retrieve(
+        async let secondResult = coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.test.app"),
             policy: policy,
             cursor: .unknown
         )
-        XCTAssertNil(secondResult)
-        
-        unblockInspect.fulfill()
-        _ = await firstResult
+
+        await fulfillment(of: [inspectStarted], timeout: 2.0)
+        unblock.signal()
+        unblock.signal()
+
+        let first = await firstResult
+        let second = await secondResult
+        XCTAssertEqual(first?.text, "overlap text", "first overlapping gesture must still deliver")
+        XCTAssertEqual(second?.text, "overlap text", "second overlapping gesture must not be dropped")
+    }
+
+    /// Regression: the permit was released only when the underlying blocking inspect returned,
+    /// so one slow/hung app kept every subsequent popup missing for seconds. The permit must free
+    /// at the caller's watchdog deadline even while that worker is still parked.
+    func testInspectPermitFreesAtWatchdogDeadlineWhileWorkerStillHung() async {
+        // Worker #1 parks far past axReadTimeout (0.5s): its caller gets nil from the watchdog
+        // while the AX queue thread stays blocked on the semaphore.
+        let zombieUnblock = DispatchSemaphore(value: 0)
+        defer { zombieUnblock.signal() }
+        let hungCoordinator = SelectionRetrievalCoordinator(
+            inspect: {
+                zombieUnblock.wait()
+                return Self.textFieldTarget(selectedText: "zombie")
+            }
+        )
+        // A fresh coordinator shares the process-wide gate — proving the permit crossed instances.
+        let freshCoordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: "fresh") }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+
+        let hungResult = await hungCoordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(hungResult, "watchdog must return nil for the hung read")
+
+        // The deadline already settled the hung call; a new retrieval must proceed immediately.
+        let freshStart = Date()
+        let freshResult = await freshCoordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertLessThan(Date().timeIntervalSince(freshStart), Constants.axReadTimeout,
+                          "new read must not wait behind the abandoned hung worker")
+        XCTAssertEqual(freshResult?.text, "fresh",
+                       "permit must be usable again right after the watchdog deadline")
+
+        zombieUnblock.signal() // release the abandoned AX worker thread
+    }
+
+    /// The concurrency cap still bounds pile-up: at `Constants.axMaxConcurrentInspects`
+    /// simultaneously-awaited reads, further requests skip instead of stacking more workers.
+    func testConcurrencyCapFailsFastWhenSaturated() async {
+        let inspectStarted = expectation(description: "cap-filling inspects started")
+        inspectStarted.expectedFulfillmentCount = Constants.axMaxConcurrentInspects
+        inspectStarted.assertForOverFulfill = true
+        let unblock = DispatchSemaphore(value: 0)
+
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: {
+                inspectStarted.fulfill()
+                unblock.wait()
+                return Self.textFieldTarget(selectedText: "parked")
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+
+        var parkedResults: [Task<TextResult?, Never>] = []
+        for _ in 0..<Constants.axMaxConcurrentInspects {
+            parkedResults.append(Task {
+                await coordinator.retrieve(
+                    for: AppIdentity(bundleIdentifier: "com.test.app"),
+                    policy: policy,
+                    cursor: .unknown
+                )
+            })
+        }
+        await fulfillment(of: [inspectStarted], timeout: 2.0)
+
+        let start = Date()
+        let overflow = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertNil(overflow, "saturated gate must skip the extra read instead of piling up")
+        XCTAssertLessThan(Date().timeIntervalSince(start), 0.3,
+                          "the overflow read must fail fast, not queue")
+
+        unblock.signal()
+        for _ in 0..<Constants.axMaxConcurrentInspects { unblock.signal() }
+        for task in parkedResults {
+            let value = await task.value
+            XCTAssertEqual(value?.text, "parked")
+        }
     }
 }
 

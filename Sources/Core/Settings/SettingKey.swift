@@ -54,6 +54,9 @@ public extension SettingKey where Value == Bool {
     static var isAppEnabled: SettingKey<Bool> { SettingKey<Bool>("isAppEnabled", defaultValue: true) }
     static var isMouseHoldEnabled: SettingKey<Bool> { SettingKey<Bool>("isMouseHoldEnabled", defaultValue: true) }
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
+    /// True once the one-time post-onboarding coach-mark ("select any text" / "finish setup")
+    /// has been dismissed by any path — it never shows again for this install.
+    static var hasDismissedPostOnboardingCoachMark: SettingKey<Bool> { SettingKey<Bool>("hasDismissedPostOnboardingCoachMark", defaultValue: false) }
     static var startAtLogin: SettingKey<Bool> { SettingKey<Bool>("startAtLogin", defaultValue: false) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
     /// True once the one-time migration (auto-trust existing installs) has run.

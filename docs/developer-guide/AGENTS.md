@@ -566,7 +566,7 @@ a laid-out content measurement (`layoutSubtreeIfNeeded()` before reading the hos
 hosting view sits in a plain container so the window's constraint engine never tracks the SwiftUI
 content (an `NSHostingView` as a direct contentView that re-measures during the display cycle
 crashes with "marked as needing another Update Constraints in Window pass"). Info/error toasts
-auto-dismiss after `PopupMetrics.toastDurationNanoseconds` (0.5 s); loading toasts have no timer
+auto-dismiss after `PopupMetrics.toastDurationNanoseconds` (1.8 s); loading toasts have no timer
 and stay until the result lands.
 
 ---

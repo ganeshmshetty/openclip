@@ -790,9 +790,9 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertNil(toast.currentFeedback, "native copy must not show the Copied toast")
     }
 
-    /// Every `.toast` result routes to the toast (the single status surface). The popup is
-    /// shown first (via `shownController`) so `panel` exists and the toast anchors to the popup's
-    /// frame — matching production, where a nil panel would otherwise fall back to the cursor.
+    /// Every `.toast` result routes to the toast (the single status surface). A test session has
+    /// no panel window (`startTestSession` creates none), so the toast falls back to deterministic
+    /// main-screen centering — the contract forbids any pointer fallback.
     @MainActor
     func testToastRoutesToToast() async throws {
         let toast = ToastPanelController()
@@ -804,7 +804,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.handleActionResult(.toast(StatusFeedback(message: "hello", style: .info)))
         XCTAssertEqual(toast.currentFeedback?.message, "hello")
         XCTAssertTrue(toast.isShowing)
-        XCTAssertNotNil(toast.lastAnchorPoint, "status toast must anchor to the popup point, not the cursor")
+        XCTAssertNil(toast.lastAnchorFrame, "no panel frame exists in a test session; must not invent a cursor anchor")
     }
 
     // MARK: - Loading (slow-action) early-close flow

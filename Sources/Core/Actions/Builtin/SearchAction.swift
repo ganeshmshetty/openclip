@@ -36,19 +36,29 @@ public struct SearchAction: ConfigurableAction {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let query = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let template = settingsStore.get(.searchURL)
-        let targetTemplate = template.isEmpty ? "https://www.google.com/search?q={query}" : template
-        
+        let targetTemplate = resolveTemplate()
+
         if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: Constants.queryValueAllowed) {
             let urlString = targetTemplate.contains("{query}") ?
                 targetTemplate.replacingOccurrences(of: "{query}", with: encodedQuery) :
                 "https://www.google.com/search?q=\(encodedQuery)"
-            
+
             if let url = URL(string: urlString) {
                 return .openURL(url)
             }
         }
-        
+
         return .failure(NSError(domain: Constants.actionErrorDomain, code: Constants.actionErrorCode, userInfo: nil))
+    }
+
+    /// Reads the `url` option this action declares in `actionOptions` (the key the
+    /// Preferences edit sheet writes), falling back to the legacy pre-option-store key,
+    /// then to Google. An empty stored value counts as unset.
+    private func resolveTemplate() -> String {
+        let configured = settingsStore.get(SettingKey.actionOption(actionID: id, optionID: "url"))
+        if !configured.isEmpty { return configured }
+        let legacy = settingsStore.get(.searchURL)
+        if !legacy.isEmpty { return legacy }
+        return "https://www.google.com/search?q={query}"
     }
 }

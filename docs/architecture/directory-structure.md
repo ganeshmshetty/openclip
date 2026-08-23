@@ -153,6 +153,5 @@ Sources/
             ├── ExtensionInstallPanel.swift     # Shared "Install File…" NSOpenPanel presenter
             ├── ExtensionsStoreView.swift       # Extension store browser (ViewModel + ExtensionStoreView)
             ├── GeneralTabView.swift            # General tab: enable toggle, hotkey, start-at-login, permissions
-            ├── InstalledExtensionsView.swift   # Installed extensions sub-tab with per-row uninstall
             └── PreferencesView.swift
 ```

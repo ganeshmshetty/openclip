@@ -14,7 +14,16 @@ public enum PopupMetrics {
     public static let searchCornerRadius: CGFloat = 10.0
     /// Corner radius for floating toast bubbles.
     public static let toastCornerRadius: CGFloat = 14.0
+    /// Gap between a toast bubble and the popup edge it attaches to.
+    public static let toastAnchorGap: CGFloat = 8.0
     public static let popupPadding: CGFloat = 8.0
+    /// Transparent ring (pt) around the popup content *inside* the panel frame: `PopupView` pads
+    /// its content by this amount so the SwiftUI drop shadow renders inside the panel edge instead
+    /// of being clipped. The ring is excluded from mouse hit-testing by `PopupPanelContentView`
+    /// so clicks in the visible shadow fall through to the app underneath (and dismiss the popup)
+    /// instead of being silently swallowed by the panel frame. Keep in sync with PopupView's
+    /// `.padding(popupShadowInset)`.
+    public static let popupShadowInset: CGFloat = 16.0
     /// Cursor distance (pt) beyond which the popup auto-dismisses (suspended in search/content mode).
     public static let popupDismissalDistance: CGFloat = 160.0
     /// Vertical threshold (pt) from the bottom of the screen bounds below which the card renders
@@ -39,9 +48,10 @@ public enum PopupMetrics {
     /// collapsed to nothing while the header/footer rendered). A concrete height gives the card a
     /// deterministic preferred size and keeps the whole card under `popupMaxHeight`.
     public static let aiCardBodyHeight: CGFloat = 120
-    /// How long an info/error toast stays up before auto-dismissing (0.5 s). Loading toasts have
-    /// no timer — they live until the action's result lands.
-    public static let toastDurationNanoseconds: UInt64 = 500_000_000
+    /// How long an info/error toast stays up before auto-dismissing (1.2 s — long enough to read
+    /// "Copied"-style feedback). Loading toasts have no timer — they live until the action's
+    /// result lands.
+    public static let toastDurationNanoseconds: UInt64 = 1_200_000_000
 
     /// Converts a 1...5 discrete scale level to a visual scaling multiplier.
     /// Level 3 is the normal default (1.0).
