@@ -245,11 +245,17 @@ public struct PopupSearchView: View {
                 if results.isEmpty {
                     VStack {
                         Spacer()
-                        Text("No matching actions")
-                            .font(.system(size: 13))
-                            .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                        VStack(spacing: 4) {
+                            Text(query.isEmpty ? "No matching actions" : "No matches for “\(query)”")
+                                .font(.system(size: 13))
+                                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                            Text("Press esc to go back")
+                                .font(.system(size: 11))
+                                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme).opacity(0.7))
+                        }
                         Spacer()
                     }
+                    .accessibilityElement(children: .combine)
                     .frame(maxWidth: .infinity, minHeight: resultsViewportHeight)
                 } else {
                     LazyVStack(spacing: 0) {

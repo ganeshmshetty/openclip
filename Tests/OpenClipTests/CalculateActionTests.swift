@@ -175,6 +175,29 @@ final class CalculateActionTests: XCTestCase {
         }
     }
 
+    /// '^' is right-associative and unary minus binds looser than '^':
+    /// 2^3^2 = 2^(3^2) = 512, and -2^2 = -(2^2) = -4.
+    func testMathEvaluatorPowerPrecedenceAndAssociativity() {
+        let cases: [(input: String, expected: Double)] = [
+            ("2^3^2", 512),
+            ("2**3**2", 512),
+            ("-2^2", -4),
+            ("-2**2", -4),
+            ("(-2)^2", 4),
+            ("2^-2", 0.25),
+            ("-2^-2", -0.25),
+            ("4^0.5", 2),
+            ("2*3^2", 18),
+            ("-3^2 + 1", -8)
+        ]
+        for testCase in cases {
+            guard let value = MathEvaluator.evaluate(testCase.input) else {
+                return XCTFail("\(testCase.input) should evaluate")
+            }
+            XCTAssertEqual(value, testCase.expected, accuracy: 0.0001, "\(testCase.input)")
+        }
+    }
+
     func testMathEvaluatorRejectsMalformed() {
         XCTAssertNil(MathEvaluator.evaluate("+"))
         XCTAssertNil(MathEvaluator.evaluate("-"))

@@ -26,6 +26,16 @@ public struct EditActionSheet: View {
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
     @State private var initialIconSymbol: String = ""
+    /// Icon-symbol customization stored before the sheet opened (nil = none). An untouched icon
+    /// field round-trips this on Save instead of writing the picker's baseline, so title-only
+    /// edits can't clobber package-file / remote-image / text-glyph icons.
+    @State private var initialStoredSymbol: String? = nil
+    /// The action's effective real icon while no replacement has been picked from the picker;
+    /// drives the honest preview in the Appearance fields.
+    @State private var baseIconState: ActionIcon? = nil
+    /// Set by Reset Name & Icon; the persisted override is cleared on Save (not immediately), so
+    /// Cancel still backs out of an accidental reset.
+    @State private var appearanceResetPending = false
     @State private var displayMode: Int = 0 // 0 = Icon, 1 = Text
     @State private var showingIconPicker: Bool = false
     
@@ -127,7 +137,10 @@ public struct EditActionSheet: View {
                         VStack(alignment: .leading, spacing: 14) {
                             ActionAppearanceFields(
                                 title: $customTitle,
+                                displayTextFallback: action.title,
                                 iconSymbol: $iconSymbol,
+                                initialIconSymbol: initialIconSymbol,
+                                baseIcon: baseIconState,
                                 displayMode: $displayMode
                             )
                             
@@ -255,17 +268,11 @@ public struct EditActionSheet: View {
     
     private func loadInitialState() {
         let override = ActionCustomizationManager.shared.override(for: action.id)
-        
+
         customTitle = override?.customTitle ?? action.title
-        if let sym = override?.customIconSymbol, !sym.isEmpty {
-            iconSymbol = sym
-        } else if case .symbol(let sym) = action.icon {
-            iconSymbol = sym
-        } else {
-            iconSymbol = "star"
-        }
-        initialIconSymbol = iconSymbol
-        
+        initialStoredSymbol = Self.sanitizedStoredSymbol(override?.customIconSymbol, actionIcon: action.icon)
+        seedBaseline(from: ActionCustomizationManager.shared.popupIcon(for: action))
+
         if override?.customIconText != nil {
             displayMode = 1
         } else if case .text = action.icon {
@@ -314,6 +321,20 @@ public struct EditActionSheet: View {
         }
     }
     
+    /// Seeds the icon editor from an effective icon: symbol-representable icons become the editable
+    /// string baseline; package-file / remote-image / text-glyph icons stay out of the string field
+    /// ("" = untouched) and are previewed via `baseIconState` instead of a placeholder symbol.
+    private func seedBaseline(from icon: ActionIcon) {
+        if case .symbol(let sym) = icon {
+            iconSymbol = sym
+            baseIconState = nil
+        } else {
+            iconSymbol = ""
+            baseIconState = icon
+        }
+        initialIconSymbol = iconSymbol
+    }
+
     private func loadCustomType(from customAction: CustomAction) {
         customType = customAction.type
         switch customAction.type {
@@ -326,26 +347,43 @@ public struct EditActionSheet: View {
     }
     
     private func resetAppearance() {
-        ActionCustomizationManager.shared.resetOverride(for: action.id)
-        // Manifest-backed and builtin both re-read current on-disk state, discarding unsaved edits.
-        loadInitialState()
+        // Editors-only reset: persisted overrides/manifest are cleared on Save, so Cancel still
+        // backs out of an accidental reset.
+        appearanceResetPending = true
+        initialStoredSymbol = nil
+        seedBaseline(from: action.icon)
+        if case .text = action.icon {
+            displayMode = 1
+        } else {
+            displayMode = 0
+        }
+        customTitle = action.title
     }
-    
+
     // MARK: - Saving
-    
+
     private func saveChanges() async -> Bool {
-        saveAppearanceOverride()
+        if appearanceResetPending {
+            ActionCustomizationManager.shared.resetOverride(for: action.id)
+            appearanceResetPending = false
+        } else {
+            saveAppearanceOverride()
+        }
         if isBuiltin {
             return true
         }
         return await saveManifestChanges()
     }
-    
+
     private func saveAppearanceOverride() {
         let titleOverride: String? = (customTitle.isEmpty || customTitle == action.title) ? nil : customTitle
-        let symbolOverride: String? = iconSymbol.isEmpty ? nil : iconSymbol
+        let symbolOverride = Self.resolvedSymbolOverride(
+            current: iconSymbol,
+            initial: initialIconSymbol,
+            stored: initialStoredSymbol
+        )
         let textOverride: String? = (displayMode == 1) ? (customTitle.isEmpty ? action.title : customTitle) : nil
-        
+
         ActionCustomizationManager.shared.setOverride(
             for: action.id,
             title: titleOverride,
@@ -353,6 +391,31 @@ public struct EditActionSheet: View {
             text: textOverride
         )
     }
+
+    // MARK: - Appearance save decisions (pure, unit-tested)
+
+    /// Symbol value to persist for the icon field. A genuinely user-picked change wins; an untouched
+    /// field round-trips whatever was stored before (nil when there was none), so editing only the
+    /// title never rewrites the icon.
+    static func resolvedSymbolOverride(current: String, initial: String, stored: String?) -> String? {
+        guard current.isEmpty || current == initial else { return current }
+        return stored
+    }
+
+    /// Overrides written before the icon-clobber fix stored a literal "star" placeholder for every
+    /// non-symbol-representable icon. Treat those as absent so the next Save heals them; a genuine
+    /// "star" pick is kept only when the action's own icon already is that symbol.
+    static func sanitizedStoredSymbol(_ raw: String?, actionIcon: ActionIcon) -> String? {
+        guard let raw, !raw.isEmpty else { return nil }
+        if raw == legacyFallbackSymbol {
+            if case .symbol(let sym) = actionIcon, sym == legacyFallbackSymbol { return raw }
+            return nil
+        }
+        return raw
+    }
+
+    private static let legacyFallbackSymbol = "star"
+
     
     private func saveManifestChanges() async -> Bool {
         guard let state = manifestState else {

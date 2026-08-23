@@ -12,6 +12,7 @@
 // swapping to the narrower search palette or a shorter pagination page never drifts it off the
 // cursor. Both flags are cleared by `show(for:)` before a fresh placement.
 import AppKit
+import SwiftUI
 import Core
 
 @MainActor
@@ -25,11 +26,6 @@ public class PopupPanel: NSPanel {
     /// center (search palette, pagination), instead of the hosting view's top-anchored default that
     /// preserves origin.x and drifts the popup off the cursor.
     public var recenterXOnResize: Bool = false
-
-    /// The center point of the panel in screen coordinates.
-    public var centerPoint: CGPoint {
-        CGPoint(x: frame.midX, y: frame.midY)
-    }
 
     public init() {
         super.init(
@@ -47,6 +43,25 @@ public class PopupPanel: NSPanel {
 
     override public var canBecomeKey: Bool { allowsKey }
     override public var canBecomeMain: Bool { allowsKey }
+
+    /// Root content view of the popup panel. `PopupView` renders inside a transparent
+    /// `popupShadowInset` ring so the SwiftUI drop shadow isn't clipped at the panel edge; without
+    /// special handling that ring is part of the window frame, so a click in the visible shadow is
+    /// delivered to (and swallowed by) the panel — no dismissal, and the app underneath never sees
+    /// it. Excluding the ring from mouse hit-testing makes the window server route those clicks to
+    /// whatever window is actually beneath the pointer, where the controller's global monitor then
+    /// dismisses the popup.
+    public final class ContentView: NSHostingView<PopupView> {
+        /// Pure hit-test rule (unit-testable without a live SwiftUI tree): only the area inside the
+        /// shadow ring belongs to the popup.
+        public static func isInsideClickableRegion(point: NSPoint, bounds: NSRect) -> Bool {
+            bounds.insetBy(dx: PopupMetrics.popupShadowInset, dy: PopupMetrics.popupShadowInset).contains(point)
+        }
+
+        public override func isMousePoint(_ point: NSPoint, in rect: NSRect) -> Bool {
+            Self.isInsideClickableRegion(point: point, bounds: bounds)
+        }
+    }
 
     /// The hosting view auto-resizes the panel window top-anchored when its SwiftUI content grows
     /// (e.g. entering search mode), with no callback to the controller — but every resize funnels

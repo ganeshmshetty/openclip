@@ -89,6 +89,12 @@ public struct PopupView: View {
     /// Requests entering/leaving search mode; the controller owns the key-window changes.
     private let onEnterSearch: @MainActor () -> Void
     private let onExitSearch: @MainActor () -> Void
+    /// The popup session this view belongs to. Stamped into every streaming delivery so the
+    /// controller can drop chunks from an abandoned stream (dismissed mid-stream, superseded).
+    private let sessionID: UUID
+    /// Hands the streaming task to the controller so hide() can cancel it immediately —
+    /// session-scoped cancellation that never waits for SwiftUI view teardown.
+    private let registerStreamingTask: @MainActor (Task<Void, Never>?) -> Void
     @ObservedObject private var aiManager = AIServiceManager.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
@@ -121,6 +127,8 @@ public struct PopupView: View {
         presenter: any ActionPresenting = ActionCustomizationManager.shared,
         isStatic: Bool = false,
         modeStore: PopupModeStore = PopupModeStore(),
+        sessionID: UUID = UUID(),
+        registerStreamingTask: @escaping @MainActor (Task<Void, Never>?) -> Void = { _ in },
         onEnterSearch: @escaping @MainActor () -> Void = {},
         onExitSearch: @escaping @MainActor () -> Void = {},
         onExitContent: @escaping @MainActor () -> Void = {},
@@ -153,6 +161,8 @@ public struct PopupView: View {
         self.isStatic = isStatic
         self.hoverState = hoverState
         self.presenter = presenter
+        self.sessionID = sessionID
+        self.registerStreamingTask = registerStreamingTask
         self._modeStore = ObservedObject(wrappedValue: modeStore)
         self.onEnterSearch = onEnterSearch
         self.onExitSearch = onExitSearch
@@ -225,7 +235,10 @@ public struct PopupView: View {
 
     public var body: some View {
         barContent
-            .padding(16)
+            // Transparent ring that hosts the SwiftUI drop shadow inside the panel frame. Must
+            // equal PopupMetrics.popupShadowInset — PopupPanel.ContentView excludes exactly this
+            // region from mouse hit-testing so shadow clicks fall through to the app below.
+            .padding(PopupMetrics.popupShadowInset)
             .coordinateSpace(name: "popupHoverSpace")
             .overlay(alignment: .topLeading) {
                 GeometryReader { geo in
@@ -444,11 +457,17 @@ public struct PopupView: View {
         cancelAITask()
 
         let selectionText = context.selection.text
-        aiTask = Task { @MainActor in
+        let task = Task { @MainActor in
             isProcessingAI = true
             modeStore.isProcessingAI = true
             defer {
+                // Clear the controller's registration only on natural completion. When this
+                // task ends because hide()/show(for:) cancelled it, they already nil'd the
+                // registration — an unconditional clear here lets this stale task unwinding
+                // late wipe a newer session's live registration, so its hide() would never
+                // cancel the still-running stream.
                 if !Task.isCancelled {
+                    registerStreamingTask(nil)
                     isProcessingAI = false
                     modeStore.isProcessingAI = false
                 }
@@ -497,6 +516,10 @@ public struct PopupView: View {
                 onAIResult?(message, true, title, false)
             }
         }
+        aiTask = task
+        // Register with the controller so hide() cancels the stream immediately instead of
+        // waiting for SwiftUI teardown — chunks must never outlive their session.
+        registerStreamingTask(task)
     }
 
     private func cancelAITask() {

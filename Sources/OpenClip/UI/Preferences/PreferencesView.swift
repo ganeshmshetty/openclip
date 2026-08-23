@@ -26,11 +26,10 @@ enum PreferenceTab: String, CaseIterable, Hashable {
     }
 }
 
-/// Sub-tab selector for the merged Actions tab (Actions | Store | Installed).
+/// Sub-tab selector for the Actions tab (Actions | Store).
 enum ActionsSubTab: String, CaseIterable, Hashable {
     case actions = "Actions"
     case store = "Store"
-    case installed = "Installed"
 }
 
 @MainActor
@@ -47,10 +46,6 @@ public struct PreferencesView: View {
     @State private var actionsSubTab: ActionsSubTab = .actions
     @State private var activeSheet: PreferencesSheet?
     @ObservedObject private var coordinator = ActionCoordinator.shared
-
-    private var installedExtensionCount: Int {
-        ActionIdentity.installedPackageIDs(in: coordinator.actions).count
-    }
 
     public init() {}
 
@@ -86,6 +81,8 @@ public struct PreferencesView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(tab.rawValue)
+                    .accessibilityAddTraits(selectedTab == tab ? [.isSelected] : [])
                 }
                 
                 Spacer()
@@ -150,11 +147,10 @@ public struct PreferencesView: View {
                         Picker("", selection: $actionsSubTab) {
                             Text("Actions").tag(ActionsSubTab.actions)
                             Text("Store").tag(ActionsSubTab.store)
-                            Text("Installed (\(installedExtensionCount))").tag(ActionsSubTab.installed)
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
-                        .frame(width: 240)
+                        .frame(width: 170)
                     }
                 }
                 .frame(maxWidth: Self.detailContentMaxWidth)
@@ -182,8 +178,6 @@ public struct PreferencesView: View {
                             )
                         case .store:
                             ExtensionStoreView()
-                        case .installed:
-                            InstalledExtensionsView()
                         }
                     case .ai:
                         AITab(selectedSubTab: $aiSubTab)
@@ -212,19 +206,10 @@ public struct PreferencesView: View {
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
             activeSheet = .configure(action: action, request: request)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .openClipOpenTrustModel)) { notification in
-            guard let packageID = notification.userInfo?["packageID"] as? String else { return }
-            let reason = notification.userInfo?["reason"] as? ExtensionGateReason
-            selectedTab = .actions
-            actionsSubTab = .installed
-            activeSheet = .trust(packageID: packageID, reason: reason)
-        }
         .sheet(item: $activeSheet) { route in
             switch route {
             case .configure(let action, let request):
                 EditActionSheet(action: action, configurationRequest: request)
-            case .trust(let packageID, let reason):
-                TrustModelView(model: TrustModelViewModel.load(packageID: packageID, reason: reason))
             }
         }
     }
@@ -238,20 +223,15 @@ public struct PreferencesView: View {
         DefaultSettingsStore.shared.set(.disabledActionIDs, value: disabledActionIDs)
         DefaultSettingsStore.shared.set(.disabledPackages, value: disabledPackages)
     }
-
 }
 
-/// Single sheet route for Preferences presentations: either editing an action's configuration or
-/// reviewing a package's trust model. Identifiers are prefixed so a configure route can never
-/// collide with a trust route even when their underlying ids match.
+/// Single sheet route for Preferences presentations: editing an action's configuration.
 private enum PreferencesSheet: Identifiable {
     case configure(action: any Action, request: ConfigurationRequest?)
-    case trust(packageID: String, reason: ExtensionGateReason?)
 
     var id: String {
         switch self {
         case .configure(let action, _): return "configure:\(action.id)"
-        case .trust(let packageID, _): return "trust:\(packageID)"
         }
     }
 }

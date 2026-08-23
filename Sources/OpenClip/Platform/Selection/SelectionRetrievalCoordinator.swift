@@ -22,22 +22,23 @@ public struct SelectionRetrievalCoordinator: Sendable {
     /// pool: a hung call would pin one of those threads. Mirrors `PasteAvailabilityProbe.axProbeQueue`.
     private static let axInspectQueue = DispatchQueue(label: "com.openclip.ax-inspect", qos: .userInitiated, attributes: .concurrent)
 
-    /// Gates AX operations so at most one blocking AX worker is ever in flight. While an AX call
-    /// is stalled on a hung target app, further requests fail fast (return nil / skip press)
-    /// instead of spawning unbounded blocked workers; the slot is released once the stalled call
-    /// eventually returns. Mirrors `PasteAvailabilityProbe.ProbeSlot`.
-    private actor AXSlot {
-        var occupied = false
-        func acquire() -> Bool {
-            guard !occupied else { return false }
-            occupied = true
+    /// Bounds how many selection reads may be actively awaited at once (`Constants.axMaxConcurrentInspects`).
+    /// Unlike the single fail-fast slot it replaces, overlapping gestures — quick re-selection,
+    /// double-click, hotkey+monitor races — each get their own read, and a permit frees when the
+    /// caller's watchdog deadline settles its continuation, NOT when a hung underlying AX call
+    /// eventually returns. One slow app therefore cannot make every later popup miss.
+    private actor InspectConcurrencyGate {
+        private var inFlight = 0
+        func tryAcquire(limit: Int) -> Bool {
+            guard inFlight < limit else { return false }
+            inFlight += 1
             return true
         }
         func release() {
-            occupied = false
+            inFlight -= 1
         }
     }
-    private static let axSlot = AXSlot()
+    private static let inspectGate = InspectConcurrencyGate()
 
     private let inspect: TargetProvider
     private let browserRead: BrowserReader
@@ -274,10 +275,12 @@ public struct SelectionRetrievalCoordinator: Sendable {
             case .menuCopy:
                 trigger = {
                     Task.detached {
-                        guard await Self.axSlot.acquire() else { return }
+                        // Serialize menu presses through the shared gate; a press skipped under
+                        // saturation just lets the pasteboard capture time out to nil.
+                        guard await Self.inspectGate.tryAcquire(limit: Constants.axMaxConcurrentInspects) else { return }
                         Self.axInspectQueue.async {
                             Self.pressEditCopyMenu(app: target.focusedApp)
-                            Task.detached { await Self.axSlot.release() }
+                            Task.detached { await Self.inspectGate.release() }
                         }
                     }
                 }
@@ -312,8 +315,13 @@ public struct SelectionRetrievalCoordinator: Sendable {
 
     /// Runs the blocking AX snapshot off the cooperative pool, racing it against
     /// `Constants.axReadTimeout` so a hung target app yields `nil` instead of stalling the popup.
+    /// Whichever side settles the continuation (worker or watchdog) also frees its concurrency
+    /// permit, so the gate is never held past the caller's budget by a still-blocked worker.
     private func inspectWithWatchdog() async -> AXElementInspector.Target? {
-        guard await Self.axSlot.acquire() else { return nil }
+        guard await Self.inspectGate.tryAcquire(limit: Constants.axMaxConcurrentInspects) else {
+            Log.selection.debug("coordinator: inspect concurrency cap reached; skipping read")
+            return nil
+        }
         let inspect = self.inspect
         return await withCheckedContinuation { (continuation: CheckedContinuation<AXElementInspector.Target?, Never>) in
             let resume = OnceResume<AXElementInspector.Target?>()
@@ -322,6 +330,7 @@ public struct SelectionRetrievalCoordinator: Sendable {
             timeout.set(Task {
                 try? await Task.sleep(nanoseconds: UInt64(Constants.axReadTimeout * 1_000_000_000))
                 if resume.resume(continuation, with: nil) {
+                    Task.detached { await Self.inspectGate.release() }
                     Log.selection.debug("coordinator: AX inspect exceeded \(Constants.axReadTimeout)s deadline; returning nil")
                 }
             })
@@ -330,8 +339,8 @@ public struct SelectionRetrievalCoordinator: Sendable {
                 let target = inspect()
                 if resume.resume(continuation, with: target) {
                     timeout.cancel()
+                    Task.detached { await Self.inspectGate.release() }
                 }
-                Task.detached { await Self.axSlot.release() }
             }
         }
     }

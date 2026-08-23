@@ -299,8 +299,14 @@ public final class ExtensionManager: Sendable {
                     }
                 }
             } else {
-                // Standalone script: generated id uses filename
-                if actionID.contains(itemURL.deletingPathExtension().lastPathComponent) {
+                // Standalone script: resolve by the loader's exact id rules (mirroring
+                // ExtensionPackageHashResolver.packageHash(forPackageID:)) — the synthesized
+                // "com.custom.<filename>" id or a declared `// Identifier:` header. Never a
+                // filename substring: "a" is contained in "com.custom.alpha.sh", so a raw
+                // contains() check deletes the wrong script, and header-identified scripts
+                // would never match their filename at all.
+                let synthesized = "\(Constants.customIdentifierPrefix)\(itemURL.lastPathComponent)"
+                if actionID == synthesized || ExtensionPackageHashResolver.declaredIdentifier(of: itemURL) == actionID {
                     matched = true
                     // The standalone script's chrome package id equals its action id.
                     removedPackageID = actionID

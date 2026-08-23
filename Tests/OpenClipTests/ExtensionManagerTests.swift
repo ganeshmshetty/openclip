@@ -217,6 +217,56 @@ final class ExtensionManagerTests: XCTestCase {
         XCTAssertFalse(manager.loadedActions.contains(where: { $0.id == actionID }))
     }
 
+    /// Regression: uninstall matched loose scripts by raw filename substring
+    /// (`actionID.contains(stem)`), so uninstalling `com.custom.alpha.sh` deleted the
+    /// unrelated `a.sh` whenever directory order listed it first.
+    @MainActor
+    func testUninstallStandaloneScriptDoesNotDeleteSubstringNeighbors() async throws {
+        let manager = ExtensionManager.shared
+
+        for name in ["a.sh", "alpha.sh"] {
+            let path = tempDir.appendingPathComponent(name)
+            try "#!/bin/bash\n# Title: Script \(name)\necho ok".write(to: path, atomically: true, encoding: .utf8)
+        }
+
+        await manager.loadExtensions(from: tempDir)
+        XCTAssertEqual(manager.loadedActions.count, 2, "both loose scripts must load")
+
+        // Uninstall alpha.sh; a.sh (whose stem is a substring of alpha's action id) must survive.
+        try await manager.uninstallExtension(actionID: "com.custom.alpha.sh", targetDir: tempDir)
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: tempDir.appendingPathComponent("a.sh").path),
+                      "substring-adjacent script must not be deleted")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tempDir.appendingPathComponent("alpha.sh").path),
+                       "the requested script must be removed")
+        XCTAssertFalse(manager.loadedActions.contains { $0.id == "com.custom.alpha.sh" })
+        XCTAssertTrue(manager.loadedActions.contains { $0.id == "com.custom.a.sh" },
+                      "surviving script must stay loaded")
+    }
+
+    /// Regression: scripts declaring an `// Identifier:` header get an action id unrelated to
+    /// their filename, so the old filename-substring match never found them and uninstall 404'd.
+    @MainActor
+    func testUninstallHeaderIdentifiedStandaloneScript() async throws {
+        let manager = ExtensionManager.shared
+        let path = tempDir.appendingPathComponent("totally-unrelated-filename.sh")
+        try """
+        #!/bin/bash
+        # Title: My Tool
+        # Identifier: com.example.mytool
+        echo ok
+        """.write(to: path, atomically: true, encoding: .utf8)
+
+        await manager.loadExtensions(from: tempDir)
+        XCTAssertTrue(manager.loadedActions.contains { $0.id == "com.example.mytool" })
+
+        try await manager.uninstallExtension(actionID: "com.example.mytool", targetDir: tempDir)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path.path),
+                       "header-identified script must be deletable by its declared id")
+        XCTAssertFalse(manager.loadedActions.contains { $0.id == "com.example.mytool" })
+    }
+
     @MainActor
     func testUninstallUnknownActionThrowsNotFoundAndKeepsRegistry() async throws {
         let extDir = sourceDir.appendingPathComponent("Keepable.openclipext")

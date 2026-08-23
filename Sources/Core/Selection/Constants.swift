@@ -40,6 +40,7 @@ public enum Constants {
     public static let extensionsDirectory: URL = URL(fileURLWithPath: ("~/.openclip/extensions" as NSString).expandingTildeInPath)
     public static let manifestFileName: String = "openclip.json"
     public static let legacyManifestFileName: String = "manifest.json"
+    public static let storePageLimit: Int = 12
     public static let extKeyIdentifier: String = "Identifier"
     public static let extKeyName: String = "Name"
     public static let extKeyActions: String = "Actions"
@@ -83,6 +84,10 @@ public enum Constants {
     /// races the read against this deadline (mirroring the pasteboard poll deadlines) so the popup
     /// never hangs on selection retrieval.
     public static let axReadTimeout: TimeInterval = 0.5
+    /// How many selection reads may be concurrently awaited (inspect watchdog budget). Overlapping
+    /// gestures each get their own read; permits free at the read's deadline, never held by a
+    /// still-blocked AX worker past it.
+    public static let axMaxConcurrentInspects: Int = 4
 
     /// Hard deadline (seconds) for the Paste-availability probe's AX menu-bar walk. Mirrors
     /// `axReadTimeout`: the probe races its Edit ▸ Paste lookup against this deadline so a slow or

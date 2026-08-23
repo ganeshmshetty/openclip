@@ -66,8 +66,24 @@ public class PopupWindowController {
     /// the popup panel: it shows whether the popup is up or has already hidden. Injected for tests.
     private let toastController: ToastPanelController
 
+    /// Frame of the popup during its most recent on-screen session (screen coords), captured right
+    /// after each placement so toasts stay linked to where the popup actually was even after
+    /// hide() — never falling back to the pointer. Internal for tests.
+    var lastPopupFrame: NSRect?
+
     /// The settings store resolving the per-click result-delivery preference. Injected for tests.
     private let settingsStore: SettingsStore
+
+    /// Session token for AI streaming deliveries, bumped by hide() and show(for:). Streaming
+    /// closures are stamped with the session they were built under and dropped on mismatch, so
+    /// chunks from an abandoned stream (popup dismissed mid-stream) can never flip a later
+    /// session into content mode or re-stick isProcessingAI.
+    public private(set) var aiSessionID = UUID()
+
+    /// The live AI streaming task for the current session, registered by PopupView when it
+    /// starts streaming and cancelled by hide() — session-scoped cancellation that does not
+    /// depend on SwiftUI view teardown racing AppKit's hide().
+    var activeStreamingTask: Task<Void, Never>?
 
     public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
                 pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe(),
@@ -92,6 +108,13 @@ public class PopupWindowController {
     }
 
     public func show(for context: SelectionContext, pasteAvailable: Bool? = nil) {
+        // A new session invalidates any still-running stream from the previous one: cancel its
+        // task and bump the token so late chunks are dropped even before the old view unwinds.
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+        let aiSession = UUID()
+        aiSessionID = aiSession
+
         isMenuTracking = false
         currentContext = context
 
@@ -130,6 +153,10 @@ public class PopupWindowController {
             context: actionContext,
             initialAICardAboveBar: cardAbove,
             modeStore: modeStore,
+            sessionID: aiSession,
+            registerStreamingTask: { [weak self] task in
+                self?.activeStreamingTask = task
+            },
             onEnterSearch: { [weak self] in self?.enterSearch() },
             onExitSearch: { [weak self] in self?.exitSearch() },
             onExitContent: { [weak self] in self?.exitContent() },
@@ -143,10 +170,10 @@ public class PopupWindowController {
                 self?.resizePanel(to: size)
             },
             onAIStateChange: { [weak self] active, _ in
-                self?.modeStore.isProcessingAI = active
+                self?.setAIProcessing(active, session: aiSession)
             },
             onAIResult: { [weak self] text, isError, title, isStreaming in
-                self?.showAIContent(text: text, isError: isError, title: title, isStreaming: isStreaming)
+                self?.showAIContent(text: text, isError: isError, title: title, isStreaming: isStreaming, session: aiSession)
             },
             onHoveredActionChanged: { [weak self] action in
                 self?.updateHoveredAction(action)
@@ -167,7 +194,7 @@ public class PopupWindowController {
             },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary }
         )
-        panel.contentView = NSHostingView(rootView: rootView)
+        panel.contentView = PopupPanel.ContentView(rootView: rootView)
         panel.contentView?.layoutSubtreeIfNeeded()
         let size = sanitizedPopupSize(panel.contentView?.fittingSize)
 
@@ -178,6 +205,7 @@ public class PopupWindowController {
         modeStore.searchResultsAbove = cardAbove
 
         positionPanel(panel, size: size, for: context)
+        lastPopupFrame = panel.frame
         // Placement is fixed; any subsequent content-driven width change (search palette,
         // pagination) must re-center rather than drift off the cursor.
         panel.recenterXOnResize = true
@@ -308,13 +336,23 @@ public class PopupWindowController {
 
     // MARK: - AI Result Card
 
+    /// Applies a streaming "processing" flag update, but only for the session the update
+    /// belongs to. A stale stream (popup dismissed mid-stream, superseded by a new selection)
+    /// must never re-stick isProcessingAI after hide() cleared it.
+    func setAIProcessing(_ active: Bool, session: UUID) {
+        guard session == aiSessionID else { return }
+        modeStore.isProcessingAI = active
+    }
+
     /// Shows the AI provider's response (or error) in the native result card, entering content
     /// mode and making the panel key so Esc can collapse the card. Paste/Copy are explicit
     /// user requests routed through `performCardEffect`, so they bypass the paste-vs-copy
     /// re-decision — an explicit Paste always pastes. Probes (AX) whether the target app can paste
     /// so the card can hide its Paste button; the probe targets the captured source app, never
-    /// OpenClip itself. Internal for tests.
-    func showAIContent(text: String, isError: Bool, title: String, isStreaming: Bool = false) {
+    /// OpenClip itself. Deliveries are session-stamped: a chunk from an abandoned stream is
+    /// dropped instead of hijacking the current popup into content mode. Internal for tests.
+    func showAIContent(text: String, isError: Bool, title: String, isStreaming: Bool = false, session: UUID) {
+        guard session == aiSessionID else { return }
         modeStore.isProcessingAI = isStreaming
         modeStore.aiResult = AIResultPayload(text: text, isError: isError, title: title, isStreaming: isStreaming)
         if modeStore.mode != .content {
@@ -432,6 +470,12 @@ public class PopupWindowController {
     }
 
     public func hide() {
+        // End the AI session first: cancel the live stream and invalidate its token so any
+        // chunk already in flight is dropped instead of re-flipping state after the resets below.
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+        aiSessionID = UUID()
+
         if toastController.currentFeedback?.keepVisible == true {
             toastController.hide()
         }
@@ -449,6 +493,7 @@ public class PopupWindowController {
         modeStore.scope = nil
         panel?.pinBottomEdgeOnResize = false
         panel?.recenterXOnResize = false
+        panel?.ignoresMouseEvents = false // clear any hover-driven click-through from the last session
         exitKeyMode() // allowsKey=false + reactivate previousFrontmostApp
         previousFrontmostApp = nil // hide() is the only thing that ends the key-mode session
         panel?.orderOut(nil)
@@ -523,7 +568,9 @@ public class PopupWindowController {
             }
         case .leftMouseDown:
             let clickLoc = NSEvent.mouseLocation
-            let inBar = panel?.frame.contains(clickLoc) ?? false
+            // Content test, not frame test: clicks in the transparent shadow ring dismiss the
+            // popup like any outside click (the ring only hosts the SwiftUI drop shadow).
+            let inBar = isOverPanelContent(clickLoc)
             // Capture the modifier state at click time so the action that runs on mouse-up (via the
             // SwiftUI Button) delivers as a copy when ⇧ is held.
             let isShift = event.modifierFlags.contains(.shift)
@@ -535,7 +582,7 @@ public class PopupWindowController {
             // Right-click down: prepare force-copy intent and mark right-click in progress.
             // Execution waits for rightMouseUp (matching standard button click-release semantics).
             let clickLoc = NSEvent.mouseLocation
-            let inBar = panel?.frame.contains(clickLoc) ?? false
+            let inBar = isOverPanelContent(clickLoc)
             if inBar {
                 pendingClickIntent = .secondary
                 isRightClickInProgress = true
@@ -547,7 +594,7 @@ public class PopupWindowController {
             guard isRightClickInProgress else { break }
             isRightClickInProgress = false
             let clickLoc = NSEvent.mouseLocation
-            let inBar = panel?.frame.contains(clickLoc) ?? false
+            let inBar = isOverPanelContent(clickLoc)
             if inBar, let hoveredAction, let actionContext = currentActionContext, modeStore.mode == .actions {
                 runAction(hoveredAction, with: actionContext, isSecondaryClick: true)
             }
@@ -581,10 +628,38 @@ public class PopupWindowController {
         }
     }
 
+    /// Whether the screen point is over the popup's *interactive content* — the panel frame minus
+    /// the transparent shadow ring. The ring only hosts the SwiftUI drop shadow, so clicks and
+    /// right-clicks there must behave like clicks outside the popup (dismiss + pass through),
+    /// never like clicks on the bar. Replaces every former `panel.frame.contains(...)` check,
+    /// which silently swallowed shadow clicks: the panel is topmost at those pixels, so the click
+    /// arrived as a local event, counted as "in the bar", and reached no app at all.
+    /// Internal (not private) so tests can pin the ring-is-not-content contract.
+    func isOverPanelContent(_ screenLocation: CGPoint) -> Bool {
+        guard let panel, panel.isVisible, let contentView = panel.contentView,
+              panel.frame.contains(screenLocation) else { return false }
+        let windowPoint = panel.convertPoint(fromScreen: screenLocation)
+        let contentPoint = contentView.convert(windowPoint, from: nil)
+        if let popupContent = contentView as? PopupPanel.ContentView {
+            return PopupPanel.ContentView.isInsideClickableRegion(point: contentPoint, bounds: contentView.bounds)
+        }
+        return contentView.bounds.contains(contentPoint)
+    }
+
     private func updatePopupHover(at screenLocation: CGPoint) {
         guard let panel, panel.isVisible, let contentView = panel.contentView else {
             PopupHoverState.shared.location = nil
             return
+        }
+
+        // Dynamic click-through: while the pointer is over the transparent shadow ring, the panel
+        // ignores mouse events entirely so ring clicks genuinely reach the app underneath (the
+        // global monitor still observes them and dismisses the popup). Gated on global monitoring:
+        // without it the local monitor is the only way to notice the pointer re-entering the
+        // content area, and ignoring events would strand the panel permanently inert.
+        let overContent = isOverPanelContent(screenLocation)
+        if PopupHoverState.shared.usesGlobalMouseMonitoring {
+            panel.ignoresMouseEvents = !overContent
         }
 
         let windowPoint = panel.convertPoint(fromScreen: screenLocation)
@@ -719,12 +794,12 @@ public class PopupWindowController {
                     if modeStore.canPaste == nil {
                         modeStore.canPaste = await pasteProbe.canPaste(in: delivery?.application, policy: delivery?.policy ?? .default) ?? false
                     }
-                    showAIContent(text: text, isError: false, title: delivery?.actionTitle ?? "Action")
+                    showAIContent(text: text, isError: false, title: delivery?.actionTitle ?? "Action", session: aiSessionID)
                     return
                 }
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
                 if let toast = resolved.toast, !suppressDeliveryToast {
-                    toastController.show(toast, anchorPoint: panel?.centerPoint)
+                    toastController.show(toast, anchorFrame: panel?.frame ?? lastPopupFrame)
                 }
             } catch {
                 handleActionResult(.toast(StatusFeedback(error: error)))
@@ -862,9 +937,10 @@ public class PopupWindowController {
     }
 
     /// Performs a `showsLoading` action with early-close: the popup hides immediately, a spinner
-    /// toast appears at the cursor, and the result settles the toast (swap to description, or fade
-    /// when the result carries none). Mirrors runAction's delivery snapshot: captured before the
-    /// early hide so paste-vs-copy still sees the pre-dismissal context. Internal for tests.
+    /// toast attaches to the popup's last frame, and the result settles the toast (swap to
+    /// description, or fade when the result carries none). Mirrors runAction's delivery snapshot:
+    /// captured before the early hide so paste-vs-copy still sees the pre-dismissal context.
+    /// Internal for tests.
     func runLoadingAction(_ action: any Action, with context: ActionContext, isSecondaryClick: Bool) {
         let clickIntent: ActionResultDelivery.ClickIntent = isSecondaryClick ? .secondary : .primary
         pendingClickIntent = clickIntent
@@ -889,10 +965,11 @@ public class PopupWindowController {
             isSecondaryClick: isSecondaryClick,
             match: match
         )
-        let anchorPoint = panel?.centerPoint ?? context.selection.cursorPosition
+        // Capture before the early hide so the spinner attaches to where the popup actually was.
+        let anchorFrame = panel?.frame ?? lastPopupFrame
         hide()
         let message = action.chrome.loadingMessage ?? "Opening \(action.title)…"
-        toastController.showLoading(message: message, anchorPoint: anchorPoint)
+        toastController.showLoading(message: message, anchorFrame: anchorFrame)
         Task { @MainActor in
             do {
                 let result = try await action.perform(performContext)
@@ -933,7 +1010,7 @@ public class PopupWindowController {
                     if let selection = delivery.selection {
                         let canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
                         show(for: selection, pasteAvailable: canPaste)
-                        showAIContent(text: text, isError: false, title: delivery.actionTitle ?? "Action")
+                        showAIContent(text: text, isError: false, title: delivery.actionTitle ?? "Action", session: aiSessionID)
                     }
                     return
                 }
@@ -950,10 +1027,10 @@ public class PopupWindowController {
     }
 
     /// Surfaces a StatusFeedback as the floating toast (the single status renderer). The toast
-    /// is independent of the popup, so it shows whether the popup stays up or has already hidden.
+    /// is independent of the popup, so it shows whether the popup stays up or has already hidden;
+    /// it always attaches to the popup's live (or last) frame — never the pointer.
     private func presentToast(_ feedback: StatusFeedback) {
-        let anchor = panel?.centerPoint ?? currentContext?.cursorPosition
-        toastController.show(feedback, anchorPoint: anchor)
+        toastController.show(feedback, anchorFrame: panel?.frame ?? lastPopupFrame)
     }
 
     /// Decision 8 config-open path: the popup has already hidden (`.openConfiguration` dismisses it);

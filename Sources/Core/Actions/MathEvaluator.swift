@@ -88,10 +88,14 @@ enum MathEvaluator {
 
     // MARK: - Recursive descent:
     //   expr    := term (('+'|'-') term)*
-    //   term    := power (('*'|'/'|'%') power)*
-    //   power   := factor ('^' factor)*
-    //   factor  := ('-'|'+') factor | primary
+    //   term    := unary (('*'|'/'|'%') unary)*
+    //   unary   := ('-'|'+') unary | power
+    //   power   := primary ('^' unary)?
     //   primary := (number | '(' expr ')') ('%')?
+    //
+    // '^' is right-associative (2^3^2 = 2^(3^2) = 512) via the recursive power rule, and unary
+    // sign binds looser than '^' (Python's u_expr/power split): -2^2 = -(2^2) = -4, while the
+    // exponent itself may carry a sign (2^-2 = 0.25).
 
     private static func parseExpression(tokens: inout [Token], pos: inout Int) -> Double? {
         guard let term = parseTerm(tokens: &tokens, pos: &pos) else { return nil }
@@ -114,22 +118,22 @@ enum MathEvaluator {
     }
 
     private static func parseTerm(tokens: inout [Token], pos: inout Int) -> Double? {
-        guard let p = parsePower(tokens: &tokens, pos: &pos) else { return nil }
+        guard let p = parseUnary(tokens: &tokens, pos: &pos) else { return nil }
         var value = p
         while pos < tokens.count {
             switch tokens[pos] {
             case .times:
                 pos += 1
-                guard let rhs = parsePower(tokens: &tokens, pos: &pos) else { return nil }
+                guard let rhs = parseUnary(tokens: &tokens, pos: &pos) else { return nil }
                 value *= rhs
             case .divide:
                 pos += 1
-                guard let rhs = parsePower(tokens: &tokens, pos: &pos) else { return nil }
+                guard let rhs = parseUnary(tokens: &tokens, pos: &pos) else { return nil }
                 guard rhs != 0 else { return nil }
                 value /= rhs
             case .mod:
                 pos += 1
-                guard let rhs = parsePower(tokens: &tokens, pos: &pos) else { return nil }
+                guard let rhs = parseUnary(tokens: &tokens, pos: &pos) else { return nil }
                 guard rhs != 0 else { return nil }
                 value = value.truncatingRemainder(dividingBy: rhs)
             default:
@@ -139,32 +143,29 @@ enum MathEvaluator {
         return value
     }
 
-    private static func parsePower(tokens: inout [Token], pos: inout Int) -> Double? {
-        guard let factor = parseFactor(tokens: &tokens, pos: &pos) else { return nil }
-        var value = factor
-        while pos < tokens.count, tokens[pos] == .power {
-            pos += 1
-            guard let rhs = parseFactor(tokens: &tokens, pos: &pos) else { return nil }
-            let res = pow(value, rhs)
-            guard !res.isNaN && !res.isInfinite else { return nil }
-            value = res
-        }
-        return value
-    }
-
-    private static func parseFactor(tokens: inout [Token], pos: inout Int) -> Double? {
+    private static func parseUnary(tokens: inout [Token], pos: inout Int) -> Double? {
         guard pos < tokens.count else { return nil }
         switch tokens[pos] {
         case .minus:
             pos += 1
-            guard let operand = parseFactor(tokens: &tokens, pos: &pos) else { return nil }
+            guard let operand = parseUnary(tokens: &tokens, pos: &pos) else { return nil }
             return -operand
         case .plus:
             pos += 1
-            return parseFactor(tokens: &tokens, pos: &pos)
+            return parseUnary(tokens: &tokens, pos: &pos)
         default:
-            return parsePrimary(tokens: &tokens, pos: &pos)
+            return parsePower(tokens: &tokens, pos: &pos)
         }
+    }
+
+    private static func parsePower(tokens: inout [Token], pos: inout Int) -> Double? {
+        guard let base = parsePrimary(tokens: &tokens, pos: &pos) else { return nil }
+        guard pos < tokens.count, tokens[pos] == .power else { return base }
+        pos += 1
+        guard let exponent = parseUnary(tokens: &tokens, pos: &pos) else { return nil }
+        let res = pow(base, exponent)
+        guard !res.isNaN && !res.isInfinite else { return nil }
+        return res
     }
 
     private static func parsePrimary(tokens: inout [Token], pos: inout Int) -> Double? {

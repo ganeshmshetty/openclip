@@ -142,6 +142,9 @@ public final class ActionRegistry: ObservableObject, Sendable {
             if ActionIdentity.isAIPreset(action) {
                 return false
             }
+            if action is GatedExtensionAction {
+                return false
+            }
             guard canPerform(action, in: context) else { return false }
             if disabledIDs.contains(action.id) {
                 return false
@@ -188,7 +191,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     /// completion pseudo-action are always excluded.
     public func searchCatalog(for context: ActionContext) -> [any Action] {
         actions.filter { action in
-            if action.chrome.launchesAI || ActionIdentity.isCompletionPseudoAction(action) {
+            if action.chrome.launchesAI || ActionIdentity.isCompletionPseudoAction(action) || action is GatedExtensionAction {
                 return false
             }
             return canPerform(action, in: context)

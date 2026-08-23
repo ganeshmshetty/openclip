@@ -45,14 +45,14 @@ final class ExtensionManagerTrustTests: XCTestCase {
         XCTAssertEqual(store.get(.extensionTrustMigrated), true)
         XCTAssertTrue(events.isEmpty)
 
-        // A second new package after migration is gated + notifies.
+        // A second new package after migration is silently gated.
         try writePackage(packageID: "com.t.gate2", name: "Gate2")
         await manager.loadExtensions(from: tempDir)
         XCTAssertEqual(manager.loadedActions.count, 2)
         let gated = try XCTUnwrap(manager.loadedActions.first { $0 is GatedExtensionAction } as? GatedExtensionAction)
         XCTAssertEqual(gated.packageID, "com.t.gate2")
         XCTAssertEqual(gated.reason, .notEnabled)
-        XCTAssertEqual(events, [.newPackage(packageID: "com.t.gate2", name: "Gate2")])
+        XCTAssertTrue(events.isEmpty)
     }
 
     @MainActor
@@ -70,13 +70,13 @@ final class ExtensionManagerTrustTests: XCTestCase {
         let hash = store.get(.extensionTrustHashes)["com.t.tf"]
         XCTAssertNotNil(hash)
 
-        // Tamper: edit the script, reload → gated + tampered event + trust seen.
+        // Tamper: edit the script, reload → gated + trust seen (silent, no events).
         try writePackage(packageID: "com.t.tf", name: "TF", script: "echo edited")
         await manager.loadExtensions(from: tempDir)
         let gated = try XCTUnwrap(manager.loadedActions.first as? GatedExtensionAction)
         XCTAssertEqual(gated.reason, .filesChanged)
         XCTAssertEqual(store.get(.extensionTrust)["com.t.tf"], "seen")
-        XCTAssertEqual(events, [.tampered(packageID: "com.t.tf", name: "TF")])
+        XCTAssertTrue(events.isEmpty)
 
         // Re-enable through the trust-model API → trusted + hash recorded + real actions back.
         await manager.enablePackage(packageID: "com.t.tf", in: tempDir)

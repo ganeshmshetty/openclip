@@ -48,19 +48,16 @@ class StatusBarController {
         self.toggleEnabledItem = toggleItem
         
         menu.addItem(NSMenuItem.separator())
-        
-        let prefsItem = NSMenuItem(title: "Preferences", action: #selector(showPreferences), keyEquivalent: ",")
-        prefsItem.target = self
-        menu.addItem(prefsItem)
 
-        let reportItem = NSMenuItem(title: "Report an Issue", action: #selector(openReportIssue), keyEquivalent: "")
-        reportItem.target = self
-        menu.addItem(reportItem)
+        menu.addItem(menuItem(title: "Preferences", action: #selector(showPreferences),
+                              keyEquivalent: ",", symbol: "gearshape"))
 
-        let updateItem = NSMenuItem(title: "Check for Updates", action: #selector(checkForUpdates), keyEquivalent: "")
-        updateItem.target = self
-        menu.addItem(updateItem)
-        
+        menu.addItem(menuItem(title: "Report an Issue", action: #selector(openReportIssue),
+                              symbol: "exclamationmark.bubble"))
+
+        menu.addItem(menuItem(title: "Check for Updates", action: #selector(checkForUpdates),
+                              symbol: "arrow.triangle.2.circlepath"))
+
         menu.addItem(NSMenuItem.separator())
         
         let quitItem = NSMenuItem(title: "Quit OpenClip", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -70,6 +67,19 @@ class StatusBarController {
         updateStatusIcon(isEnabled: isEnabled)
     }
     
+    /// Builds a menu item with an SF Symbol glyph in its leading image slot, targeted at self
+    /// (status-item menus don't resolve actions through the responder chain). Missing symbols
+    /// degrade to a text-only item.
+    private func menuItem(title: String, action: Selector, keyEquivalent: String = "", symbol: String? = nil) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
+        item.target = self
+        if let symbol, let image = NSImage(systemSymbolName: symbol, accessibilityDescription: title) {
+            image.isTemplate = true
+            item.image = image
+        }
+        return item
+    }
+
     @objc private func toggleEnabled() {
         let current = DefaultSettingsStore.shared.get(.isAppEnabled)
         let newStatus = !current
@@ -104,12 +114,21 @@ class StatusBarController {
         toggleEnabledItem?.state = isEnabled ? .on : .off
         updateStatusIcon(isEnabled: isEnabled)
     }
+
+    /// Screen frame of the status item's button, for anchoring surfaces (e.g. the post-onboarding
+    /// coach mark) below it. Nil until the button has joined a window.
+    var statusItemButtonFrame: NSRect? {
+        statusItem.button?.window?.frame
+    }
     
     private func updateStatusIcon(isEnabled: Bool) {
         if let button = statusItem.button {
             button.image = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "paperclip", accessibilityDescription: "OpenClip")
             button.image?.isTemplate = true
             button.alphaValue = isEnabled ? 1.0 : 0.45
+            // The enabled state must be legible beyond the purely visual alpha dimming.
+            button.setAccessibilityLabel("OpenClip")
+            button.setAccessibilityValue(isEnabled ? "Appear Automatically is on" : "Appear Automatically is off")
         }
     }
     

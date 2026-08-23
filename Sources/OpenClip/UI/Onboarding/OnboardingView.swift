@@ -160,7 +160,7 @@ public struct OnboardingView: View {
 
             VStack(spacing: 1) {
                 StepRow(number: "1", text: "Select any text in any app")
-                StepRow(number: "2", text: "A small bar appears near your cursor")
+                StepRow(number: "2", text: "A small bar appears near your cursor — or press ⌥⌘C")
                 StepRow(number: "3", text: "Click an action — copy, search, run a script, and more")
             }
             .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))

@@ -16,8 +16,17 @@ public final class HotkeyManager {
     public static let shared = HotkeyManager()
     private var lastFallbackClipboard: (changeCount: Int, text: String)?
     
-    private init() {}
-    
+    /// Trigger gate for the hotkey path (pure, unit-tested). Mirrors every monitor trigger site:
+    /// respect the master enable switch, never target OpenClip itself, and never fire inside
+    /// excluded apps — the default retrieval cascade ends in `.keyboardCopy`, which would inject
+    /// a synthetic ⌘C into apps that must never be touched.
+    internal static func triggerAllowed(isAppEnabled: Bool, frontmost: NSRunningApplication?) -> Bool {
+        guard isAppEnabled,
+              let frontmost,
+              let bundleID = frontmost.bundleIdentifier else { return false }
+        return !AppFilter.isExcluded(bundleID: bundleID)
+    }
+
     public func setup(popupController: PopupWindowController) {
         KeyboardShortcuts.onKeyUp(for: .togglePopup) { [weak popupController] in
             Task { @MainActor in
@@ -28,7 +37,13 @@ public final class HotkeyManager {
                     return
                 }
 
-                let frontApp = NSWorkspace.shared.frontmostApplication ?? NSRunningApplication.current
+                // No `.current` fallback: with no identifiable target app there is nothing to
+                // retrieve from, and targeting OpenClip itself is explicitly forbidden.
+                let frontmostApp = NSWorkspace.shared.frontmostApplication
+                guard Self.triggerAllowed(
+                    isAppEnabled: DefaultSettingsStore.shared.get(.isAppEnabled),
+                    frontmost: frontmostApp
+                ), let frontApp = frontmostApp else { return }
                 let policy = RuleEngine.shared.resolvePolicies(for: frontApp.bundleIdentifier ?? "")
                 let appIdentity = AppIdentity(frontApp)
 
@@ -65,6 +80,13 @@ public final class HotkeyManager {
                         self.lastFallbackClipboard = (currentChangeCount, clipboard)
                     }
                 }
+
+                // Mirror every other trigger site (deliverSelection, the hold path): empty,
+                // whitespace-only, or oversized input never reaches delivery — otherwise an
+                // empty selection + empty clipboard would pop a bar whose Copy/Cut act on
+                // nothing, and a multi-megabyte clipboard would bypass the length cap.
+                guard TextSanitizer.isSubstantial(retrievedText),
+                      retrievedText.utf8.count <= Constants.maxTextLength else { return }
                 
                 let context = SelectionContext(
                     text: retrievedText,
