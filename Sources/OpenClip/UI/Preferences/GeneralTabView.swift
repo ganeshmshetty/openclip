@@ -115,9 +115,14 @@ struct GeneralTab: View {
 
             Section(header: Text("Action Results")) {
                 HStack {
-                    Text("Primary click")
-                        .font(.body)
-                        .fontWeight(.medium)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Primary click")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text("Left click")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
                     Picker("Primary click", selection: $primaryBehavior) {
                         ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
@@ -134,9 +139,14 @@ struct GeneralTab: View {
                 .padding(.vertical, 4)
 
                 HStack {
-                    Text("Secondary click")
-                        .font(.body)
-                        .fontWeight(.medium)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Secondary click")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text("Right click or ⇧-click")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
                     Picker("Secondary click", selection: $secondaryBehavior) {
                         ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in

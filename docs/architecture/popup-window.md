@@ -12,7 +12,7 @@ The floating popup panel subsystem presents contextual actions near the user's c
 | ├── PopupPanel (NSPanel, non-activating, borderless, popUpMenu level) |
 | │ └── NSHostingView(PopupView) |
 | │ ├── Action Buttons / Sub-menus |
-| │ ├── AIResultCardView (native AI result card in .content mode) |
+| │ ├── ResultCardView (native result card in .content mode) |
 | │ └── Status toast (floating `ToastPanelController`, outside the panel) |
 | └── Event Monitors (Global / Local NSEvent tracking) |
 +-----------------------------------------------------------------------------+
@@ -75,16 +75,20 @@ public static func placeNearReleasePoint(
 Action and AI content render **inside** the single `PopupPanel` — there is no second
 floating panel; status feedback renders separately as a floating toast via `ToastPanelController`
 (see *Status* below). A `.content` mode on `PopupModeStore` (mirroring `.search`) transforms the panel:
-the bar is hidden and `PopupView.barContent` renders `AIResultCardView`, a native SwiftUI card
+the bar is hidden and `PopupView.barContent` renders `ResultCardView`, a native SwiftUI card
 that replaced the former interactive canvas.
 
 ### Content Mode
 
-- **Entry**: AI results reach the card via `PopupView.onAIResult(text:isError:title:)` →
-  `PopupWindowController.showAIContent`, which sets `modeStore.aiResult`
-  (`AIResultPayload { text, isError, title }`), `modeStore.mode = .content`, and enters key mode.
-  The card's chrome header (back chevron + sparkles + title) is rendered by `AIResultCardView`
-  (`Sources/OpenClip/UI/Popup/AIResultCardView.swift`), with the back chevron wired to
+- **Entry**: AI presets stream results into the card via `PopupView.onAIResult(text:isError:title:)` →
+  `PopupWindowController.showResultCard`; any other text-returning action (e.g. a shell/JS extension)
+  lands there through the delivery snapshot in `handleEffect`, which passes the performing action's
+  customization-resolved icon alongside its title. Both set `modeStore.resultCard`
+  (`ResultCardPayload { text, isError, title, icon, isStreaming }`), `modeStore.mode = .content`,
+  and enter key mode.
+  The card's chrome header (back chevron + the producing action's icon — sparkles when none,
+  e.g. AI streaming — + title) is rendered by `ResultCardView`
+  (`Sources/OpenClip/UI/Popup/ResultCardView.swift`), with the back chevron wired to
   `PopupView.onExitContent` → `PopupWindowController.exitContent()`.
 - **Card surface**: the card renders a scrollable body plus a Copy/Paste footer (hidden when
   `isError`; Paste also hidden while `modeStore.canPaste == false`), sized by `PopupMetrics`
@@ -139,7 +143,7 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
 
 - **Mode state**: [`PopupModeStore`](../../Sources/OpenClip/UI/Popup/PopupModeStore.swift) holds
   `mode` (`.actions`/`.search`/`.content`), `searchResultsAbove` (set from `cardAbove` in
-  `show(for:)`), plus the content payload `aiResult`. Statuses live in the floating toast, not the
+  `show(for:)`), plus the content payload `resultCard`. Statuses live in the floating toast, not the
   store. `PopupView` branches on `modeStore.mode` in `unifiedHStack` and renders
   `PopupSearchView` — the field + result list rendered as **one surface** with the bar, results
   above or below the field by `searchResultsAbove`.
@@ -182,7 +186,7 @@ never-key rule. Both route through the same primitives: `enterKeyMode()`
 invariant and re-activates `previousFrontmostApp`. Search then forces focus on the **next run-loop
 turn** via `focusSearchField()`/`findTextInput` (`:245`) because a `@FocusState`-in-onAppear request
 is silently dropped before the panel finishes becoming key; `exitSearch()` (`:264`) restores the
-invariant. `showAIContent` enters content mode the same way; the AI card owns all keys through
+invariant. `showResultCard` enters content mode the same way; the result card owns all keys through
 SwiftUI `.onKeyPress`. `hide()` is the only thing that clears `previousFrontmostApp` —
 `exitKeyMode()` deliberately keeps it, so the same source app is re-activated on the next exit and
 re-used on the next enter.

@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Shared observable mode state for the popup: the screen mode (actions bar / search palette /
-// native AI result card) and the payloads those screens render (AI result payload). Statuses
+// native result card) and the payloads those screens render (result card payload). Statuses
 // render as a floating toast via ToastPanelController, not through the store. The real popup
 // observes the store injected by PopupWindowController; the static
 // preview uses a throwaway store so it never affects the live popup (mirrors the PopupHoverState
@@ -20,8 +20,9 @@ public final class PopupModeStore: ObservableObject {
     @Published public var scope: SearchScope? = nil
     /// True when the popup sits low on screen and search results render above the field.
     @Published public var searchResultsAbove: Bool = false
-    /// The native AI result card currently shown (only meaningful while `mode == .content`).
-    @Published public var aiResult: AIResultPayload? = nil
+    /// The native result card currently shown (only meaningful while `mode == .content`). Any
+    /// action whose resolved outcome is text renders here, not just AI presets.
+    @Published public var resultCard: ResultCardPayload? = nil
     /// Whether the target app can Paste, probed (AX) when the popup shows. `false` hides the
     /// card's Paste button and the bar/search Paste + Cut actions; `nil` (unknown/probing) and
     /// `true` keep them visible.
@@ -32,18 +33,22 @@ public final class PopupModeStore: ObservableObject {
     public init() {}
 }
 
-/// The payload of the native AI result card: the provider's response text, whether it is an
-/// error message (drives the card's styling), the producing preset's title, and streaming state.
-public struct AIResultPayload: Sendable, Equatable {
+/// The payload of the native result card: the action's response text, whether it is an
+/// error message (drives the card's styling), the producing action's title and icon, and
+/// streaming state. `icon` is nil for AI streaming deliveries, which fall back to the
+/// card's sparkles glyph.
+public struct ResultCardPayload: Sendable, Equatable {
     public let text: String
     public let isError: Bool
     public let title: String
+    public let icon: ActionIcon?
     public let isStreaming: Bool
 
-    public init(text: String, isError: Bool, title: String = "AI Tools", isStreaming: Bool = false) {
+    public init(text: String, isError: Bool, title: String = "AI Tools", icon: ActionIcon? = nil, isStreaming: Bool = false) {
         self.text = text
         self.isError = isError
         self.title = title
+        self.icon = icon
         self.isStreaming = isStreaming
     }
 }

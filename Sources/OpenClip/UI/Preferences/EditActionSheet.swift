@@ -1,15 +1,9 @@
 // EditActionSheet.swift
 // OpenClip
 //
-// Renders the modal sheet interface for editing existing action appearances, titles, and parameters.
-// For non-builtin actions (extension packages — including GUI-authored com.custom.<id> packages) it
-// acts as a manifest reader/writer: the Appearance tab edits title/icon in the manifest, the General
-// tab edits the target action's type/logic fields, and saving rewrites the manifest then reloads the
-// extension list. Builtin actions keep the legacy ActionCustomizationManager appearance overrides.
-// A non-builtin action whose manifest can't be located on disk (e.g. a standalone snippet script
-// file) is read-only: the sheet surfaces why and disables Save rather than silently dropping edits.
-// When opened via a ConfigurationRequest (missing-required-options short-circuit), a reason banner
-// appears above the tabs and the missing option rows are highlighted in the General tab (Phase 7).
+// Renders the modal sheet / popover interface for editing existing action appearances, titles, and parameters.
+// Styled in macOS Inset Grouped layout with Hero Header: content-hugging height, solid opaque background,
+// and conditional options/logic display (omitting redundant info notes when no config options exist).
 import SwiftUI
 import AppKit
 import Core
@@ -21,8 +15,7 @@ public struct EditActionSheet: View {
     /// reason banner and highlights the missing option rows in the unified editor (Phase 7).
     let configurationRequest: ConfigurationRequest?
     @Environment(\.dismiss) private var dismiss
-    
-    @State private var activeTab: Int = 0 // 0 = Appearance, 1 = General
+
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
     @State private var initialIconSymbol: String = ""
@@ -37,15 +30,21 @@ public struct EditActionSheet: View {
     /// Cancel still backs out of an accidental reset.
     @State private var appearanceResetPending = false
     @State private var displayMode: Int = 0 // 0 = Icon, 1 = Text
-    @State private var showingIconPicker: Bool = false
-    
-    // Custom Action State
-    @State private var customType: CustomActionType = .textSnippet(template: "{text}")
+
+    // Custom Action State. The Type picker selects a plain kind — the payload values live in the
+    // field state below — so the segment highlight stays stable while the user edits text (a
+    // CustomActionType selection would embed the live string and unhighlight on every keystroke).
+    private enum EditKind: Hashable {
+        case webSearch
+        case textSnippet
+        case shellScript
+    }
+    @State private var editKind: EditKind = .textSnippet
     @State private var customURLTemplate: String = "https://www.google.com/search?q={text}"
     @State private var customSnippetTemplate: String = "{text}"
     @State private var customShellScript: String = "echo $OPENCLIP_TEXT"
     @State private var replaceSelection: Bool = true
-    
+
     // Manifest-backed state: the target action lives in an extension manifest package.
     @State private var manifestState: LocatedManifest?
     @State private var logicEditable: Bool = false
@@ -54,12 +53,12 @@ public struct EditActionSheet: View {
     @State private var manifestMissing: Bool = false
     @State private var showingSaveAlert: Bool = false
     @State private var saveAlertMessage: String = ""
-    
+
     public init(action: any Action, configurationRequest: ConfigurationRequest? = nil) {
         self.action = action
         self.configurationRequest = configurationRequest
     }
-    
+
     private var isBuiltin: Bool {
         ActionIdentity.isBuiltin(action)
     }
@@ -74,21 +73,21 @@ public struct EditActionSheet: View {
         }
         return nil
     }
-    
+
     private var saveDisabled: Bool {
         !isBuiltin && manifestState == nil
     }
-    
+
     public var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
                 Text("Configure Action")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
+                        .font(.system(size: 15))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -97,140 +96,174 @@ public struct EditActionSheet: View {
             .padding(.horizontal, 16)
             .padding(.top, 14)
             .padding(.bottom, 10)
-            
-            Picker("", selection: $activeTab) {
-                Label("Appearance", systemImage: "paintpalette").tag(0)
-                Label("General", systemImage: "gearshape").tag(1)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 10)
-
-            if let bannerText = configurationBannerText {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
-                    Text(bannerText)
-                        .font(.caption)
-                        .foregroundColor(.primary)
-                    Spacer(minLength: 0)
-                }
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.orange.opacity(0.12))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.orange.opacity(0.35), lineWidth: 1)
-                )
-                .padding(.horizontal, 16)
-                .padding(.bottom, 10)
-            }
 
             Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    if activeTab == 0 {
-                        // Appearance Tab
-                        VStack(alignment: .leading, spacing: 14) {
-                            ActionAppearanceFields(
-                                title: $customTitle,
-                                displayTextFallback: action.title,
-                                iconSymbol: $iconSymbol,
-                                initialIconSymbol: initialIconSymbol,
-                                baseIcon: baseIconState,
-                                displayMode: $displayMode
-                            )
-                            
-                            Button("Reset Name & Icon to Default") {
-                                resetAppearance()
-                            }
+
+            // Content Area (fits content dynamically)
+            VStack(alignment: .leading, spacing: 12) {
+                if let bannerText = configurationBannerText {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                            .font(.system(size: 13))
+                        Text(bannerText)
                             .font(.caption)
-                            .buttonStyle(.link)
-                            .padding(.top, 4)
+                            .foregroundColor(.primary)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.orange.opacity(0.12))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                    )
+                }
+
+                // Hero Header Card (Icon, Name & Display Mode)
+                InsetGroupCard {
+                    ActionAppearanceFields(
+                        title: $customTitle,
+                        displayTextFallback: action.title,
+                        iconSymbol: $iconSymbol,
+                        initialIconSymbol: initialIconSymbol,
+                        baseIcon: baseIconState,
+                        displayMode: $displayMode
+                    )
+                }
+                .disabled(manifestMissing)
+
+                // Options Section (shown only when the action declares configurable options)
+                if !action.actionOptions.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("OPTIONS")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 4)
+
+                        InsetGroupCard {
+                            DynamicActionConfigView(
+                                actionID: action.id,
+                                options: action.actionOptions,
+                                optionStore: SecretActionOptionStore(),
+                                missingOptionIDs: Set(configurationRequest?.missingOptionIDs ?? [])
+                            )
                         }
-                        .disabled(manifestMissing)
-                    } else {
-                        // General Tab (Behavior & Logic)
-                        if !action.actionOptions.isEmpty {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Action Options")
-                                    .font(.headline)
-                                DynamicActionConfigView(
-                                    actionID: action.id,
-                                    options: action.actionOptions,
-                                    optionStore: SecretActionOptionStore(),
-                                    missingOptionIDs: Set(configurationRequest?.missingOptionIDs ?? [])
-                                )
-                            }
-                        } else if logicEditable {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Action Type & Execution Logic")
-                                    .font(.headline)
-                                
-                                Picker("Type", selection: $customType) {
-                                    Text("Web Search").tag(CustomActionType.webSearch(urlTemplate: customURLTemplate))
-                                    Text("Text Snippet").tag(CustomActionType.textSnippet(template: customSnippetTemplate))
-                                    Text("Shell Script").tag(CustomActionType.shellScript(script: customShellScript, replaceSelection: replaceSelection))
-                                }
-                                .pickerStyle(.segmented)
-                                
-                                switch customType {
-                                case .webSearch:
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("URL Template").font(.caption).foregroundColor(.secondary)
-                                        TextField("https://example.com/search?q={text}", text: $customURLTemplate)
-                                            .textFieldStyle(.roundedBorder)
+                    }
+                } else if logicEditable {
+                    // Execution Logic Section (GUI-authored custom actions only)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("EXECUTION LOGIC")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 4)
+
+                        InsetGroupCard {
+                            VStack(alignment: .leading, spacing: 0) {
+                                HStack(spacing: 12) {
+                                    Text("Type")
+                                        .font(.subheadline)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Picker("Type", selection: $editKind) {
+                                        Text("Web Search").tag(EditKind.webSearch)
+                                        Text("Text Snippet").tag(EditKind.textSnippet)
+                                        Text("Shell Script").tag(EditKind.shellScript)
                                     }
-                                case .textSnippet:
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Snippet Template").font(.caption).foregroundColor(.secondary)
-                                        TextEditor(text: $customSnippetTemplate)
-                                            .font(.system(.body, design: .monospaced))
-                                            .frame(height: 70)
-                                            .border(Color.secondary.opacity(0.2))
-                                    }
-                                case .shellScript:
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Shell Script (Zsh)").font(.caption).foregroundColor(.secondary)
-                                        TextEditor(text: $customShellScript)
-                                            .font(.system(.body, design: .monospaced))
-                                            .frame(height: 90)
-                                            .border(Color.secondary.opacity(0.2))
-                                        
-                                        Toggle("Replace selected text with output", isOn: $replaceSelection)
-                                            .font(.caption)
+                                    .pickerStyle(.segmented)
+                                    .labelsHidden()
+                                    .frame(width: 240)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+
+                                Divider()
+                                    .padding(.horizontal, 12)
+
+                                Group {
+                                    switch editKind {
+                                    case .webSearch:
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("URL Template").font(.caption).foregroundColor(.secondary)
+                                            TextField("https://example.com/search?q={text}", text: $customURLTemplate)
+                                                .textFieldStyle(.roundedBorder)
+                                        }
+                                    case .textSnippet:
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Snippet Template").font(.caption).foregroundColor(.secondary)
+                                            TextEditor(text: $customSnippetTemplate)
+                                                .font(.system(.body, design: .monospaced))
+                                                .frame(height: 70)
+                                                .scrollContentBackground(.hidden)
+                                                .padding(6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                        .fill(Color.primary.opacity(0.04))
+                                                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color.primary.opacity(0.12)))
+                                                )
+                                        }
+                                    case .shellScript:
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text("Shell Script (Zsh)").font(.caption).foregroundColor(.secondary)
+                                            TextEditor(text: $customShellScript)
+                                                .font(.system(.body, design: .monospaced))
+                                                .frame(height: 90)
+                                                .scrollContentBackground(.hidden)
+                                                .padding(6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                        .fill(Color.primary.opacity(0.04))
+                                                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color.primary.opacity(0.12)))
+                                                )
+
+                                            Toggle("Replace selected text with output", isOn: $replaceSelection)
+                                                .font(.subheadline)
+                                        }
                                     }
                                 }
-                            }
-                        } else {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("General Action Information")
-                                    .font(.headline)
-                                if manifestMissing {
-                                    Text("This action is a standalone script file with no editable manifest. Delete it and re-create it as a snippet or extension package to customize its behavior, name, or icon.")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                } else {
-                                    Text("Standard action. Execution behavior and options are managed automatically by OpenClip.")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
                             }
                         }
                     }
+                } else if manifestMissing {
+                    // Warning only when manifest is truly unlocatable / standalone script
+                    InsetGroupCard {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 13))
+                                .padding(.top, 1)
+
+                            Text("This action is a standalone script file with no editable manifest. Re-create it as an extension package to customize its behavior.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(12)
+                    }
                 }
-                .padding(16)
             }
-            
+            .padding(14)
+
             Divider()
-            
+
             // Footer Action Buttons
-            HStack {
-                Button("Cancel") { dismiss() }
+            HStack(spacing: 12) {
+                Button("Reset to Default") {
+                    resetAppearance()
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .font(.caption)
+                .disabled(manifestMissing)
+
                 Spacer()
+
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+
                 Button("Save Changes") {
                     Task {
                         if await saveChanges() {
@@ -240,10 +273,14 @@ public struct EditActionSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(saveDisabled)
+                .keyboardShortcut(.defaultAction)
             }
-            .padding(12)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
         }
-        .frame(width: 340, height: 360)
+        .frame(width: 370)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(Color(nsColor: .windowBackgroundColor))
         .alert("Unable to Save Changes", isPresented: $showingSaveAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -253,7 +290,7 @@ public struct EditActionSheet: View {
             loadInitialState()
         }
     }
-    
+
     // MARK: - Manifest lookup
 
     /// Locates the manifest package whose identifier matches the action's chrome source (or, as a
@@ -263,9 +300,9 @@ public struct EditActionSheet: View {
     static func locateManifest(for action: any Action, in directory: URL = Constants.extensionsDirectory) -> LocatedManifest? {
         ExtensionManifestStore.locateManifest(for: action, in: directory)
     }
-    
+
     // MARK: - State loading
-    
+
     private func loadInitialState() {
         let override = ActionCustomizationManager.shared.override(for: action.id)
 
@@ -280,7 +317,7 @@ public struct EditActionSheet: View {
         } else {
             displayMode = 0
         }
-        
+
         if isBuiltin {
             manifestState = nil
             logicEditable = false
@@ -290,7 +327,7 @@ public struct EditActionSheet: View {
             }
             return
         }
-        
+
         manifestState = Self.locateManifest(for: action)
         guard let state = manifestState else {
             // Standalone-script action (or a stray non-builtin with no manifest on disk): the JSON
@@ -301,26 +338,34 @@ public struct EditActionSheet: View {
             return
         }
         manifestMissing = false
-        
+
+        // Raw execution-logic editing (type/URL/script) is a GUI-authored-action surface only:
+        // com.custom.<id> packages keep the editor, while store and developer extension packages
+        // stay read-only in the General tab — their behavior belongs to the package, and an
+        // accidental rewrite here would silently mutate an installed third-party extension.
+        guard state.manifest.identifier.hasPrefix(Constants.customIdentifierPrefix) else {
+            logicEditable = false
+            return
+        }
         let meta = state.manifest.actions[state.targetIndex]
         switch meta.kind {
         case .url, .webSearch:
-            customType = .webSearch(urlTemplate: customURLTemplate)
             customURLTemplate = meta.url ?? ""
+            editKind = .webSearch
             logicEditable = true
         case .textSnippet:
-            customType = .textSnippet(template: customSnippetTemplate)
             customSnippetTemplate = meta.scriptCode ?? ""
+            editKind = .textSnippet
             logicEditable = true
         case .shellInline:
-            customType = .shellScript(script: customShellScript, replaceSelection: replaceSelection)
             customShellScript = meta.scriptCode ?? ""
+            editKind = .shellScript
             logicEditable = true
         default:
             logicEditable = false
         }
     }
-    
+
     /// Seeds the icon editor from an effective icon: symbol-representable icons become the editable
     /// string baseline; package-file / remote-image / text-glyph icons stay out of the string field
     /// ("" = untouched) and are previewed via `baseIconState` instead of a placeholder symbol.
@@ -336,16 +381,20 @@ public struct EditActionSheet: View {
     }
 
     private func loadCustomType(from customAction: CustomAction) {
-        customType = customAction.type
         switch customAction.type {
-        case .webSearch(let url): customURLTemplate = url
-        case .textSnippet(let snippet): customSnippetTemplate = snippet
+        case .webSearch(let url):
+            editKind = .webSearch
+            customURLTemplate = url
+        case .textSnippet(let snippet):
+            editKind = .textSnippet
+            customSnippetTemplate = snippet
         case .shellScript(let script, let replace):
+            editKind = .shellScript
             customShellScript = script
             replaceSelection = replace
         }
     }
-    
+
     private func resetAppearance() {
         // Editors-only reset: persisted overrides/manifest are cleared on Save, so Cancel still
         // backs out of an accidental reset.
@@ -416,7 +465,6 @@ public struct EditActionSheet: View {
 
     private static let legacyFallbackSymbol = "star"
 
-    
     private func saveManifestChanges() async -> Bool {
         guard let state = manifestState else {
             // Defensive: the Save button is disabled in this state, but if reached anyway (e.g. a
@@ -425,18 +473,18 @@ public struct EditActionSheet: View {
             showingSaveAlert = true
             return false
         }
-        
+
         let meta = state.manifest.actions[state.targetIndex]
         let finalTitle = customTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         // Only rewrite the icon when the user actually changed it, so local-file icons on
         // extension actions aren't clobbered by the symbol-only fallback value.
         let finalIcon = (iconSymbol != initialIconSymbol && !iconSymbol.isEmpty) ? iconSymbol : meta.icon
-        
+
         var newURL = meta.url
         var newType = meta.type
         var newScriptCode = meta.scriptCode
         if logicEditable {
-            switch customType {
+            switch editKind {
             case .webSearch:
                 newURL = customURLTemplate
                 newType = "url"
@@ -451,7 +499,7 @@ public struct EditActionSheet: View {
                 newScriptCode = customShellScript
             }
         }
-        
+
         let updatedMeta = ExtensionActionMetadata(
             id: meta.id,
             title: finalTitle.isEmpty ? meta.title : finalTitle,
@@ -475,7 +523,7 @@ public struct EditActionSheet: View {
             toast: meta.toast,
             secondaryToast: meta.secondaryToast
         )
-        
+
         var actions = state.manifest.actions
         actions[state.targetIndex] = updatedMeta
         let updatedManifest = ExtensionMetadata(
@@ -484,9 +532,10 @@ public struct EditActionSheet: View {
             actions: actions,
             options: state.manifest.options,
             version: state.manifest.version,
-            capabilities: state.manifest.capabilities
+            capabilities: state.manifest.capabilities,
+            minOpenClipVersion: state.manifest.minOpenClipVersion
         )
-        
+
         do {
             try ExtensionManifestStore.writeManifest(updatedManifest, to: state.manifestURL)
         } catch {
@@ -495,10 +544,31 @@ public struct EditActionSheet: View {
             showingSaveAlert = true
             return false
         }
-        
-        // Re-enable/re-trust package with its newly computed fingerprint so tamper detection
-        // does not falsely flag authorized preferences edits.
-        await ExtensionManager.shared.enablePackage(packageID: state.manifest.identifier)
+
+        // Re-trust the package with its newly computed fingerprint so tamper detection does not
+        // falsely flag authorized preferences edits — but only if it was already trusted: a
+        // revoked or never-enabled package keeps its trust state (an edit save is not consent).
+        await ExtensionManager.shared.retrustAfterAuthorizedEdit(packageID: state.manifest.identifier)
         return true
+    }
+}
+
+// MARK: - Inset Group Card Container
+
+private struct InsetGroupCard<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content()
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+        )
     }
 }

@@ -2,26 +2,30 @@
 // OpenClip
 //
 // Manages the menu bar status item, dropdown menu actions, and preferences window presentation for OpenClip.
+// Formatted according to native macOS status menu conventions with consistent text alignment,
+// clean sectional dividers, and standard keyboard shortcuts.
 import AppKit
 import SwiftUI
 import Core
 
 /// Manages the menu bar status icon for OpenClip.
 @MainActor
-class StatusBarController {
+class StatusBarController: NSObject, NSMenuDelegate {
     private var statusItem: NSStatusItem
     private var preferencesWindow: NSWindow?
     private var toggleEnabledItem: NSMenuItem?
+    private var extensionsSubmenu: NSMenu?
     
     /// Initializes a new status bar controller.
-    init() {
+    override init() {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        super.init()
         setupMenu()
         
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleStateChanged(_:)),
-            name: Notification.Name("OpenClipEnabledStateChanged"),
+            name: .openClipEnabledStateChanged,
             object: nil
         )
         NotificationCenter.default.addObserver(
@@ -32,10 +36,11 @@ class StatusBarController {
         )
     }
     
-    /// Sets up the menu for the status bar item.
+    /// Sets up the menu for the status bar item following standard macOS menu hierarchy.
     private func setupMenu() {
         let menu = NSMenu()
         
+        // Section 1: Core State Toggle
         let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
         let toggleItem = NSMenuItem(
             title: "Appear Automatically",
@@ -49,34 +54,38 @@ class StatusBarController {
         
         menu.addItem(NSMenuItem.separator())
 
-        menu.addItem(menuItem(title: "Preferences", action: #selector(showPreferences),
-                              keyEquivalent: ",", symbol: "gearshape"))
+        // Section 2: Core App Navigation
+        menu.addItem(menuItem(title: "Preferences…", action: #selector(showPreferences), keyEquivalent: ","))
 
-        menu.addItem(menuItem(title: "Report an Issue", action: #selector(openReportIssue),
-                              symbol: "exclamationmark.bubble"))
+        let extensionsMenu = NSMenu(title: "Extensions")
+        extensionsMenu.delegate = self
+        self.extensionsSubmenu = extensionsMenu
+        
+        let extensionsItem = NSMenuItem(title: "Extensions", action: nil, keyEquivalent: "")
+        extensionsItem.submenu = extensionsMenu
+        menu.addItem(extensionsItem)
+        
+        menu.addItem(NSMenuItem.separator())
 
-        menu.addItem(menuItem(title: "Check for Updates", action: #selector(checkForUpdates),
-                              symbol: "arrow.triangle.2.circlepath"))
+        // Section 3: Updates & Support
+        menu.addItem(menuItem(title: "Check for Updates…", action: #selector(checkForUpdates)))
+        menu.addItem(menuItem(title: "Report an Issue…", action: #selector(openReportIssue)))
 
         menu.addItem(NSMenuItem.separator())
         
+        // Section 4: Lifecycle
         let quitItem = NSMenuItem(title: "Quit OpenClip", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        quitItem.target = NSApp
         menu.addItem(quitItem)
         
         statusItem.menu = menu
         updateStatusIcon(isEnabled: isEnabled)
     }
     
-    /// Builds a menu item with an SF Symbol glyph in its leading image slot, targeted at self
-    /// (status-item menus don't resolve actions through the responder chain). Missing symbols
-    /// degrade to a text-only item.
-    private func menuItem(title: String, action: Selector, keyEquivalent: String = "", symbol: String? = nil) -> NSMenuItem {
+    /// Builds a menu item targeted at self (status-item menus don't resolve actions through the responder chain).
+    private func menuItem(title: String, action: Selector, keyEquivalent: String = "") -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
         item.target = self
-        if let symbol, let image = NSImage(systemSymbolName: symbol, accessibilityDescription: title) {
-            image.isTemplate = true
-            item.image = image
-        }
         return item
     }
 
@@ -85,7 +94,76 @@ class StatusBarController {
         let newStatus = !current
         DefaultSettingsStore.shared.set(.isAppEnabled, value: newStatus)
         updateStatusItem(isEnabled: newStatus)
-        NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newStatus)
+        NotificationCenter.default.post(name: .openClipEnabledStateChanged, object: newStatus)
+    }
+
+    // MARK: - NSMenuDelegate
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu === extensionsSubmenu else { return }
+        menu.removeAllItems()
+
+        // Top pinned action: immediately accessible with zero scrolling
+        let manageItem = NSMenuItem(
+            title: "Manage Extensions…",
+            action: #selector(openActionsTab),
+            keyEquivalent: ""
+        )
+        manageItem.target = self
+        menu.addItem(manageItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let actions = ActionCoordinator.shared.actions
+        let disabledPackages = DefaultSettingsStore.shared.get(.disabledPackages)
+        let packages = ExtensionPackageResolver.resolvePackages(from: actions, disabledPackages: disabledPackages)
+
+        if packages.isEmpty {
+            let emptyItem = NSMenuItem(title: "No Extensions Installed", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            menu.addItem(emptyItem)
+            return
+        }
+
+        for package in packages {
+            let item = NSMenuItem(
+                title: package.displayName,
+                action: #selector(toggleExtensionPackage(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = package.id
+            item.state = package.isEnabled ? .on : .off
+            menu.addItem(item)
+        }
+    }
+
+    @objc private func openActionsTab() {
+        showPreferences(tab: .actions)
+    }
+
+    @objc private func toggleExtensionPackage(_ sender: NSMenuItem) {
+        guard let packageID = sender.representedObject as? String else { return }
+        var disabledPackages = DefaultSettingsStore.shared.get(.disabledPackages)
+        let isCurrentlyDisabled = disabledPackages.contains(packageID)
+
+        if isCurrentlyDisabled {
+            disabledPackages.remove(packageID)
+            DefaultSettingsStore.shared.set(.disabledPackages, value: disabledPackages)
+            sender.state = .on
+            Task { @MainActor in
+                await ExtensionManager.shared.enablePackage(packageID: packageID)
+                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+            }
+        } else {
+            disabledPackages.insert(packageID)
+            DefaultSettingsStore.shared.set(.disabledPackages, value: disabledPackages)
+            sender.state = .off
+            Task { @MainActor in
+                await ExtensionManager.shared.disablePackage(packageID: packageID)
+                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+            }
+        }
     }
     
     @objc private func handleStateChanged(_ notification: Notification) {
@@ -133,12 +211,17 @@ class StatusBarController {
     }
     
     @objc public func showPreferences() {
+        showPreferences(tab: .general)
+    }
+
+    public func showPreferences(tab: PreferenceTab = .general) {
         if let window = preferencesWindow, window.isVisible {
+            NotificationCenter.default.post(name: .openClipSelectPreferencesTab, object: tab)
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let controller = NSHostingController(rootView: PreferencesView())
+        let controller = NSHostingController(rootView: PreferencesView(initialTab: tab))
         let window = NSWindow(contentViewController: controller)
         window.title = "OpenClip Preferences"
         window.setContentSize(NSSize(width: 760, height: 600))

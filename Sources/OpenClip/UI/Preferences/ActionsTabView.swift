@@ -432,10 +432,7 @@ struct ActionRowView: View {
                 .font(.system(size: 12, weight: .medium))
 
             if let gated = action as? GatedExtensionAction, let tooltip = gateTooltip(for: gated.reason) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: 11))
-                    .foregroundColor(.red)
-                    .help(tooltip)
+                GateInfoIcon(tooltip: tooltip)
             }
 
             Spacer()
@@ -497,17 +494,17 @@ struct ActionRowView: View {
                         }
                     } else if !isAI {
                         Button(action: {
-                            showingConfigSheet = true
+                            showingConfigSheet.toggle()
                         }) {
                             Image(systemName: "gearshape")
                                 .font(.system(size: 12))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(showingConfigSheet ? .accentColor : .secondary)
                         }
                         .buttonStyle(.plain)
                         .frame(width: 20, height: 20)
                         .help("Configure Action")
                         .accessibilityLabel("Configure Action")
-                        .sheet(isPresented: $showingConfigSheet) {
+                        .popover(isPresented: $showingConfigSheet, arrowEdge: .leading) {
                             EditActionSheet(action: action)
                         }
                     }
@@ -521,6 +518,40 @@ struct ActionRowView: View {
         .padding(.leading, indented ? 22 : 0)
         .padding(.trailing, 14)
         .padding(.vertical, 1)
+        .background(
+            DoubleClickHandler {
+                if showsControls && !isAI && !isAITools {
+                    showingConfigSheet = true
+                }
+            }
+        )
+    }
+}
+
+// MARK: - Native Double-Click Helper
+
+private struct DoubleClickHandler: NSViewRepresentable {
+    let onDoubleClick: () -> Void
+
+    func makeNSView(context: Context) -> DoubleClickNSView {
+        let view = DoubleClickNSView()
+        view.onDoubleClick = onDoubleClick
+        return view
+    }
+
+    func updateNSView(_ nsView: DoubleClickNSView, context: Context) {
+        nsView.onDoubleClick = onDoubleClick
+    }
+
+    final class DoubleClickNSView: NSView {
+        var onDoubleClick: (() -> Void)?
+
+        override func mouseDown(with event: NSEvent) {
+            if event.clickCount == 2 {
+                onDoubleClick?()
+            }
+            super.mouseDown(with: event)
+        }
     }
 }
 
@@ -568,10 +599,7 @@ struct PackageHeaderRowView: View {
                 .foregroundColor(.secondary)
 
             if let gatedReason, let tooltip = gateTooltip(for: gatedReason) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: 11))
-                    .foregroundColor(.red)
-                    .help(tooltip)
+                GateInfoIcon(tooltip: tooltip)
             }
             
             Spacer()
@@ -587,6 +615,38 @@ struct PackageHeaderRowView: View {
         }
         .padding(.trailing, 14)
         .padding(.vertical, 1)
+    }
+}
+
+/// Red ⓘ explaining why a gated extension action/package is disabled. Native
+/// `.help()` tooltips are unreliable on plain (non-interactive) views inside
+/// selectable `List` cells — the table-view host often never installs tooltip
+/// tracking for a bare `Image` — so this wraps the icon in a plain-style Button
+/// (which gets real hover/hit-testing) and pairs the tooltip with a click-through
+/// popover, guaranteeing the explanation is reachable either way.
+private struct GateInfoIcon: View {
+    let tooltip: String
+    @State private var showingPopover = false
+
+    var body: some View {
+        Button {
+            showingPopover.toggle()
+        } label: {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 11))
+                .foregroundColor(.red)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(tooltip)
+        .accessibilityLabel(tooltip)
+        .popover(isPresented: $showingPopover, arrowEdge: .bottom) {
+            Text(tooltip)
+                .font(.system(size: 11))
+                .multilineTextAlignment(.leading)
+                .padding(10)
+                .frame(width: 250, alignment: .leading)
+        }
     }
 }
 

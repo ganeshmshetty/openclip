@@ -30,8 +30,8 @@ final class PopupPanelTests: XCTestCase {
     /// size on mode change; if the ScrollView body collapses to zero at fit-time the window stays
     /// ~bar-height and the response never renders.
     func testAICardFittingSizeIncludesResponseBody() throws {
-        let card = AIResultCardView(
-            payload: AIResultPayload(
+        let card = ResultCardView(
+            payload: ResultCardPayload(
                 text: (1...20).map { "line \($0) of a long response body" }.joined(separator: "\n"),
                 isError: false,
                 title: "Summarize"
@@ -58,7 +58,7 @@ final class PopupPanelTests: XCTestCase {
         let barFrame = panel.frame
         XCTAssertGreaterThan(barFrame.height, 0)
 
-        controller.modeStore.aiResult = AIResultPayload(
+        controller.modeStore.resultCard = ResultCardPayload(
             text: (1...20).map { "line \($0) of a long response body" }.joined(separator: "\n"),
             isError: false,
             title: "Summarize"
@@ -75,7 +75,7 @@ final class PopupPanelTests: XCTestCase {
     }
 
     /// Regression repro: the REAL preview path drives `deliverResult(.text)` → `handleEffect` →
-    /// `showAIContent` (a Task on the main actor), which sets the store AND calls `enterKeyMode()`
+    /// `showResultCard` (a Task on the main actor), which sets the store AND calls `enterKeyMode()`
     /// (`makeKeyAndOrderFront`). The direct-store test above never exercises that ordering. If the
     /// panel stays at bar height after the real path, the card body is starved until a mouse move
     /// near the popup forces a re-render (the reported bug).
@@ -158,8 +158,8 @@ final class PopupPanelTests: XCTestCase {
                              "panel did not grow through the real preview path")
 
         XCTAssertEqual(controller.modeStore.mode, .content)
-        XCTAssertEqual(controller.modeStore.aiResult?.title, "Summarize")
-        XCTAssertEqual(controller.modeStore.aiResult?.text, responseBody)
+        XCTAssertEqual(controller.modeStore.resultCard?.title, "Summarize")
+        XCTAssertEqual(controller.modeStore.resultCard?.text, responseBody)
         XCTAssertNotNil(panel.contentView)
     }
 
@@ -186,12 +186,12 @@ final class PopupPanelTests: XCTestCase {
 
         XCTAssertEqual(controller.modeStore.mode, .actions, "precondition: bar mode")
 
-        controller.showAIContent(text: "line one\nline two\nline three\nline four", isError: false, title: "Summarize", session: controller.aiSessionID)
+        controller.showResultCard(text: "line one\nline two\nline three\nline four", isError: false, title: "Summarize", session: controller.aiSessionID)
 
         XCTAssertEqual(controller.modeStore.mode, .content)
-        XCTAssertEqual(controller.modeStore.aiResult?.text, "line one\nline two\nline three\nline four")
-        XCTAssertEqual(controller.modeStore.aiResult?.title, "Summarize")
-        XCTAssertEqual(controller.modeStore.aiResult?.isError, false)
+        XCTAssertEqual(controller.modeStore.resultCard?.text, "line one\nline two\nline three\nline four")
+        XCTAssertEqual(controller.modeStore.resultCard?.title, "Summarize")
+        XCTAssertEqual(controller.modeStore.resultCard?.isError, false)
     }
 
     // MARK: - AI streaming session isolation
@@ -227,17 +227,17 @@ final class PopupPanelTests: XCTestCase {
         controller.setAIProcessing(true, session: staleSession)
         XCTAssertFalse(controller.modeStore.isProcessingAI,
                        "stale processing flag must not stick into the next session")
-        controller.showAIContent(text: "old chunks", isError: false, title: "Old", isStreaming: true, session: staleSession)
+        controller.showResultCard(text: "old chunks", isError: false, title: "Old", isStreaming: true, session: staleSession)
         XCTAssertEqual(controller.modeStore.mode, .actions,
                        "stale chunk must not flip the popup into content mode")
-        XCTAssertNil(controller.modeStore.aiResult,
+        XCTAssertNil(controller.modeStore.resultCard,
                      "stale chunk must not populate the result card")
 
         // The live session still works normally.
         let live = controller.aiSessionID
-        controller.showAIContent(text: "fresh", isError: false, title: "New", isStreaming: true, session: live)
+        controller.showResultCard(text: "fresh", isError: false, title: "New", isStreaming: true, session: live)
         XCTAssertEqual(controller.modeStore.mode, .content)
-        XCTAssertEqual(controller.modeStore.aiResult?.text, "fresh")
+        XCTAssertEqual(controller.modeStore.resultCard?.text, "fresh")
     }
 
     /// Regression: cancellation was tied to SwiftUI view teardown, which races (or misses) when
@@ -270,7 +270,7 @@ final class PopupPanelTests: XCTestCase {
                           "show(for:) must start a new AI session")
         XCTAssertNil(controller.activeStreamingTask)
 
-        controller.showAIContent(text: "pre-show chunk", isError: false, title: "Old",
+        controller.showResultCard(text: "pre-show chunk", isError: false, title: "Old",
                                  isStreaming: true, session: firstSession)
         XCTAssertEqual(controller.modeStore.mode, .actions,
                        "chunk from the pre-show session must not flip the new popup")

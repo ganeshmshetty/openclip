@@ -2,13 +2,12 @@
 // OpenClip
 //
 // Provides reusable SwiftUI form controls for customizing action titles, icon symbols, and display modes.
-// The name field and icon picker share one row so the icon control stays compact. The preview mirrors what
-// the popup bar will render: in Show-Text mode it shows the effective display text; otherwise it renders
-// the action's real icon (package file, remote image, or text glyph) until the user picks a replacement.
+// Follows Approach 2 (Hero Header / Shortcuts style): prominent 48x48 hero icon button on the left,
+// action name TextField and [Show Icon | Show Text] segmented control on the right.
 import SwiftUI
 import Core
 
-/// Reusable appearance configuration form fields for Action Name + Icon (one row) and Display Mode (Icon vs Text).
+/// Reusable appearance configuration form fields: Hero Icon on the left, Title + Display Mode on the right.
 struct ActionAppearanceFields: View {
     @Binding var title: String
     /// Native action title used when the name field is empty in Show-Text mode (matches what
@@ -24,6 +23,7 @@ struct ActionAppearanceFields: View {
     @Binding var displayMode: Int // 0 = Show Icon, 1 = Show Text
 
     @State private var showingIconPicker = false
+    @State private var isIconHovered = false
 
     /// What the icon preview should render right now (same resolution the popup bar applies).
     private var previewIcon: ActionIcon {
@@ -61,27 +61,23 @@ struct ActionAppearanceFields: View {
         return .symbol(iconSymbol)
     }
 
-    /// Long display texts would stretch the compact picker button, so they render as a capped label;
-    /// everything else goes through ActionIconView like the popup does.
+    /// Hero icon content sized appropriately for the 48x48 hero button.
     @ViewBuilder
-    private var previewContent: some View {
+    private var heroIconView: some View {
         if case .text(let text) = previewIcon, text.count > 2 {
             Text(text)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .lineLimit(1)
-                .padding(.horizontal, 2)
-                .frame(maxWidth: 84)
-                .frame(height: 20)
+                .padding(.horizontal, 4)
         } else {
-            ActionIconView(icon: previewIcon, size: 20)
-                .frame(width: 20, height: 20)
+            ActionIconView(icon: previewIcon, size: 22)
         }
     }
 
     private var iconButtonHelp: String {
         switch previewIcon {
         case .symbol(let name):
-            return name.isEmpty ? "Choose icon" : name
+            return name.isEmpty ? "Choose icon" : "Icon: \(name) — click to change"
         case .text(let text):
             if displayMode == 1 {
                 return "Popup bar shows “\(text)” — click to choose the icon for icon mode"
@@ -95,60 +91,59 @@ struct ActionAppearanceFields: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Name + Icon on one axis so the icon control hugs its content instead of stretching full width
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Action Name & Icon")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+        HStack(alignment: .center, spacing: 14) {
+            // Hero Icon Button
+            Button {
+                showingIconPicker.toggle()
+            } label: {
+                ZStack(alignment: .bottomTrailing) {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.primary.opacity(isIconHovered ? 0.09 : 0.05))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.primary.opacity(isIconHovered ? 0.22 : 0.10), lineWidth: 1)
+                        )
+                        .frame(width: 48, height: 48)
+
+                    heroIconView
+                        .frame(width: 48, height: 48)
+
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .background(Circle().fill(Color(nsColor: .windowBackgroundColor)).padding(1))
+                        .offset(x: 2, y: 2)
+                        .opacity(isIconHovered ? 1.0 : 0.6)
+                }
+            }
+            .buttonStyle(.plain)
+            .help(iconButtonHelp)
+            .onHover { isIconHovered = $0 }
+            .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
+                IconPickerPopover(selectedIcon: $iconSymbol)
+            }
+
+            // Title & Display Mode Controls
+            VStack(alignment: .leading, spacing: 8) {
+                TextField("Action Name", text: $title)
+                    .font(.system(size: 13, weight: .medium))
+                    .textFieldStyle(.roundedBorder)
 
                 HStack(spacing: 8) {
-                    TextField("Action Name", text: $title)
-                        .textFieldStyle(.roundedBorder)
+                    Text("Popup Bar:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
 
-                    Button {
-                        showingIconPicker.toggle()
-                    } label: {
-                        HStack(spacing: 6) {
-                            previewContent
-                            Image(systemName: "chevron.down")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(Color.primary.opacity(0.06))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                        )
+                    Picker("", selection: $displayMode) {
+                        Text("Show Icon").tag(0)
+                        Text("Show Text").tag(1)
                     }
-                    .buttonStyle(.plain)
-                    .fixedSize()
-                    .help(iconButtonHelp)
-                    .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                        IconPickerPopover(selectedIcon: $iconSymbol)
-                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 160)
                 }
-            }
-
-            Divider()
-
-            // Display Preference Picker (Show Icon vs Show Text in Popup Bar)
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Display Mode in Popup Bar")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Picker("", selection: $displayMode) {
-                    Text("Show Icon").tag(0)
-                    Text("Show Text").tag(1)
-                }
-                .pickerStyle(.segmented)
             }
         }
+        .padding(14)
     }
 }

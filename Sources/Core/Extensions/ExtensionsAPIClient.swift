@@ -11,7 +11,7 @@ public final class ExtensionsAPIClient: Sendable {
     /// Nil disables caching (tests); the default instance survives view/tab recreation.
     private let cache: ExtensionStoreCache?
 
-    public init(baseURL: URL = URL(string: "https://getopenclip.app/api/v1/extensions")!,
+    public init(baseURL: URL = URL(string: "https://www.getopenclip.app/api/v1/extensions")!,
                 cache: ExtensionStoreCache? = ExtensionStoreCache.shared) {
         self.baseURL = baseURL
         self.cache = cache

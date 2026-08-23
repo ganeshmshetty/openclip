@@ -2,8 +2,7 @@
 // OpenClip
 //
 // Provides the extension store browsing view for the Actions tab in preferences,
-// plus the shared view model used by onboarding. The store card lives in
-// ExtensionCardView.swift; the shared install-file panel lives in ExtensionInstallPanel.swift.
+// plus the shared view model used by onboarding. Formatted in a unified native macOS inset table.
 import SwiftUI
 import Core
 
@@ -129,7 +128,7 @@ public struct ExtensionStoreView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 2)
     }
 
     private var storeContent: some View {
@@ -148,11 +147,13 @@ public struct ExtensionStoreView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    let singleColumn = [
-                        GridItem(.flexible(), spacing: 8)
-                    ]
-                    LazyVGrid(columns: singleColumn, spacing: 8) {
-                        ForEach(viewModel.extensions) { ext in
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(viewModel.extensions.enumerated()), id: \.element.id) { index, ext in
+                            if index > 0 {
+                                Divider()
+                                    .padding(.leading, 60)
+                                    .padding(.trailing, 14)
+                            }
                             ExtensionCardView(item: ext)
                                 .onAppear {
                                     if ext.id == viewModel.extensions.last?.id {
@@ -161,9 +162,16 @@ public struct ExtensionStoreView: View {
                                 }
                         }
                     }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 2)
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.primary.opacity(0.03))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
     }

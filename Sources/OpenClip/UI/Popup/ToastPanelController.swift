@@ -65,8 +65,14 @@ public final class ToastPanelController {
         // pass the hosting view reports a large default fitting size and the toast renders oversized.
         hostingView.layoutSubtreeIfNeeded()
         let fit = hostingView.fittingSize
-        hostingView.frame = NSRect(origin: .zero, size: fit)
-        panel.contentView?.frame = NSRect(origin: .zero, size: fit)
+        // Center the bubble in a window inflated by toastShadowInset on every side so the SwiftUI
+        // drop shadow has room to render — a window sized exactly to the bubble clips the shadow at
+        // its edges and rounded corners.
+        let inset = PopupMetrics.toastShadowInset
+        hostingView.frame = NSRect(x: inset, y: inset, width: fit.width, height: fit.height)
+        panel.contentView?.frame = NSRect(origin: .zero,
+                                          size: NSSize(width: fit.width + inset * 2,
+                                                       height: fit.height + inset * 2))
         place(at: fit)
         panel.orderFrontRegardless()
         if !feedback.isLoading && !feedback.keepVisible {
@@ -105,7 +111,8 @@ public final class ToastPanelController {
 
     /// Attaches the toast to the anchored popup frame: horizontally centered on it, sitting just
     /// below its bottom edge — flipping above its top edge when there is no room below — clamped
-    /// to the visible frame.
+    /// to the visible frame. `size` is the bubble's size; the window frame adds the
+    /// `toastShadowInset` ring around it so anchoring math stays in bubble coordinates.
     private func place(at size: CGSize) {
         guard let anchor = _lastAnchorFrame else {
             // No popup has anchored this session: center on the main screen. Deliberately never
@@ -123,12 +130,23 @@ public final class ToastPanelController {
         }
         origin.x = min(max(origin.x, visible.minX), max(visible.minX, visible.maxX - size.width))
         origin.y = min(max(origin.y, visible.minY), max(visible.minY, visible.maxY - size.height))
-        panel.setFrame(NSRect(origin: origin, size: size), display: true)
+        setPanelFrame(contentOrigin: origin, contentSize: size)
     }
 
     private func centerOnScreen(size: CGSize) {
         let visible = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let origin = CGPoint(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2)
-        panel.setFrame(NSRect(origin: origin, size: size), display: true)
+        setPanelFrame(contentOrigin: origin, contentSize: size)
+    }
+
+    /// Frames the panel around a bubble at `contentOrigin`, expanding by `toastShadowInset` on
+    /// every side (the ring hosting the drop shadow).
+    private func setPanelFrame(contentOrigin: CGPoint, contentSize: CGSize) {
+        let inset = PopupMetrics.toastShadowInset
+        panel.setFrame(NSRect(x: contentOrigin.x - inset,
+                              y: contentOrigin.y - inset,
+                              width: contentSize.width + inset * 2,
+                              height: contentSize.height + inset * 2),
+                       display: true)
     }
 }

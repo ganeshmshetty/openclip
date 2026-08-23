@@ -143,8 +143,8 @@ public struct OnboardingView: View {
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
                 )
+                .shadow(color: Color.black.opacity(0.15), radius: 16, x: 0, y: 6)
         )
-        .shadow(color: Color.black.opacity(0.2), radius: 18, x: 0, y: 6)
         .onAppear { permissionManager.startMonitoring() }
         .onDisappear { permissionManager.stopMonitoring() }
     }

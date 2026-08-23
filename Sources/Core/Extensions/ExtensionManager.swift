@@ -248,6 +248,20 @@ public final class ExtensionManager: Sendable {
         settings.set(.extensionTrust, value: trust)
         await loadExtensions(from: directory)
     }
+
+    /// Re-records the trust fingerprint after an authorized in-app edit (EditActionSheet save) so
+    /// tamper detection does not falsely flag the changed files. Only an already-`trusted` package
+    /// is re-trusted: a `revoked` (explicit user "no") or never-enabled (`seen`) package keeps its
+    /// trust state — a config-sheet save must never double as a consent flow. The next explicit
+    /// Enable records the new hash either way.
+    public func retrustAfterAuthorizedEdit(packageID: String, in directory: URL = Constants.extensionsDirectory) async {
+        guard let settings = self.settingsStore else { return }
+        guard settings.get(.extensionTrust)[packageID] == ExtensionTrustState.trusted.rawValue else {
+            await loadExtensions(from: directory)
+            return
+        }
+        await enablePackage(packageID: packageID, in: directory)
+    }
     
     /// Uninstalls an extension by removing its directory or file from ~/.openclip/extensions.
     /// Matches the extension folder by reading the manifest identifier, which is the prefix of generated action IDs.

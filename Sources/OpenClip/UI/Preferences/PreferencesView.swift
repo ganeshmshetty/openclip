@@ -6,7 +6,7 @@ import SwiftUI
 import Core
 import KeyboardShortcuts
 
-enum PreferenceTab: String, CaseIterable, Hashable {
+public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
     case general = "General"
     case appearance = "Appearance"
     case actions = "Actions"
@@ -14,7 +14,7 @@ enum PreferenceTab: String, CaseIterable, Hashable {
     case appRules = "App Rules"
     case about = "About"
     
-    var icon: String {
+    public var icon: String {
         switch self {
         case .general: return "gearshape.fill"
         case .appearance: return "paintbrush.fill"
@@ -41,13 +41,15 @@ public struct PreferencesView: View {
 
     @State private var disabledActionIDs: Set<String> = []
     @State private var disabledPackages: Set<String> = []
-    @State private var selectedTab: PreferenceTab = .general
+    @State private var selectedTab: PreferenceTab
     @State private var aiSubTab: AISubTab = .configure
     @State private var actionsSubTab: ActionsSubTab = .actions
     @State private var activeSheet: PreferencesSheet?
     @ObservedObject private var coordinator = ActionCoordinator.shared
 
-    public init() {}
+    public init(initialTab: PreferenceTab = .general) {
+        _selectedTab = State(initialValue: initialTab)
+    }
 
     public var body: some View {
         HStack(spacing: 0) {
@@ -90,7 +92,7 @@ public struct PreferencesView: View {
                 // Bottom footer icons (Help and GitHub - NO TEXT)
                 HStack(spacing: 14) {
                     Button(action: {
-                        if let url = URL(string: "https://getopenclip.app/docs") {
+                        if let url = URL(string: "https://www.getopenclip.app/docs") {
                             NSWorkspace.shared.open(url)
                         }
                     }) {
@@ -205,6 +207,11 @@ public struct PreferencesView: View {
             guard let request = notification.userInfo?["request"] as? ConfigurationRequest,
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
             activeSheet = .configure(action: action, request: request)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openClipSelectPreferencesTab)) { notification in
+            if let tab = notification.object as? PreferenceTab {
+                selectedTab = tab
+            }
         }
         .sheet(item: $activeSheet) { route in
             switch route {
