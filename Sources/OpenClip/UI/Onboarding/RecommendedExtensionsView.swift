@@ -9,6 +9,17 @@ import Core
 
 @MainActor
 public struct RecommendedExtensionsView: View {
+    /// Curated featured extensions, mirroring the website's Recommended section
+    /// (`CURATED_RECOMMENDED_IDS` in web/src/app/extensions/ExtensionsContent.tsx).
+    private static let curatedRecommendedIDs = [
+        "com.openclip.quick-translate",  // Quick Translate (inline, no redirect)
+        "com.openclip.wordcount",       // Word & Character Count
+        "com.openclip.speakselection",  // Speak Selection (system TTS, no redirect)
+        "com.openclip.obsidiancapture", // Obsidian Capture
+        "com.openclip.applereminders",  // Apple Reminders
+        "com.openclip.githubsearch",    // GitHub Search
+    ]
+
     @StateObject private var viewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
 
@@ -19,8 +30,15 @@ public struct RecommendedExtensionsView: View {
     }
 
     private var recommended: [ExtensionItem] {
-        // "Recommended" = the store's most-downloaded extensions from the first page.
-        Array(viewModel.extensions.sorted { $0.downloadCount > $1.downloadCount }.prefix(6))
+        // Curated picks in declared order first, then fill remaining slots by downloads.
+        let byID = Dictionary(viewModel.extensions.map { ($0.id.lowercased(), $0) },
+                              uniquingKeysWith: { first, _ in first })
+        let curated = Self.curatedRecommendedIDs.compactMap { byID[$0.lowercased()] }
+        var chosen = Set(curated.map { $0.id.lowercased() })
+        let rest = viewModel.extensions
+            .filter { chosen.insert($0.id.lowercased()).inserted }
+            .sorted { $0.downloadCount > $1.downloadCount }
+        return Array((curated + rest).prefix(6))
     }
 
     public var body: some View {
@@ -72,7 +90,9 @@ public struct RecommendedExtensionsView: View {
             }
         }
         .task {
-            await viewModel.resetAndFetch()
+            // One request for the whole catalog (API caps limit at 100) so every
+            // curated pick resolves regardless of alphabetical position.
+            await viewModel.resetAndFetch(limit: 100)
         }
     }
 
@@ -132,9 +152,15 @@ private struct RecommendedExtensionRow: View {
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
-                AnyIconView(iconId: item.icon.hasPrefix("symbol:") ? String(item.icon.dropFirst(7)) : item.icon)
-                    .frame(width: 18, height: 18)
-                    .foregroundColor(.accentColor)
+                if let urlString = item.iconURL, let url = URL(string: urlString) {
+                    RemoteTemplateIcon(url: url)
+                        .frame(width: 18, height: 18)
+                        .foregroundColor(.accentColor)
+                } else {
+                    AnyIconView(iconId: item.icon.hasPrefix("symbol:") ? String(item.icon.dropFirst(7)) : item.icon)
+                        .frame(width: 18, height: 18)
+                        .foregroundColor(.accentColor)
+                }
             }
             .frame(width: 34, height: 34)
             .background(Color.accentColor.opacity(0.12))
