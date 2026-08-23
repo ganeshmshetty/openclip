@@ -4,7 +4,92 @@
 // Renders action icons dynamically across SF Symbols, custom images, remote URLs, and text representations,
 // applying smart optical normalization so line icons, solid shapes, SVGs, and glyphs maintain balanced visual weight.
 import SwiftUI
+import SDWebImage
+import SDWebImageSVGCoder
 import Core
+
+/// Fetches a remote monochrome (`currentColor`) SVG and renders it as an AppKit
+/// template image so it inherits the environment tint and adapts to light/dark —
+/// the same decode pipeline as `IconifySVGView`, generalized to arbitrary URLs.
+/// Used for extension-store/onboarding icons sourced from the publish pipeline's
+/// normalized SVGs. Results are cached per URL for the session.
+@MainActor
+struct RemoteTemplateIcon: View {
+    let url: URL?
+    private enum LoadState {
+        case loading
+        case loaded(NSImage)
+        case failed
+    }
+    @State private var state: LoadState = .loading
+
+    var body: some View {
+        Group {
+            switch state {
+            case .loaded(let img):
+                Image(nsImage: img)
+                    .resizable()
+                    .renderingMode(.template)
+                    .scaledToFit()
+            case .loading:
+                Color.primary.opacity(0.08)
+                    .overlay(ProgressView().controlSize(.mini))
+            case .failed:
+                // Terminal state: a failed fetch must never spin forever.
+                Image(systemName: "questionmark.square")
+                    .resizable()
+                    .scaledToFit()
+                    .opacity(0.5)
+            }
+        }
+        .task(id: url?.absoluteString) {
+            state = .loading
+            guard let url else {
+                state = .failed
+                return
+            }
+            if let decoded = await RemoteTemplateIconCache.shared.image(for: url) {
+                state = .loaded(decoded)
+            } else {
+                state = .failed
+            }
+        }
+    }
+}
+
+/// Session cache for decoded template images keyed by absolute URL.
+actor RemoteTemplateIconCache {
+    static let shared = RemoteTemplateIconCache()
+    private let cache = NSCache<NSString, Box>()
+
+    final class Box: @unchecked Sendable {
+        let image: NSImage
+        init(_ image: NSImage) { self.image = image }
+    }
+
+    func image(for url: URL) async -> NSImage? {
+        if let hit = cache.object(forKey: url.absoluteString as NSString) {
+            return hit.image
+        }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            // Decode off-main: SDImageSVGCoder produces an NSImage from raw SVG data.
+            let decoded = await Task.detached(priority: .utility) { () -> NSImage? in
+                SDImageSVGCoder.shared.decodedImage(with: data, options: nil)
+            }.value
+            guard let decoded else { return nil }
+            // Template mode → AppKit renders it as a mask tinted by foregroundColor,
+            // which is what makes currentColor-style icons theme-adaptive.
+            decoded.isTemplate = true
+            decoded.size = NSSize(width: 64, height: 64)
+            let box = Box(decoded)
+            cache.setObject(box, forKey: url.absoluteString as NSString)
+            return decoded
+        } catch {
+            return nil
+        }
+    }
+}
 
 public enum IconOpticalCategory: Sendable {
     case solidOrFilled

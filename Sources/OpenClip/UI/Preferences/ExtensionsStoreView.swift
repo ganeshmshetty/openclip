@@ -24,6 +24,9 @@ public final class ExtensionsStoreViewModel: ObservableObject {
     private let api: any ExtensionStoreFetching
     /// Keystroke quiet period before a search actually fires.
     private let debounceNanos: UInt64
+    /// Page size for the active fetch session; onboarding raises it so one request
+    /// covers the whole catalog and curated picks are always in the result set.
+    private var pageLimit: Int = Constants.storePageLimit
 
     public init(api: any ExtensionStoreFetching = ExtensionsAPIClient.shared,
                 debounceNanos: UInt64 = 250_000_000) {
@@ -52,7 +55,7 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         isLoading = true
 
         do {
-            let response = try await api.fetchExtensions(query: searchQuery, page: currentPage, limit: Constants.storePageLimit)
+            let response = try await api.fetchExtensions(query: searchQuery, page: currentPage, limit: pageLimit)
             // Superseded mid-flight (newer search/reset owns the result set): touch nothing,
             // especially not `isLoading`, which now belongs to the winning generation.
             guard gen == generation else { return }
@@ -69,10 +72,11 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         }
     }
 
-    public func resetAndFetch() async {
+    public func resetAndFetch(limit: Int = Constants.storePageLimit) async {
         // Bump first: any in-flight request from the previous generation is dead on arrival
         // and can neither append rows nor hold the loading flag against this fetch.
         generation += 1
+        pageLimit = limit
         currentPage = 1
         extensions = []
         isLoading = false

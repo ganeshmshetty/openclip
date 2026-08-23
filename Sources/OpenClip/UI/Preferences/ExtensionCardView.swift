@@ -27,8 +27,58 @@ struct ExtensionCardView: View {
         matchingInstalledAction != nil
     }
 
+    /// The SF Symbol name when the catalog icon string names one — either bare
+    /// ("bold", "text.alignleft") or explicitly prefixed ("symbol:sparkles") —
+    /// or nil for file references like "icon.svg" / remote ids like "simple-icons:swift".
+    private var bareSymbolName: String? {
+        var icon = item.icon
+        if icon.hasPrefix("symbol:") { icon = String(icon.dropFirst("symbol:".count)) }
+        guard !icon.isEmpty else { return nil }
+        let lowered = icon.lowercased()
+        guard !lowered.hasSuffix(".svg")
+            && !lowered.hasSuffix(".png")
+            && !icon.contains("/")
+            && !icon.contains(":") else { return nil }
+        return icon
+    }
+
+    /// Deterministic letter tile (hue hashed from the id) — the last-resort icon.
+    private var letterTile: some View {
+        let hue = {
+            var h = 0
+            for b in item.id.utf8 { h = (h &* 31 &+ Int(b)) % 360 }
+            return max(h, 0)
+        }()
+        return ZStack {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(hue: Double(hue), saturation: 0.55, brightness: 0.75))
+            Text(String(item.name.trimmingCharacters(in: .whitespaces).first.map(String.init) ?? "?"))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white)
+        }
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
+            // Leading icon: normalized adaptive SVG from the publish pipeline when
+            // available (rendered as a tintable template); falls back to a bare SF
+            // Symbol or a deterministic letter tile.
+            ZStack {
+                if let urlString = item.iconURL, let url = URL(string: urlString) {
+                    RemoteTemplateIcon(url: url)
+                        .frame(width: 19, height: 19)
+                        .foregroundColor(.primary)
+                } else if let symbolName = bareSymbolName {
+                    ActionIconView(icon: .symbol(symbolName), size: 18)
+                        .foregroundColor(.accentColor)
+                } else {
+                    letterTile
+                }
+            }
+            .frame(width: 30, height: 30)
+            .background(Color.primary.opacity(0.05))
+            .cornerRadius(7)
+
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(item.name)
