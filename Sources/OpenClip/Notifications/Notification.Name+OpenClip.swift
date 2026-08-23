@@ -11,4 +11,13 @@ extension Notification.Name {
     /// `userInfo["request"]`. StatusBarController/Preferences observes this, finds the action by id
     /// in `ActionCoordinator.shared.actions`, and presents its `EditActionSheet`.
     static let openClipOpenActionConfiguration = Notification.Name("OpenClipOpenActionConfiguration")
+
+    /// Posted when extension packages are installed, uninstalled, enabled, or disabled.
+    static let openClipExtensionsDidChange = Notification.Name("OpenClipExtensionsDidChange")
+
+    /// Posted when the master app enabled state changes.
+    static let openClipEnabledStateChanged = Notification.Name("OpenClipEnabledStateChanged")
+
+    /// Posted to switch the active tab in the Preferences window. The target `PreferenceTab` travels in `object`.
+    static let openClipSelectPreferencesTab = Notification.Name("OpenClipSelectPreferencesTab")
 }

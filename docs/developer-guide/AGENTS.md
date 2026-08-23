@@ -935,7 +935,7 @@ so pre-existing extensions keep working with zero action.
   `ConfigurationRequest.swift`).
 - Delivery model (primary/secondary + per-click toasts): `Sources/Core/Actions/ActionDelivery.swift`,
   `Sources/Core/Actions/ActionResultDelivery.swift`, `Sources/Core/Actions/DeliveryDecoratedAction.swift`.
-- AI result card (native SwiftUI): `Sources/OpenClip/UI/Popup/AIResultCardView.swift`.
+- Result card (native SwiftUI, any text-returning action): `Sources/OpenClip/UI/Popup/ResultCardView.swift`.
 - Visibility/required options: `Sources/Core/Actions/ActionVisibility.swift`, `ExtensionActionRules.swift`.
 - Options storage: `Sources/Core/Settings/ActionOptionStore.swift`, `SettingKey.swift`,
   `Sources/OpenClip/Platform/Extensions/KeychainActionOptionStore.swift`.

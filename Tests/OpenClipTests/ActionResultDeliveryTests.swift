@@ -466,7 +466,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         assertCase(try await awaitDelivery(from: handler), .paste("hello"))
         XCTAssertFalse(controller.isVisible, "an explicit paste must dismiss like a paste today")
         XCTAssertEqual(controller.modeStore.mode, .actions, "an explicit paste must never open the preview card")
-        XCTAssertNil(controller.modeStore.aiResult)
+        XCTAssertNil(controller.modeStore.resultCard)
     }
 
     /// An explicit `.copy` with a `.preview` preference stays a native copy (no card, no toast).
@@ -516,9 +516,9 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertTrue(handler.results.isEmpty, "preview must not deliver any effect")
         XCTAssertTrue(controller.isVisible, "preview keeps the popup open")
         XCTAssertEqual(controller.modeStore.mode, .content)
-        XCTAssertEqual(controller.modeStore.aiResult?.text, "hello")
-        XCTAssertEqual(controller.modeStore.aiResult?.title, "My Action")
-        XCTAssertFalse(controller.modeStore.aiResult?.isError ?? true)
+        XCTAssertEqual(controller.modeStore.resultCard?.text, "hello")
+        XCTAssertEqual(controller.modeStore.resultCard?.title, "My Action")
+        XCTAssertFalse(controller.modeStore.resultCard?.isError ?? true)
     }
 
     /// Preview with cannot-paste hides the card's Paste button (modeStore.canPaste == false).
@@ -593,7 +593,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         }
 
         XCTAssertEqual(controller.modeStore.mode, .actions)
-        XCTAssertNil(controller.modeStore.aiResult)
+        XCTAssertNil(controller.modeStore.resultCard)
         XCTAssertTrue(controller.isVisible, "collapsing the card never hides the popup")
     }
 
@@ -622,8 +622,8 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         XCTAssertFalse(toast.isLoading, "the spinner must hide when the preview card re-shows")
         XCTAssertEqual(controller.modeStore.mode, .content)
-        XCTAssertEqual(controller.modeStore.aiResult?.text, "loaded")
-        XCTAssertEqual(controller.modeStore.aiResult?.title, "Slow Text")
+        XCTAssertEqual(controller.modeStore.resultCard?.text, "loaded")
+        XCTAssertEqual(controller.modeStore.resultCard?.title, "Slow Text")
         XCTAssertTrue(controller.isVisible, "the popup must re-show as the preview card")
         XCTAssertTrue(handler.results.isEmpty)
     }
@@ -692,7 +692,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         while controller.modeStore.mode != .content && Date() < deadline {
             try? await Task.sleep(nanoseconds: 2_000_000)
         }
-        XCTAssertEqual(controller.modeStore.aiResult?.title, "Declared", "the preview card must show the performing action's title")
+        XCTAssertEqual(controller.modeStore.resultCard?.title, "Declared", "the preview card must show the performing action's title")
         XCTAssertNil(controller.pendingActionTitle, "runAction must not leave pendingActionTitle behind")
         XCTAssertNil(controller.pendingDelivery, "runAction must not leave pendingDelivery behind")
 

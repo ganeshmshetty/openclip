@@ -19,6 +19,9 @@ public final class ToastPanel: NSPanel {
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = false
+        // Purely informational surface — never key, no interactive content. Let every click (the
+        // bubble AND the toastShadowInset ring hosting its shadow) fall through to the app below.
+        self.ignoresMouseEvents = true
         self.isMovable = false
         self.hidesOnDeactivate = false
     }

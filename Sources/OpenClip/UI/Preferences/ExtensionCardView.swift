@@ -1,8 +1,8 @@
 // ExtensionCardView.swift
 // OpenClip
 //
-// The store grid card for a single extension listing (icon, name, author, description,
-// install/uninstall). Split out of ExtensionsStoreView.swift.
+// The store list row for a single extension listing (icon, name, author, description,
+// and install/uninstall actions). Formatted in native macOS table style.
 import SwiftUI
 import Core
 
@@ -59,14 +59,14 @@ struct ExtensionCardView: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 14) {
             // Leading icon: normalized adaptive SVG from the publish pipeline when
             // available (rendered as a tintable template); falls back to a bare SF
             // Symbol or a deterministic letter tile.
             ZStack {
                 if let urlString = item.iconURL, let url = URL(string: urlString) {
                     RemoteTemplateIcon(url: url)
-                        .frame(width: 19, height: 19)
+                        .frame(width: 20, height: 20)
                         .foregroundColor(.primary)
                 } else if let symbolName = bareSymbolName {
                     ActionIconView(icon: .symbol(symbolName), size: 18)
@@ -75,25 +75,26 @@ struct ExtensionCardView: View {
                     letterTile
                 }
             }
-            .frame(width: 30, height: 30)
-            .background(Color.primary.opacity(0.05))
+            .frame(width: 32, height: 32)
+            .background(Color.primary.opacity(0.06))
             .cornerRadius(7)
 
-            VStack(alignment: .leading, spacing: 2) {
+            // Center Title & Description (clean 2-line layout without metadata clutter)
+            VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(item.name)
                         .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.primary)
                         .lineLimit(1)
-                    Text("@\(item.author)")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                    if let version = item.version {
-                        Text("v\(version)")
-                            .font(.caption2)
+
+                    if !item.author.isEmpty {
+                        Text("by @\(item.author)")
+                            .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
                     }
                 }
+
                 if let err = installError {
                     Text("⚠︎ \(err)")
                         .font(.caption2)
@@ -101,79 +102,74 @@ struct ExtensionCardView: View {
                         .lineLimit(1)
                 } else {
                     Text(item.description)
-                        .font(.caption)
+                        .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
             }
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 12)
 
-            HStack(spacing: 3) {
-                Image(systemName: "arrow.down.circle")
-                Text("\(item.downloadCount)")
-            }
-            .font(.caption2)
-            .foregroundColor(.secondary)
+            // Right Action Buttons
+            HStack(spacing: 8) {
+                if showSuccess || isInstalled {
+                    if isInstalled, updateManager.updatablePackageIDs.contains(item.id) {
+                        Button(action: { Task { try? await updateManager.update(packageID: item.id) } }) {
+                            Label("Update", systemImage: "arrow.down.circle")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
 
-            if showSuccess || isInstalled {
-                if isInstalled, updateManager.updatablePackageIDs.contains(item.id) {
-                    Button(action: { Task { try? await updateManager.update(packageID: item.id) } }) {
-                        Label("Update", systemImage: "arrow.down.circle")
+                    Button("Uninstall") {
+                        if let action = matchingInstalledAction {
+                            Task {
+                                do {
+                                    try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                                } catch {
+                                    Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
+                                }
+                                await MainActor.run {
+                                    showSuccess = false
+                                    NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                                }
+                            }
+                        }
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                }
-                Button(role: .destructive, action: {
-                    if let action = matchingInstalledAction {
+                    .frame(minWidth: 64)
+                    .help("Uninstall \(item.name)")
+                    .accessibilityLabel("Uninstall \(item.name)")
+                } else {
+                    Button(isInstalling ? "Installing…" : "Install") {
+                        guard let url = URL(string: item.downloadURL) else {
+                            installError = "Invalid download URL."
+                            return
+                        }
+                        isInstalling = true
+                        installError = nil
                         Task {
                             do {
-                                try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+                                ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
+                                _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
+                                showSuccess = true
+                                await updateManager.checkForUpdates()
                             } catch {
-                                Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
+                                installError = error.localizedDescription
                             }
-                            await MainActor.run {
-                                showSuccess = false
-                                NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
-                            }
+                            isInstalling = false
                         }
                     }
-                }) {
-                    Label("Uninstall", systemImage: "trash")
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .frame(minWidth: 64)
+                    .disabled(isInstalling)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(.red)
-            } else {
-                Button(isInstalling ? "Installing..." : "Install") {
-                    guard let url = URL(string: item.downloadURL) else {
-                        installError = "Invalid download URL."
-                        return
-                    }
-                    isInstalling = true
-                    installError = nil
-                    Task {
-                        do {
-                            ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
-                            _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
-                            showSuccess = true
-                            await updateManager.checkForUpdates()
-                        } catch {
-                            installError = error.localizedDescription
-                        }
-                        isInstalling = false
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(isInstalling)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 }

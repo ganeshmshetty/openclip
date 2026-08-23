@@ -1,9 +1,10 @@
-// AIResultCardView.swift
+// ResultCardView.swift
 // OpenClip
 //
-// The native AI result card rendered in content mode in place of the bar: a header (back chevron,
-// sparkles icon + preset title), a scrollable response body (error-styled when the provider
-// failed), and a Copy/Paste footer (hidden on error; Paste hidden when the target app can't paste).
+// The native result card rendered in content mode in place of the bar: a header (back chevron,
+// producing action's icon or sparkles + title), a scrollable response body (error-styled when the
+// action failed), and a Copy/Paste footer (hidden on error; Paste hidden when the target app can't
+// paste). Any action whose resolved outcome is text renders here, not just AI presets.
 // Paste/Copy are explicit user requests routed through performCardEffect, so an explicit Paste
 // always pastes, and both dismiss the popup (Copy like Paste). The panel is key while the card
 // shows (Task 14) and the card owns the keys (SwiftUI .onKeyPress): Esc collapses, Return pastes,
@@ -25,10 +26,10 @@ extension EnvironmentValues {
     }
 }
 
-// MARK: - AI Result Card
+// MARK: - Result Card
 
-public struct AIResultCardView: View {
-    public let payload: AIResultPayload
+public struct ResultCardView: View {
+    public let payload: ResultCardPayload
     /// Paste availability of the target app (from the AX probe); `false` hides the Paste button.
     public let canPaste: Bool?
     public let onExit: @MainActor () -> Void
@@ -41,7 +42,7 @@ public struct AIResultCardView: View {
     @State private var isChevronHovered = false
 
     public init(
-        payload: AIResultPayload,
+        payload: ResultCardPayload,
         canPaste: Bool? = nil,
         onExit: @escaping @MainActor () -> Void,
         onPaste: @escaping @MainActor () -> Void,
@@ -134,6 +135,11 @@ public struct AIResultCardView: View {
             if payload.isStreaming {
                 ProgressView()
                     .controlSize(.small)
+            } else if let icon = payload.icon {
+                // The producing action's own icon (bar-resolution: honors user overrides),
+                // so extension results keep their identity in the card.
+                ActionIconView(icon: icon, size: 12)
+                    .foregroundColor(.accentColor)
             } else {
                 Image(systemName: "sparkles")
                     .font(.system(size: 12, weight: .medium))

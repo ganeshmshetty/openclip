@@ -16,6 +16,12 @@ public enum PopupMetrics {
     public static let toastCornerRadius: CGFloat = 14.0
     /// Gap between a toast bubble and the popup edge it attaches to.
     public static let toastAnchorGap: CGFloat = 8.0
+    /// Transparent ring (pt) around the toast bubble inside the panel frame: the controller centers
+    /// the bubble in a window inflated by this amount so its SwiftUI drop shadow (radius 4, y 1)
+    /// renders instead of being clipped at the window edge — worst at the rounded corners, where the
+    /// blur spreads diagonally. The whole toast panel ignores mouse events (it is purely a status
+    /// surface), so the ring can never swallow clicks.
+    public static let toastShadowInset: CGFloat = 8.0
     public static let popupPadding: CGFloat = 8.0
     /// Transparent ring (pt) around the popup content *inside* the panel frame: `PopupView` pads
     /// its content by this amount so the SwiftUI drop shadow renders inside the panel edge instead

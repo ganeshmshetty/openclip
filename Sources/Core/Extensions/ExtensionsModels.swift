@@ -13,7 +13,10 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
     public let downloadCount: Int
     public let downloadURL: String
     public let version: String?
-    
+    /// Absolute URL to the normalized adaptive web icon (currentColor SVG) generated
+    /// by the extensions publish pipeline; absent for older catalog snapshots.
+    public let iconURL: String?
+
     public init(
         id: String,
         name: String,
@@ -22,7 +25,8 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
         icon: String,
         downloadCount: Int,
         downloadURL: String,
-        version: String? = nil
+        version: String? = nil,
+        iconURL: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -32,6 +36,7 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
         self.downloadCount = downloadCount
         self.downloadURL = downloadURL
         self.version = version
+        self.iconURL = iconURL
     }
 }
 

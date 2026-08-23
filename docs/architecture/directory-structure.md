@@ -123,7 +123,7 @@ Sources/
         │   ├── OnboardingWindowController.swift  # Transparent borderless window hosting the solid rounded card
         │   └── RecommendedExtensionsView.swift   # Top store extensions by downloadCount + Install File
         ├── Popup/                            # Floating popup panel
-        │   ├── PopupModeStore.swift            # Shared observable actions↔search↔content mode + aiResult payload (statuses now live in the toast, not the store)
+        │   ├── PopupModeStore.swift            # Shared observable actions↔search↔content mode + resultCard payload (statuses now live in the toast, not the store)
         │   ├── PopupMetrics.swift                # UI-only popup/search/AI-card sizing + placement/dismissal constants (App target, not Core)
         │   ├── PopupPanel.swift                # NSPanel subclass (scoped allowsKey + bottom-edge pin on content-driven resize)
         │   ├── PopupGesturePolicy.swift        # Derived popup interaction policy from chrome + conformance (App target — UI-only)
@@ -132,9 +132,9 @@ Sources/
         │   ├── PopupSearchView.swift           # Action-search palette: field + ranked results as one surface with the bar
         │   ├── PopupThemeModel.swift           # Theme resolution: category (classic/glass) + shared appearance → tokens/colorScheme
         │   ├── PopupThemeSelector.swift        # Theme control: two rows (Classic|Glass, then System/Light/Dark); storage popupTheme + popupThemeColor
-        │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode / content AI-card branch + ⌘ affordance)
+        │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode / content result-card branch + ⌘ affordance)
         │   ├── PopupWindowController.swift   # Window lifecycle + mode state machine (bar/search/content) + event monitoring
-        │   ├── AIResultCardView.swift          # Native AI result card (back chevron + sparkles + title header, scrollable body, Copy/Paste footer) for .content mode
+        │   ├── ResultCardView.swift          # Native result card (back chevron + action icon/sparkles + title header, scrollable body, Copy/Paste footer) for .content mode — any text-returning action renders here
         │   ├── ToastPanel.swift                # Non-key floating NSPanel behind the status toast (borderless, non-activating, never key)
         │   ├── ToastView.swift                 # One-line SwiftUI toast `[spinner | icon] message`, PopupThemeModel-themed
         │   ├── ToastPanelController.swift      # Owns the toast panel + auto-dismiss timer; single status surface (replaces the inline banner)

@@ -2,9 +2,9 @@
 // OpenClip
 //
 // Manages the window lifecycle, event tracking, positioning, and animation of the main floating popup panel.
-// Owns the popup mode state machine (actions bar ↔ action-search palette ↔ native AI result card): search
+// Owns the popup mode state machine (actions bar ↔ action-search palette ↔ native result card): search
 // mode makes the panel key (a scoped exception to the never-key rule) and restores focus to the
-// previous app on exit; content mode renders the AI result card inline on the panel and — since
+// previous app on exit; content mode renders the result card inline on the panel and — since
 // Task 14 — is also key, reusing the same enterKeyMode()/exitKeyMode() primitives as search, with
 // Esc owned by the SwiftUI card (the controller-level key monitor stays observation-only in
 // content mode).
@@ -23,7 +23,7 @@ public class PopupWindowController {
     private var currentContext: SelectionContext?
     private var currentActionContext: ActionContext?
     private var cardAbove = false
-    /// Popup display mode (actions bar ↔ search palette ↔ AI result card), observed by PopupView.
+    /// Popup display mode (actions bar ↔ search palette ↔ result card), observed by PopupView.
     public let modeStore = PopupModeStore()
     /// Records action usage for search recency ranking.
     private let usageStore = ActionUsageStore()
@@ -53,11 +53,15 @@ public class PopupWindowController {
     /// tests so a test can model the `onWillPerformAction` snapshot directly.
     var pendingDelivery: ActionDelivery? = nil
 
-    /// The most recent bar/palette action's title, for the preview card header. Set by the perform
+    /// The most recent bar/palette action's title, for the result card header. Set by the perform
     /// paths (`onWillPerformAction`, `runAction`, `runLoadingAction`) alongside `pendingDelivery`,
     /// consumed once by the next `deliverResult` snapshot (which clears it), reset by hide(). Internal
     /// for tests.
     var pendingActionTitle: String? = nil
+
+    /// The most recent bar/palette action's display icon (customization-resolved, mirroring the bar
+    /// row), for the result card header. Lifecycle mirrors `pendingActionTitle`. Internal for tests.
+    var pendingActionIcon: ActionIcon? = nil
 
     /// Probes whether the frontmost app supports Paste. Injected for tests.
     private let pasteProbe: PasteAvailabilityProbing
@@ -173,7 +177,7 @@ public class PopupWindowController {
                 self?.setAIProcessing(active, session: aiSession)
             },
             onAIResult: { [weak self] text, isError, title, isStreaming in
-                self?.showAIContent(text: text, isError: isError, title: title, isStreaming: isStreaming, session: aiSession)
+                self?.showResultCard(text: text, isError: isError, title: title, isStreaming: isStreaming, session: aiSession)
             },
             onHoveredActionChanged: { [weak self] action in
                 self?.updateHoveredAction(action)
@@ -187,6 +191,7 @@ public class PopupWindowController {
             onWillPerformAction: { [weak self] action in
                 self?.pendingDelivery = action.delivery
                 self?.pendingActionTitle = action.title
+                self?.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
             },
             onRunLoadingAction: { [weak self] action in
                 guard let self, let context = self.currentActionContext else { return }
@@ -344,17 +349,19 @@ public class PopupWindowController {
         modeStore.isProcessingAI = active
     }
 
-    /// Shows the AI provider's response (or error) in the native result card, entering content
-    /// mode and making the panel key so Esc can collapse the card. Paste/Copy are explicit
-    /// user requests routed through `performCardEffect`, so they bypass the paste-vs-copy
-    /// re-decision — an explicit Paste always pastes. Probes (AX) whether the target app can paste
-    /// so the card can hide its Paste button; the probe targets the captured source app, never
-    /// OpenClip itself. Deliveries are session-stamped: a chunk from an abandoned stream is
-    /// dropped instead of hijacking the current popup into content mode. Internal for tests.
-    func showAIContent(text: String, isError: Bool, title: String, isStreaming: Bool = false, session: UUID) {
+    /// Shows an action's returned text (or error) in the native result card, entering content
+    /// mode and making the panel key so Esc can collapse the card. Any text-returning action
+    /// renders here — AI presets stream into it via `onAIResult`, extensions land via the
+    /// delivery snapshot with their own icon. Paste/Copy are explicit user requests routed
+    /// through `performCardEffect`, so they bypass the paste-vs-copy re-decision — an explicit
+    /// Paste always pastes. Probes (AX) whether the target app can paste so the card can hide its
+    /// Paste button; the probe targets the captured source app, never OpenClip itself. Deliveries
+    /// are session-stamped: a chunk from an abandoned stream is dropped instead of hijacking the
+    /// current popup into content mode. Internal for tests.
+    func showResultCard(text: String, isError: Bool, title: String, icon: ActionIcon? = nil, isStreaming: Bool = false, session: UUID) {
         guard session == aiSessionID else { return }
         modeStore.isProcessingAI = isStreaming
-        modeStore.aiResult = AIResultPayload(text: text, isError: isError, title: title, isStreaming: isStreaming)
+        modeStore.resultCard = ResultCardPayload(text: text, isError: isError, title: title, icon: icon, isStreaming: isStreaming)
         if modeStore.mode != .content {
             panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
             panel?.recenterXOnResize = true
@@ -384,7 +391,7 @@ public class PopupWindowController {
             }
         }
         // Safety-net retry for the first content-mode entry where SwiftUI swaps
-        // the entire view tree (bar → AIResultCardView) and needs an extra
+        // the entire view tree (bar → ResultCardView) and needs an extra
         // layout pass to settle.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             guard let self, self.modeStore.mode == .content else { return }
@@ -397,10 +404,10 @@ public class PopupWindowController {
         }
     }
 
-    /// Collapses the AI result card back to the actions bar. Never hides the popup.
+    /// Collapses the result card back to the actions bar. Never hides the popup.
     public func exitContent() {
         guard modeStore.mode == .content else { return }
-        modeStore.aiResult = nil
+        modeStore.resultCard = nil
         modeStore.mode = .actions
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         exitKeyMode()
@@ -479,7 +486,7 @@ public class PopupWindowController {
         if toastController.currentFeedback?.keepVisible == true {
             toastController.hide()
         }
-        modeStore.aiResult = nil
+        modeStore.resultCard = nil
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
         // runs and any later snapshot read the last intent; force-copy must never persist). The
@@ -487,6 +494,7 @@ public class PopupWindowController {
         pendingClickIntent = .primary
         pendingDelivery = nil
         pendingActionTitle = nil
+        pendingActionIcon = nil
         isRightClickInProgress = false
         modeStore.isProcessingAI = false
         modeStore.mode = .actions
@@ -710,8 +718,11 @@ public class PopupWindowController {
         /// The user's chosen behavior for this click (preview/paste/copy), resolved from the two
         /// General-tab settings at snapshot time.
         let preference: ResultDeliveryPreference
-        /// The performing action's title — the preview card header. nil for explicit user requests.
+        /// The performing action's title — the result card header. nil for explicit user requests.
         let actionTitle: String?
+        /// The performing action's display icon (customization-resolved) — the result card header
+        /// icon. Captured alongside `actionTitle` by the same perform paths.
+        let actionIcon: ActionIcon?
         /// The selection context captured before any early-close (loading actions), used to re-show
         /// the popup as a preview card. nil when the popup never closed.
         let selection: SelectionContext?
@@ -728,6 +739,7 @@ public class PopupWindowController {
             application: NSWorkspace.shared.frontmostApplication,
             preference: preference(for: pendingClickIntent),
             actionTitle: pendingActionTitle,
+            actionIcon: pendingActionIcon,
             selection: currentActionContext?.selection
         )
     }
@@ -744,6 +756,7 @@ public class PopupWindowController {
         let delivery = deliverySnapshot()
         pendingDelivery = nil
         pendingActionTitle = nil
+        pendingActionIcon = nil
         if shouldDismiss(result, delivery: delivery) {
             hide()
         }
@@ -794,7 +807,7 @@ public class PopupWindowController {
                     if modeStore.canPaste == nil {
                         modeStore.canPaste = await pasteProbe.canPaste(in: delivery?.application, policy: delivery?.policy ?? .default) ?? false
                     }
-                    showAIContent(text: text, isError: false, title: delivery?.actionTitle ?? "Action", session: aiSessionID)
+                    showResultCard(text: text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID)
                     return
                 }
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
@@ -912,6 +925,7 @@ public class PopupWindowController {
             application: NSWorkspace.shared.frontmostApplication,
             preference: preference,
             actionTitle: action.title,
+            actionIcon: action.displayIcon(using: ActionCustomizationManager.shared),
             selection: context.selection
         )
         usageStore.record(action.id)
@@ -955,6 +969,7 @@ public class PopupWindowController {
             application: NSWorkspace.shared.frontmostApplication,
             preference: preference(for: clickIntent),
             actionTitle: action.title,
+            actionIcon: action.displayIcon(using: ActionCustomizationManager.shared),
             selection: context.selection
         )
         usageStore.record(action.id)
@@ -1010,7 +1025,7 @@ public class PopupWindowController {
                     if let selection = delivery.selection {
                         let canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
                         show(for: selection, pasteAvailable: canPaste)
-                        showAIContent(text: text, isError: false, title: delivery.actionTitle ?? "Action", session: aiSessionID)
+                        showResultCard(text: text, isError: false, title: delivery.actionTitle ?? "Action", icon: delivery.actionIcon, session: aiSessionID)
                     }
                     return
                 }

@@ -184,6 +184,35 @@ final class ExtensionManagerTrustTests: XCTestCase {
     }
 
     @MainActor
+    func testRetrustAfterAuthorizedEditPreservesRevokedAndSeenStates() async throws {
+        let store = MemorySettingsStore()
+        let manager = ExtensionManager.shared
+        manager.settingsStore = store
+        try writePackage(packageID: "com.t.edit", name: "Edit")
+        manager.prepareInstall(source: "package", packageID: "com.t.edit")
+        await manager.loadExtensions(from: tempDir) // migration → trusted
+
+        // Trusted + authorized edit → re-trusted with a fresh fingerprint (the normal flow).
+        try writePackage(packageID: "com.t.edit", name: "Edit", script: "echo edited")
+        await manager.retrustAfterAuthorizedEdit(packageID: "com.t.edit", in: tempDir)
+        XCTAssertEqual(store.get(.extensionTrust)["com.t.edit"], "trusted")
+        XCTAssertFalse(manager.loadedActions[0] is GatedExtensionAction)
+
+        // Revoked + edit → stays revoked: a config-sheet save must not re-enable the package.
+        await manager.disablePackage(packageID: "com.t.edit", in: tempDir)
+        try writePackage(packageID: "com.t.edit", name: "Edit", script: "echo edited-again")
+        await manager.retrustAfterAuthorizedEdit(packageID: "com.t.edit", in: tempDir)
+        XCTAssertEqual(store.get(.extensionTrust)["com.t.edit"], "revoked")
+        let revoked = try XCTUnwrap(manager.loadedActions.first as? GatedExtensionAction)
+        XCTAssertEqual(revoked.reason, .revoked)
+
+        // Seen (never enabled) + edit → stays seen: an edit save is not consent.
+        store.set(.extensionTrust, value: ["com.t.edit": "seen"])
+        await manager.retrustAfterAuthorizedEdit(packageID: "com.t.edit", in: tempDir)
+        XCTAssertEqual(store.get(.extensionTrust)["com.t.edit"], "seen")
+    }
+
+    @MainActor
     func testUnconfiguredManagerSkipsGatingEntirely() async throws {
         // settingsStore nil → raw behavior, existing tests stay green.
         let manager = ExtensionManager.shared

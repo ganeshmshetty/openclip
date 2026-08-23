@@ -88,7 +88,7 @@ struct AboutTab: View {
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
                     actionButton("Website", icon: "globe") {
-                        openURL("https://getopenclip.app")
+                        openURL("https://www.getopenclip.app")
                     }
                     actionButton("GitHub", icon: "chevron.left.forwardslash.chevron.right") {
                         openURL("https://github.com/ganeshmshetty/openclip")

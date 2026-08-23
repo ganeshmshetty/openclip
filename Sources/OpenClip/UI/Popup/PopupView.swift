@@ -3,7 +3,7 @@
 //
 // Renders the main floating action bar popup view presenting available actions, transform menus,
 // inline completion buttons, the action-search palette, and the native AI result card (which
-// replaces the bar with AIResultCardView in content mode).
+// replaces the bar with ResultCardView in content mode).
 import SwiftUI
 import AppKit
 import CoreGraphics
@@ -301,21 +301,21 @@ public struct PopupView: View {
     @ViewBuilder
     private var barContent: some View {
         if modeStore.mode == .content {
-            aiResultCard
+            resultCard
         } else {
             mainBarStyled
         }
     }
 
-    /// The AI result card: renders the native AIResultCardView inline on the popup panel in place
+    /// The result card: renders the native ResultCardView inline on the popup panel in place
     /// of the bar (content mode). Paste/Copy are explicit user requests routed through
     /// onCardEffect (bypassing the paste-vs-copy re-decision) that both dismiss the popup; the
     /// Paste button is hidden when the target app can't paste; the back chevron collapses back to
     /// the bar.
     @ViewBuilder
-    private var aiResultCard: some View {
-        if let payload = modeStore.aiResult {
-            AIResultCardView(
+    private var resultCard: some View {
+        if let payload = modeStore.resultCard {
+            ResultCardView(
                 payload: payload,
                 canPaste: modeStore.canPaste,
                 onExit: { onExitContent() },

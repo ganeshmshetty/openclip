@@ -107,11 +107,13 @@ areas; stale debt notes are worse than none.
 - **Search and content modes suspend popup dismissal.** The distance auto-dismiss and the key/scroll
   dismissals in `handleEvent` are skipped while `modeStore.mode == .search` or `.content`
   (`PopupWindowController.swift:591,612,622`), so typing with the mouse elsewhere doesn't close the
-  palette, and the AI result card stays open until it is collapsed or the popup hides.
+  palette, and the result card stays open until it is collapsed or the popup hides.
 - **The floating bubble panel is gone; content renders inline.** The second `PopupPanel` (and its
   `showBubble`/`hideBubble`/`bubbleBlocksDismiss` machinery) was removed — all action/AI/status
   content renders inside the single panel via `.content` mode (`PopupModeStore`) as a native
-  SwiftUI `AIResultCardView`. `StatusBadgeModel` and the old `.info`/`.result`/`.menu` emphasis
+  SwiftUI `ResultCardView`. The card is general, not AI-specific: any text-returning action lands
+  there with its customization-resolved icon (`DeliveryContext.actionIcon`, snapshotted by the same
+  perform paths as `actionTitle`); AI streaming deliveries pass no icon and keep the sparkles glyph. `StatusBadgeModel` and the old `.info`/`.result`/`.menu` emphasis
   model are gone, and the inline status banner is gone too: every `StatusFeedback` renders as a
   floating toast (`ToastPanelController`) with no queue — a status shows over the card — and
   `showsLoading` actions (manifest `"loading"`) use the early-close spinner toast.
