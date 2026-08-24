@@ -12,13 +12,17 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 {
   "rules": [
     {
-      "bundle-identifiers": ["com.example.terminal"],
-      "deny-paste": true,
-      "retrieval-mode": "menu-copy"
+      "bundle-identifiers": ["com.example.game"],
+      "disabled": true
     },
     {
       "bundle-identifiers": ["com.example.editor"],
-      "retrieval-mode": "keyboard-copy"
+      "hotkey-only": true
+    },
+    {
+      "bundle-identifiers": ["com.example.terminal"],
+      "deny-paste": true,
+      "retrieval-mode": "menu-copy"
     },
     {
       "bundle-identifiers": ["com.example.app"],
@@ -38,6 +42,8 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 | Property Key in JSON | Code Identifier | Type | Description |
 | :--- | :--- | :--- | :--- |
 | `bundle-identifiers` | `bundleIdentifiers` | Array | Target application bundle ID strings, wildcards, or group aliases. |
+| `disabled` | `disabled` | Bool | When `true`, completely disables OpenClip in the target application (no popup, hotkeys ignored). |
+| `hotkey-only` | `hotkeyOnly` | Bool | When `true`, suppresses automatic popup on text selection; OpenClip will only trigger when explicitly invoked via global hotkey (`⌥⌘C`). |
 | `deny-paste` | `denyPaste` | Bool | Force text delivery to be a copy instead of a paste, even when the app advertises a Paste command (e.g. terminals). |
 | `retrieval-mode` | `retrievalMode` | Enum | Which mechanism reads the selection. One of `ax-text-control` (default), `ax-web-area`, `browser-script`, `menu-copy`, `keyboard-copy` (see below). |
 | `gate` | `gate` | Object | Pre-retrieval gate rules — `skipRoles` (AX roles never allowed to hold a selection) and `allowedCursors` (cursor classes that suggest a text context). See [`SelectionGatePolicy`](../../Sources/Core/Rules/SelectionGatePolicy.swift). |

@@ -7,9 +7,9 @@ import Core
 @MainActor
 final class PopupPanelTests: XCTestCase {
     func testPopupMetricsConstants() {
-        // Sentinel: the shared height cap stays 240. Lives here (app target) because popup sizing
+        // Sentinel: the shared height cap stays 300. Lives here (app target) because popup sizing
         // constants are UI concerns — see PopupMetrics.
-        XCTAssertEqual(PopupMetrics.popupMaxHeight, 240)
+        XCTAssertEqual(PopupMetrics.popupMaxHeight, 300)
     }
 
     func testToastDurationConstant() {
@@ -615,8 +615,8 @@ final class PopupPanelTests: XCTestCase {
         panel.setFrame(initialFrame, display: false)
         XCTAssertEqual(panel.frame.maxY, 600)
 
-        // Path 1: Top-anchored height change (height 250 is clamped to PopupMetrics.popupMaxHeight = 240, requested maxY is 600)
-        let heightOnlyChange = NSRect(x: 100, y: 350, width: 200, height: 250)
+        // Path 1: Top-anchored height change (height 350 is clamped to PopupMetrics.popupMaxHeight = 300, requested maxY is 600)
+        let heightOnlyChange = NSRect(x: 100, y: 250, width: 200, height: 350)
         panel.setFrame(heightOnlyChange, display: false)
         XCTAssertEqual(panel.frame.maxY, 600, "Height-only change must preserve requested top edge (maxY)")
         XCTAssertEqual(panel.frame.height, PopupMetrics.popupMaxHeight)

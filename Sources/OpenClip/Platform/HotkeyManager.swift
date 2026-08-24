@@ -16,15 +16,15 @@ public final class HotkeyManager {
     public static let shared = HotkeyManager()
     private var lastFallbackClipboard: (changeCount: Int, text: String)?
     
-    /// Trigger gate for the hotkey path (pure, unit-tested). Mirrors every monitor trigger site:
-    /// respect the master enable switch, never target OpenClip itself, and never fire inside
-    /// excluded apps — the default retrieval cascade ends in `.keyboardCopy`, which would inject
-    /// a synthetic ⌘C into apps that must never be touched.
     internal static func triggerAllowed(isAppEnabled: Bool, frontmost: NSRunningApplication?) -> Bool {
         guard isAppEnabled,
               let frontmost,
               let bundleID = frontmost.bundleIdentifier else { return false }
-        return !AppFilter.isExcluded(bundleID: bundleID)
+        if AppFilter.isExcluded(bundleID: bundleID) {
+            return false
+        }
+        let policy = RuleEngine.shared.resolvePolicies(for: bundleID)
+        return !policy.disabled
     }
 
     public func setup(popupController: PopupWindowController) {

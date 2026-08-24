@@ -9,6 +9,11 @@ import AppKit
 /// ⌘C into any frontmost app unconditionally.
 @MainActor
 final class HotkeyManagerTests: XCTestCase {
+    override func setUp() async throws {
+        try await super.setUp()
+        await MainActor.run { TestIsolation.reset() }
+    }
+
     func testDisabledAppNeverTriggers() {
         XCTAssertFalse(HotkeyManager.triggerAllowed(
             isAppEnabled: false,
@@ -30,6 +35,18 @@ final class HotkeyManagerTests: XCTestCase {
         // A bundle from AppFilter's exclusion list must be rejected even when enabled.
         let excluded = MockFrontmostApp(bundleID: "org.vim.MacVim")
         XCTAssertFalse(HotkeyManager.triggerAllowed(isAppEnabled: true, frontmost: excluded))
+    }
+
+    func testAppWithDisabledRuleNeverTriggers() {
+        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.disabled"], disabled: true))
+        let app = MockFrontmostApp(bundleID: "com.test.disabled")
+        XCTAssertFalse(HotkeyManager.triggerAllowed(isAppEnabled: true, frontmost: app))
+    }
+
+    func testAppWithHotkeyOnlyRuleTriggers() {
+        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.hotkeyonly"], hotkeyOnly: true))
+        let app = MockFrontmostApp(bundleID: "com.test.hotkeyonly")
+        XCTAssertTrue(HotkeyManager.triggerAllowed(isAppEnabled: true, frontmost: app))
     }
 
     func testOrdinaryForegroundAppTriggers() {

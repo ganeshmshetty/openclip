@@ -449,5 +449,47 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertEqual(delivered?.text, "selected word")
         XCTAssertFalse(delivered?.isClipboardFallback == true)
     }
+
+    @MainActor
+    func testDisabledPolicySuppressesHoldTrigger() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 150, y: 150)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+        monitor.policyResolver = { _ in AppPolicyContext(disabled: true) }
+
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "selected word")
+        })
+
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+
+        monitor.handleMouseDown(at: point)
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertNil(delivered, "Hold trigger must not fire when policy is disabled")
+    }
+
+    @MainActor
+    func testHotkeyOnlyPolicySuppressesHoldTrigger() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 150, y: 150)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+        monitor.policyResolver = { _ in AppPolicyContext(hotkeyOnly: true) }
+
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "selected word")
+        })
+
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+
+        monitor.handleMouseDown(at: point)
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertNil(delivered, "Hold trigger must not fire when policy is hotkeyOnly")
+    }
 }
 

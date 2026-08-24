@@ -216,6 +216,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             defer { if !delivered { self.triggeredByHold = false } }
 
             let policy = self.policyResolver(app.bundleIdentifier)
+            if policy.disabled || policy.hotkeyOnly {
+                return
+            }
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
 
@@ -314,6 +317,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             
             let policy = self.policyResolver(app.bundleIdentifier)
+            if policy.disabled || policy.hotkeyOnly {
+                return
+            }
             
             // Measure drag distance for click filtering
             var isDragOrMultiClick = clickCount >= 2
@@ -365,6 +371,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             
             let policy = self.policyResolver(app.bundleIdentifier)
+            if policy.disabled || policy.hotkeyOnly {
+                return
+            }
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
             let result = await retriever.retrieve(

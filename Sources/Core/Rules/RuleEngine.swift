@@ -83,6 +83,8 @@ public final class RuleEngine: ObservableObject, Sendable {
             }
             return AppRule(
                 bundleIdentifiers: expandedIdentifiers,
+                disabled: rule.disabled,
+                hotkeyOnly: rule.hotkeyOnly,
                 useMenuCopy: rule.useMenuCopy,
                 denyPaste: rule.denyPaste,
                 retrievalMode: rule.retrievalMode,
@@ -101,6 +103,8 @@ public final class RuleEngine: ObservableObject, Sendable {
                     explicitRetrievalMode = true
                 }
                 context = AppPolicyContext(
+                    disabled: rule.disabled ?? context.disabled,
+                    hotkeyOnly: rule.hotkeyOnly ?? context.hotkeyOnly,
                     denyPaste: rule.denyPaste ?? context.denyPaste,
                     useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy,
                     retrievalMode: rule.retrievalMode ?? context.retrievalMode,
@@ -114,6 +118,8 @@ public final class RuleEngine: ObservableObject, Sendable {
         // explicitly supplied `retrieval-mode` (even `.axTextControl`) opts out of the conversion.
         if context.useMenuCopy && context.retrievalMode == .axTextControl && !explicitRetrievalMode {
             context = AppPolicyContext(
+                disabled: context.disabled,
+                hotkeyOnly: context.hotkeyOnly,
                 denyPaste: context.denyPaste,
                 useMenuCopy: context.useMenuCopy,
                 retrievalMode: .menuCopy,
