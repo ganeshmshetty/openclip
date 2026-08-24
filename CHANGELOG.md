@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `validate_extension.sh` no longer rejects `service` actions that only declare `serviceName` (matches the app's `ManifestValidator`).
+- Extension catalog: fixed logic, transport, and delivery bugs across 25 extensions (Logseq capture endpoint, Apple Music transport, counter toasts swallowing results, unicode case transforms, trailing-newline artifacts, URL/hashtag extraction, Wayback Machine gating); released as per-extension patch/minor versions.
 - Paste no longer destroys rich text; SearchAction URLs are percent-encoded correctly.
 - Extension installs no longer double-nest zips, uninstall matches by manifest identifier, and downloaded packages are checked for Zip-Slip paths.
 - Concurrent extension-directory reloads are coalesced.

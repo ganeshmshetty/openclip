@@ -113,6 +113,8 @@ def check_action($p):
       (if (($self.shortcutName? | sv) | is_blank) then "\($p): missing required field shortcutName" else empty end)
     elif ($t == "group" or $t == "subactions") then
       (if (($self.subActions? | type) != "array" or (($self.subActions // []) | length) == 0) then "\($p): group requires non-empty subActions" else empty end)
+    elif ($t == "service" or $t == "servicemenu") then
+      empty
     else
       (if ($self | has_payload | not) then "\($p): missing required payload (url, script, or scriptCode)" else empty end)
     end
