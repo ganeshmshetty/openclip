@@ -1,61 +1,65 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable user-facing changes, feature additions, and improvements to OpenClip are documented here.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+---
 
-## [Unreleased]
+## v1.0.1 - 2026-08-22
 
-> Pre-release. OpenClip has not shipped a tagged release yet (the project began in
-> July 2026); the entries below summarize the current state of `main`.
+### Features & Improvements
+- **Rich Content & Formatted Text**: OpenClip captures and pastes rich text formatted with HTML and RTF, preserving text styles, headings, and links across supported applications.
+- **Mouse-Hold Trigger**: Added a configurable mouse-hold timer in General Preferences, allowing you to summon OpenClip simply by holding down the mouse click without dragging.
+- **Expanded Calendar Providers**: Added support for additional calendar services in event creation extensions.
+- **Normalized Popup Sizing**: Rebalanced proportions and typography across all 5 visual scale levels for crisp rendering on both Retina and standard displays.
 
-### Added
+### Fixes & Stability
+- **Extension Trust Handling**: Fixed an issue where locally modified extensions could trigger unexpected trust warnings during editing.
+- **Browser Selection Reliability**: Resolved edge cases in Safari and Chromium-based browsers to ensure selections are captured instantly without lag.
 
-- **Contextual popup bar** — select text in any app and a floating bar appears next to the selection with the actions that fit. The bar anchors to where the mouse is released and never covers the selected text.
-- **Action-search palette** — press <kbd>⌥⌘C</kbd> to turn the bar into a fuzzy search field over the *entire* action catalog, including disabled actions. Results are ranked by recency, then bar order.
-- **Clipboard fallback** — with no live selection the popup acts on the clipboard contents; Copy/Cut drop out automatically (`chrome.requiresLiveSelection`).
-- **Zero-config builtins** — Search, Copy, Cut, Paste, Services, Define, Calculate, Word Completion, and a Transform group (UPPERCASE, lowercase, Title Case, camelCase, Trim Whitespace, Format JSON).
-- **Extensions** — a unified `.openclipext` package format (JavaScript, AppleScript, shell, URL templates, key presses, Shortcuts, Services, and group sub-menus) with install from the built-in store or a file/folder, hot-reload of `~/.openclip/extensions`, and uninstall from Preferences.
-- **Extension Store** — browse, search, and install extensions from the catalog (`openclip-extensions` submodule) inside Preferences.
-- **Canvas content rendering** — ~~actions, AI results, long-press result cards, and previews render inside the popup panel via a content canvas instead of a separate floating panel; canvas extensions can author rich component trees~~ *(removed — see **Removed** below)*.
-- **AI Tools** — run selected text through Apple Intelligence, a local Ollama model, OpenAI, or Claude, or hand the query to your browser. AI presets are first-class, reorderable actions, and the AI Tools bar action opens a scoped palette.
-- **Custom action builder** — add web-search URL templates, text snippets, and shell scripts from the GUI without writing a manifest, backed by a 9,000+ SF Symbol picker plus Iconify, Font Awesome, Lucide, and Material Symbols icon search.
-- **Deep customization** — drag to reorder the bar, disable actions, override titles and icons, and pick a Classic or Glass theme (Liquid Glass on macOS 26+, frosted material on 14–15) in System, Light, or Dark.
-- **App Rules** — scope actions to apps with allow/deny rules, selection regexes, and required options that prompt when missing.
-- **Onboarding & permissions** — a 4-step first-launch onboarding and Accessibility permission management with a relaunch helper.
-- **Debug tooling** — an in-app debug-log store (ring buffer backed by OSLog) and a `--dump-logs` command-line flag.
-- **Start at login** — native `SMAppService` integration in Preferences.
+---
 
-### Changed
+## v1.0.0 - 2026-08-21
 
-- Subprocess actions run under a 30-second watchdog (GCD timer + process-group kill) and read child output via GCD readability handlers, so stuck scripts can't wedge the run loop.
-- Text retrieval is Accessibility-only; the clipboard-based `Cmd+C` and menu-copy fallbacks were removed so OpenClip never disturbs the clipboard while monitoring.
-- Preferences moved to a Raycast-style `NavigationSplitView` sidebar with a tightened, grouped General tab.
-- Group and AI bars open scoped palettes instead of floating panels; the hover "bubble" and the separate AI presets bar were removed.
-- The extension system was unified from several ad-hoc formats into a single `.openclipext` manifest package.
+The initial major release of OpenClip — the fast, native floating action bar for macOS that turns selected text into instant actions.
 
-### Removed
+### Floating Action Bar
+- **Instant Contextual Trigger**: Select text in any macOS application, and a floating action bar appears right next to your cursor with relevant actions ready to use.
+- **Adaptive Positioning**: Anchors to where you release the mouse, automatically positioning itself above or below to avoid covering the text you are reading.
+- **Three Themes**: Choose between **Glass** (macOS Liquid Glass frosted blur), **Dark** (OLED black contrast), or **Light** (clean white), fully matching your system appearance.
+- **Instant Hover Feedback**: Seamless buttons with smooth hover animations and pagination for longer action lists.
+- **Clipboard Fallback**: When activated without an active text selection, OpenClip intelligently works with your current clipboard contents.
 
-- **Canvas feature** — the `type: "canvas"` manifest kind, the JS `openclip.showContent()`/`h()` bridge, the canvas engine and `CanvasSession*` UI, the hover preview strip, and the CalculateAction long-press result card were removed. The `menuPreview` manifest key is gone (`menuRelevance` remains); a `showResult` after-behavior now degrades to a plain leaf result, and a `type: "canvas"` manifest is rejected at validation. AI results render in a native SwiftUI result card (`AIResultCardView`) with Replace/Copy buttons and back-chevron/Esc exit.
+### Built-in Productivity Actions
+- **Smart Web Search**: Instantly search Google, DuckDuckGo, Wikipedia, or your preferred search engine, automatically formatted and encoded.
+- **Inline Calculator**: Highlight mathematical equations (e.g. `45 * 12 + 8%`) to calculate answers inline.
+- **Dictionary & Definitions**: Look up instant word definitions powered by macOS system dictionaries without opening another app.
+- **Word Completion & Spelling**: Automatic word completion and spelling suggestions for incomplete words.
+- **Text Transformations**: One-click formatting tools including **UPPERCASE**, **lowercase**, **Title Case**, **camelCase**, **JSON Pretty Print**, and **Trim Whitespace**.
+- **macOS Services & Sharing**: Directly access system Share extensions and Services menu items for selected text.
 
-### Fixed
+### Action Search Palette
+- **Global Search Shortcut (Option+Command+C)**: Open a quick search palette over your entire action library using a customizable hotkey.
+- **Recent Action Ranking**: Quickly find actions with keyboard navigation, ranked by your recent usage.
 
-- `validate_extension.sh` no longer rejects `service` actions that only declare `serviceName` (matches the app's `ManifestValidator`).
-- Extension catalog: fixed logic, transport, and delivery bugs across 25 extensions (Logseq capture endpoint, Apple Music transport, counter toasts swallowing results, unicode case transforms, trailing-newline artifacts, URL/hashtag extraction, Wayback Machine gating); released as per-extension patch/minor versions.
-- Paste no longer destroys rich text; SearchAction URLs are percent-encoded correctly.
-- Extension installs no longer double-nest zips, uninstall matches by manifest identifier, and downloaded packages are checked for Zip-Slip paths.
-- Concurrent extension-directory reloads are coalesced.
-- Popup shadows no longer clip at the panel edge.
-- Search-palette shadow clipping fixed via `.glassEffect(.clear)` + material frost.
-- Deterministic snippet action IDs and stale-action unregistration on extension reload.
+### AI Assistants & Streaming Results
+- **Multiple AI Providers**: Connect OpenClip to Apple Intelligence, local Ollama models, OpenAI (ChatGPT), or Anthropic (Claude).
+- **Streaming Live Previews**: Watch AI responses stream in real time inside native result cards.
+- **One-Click Insert & Replace**: Paste generated AI results directly over your selected text, copy to clipboard, or expand in the preview card.
 
-### Security
+### Extensions & Custom Actions
+- **In-App Extension Store**: Browse, search, install, and update community extensions with a single click.
+- **Universal Custom Action Builder**: Create custom web searches, text snippets, and scripts without writing code.
+- **9,000+ Icon Library**: Customize actions using native SF Symbols or search popular icon collections including Lucide, Font Awesome, and Material Symbols.
+- **Supported Runtimes**: Extensions support JavaScript, AppleScript, Shell scripts, URL templates, and macOS Shortcuts.
 
-- Remote extension installs require HTTPS and validate archives against Zip-Slip traversal.
-- AI provider API keys are stored in the Keychain, never in plain preferences.
-- Gemini authentication uses the `x-goog-api-key` header only; credentials are never placed in URLs.
-- OpenClip reads selections via Accessibility APIs and logs or stores nothing about them; text and extension data stay default-private in logs.
+### App Rules & Customization
+- **Action Reordering**: Rearrange actions in Preferences to build your ideal workflow.
+- **Per-App Rules**: Configure OpenClip to behave differently in specific apps — enable auto-paste, restrict to hotkey-only, or disable completely in games and full-screen tools.
+- **Preferences Interface**: Clean settings interface organized into General, Actions, App Rules, AI Services, and Extensions tabs.
 
-[keep-a-changelog]: https://keepachangelog.com/en/1.1.0/
-[SemVer]: https://semver.org/spec/v2.0.0.html
+### Privacy & Performance
+- **100% Local & Private**: No analytics, no tracking, and no external telemetry.
+- **Direct Accessibility Integration**: Reads selected text directly via macOS Accessibility APIs with zero background battery drain.
+- **Secure Keychain Storage**: API keys and credentials are encrypted securely in the macOS Keychain.
+- **Subprocess Safety**: Scripts run in isolated process groups with automated timeouts to prevent hanging.
+- **Start at Login**: Built-in macOS Login Items integration for seamless system startup.
