@@ -236,4 +236,41 @@ final class RuleEngineTests: XCTestCase {
         
         try FileManager.default.removeItem(at: tempURL)
     }
+
+    @MainActor
+    func testDisabledAndHotkeyOnlyJSONDecodingAndResolution() async throws {
+        let json = """
+        {
+            "rules": [
+                {
+                    "bundle-identifiers": ["com.disabled.app"],
+                    "disabled": true
+                },
+                {
+                    "bundle-identifiers": ["com.hotkeyonly.app"],
+                    "hotkey-only": true
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+        
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("rules_disabled_hotkey_test.json")
+        try json.write(to: tempURL)
+        
+        await RuleEngine.shared.loadRules(from: tempURL)
+        
+        let disabledContext = RuleEngine.shared.resolvePolicies(for: "com.disabled.app")
+        XCTAssertTrue(disabledContext.disabled)
+        XCTAssertFalse(disabledContext.hotkeyOnly)
+        
+        let hotkeyContext = RuleEngine.shared.resolvePolicies(for: "com.hotkeyonly.app")
+        XCTAssertFalse(hotkeyContext.disabled)
+        XCTAssertTrue(hotkeyContext.hotkeyOnly)
+        
+        let randomContext = RuleEngine.shared.resolvePolicies(for: "com.random.app")
+        XCTAssertFalse(randomContext.disabled)
+        XCTAssertFalse(randomContext.hotkeyOnly)
+        
+        try FileManager.default.removeItem(at: tempURL)
+    }
 }

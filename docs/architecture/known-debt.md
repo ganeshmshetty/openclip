@@ -129,9 +129,9 @@ areas; stale debt notes are worse than none.
   (`PopupView.swift`) because text icons there need natural width + horizontal padding, not a fixed frame.
 - **Popup sizing constants live in the App target.** `PopupMetrics`
   (`Sources/OpenClip/UI/Popup/PopupMetrics.swift`) holds the UI-only values — `searchMaxRows`
-  (5), `searchResultRowHeight` (32), `searchPeekRowFraction` (0.5), `popupMaxHeight` (240, the
-  shared height cap for the search palette), the AI card bounds (`aiCardMinWidth` 220 /
-  `aiCardIdealWidth` 300 / `aiCardMaxWidth` 360 / `aiCardBodyHeight` 120), plus
+  (5), `searchResultRowHeight` (32), `searchPeekRowFraction` (0.5), `popupMaxHeight` (300, the
+  shared height cap for the popup panel), the AI card bounds (`aiCardMinWidth` 220 /
+  `aiCardIdealWidth` 300 / `aiCardMaxWidth` 360 / `aiCardBodyHeight` 160), plus
   placement/dismissal distances. `Core/Selection/Constants.swift` keeps only
   domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 

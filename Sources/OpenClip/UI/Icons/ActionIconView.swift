@@ -150,8 +150,9 @@ public struct ActionIconView: View {
             switch icon {
             case .symbol(let name):
                 if name.contains(":") {
+                    // Iconify SVGs usually have internal padding in their viewBox; scale up so optical weight matches SF Symbols.
                     let isBrand = name.hasPrefix("simple-icons:") || name.hasPrefix("logos:") || name.hasPrefix("cib:") || name.contains("brand")
-                    let opticalFactor: CGFloat = isBrand ? 0.88 : 1.0
+                    let opticalFactor: CGFloat = isBrand ? 1.08 : 1.20
                     let dim = targetDimension * opticalFactor
                     IconifySVGView(iconId: name)
                         .frame(width: dim, height: dim)
@@ -180,7 +181,7 @@ public struct ActionIconView: View {
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: targetDimension, maxHeight: targetDimension)
+                            .frame(maxWidth: targetDimension * 1.15, maxHeight: targetDimension * 1.15)
                     } else if phase.error != nil {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: targetDimension * 0.9, weight: .regular))
@@ -197,7 +198,7 @@ public struct ActionIconView: View {
                         .resizable()
                         .renderingMode(.template)
                         .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: targetDimension, maxHeight: targetDimension)
+                        .frame(maxWidth: targetDimension * 1.18, maxHeight: targetDimension * 1.18)
                 } else {
                     Image(systemName: "questionmark.square")
                         .font(.system(size: targetDimension, weight: .regular))

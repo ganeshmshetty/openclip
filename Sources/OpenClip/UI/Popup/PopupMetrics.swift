@@ -41,9 +41,8 @@ public enum PopupMetrics {
     /// Fraction of an extra result row shown beyond `searchMaxRows` so the next action peeks,
     /// hinting that the list scrolls.
     public static let searchPeekRowFraction: CGFloat = 0.5
-    /// Shared height cap for the popup panel (search palette field + result rows). The code value
-    /// 240 wins over any stale comment.
-    public static let popupMaxHeight: CGFloat = 240
+    /// Shared height cap for the popup panel (search palette field + result rows and content cards).
+    public static let popupMaxHeight: CGFloat = 300
     /// Native AI result card sizing: width clamped to the shared popup column and a max body
     /// height so a long response scrolls instead of growing the panel without bound.
     public static let aiCardMinWidth: CGFloat = 220
@@ -53,7 +52,7 @@ public enum PopupMetrics {
     /// reports a starved ideal height, so the panel would never grow to fit the response (the body
     /// collapsed to nothing while the header/footer rendered). A concrete height gives the card a
     /// deterministic preferred size and keeps the whole card under `popupMaxHeight`.
-    public static let aiCardBodyHeight: CGFloat = 120
+    public static let aiCardBodyHeight: CGFloat = 160
     /// How long an info/error toast stays up before auto-dismissing (1.2 s — long enough to read
     /// "Copied"-style feedback). Loading toasts have no timer — they live until the action's
     /// result lands.

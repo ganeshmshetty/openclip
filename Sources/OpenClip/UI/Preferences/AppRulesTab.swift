@@ -19,7 +19,7 @@ public struct AppRulesTab: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Application Rules")
                         .font(.headline)
-                    Text("Tweak paste behavior for specific applications.")
+                    Text("Configure per-app trigger and paste behavior.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -43,7 +43,7 @@ public struct AppRulesTab: View {
                                 .foregroundColor(.secondary)
                             Text("No App Rules Configured")
                                 .font(.headline)
-                            Text("OpenClip works in all applications by default. Click 'Add Application' to tweak paste behavior for it.")
+                            Text("OpenClip works in all applications by default. Click 'Add Application' to configure per-app rules or exclusions.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -84,6 +84,14 @@ private struct AppRuleRowView: View {
         rule.bundleIdentifiers.first ?? "Unknown App"
     }
     
+    private var isDisabled: Bool {
+        rule.disabled == true
+    }
+    
+    private var isHotkeyOnly: Bool {
+        rule.hotkeyOnly == true
+    }
+    
     private var isPasteDenied: Bool {
         rule.denyPaste == true
     }
@@ -95,10 +103,12 @@ private struct AppRuleRowView: View {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
                     .resizable()
                     .frame(width: 28, height: 28)
+                    .opacity(isDisabled ? 0.5 : 1.0)
             } else {
                 Image(systemName: bundleID.contains("*") ? "asterisk.circle" : "app.dashed")
                     .font(.system(size: 24))
                     .foregroundColor(.secondary)
+                    .opacity(isDisabled ? 0.5 : 1.0)
             }
             
             // App Title & Bundle ID
@@ -108,30 +118,78 @@ private struct AppRuleRowView: View {
                    let appName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String {
                     Text(appName)
                         .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(isDisabled ? .secondary : .primary)
                     Text(bundleID)
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                 } else {
                     Text(bundleID)
                         .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(isDisabled ? .secondary : .primary)
                 }
             }
             
             Spacer()
+            
+            // Disable Toggle
+            Toggle("", isOn: Binding(
+                get: { !isDisabled },
+                set: { isEnabled in
+                    let updated = AppRule(
+                        bundleIdentifiers: rule.bundleIdentifiers,
+                        disabled: isEnabled ? nil : true,
+                        hotkeyOnly: rule.hotkeyOnly,
+                        useMenuCopy: rule.useMenuCopy,
+                        denyPaste: rule.denyPaste,
+                        retrievalMode: rule.retrievalMode,
+                        gate: rule.gate
+                    )
+                    onUpdate(updated)
+                }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .accessibilityLabel(isDisabled ? "Enable in this app" : "Disable in this app")
             
             // Three-Dots (...) Actions Menu
             Menu {
                 Button {
                     let updated = AppRule(
                         bundleIdentifiers: rule.bundleIdentifiers,
-                        denyPaste: isPasteDenied ? nil : true
+                        disabled: rule.disabled,
+                        hotkeyOnly: isHotkeyOnly ? nil : true,
+                        useMenuCopy: rule.useMenuCopy,
+                        denyPaste: rule.denyPaste,
+                        retrievalMode: rule.retrievalMode,
+                        gate: rule.gate
                     )
                     onUpdate(updated)
                 } label: {
-                    Label(
-                        isPasteDenied ? "Enable Paste Delivery" : "Copy Instead of Paste",
-                        systemImage: "doc.on.doc"
+                    if isHotkeyOnly {
+                        Label("Hotkey Only", systemImage: "checkmark")
+                    } else {
+                        Text("Hotkey Only")
+                    }
+                }
+                
+                Button {
+                    let updated = AppRule(
+                        bundleIdentifiers: rule.bundleIdentifiers,
+                        disabled: rule.disabled,
+                        hotkeyOnly: rule.hotkeyOnly,
+                        useMenuCopy: rule.useMenuCopy,
+                        denyPaste: isPasteDenied ? nil : true,
+                        retrievalMode: rule.retrievalMode,
+                        gate: rule.gate
                     )
+                    onUpdate(updated)
+                } label: {
+                    if isPasteDenied {
+                        Label("Copy Result Only", systemImage: "checkmark")
+                    } else {
+                        Text("Copy Result Only")
+                    }
                 }
                 
                 Divider()

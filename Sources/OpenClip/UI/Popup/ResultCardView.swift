@@ -65,9 +65,7 @@ public struct ResultCardView: View {
                 }
             }
         }
-        .frame(minWidth: PopupMetrics.aiCardMinWidth,
-               idealWidth: PopupMetrics.aiCardIdealWidth,
-               maxWidth: PopupMetrics.aiCardMaxWidth)
+        .frame(width: dynamicCardWidth)
         .focusable()
         .focusEffectDisabled()
         .focused($isCardFocused)
@@ -118,17 +116,17 @@ public struct ResultCardView: View {
                 onExit()
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(isChevronHovered ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
-                    .frame(width: 26, height: 26)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(isChevronHovered ? .accentColor : PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.75))
+                    .frame(width: 24, height: 24)
                     .background(
-                        isChevronHovered ? Color.accentColor : Color.clear,
+                        isChevronHovered ? Color.accentColor.opacity(0.12) : Color.clear,
                         in: RoundedRectangle(cornerRadius: 6, style: .continuous)
                     )
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Back to actions")
+            .help("Back to actions (Esc)")
             .accessibilityLabel("Back to actions")
             .onHover { isChevronHovered = $0 }
 
@@ -138,11 +136,11 @@ public struct ResultCardView: View {
             } else if let icon = payload.icon {
                 // The producing action's own icon (bar-resolution: honors user overrides),
                 // so extension results keep their identity in the card.
-                ActionIconView(icon: icon, size: 12)
+                ActionIconView(icon: icon, size: 13)
                     .foregroundColor(.accentColor)
             } else {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.accentColor)
             }
             Text(payload.title)
@@ -161,22 +159,84 @@ public struct ResultCardView: View {
         )
     }
 
+    // MARK: Dynamic Dimensions
+
+    private var dynamicCardWidth: CGFloat {
+        let trimmed = payload.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lines = trimmed.components(separatedBy: .newlines)
+        let maxLineLength = lines.map(\.count).max() ?? trimmed.count
+        let charCount = trimmed.count
+
+        if maxLineLength <= 18 && charCount <= 30 {
+            return PopupMetrics.aiCardMinWidth // 220
+        } else if maxLineLength <= 35 && charCount <= 80 {
+            return 260
+        } else {
+            return PopupMetrics.aiCardIdealWidth // 300
+        }
+    }
+
+    private var dynamicBodyHeight: CGFloat {
+        let trimmed = payload.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lines = trimmed.components(separatedBy: .newlines)
+        let lineCount = lines.count
+        let charCount = trimmed.count
+
+        if lineCount <= 1 && charCount <= 30 {
+            return 72
+        } else if lineCount <= 1 && charCount <= 60 {
+            return 88
+        } else if lineCount <= 2 && charCount <= 90 {
+            return 104
+        } else if lineCount <= 3 && charCount <= 140 {
+            return 124
+        } else if lineCount <= 4 && charCount <= 180 {
+            return 144
+        } else {
+            return PopupMetrics.aiCardBodyHeight // 160 max height for scrolling
+        }
+    }
+
     // MARK: Body
 
-    private var bodyScroll: some View {
-        ScrollView {
-            Text(payload.text)
-                .font(.system(size: 13))
-                .foregroundColor(payload.isError ? Color.red : Color.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+    private var textTypography: (fontSize: CGFloat, fontWeight: Font.Weight, lineSpacing: CGFloat) {
+        let trimmed = payload.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lineCount = trimmed.components(separatedBy: .newlines).count
+        let charCount = trimmed.count
+
+        if charCount <= 30 && lineCount <= 1 {
+            return (fontSize: 18, fontWeight: .medium, lineSpacing: 2)
+        } else if charCount <= 80 && lineCount <= 2 {
+            return (fontSize: 15.5, fontWeight: .medium, lineSpacing: 3)
+        } else if charCount <= 160 && lineCount <= 4 {
+            return (fontSize: 14, fontWeight: .regular, lineSpacing: 3)
+        } else {
+            return (fontSize: 13, fontWeight: .regular, lineSpacing: 3.5)
         }
-        .frame(height: PopupMetrics.aiCardBodyHeight)
+    }
+
+    private var bodyScroll: some View {
+        let typography = textTypography
+        let bodyHeight = dynamicBodyHeight
+        return ScrollView {
+            Text(payload.text)
+                .font(.system(size: typography.fontSize, weight: typography.fontWeight))
+                .lineSpacing(typography.lineSpacing)
+                .multilineTextAlignment(.leading)
+                .foregroundColor(payload.isError ? Color.red : Color.primary)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .textSelection(.enabled)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+        }
+        .frame(height: bodyHeight)
     }
 
     // MARK: Footer
+
+    private var isCopyPrimary: Bool {
+        canPaste == false
+    }
 
     private var footer: some View {
         HStack(spacing: 8) {
@@ -185,34 +245,50 @@ public struct ResultCardView: View {
             Button {
                 onCopy()
             } label: {
-                HStack(spacing: 3) {
+                HStack(spacing: 5) {
                     Text("Copy")
-                    Image(systemName: "shift")
-                    Image(systemName: "return")
+                    if isCopyPrimary {
+                        Image(systemName: "return")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .opacity(0.8)
+                    } else {
+                        HStack(spacing: 2) {
+                            Image(systemName: "shift")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            Image(systemName: "return")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        }
+                        .opacity(0.6)
+                    }
                 }
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
-                .padding(.horizontal, 12)
+                .font(.system(size: 12, weight: isCopyPrimary ? .semibold : .medium))
+                .foregroundColor(isCopyPrimary ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
+                .padding(.horizontal, isCopyPrimary ? 12 : 10)
                 .padding(.vertical, 5)
                 .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(PopupThemeModel.dividerColor(for: effectiveTheme), lineWidth: 1)
+                    isCopyPrimary ? Color.accentColor : Color.primary.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 6, style: .continuous)
                 )
             }
             .buttonStyle(.plain)
-            .help("Copy the response to the clipboard and close (⇧⏎)")
+            .help(isCopyPrimary ? "Copy the response to the clipboard and close (⏎)" : "Copy the response to the clipboard and close (⇧⏎)")
             .accessibilityLabel("Copy response and close")
 
             if canPaste != false {
                 Button {
                     onPaste()
                 } label: {
-                    Label("Paste", systemImage: "return")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 5)
-                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    HStack(spacing: 5) {
+                        Text("Paste")
+                        Image(systemName: "return")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .opacity(0.8)
+                    }
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .help("Paste the response over the selection (⏎)")
