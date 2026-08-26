@@ -4,6 +4,24 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 
 ---
 
+## v1.1.0 - 2026-08-26
+
+### Features & Improvements
+- **Anchored Action Configuration**: Replaced the edit sheet with an anchored popover accessed from the gear button or by double-clicking action rows, combining appearance and general settings into an inset-grouped editor with hero icon headers.
+- **Unified Result Cards & Live Previews**: Standardized the result card presentation across all actions and AI tools with live preview support, consistent styling, and customization-resolved action icons.
+- **Curated Onboarding & Recommendations**: Onboarding now recommends curated store extensions (including Quick Translate and Speak Selection) with full catalog resolution, deduplication, and resilient fallback icon rendering.
+- **Extension Store Cache**: Introduced a shared TTL in-memory cache across the Store tab, Onboarding, and background update checks for faster catalog browsing.
+- **App Rules & Menu Bar Polish**: Refined the App Rules tab with enhanced per-app configuration controls; pinned extension management to the top of the menu bar Extensions submenu.
+- **Post-Onboarding Coach Marks**: Added contextual coach mark nudges to guide new users through Accessibility permissions and setup.
+
+### Fixes & Stability
+- **Selection & Cursor Classification**: Improved cursor detection to use system-wide cursor state (`NSCursor.currentSystem`), ensuring reliable text selection detection across all apps.
+- **Gated Clipboard Fallback**: Gated clipboard fallback activation on text insertion cursors (I-beam) and successful paste probes.
+- **Popup & Toast Interactions**: Clicks on the popup shadow ring now dismiss and fall through to background apps; toasts anchor cleanly to the popup frame with fixed shadow clipping.
+- **Extension Catalog & Validator**: Updated catalog with bug fixes across 25 community extensions and aligned the manifest validator to accept payload-free service actions.
+
+---
+
 ## v1.0.1 - 2026-08-22
 
 ### Features & Improvements
