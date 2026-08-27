@@ -132,16 +132,16 @@ public struct RecommendedExtensionsView: View {
 @MainActor
 private struct RecommendedExtensionRow: View {
     let item: ExtensionItem
+    @ObservedObject private var coordinator = ActionCoordinator.shared
     @State private var isInstalling = false
+    @State private var isUninstalling = false
     @State private var installError: String? = nil
 
     private var matchingInstalledAction: (any Action)? {
-        ActionCoordinator.shared.actions.first { action in
+        coordinator.actions.first { action in
             let actID = action.id.lowercased()
             let itemID = item.id.lowercased()
-            let actTitle = action.displayTitle(using: ActionCustomizationManager.shared).lowercased()
-            let itemName = item.name.lowercased()
-            return actID.hasPrefix(itemID) || itemID.hasPrefix(actID) || actTitle == itemName
+            return actID == itemID || actID.hasPrefix(itemID + ".")
         }
     }
 
@@ -188,23 +188,29 @@ private struct RecommendedExtensionRow: View {
             if isInstalled {
                 Button(role: .destructive, action: {
                     if let action = matchingInstalledAction {
+                        isUninstalling = true
                         Task {
                             do {
                                 try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
                             } catch {
                                 Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
                             }
-                            await MainActor.run {
-                                NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
-                            }
+                            isUninstalling = false
+                            NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
                         }
                     }
                 }) {
-                    Label("Uninstall", systemImage: "trash")
+                    if isUninstalling {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Label("Remove", systemImage: "trash")
+                    }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .tint(.red)
+                .disabled(isUninstalling)
             } else {
                 Button(isInstalling ? "Installing…" : "Install") {
                     guard let url = URL(string: item.downloadURL) else {
@@ -218,6 +224,7 @@ private struct RecommendedExtensionRow: View {
                             ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
                             _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
                             await ExtensionUpdateManager.shared.checkForUpdates()
+                            NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
                         } catch {
                             installError = error.localizedDescription
                         }
