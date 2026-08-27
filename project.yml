@@ -48,10 +48,37 @@ targets:
         SWIFT_STRICT_CONCURRENCY: complete
     dependencies:
       - target: Core
+      - target: OpenClipAXHelper
+        embed: true
+        codeSign: true
+        copy:
+          destination: wrapper
+          subpath: Contents/Helpers
       - package: KeyboardShortcuts
       - package: SDWebImageSwiftUI
       - package: SDWebImageSVGCoder
       - package: Sparkle
+  OpenClipAXHelper:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources: [Sources/OpenClipHelper]
+    info:
+      path: Sources/OpenClipHelper/Info.plist
+      properties:
+        LSUIElement: true
+        LSBackgroundOnly: true
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.openclip.OpenClip.helper
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_HARDENED_RUNTIME: true
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+    dependencies:
+      - target: Core
   OpenClipTests:
     type: bundle.unit-test
     platform: macOS

@@ -16,11 +16,12 @@ git submodule update --init            # populate Extensions/ catalog submodule 
 ./scripts/clean.sh                     # wipe DerivedData/build caches
 ```
 
-All Swift is Swift 6 with `SWIFT_STRICT_CONCURRENCY: complete`. Targets (see `project.yml`): **Core** (pure domain framework), **OpenClip** (app), **OpenClipTests**. SPM deps: KeyboardShortcuts, SDWebImageSwiftUI/SVGCoder.
+All Swift is Swift 6 with `SWIFT_STRICT_CONCURRENCY: complete`. Targets (see `project.yml`): **Core** (pure domain framework), **OpenClip** (app), **OpenClipAXHelper** (immutable background daemon), **OpenClipTests**. SPM deps: KeyboardShortcuts, SDWebImageSwiftUI/SVGCoder, Sparkle.
 
 ## Architecture hard rules
 
 - **Core is pure** — no AppKit/SwiftUI imports in `Sources/Core/`, and the boundary is enforced by concept, not just import-grepping: UI-only presentation concerns (popup sizing/timing constants, chrome-style presentation metadata) live in `Sources/OpenClip/` — e.g. `PopupMetrics` holds popup/search sizing and `ResultCardView` renders action results natively — while `Core/Selection/Constants.swift` keeps only domain/runtime constants (timeouts, key codes, env vars, manifest keys). Platform side-effects live in `Sources/OpenClip/` (runtimes, `ActionResultHandler`, `DefaultActionFactory`).
+- **Immutable Accessibility Helper (`OpenClipAXHelper`)** — isolates all Accessibility APIs (`AXIsProcessTrustedWithOptions`, `AXUIElement*`, `CGEventPost`) and Mach service XPC into an embedded daemon (`OpenClip.app/Contents/Helpers/OpenClipAXHelper.app`). Its binary stays stable across app releases so macOS TCC preserves Accessibility permissions across Sparkle updates without re-prompting. Supervised by `AXHelperHost` and bridged via `AXHelperClient` with `OnceResume` continuation protection and headless fallback.
 - **No direct `UserDefaults.standard`** in new code — route through `SettingsStore` + `SettingKey`. The only remaining raw access is the one-time `aiCloudAPIKey` migration in `AIServiceManager` (read-then-delete); don't add more. Secrets (AI API key, secret options) go to `SecretStore` (`~/.openclip/secrets.json` with 0600 POSIX permissions), never UserDefaults.
 - **`ActionCoordinator` is the composition root.** Managers report registry changes via `onRegister`/`onUnregister` callbacks only; nothing else touches `ActionRegistry.shared`.
 - **No `switch action.id` string-matching** in UI/presentation — use `ActionChrome` / `ConfigurableAction.preferenceIconName` instead.

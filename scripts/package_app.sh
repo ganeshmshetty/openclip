@@ -6,21 +6,42 @@ set -e
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
+DERIVED_DATA="$PROJECT_DIR/build/DerivedData"
+
 echo "Generating Xcode project..."
 xcodegen generate
 
+echo "Building OpenClipAXHelper (Release)..."
+xcodebuild -project OpenClip.xcodeproj -scheme OpenClipAXHelper -configuration Release -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO -derivedDataPath "$DERIVED_DATA" build > /dev/null
+
 echo "Building OpenClip (Release)..."
-xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -configuration Release -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO build > /dev/null
+xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -configuration Release -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO -derivedDataPath "$DERIVED_DATA" build > /dev/null
 
-BUILT_APP="$(find ~/Library/Developer/Xcode/DerivedData/OpenClip-*/Build/Products/Release -name "OpenClip.app" | head -n 1)"
+BUILT_APP="$DERIVED_DATA/Build/Products/Release/OpenClip.app"
+BUILT_HELPER="$DERIVED_DATA/Build/Products/Release/OpenClipAXHelper.app"
 
-if [ -z "$BUILT_APP" ]; then
-    echo "Error: Release build output not found."
+if [ ! -d "$BUILT_APP" ]; then
+    echo "Error: Release build output for OpenClip.app not found at $BUILT_APP."
     exit 1
 fi
 
-echo "Signing app bundle and embedded frameworks ad-hoc..."
+if [ ! -d "$BUILT_HELPER" ]; then
+    echo "Error: Release build output for OpenClipAXHelper.app not found at $BUILT_HELPER."
+    exit 1
+fi
+
+echo "Embedding OpenClipAXHelper into OpenClip.app..."
+mkdir -p "$BUILT_APP/Contents/Helpers"
+rm -rf "$BUILT_APP/Contents/Helpers/OpenClipAXHelper.app"
+cp -R "$BUILT_HELPER" "$BUILT_APP/Contents/Helpers/"
+
+echo "Signing embedded helper and app bundle..."
+codesign --force --deep --sign - "$BUILT_APP/Contents/Helpers/OpenClipAXHelper.app"
 codesign --force --deep --sign - "$BUILT_APP"
+
+echo "Verifying code signatures..."
+codesign --verify --deep --strict "$BUILT_APP/Contents/Helpers/OpenClipAXHelper.app"
+codesign --verify --deep --strict "$BUILT_APP"
 
 mkdir -p "$PROJECT_DIR/build"
 OUTPUT_ZIP="$PROJECT_DIR/build/OpenClip.zip"

@@ -43,6 +43,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             break
         }
 
+        // Start AX Helper process supervisor
+        AXHelperHost.shared.startHelperIfNeeded()
+
         // Register SVG coder
         let svgCoder = SDImageSVGCoder.shared
         SDImageCodersManager.shared.addCoder(svgCoder)
@@ -248,5 +251,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        AXHelperHost.shared.stopHelper()
     }
 }

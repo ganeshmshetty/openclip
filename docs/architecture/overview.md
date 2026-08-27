@@ -6,26 +6,33 @@ OpenClip is engineered around a clean target split and single-responsibility arc
 
 ## Target Split
 
-The codebase is split into two primary targets:
+The codebase is split into three targets:
 
 ```
 OpenClip Workspace
 ├── Core (Framework / Swift Package)
 │ ├── Pure domain models (Action, ActionChrome, ActionResult, SelectionContext)
 │ ├── Selection detection contracts (TextRetrieving, SelectionMonitoring)
+│ ├── Helper IPC protocols & payload models (AXHelperProtocol, AXHelperModels)
 │ ├── Central action catalog & ordering (ActionRegistry, ActionCoordinator)
 │ ├── Action-search matcher & popup mode (ActionSearch)
 │ ├── Strongly-typed settings engine (SettingsStore, SettingKey)
 │ ├── Application policy rules (AppRule, RuleEngine)
 │ └── Pure snippet & manifest parsing (OpenClipSnippetParser, ExtensionManifest)
 │
+├── OpenClipAXHelper (Immutable Background Daemon Target)
+│ ├── Standalone Accessibility APIs & CGEvent injection (AXHelperService)
+│ ├── Mach XPC service listener & lifecycle (main.swift)
+│ └── Zero UI / Zero AppKit dependencies (LSUIElement: true, LSBackgroundOnly: true)
+│
 └── OpenClip (macOS Application Target)
- ├── AppKit floating panels & SwiftUI UI (PopupPanel, PopupView, PreferencesView)
- ├── Action execution runtimes (JavaScriptAction, AppleScriptAction)
- ├── Platform side-effect handler (ActionResultHandler)
- ├── Action factory implementation (DefaultActionFactory)
- ├── macOS selection monitoring & retrieval (MacSelectionMonitor, SelectionRetrievalCoordinator + strategies)
- └── App Composition Root (AppDelegate)
+  ├── AppKit floating panels & SwiftUI UI (PopupPanel, PopupView, PreferencesView)
+  ├── Action execution runtimes (JavaScriptAction, AppleScriptAction)
+  ├── Platform side-effect handler (ActionResultHandler)
+  ├── Action factory implementation (DefaultActionFactory)
+  ├── Helper client bridge & lifecycle host (AXHelperClient, AXHelperHost)
+  ├── macOS selection monitoring & retrieval (MacSelectionMonitor, SelectionRetrievalCoordinator + strategies)
+  └── App Composition Root (AppDelegate)
 ```
 
 ### Core Target Constraints
@@ -86,6 +93,11 @@ graph TD
 - **Responsibility**: Orchestrates initial state loading, registers builtins, and connects disk extensions (including GUI-authored manifest packages) to the central `ActionRegistry`.
 - **Strict Rule**: `ExtensionManager` does not couple directly to the registry; it reports changes through `onRegister`/`onUnregister` callbacks wired by `ActionCoordinator.loadInitialState()`.
 - **Search catalog**: `ActionCoordinator.searchCatalog` (→ `ActionRegistry.searchCatalog`) exposes the **full** registered catalog — enabled and disabled, no context/visibility filtering — for the popup's action-search palette; [`ActionSearch.search`](../../Sources/Core/Actions/ActionSearch.swift) ranks it.
+
+### 7. Immutable Accessibility Helper Subsystem — [`OpenClipAXHelper`](accessibility-helper.md)
+- **Responsibility**: Isolates macOS Accessibility queries and keystroke simulation into a dedicated background daemon embedded at `OpenClip.app/Contents/Helpers/OpenClipAXHelper.app`.
+- **Mechanism**: Communicates via Mach service XPC (`AXHelperServiceProtocol`, [`AXHelperClient`](../../Sources/OpenClip/Platform/Helper/AXHelperClient.swift)). Supervised by [`AXHelperHost`](../../Sources/OpenClip/Platform/Helper/AXHelperHost.swift).
+- **TCC Stability Rule**: Preserves macOS TCC Accessibility permissions across Sparkle updates and ad-hoc reinstalls because the helper's code directory hash (`cdhash`) remains byte-for-byte stable.
 
 ---
 

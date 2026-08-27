@@ -18,7 +18,7 @@ public final class PermissionManager: ObservableObject {
     private var pollingTask: Task<Void, Never>?
 
     private init() {
-        self.isAccessibilityGranted = Self.queryAX()
+        self.isAccessibilityGranted = AXHelperClient.shared.checkLocalAccessibilityPermission(prompt: false)
     }
 
     // MARK: - Public API
@@ -42,21 +42,24 @@ public final class PermissionManager: ObservableObject {
 
     /// Single manual check — useful for the "Re-check" button.
     public func checkStatus() {
-        let current = Self.queryAX()
-        if isAccessibilityGranted != current {
-            isAccessibilityGranted = current
+        Task { @MainActor in
+            let current = await AXHelperClient.shared.checkAccessibility(prompt: false)
+            if self.isAccessibilityGranted != current {
+                self.isAccessibilityGranted = current
+            }
         }
     }
 
     /// Open System Settings → Accessibility and prompt macOS TCC to evaluate the running binary.
     public func requestAccessibilityPermission() {
-        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
-        
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
+        Task { @MainActor in
+            _ = await AXHelperClient.shared.checkAccessibility(prompt: true)
+            
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                NSWorkspace.shared.open(url)
+            }
+            self.startMonitoring()
         }
-        startMonitoring()
     }
 
     /// Reset TCC permission database entry for OpenClip if macOS TCC is caching a stale signature.
@@ -84,12 +87,5 @@ public final class PermissionManager: ObservableObject {
         NSWorkspace.shared.openApplication(at: url, configuration: config) { _, _ in
             DispatchQueue.main.async { NSApp.terminate(nil) }
         }
-    }
-
-    // MARK: - Internal
-
-    /// Direct TCC query — bypasses any in-process caching.
-    private static func queryAX() -> Bool {
-        AXIsProcessTrustedWithOptions(nil)
     }
 }

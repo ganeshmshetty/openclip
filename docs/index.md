@@ -48,6 +48,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Directory Structure](architecture/directory-structure.md) — Annotated per-file source tree.
 - [Action Coordinator & Registry](architecture/action-coordinator.md) — Central wiring, callback mechanics, and ordering policy.
 - [Text Selection Subsystem](architecture/text-selection.md) — Selection detection, the gate/resolver/strategy retrieval model, and non-destructive selection handling.
+- [Immutable Accessibility Helper](architecture/accessibility-helper.md) — Dedicated background daemon (`OpenClipAXHelper`) isolating Accessibility permissions across updates.
 - [Popup Panel & Positioning Math](architecture/popup-window.md) — `PopupPanel`, static layout math in `PopupPositioner`, and window lifecycle management.
 - [Logging](logging.md) — the single `Log` surface, category table, and per-subsystem filtering workflow.
 
@@ -80,3 +81,4 @@ OpenClip enforces a strict single-responsibility architecture divided across **C
 4. **Action Factory** — [`DefaultActionFactory`](../Sources/OpenClip/Platform/Extensions/DefaultActionFactory.swift) (Action creation from manifests/snippets).
 5. **Action Result Handler** — [`ActionResultHandler`](../Sources/OpenClip/Platform/Effects/ActionResultHandler.swift) (Platform side-effects, pasteboard, and key events).
 6. **Action Coordinator & Composition** — [`ActionCoordinator`](../Sources/Core/Actions/ActionCoordinator.swift) (Composition root; wires managers to the registry via `onRegister`/`onUnregister` callbacks).
+7. **Immutable Accessibility Helper Subsystem** — [`OpenClipAXHelper`](architecture/accessibility-helper.md) (Isolates macOS Accessibility APIs and keystroke synthesis into an immutable daemon preserving TCC permissions across updates).

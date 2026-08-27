@@ -45,6 +45,9 @@ Sources/
 │       │   ├── OpenClipSnippetParser.swift       # Standalone snippet header parser (nonisolated, pure text); body mode ends only at `#` header keys, `//` lines stay body
 │   │   ├── ScriptAction.swift                # Executable script action
 │   │   └── ShellProcessRunner.swift          # Shared subprocess executor; GCD-timer 30s watchdog + readabilityHandler reads (never blocks a thread); hosts TimeoutFlag/OnceGate; maps stdout JSON via ShellResultMapper
+│   ├── Helper/                               # Inter-Process Communication & Daemon Protocols
+│   │   ├── AXHelperProtocol.swift            # AXHelperServiceProtocol & AXHelperConstants
+│   │   └── AXHelperModels.swift              # AXSelectionPayload & AXKeyCommandPayload
 │   ├── Rules/                                # App-specific policy rules
 │   │   ├── AppRule.swift                     # AppPolicyContext (5 active fields) + AppRule Codable model
 │   │   └── RuleEngine.swift
@@ -60,6 +63,10 @@ Sources/
 │   │   └── SettingsStore.swift               # Central SettingsStore protocol + DefaultSettingsStore adapter
 │   └── Utils/
 │       └── TextPlaceholderEngine.swift       # Dynamic text template engine
+├── OpenClipHelper/                           # Immutable Accessibility Daemon Target (Background Process)
+│   ├── AXHelperService.swift                 # Mach XPC service handling AX queries & CGEvent key posting
+│   ├── Info.plist                            # Daemon config (LSUIElement: true, LSBackgroundOnly: true)
+│   └── main.swift                            # Mach service listener & run loop entrypoint
 └── OpenClip/                                 # App Target (macOS App / AppKit / SwiftUI)
     ├── AI/                                   # AI Assistant & Providers
     ├── AIProvider.swift
@@ -88,6 +95,9 @@ Sources/
     │   │   ├── KeychainActionOptionStore.swift  # Composite option store; .secret options → Keychain
     │   │   ├── OpenClipSnippetParser+DefaultFactory.swift
     │   │   └── RemoteExtensionInstaller.swift
+    │   ├── Helper/                               # AX Helper Supervisor & Client Bridge
+    │   │   ├── AXHelperClient.swift              # NSXPCConnection client with OnceResume continuation safety
+    │   │   └── AXHelperHost.swift                # MainApp process supervisor (startHelperIfNeeded / stopHelper)
     │   ├── HotkeyManager.swift               # Global shortcut manager (⌥⌘C toggles popup actions → search → dismiss when visible)
     │   ├── InstalledAppsScanner.swift        # App scanner
     │   ├── KeychainStore.swift               # Generic-password SecItem wrapper for sensitive credentials (AI API key)

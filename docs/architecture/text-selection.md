@@ -126,6 +126,15 @@ The retrieval path above applies to *passive selection monitoring*. The global t
 
 ---
 
+## Accessibility Permissions & Helper Bridge
+
+OpenClip routes all Accessibility permission inquiries through [`PermissionManager`](../../Sources/OpenClip/Platform/PermissionManager.swift), which queries the background daemon via [`AXHelperClient`](../../Sources/OpenClip/Platform/Helper/AXHelperClient.swift).
+
+- By delegating Accessibility status checks and keystroke injection to the immutable [`OpenClipAXHelper`](accessibility-helper.md) daemon, permissions remain intact across app updates.
+- If the helper is unreachable or when running standalone unit tests, `AXHelperClient` seamlessly falls back to local in-process `AXIsProcessTrustedWithOptions` calls.
+
+---
+
 ## Privacy & Non-Destructive Guarantees
 
 - **No Clipboard Pollution (AX modes)**: `ax-text-control`, `ax-web-area`, and `browser-script` never write to `NSPasteboard` — they read the live accessibility tree or the browser's AppleScript bridge.
