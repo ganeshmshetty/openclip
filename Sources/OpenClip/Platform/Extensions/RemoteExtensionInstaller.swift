@@ -47,14 +47,19 @@ public final class RemoteExtensionInstaller: Sendable {
         )
         defer { session.invalidateAndCancel() }
         
-        // The store API guarantees this URL points at a real archive, so a single
-        // HEAD check is enough to fail fast on stale/missing packages.
-        guard await checkURLExists(downloadURL, session: session) else {
-            throw NSError(domain: "RemoteExtensionInstaller", code: 404, userInfo: [NSLocalizedDescriptionKey: "Download URL is not reachable: \(downloadURL.absoluteString)"])
-        }
+        // Download directly with allowlist-enforcing session (no redundant HEAD roundtrip)
         Log.extensions.notice("Downloading verified package from \(downloadURL, privacy: .public)")
         
         let (tempLocalURL, response) = try await session.download(from: downloadURL)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(domain: "RemoteExtensionInstaller", code: 500, userInfo: [NSLocalizedDescriptionKey: "Non-HTTP response received."])
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 404 {
+                throw NSError(domain: "RemoteExtensionInstaller", code: 404, userInfo: [NSLocalizedDescriptionKey: "Download URL is not reachable: \(downloadURL.absoluteString)"])
+            }
+            throw NSError(domain: "RemoteExtensionInstaller", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
+        }
         guard Self.isAllowedResponse(response, allowedHosts: Self.allowedDownloadHosts) else {
             throw NSError(domain: "RemoteExtensionInstaller", code: 403, userInfo: [NSLocalizedDescriptionKey: "Download redirected to an untrusted host"])
         }

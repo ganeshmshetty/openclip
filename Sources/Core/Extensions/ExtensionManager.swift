@@ -349,8 +349,20 @@ public final class ExtensionManager: Sendable {
             hashes.removeValue(forKey: packageID)
             settings.set(.extensionTrustHashes, value: hashes)
         }
-        onUnregister?(actionID)
-        loadedActions.removeAll(where: { $0.id == actionID })
+        if let packageID = removedPackageID {
+            let actionsToUnregister = loadedActions.filter {
+                ActionIdentity.extensionPackageID(of: $0) == packageID || $0.id == packageID || $0.id.hasPrefix(packageID + ".")
+            }
+            for act in actionsToUnregister {
+                onUnregister?(act.id)
+            }
+            loadedActions.removeAll {
+                ActionIdentity.extensionPackageID(of: $0) == packageID || $0.id == packageID || $0.id.hasPrefix(packageID + ".")
+            }
+        } else {
+            onUnregister?(actionID)
+            loadedActions.removeAll(where: { $0.id == actionID })
+        }
         await loadExtensions(from: targetDir)
     }
     

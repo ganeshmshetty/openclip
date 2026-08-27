@@ -8,15 +8,17 @@ import Core
 
 struct ExtensionCardView: View {
     let item: ExtensionItem
-    @State private var isInstalling = false
-    @State private var installError: String? = nil
-    @State private var showSuccess = false
+    @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var updateManager = ExtensionUpdateManager.shared
+    @State private var isInstalling = false
+    @State private var isUninstalling = false
+    @State private var isUpdating = false
+    @State private var installError: String? = nil
 
     private var matchingInstalledAction: (any Action)? {
         // Generated action IDs are "<manifest.identifier>.action.<n>"; store item.id is
         // "<manifest.identifier>". Require the separator so unrelated shorter ids cannot match.
-        ActionCoordinator.shared.actions.first { action in
+        coordinator.actions.first { action in
             let actID = action.id.lowercased()
             let itemID = item.id.lowercased()
             return actID == itemID || actID.hasPrefix(itemID + ".")
@@ -112,35 +114,43 @@ struct ExtensionCardView: View {
 
             // Right Action Buttons
             HStack(spacing: 8) {
-                if showSuccess || isInstalled {
-                    if isInstalled, updateManager.updatablePackageIDs.contains(item.id) {
-                        Button(action: { Task { try? await updateManager.update(packageID: item.id) } }) {
-                            Label("Update", systemImage: "arrow.down.circle")
+                if isInstalled {
+                    if updateManager.updatablePackageIDs.contains(item.id) {
+                        Button(action: {
+                            isUpdating = true
+                            Task {
+                                try? await updateManager.update(packageID: item.id)
+                                isUpdating = false
+                                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                            }
+                        }) {
+                            Label(isUpdating ? "Updating…" : "Update", systemImage: "arrow.down.circle")
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
+                        .disabled(isUpdating)
                     }
 
-                    Button("Uninstall") {
+                    Button(isUninstalling ? "Removing…" : "Remove") {
                         if let action = matchingInstalledAction {
+                            isUninstalling = true
                             Task {
                                 do {
                                     try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
                                 } catch {
                                     Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
                                 }
-                                await MainActor.run {
-                                    showSuccess = false
-                                    NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
-                                }
+                                isUninstalling = false
+                                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
                             }
                         }
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .frame(minWidth: 64)
-                    .help("Uninstall \(item.name)")
-                    .accessibilityLabel("Uninstall \(item.name)")
+                    .disabled(isUninstalling)
+                    .help("Remove \(item.name)")
+                    .accessibilityLabel("Remove \(item.name)")
                 } else {
                     Button(isInstalling ? "Installing…" : "Install") {
                         guard let url = URL(string: item.downloadURL) else {
@@ -153,8 +163,8 @@ struct ExtensionCardView: View {
                             do {
                                 ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
                                 _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
-                                showSuccess = true
                                 await updateManager.checkForUpdates()
+                                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
                             } catch {
                                 installError = error.localizedDescription
                             }

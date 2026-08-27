@@ -451,8 +451,8 @@ struct ActionRowView: View {
                                 } catch {
                                     Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
                                     let failure = NSAlert()
-                                    failure.messageText = "Uninstall Failed"
-                                    failure.informativeText = "OpenClip could not uninstall extension: \(error.localizedDescription)"
+                                    failure.messageText = "Remove Failed"
+                                    failure.informativeText = "OpenClip could not remove extension: \(error.localizedDescription)"
                                     failure.alertStyle = .warning
                                     failure.runModal()
                                 }
@@ -464,8 +464,8 @@ struct ActionRowView: View {
                         }
                         .buttonStyle(.plain)
                         .frame(width: 20, height: 20)
-                        .help("Uninstall Extension")
-                        .accessibilityLabel("Uninstall Extension")
+                        .help("Remove Extension")
+                        .accessibilityLabel("Remove Extension")
                     case .builtin, .ai:
                         EmptyView()
                     }
