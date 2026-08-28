@@ -12,8 +12,7 @@
 //     (the unified `PasteAvailability` answer — per-app rules first, AX probe fallback — says no):
 //     it becomes `.copy`/`.copyContent`.
 //   * Toast — the click's declared toast (`primaryToast`/`secondaryToast`) wins; otherwise the
-//     default "Copied" toast fires only when a paste context was delivered as a copy (derived or
-//     declared) or when a `.copyDefinition` is delivered.
+//     default "Copied" toast fires for any copy outcome (`.copy`, `.copyContent`, `.copyDefinition`).
 // Only paste outcomes are ever downgraded (`.paste`→`.copy`, `.pasteContent`→`.copyContent`); an
 // explicit copy stays a copy, and non-text results (openURL, notify, keyPress, ...) pass through
 // untouched. Pure Core — no AppKit, no UserDefaults; `canPaste` is the injected, already-unified
@@ -40,7 +39,7 @@ public enum ActionResultDelivery {
         case secondary
     }
 
-    /// The default companion toast when a paste context is delivered as a copy (or a
+    /// The default companion toast when a result is delivered as a copy (or a
     /// `.copyDefinition` is delivered) and no toast is declared for the click.
     private static let copiedToast = StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark")
 
@@ -52,8 +51,8 @@ public enum ActionResultDelivery {
     ///    default).
     /// 2. **Apply probe**: a chosen `.paste` is downgraded to `.copy` when `canPaste` is false.
     /// 3. **Toast**: `delivery.primaryToast` / `delivery.secondaryToast` per click, else the default
-    ///    "Copied" toast when the pre-probe result was a paste context that delivered `.copy`
-    ///    (either derived or declared), or when the delivered result is `.copyDefinition`; else nil.
+    ///    "Copied" toast when the delivered result is a copy outcome (`.copy`, `.copyContent`,
+    ///    `.copyDefinition`); else nil.
     ///
     /// - Parameters:
     ///   - raw: the result a runtime/effect produced (the action's primary outcome).
@@ -71,7 +70,7 @@ public enum ActionResultDelivery {
     ) -> (result: ActionResult, toast: StatusFeedback?) {
         let selected = select(raw: raw, clickIntent: clickIntent, delivery: delivery, preference: preference)
         let delivered = applyProbe(to: selected, canPaste: canPaste)
-        let toast = toast(for: raw, selected: selected, delivered: delivered, clickIntent: clickIntent, delivery: delivery)
+        let toast = toast(for: delivered, clickIntent: clickIntent, delivery: delivery)
         return (delivered, toast)
     }
 
@@ -119,13 +118,10 @@ public enum ActionResultDelivery {
         }
     }
 
-    /// Step 3 — Toast: the click's declared toast wins; the default "Copied" toast fires only when
-    /// a paste context was delivered as a copy (derived at select or downgraded by the probe) or a
-    /// `.copyDefinition` is delivered.
+    /// Step 3 — Toast: the click's declared toast wins; the default "Copied" toast fires for any
+    /// copy outcome (`.copy`, `.copyContent`, `.copyDefinition`) when no toast is declared.
     private static func toast(
-        for raw: ActionResult,
-        selected: ActionResult,
-        delivered: ActionResult,
+        for delivered: ActionResult,
         clickIntent: ClickIntent,
         delivery: ActionDelivery
     ) -> StatusFeedback? {
@@ -136,22 +132,15 @@ public enum ActionResultDelivery {
         if case .copyDefinition = delivered {
             return copiedToast
         }
-        // A paste context delivered as a copy (plain or rich) shows the default "Copied".
-        guard deliveredIsCopyOutcome(delivered) else { return nil }
-        if wasPasteContext(selected) || wasPasteContext(raw) { return copiedToast }
+        if deliveredIsCopyOutcome(delivered) {
+            return copiedToast
+        }
         return nil
     }
 
     private static func deliveredIsCopyOutcome(_ result: ActionResult) -> Bool {
         switch result {
         case .copy, .copyContent: return true
-        default: return false
-        }
-    }
-
-    private static func wasPasteContext(_ result: ActionResult) -> Bool {
-        switch result {
-        case .paste, .pasteContent: return true
         default: return false
         }
     }
