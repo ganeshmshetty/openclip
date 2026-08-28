@@ -89,6 +89,10 @@ public class PopupWindowController {
     /// depend on SwiftUI view teardown racing AppKit's hide().
     var activeStreamingTask: Task<Void, Never>?
 
+    /// When true, distance-based auto-dismiss is suppressed so the popup stays visible
+    /// during the onboarding sandbox experience.
+    public var isOnboardingVisible: Bool = false
+
     public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
                 pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe(),
                 toastController: ToastPanelController = ToastPanelController(),
@@ -564,8 +568,9 @@ public class PopupWindowController {
             updatePopupHover(at: NSEvent.mouseLocation)
             let cursorLoc = NSEvent.mouseLocation
             // Distance dismissal suspends in search mode (typing elsewhere must not dismiss the
-            // palette), while the AI result card is open (modal), and while AI is actively processing; it is active otherwise.
-            let distanceDismissActive = modeStore.mode != .search && modeStore.mode != .content && !modeStore.isProcessingAI
+            // palette), while the AI result card is open (modal), while AI is actively processing,
+            // and while onboarding is visible (sandbox experience); it is active otherwise.
+            let distanceDismissActive = modeStore.mode != .search && modeStore.mode != .content && !modeStore.isProcessingAI && !isOnboardingVisible
             if distanceDismissActive, let panel = panel {
                 let frame = panel.frame
                 let dx = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))

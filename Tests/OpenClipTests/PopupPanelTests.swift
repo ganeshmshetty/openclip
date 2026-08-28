@@ -673,4 +673,50 @@ final class PopupPanelTests: XCTestCase {
         controller.handleEvent(farEvent)
         XCTAssertFalse(controller.isVisible, "Popup should dismiss when cursor moves far away and AI is not processing")
     }
+
+    func testDistanceDismissalSuspendsWhileOnboardingVisible() throws {
+        let controller = PopupWindowController()
+        let panel = PopupPanel()
+        let currentMouse = NSEvent.mouseLocation
+        panel.setFrame(NSRect(x: currentMouse.x + PopupMetrics.popupDismissalDistance + 200,
+                              y: currentMouse.y + PopupMetrics.popupDismissalDistance + 200,
+                              width: 200, height: 50), display: false)
+        controller.panel = panel
+        let context = SelectionContext(
+            text: "test",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.startTestSession(for: context)
+        defer { controller.hide() }
+
+        XCTAssertTrue(controller.isVisible)
+
+        // When onboarding is visible, distance auto-dismiss must be suspended
+        controller.isOnboardingVisible = true
+
+        let farAwayLocation = CGPoint(x: panel.frame.maxX + PopupMetrics.popupDismissalDistance + 100,
+                                      y: panel.frame.maxY + PopupMetrics.popupDismissalDistance + 100)
+        let farEvent = NSEvent.mouseEvent(
+            with: .mouseMoved,
+            location: farAwayLocation,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: panel.windowNumber,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 0,
+            pressure: 0
+        )!
+
+        controller.handleEvent(farEvent)
+        XCTAssertTrue(controller.isVisible, "Popup must stay visible while onboarding is active even when cursor moves far away")
+
+        // When onboarding completes/closes, distance dismissal re-engages
+        controller.isOnboardingVisible = false
+        controller.handleEvent(farEvent)
+        XCTAssertFalse(controller.isVisible, "Popup should dismiss when cursor moves far away and onboarding is not visible")
+    }
 }
