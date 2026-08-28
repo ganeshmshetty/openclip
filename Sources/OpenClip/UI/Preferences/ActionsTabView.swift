@@ -131,8 +131,21 @@ struct ActionsTab: View {
             return (rowIndex, actionIndex)
         }
         let actionIndexByRow = Dictionary(uniqueKeysWithValues: actionIndices.map { ($0.rowIndex, $0.actionIndex) })
-        let actionSource = IndexSet(source.compactMap { actionIndexByRow[$0] })
-        let actionDestination = actionIndices.prefix { $0.rowIndex < destination }.count
+        var actionSource = IndexSet(source.compactMap { actionIndexByRow[$0] })
+        // Expand: if a group parent is being moved, include its sub-actions
+        let sourceIDs = Set(actionSource.map { coordinator.actions[$0].id })
+        for (index, action) in coordinator.actions.enumerated() {
+            if sourceIDs.contains(where: { action.id.hasPrefix($0 + ".") }) {
+                actionSource.insert(index)
+            }
+        }
+        guard !actionSource.isEmpty else { return }
+        let actionDestination: Int
+        if let firstAtOrAfter = actionIndices.first(where: { $0.rowIndex >= destination }) {
+            actionDestination = firstAtOrAfter.actionIndex
+        } else {
+            actionDestination = coordinator.actions.count
+        }
         coordinator.moveActions(from: actionSource, to: actionDestination)
     }
 
@@ -152,6 +165,7 @@ struct ActionsTab: View {
                         case .packageHeader(let packageID, let title, let gatedReason):
                             PackageHeaderRowView(packageID: packageID, title: title, gatedReason: gatedReason, disabledPackages: $disabledPackages)
                                 .tag(row.id)
+                                .moveDisabled(true)
                         case .groupParent(let action):
                             ActionRowView(
                                 action: action,

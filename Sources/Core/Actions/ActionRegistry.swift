@@ -86,7 +86,9 @@ public final class ActionRegistry: ObservableObject, Sendable {
         newActions.insert(contentsOf: movingActions, at: dest)
         actions = newActions
         
-        let newOrder = actions.map { $0.id }
+        let newOrder = actions
+            .filter { !ActionIdentity.isAIPreset($0) }
+            .map { $0.id }
         settingsStore.set(.actionOrder, value: newOrder)
     }
     
