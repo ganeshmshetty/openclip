@@ -103,14 +103,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let completedOnboarding = DefaultSettingsStore.shared.get(.hasCompletedOnboarding)
         let isAppEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
         
+        if isGranted && isAppEnabled {
+            selectionMonitor?.start()
+        }
+        
         if !isGranted || !completedOnboarding {
             showOnboarding()
         } else {
-            if isAppEnabled {
-                selectionMonitor?.start()
-            }
             // Relaunches after onboarding still show the one-time nudge until it's dismissed once.
             showPostOnboardingCoachMark()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("OpenClipShowSandboxPopup"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let context = notification.object as? SelectionContext else { return }
+            Task { @MainActor in
+                self?.popupController?.show(for: context, pasteAvailable: false)
+            }
         }
 
         NotificationCenter.default.addObserver(
@@ -123,8 +135,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let enabled = explicitState ?? DefaultSettingsStore.shared.get(.isAppEnabled)
                 if enabled {
                     let granted = PermissionManager.shared.isAccessibilityGranted
-                    let onboarded = DefaultSettingsStore.shared.get(.hasCompletedOnboarding)
-                    if granted && onboarded {
+                    if granted {
                         self?.selectionMonitor?.start()
                     }
                 } else {
@@ -140,7 +151,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Deliberately no post-finish window dump: completing (or skipping) onboarding hands
         // control straight back with a one-time "try it" coach-mark — the user's next step is to
         // select text, not read Preferences.
+        popupController?.isOnboardingVisible = true
         onboardingWindowController = OnboardingWindowController { [weak self] in
+            self?.popupController?.isOnboardingVisible = false
             if DefaultSettingsStore.shared.get(.isAppEnabled) {
                 self?.selectionMonitor?.start()
             }
