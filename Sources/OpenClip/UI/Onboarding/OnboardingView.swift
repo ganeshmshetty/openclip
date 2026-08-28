@@ -225,6 +225,10 @@ public struct OnboardingView: View {
     }
 
     private func completeOnboarding() {
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let currentBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        DefaultSettingsStore.shared.set(.lastRunVersion, value: currentVersion)
+        DefaultSettingsStore.shared.set(.lastRunBuild, value: currentBuild)
         DefaultSettingsStore.shared.set(.hasCompletedOnboarding, value: true)
         onComplete()
     }

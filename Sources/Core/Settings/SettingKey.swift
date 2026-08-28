@@ -93,6 +93,12 @@ public extension SettingKey where Value == String {
     static var popupTheme: SettingKey<String> { SettingKey<String>("popupTheme", defaultValue: "classic") }
     static var popupThemeColor: SettingKey<String> { SettingKey<String>("popupThemeColor", defaultValue: "system") }
 
+    /// The last version string (CFBundleShortVersionString) the app was launched on.
+    /// Used to classify launch scenarios (First Install, App Update, Reinstall, Normal Launch).
+    static var lastRunVersion: SettingKey<String> { SettingKey<String>("app.lastRunVersion", defaultValue: "") }
+    /// The last build number (CFBundleVersion) the app was launched on.
+    static var lastRunBuild: SettingKey<String> { SettingKey<String>("app.lastRunBuild", defaultValue: "") }
+
     /// Per-action option value key. The key name matches the legacy `action.<id>.option.<optID>`
     /// convention so existing stored values migrate over with zero data changes.
     static func actionOption(actionID: String, optionID: String, default defaultValue: String = "") -> SettingKey<String> {
