@@ -20,6 +20,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var extensionsWatcher: ExtensionsDirectoryWatcher?
 
     private var onboardingWindowController: OnboardingWindowController?
+    private var permissionRecoveryWindowController: PermissionRecoveryWindowController?
     private var coachMarkController: CoachMarkController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -98,24 +99,55 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.popupController?.preparePasteProbe(for: app, policy: policy)
         }
         selectionMonitor = macMonitor
-        
-        let isGranted = PermissionManager.shared.isAccessibilityGranted
+        guard NSClassFromString("XCTestCase") == nil else { return }
+
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let currentBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        let lastRunVersion = DefaultSettingsStore.shared.get(.lastRunVersion)
+        let lastRunBuild = DefaultSettingsStore.shared.get(.lastRunBuild)
         let completedOnboarding = DefaultSettingsStore.shared.get(.hasCompletedOnboarding)
+        let isGranted = PermissionManager.shared.isAccessibilityGranted
         let isAppEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
-        
-        if isGranted && isAppEnabled {
-            selectionMonitor?.start()
-        }
-        
-        if !isGranted || !completedOnboarding {
+
+        let launchScenario = AppLaunchClassifier.classify(
+            lastRunVersion: lastRunVersion,
+            currentVersion: currentVersion,
+            lastRunBuild: lastRunBuild,
+            currentBuild: currentBuild,
+            hasCompletedOnboarding: completedOnboarding,
+            isAccessibilityGranted: isGranted
+        )
+
+        switch launchScenario {
+        case .firstInstall:
             showOnboarding()
-        } else {
-            // Relaunches after onboarding still show the one-time nudge until it's dismissed once.
+        case .appUpdate(let prevVersion, let newVersion, let prevBuild, let newBuild):
+            Log.permissions.info("OpenClip updated from \(prevVersion, privacy: .public) (\(prevBuild, privacy: .public)) to \(newVersion, privacy: .public) (\(newBuild, privacy: .public))")
+            DefaultSettingsStore.shared.set(.lastRunVersion, value: newVersion)
+            DefaultSettingsStore.shared.set(.lastRunBuild, value: newBuild)
+            if !isGranted {
+                showPermissionRecovery(isUpdate: true)
+            } else {
+                if isAppEnabled {
+                    selectionMonitor?.start()
+                }
+                showPostOnboardingCoachMark()
+            }
+        case .permissionRecovery:
+            showPermissionRecovery(isUpdate: false)
+        case .normalLaunch:
+            if lastRunVersion != currentVersion || lastRunBuild != currentBuild {
+                DefaultSettingsStore.shared.set(.lastRunVersion, value: currentVersion)
+                DefaultSettingsStore.shared.set(.lastRunBuild, value: currentBuild)
+            }
+            if isGranted && isAppEnabled {
+                selectionMonitor?.start()
+            }
             showPostOnboardingCoachMark()
         }
 
         NotificationCenter.default.addObserver(
-            forName: Notification.Name("OpenClipShowSandboxPopup"),
+            forName: .openClipShowSandboxPopup,
             object: nil,
             queue: .main
         ) { [weak self] notification in
@@ -126,7 +158,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NotificationCenter.default.addObserver(
-            forName: Notification.Name("OpenClipEnabledStateChanged"),
+            forName: .openClipEnabledStateChanged,
             object: nil,
             queue: .main
         ) { [weak self] notification in
@@ -143,11 +175,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
-    }
-    
 
+        NotificationCenter.default.addObserver(
+            forName: .openClipAccessibilityChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let granted = (notification.object as? Bool) ?? PermissionManager.shared.isAccessibilityGranted
+            Task { @MainActor in
+                let enabled = DefaultSettingsStore.shared.get(.isAppEnabled)
+                if granted && enabled {
+                    self?.selectionMonitor?.start()
+                } else if !granted {
+                    self?.selectionMonitor?.stop()
+                }
+            }
+        }
+    }
 
     private func showOnboarding() {
+        guard NSClassFromString("XCTestCase") == nil else { return }
         // Deliberately no post-finish window dump: completing (or skipping) onboarding hands
         // control straight back with a one-time "try it" coach-mark — the user's next step is to
         // select text, not read Preferences.
@@ -162,11 +209,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         onboardingWindowController?.showWindow(nil)
     }
 
+    private func showPermissionRecovery(isUpdate: Bool) {
+        guard NSClassFromString("XCTestCase") == nil else { return }
+        permissionRecoveryWindowController = PermissionRecoveryWindowController(
+            isUpdate: isUpdate,
+            onComplete: { [weak self] in
+                let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+                let currentBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+                DefaultSettingsStore.shared.set(.lastRunVersion, value: currentVersion)
+                DefaultSettingsStore.shared.set(.lastRunBuild, value: currentBuild)
+                if DefaultSettingsStore.shared.get(.isAppEnabled) {
+                    self?.selectionMonitor?.start()
+                }
+                self?.showPostOnboardingCoachMark()
+            },
+            onDismiss: { [weak self] in
+                // Persist version/build even on "Later" so the same prompt isn't re-shown
+                // on every launch when the build is already current (idempotent).
+                let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+                let currentBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+                let lastRunVersion = DefaultSettingsStore.shared.get(.lastRunVersion)
+                let lastRunBuild = DefaultSettingsStore.shared.get(.lastRunBuild)
+                if lastRunVersion != currentVersion || lastRunBuild != currentBuild {
+                    DefaultSettingsStore.shared.set(.lastRunVersion, value: currentVersion)
+                    DefaultSettingsStore.shared.set(.lastRunBuild, value: currentBuild)
+                }
+                self?.showPostOnboardingCoachMark()
+            }
+        )
+        permissionRecoveryWindowController?.showWindow(nil)
+    }
+
     /// One-time post-onboarding nudge: teaches the primary gesture ("select any text") when
     /// Accessibility is in place, or offers a Preferences shortcut when the user skipped it.
     /// `CoachMarkController` self-guards on its persisted seen-flag, so this is safe to call from
     /// both the onboarding-completion path and subsequent launches until it's been dismissed once.
     private func showPostOnboardingCoachMark() {
+        guard NSClassFromString("XCTestCase") == nil else { return }
         let controller = CoachMarkController(
             accessibilityGranted: PermissionManager.shared.isAccessibilityGranted,
             onSetupAction: { [weak self] in

@@ -18,6 +18,12 @@ extension Notification.Name {
     /// Posted when the master app enabled state changes.
     static let openClipEnabledStateChanged = Notification.Name("OpenClipEnabledStateChanged")
 
+    /// Posted when accessibility authorization changes. The new `Bool` status travels in `object`.
+    static let openClipAccessibilityChanged = Notification.Name("OpenClipAccessibilityChanged")
+
+    /// Posted when selection inside onboarding sandbox triggers a popup.
+    static let openClipShowSandboxPopup = Notification.Name("OpenClipShowSandboxPopup")
+
     /// Posted to switch the active tab in the Preferences window. The target `PreferenceTab` travels in `object`.
     static let openClipSelectPreferencesTab = Notification.Name("OpenClipSelectPreferencesTab")
 }

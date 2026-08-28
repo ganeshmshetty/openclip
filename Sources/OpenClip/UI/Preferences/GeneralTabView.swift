@@ -196,9 +196,10 @@ struct GeneralTab: View {
                         )
                         
                         Button("Open Settings") {
-                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                                NSWorkspace.shared.open(url)
-                            }
+                            // Only proactively reset stale TCC when permission is missing.
+                            // Resetting while already granted would revoke the active entry.
+                            let shouldReset = !permissionManager.isAccessibilityGranted
+                            permissionManager.requestAccessibilityPermission(proactivelyResetStaleTCC: shouldReset)
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
