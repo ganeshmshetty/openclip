@@ -413,8 +413,8 @@ runs:
    per-app rule first, else the live `PasteAvailabilityProbe` reporting the AX Edit ▸ Paste
    disabled/unavailable) says no → `.copy`.
 3. **Toast** — the click's declared toast (`toast` for primary, `secondaryToast` for secondary) wins;
-   otherwise the default **"Copied"** toast fires only when a paste context was delivered as a copy
-   (derived at select, declared, or downgraded by the probe) or a `.copyDefinition` is delivered.
+   otherwise the default **"Copied"** toast fires whenever a result is delivered as a copy
+   (native copy, derived at select, declared, or downgraded by the probe) or a `.copyDefinition` is delivered.
 4. **One toast per run** — a script-emitted `.toast` (JS `openclip.toast`, shell JSON `"toast"`)
    **suppresses** the delivery companion toast: nothing beyond the script's own toast surfaces. The
    precedence is **script toast > declared per-click toast (`toast`/`secondaryToast`) > default

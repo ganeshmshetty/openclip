@@ -171,7 +171,8 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testExplicitCopyContentNeverDowngraded() {
         let (r, toast) = ActionResultDelivery.resolve(raw: .copyContent(richPayload), clickIntent: .primary, canPaste: true, delivery: .none)
         assertPayload(r, .copyContent(richPayload))
-        XCTAssertNil(toast)
+        XCTAssertEqual(toast?.message, "Copied")
+        XCTAssertEqual(toast?.style, .success)
     }
 
     // MARK: - Toast
@@ -187,9 +188,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertNil(toast)
     }
 
-    func testNoDefaultToastOnNativeCopy() {
+    func testDefaultToastOnNativeCopy() {
         let (_, toast) = ActionResultDelivery.resolve(raw: .copy("a"), clickIntent: .primary, canPaste: true, delivery: .none)
-        XCTAssertNil(toast)
+        XCTAssertEqual(toast?.message, "Copied")
+        XCTAssertEqual(toast?.style, .success)
     }
 
     func testDeclaredPrimaryToastOverridesDefault() {
@@ -218,10 +220,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertEqual(toast?.message, "Copied", "a paste context delivered as a copy fires the default Copied toast")
     }
 
-    func testTextWithCopyPreferenceCopiesWithoutToast() {
+    func testTextWithCopyPreferenceCopiesWithToast() {
         let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none, preference: .copy)
         assertCase(r, .copy("hello"))
-        XCTAssertNil(toast, "a native copy fires no companion toast")
+        XCTAssertEqual(toast?.message, "Copied", "a delivered copy outcome fires the default Copied toast")
     }
 
     func testTextWithPreviewPreferenceStaysText() {
@@ -407,7 +409,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertEqual(toast.currentFeedback?.message, "Copied")
     }
 
-    /// User picks copy for the primary click: `.text` delivers a native copy (no toast) and dismisses.
+    /// User picks copy for the primary click: `.text` delivers a copy with the default Copied toast and dismisses.
     @MainActor
     func testTextDeliversCopyWhenPreferenceIsCopy() async throws {
         let handler = RecordingHandler()
@@ -424,7 +426,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.text("hello"))
 
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
-        XCTAssertNil(toast.currentFeedback, "a native copy fires no companion toast")
+        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
     }
 
     /// A secondary click with the default secondary = copy: `.text` copies without a toast.
@@ -469,7 +471,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertNil(controller.modeStore.resultCard)
     }
 
-    /// An explicit `.copy` with a `.preview` preference stays a native copy (no card, no toast).
+    /// An explicit `.copy` with a `.preview` preference stays a copy with the default Copied toast (no card).
     @MainActor
     func testExplicitCopyDeliversNotPreviewedWithPreviewPreference() async throws {
         let handler = RecordingHandler()
@@ -486,7 +488,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.copy("hello"))
 
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
-        XCTAssertNil(toast.currentFeedback, "a native copy fires no companion toast")
+        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
         XCTAssertEqual(controller.modeStore.mode, .actions, "an explicit copy must never open the preview card")
     }
 
@@ -773,9 +775,9 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertEqual(toast.currentFeedback?.style, .error)
     }
 
-    /// A native `.copy` result is not a downgrade — it must show no toast.
+    /// A native `.copy` result delivers the default Copied toast.
     @MainActor
-    func testNativeCopyShowsNoToast() async throws {
+    func testNativeCopyShowsCopiedToast() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
         let controller = shownController(resultHandler: handler,
@@ -787,7 +789,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.copy("hello"))
 
         _ = try await awaitDelivery(from: handler)
-        XCTAssertNil(toast.currentFeedback, "native copy must not show the Copied toast")
+        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
     }
 
     /// Every `.toast` result routes to the toast (the single status surface). A test session has
