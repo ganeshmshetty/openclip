@@ -4,6 +4,20 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 
 ---
 
+## v1.1.1 - 2026-08-28
+
+### Features & Improvements
+- **Launch Classification & Permission Recovery**: Added launch classifier distinguishing fresh installs, updates, and relaunches with a dedicated permission-recovery flow and UI when Accessibility access is missing.
+- **Onboarding Redesign**: Rebuilt onboarding into a 4-step interactive wizard with curated recommended extensions, live sandbox preview, and resilient catalog resolution.
+- **Reactive Extension Store**: Store install/remove now updates instantly with reactive state and immediate remove-button feedback.
+
+### Fixes & Stability
+- **Action Reordering**: Corrected reordering in the Actions preferences tab so drag order persists reliably.
+- **Copied Feedback**: Default "Copied" toast now fires for any delivered copy (`.copy`/`.copyContent`/`.copyDefinition`) when no declared toast wins — previously only paste-context copies triggered it.
+- **Brew Install Docs**: Simplified install docs to single-command `brew install --cask ganeshmshetty/tap/openclip`.
+
+---
+
 ## v1.1.0 - 2026-08-26
 
 ### Features & Improvements
