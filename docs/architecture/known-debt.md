@@ -65,6 +65,19 @@ areas; stale debt notes are worse than none.
   availability. The old `after` translator (the pre-refactor `after` orchestration step and its
   adapter) is **fully removed**. Async JS runs are guarded by the
   `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
+- **Custom Action Groups use canonical IDs with dynamic materialization and strict $\ge 2$ member invariant.**
+  User-defined action groups are defined via `ActionGroupDef` (`Sources/Core/Actions/ActionGroupDef.swift`),
+  stored as JSON in `SettingKey.actionGroups`. Rather than rewriting action identifiers with virtual ID
+  prefixes (e.g. `vgroup.<id>.<actionID>`), grouped actions retain their exact canonical IDs
+  (`builtin.copy`, `com.user.ext.action`). `ActionRegistry` dynamically materializes `CustomGroupAction`
+  (`Sources/Core/Actions/CustomGroupAction.swift`, conforming to `Action` and `SubActionProviding`)
+  group rows, injecting them contiguously before their member actions in `actions`, while `SettingKey.actionOrder`
+  strictly stores real, canonical IDs (excluding synthetic group headers and AI presets). `ActionCoordinator`
+  manages the full group lifecycle (`createGroup`, `updateGroup`, `ungroup`, `removeFromGroup`, `loadGroupDefs`,
+  `pruneOrphans`), automatically enforcing the strict $\ge 2$ member invariant: when members are uninstalled
+  or removed, any group dropping below 2 members is immediately dissolved. Availability resolution in
+  `ActionRegistry.availableActions(for:)` maps canonical IDs to owning custom groups to hide member actions
+  when their parent group is disabled or filtered out.
 
 ## Extension JS Module Runtime
 
