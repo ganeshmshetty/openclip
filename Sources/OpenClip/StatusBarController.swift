@@ -16,7 +16,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var preferencesWindow: NSWindow?
     private var toggleEnabledItem: NSMenuItem?
-    private var extensionsSubmenu: NSMenu?
+    private var actionsSubmenu: NSMenu?
 
     var isMenuBarIconVisible: Bool { statusItem != nil }
     
@@ -70,37 +70,50 @@ class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
 
         // Section 2: Core App Navigation
-        menu.addItem(menuItem(title: "Preferences…", action: #selector(showPreferences), keyEquivalent: ","))
+        let prefsItem = menuItem(title: "Settings…", action: #selector(showPreferences))
+        menu.addItem(prefsItem)
 
-        let extensionsMenu = NSMenu(title: "Extensions")
-        extensionsMenu.delegate = self
-        self.extensionsSubmenu = extensionsMenu
+        let actionsMenu = NSMenu(title: "Actions")
+        actionsMenu.delegate = self
+        self.actionsSubmenu = actionsMenu
         
-        let extensionsItem = NSMenuItem(title: "Extensions", action: nil, keyEquivalent: "")
-        extensionsItem.submenu = extensionsMenu
-        menu.addItem(extensionsItem)
+        let actionsItem = NSMenuItem(title: "Actions", action: nil, keyEquivalent: "")
+        actionsItem.submenu = actionsMenu
+        menu.addItem(actionsItem)
         
         menu.addItem(NSMenuItem.separator())
 
         // Section 3: Updates & Support
         menu.addItem(menuItem(title: "Check for Updates…", action: #selector(checkForUpdates)))
-        menu.addItem(menuItem(title: "Report an Issue…", action: #selector(openReportIssue)))
+        menu.addItem(menuItem(title: "Report Issue…", action: #selector(openReportIssue)))
 
         menu.addItem(NSMenuItem.separator())
         
         // Section 4: Lifecycle
-        let quitItem = NSMenuItem(title: "Quit OpenClip", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
         quitItem.target = NSApp
+        quitItem.image = menuSymbolImage("power")
         menu.addItem(quitItem)
         
         statusItem?.menu = menu
         updateStatusIcon(isEnabled: isEnabled)
     }
     
+    private func menuSymbolImage(_ name: String) -> NSImage? {
+        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+        let img = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config)
+        img?.size = NSSize(width: 14, height: 14)
+        img?.isTemplate = true
+        return img
+    }
+
     /// Builds a menu item targeted at self (status-item menus don't resolve actions through the responder chain).
-    private func menuItem(title: String, action: Selector, keyEquivalent: String = "") -> NSMenuItem {
+    private func menuItem(title: String, action: Selector, keyEquivalent: String = "", iconName: String? = nil) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
         item.target = self
+        if let iconName {
+            item.image = menuSymbolImage(iconName)
+        }
         return item
     }
 
@@ -115,12 +128,12 @@ class StatusBarController: NSObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        guard menu === extensionsSubmenu else { return }
+        guard menu === actionsSubmenu else { return }
         menu.removeAllItems()
 
         // Top pinned action: immediately accessible with zero scrolling
         let manageItem = NSMenuItem(
-            title: "Manage Extensions…",
+            title: "Manage Actions…",
             action: #selector(openActionsTab),
             keyEquivalent: ""
         )
@@ -130,26 +143,38 @@ class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
 
         let actions = ActionCoordinator.shared.actions
-        let disabledPackages = settingsStore.get(.disabledPackages)
-        let packages = ExtensionPackageResolver.resolvePackages(from: actions, disabledPackages: disabledPackages)
+        let customGroupMemberIDs = Set(ActionCoordinator.shared.actionGroupDefs.flatMap(\.memberActionIDs))
+        let disabledActionIDs = settingsStore.get(.disabledActionIDs)
+        let isAIEnabled = settingsStore.get(.isAIEnabled)
 
-        if packages.isEmpty {
-            let emptyItem = NSMenuItem(title: "No Extensions Installed", action: nil, keyEquivalent: "")
+        let items = TopLevelActionResolver.resolveTopLevelItems(
+            from: actions,
+            customGroupMemberIDs: customGroupMemberIDs,
+            disabledActionIDs: disabledActionIDs,
+            isAIEnabled: isAIEnabled,
+            presentationProvider: { action in
+                ActionCustomizationManager.shared.presented(action, surface: .table)
+            }
+        )
+
+        if items.isEmpty {
+            let emptyItem = NSMenuItem(title: "No Actions Available", action: nil, keyEquivalent: "")
             emptyItem.isEnabled = false
             menu.addItem(emptyItem)
             return
         }
 
-        for package in packages {
-            let item = NSMenuItem(
-                title: package.displayName,
-                action: #selector(toggleExtensionPackage(_:)),
+        for item in items {
+            let menuItem = NSMenuItem(
+                title: item.title,
+                action: #selector(toggleActionItem(_:)),
                 keyEquivalent: ""
             )
-            item.target = self
-            item.representedObject = package.id
-            item.state = package.isEnabled ? .on : .off
-            menu.addItem(item)
+            menuItem.target = self
+            menuItem.representedObject = item
+            menuItem.state = item.isEnabled ? .on : .off
+            menuItem.image = ActionIconImageHelper.menuImage(for: item.icon)
+            menu.addItem(menuItem)
         }
     }
 
@@ -157,27 +182,28 @@ class StatusBarController: NSObject, NSMenuDelegate {
         showPreferences(tab: .actions)
     }
 
-    @objc private func toggleExtensionPackage(_ sender: NSMenuItem) {
-        guard let packageID = sender.representedObject as? String else { return }
-        var disabledPackages = settingsStore.get(.disabledPackages)
-        let isCurrentlyDisabled = disabledPackages.contains(packageID)
-
-        if isCurrentlyDisabled {
-            disabledPackages.remove(packageID)
-            settingsStore.set(.disabledPackages, value: disabledPackages)
-            sender.state = .on
-            Task { @MainActor in
-                await ExtensionManager.shared.enablePackage(packageID: packageID)
-                notificationCenter.post(name: .openClipExtensionsDidChange, object: nil)
-            }
+    @objc private func toggleActionItem(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? TopLevelActionItem else { return }
+        if item.isAI {
+            let current = settingsStore.get(.isAIEnabled)
+            let newStatus = !current
+            settingsStore.set(.isAIEnabled, value: newStatus)
+            AIServiceManager.shared.isAIEnabled = newStatus
+            sender.state = newStatus ? .on : .off
+            notificationCenter.post(name: .openClipEnabledStateChanged, object: nil)
         } else {
-            disabledPackages.insert(packageID)
-            settingsStore.set(.disabledPackages, value: disabledPackages)
-            sender.state = .off
-            Task { @MainActor in
-                await ExtensionManager.shared.disablePackage(packageID: packageID)
-                notificationCenter.post(name: .openClipExtensionsDidChange, object: nil)
+            var disabledActionIDs = settingsStore.get(.disabledActionIDs)
+            let isCurrentlyDisabled = disabledActionIDs.contains(item.id)
+            if isCurrentlyDisabled {
+                disabledActionIDs.remove(item.id)
+                settingsStore.set(.disabledActionIDs, value: disabledActionIDs)
+                sender.state = .on
+            } else {
+                disabledActionIDs.insert(item.id)
+                settingsStore.set(.disabledActionIDs, value: disabledActionIDs)
+                sender.state = .off
             }
+            notificationCenter.post(name: .openClipEnabledStateChanged, object: nil)
         }
     }
     
@@ -239,7 +265,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
             NSStatusBar.system.removeStatusItem(statusItem)
             self.statusItem = nil
             toggleEnabledItem = nil
-            extensionsSubmenu = nil
+            actionsSubmenu = nil
         }
     }
     

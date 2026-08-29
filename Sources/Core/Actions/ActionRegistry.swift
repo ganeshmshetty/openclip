@@ -11,6 +11,8 @@ public final class ActionRegistry: ObservableObject, Sendable {
     public static let shared = ActionRegistry()
     
     @Published public private(set) var actions: [any Action] = []
+    private var registeredActions: [any Action] = []
+    private var groupDefs: [ActionGroupDef] = []
     private let settingsStore: SettingsStore
     
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
@@ -18,10 +20,10 @@ public final class ActionRegistry: ObservableObject, Sendable {
     }
     
     public func register(builtIns: [any Action]) {
-        // Dedupe against existing actions and against earlier entries within the same batch,
+        // Dedupe against existing registeredActions and against earlier entries within the same batch,
         // so repeated loadInitialState() calls or a duplicate entry in the catalog don't append twice.
-        var seenIDs = Set(actions.map(\.id))
-        actions.append(contentsOf: builtIns.filter { action in
+        var seenIDs = Set(registeredActions.map(\.id))
+        registeredActions.append(contentsOf: builtIns.filter { action in
             guard !seenIDs.contains(action.id) else { return false }
             seenIDs.insert(action.id)
             return true
@@ -31,10 +33,10 @@ public final class ActionRegistry: ObservableObject, Sendable {
     
     public func register(action: any Action) {
         // Replace if ID already exists, otherwise append
-        if let idx = actions.firstIndex(where: { $0.id == action.id }) {
-            actions[idx] = action
+        if let idx = registeredActions.firstIndex(where: { $0.id == action.id }) {
+            registeredActions[idx] = action
         } else {
-            actions.append(action)
+            registeredActions.append(action)
         }
         sortActions()
     }
@@ -50,7 +52,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         // Tier 0: Explicitly ordered by user in `action.order` (sorted by rank in orderIndexMap)
         // Tier 1: Un-ordered built-in actions (sorted stably by insertion order)
         // Tier 2: Un-ordered extensions/other actions (sorted stably by insertion order)
-        let ranked: [(action: any Action, tier: Int, rank: Int, stableOffset: Int)] = actions.enumerated().map { offset, action in
+        let ranked: [(action: any Action, tier: Int, rank: Int, stableOffset: Int)] = registeredActions.enumerated().map { offset, action in
             if let index = orderIndexMap[action.id] {
                 return (action, 0, index, offset)
             } else if ActionIdentity.isBuiltin(action) {
@@ -60,13 +62,69 @@ public final class ActionRegistry: ObservableObject, Sendable {
             }
         }
 
-        actions = ranked
+        let sortedBase = ranked
             .sorted { lhs, rhs in
                 if lhs.tier != rhs.tier { return lhs.tier < rhs.tier }
                 if lhs.rank != rhs.rank { return lhs.rank < rhs.rank }
                 return lhs.stableOffset < rhs.stableOffset
             }
             .map(\.action)
+
+        guard !groupDefs.isEmpty else {
+            actions = sortedBase
+            return
+        }
+
+        // Build a set of all grouped action IDs for fast lookup
+        let allGroupedIDs = Set(groupDefs.flatMap(\.memberActionIDs))
+
+        // Pre-collect each group's members in their sorted order so we can
+        // inject them contiguously after the group header
+        var groupMembers: [String: [any Action]] = [:]
+        for def in groupDefs {
+            let memberSet = Set(def.memberActionIDs)
+            groupMembers[def.id] = sortedBase.filter { memberSet.contains($0.id) }
+        }
+
+        var result: [any Action] = []
+        var injectedGroupIDs = Set<String>()
+
+        for action in sortedBase {
+            if allGroupedIDs.contains(action.id) {
+                // Inject group header + all members on first member encounter
+                for def in groupDefs where !injectedGroupIDs.contains(def.id) {
+                    if def.memberActionIDs.contains(action.id) {
+                        injectedGroupIDs.insert(def.id)
+                        result.append(CustomGroupAction(
+                            id: def.id,
+                            title: def.title,
+                            iconName: def.iconName,
+                            memberActionIDs: def.memberActionIDs
+                        ))
+                        // Add all members contiguously after the header
+                        if let members = groupMembers[def.id] {
+                            result.append(contentsOf: members)
+                        }
+                        break
+                    }
+                }
+                // Skip — already emitted during group injection above
+                continue
+            }
+            result.append(action)
+        }
+
+        // Catch any remaining groups whose members weren't in sortedBase
+        for def in groupDefs where !injectedGroupIDs.contains(def.id) {
+            result.append(CustomGroupAction(
+                id: def.id,
+                title: def.title,
+                iconName: def.iconName,
+                memberActionIDs: def.memberActionIDs
+            ))
+        }
+
+        actions = result
     }
     
     public func moveActions(from source: IndexSet, to destination: Int) {
@@ -87,30 +145,42 @@ public final class ActionRegistry: ObservableObject, Sendable {
         actions = newActions
         
         let newOrder = actions
-            .filter { !ActionIdentity.isAIPreset($0) }
+            .filter { !ActionIdentity.isAIPreset($0) && !($0 is CustomGroupAction) }
             .map { $0.id }
         settingsStore.set(.actionOrder, value: newOrder)
     }
     
     public func unregister(actionID: String) {
-        actions.removeAll(where: { $0.id == actionID })
+        registeredActions.removeAll(where: { $0.id == actionID })
+        sortActions()
         pruneActionOrder()
     }
 
     public func pruneActionOrder() {
         let currentOrder = settingsStore.get(.actionOrder)
         guard !currentOrder.isEmpty else { return }
-        let activeIDs = Set(actions.map { $0.id })
+        let activeIDs = Set(registeredActions.map { $0.id })
         let prunedOrder = currentOrder.filter { activeIDs.contains($0) }
         if prunedOrder != currentOrder {
             settingsStore.set(.actionOrder, value: prunedOrder)
         }
     }
 
+    public var registeredActionIDs: Set<String> {
+        Set(registeredActions.map(\.id))
+    }
+
+    public func setGroupDefs(_ defs: [ActionGroupDef]) {
+        self.groupDefs = defs
+        sortActions()
+    }
+
     /// Clears all registered actions. Test-isolation hook so the shared singleton does not leak
     /// state across test cases.
     public func reset() {
         actions = []
+        registeredActions = []
+        groupDefs = []
     }
     
     /// Context gating shared by the bar and the search palette: can this action actually perform
@@ -172,10 +242,27 @@ public final class ActionRegistry: ObservableObject, Sendable {
                 .map { $0.id }
         )
 
+        // Custom groups: hide members of a disabled custom group.
+        // This parallels the prefix-based hiding above but uses the explicit
+        // memberActionIDs list since custom group members keep canonical IDs.
+        let customGroupMemberToGroupID: [String: String] = {
+            var map: [String: String] = [:]
+            for def in groupDefs {
+                for memberID in def.memberActionIDs {
+                    map[memberID] = def.id
+                }
+            }
+            return map
+        }()
+
         return actions.filter { action in
             guard passes(action) else { return false }
             if let groupID = groupRowIDs.first(where: { action.id.hasPrefix($0 + ".") }),
                !enabledGroupIDs.contains(groupID) {
+                return false
+            }
+            if let owningGroupID = customGroupMemberToGroupID[action.id],
+               !enabledGroupIDs.contains(owningGroupID) {
                 return false
             }
             return true

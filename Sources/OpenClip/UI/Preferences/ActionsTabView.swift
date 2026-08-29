@@ -5,6 +5,7 @@
 // package headers for multi-action extension packages, and the add/install controls.
 // Split out of PreferencesView.swift.
 import SwiftUI
+import UniformTypeIdentifiers
 import Core
 
 @MainActor
@@ -62,6 +63,16 @@ struct ActionsTab: View {
             .filter { $0.chrome.popupBehavior == .showSubActions }
             .map(\.id)
 
+        let customGroupMembership: [String: String] = {
+            var map: [String: String] = [:]
+            for def in coordinator.actionGroupDefs {
+                for memberID in def.memberActionIDs {
+                    map[memberID] = def.id
+                }
+            }
+            return map
+        }()
+
         var seenPackages: Set<String> = []
         var rows: [ListRow] = []
         for action in coordinator.actions {
@@ -70,9 +81,13 @@ struct ActionsTab: View {
             if ActionIdentity.isAIPreset(action) {
                 continue
             }
-            // Extension group rows: the parent row. Sub-actions of the same package nest below it.
+            // Extension group rows & custom group rows: the parent row. Sub-actions nest below it.
             if action.chrome.popupBehavior == .showSubActions {
                 rows.append(.groupParent(action))
+                continue
+            }
+            if let nestedUnder = customGroupMembership[action.id] {
+                rows.append(.action(action, nestedUnder: nestedUnder))
                 continue
             }
             if let packageID = ActionIdentity.extensionPackageID(of: action) {
@@ -119,6 +134,51 @@ struct ActionsTab: View {
     /// a group is collapsed, omits its nested rows) back to `coordinator.actions` indices so
     /// reordering stays correct despite the inserted/omitted rows.
     private func moveRows(source: IndexSet, destination: Int) {
+        let groupPackages = Set(
+            coordinator.actions
+                .filter { $0.chrome.popupBehavior == .showSubActions }
+                .compactMap { ActionIdentity.extensionPackageID(of: $0) }
+        )
+        let customGroupIDs = Set(coordinator.actionGroupDefs.map(\.id))
+
+        // Check if an eligible single action is moving
+        if source.count == 1, let sourceIndex = source.first, sourceIndex < visibleRows.count {
+            let movingRow = visibleRows[sourceIndex]
+            if case .action(let action, let sourceNestedUnder) = movingRow {
+                let isEligible = !ActionIdentity.isAIPreset(action) &&
+                    !action.chrome.launchesAI &&
+                    action.chrome.popupBehavior != .showSubActions &&
+                    !(ActionIdentity.extensionPackageID(of: action).map { groupPackages.contains($0) } ?? false)
+
+                if isEligible {
+                    var targetGroupID: String? = nil
+                    if destination > 0 && destination - 1 < visibleRows.count {
+                        let prevRow = visibleRows[destination - 1]
+                        if case .action(_, let nestedUnder) = prevRow, let nestedUnder, customGroupIDs.contains(nestedUnder) {
+                            targetGroupID = nestedUnder
+                        } else if case .groupParent(let groupAction) = prevRow, customGroupIDs.contains(groupAction.id) {
+                            targetGroupID = groupAction.id
+                        }
+                    }
+                    if targetGroupID == nil && destination < visibleRows.count {
+                        let nextRow = visibleRows[destination]
+                        if case .action(_, let nestedUnder) = nextRow, let nestedUnder, customGroupIDs.contains(nestedUnder) {
+                            targetGroupID = nestedUnder
+                        }
+                    }
+
+                    if let targetGroupID, sourceNestedUnder != targetGroupID {
+                        withAnimation {
+                            collapsedGroupIDs.remove(targetGroupID)
+                        }
+                        coordinator.addToGroup(actionID: action.id, groupID: targetGroupID)
+                    } else if targetGroupID == nil, let sourceNestedUnder, customGroupIDs.contains(sourceNestedUnder) {
+                        coordinator.removeFromGroup(actionID: action.id, groupID: sourceNestedUnder)
+                    }
+                }
+            }
+        }
+
         let actionIndices: [(rowIndex: Int, actionIndex: Int)] = visibleRows.enumerated().compactMap { rowIndex, row in
             let rowAction: (any Action)?
             switch row {
@@ -139,6 +199,16 @@ struct ActionsTab: View {
                 actionSource.insert(index)
             }
         }
+        let customGroupMemberIDs = Set(
+            sourceIDs.flatMap { groupID in
+                coordinator.actionGroupDefs.first(where: { $0.id == groupID })?.memberActionIDs ?? []
+            }
+        )
+        for (index, action) in coordinator.actions.enumerated() {
+            if customGroupMemberIDs.contains(action.id) {
+                actionSource.insert(index)
+            }
+        }
         guard !actionSource.isEmpty else { return }
         let actionDestination: Int
         if let firstAtOrAfter = actionIndices.first(where: { $0.rowIndex >= destination }) {
@@ -154,11 +224,33 @@ struct ActionsTab: View {
     /// Whether the initial collapsed state has been seeded (all groups collapsed on first appear).
     @State private var didSeedCollapsed = false
 
-    @State private var selectedRowID: String? = nil
+    @State private var selectedRowIDs: Set<String> = []
+    @State private var showingCreateGroupSheet = false
+
+    /// Eligible candidate action IDs for custom grouping. Only top-level standalone actions
+    /// (not AI presets, not AI launcher, not group parents, not extension sub-actions,
+    /// and not existing custom group members) can be selected for a new group.
+    private var candidateSelectedActionIDs: [String] {
+        let customGroupMemberIDs = Set(coordinator.actionGroupDefs.flatMap(\.memberActionIDs))
+        let groupPackages = Set(
+            coordinator.actions
+                .filter { $0.chrome.popupBehavior == .showSubActions }
+                .compactMap { ActionIdentity.extensionPackageID(of: $0) }
+        )
+
+        return coordinator.actions.compactMap { action in
+            guard selectedRowIDs.contains(action.id) else { return nil }
+            if ActionIdentity.isAIPreset(action) || action.chrome.launchesAI { return nil }
+            if action.chrome.popupBehavior == .showSubActions { return nil }
+            if customGroupMemberIDs.contains(action.id) { return nil }
+            if let pkg = ActionIdentity.extensionPackageID(of: action), groupPackages.contains(pkg) { return nil }
+            return action.id
+        }
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            List(selection: $selectedRowID) {
+            List(selection: $selectedRowIDs) {
                 Section {
                     ForEach(visibleRows) { row in
                         switch row {
@@ -167,6 +259,7 @@ struct ActionsTab: View {
                                 .tag(row.id)
                                 .moveDisabled(true)
                         case .groupParent(let action):
+                            let isCustomGroup = coordinator.actionGroupDefs.contains(where: { $0.id == action.id })
                             ActionRowView(
                                 action: action,
                                 presentationModel: presentationModel(for: action),
@@ -184,17 +277,38 @@ struct ActionsTab: View {
                                 }
                             )
                             .tag(row.id)
+                            .contextMenu {
+                                if isCustomGroup {
+                                    Button("Ungroup", role: .destructive) {
+                                        coordinator.ungroup(groupID: action.id)
+                                    }
+                                }
+                            }
                         case .action(let action, let nestedUnder):
                             let indented = nestedUnder != nil
+                            let isCustomGroupMember = nestedUnder.map { groupID in
+                                coordinator.actionGroupDefs.contains(where: { $0.id == groupID })
+                            } ?? false
                             ActionRowView(
                                 action: action,
                                 presentationModel: presentationModel(for: action),
                                 isEnabled: enabledBinding(for: action),
                                 onOpenAI: onOpenAI,
                                 indented: indented,
-                                showsControls: !indented
+                                showsControls: !indented || isCustomGroupMember
                             )
                             .tag(row.id)
+                            .contextMenu {
+                                if let groupID = nestedUnder, isCustomGroupMember {
+                                    Button("Remove from Group", role: .destructive) {
+                                        coordinator.removeFromGroup(actionID: action.id, groupID: groupID)
+                                    }
+                                } else if candidateSelectedActionIDs.count >= 2 && candidateSelectedActionIDs.contains(action.id) {
+                                    Button("Create Group from Selection…") {
+                                        showingCreateGroupSheet = true
+                                    }
+                                }
+                            }
                         }
                     }
                     .onMove(perform: moveRows)
@@ -218,6 +332,14 @@ struct ActionsTab: View {
                 }, label: {
                     Label("Add Custom Action", systemImage: "plus.circle")
                 })
+
+                if candidateSelectedActionIDs.count >= 2 {
+                    Button(action: {
+                        showingCreateGroupSheet = true
+                    }, label: {
+                        Label("Group Selected (\(candidateSelectedActionIDs.count))", systemImage: "folder.badge.plus")
+                    })
+                }
                 
                 Button(action: {
                     openInstallExtensionPanel()
@@ -233,6 +355,11 @@ struct ActionsTab: View {
         .padding(12)
         .sheet(isPresented: $showingAddActionSheet) {
             AddCustomActionSheet()
+        }
+        .sheet(isPresented: $showingCreateGroupSheet, onDismiss: {
+            selectedRowIDs = []
+        }) {
+            CreateGroupSheet(memberActionIDs: candidateSelectedActionIDs)
         }
         .onAppear {
             guard !didSeedCollapsed else { return }
@@ -411,6 +538,8 @@ struct ActionRowView: View {
     }
 
     @State private var showingConfigSheet = false
+    @State private var isDropTargeted = false
+    @State private var springLoadTask: Task<Void, Never>? = nil
 
     var body: some View {
         HStack(alignment: .center, spacing: 6) {
@@ -516,10 +645,14 @@ struct ActionRowView: View {
                         }
                         .buttonStyle(.plain)
                         .frame(width: 20, height: 20)
-                        .help("Configure Action")
-                        .accessibilityLabel("Configure Action")
+                        .help(action is CustomGroupAction ? "Configure Group" : "Configure Action")
+                        .accessibilityLabel(action is CustomGroupAction ? "Configure Group" : "Configure Action")
                         .popover(isPresented: $showingConfigSheet, arrowEdge: .leading) {
-                            EditActionSheet(action: action)
+                            if action is CustomGroupAction {
+                                EditGroupSheet(groupID: action.id)
+                            } else {
+                                EditActionSheet(action: action)
+                            }
                         }
                     }
                 } else {
@@ -539,6 +672,24 @@ struct ActionRowView: View {
                 }
             }
         )
+        .onDrop(of: [UTType.text.identifier, UTType.plainText.identifier], isTargeted: Binding(
+            get: { isDropTargeted },
+            set: { targeted in
+                isDropTargeted = targeted
+                springLoadTask?.cancel()
+                if targeted && !isExpanded, let onToggleExpansion {
+                    springLoadTask = Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 500_000_000)
+                        guard !Task.isCancelled else { return }
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            onToggleExpansion()
+                        }
+                    }
+                }
+            }
+        )) { _ in
+            false
+        }
     }
 }
 
