@@ -12,7 +12,7 @@ import SDWebImageSVGCoder
 
 /// Manages the application lifecycle and permissions.
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var statusBarController: StatusBarController?
     private var selectionMonitor: (any SelectionMonitoring)?
     private var popupController: PopupWindowController?
@@ -32,6 +32,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        UNUserNotificationCenter.current().delegate = self
+
         // Register logging sinks (Rotating File Appender and In-Memory Buffer)
         let rotatingSink = RotatingFileLogSink()
         RotatingFileLogSink.shared = rotatingSink
@@ -348,5 +350,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.notification.request.content.userInfo["type"] as? String == "app_update" {
+            Task { @MainActor in
+                AppUpdateManager.shared.checkForUpdates()
+            }
+        }
+        completionHandler()
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 }

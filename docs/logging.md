@@ -65,6 +65,7 @@ Each subsystem owns a dedicated `LogChannel` property on `Log` under the `com.op
 | `ai`             | AI providers and preset persistence                         |
 | `permissions`    | TCC / accessibility permission management                   |
 | `icons`          | icon fetching/caching (`UnifiedIconProvider`, icon picker)  |
+| `updates`        | Sparkle software updates, background check events, update notifications |
 
 **Add a new category when a new subsystem starts logging.** Never create a raw
 `Logger(subsystem:category:)` at the call site — extend `Log` and keep this table in step.
