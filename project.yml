@@ -1,6 +1,8 @@
 name: OpenClip
 options:
   bundleIdPrefix: com.openclip
+  developmentLanguage: en
+  knownRegions: [en, Base, zh-Hans]
 targets:
   Core:
     type: framework
@@ -32,6 +34,9 @@ targets:
         SUPublicEDKey: JbyKx5LUkYkM+ovsJ1NPDR2W+1ptfdsu6b51KBsKhWo=
         SUScheduledCheckInterval: 86400
         SUEnableAutomaticChecks: true
+        CFBundleLocalizations:
+          - en
+          - zh-Hans
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
@@ -46,6 +51,8 @@ targets:
         ENABLE_HARDENED_RUNTIME: true
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
+        SWIFT_EMIT_LOC_STRINGS: YES
+        LOCALIZATION_PREFERS_STRING_CATALOGS: YES
     dependencies:
       - target: Core
       - package: KeyboardShortcuts

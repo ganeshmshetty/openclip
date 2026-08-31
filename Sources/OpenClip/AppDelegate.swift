@@ -318,11 +318,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             
             let alert = NSAlert()
-            alert.messageText = "Install Extension?"
-            alert.informativeText = "OpenClip wants to install the extension \"\(extID)\" from \(host). Extensions can run scripts when you select text. Only proceed if you trust this source."
+            alert.messageText = String(localized: "Install Extension?")
+            alert.informativeText = String(localized: "OpenClip wants to install the extension \"\(extID)\" from \(host). Extensions can run scripts when you select text. Only proceed if you trust this source.")
             alert.alertStyle = .warning
-            alert.addButton(withTitle: "Install")
-            alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle: String(localized: "Install"))
+            alert.addButton(withTitle: String(localized: "Cancel"))
             guard alert.runModal() == .alertFirstButtonReturn else { continue }
             
             Task { @MainActor in
@@ -333,8 +333,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 } catch {
                     Log.extensions.error("Failed to install extension '\(extID, privacy: .public)' from host \(host, privacy: .public): \(error.localizedDescription, privacy: .private)")
                     let failure = NSAlert()
-                    failure.messageText = "Extension Install Failed"
-                    failure.informativeText = "OpenClip could not install \"\(extID)\": \(error.localizedDescription)"
+                    failure.messageText = String(localized: "Extension Install Failed")
+                    failure.informativeText = String(localized: "OpenClip could not install \"\(extID)\": \(error.localizedDescription)")
                     failure.alertStyle = .warning
                     failure.runModal()
                 }

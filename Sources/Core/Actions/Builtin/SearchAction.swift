@@ -6,7 +6,7 @@ import Foundation
 
 public struct SearchAction: ConfigurableAction {
     public let id = "builtin.search"
-    public let title = "Search"
+    public var title: String { String(localized: "Search") }
     public let icon = ActionIcon.symbol("magnifyingglass")
     public let preferenceIconName = "magnifyingglass"
     
@@ -14,7 +14,7 @@ public struct SearchAction: ConfigurableAction {
         [
             ExtensionOption(
                 identifier: "url",
-                label: "Search Engine URL Template",
+                label: String(localized: "Search Engine URL Template"),
                 type: .string,
                 defaultValue: "https://www.google.com/search?q={query}"
             )

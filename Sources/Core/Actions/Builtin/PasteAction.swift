@@ -10,9 +10,9 @@ import Foundation
 
 public struct PasteAction: ConfigurableAction, PasteRequiringAction {
     public let id = "builtin.paste"
-    public let title = "Paste"
+    public var title: String { String(localized: "Paste") }
     public let preferenceIconName = "doc.on.clipboard"
-    public let icon = ActionIcon.text("Paste")
+    public var icon: ActionIcon { .text(String(localized: "Paste")) }
     
     public init() {}
     

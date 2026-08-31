@@ -214,7 +214,7 @@ public struct OnboardingView: View {
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Text(step == .done ? "Get Started" : "Continue")
+                    Text(step == .done ? String(localized: "Get Started") : String(localized: "Continue"))
                     Image(systemName: step == .done ? "arrow.right.circle.fill" : "chevron.right")
                         .font(.system(size: 9.5, weight: .bold))
                 }

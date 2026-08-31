@@ -77,16 +77,16 @@ struct ActionAppearanceFields: View {
     private var iconButtonHelp: String {
         switch previewIcon {
         case .symbol(let name):
-            return name.isEmpty ? "Choose icon" : "Icon: \(name) — click to change"
+            return name.isEmpty ? String(localized: "Choose icon") : String(localized: "Icon: \(name) — click to change")
         case .text(let text):
             if displayMode == 1 {
-                return "Popup bar shows “\(text)” — click to choose the icon for icon mode"
+                return String(localized: "Popup bar shows “\(text)” — click to choose the icon for icon mode")
             }
-            return "Text glyph “\(text)” — click to replace with an icon"
+            return String(localized: "Text glyph “\(text)” — click to replace with an icon")
         case .url:
-            return "Remote image — click to replace with an icon"
+            return String(localized: "Remote image — click to replace with an icon")
         case .local(let url):
-            return "Package image “\(url.lastPathComponent)” — click to replace with an icon"
+            return String(localized: "Package image “\(url.lastPathComponent)” — click to replace with an icon")
         }
     }
 

@@ -10,7 +10,7 @@ import Core
 
 public struct OpenURLAction: Action {
     public let id = "builtin.openurl"
-    public let title = "Open Link"
+    public var title: String { String(localized: "Open Link") }
     public let icon = ActionIcon.symbol("link")
     
     public init() {}

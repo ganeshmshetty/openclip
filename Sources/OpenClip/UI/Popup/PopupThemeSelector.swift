@@ -190,7 +190,7 @@ struct PopupThemeSelector: View {
         .padding(.vertical, 3)
     }
 
-    private func rowTitle(icon: String, title: String) -> some View {
+    private func rowTitle(icon: String, title: LocalizedStringKey) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 15))
@@ -214,7 +214,7 @@ struct PopupThemeSelector: View {
                     hairline(height: 12)
                 }
                 segmentButton(
-                    label: option.label,
+                    label: LocalizedStringKey(option.label),
                     isSelected: isSelected(option),
                     action: { select(option.value) }
                 )
@@ -269,7 +269,7 @@ struct PopupThemeSelector: View {
     }
 
     private func segmentButton(
-        label: String,
+        label: LocalizedStringKey,
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
@@ -300,8 +300,8 @@ struct PopupThemeSelector: View {
                 .foregroundColor(isSelected ? .white : .primary)
                 .frame(width: modeSegmentWidth, height: trayContentHeight)
                 .contentShape(Rectangle())
-                .help(label)
-                .accessibilityLabel(label)
+                .help(LocalizedStringKey(label))
+                .accessibilityLabel(LocalizedStringKey(label))
                 .background(
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(isSelected ? Color.accentColor : Color.clear)

@@ -110,7 +110,7 @@ struct AboutTab: View {
                                 Image(systemName: "square.and.arrow.up")
                                     .font(.system(size: 11))
                             }
-                            Text(isExporting ? "Exporting…" : "Export Logs")
+                            Text(isExporting ? String(localized: "Exporting…") : String(localized: "Export Logs"))
                                 .font(.system(size: 12))
                         }
                     }
@@ -159,7 +159,7 @@ struct AboutTab: View {
 
     // MARK: - Helpers
 
-    private func actionButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+    private func actionButton(_ title: LocalizedStringKey, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Image(systemName: icon)
@@ -181,14 +181,14 @@ struct AboutTab: View {
     /// Returns a short, static "time ago" string that doesn't live-tick.
     private static func shortTimeAgo(_ date: Date) -> String {
         let seconds = Int(-date.timeIntervalSinceNow)
-        if seconds < 60 { return "just now" }
+        if seconds < 60 { return String(localized: "just now") }
         let minutes = seconds / 60
-        if minutes < 60 { return "\(minutes)m ago" }
+        if minutes < 60 { return String(localized: "\(minutes)m ago") }
         let hours = minutes / 60
-        if hours < 24 { return "\(hours)h ago" }
+        if hours < 24 { return String(localized: "\(hours)h ago") }
         let days = hours / 24
-        if days == 1 { return "yesterday" }
-        if days < 7 { return "\(days)d ago" }
+        if days == 1 { return String(localized: "yesterday") }
+        if days < 7 { return String(localized: "\(days)d ago") }
         return date.formatted(.dateTime.month(.abbreviated).day())
     }
 
@@ -203,7 +203,7 @@ struct AboutTab: View {
                 }
 
                 let panel = NSSavePanel()
-                panel.title = "Export Logs"
+                panel.title = String(localized: "Export Logs")
                 panel.nameFieldStringValue = tempZipURL.lastPathComponent
                 panel.allowedContentTypes = [.zip]
                 panel.canCreateDirectories = true

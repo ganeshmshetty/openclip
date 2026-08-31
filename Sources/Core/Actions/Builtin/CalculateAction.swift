@@ -6,7 +6,7 @@ import Foundation
 
 public struct CalculateAction: ConfigurableAction {
     public let id = "builtin.calculate"
-    public var title: String { "Calculate" }
+    public var title: String { String(localized: "Calculate") }
     public let preferenceIconName = "equal.circle"
     public let icon = ActionIcon.symbol("equal.circle")
     

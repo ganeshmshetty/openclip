@@ -126,7 +126,7 @@ struct GeneralTab: View {
                     Spacer()
                     Picker("Primary click", selection: $primaryBehavior) {
                         ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
-                            Text(pref.rawValue.capitalized).tag(pref.rawValue)
+                            Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
                         }
                     }
                     .labelsHidden()
@@ -150,7 +150,7 @@ struct GeneralTab: View {
                     Spacer()
                     Picker("Secondary click", selection: $secondaryBehavior) {
                         ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
-                            Text(pref.rawValue.capitalized).tag(pref.rawValue)
+                            Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
                         }
                     }
                     .labelsHidden()
@@ -183,7 +183,7 @@ struct GeneralTab: View {
                         HStack(spacing: 5) {
                             Image(systemName: permissionManager.isAccessibilityGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                                 .font(.caption)
-                            Text(permissionManager.isAccessibilityGranted ? "Granted" : "Required")
+                            Text(permissionManager.isAccessibilityGranted ? String(localized: "Granted") : String(localized: "Required"))
                                 .font(.caption)
                                 .fontWeight(.semibold)
                         }

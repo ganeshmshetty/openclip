@@ -7,7 +7,7 @@ OpenClip offers extensive customization for action ordering, display labels, cus
 ## Opening Preferences
 
 You can open OpenClip Preferences in two ways:
-- Click the OpenClip menu bar icon and select **Preferences...**
+- Click the OpenClip menu bar icon and select **Preferences…**
 - Press `Cmd + ,` while the OpenClip popup bar or settings window is focused.
 
 ---

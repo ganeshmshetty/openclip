@@ -43,7 +43,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         // Section 1: Core State Toggle
         let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
         let toggleItem = NSMenuItem(
-            title: "Appear Automatically",
+            title: String(localized: "Appear Automatically"),
             action: #selector(toggleEnabled),
             keyEquivalent: ""
         )
@@ -55,26 +55,26 @@ class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
 
         // Section 2: Core App Navigation
-        menu.addItem(menuItem(title: "Preferences…", action: #selector(showPreferences), keyEquivalent: ","))
+        menu.addItem(menuItem(title: String(localized: "Preferences…"), action: #selector(showPreferences), keyEquivalent: ","))
 
-        let extensionsMenu = NSMenu(title: "Extensions")
+        let extensionsMenu = NSMenu(title: String(localized: "Extensions"))
         extensionsMenu.delegate = self
         self.extensionsSubmenu = extensionsMenu
         
-        let extensionsItem = NSMenuItem(title: "Extensions", action: nil, keyEquivalent: "")
+        let extensionsItem = NSMenuItem(title: String(localized: "Extensions"), action: nil, keyEquivalent: "")
         extensionsItem.submenu = extensionsMenu
         menu.addItem(extensionsItem)
         
         menu.addItem(NSMenuItem.separator())
 
         // Section 3: Updates & Support
-        menu.addItem(menuItem(title: "Check for Updates…", action: #selector(checkForUpdates)))
-        menu.addItem(menuItem(title: "Report an Issue…", action: #selector(openReportIssue)))
+        menu.addItem(menuItem(title: String(localized: "Check for Updates…"), action: #selector(checkForUpdates)))
+        menu.addItem(menuItem(title: String(localized: "Report an Issue…"), action: #selector(openReportIssue)))
 
         menu.addItem(NSMenuItem.separator())
         
         // Section 4: Lifecycle
-        let quitItem = NSMenuItem(title: "Quit OpenClip", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: String(localized: "Quit OpenClip"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quitItem.target = NSApp
         menu.addItem(quitItem)
         
@@ -105,7 +105,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
         // Top pinned action: immediately accessible with zero scrolling
         let manageItem = NSMenuItem(
-            title: "Manage Extensions…",
+            title: String(localized: "Manage Extensions…"),
             action: #selector(openActionsTab),
             keyEquivalent: ""
         )
@@ -119,7 +119,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         let packages = ExtensionPackageResolver.resolvePackages(from: actions, disabledPackages: disabledPackages)
 
         if packages.isEmpty {
-            let emptyItem = NSMenuItem(title: "No Extensions Installed", action: nil, keyEquivalent: "")
+            let emptyItem = NSMenuItem(title: String(localized: "No Extensions Installed"), action: nil, keyEquivalent: "")
             emptyItem.isEnabled = false
             menu.addItem(emptyItem)
             return
@@ -206,7 +206,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
             button.alphaValue = isEnabled ? 1.0 : 0.45
             // The enabled state must be legible beyond the purely visual alpha dimming.
             button.setAccessibilityLabel("OpenClip")
-            button.setAccessibilityValue(isEnabled ? "Appear Automatically is on" : "Appear Automatically is off")
+            button.setAccessibilityValue(isEnabled ? String(localized: "Appear Automatically is on") : String(localized: "Appear Automatically is off"))
         }
     }
     
@@ -223,7 +223,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         }
         let controller = NSHostingController(rootView: PreferencesView(initialTab: tab))
         let window = NSWindow(contentViewController: controller)
-        window.title = "OpenClip Preferences"
+        window.title = String(localized: "OpenClip Preferences")
         window.setContentSize(NSSize(width: 760, height: 600))
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true

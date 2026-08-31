@@ -323,8 +323,8 @@ struct ActionsTab: View {
 
     private func openInstallExtensionPanel() {
         let panel = NSOpenPanel()
-        panel.title = "Select Extension to Install"
-        panel.message = "Choose a .openclipext folder, .zip archive, or script file"
+        panel.title = String(localized: "Select Extension to Install")
+        panel.message = String(localized: "Choose a .openclipext folder, .zip archive, or script file")
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
         panel.canChooseFiles = true
@@ -344,10 +344,10 @@ struct ActionsTab: View {
                 } catch {
                     await MainActor.run {
                         let alert = NSAlert()
-                        alert.messageText = "Extension Install Failed"
+                        alert.messageText = String(localized: "Extension Install Failed")
                         alert.informativeText = error.localizedDescription
                         alert.alertStyle = .warning
-                        alert.addButton(withTitle: "OK")
+                        alert.addButton(withTitle: String(localized: "OK"))
                         alert.runModal()
                     }
                 }
@@ -427,7 +427,7 @@ struct ActionRowView: View {
                 }
                 .buttonStyle(.plain)
                 .frame(width: 10, height: 10)
-                .accessibilityLabel(isExpanded ? "Collapse \(presentationModel.title)" : "Expand \(presentationModel.title)")
+                .accessibilityLabel(isExpanded ? String(localized: "Collapse \(presentationModel.title)") : String(localized: "Expand \(presentationModel.title)"))
             } else if !indented {
                 Color.clear
                     .frame(width: 10, height: 10)
@@ -465,8 +465,8 @@ struct ActionRowView: View {
                                 } catch {
                                     Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
                                     let failure = NSAlert()
-                                    failure.messageText = "Remove Failed"
-                                    failure.informativeText = "OpenClip could not remove extension: \(error.localizedDescription)"
+                                    failure.messageText = String(localized: "Remove Failed")
+                                    failure.informativeText = String(localized: "OpenClip could not remove extension: \(error.localizedDescription)")
                                     failure.alertStyle = .warning
                                     failure.runModal()
                                 }
@@ -490,7 +490,7 @@ struct ActionRowView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.mini)
-                    .accessibilityLabel("Enable \(presentationModel.title)")
+                    .accessibilityLabel(String(localized: "Enable \(presentationModel.title)"))
                 
                 // Edit / Configure Button
                 if showsControls {
@@ -622,7 +622,7 @@ struct PackageHeaderRowView: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .accessibilityLabel("Enable \(title)")
+                .accessibilityLabel(String(localized: "Enable \(title)"))
 
             Color.clear
                 .frame(width: 20, height: 20)

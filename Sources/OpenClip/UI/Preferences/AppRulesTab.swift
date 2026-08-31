@@ -150,7 +150,7 @@ private struct AppRuleRowView: View {
             .labelsHidden()
             .toggleStyle(.switch)
             .controlSize(.mini)
-            .accessibilityLabel(isDisabled ? "Enable in this app" : "Disable in this app")
+            .accessibilityLabel(isDisabled ? String(localized: "Enable in this app") : String(localized: "Disable in this app"))
             
             // Three-Dots (...) Actions Menu
             Menu {

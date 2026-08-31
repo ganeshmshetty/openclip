@@ -44,7 +44,7 @@ public struct ResultCardPayload: Sendable, Equatable {
     public let icon: ActionIcon?
     public let isStreaming: Bool
 
-    public init(text: String, isError: Bool, title: String = "AI Tools", icon: ActionIcon? = nil, isStreaming: Bool = false) {
+    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false) {
         self.text = text
         self.isError = isError
         self.title = title

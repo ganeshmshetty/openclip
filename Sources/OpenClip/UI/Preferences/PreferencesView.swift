@@ -14,6 +14,10 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
     case appRules = "App Rules"
     case about = "About"
     
+    public var localizedTitle: LocalizedStringKey {
+        LocalizedStringKey(rawValue)
+    }
+
     public var icon: String {
         switch self {
         case .general: return "gearshape.fill"
@@ -68,7 +72,7 @@ public struct PreferencesView: View {
                             Image(systemName: tab.icon)
                                 .font(.system(size: 13, weight: .medium))
                                 .frame(width: 18)
-                            Text(tab.rawValue)
+                            Text(tab.localizedTitle)
                                 .font(.system(size: 13, weight: .medium))
                             Spacer()
                         }
@@ -83,7 +87,7 @@ public struct PreferencesView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(tab.rawValue)
+                    .accessibilityLabel(tab.localizedTitle)
                     .accessibilityAddTraits(selectedTab == tab ? [.isSelected] : [])
                 }
                 

@@ -988,7 +988,7 @@ public class PopupWindowController {
         // Capture before the early hide so the spinner attaches to where the popup actually was.
         let anchorFrame = panel?.frame ?? lastPopupFrame
         hide()
-        let message = action.chrome.loadingMessage ?? "Opening \(action.title)…"
+        let message = action.chrome.loadingMessage ?? String(localized: "Opening \(action.title)…")
         toastController.showLoading(message: message, anchorFrame: anchorFrame)
         Task { @MainActor in
             do {

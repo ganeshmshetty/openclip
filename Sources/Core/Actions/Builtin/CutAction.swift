@@ -9,9 +9,9 @@ import Foundation
 
 public struct CutAction: ConfigurableAction, PasteRequiringAction {
     public let id = "builtin.cut"
-    public let title = "Cut"
+    public var title: String { String(localized: "Cut") }
     public let preferenceIconName = "scissors"
-    public let icon = ActionIcon.text("Cut")
+    public var icon: ActionIcon { .text(String(localized: "Cut")) }
     
     public var chrome: ActionChrome {
         ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin, requiresLiveSelection: true)
