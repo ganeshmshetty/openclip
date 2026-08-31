@@ -55,6 +55,13 @@ final class SettingsStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testMenuBarIconVisibilityDefaultsToShownAndRoundTrips() {
+        XCTAssertTrue(store.get(.showMenuBarIcon))
+        store.set(.showMenuBarIcon, value: false)
+        XCTAssertFalse(store.get(.showMenuBarIcon))
+    }
+
+    @MainActor
     func testResultDeliveryDefaults() {
         XCTAssertEqual(store.get(.primaryClickBehavior), "paste")
         XCTAssertEqual(store.get(.secondaryClickBehavior), "copy")

@@ -23,6 +23,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissionRecoveryWindowController: PermissionRecoveryWindowController?
     private var coachMarkController: CoachMarkController?
 
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication,
+        hasVisibleWindows flag: Bool
+    ) -> Bool {
+        statusBarController?.showPreferences()
+        return true
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Register logging sinks (Rotating File Appender and In-Memory Buffer)
         let rotatingSink = RotatingFileLogSink()
