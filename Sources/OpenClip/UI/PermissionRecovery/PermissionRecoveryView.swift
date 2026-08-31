@@ -36,12 +36,12 @@ public struct PermissionRecoveryView: View {
                     .font(.system(size: 40))
                     .foregroundStyle(permissionManager.isAccessibilityGranted ? Color.green : Color.accentColor)
 
-                Text(isUpdate ? "OpenClip Has Been Updated" : "Accessibility Access Required")
+                Text(isUpdate ? String(localized: "OpenClip Has Been Updated") : String(localized: "Accessibility Access Required"))
                     .font(.title3.weight(.bold))
 
                 Text(isUpdate
-                     ? "macOS requires re-enabling Accessibility to continue detecting text selections."
-                     : "OpenClip needs Accessibility access to detect selected text and display action bars.")
+                     ? String(localized: "macOS requires re-enabling Accessibility to continue detecting text selections.")
+                     : String(localized: "OpenClip needs Accessibility access to detect selected text and display action bars."))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)

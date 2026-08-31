@@ -69,6 +69,8 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Managing Extensions & Custom Actions](user-guide/managing-extensions.md) — Installing remote and local extensions and script snippet actions.
 - [App-Specific Policy Rules](user-guide/app-rules.md) — Configuring application-level overrides via `AppRule` and `rules.json`.
 
+The app follows the macOS system language. English is the source locale; Simplified Chinese is bundled in `Sources/OpenClip/Resources/Localizable.xcstrings`.
+
 ---
 
 ## Core Architectural Principles

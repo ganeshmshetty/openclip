@@ -112,6 +112,8 @@ Sources/
     │       ├── DebugLogCommand.swift                 # --dump-logs arg parsing + line formatting
     │       └── RotatingFileLogSink.swift             # Thread-safe rotating file appender (~/Library/Logs/OpenClip/openclip.log, 5MB cap, 3 backups)
     ├── StatusBarController.swift             # Reads/writes isAppEnabled via DefaultSettingsStore (SettingKey)
+    ├── Resources/
+    │   └── Localizable.xcstrings             # App string catalog (en source + zh-Hans). Regenerate with scripts/generate_localizable.py
     └── UI/                                   # User Interface (SwiftUI & AppKit Panels)
         ├── AppIcon.swift                     # App icon loaded from the bundle's AppIcon.icns (avoids the generic placeholder NSApp.applicationIconImage can return for LSUIElement apps)
         ├── Design/

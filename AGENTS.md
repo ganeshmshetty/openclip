@@ -59,6 +59,14 @@ The **authoritative manifest / JS-bridge spec is `docs/developer-guide/AGENTS.md
 - `Tests/OpenClipTests/` is one flat target. Test classes that touch app singletons call `TestIsolation.reset()` in `setUp()`; store-backed tests use `MemorySettingsStore` rather than the real preferences domain.
 - All unit and integration tests are isolated with in-memory test doubles and temporary directories (including `TextRetrieverTests` and `SecretActionOptionStoreTests`), allowing the full suite to run cleanly in headless CI with zero skips.
 
+## Localization
+
+User-facing copy lives in `Sources/OpenClip/Resources/Localizable.xcstrings` (English source, Simplified Chinese translations). SwiftUI string literals look up the catalog automatically; AppKit titles, interpolated strings, and Core builtin action titles use `String(localized:)`. When adding copy:
+
+1. Use a stable English literal as the key (don't concatenate fragments).
+2. Add the `zh-Hans` translation in `scripts/generate_localizable.py` and re-run `python3 scripts/generate_localizable.py`.
+3. AppKit / ternary / interpolated strings must wrap `String(localized:)` — a `String` variable passed to `Text(...)` will not localize.
+
 ## Docs & housekeeping
 
 - `docs/index.md` is the docs hub; `todo.md` tracks outstanding work (check it before assuming something is unimplemented).

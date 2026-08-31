@@ -28,7 +28,7 @@ public final class PermissionRecoveryWindowController: NSWindowController, NSWin
             backing: .buffered,
             defer: false
         )
-        window.title = isUpdate ? "OpenClip Updated" : "OpenClip Permissions"
+        window.title = isUpdate ? String(localized: "OpenClip Updated") : String(localized: "OpenClip Permissions")
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true

@@ -8,7 +8,7 @@ import Core
 
 public struct CompletionAction: WordCompletionProviding {
     public let id = "builtin.completion"
-    public var title: String { "Word Completion" }
+    public var title: String { String(localized: "Word Completion") }
     public var icon: ActionIcon { .symbol("text.badge.plus") }
     public var chrome: ActionChrome {
         ActionChrome(popupBehavior: .provideCompletions)

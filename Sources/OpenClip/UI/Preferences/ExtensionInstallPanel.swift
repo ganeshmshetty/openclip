@@ -11,8 +11,8 @@ import Core
 @MainActor
 func presentInstallExtensionPanel() {
     let panel = NSOpenPanel()
-    panel.title = "Select Extension to Install"
-    panel.message = "Choose a .openclipext folder, .zip archive, or script file"
+    panel.title = String(localized: "Select Extension to Install")
+    panel.message = String(localized: "Choose a .openclipext folder, .zip archive, or script file")
     panel.allowsMultipleSelection = false
     panel.canChooseDirectories = true
     panel.canChooseFiles = true
@@ -30,10 +30,10 @@ func presentInstallExtensionPanel() {
             } catch {
                 await MainActor.run {
                     let alert = NSAlert()
-                    alert.messageText = "Extension Install Failed"
+                    alert.messageText = String(localized: "Extension Install Failed")
                     alert.informativeText = error.localizedDescription
                     alert.alertStyle = .warning
-                    alert.addButton(withTitle: "OK")
+                    alert.addButton(withTitle: String(localized: "OK"))
                     alert.runModal()
                 }
             }

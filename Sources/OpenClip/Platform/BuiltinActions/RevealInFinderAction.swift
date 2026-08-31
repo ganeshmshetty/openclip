@@ -10,7 +10,7 @@ import Core
 
 public struct RevealInFinderAction: Action {
     public let id = "builtin.reveal_in_finder"
-    public let title = "Reveal in Finder"
+    public var title: String { String(localized: "Reveal in Finder") }
     public let icon = ActionIcon.symbol("folder")
     
     public init() {}

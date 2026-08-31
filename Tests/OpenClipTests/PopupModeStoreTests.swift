@@ -26,6 +26,6 @@ final class PopupModeStoreTests: XCTestCase {
     func testResultCardPayloadFlagsError() {
         let payload = ResultCardPayload(text: "boom", isError: true)
         XCTAssertTrue(payload.isError)
-        XCTAssertEqual(payload.title, "AI Tools")
+        XCTAssertEqual(payload.title, String(localized: "AI Tools"))
     }
 }

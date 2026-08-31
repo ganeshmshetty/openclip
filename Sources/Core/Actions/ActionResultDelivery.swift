@@ -41,7 +41,7 @@ public enum ActionResultDelivery {
 
     /// The default companion toast when a result is delivered as a copy (or a
     /// `.copyDefinition` is delivered) and no toast is declared for the click.
-    private static let copiedToast = StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark")
+    private static let copiedToast = StatusFeedback(message: String(localized: "Copied"), style: .success, symbolName: "checkmark")
 
     /// Decides the final ActionResult for a raw runtime outcome and the companion toast.
     ///

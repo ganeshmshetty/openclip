@@ -271,7 +271,7 @@ public struct ResultCardView: View {
                 )
             }
             .buttonStyle(.plain)
-            .help(isCopyPrimary ? "Copy the response to the clipboard and close (⏎)" : "Copy the response to the clipboard and close (⇧⏎)")
+            .help(isCopyPrimary ? String(localized: "Copy the response to the clipboard and close (⏎)") : String(localized: "Copy the response to the clipboard and close (⇧⏎)"))
             .accessibilityLabel("Copy response and close")
 
             if canPaste != false {

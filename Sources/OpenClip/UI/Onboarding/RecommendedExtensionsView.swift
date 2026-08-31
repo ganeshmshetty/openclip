@@ -153,7 +153,7 @@ private struct RecommendedExtensionRow: View {
             } else {
                 Button {
                     guard let url = URL(string: item.downloadURL) else {
-                        installError = "Invalid download URL."
+                        installError = String(localized: "Invalid download URL.")
                         return
                     }
                     isInstalling = true
