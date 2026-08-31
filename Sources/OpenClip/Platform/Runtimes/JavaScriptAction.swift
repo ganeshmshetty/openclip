@@ -104,7 +104,7 @@ public struct JavaScriptAction: ConfigurableAction {
         if !missing.isEmpty {
             return .openConfiguration(ConfigurationRequest(
                 actionID: id,
-                reason: missing.count == 1 ? "Required option not set." : "Required options not set.",
+                reason: missing.count == 1 ? String(localized: "Required option not set.") : String(localized: "Required options not set."),
                 missingOptionIDs: missing
             ))
         }

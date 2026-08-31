@@ -66,14 +66,14 @@ public final class AIServiceManager: ObservableObject {
     }
 
     public static let defaultPresets: [AIActionPreset] = [
-        AIActionPreset(id: "proofread", title: "Proofread", prompt: "Fix all spelling, punctuation, and grammatical errors while preserving the original wording, tone, and formatting", isEnabled: true),
-        AIActionPreset(id: "rewrite", title: "Rewrite", prompt: "Rewrite to improve clarity, flow, and vocabulary while keeping the original meaning and language", isEnabled: true),
-        AIActionPreset(id: "summarize", title: "Summarize", prompt: "Provide a concise bulleted summary capturing the key points", isEnabled: true),
-        AIActionPreset(id: "explain", title: "Explain", prompt: "Explain the core concept clearly and concisely in simple terms", isEnabled: true),
-        AIActionPreset(id: "translate", title: "Translate", prompt: "Translate the text accurately into natural English", isEnabled: true),
-        AIActionPreset(id: "fix_code", title: "Fix Code", prompt: "Fix bugs, syntax errors, and logic issues in this code snippet. Return only the raw working code without markdown code blocks or explanations", isEnabled: false),
-        AIActionPreset(id: "make_shorter", title: "Make Shorter", prompt: "Condense this text to be as concise as possible while keeping all essential information", isEnabled: false),
-        AIActionPreset(id: "formal_tone", title: "Formal Tone", prompt: "Rewrite this text in a polished, professional, and formal tone", isEnabled: false)
+        AIActionPreset(id: "proofread", title: String(localized: "Proofread"), prompt: String(localized: "Fix all spelling, punctuation, and grammatical errors while preserving the original wording, tone, and formatting"), isEnabled: true),
+        AIActionPreset(id: "rewrite", title: String(localized: "Rewrite"), prompt: String(localized: "Rewrite to improve clarity, flow, and vocabulary while keeping the original meaning and language"), isEnabled: true),
+        AIActionPreset(id: "summarize", title: String(localized: "Summarize"), prompt: String(localized: "Provide a concise bulleted summary capturing the key points"), isEnabled: true),
+        AIActionPreset(id: "explain", title: String(localized: "Explain"), prompt: String(localized: "Explain the core concept clearly and concisely in simple terms"), isEnabled: true),
+        AIActionPreset(id: "translate", title: String(localized: "Translate"), prompt: String(localized: "Translate the text accurately into natural English"), isEnabled: true),
+        AIActionPreset(id: "fix_code", title: String(localized: "Fix Code"), prompt: String(localized: "Fix bugs, syntax errors, and logic issues in this code snippet. Return only the raw working code without markdown code blocks or explanations"), isEnabled: false),
+        AIActionPreset(id: "make_shorter", title: String(localized: "Make Shorter"), prompt: String(localized: "Condense this text to be as concise as possible while keeping all essential information"), isEnabled: false),
+        AIActionPreset(id: "formal_tone", title: String(localized: "Formal Tone"), prompt: String(localized: "Rewrite this text in a polished, professional, and formal tone"), isEnabled: false)
     ]
 
     private static let presetDecodeFailureLogged = OSAllocatedUnfairLock(initialState: false)

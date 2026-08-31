@@ -9,9 +9,9 @@ import Foundation
 
 public struct CopyAction: ConfigurableAction {
     public let id = "builtin.copy"
-    public let title = "Copy"
+    public var title: String { String(localized: "Copy") }
     public let preferenceIconName = "doc.on.doc"
-    public let icon = ActionIcon.text("Copy")
+    public var icon: ActionIcon { .text(String(localized: "Copy")) }
     
     public var chrome: ActionChrome {
         ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin, requiresLiveSelection: true)

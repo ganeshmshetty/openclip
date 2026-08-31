@@ -10,6 +10,8 @@ Welcome to OpenClip! This guide will walk you through installing OpenClip on mac
 - **Architecture**: Universal binary (Apple Silicon M1/M2/M3/M4 & Intel processors).
 - **Permissions**: Accessibility permission is required for global text selection detection.
 
+The interface follows the macOS system language. English and Simplified Chinese are bundled.
+
 ---
 
 ## Installation Steps

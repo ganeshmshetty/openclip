@@ -134,6 +134,7 @@
 		6B40A0FD70FC637EF0736DDC /* ActionResultHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D67EF0F01017315F0E775B /* ActionResultHandler.swift */; };
 		6B6EB24072E6FDB50051E1F5 /* OpenClipSnippetParser+DefaultFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2880EA47FA384B00CFAD2877 /* OpenClipSnippetParser+DefaultFactory.swift */; };
 		6BDAAEBA357BE286266250A6 /* ExtensionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 336067B05C52B87CD8C9DA9F /* ExtensionManager.swift */; };
+		6EB7274B6001EBEA959A65C2 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4B24E324403AA01B89814FF7 /* Localizable.xcstrings */; };
 		6EC03FC169D6016DF45D4632 /* DefineAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB70EAE4A67E1C59A1977A8D /* DefineAction.swift */; };
 		701B65DCD6E9E9A69A6C7C13 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2582277236A4342581920E66 /* Assets.xcassets */; };
 		714F641630B8C17979890D5C /* ExtensionsAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208E1DDA96B874A04C415CE2 /* ExtensionsAPIClient.swift */; };
@@ -466,6 +467,7 @@
 		4A4F5CBA9485E0EFFF56190C /* ActionIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionIdentity.swift; sourceTree = "<group>"; };
 		4AB2405B7995F2DC5F45C474 /* AIToolsActionSubActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIToolsActionSubActionTests.swift; sourceTree = "<group>"; };
 		4AF4CBDEB80089C9FBCE3836 /* ExtensionsAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsAPITests.swift; sourceTree = "<group>"; };
+		4B24E324403AA01B89814FF7 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		4BA6733CB7FD55544834DC9B /* PopupSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupSearchView.swift; sourceTree = "<group>"; };
 		4BB115DCDCB4749A1DDB8222 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		4C75D3BF228023DEA93C5D3D /* Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core.swift; sourceTree = "<group>"; };
@@ -898,6 +900,7 @@
 				15E13C36EF68E62BC6FCD64A /* AI */,
 				46C7DB6847FF8142FDA21957 /* Notifications */,
 				307D28809D1A3464A7225CFC /* Platform */,
+				89EBAA0C096DFE2140D364CF /* Resources */,
 				5A04A32905EAF7C7E411FD73 /* Settings */,
 				203ACF6C403D1ECF4A1F2F8D /* UI */,
 			);
@@ -1040,6 +1043,14 @@
 				88A1B37766CE7914EED1A827 /* SemanticVersion.swift */,
 			);
 			path = Trust;
+			sourceTree = "<group>";
+		};
+		89EBAA0C096DFE2140D364CF /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				4B24E324403AA01B89814FF7 /* Localizable.xcstrings */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		91547193622C497B4B20B435 /* Actions */ = {
@@ -1383,6 +1394,7 @@
 			knownRegions = (
 				Base,
 				en,
+				"zh-Hans",
 			);
 			mainGroup = 64C014FFC1613806D987229B;
 			minimizedProjectReferenceProxies = 1;
@@ -1410,6 +1422,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				701B65DCD6E9E9A69A6C7C13 /* Assets.xcassets in Resources */,
+				6EB7274B6001EBEA959A65C2 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1812,10 +1825,12 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openclip.OpenClip;
 				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 			};
@@ -1839,10 +1854,12 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openclip.OpenClip;
 				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 			};

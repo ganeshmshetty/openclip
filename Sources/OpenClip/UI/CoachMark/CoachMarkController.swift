@@ -136,11 +136,11 @@ private struct CoachMarkCard: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(accessibilityGranted ? "Select any text to see OpenClip" : "Finish setting up OpenClip")
+                Text(accessibilityGranted ? String(localized: "Select any text to see OpenClip") : String(localized: "Finish setting up OpenClip"))
                     .font(.system(size: 13, weight: .medium))
                 Text(accessibilityGranted
-                     ? "A bar with quick actions appears near your cursor."
-                     : "Grant Accessibility to detect your text selections.")
+                     ? String(localized: "A bar with quick actions appears near your cursor.")
+                     : String(localized: "Grant Accessibility to detect your text selections."))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }

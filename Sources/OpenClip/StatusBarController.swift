@@ -68,7 +68,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         // Section 1: Core State Toggle
         let isEnabled = settingsStore.get(.isAppEnabled)
         let toggleItem = NSMenuItem(
-            title: "Appear Automatically",
+            title: String(localized: "Appear Automatically"),
             action: #selector(toggleEnabled),
             keyEquivalent: ""
         )
@@ -80,31 +80,31 @@ class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
 
         // Section 2: Core App Navigation
-        let prefsItem = menuItem(title: "Settings…", action: #selector(showPreferences))
+        let prefsItem = menuItem(title: String(localized: "Settings…"), action: #selector(showPreferences), keyEquivalent: ",")
         menu.addItem(prefsItem)
 
-        let actionsMenu = NSMenu(title: "Actions")
+        let actionsMenu = NSMenu(title: String(localized: "Actions"))
         actionsMenu.delegate = self
         self.actionsSubmenu = actionsMenu
         
-        let actionsItem = NSMenuItem(title: "Actions", action: nil, keyEquivalent: "")
+        let actionsItem = NSMenuItem(title: String(localized: "Actions"), action: nil, keyEquivalent: "")
         actionsItem.submenu = actionsMenu
         menu.addItem(actionsItem)
         
         menu.addItem(NSMenuItem.separator())
 
         // Section 3: Updates & Support
-        let updateItem = menuItem(title: "Check for Updates…", action: #selector(checkForUpdates))
+        let updateItem = menuItem(title: String(localized: "Check for Updates…"), action: #selector(checkForUpdates))
         menu.addItem(updateItem)
         self.updateMenuItem = updateItem
         updateUpdateMenuItem(version: AppUpdateManager.shared.availableUpdateVersion)
 
-        menu.addItem(menuItem(title: "Report Issue…", action: #selector(openReportIssue)))
+        menu.addItem(menuItem(title: String(localized: "Report Issue…"), action: #selector(openReportIssue)))
 
         menu.addItem(NSMenuItem.separator())
         
         // Section 4: Lifecycle
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+        let quitItem = NSMenuItem(title: String(localized: "Quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quitItem.target = NSApp
         quitItem.image = menuSymbolImage("power")
         menu.addItem(quitItem)
@@ -116,9 +116,9 @@ class StatusBarController: NSObject, NSMenuDelegate {
     private func updateUpdateMenuItem(version: String?) {
         guard let updateMenuItem else { return }
         if let version {
-            updateMenuItem.title = "Update Available (v\(version))…"
+            updateMenuItem.title = String(localized: "Update Available (v\(version))…")
         } else {
-            updateMenuItem.title = "Check for Updates…"
+            updateMenuItem.title = String(localized: "Check for Updates…")
         }
         updateMenuItem.image = nil
     }
@@ -161,7 +161,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
         // Top pinned action: immediately accessible with zero scrolling
         let manageItem = NSMenuItem(
-            title: "Manage Actions…",
+            title: String(localized: "Manage Actions…"),
             action: #selector(openActionsTab),
             keyEquivalent: ""
         )
@@ -186,7 +186,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         )
 
         if items.isEmpty {
-            let emptyItem = NSMenuItem(title: "No Actions Available", action: nil, keyEquivalent: "")
+            let emptyItem = NSMenuItem(title: String(localized: "No Actions Available"), action: nil, keyEquivalent: "")
             emptyItem.isEnabled = false
             menu.addItem(emptyItem)
             return
@@ -280,7 +280,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
             button.alphaValue = isEnabled ? 1.0 : 0.45
             // The enabled state must be legible beyond the purely visual alpha dimming.
             button.setAccessibilityLabel("OpenClip")
-            button.setAccessibilityValue(isEnabled ? "Appear Automatically is on" : "Appear Automatically is off")
+            button.setAccessibilityValue(isEnabled ? String(localized: "Appear Automatically is on") : String(localized: "Appear Automatically is off"))
         }
     }
 
@@ -310,7 +310,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         }
         let controller = NSHostingController(rootView: PreferencesView(initialTab: tab))
         let window = NSWindow(contentViewController: controller)
-        window.title = "OpenClip Preferences"
+        window.title = String(localized: "OpenClip Preferences")
         window.setContentSize(NSSize(width: 760, height: 600))
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true

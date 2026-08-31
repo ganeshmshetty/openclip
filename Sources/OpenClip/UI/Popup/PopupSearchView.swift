@@ -161,7 +161,12 @@ public struct PopupSearchView: View {
     private var searchFieldRow: some View {
         HStack(spacing: 8) {
             searchIcon
-            TextField(scope == nil ? "Search all actions" : "Search within \(scope?.parent.displayTitle(using: presenter) ?? "")", text: $query)
+            TextField(
+                scope == nil
+                    ? String(localized: "Search all actions")
+                    : String(localized: "Search within \(scope?.parent.displayTitle(using: presenter) ?? "")"),
+                text: $query
+            )
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
@@ -246,7 +251,7 @@ public struct PopupSearchView: View {
                     VStack {
                         Spacer()
                         VStack(spacing: 4) {
-                            Text(query.isEmpty ? "No matching actions" : "No matches for “\(query)”")
+                            Text(query.isEmpty ? String(localized: "No matching actions") : String(localized: "No matches for “\(query)”"))
                                 .font(.system(size: 13))
                                 .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
                             Text("Press esc to go back")

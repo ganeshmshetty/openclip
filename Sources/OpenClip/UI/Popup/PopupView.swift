@@ -799,7 +799,7 @@ public struct PopupView: View {
     }
 
     @ViewBuilder
-    private func chevronButton(systemImage: String, label: String, action: @escaping () -> Void) -> some View {
+    private func chevronButton(systemImage: String, label: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         // Each chevron gets its own hover target keyed by its glyph, so hovering the
         // pagination right/left chevrons never highlights the completion-mode up chevron
         // (or the completion toggle) and vice-versa.
@@ -898,13 +898,13 @@ public struct PopupView: View {
         case .subAction:
             return nil
         case .search:
-            return "Search all actions"
+            return String(localized: "Search all actions")
         case .chevron(let glyph):
             switch glyph {
-            case "chevron.left", "chevron.left.sub": return "Previous page"
-            case "chevron.right", "chevron.right.sub": return "Next page"
-            case "chevron.down": return "Show completions"
-            case "chevron.up": return "Back to actions"
+            case "chevron.left", "chevron.left.sub": return String(localized: "Previous page")
+            case "chevron.right", "chevron.right.sub": return String(localized: "Next page")
+            case "chevron.down": return String(localized: "Show completions")
+            case "chevron.up": return String(localized: "Back to actions")
             default: return glyph
             }
         case .completion(let index):

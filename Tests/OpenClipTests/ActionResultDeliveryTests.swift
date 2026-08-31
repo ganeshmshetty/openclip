@@ -154,13 +154,13 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testProbeDowngradesRichPasteWhenTargetCannotPaste() {
         let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .primary, canPaste: false, delivery: .none)
         assertPayload(r, .copyContent(richPayload))
-        XCTAssertEqual(toast?.message, "Copied")
+        XCTAssertEqual(toast?.message, String(localized: "Copied"))
     }
 
     func testSecondaryClickOnRichPasteDerivesCopyContent() {
         let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .secondary, canPaste: true, delivery: .none)
         assertPayload(r, .copyContent(richPayload))
-        XCTAssertEqual(toast?.message, "Copied")
+        XCTAssertEqual(toast?.message, String(localized: "Copied"))
     }
 
     func testSecondaryClickOnRichPasteDowngradesCopyWhenTargetCannotPaste() {
@@ -171,7 +171,7 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testExplicitCopyContentNeverDowngraded() {
         let (r, toast) = ActionResultDelivery.resolve(raw: .copyContent(richPayload), clickIntent: .primary, canPaste: true, delivery: .none)
         assertPayload(r, .copyContent(richPayload))
-        XCTAssertEqual(toast?.message, "Copied")
+        XCTAssertEqual(toast?.message, String(localized: "Copied"))
         XCTAssertEqual(toast?.style, .success)
     }
 
@@ -179,7 +179,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     func testDefaultCopiedToastOnDerivedCopy() {
         let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: .none)
-        XCTAssertEqual(toast?.message, "Copied")
+        XCTAssertEqual(toast?.message, String(localized: "Copied"))
         XCTAssertEqual(toast?.style, .success)
     }
 
@@ -190,7 +190,7 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     func testDefaultToastOnNativeCopy() {
         let (_, toast) = ActionResultDelivery.resolve(raw: .copy("a"), clickIntent: .primary, canPaste: true, delivery: .none)
-        XCTAssertEqual(toast?.message, "Copied")
+        XCTAssertEqual(toast?.message, String(localized: "Copied"))
         XCTAssertEqual(toast?.style, .success)
     }
 
@@ -217,13 +217,13 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testTextWithPastePreferenceCopiesWhenCannotPaste() {
         let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .paste)
         assertCase(r, .copy("hello"))
-        XCTAssertEqual(toast?.message, "Copied", "a paste context delivered as a copy fires the default Copied toast")
+        XCTAssertEqual(toast?.message, String(localized: "Copied"), "a paste context delivered as a copy fires the default Copied toast")
     }
 
     func testTextWithCopyPreferenceCopiesWithToast() {
         let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none, preference: .copy)
         assertCase(r, .copy("hello"))
-        XCTAssertEqual(toast?.message, "Copied", "a delivered copy outcome fires the default Copied toast")
+        XCTAssertEqual(toast?.message, String(localized: "Copied"), "a delivered copy outcome fires the default Copied toast")
     }
 
     func testTextWithPreviewPreferenceStaysText() {
@@ -406,7 +406,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.text("hello"))
 
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
-        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
+        XCTAssertEqual(toast.currentFeedback?.message, String(localized: "Copied"))
     }
 
     /// User picks copy for the primary click: `.text` delivers a copy with the default Copied toast and dismisses.
@@ -426,7 +426,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.text("hello"))
 
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
-        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
+        XCTAssertEqual(toast.currentFeedback?.message, String(localized: "Copied"))
     }
 
     /// A secondary click with the default secondary = copy: `.text` copies without a toast.
@@ -488,7 +488,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.copy("hello"))
 
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
-        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
+        XCTAssertEqual(toast.currentFeedback?.message, String(localized: "Copied"))
         XCTAssertEqual(controller.modeStore.mode, .actions, "an explicit copy must never open the preview card")
     }
 
@@ -750,7 +750,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.paste("hello"))
 
         _ = try await awaitDelivery(from: handler)
-        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
+        XCTAssertEqual(toast.currentFeedback?.message, String(localized: "Copied"))
         XCTAssertEqual(toast.currentFeedback?.style, .success)
     }
 
@@ -771,7 +771,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         while toast.currentFeedback == nil && Date() < deadline {
             try? await Task.sleep(nanoseconds: 2_000_000)
         }
-        XCTAssertNotEqual(toast.currentFeedback?.message, "Copied")
+        XCTAssertNotEqual(toast.currentFeedback?.message, String(localized: "Copied"))
         XCTAssertEqual(toast.currentFeedback?.style, .error)
     }
 
@@ -789,7 +789,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.deliverResult(.copy("hello"))
 
         _ = try await awaitDelivery(from: handler)
-        XCTAssertEqual(toast.currentFeedback?.message, "Copied")
+        XCTAssertEqual(toast.currentFeedback?.message, String(localized: "Copied"))
     }
 
     /// Every `.toast` result routes to the toast (the single status surface). A test session has

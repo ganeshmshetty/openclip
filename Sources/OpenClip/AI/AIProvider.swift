@@ -15,10 +15,10 @@ public enum AIProviderType: String, CaseIterable, Identifiable, Sendable {
 
     public var title: String {
         switch self {
-        case .apple: return "Apple Intelligence"
-        case .ollama: return "Ollama (Local LLM)"
-        case .cloud: return "Cloud API (OpenAI/Claude)"
-        case .browser: return "Browser Redirection"
+        case .apple: return String(localized: "Apple Intelligence")
+        case .ollama: return String(localized: "Ollama (Local LLM)")
+        case .cloud: return String(localized: "Cloud API (OpenAI/Claude)")
+        case .browser: return String(localized: "Browser Redirection")
         }
     }
 }
@@ -37,26 +37,26 @@ public enum AIError: Error, LocalizedError, Sendable, Equatable {
     public var errorDescription: String? {
         switch self {
         case .emptyInput:
-            return "No text selected to process."
+            return String(localized: "No text selected to process.")
         case .missingAPIKey:
-            return "API key required. Configure it in Preferences → AI."
+            return String(localized: "API key required. Configure it in Preferences → AI.")
         case .invalidURL(let value):
-            return "Invalid URL: \(value)"
+            return String(localized: "Invalid URL: \(value)")
         case .invalidResponse:
-            return "The AI provider returned an empty or unreadable response."
+            return String(localized: "The AI provider returned an empty or unreadable response.")
         case .httpStatus(let code, let body):
             if let body, !body.isEmpty {
-                return "AI request failed (HTTP \(code)): \(body)"
+                return String(localized: "AI request failed (HTTP \(code)): \(body)")
             }
-            return "AI request failed (HTTP \(code))."
+            return String(localized: "AI request failed (HTTP \(code)).")
         case .unsupportedModel(let model):
-            return "Model “\(model)” is not supported by the configured cloud endpoint."
+            return String(localized: "Model “\(model)” is not supported by the configured cloud endpoint.")
         case .providerUnavailable(let message):
             return message
         case .requestTooLarge:
-            return "Selected text is too long for this provider."
+            return String(localized: "Selected text is too long for this provider.")
         case .cancelled:
-            return "AI request was cancelled."
+            return String(localized: "AI request was cancelled.")
         }
     }
 }

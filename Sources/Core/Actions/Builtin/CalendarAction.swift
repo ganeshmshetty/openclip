@@ -6,7 +6,7 @@ import Foundation
 
 public struct CalendarAction: ConfigurableAction {
     public let id = "builtin.calendar"
-    public let title = "Add Event"
+    public var title: String { String(localized: "Add Event") }
     public let icon = ActionIcon.symbol("calendar.badge.plus")
     public let preferenceIconName = "calendar.badge.plus"
 
@@ -14,7 +14,7 @@ public struct CalendarAction: ConfigurableAction {
         [
             ExtensionOption(
                 identifier: "provider",
-                label: "Calendar Destination",
+                label: String(localized: "Calendar Destination"),
                 type: .multiple,
                 defaultValue: "native",
                 options: ["native", "busycal", "fantastical", "apple", "google"]

@@ -6,7 +6,7 @@ import Foundation
 
 public struct DefineAction: ConfigurableAction {
     public let id = "builtin.define"
-    public var title: String { "Define" }
+    public var title: String { String(localized: "Define") }
     public let preferenceIconName = "character.book.closed"
     public let icon = ActionIcon.symbol("character.book.closed")
 

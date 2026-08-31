@@ -124,14 +124,14 @@ struct ExtensionCardView: View {
                                 NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
                             }
                         }) {
-                            Label(isUpdating ? "Updating…" : "Update", systemImage: "arrow.down.circle")
+                            Label(isUpdating ? String(localized: "Updating…") : String(localized: "Update"), systemImage: "arrow.down.circle")
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                         .disabled(isUpdating)
                     }
 
-                    Button(isUninstalling ? "Removing…" : "Remove") {
+                    Button(isUninstalling ? String(localized: "Removing…") : String(localized: "Remove")) {
                         if let action = matchingInstalledAction {
                             isUninstalling = true
                             Task {
@@ -149,12 +149,12 @@ struct ExtensionCardView: View {
                     .controlSize(.small)
                     .frame(minWidth: 64)
                     .disabled(isUninstalling)
-                    .help("Remove \(item.name)")
-                    .accessibilityLabel("Remove \(item.name)")
+                    .help(String(localized: "Remove \(item.name)"))
+                    .accessibilityLabel(String(localized: "Remove \(item.name)"))
                 } else {
-                    Button(isInstalling ? "Installing…" : "Install") {
+                    Button(isInstalling ? String(localized: "Installing…") : String(localized: "Install")) {
                         guard let url = URL(string: item.downloadURL) else {
-                            installError = "Invalid download URL."
+                            installError = String(localized: "Invalid download URL.")
                             return
                         }
                         isInstalling = true

@@ -22,7 +22,7 @@ public final class OnboardingWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Welcome to OpenClip"
+        window.title = String(localized: "Welcome to OpenClip")
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true

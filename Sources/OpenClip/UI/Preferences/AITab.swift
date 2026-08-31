@@ -66,7 +66,7 @@ public struct AITab: View {
                                     }
                                 ))
                                 .labelsHidden()
-                                .accessibilityLabel("Enable \(preset.title)")
+                                .accessibilityLabel(String(localized: "Enable \(preset.title)"))
 
                                 Text(preset.title)
                                     .font(.system(size: 13, weight: .medium))
