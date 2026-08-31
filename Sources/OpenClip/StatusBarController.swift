@@ -11,29 +11,44 @@ import Core
 /// Manages the menu bar status icon for OpenClip.
 @MainActor
 class StatusBarController: NSObject, NSMenuDelegate {
-    private var statusItem: NSStatusItem
+    private let settingsStore: any SettingsStore
+    private let notificationCenter: NotificationCenter
+    private var statusItem: NSStatusItem?
     private var preferencesWindow: NSWindow?
     private var toggleEnabledItem: NSMenuItem?
     private var extensionsSubmenu: NSMenu?
+
+    var isMenuBarIconVisible: Bool { statusItem != nil }
     
     /// Initializes a new status bar controller.
-    override init() {
-        self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    init(
+        settingsStore: any SettingsStore = DefaultSettingsStore.shared,
+        notificationCenter: NotificationCenter = .default
+    ) {
+        self.settingsStore = settingsStore
+        self.notificationCenter = notificationCenter
         super.init()
-        setupMenu()
         
-        NotificationCenter.default.addObserver(
+        notificationCenter.addObserver(
             self,
             selector: #selector(handleStateChanged(_:)),
             name: .openClipEnabledStateChanged,
             object: nil
         )
-        NotificationCenter.default.addObserver(
+        notificationCenter.addObserver(
+            self,
+            selector: #selector(handleMenuBarVisibilityChanged(_:)),
+            name: .openClipMenuBarVisibilityChanged,
+            object: nil
+        )
+        notificationCenter.addObserver(
             self,
             selector: #selector(handleOpenConfiguration(_:)),
             name: .openClipOpenActionConfiguration,
             object: nil
         )
+
+        setMenuBarIconVisible(settingsStore.get(.showMenuBarIcon))
     }
     
     /// Sets up the menu for the status bar item following standard macOS menu hierarchy.
@@ -41,7 +56,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         let menu = NSMenu()
         
         // Section 1: Core State Toggle
-        let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
+        let isEnabled = settingsStore.get(.isAppEnabled)
         let toggleItem = NSMenuItem(
             title: "Appear Automatically",
             action: #selector(toggleEnabled),
@@ -78,7 +93,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         quitItem.target = NSApp
         menu.addItem(quitItem)
         
-        statusItem.menu = menu
+        statusItem?.menu = menu
         updateStatusIcon(isEnabled: isEnabled)
     }
     
@@ -90,11 +105,11 @@ class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func toggleEnabled() {
-        let current = DefaultSettingsStore.shared.get(.isAppEnabled)
+        let current = settingsStore.get(.isAppEnabled)
         let newStatus = !current
-        DefaultSettingsStore.shared.set(.isAppEnabled, value: newStatus)
+        settingsStore.set(.isAppEnabled, value: newStatus)
         updateStatusItem(isEnabled: newStatus)
-        NotificationCenter.default.post(name: .openClipEnabledStateChanged, object: newStatus)
+        notificationCenter.post(name: .openClipEnabledStateChanged, object: newStatus)
     }
 
     // MARK: - NSMenuDelegate
@@ -115,7 +130,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
 
         let actions = ActionCoordinator.shared.actions
-        let disabledPackages = DefaultSettingsStore.shared.get(.disabledPackages)
+        let disabledPackages = settingsStore.get(.disabledPackages)
         let packages = ExtensionPackageResolver.resolvePackages(from: actions, disabledPackages: disabledPackages)
 
         if packages.isEmpty {
@@ -144,31 +159,36 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func toggleExtensionPackage(_ sender: NSMenuItem) {
         guard let packageID = sender.representedObject as? String else { return }
-        var disabledPackages = DefaultSettingsStore.shared.get(.disabledPackages)
+        var disabledPackages = settingsStore.get(.disabledPackages)
         let isCurrentlyDisabled = disabledPackages.contains(packageID)
 
         if isCurrentlyDisabled {
             disabledPackages.remove(packageID)
-            DefaultSettingsStore.shared.set(.disabledPackages, value: disabledPackages)
+            settingsStore.set(.disabledPackages, value: disabledPackages)
             sender.state = .on
             Task { @MainActor in
                 await ExtensionManager.shared.enablePackage(packageID: packageID)
-                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                notificationCenter.post(name: .openClipExtensionsDidChange, object: nil)
             }
         } else {
             disabledPackages.insert(packageID)
-            DefaultSettingsStore.shared.set(.disabledPackages, value: disabledPackages)
+            settingsStore.set(.disabledPackages, value: disabledPackages)
             sender.state = .off
             Task { @MainActor in
                 await ExtensionManager.shared.disablePackage(packageID: packageID)
-                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                notificationCenter.post(name: .openClipExtensionsDidChange, object: nil)
             }
         }
     }
     
     @objc private func handleStateChanged(_ notification: Notification) {
-        let isEnabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
+        let isEnabled = (notification.object as? Bool) ?? settingsStore.get(.isAppEnabled)
         updateStatusItem(isEnabled: isEnabled)
+    }
+
+    @objc private func handleMenuBarVisibilityChanged(_ notification: Notification) {
+        let isVisible = (notification.object as? Bool) ?? settingsStore.get(.showMenuBarIcon)
+        setMenuBarIconVisible(isVisible)
     }
 
     @objc private func openReportIssue() {
@@ -196,17 +216,30 @@ class StatusBarController: NSObject, NSMenuDelegate {
     /// Screen frame of the status item's button, for anchoring surfaces (e.g. the post-onboarding
     /// coach mark) below it. Nil until the button has joined a window.
     var statusItemButtonFrame: NSRect? {
-        statusItem.button?.window?.frame
+        statusItem?.button?.window?.frame
     }
     
     private func updateStatusIcon(isEnabled: Bool) {
-        if let button = statusItem.button {
+        if let button = statusItem?.button {
             button.image = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "paperclip", accessibilityDescription: "OpenClip")
             button.image?.isTemplate = true
             button.alphaValue = isEnabled ? 1.0 : 0.45
             // The enabled state must be legible beyond the purely visual alpha dimming.
             button.setAccessibilityLabel("OpenClip")
             button.setAccessibilityValue(isEnabled ? "Appear Automatically is on" : "Appear Automatically is off")
+        }
+    }
+
+    private func setMenuBarIconVisible(_ isVisible: Bool) {
+        if isVisible {
+            guard statusItem == nil else { return }
+            statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            setupMenu()
+        } else if let statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            self.statusItem = nil
+            toggleEnabledItem = nil
+            extensionsSubmenu = nil
         }
     }
     
@@ -216,7 +249,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
     public func showPreferences(tab: PreferenceTab = .general) {
         if let window = preferencesWindow, window.isVisible {
-            NotificationCenter.default.post(name: .openClipSelectPreferencesTab, object: tab)
+            notificationCenter.post(name: .openClipSelectPreferencesTab, object: tab)
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return

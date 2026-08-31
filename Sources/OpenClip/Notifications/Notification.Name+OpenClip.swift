@@ -18,6 +18,9 @@ extension Notification.Name {
     /// Posted when the master app enabled state changes.
     static let openClipEnabledStateChanged = Notification.Name("OpenClipEnabledStateChanged")
 
+    /// Posted when the user changes whether OpenClip appears in the menu bar.
+    static let openClipMenuBarVisibilityChanged = Notification.Name("OpenClipMenuBarVisibilityChanged")
+
     /// Posted when accessibility authorization changes. The new `Bool` status travels in `object`.
     static let openClipAccessibilityChanged = Notification.Name("OpenClipAccessibilityChanged")
 
