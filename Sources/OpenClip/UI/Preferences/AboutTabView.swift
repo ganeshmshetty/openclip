@@ -46,33 +46,57 @@ struct AboutTab: View {
             }
 
             // ── Updates Card ──
-            HStack(spacing: 12) {
-                Toggle("", isOn: $updateManager.automaticallyChecksForUpdates)
-                    .labelsHidden()
-                    .controlSize(.mini)
-                    .accessibilityLabel("Check for Updates Automatically")
-                Text("Auto-update")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                if let lastCheck = updateManager.lastUpdateCheckDate {
-                    Text(Self.shortTimeAgo(lastCheck))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+            VStack(spacing: 8) {
+                if let newVersion = updateManager.availableUpdateVersion {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(.tint)
+                        Text("Update Available: v\(newVersion)")
+                            .font(.system(size: 12, weight: .semibold))
+                        Spacer()
+                        Button {
+                            updateManager.checkForUpdates()
+                        } label: {
+                            Text("Update Now")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.accentColor.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
-                Button {
-                    updateManager.checkForUpdates()
-                } label: {
-                    Text("Check for Updates")
-                        .font(.system(size: 12, weight: .medium))
+                HStack(spacing: 12) {
+                    Toggle("", isOn: $updateManager.automaticallyChecksForUpdates)
+                        .labelsHidden()
+                        .controlSize(.mini)
+                        .accessibilityLabel("Check for Updates Automatically")
+                    Text("Auto-update")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    if let lastCheck = updateManager.lastUpdateCheckDate {
+                        Text(Self.shortTimeAgo(lastCheck))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+
+                    Button {
+                        updateManager.checkForUpdates()
+                    } label: {
+                        Text("Check for Updates")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(!updateManager.canCheckForUpdates)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!updateManager.canCheckForUpdates)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)

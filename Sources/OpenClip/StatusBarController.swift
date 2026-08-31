@@ -6,6 +6,7 @@
 // clean sectional dividers, and standard keyboard shortcuts.
 import AppKit
 import SwiftUI
+import Combine
 import Core
 
 /// Manages the menu bar status icon for OpenClip.
@@ -16,7 +17,9 @@ class StatusBarController: NSObject, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var preferencesWindow: NSWindow?
     private var toggleEnabledItem: NSMenuItem?
+    private var updateMenuItem: NSMenuItem?
     private var actionsSubmenu: NSMenu?
+    private var cancellables = Set<AnyCancellable>()
 
     var isMenuBarIconVisible: Bool { statusItem != nil }
     
@@ -49,6 +52,13 @@ class StatusBarController: NSObject, NSMenuDelegate {
         )
 
         setMenuBarIconVisible(settingsStore.get(.showMenuBarIcon))
+
+        AppUpdateManager.shared.$availableUpdateVersion
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] version in
+                self?.updateUpdateMenuItem(version: version)
+            }
+            .store(in: &cancellables)
     }
     
     /// Sets up the menu for the status bar item following standard macOS menu hierarchy.
@@ -84,7 +94,11 @@ class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
 
         // Section 3: Updates & Support
-        menu.addItem(menuItem(title: "Check for Updates…", action: #selector(checkForUpdates)))
+        let updateItem = menuItem(title: "Check for Updates…", action: #selector(checkForUpdates))
+        menu.addItem(updateItem)
+        self.updateMenuItem = updateItem
+        updateUpdateMenuItem(version: AppUpdateManager.shared.availableUpdateVersion)
+
         menu.addItem(menuItem(title: "Report Issue…", action: #selector(openReportIssue)))
 
         menu.addItem(NSMenuItem.separator())
@@ -97,6 +111,20 @@ class StatusBarController: NSObject, NSMenuDelegate {
         
         statusItem?.menu = menu
         updateStatusIcon(isEnabled: isEnabled)
+    }
+
+    private func updateUpdateMenuItem(version: String?) {
+        guard let updateMenuItem else { return }
+        if let version {
+            updateMenuItem.title = "Update Available (v\(version))…"
+        } else {
+            updateMenuItem.title = "Check for Updates…"
+        }
+        updateMenuItem.image = nil
+    }
+
+    var updateMenuItemTitle: String? {
+        updateMenuItem?.title
     }
     
     private func menuSymbolImage(_ name: String) -> NSImage? {
