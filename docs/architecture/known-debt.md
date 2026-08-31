@@ -26,6 +26,10 @@ areas; stale debt notes are worse than none.
   the Preferences toggle all read/write through `DefaultSettingsStore`. Builtin store-backed actions
   (`CalculateAction`, `CalendarAction`, `SearchAction`) accept an injected `SettingsStore` via
   `BuiltinRegistry.makeCoreBuiltins(settingsStore:)`.
+- **Menu bar visibility is store-backed and reversible.** `SettingKey.showMenuBarIcon` defaults to
+  true. `StatusBarController` removes/recreates its `NSStatusItem` immediately when the General-tab
+  toggle changes, while reopening the running app presents Preferences so a hidden icon can be
+  restored without terminating OpenClip.
 - **`ActionConfigSheet` is gone** (dead code — zero presenting call sites; its `useText` keys were
   write-only). Removing it also dropped the only UI that wrote `SettingKey.searchURL` /
   `SettingKey.calculateMode`; the actions still read those keys (defaults apply), so a future

@@ -6,9 +6,15 @@ OpenClip offers extensive customization for action ordering, display labels, cus
 
 ## Opening Preferences
 
-You can open OpenClip Preferences in two ways:
+You can open OpenClip Preferences in these ways:
 - Click the OpenClip menu bar icon and select **Preferences...**
 - Press `Cmd + ,` while the OpenClip popup bar or settings window is focused.
+- If the menu bar icon is hidden, open OpenClip again from Finder or Spotlight.
+
+## General
+
+The **Show Menu Bar Icon** toggle is enabled by default. Turning it off removes the icon
+immediately without stopping OpenClip, its selection monitoring, or its global shortcut.
 
 ---
 

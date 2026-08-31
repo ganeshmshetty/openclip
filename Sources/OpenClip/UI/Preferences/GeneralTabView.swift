@@ -1,8 +1,8 @@
 // GeneralTabView.swift
 // OpenClip
 //
-// The General preferences tab: app enable toggle, trigger hotkey, start-at-login,
-// and system-permission status. Split out of PreferencesView.swift.
+// The General preferences tab: app enable and menu bar toggles, trigger hotkey,
+// start-at-login, and system-permission status. Split out of PreferencesView.swift.
 import SwiftUI
 import Core
 import KeyboardShortcuts
@@ -12,6 +12,7 @@ struct GeneralTab: View {
     /// Backed by the settings store — the single owner of `isAppEnabled`. Seeded at init and kept
     /// in sync with external changes (status-bar toggle) via the shared state-changed notification.
     @State private var isAppEnabled: Bool
+    @State private var showMenuBarIcon: Bool
     @State private var isMouseHoldEnabled: Bool
     @State private var primaryBehavior: String
     @State private var secondaryBehavior: String
@@ -20,6 +21,7 @@ struct GeneralTab: View {
 
     init() {
         _isAppEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isAppEnabled))
+        _showMenuBarIcon = State(initialValue: DefaultSettingsStore.shared.get(.showMenuBarIcon))
         _isMouseHoldEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isMouseHoldEnabled))
         _primaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.primaryClickBehavior))
         _secondaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.secondaryClickBehavior))
@@ -54,7 +56,33 @@ struct GeneralTab: View {
                 }
                 .padding(.vertical, 4)
                 
-                // Row 2: Trigger Shortcut
+                // Row 2: Menu Bar Icon
+                HStack {
+                    HStack(spacing: 12) {
+                        Image(systemName: "menubar.rectangle")
+                            .font(.system(size: 16))
+                            .foregroundColor(showMenuBarIcon ? .accentColor : .secondary)
+                            .frame(width: 22, alignment: .center)
+
+                        Text("Show Menu Bar Icon")
+                            .font(.body)
+                            .fontWeight(.medium)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $showMenuBarIcon)
+                        .labelsHidden()
+                        .accessibilityLabel("Show Menu Bar Icon")
+                        .onChange(of: showMenuBarIcon) { _, newValue in
+                            DefaultSettingsStore.shared.set(.showMenuBarIcon, value: newValue)
+                            NotificationCenter.default.post(
+                                name: .openClipMenuBarVisibilityChanged,
+                                object: newValue
+                            )
+                        }
+                }
+                .padding(.vertical, 4)
+
+                // Row 3: Trigger Shortcut
                 HStack {
                     HStack(spacing: 12) {
                         Image(systemName: "keyboard")
@@ -71,7 +99,7 @@ struct GeneralTab: View {
                 }
                 .padding(.vertical, 4)
 
-                // Row 3: Hold Mouse to Trigger
+                // Row 4: Hold Mouse to Trigger
                 HStack {
                     HStack(spacing: 12) {
                         Image(systemName: "hand.tap")
@@ -93,7 +121,7 @@ struct GeneralTab: View {
                 }
                 .padding(.vertical, 4)
                 
-                // Row 3: Start at Login
+                // Row 5: Start at Login
                 HStack {
                     HStack(spacing: 12) {
                         Image(systemName: "arrow.clockwise.circle")
