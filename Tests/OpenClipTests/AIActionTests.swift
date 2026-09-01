@@ -36,7 +36,13 @@ final class AIActionTests: XCTestCase {
 
     func testAIActionIconForPreset() {
         XCTAssertEqual(AIAction.iconForPreset(presetID: "proofread"), .text("Proofread"))
+        XCTAssertEqual(AIAction.iconForPreset(presetID: "rewrite"), .text("Rewrite"))
         XCTAssertEqual(AIAction.iconForPreset(presetID: "summarize"), .text("Summarize"))
+        XCTAssertEqual(AIAction.iconForPreset(presetID: "explain"), .text("Explain"))
+        XCTAssertEqual(AIAction.iconForPreset(presetID: "translate"), .text("Translate"))
+        XCTAssertEqual(AIAction.iconForPreset(presetID: "fix_code"), .text("Fix Code"))
+        XCTAssertEqual(AIAction.iconForPreset(presetID: "make_shorter"), .text("Make Shorter"))
+        XCTAssertEqual(AIAction.iconForPreset(presetID: "formal_tone"), .text("Formal Tone"))
         XCTAssertEqual(AIAction.iconForPreset(presetID: "custom_other"), .text("custom_other"))
     }
 }

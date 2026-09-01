@@ -1,25 +1,51 @@
 ## Summary
+<!-- Concise description of what this PR does and the problem it solves. -->
 
-<!-- Brief summary of the changes introduced in this PR. -->
+Fixes # <!-- Link issue here (e.g. Fixes #6) -->
+
+> **Note:** If you are adding or updating a community extension, please submit your PR to [ganeshmshetty/openclip-extensions](https://github.com/ganeshmshetty/openclip-extensions) instead.
+
+---
 
 ## Type of Change
+- [ ] Bug fix (non-breaking change fixing an issue)
+- [ ] New feature (non-breaking change adding functionality)
+- [ ] Extension Runtime / Bridge update (JS host, AppleScript runner, Shell executor)
+- [ ] UI / Theme / Accessibility improvement
+- [ ] Performance / Concurrency optimization
+- [ ] Localization (`Localizable.xcstrings`)
+- [ ] Documentation update
+- [ ] Build tooling / CI / Scripts
 
-- [ ] 🐛 Bug fix (non-breaking change fixing an issue)
-- [ ] ✨ New feature (non-breaking change adding functionality)
-- [ ] 🧩 Extension API / Catalog update
-- [ ] 📚 Documentation update
-- [ ] ⚙️ Infrastructure / CI / Build tooling
+---
 
-## Verification & Testing
+## Testing & Verification
 
-<!-- Describe the tests and verification steps executed. -->
+### Environment Tested:
+- **macOS Version:** <!-- e.g. macOS 15.0 / macOS 14.5 -->
+- **Architecture:** <!-- Apple Silicon / Intel -->
+- **Target Apps Verified:** <!-- e.g. Safari, Notes, VS Code, Terminal -->
 
-- [ ] Ran `./scripts/test.sh --unit` cleanly
-- [ ] Tested via `./scripts/dev_run.sh` or `./scripts/package_app.sh`
+### Test Execution:
+- [ ] Ran `./scripts/test.sh core` (< 1s domain test suite)
+- [ ] Ran `./scripts/test.sh` (Full suite passes with 0 failures/skips)
+- [ ] Tested live in app via `./scripts/dev_run.sh`
 
-## Code Checklist
+---
 
-- [ ] Adheres to architectural rules in `AGENTS.md` (Swift 6 complete strict concurrency, pure `Core`).
-- [ ] Uses `Log` subsystem categories (no `print()` or raw `Logger()`).
-- [ ] No raw `UserDefaults.standard` in new domain code (routes via `SettingsStore` / Keychain).
-- [ ] Updated documentation in `docs/` if modifying APIs or architecture.
+## Screenshots / Screen Recordings (if applicable)
+<!-- If this PR changes UI or visual behavior, include a before/after screenshot or video. -->
+
+| Before | After |
+| :---: | :---: |
+| *(Image/Video)* | *(Image/Video)* |
+
+---
+
+## Architectural & Code Checklist
+- [ ] **Swift 6 Concurrency:** Builds cleanly with complete strict concurrency (`SWIFT_STRICT_CONCURRENCY: complete`) with zero data races.
+- [ ] **Core Purity:** No `AppKit` or `SwiftUI` imports in `Sources/Core/`.
+- [ ] **Settings & Secrets:** Uses `SettingsStore` / `SecretStore` (no direct `UserDefaults.standard` in new code).
+- [ ] **Subprocess Safety:** Any new subprocess enforces `Constants.scriptTimeout` (30 s) watchdog and non-blocking I/O.
+- [ ] **Dual-Sink Logging:** Logs through `Log` subsystem categories (no raw `print()` or ad-hoc `Logger()`).
+- [ ] **Localization:** User-facing strings use `String(localized:)` and are recorded in `Localizable.xcstrings`.

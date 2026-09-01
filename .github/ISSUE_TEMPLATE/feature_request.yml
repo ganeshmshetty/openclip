@@ -1,0 +1,45 @@
+name: Feature Request
+description: Suggest an idea, enhancement, or new native capability for OpenClip.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem or limitation in OpenClip?
+      placeholder: I am always frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution and UX
+      placeholder: Describe the desired behavior or UI changes...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Subsystem
+      options:
+        - Floating Popup Bar / Positioning
+        - Action-Search Palette (Opt+Cmd+C)
+        - Built-in Actions (Search, Calculate, Calendar, Transform)
+        - AI Assistant and Providers (Apple Intelligence, Ollama, Cloud)
+        - Extension Runtime Engine (JS Host, AppleScript, Shell Runner)
+        - Preferences and Appearance
+        - Accessibility and Performance
+        - CLI / Developer Tooling
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Links, mockups, or references from other macOS utilities.
+    validations:
+      required: false

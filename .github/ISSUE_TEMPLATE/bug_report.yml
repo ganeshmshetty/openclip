@@ -1,0 +1,99 @@
+name: Bug Report
+description: Report a bug, crash, or unexpected behavior in OpenClip.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **Note:** If your issue is with a specific community extension (e.g. *Notion*, *Google Maps*), please open an issue in the [openclip-extensions](https://github.com/ganeshmshetty/openclip-extensions/issues) repo instead.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Bug
+      description: A clear and concise description of what happened.
+      placeholder: What went wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Open [Target App, e.g. Safari / Notes / VS Code]
+        2. Highlight the text "..."
+        3. Trigger popup (or action search Opt+Cmd+C)
+        4. Click on action "..."
+        5. See error / unexpected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      placeholder: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: macos-version
+    attributes:
+      label: macOS Version
+      options:
+        - macOS 15 Sequoia
+        - macOS 14 Sonoma
+        - macOS 13 Ventura or earlier
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Chip Architecture
+      options:
+        - Apple Silicon (M1 / M2 / M3 / M4)
+        - Intel (x86_64)
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: OpenClip Version
+      description: e.g. 0.1.0 or Git commit hash (see Menu Bar -> About OpenClip).
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: target-app
+    attributes:
+      label: Target Application(s)
+      description: Which application were you highlighting text in?
+      placeholder: e.g. Apple Notes, Safari, Chrome, VS Code, Terminal
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Diagnostic Logs
+      description: |
+        Run this command in Terminal and paste relevant output:
+        `/Applications/OpenClip.app/Contents/MacOS/OpenClip --dump-logs --level=error`
+      render: shell
+      placeholder: Paste log lines here...
+    validations:
+      required: false
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots / Screen Recording
+      description: Drag & drop images or screen recordings demonstrating the issue.
+    validations:
+      required: false

@@ -46,13 +46,13 @@ final class GroupSubActionBarViewTests: XCTestCase {
         let shortTextAction = TestAction(id: "t1", title: "AB", icon: .text("AB"))
         let longTextAction = TestAction(id: "t2", title: "Format JSON", icon: .text("Format JSON"))
 
-        // Standard symbol icon defaults to 40
-        XCTAssertEqual(GroupSubActionBarView.estimatedButtonWidth(for: symbolAction), 40)
-        // Short text (<=2 chars) defaults to 40
-        XCTAssertEqual(GroupSubActionBarView.estimatedButtonWidth(for: shortTextAction), 40)
+        // Standard symbol icon defaults to actionButtonWidth (34)
+        XCTAssertEqual(GroupSubActionBarView.estimatedButtonWidth(for: symbolAction), PopupMetrics.actionButtonWidth)
+        // Short text (<=2 chars) defaults to actionButtonWidth (34)
+        XCTAssertEqual(GroupSubActionBarView.estimatedButtonWidth(for: shortTextAction), PopupMetrics.actionButtonWidth)
         // Long text is estimated from character count + padding, capped at 125
         let longWidth = GroupSubActionBarView.estimatedButtonWidth(for: longTextAction)
-        XCTAssertGreaterThan(longWidth, 40)
+        XCTAssertGreaterThan(longWidth, PopupMetrics.actionButtonWidth)
         XCTAssertLessThanOrEqual(longWidth, 125)
     }
 
@@ -75,11 +75,12 @@ final class GroupSubActionBarViewTests: XCTestCase {
     func testMeasuredPageWidth() {
         let a1 = TestAction(id: "1", title: "A", icon: .symbol("star"))
         let a2 = TestAction(id: "2", title: "B", icon: .symbol("heart"))
+        let expectedActionWidth = PopupMetrics.actionButtonWidth * 2
         let widthWithoutChevrons = GroupSubActionBarView.measuredPageWidth(actions: [a1, a2], hasLeftChevron: false, hasRightChevron: false)
-        XCTAssertEqual(widthWithoutChevrons, 80 + 6 + 4)
+        XCTAssertEqual(widthWithoutChevrons, expectedActionWidth)
 
         let widthWithChevrons = GroupSubActionBarView.measuredPageWidth(actions: [a1, a2], hasLeftChevron: true, hasRightChevron: true)
-        XCTAssertEqual(widthWithChevrons, 80 + 29 + 29)
+        XCTAssertEqual(widthWithChevrons, expectedActionWidth + 29 + 29)
     }
 }
 

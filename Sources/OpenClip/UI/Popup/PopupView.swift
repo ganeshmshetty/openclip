@@ -122,9 +122,9 @@ public struct PopupView: View {
     @State private var isTooltipHot: Bool = false
 
     private var scale: CGFloat { PopupMetrics.scaleMultiplier(for: popupScale) }
-    private var buttonWidth: CGFloat { 40 * scale }
+    private var buttonWidth: CGFloat { PopupMetrics.actionButtonWidth * scale }
     private var chevronWidth: CGFloat { 29 * scale }
-    private var barButtonHeight: CGFloat { 29 * scale }
+    private var barButtonHeight: CGFloat { PopupMetrics.barButtonHeight * scale }
     private var cornerRadius: CGFloat { PopupMetrics.popupCornerRadius * scale }
 
     @MainActor
@@ -565,9 +565,8 @@ public struct PopupView: View {
             // Horizontal Completion Word Items
             let list = cachedCompletions
             ForEach(Array(list.enumerated()), id: \.offset) { index, word in
-                let isLast = index == list.count - 1
                 let isHovered = hoveredTarget == .completion(index)
-                completionButton(word: word, index: index, isHovered: isHovered, showDivider: !isLast)
+                completionButton(word: word, index: index, isHovered: isHovered)
             }
         }
         .fixedSize()
@@ -589,7 +588,7 @@ public struct PopupView: View {
             ForEach(Array(pagedActions.enumerated()), id: \.offset) { index, action in
                 let isDirectlyHovered = hoveredTarget == .action(index)
                 let isActiveParent = modeStore.activeSubGroupID == action.id && !isDirectlyHovered
-                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, showDivider: false)
+                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent)
             }
 
             // Sparkles AI launcher is a normal action row (chrome.launchesAI); it paginates with
@@ -606,7 +605,6 @@ public struct PopupView: View {
             // the paged actions so it always sits at the far-right edge on every page.
             let isHovered = hoveredTarget == .search
             let affordanceForeground = PopupThemeModel.restForeground(for: effectiveTheme)
-            let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
             Button {
                 onEnterSearch()
             } label: {
@@ -615,13 +613,6 @@ public struct PopupView: View {
                     .foregroundColor(isHovered ? .white : affordanceForeground)
                     .frame(width: buttonWidth, height: barButtonHeight)
                     .background(isHovered ? Color.accentColor : Color.clear)
-                    // Pagination chevrons sit between the last action and this glyph; without a
-                    // divider the command icon would appear glued to the chevrons.
-                    .overlay(alignment: .leading) {
-                        Rectangle()
-                            .fill(dividerColor)
-                            .frame(width: 0.6, height: barButtonHeight)
-                    }
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Search all actions")
@@ -637,9 +628,8 @@ public struct PopupView: View {
     // MARK: - Completion Button
 
     @ViewBuilder
-    private func completionButton(word: String, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
+    private func completionButton(word: String, index: Int, isHovered: Bool) -> some View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
-        let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
 
         Button {
             onResult(.paste(word))
@@ -653,13 +643,6 @@ public struct PopupView: View {
                 .padding(.horizontal, 11 * scale)
                 .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
                 .background(isHovered ? Color.accentColor : Color.clear)
-                .overlay(alignment: .trailing) {
-                    if showDivider && !isHovered {
-                        Rectangle()
-                            .fill(dividerColor)
-                            .frame(width: 0.6, height: barButtonHeight)
-                    }
-                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -673,9 +656,8 @@ public struct PopupView: View {
     // MARK: - Unified Action Button
 
     @ViewBuilder
-    private func actionButton(action: any Action, index: Int, isHovered: Bool, isActiveParent: Bool = false, showDivider: Bool) -> some View {
+    private func actionButton(action: any Action, index: Int, isHovered: Bool, isActiveParent: Bool = false) -> some View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
-        let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
 
         let backgroundColor: Color = {
             if isHovered {
@@ -702,17 +684,10 @@ public struct PopupView: View {
             .background(backgroundColor)
             .overlay(alignment: subBarAbove ? .top : .bottom) {
                 if isGroup {
-                    Image(systemName: subBarAbove ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 6.0 * scale, weight: .bold))
-                        .foregroundColor(foregroundColor.opacity(0.65))
+                    GroupIndicatorTriangle(pointingUp: subBarAbove)
+                        .fill(foregroundColor.opacity(0.65))
+                        .frame(width: 4.0 * scale, height: 2.5 * scale)
                         .padding(subBarAbove ? .top : .bottom, 1.8 * scale)
-                }
-            }
-            .overlay(alignment: .trailing) {
-                if showDivider && !isHovered && !isActiveParent {
-                    Rectangle()
-                        .fill(dividerColor)
-                        .frame(width: 0.6, height: barButtonHeight)
                 }
             }
             .contentShape(Rectangle())
@@ -968,5 +943,25 @@ private struct WordCompletionCandidateAction: Action {
     @MainActor
     func perform(_ context: ActionContext) async throws -> ActionResult {
         return .paste(word)
+    }
+}
+
+/// A compact custom triangle shape used as a subtle group sub-bar indicator.
+private struct GroupIndicatorTriangle: Shape {
+    var pointingUp: Bool = false
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        if pointingUp {
+            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        } else {
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        }
+        path.closeSubpath()
+        return path
     }
 }

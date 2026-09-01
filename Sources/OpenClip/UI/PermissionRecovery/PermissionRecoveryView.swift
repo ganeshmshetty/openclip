@@ -59,7 +59,7 @@ public struct PermissionRecoveryView: View {
                     Text("100% Private & On-Device")
                         .font(.system(size: 12, weight: .semibold))
 
-                    Text("Highlighted text stays strictly on your Mac and is never collected or sent over the network.")
+                    Text("Highlighted text stays on your Mac by default and is only sent to external services when you explicitly invoke cloud AI or browser actions.")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

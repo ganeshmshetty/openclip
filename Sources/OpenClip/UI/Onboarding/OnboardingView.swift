@@ -361,7 +361,7 @@ public struct OnboardingView: View {
                 Text("Accessibility Access")
                     .font(.title2.weight(.bold))
 
-                Text("So OpenClip can see what you've selected — nothing is sent anywhere.")
+                Text("So OpenClip can see what you've selected — text stays local by default unless you invoke cloud AI or browser actions.")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -378,7 +378,7 @@ public struct OnboardingView: View {
                     Text("100% Private & On-Device")
                         .font(.headline)
 
-                    Text("Your highlighted text never leaves your Mac. OpenClip runs entirely locally and never collects or transmits data.")
+                    Text("Highlighted text stays on your Mac by default. OpenClip never collects background data, and only transmits text when you explicitly invoke cloud AI or browser actions.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
