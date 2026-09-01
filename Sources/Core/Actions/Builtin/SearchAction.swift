@@ -16,7 +16,7 @@ public struct SearchAction: ConfigurableAction {
                 identifier: "url",
                 label: String(localized: "Search Engine URL Template"),
                 type: .string,
-                defaultValue: "https://www.google.com/search?q={query}"
+                defaultValue: SearchEnginePreset.defaultURLTemplate
             )
         ]
     }
@@ -59,6 +59,6 @@ public struct SearchAction: ConfigurableAction {
         if !configured.isEmpty { return configured }
         let legacy = settingsStore.get(.searchURL)
         if !legacy.isEmpty { return legacy }
-        return "https://www.google.com/search?q={query}"
+        return SearchEnginePreset.defaultURLTemplate
     }
 }

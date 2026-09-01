@@ -239,6 +239,7 @@
 		B65680000C72C06585A1B730 /* DebugLogStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C251D684663DDC867A7E7C /* DebugLogStoreTests.swift */; };
 		B776223E716B18F4F53A4D3F /* AppRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = E21F7917E14860EA903D0552 /* AppRule.swift */; };
 		B7BFA2A49A47859753B93E6F /* DebugLogFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B826FB17017910B8919BF18F /* DebugLogFilterTests.swift */; };
+		B878E8AD390655A32B1948AB /* SearchEnginePreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD285A6E160A8CFE29AB959 /* SearchEnginePreset.swift */; };
 		B89E9C568ACA99C944DA119C /* ActionGroupDef.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56859A8B4DA8A93F7CC38373 /* ActionGroupDef.swift */; };
 		B9AF5DDB7DFBC46EE834CAF8 /* CoachMarkController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E417DA92C87224C35768951 /* CoachMarkController.swift */; };
 		BA308E09D1ED265BC04ACBD5 /* ActionCoordinatorGroupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACBA587ACDBB04B70F0E8E79 /* ActionCoordinatorGroupTests.swift */; };
@@ -316,6 +317,7 @@
 		F3838DAB280C70F3FF8196FF /* OpenClipJSHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2196A93CE938E3BCD2D73F /* OpenClipJSHost.swift */; };
 		F499E888422C2452E64E2F06 /* ExtensionsStoreViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9596443229B1173DAB2434 /* ExtensionsStoreViewTests.swift */; };
 		F5366871A0E5C9E04682EDC1 /* AIAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D1B055BC4EBEB77FCF23D59 /* AIAction.swift */; };
+		F71A7F8F3E0FDB5E5504D490 /* SearchEnginePresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CB7CF86CA702AEF008FD8E5 /* SearchEnginePresetTests.swift */; };
 		F771AE634BA65CAA36353E65 /* ConfigurableAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A3A4C1ECD9EF519BE8134B /* ConfigurableAction.swift */; };
 		F81572C7094A8DFE873AAA02 /* PopupHoverSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A088DDC9F9B0BD52F785ACCB /* PopupHoverSupport.swift */; };
 		F84E32706E2047EE57752FAD /* ExtensionTrustState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9E1A41335E79BECD9E7B7B /* ExtensionTrustState.swift */; };
@@ -380,6 +382,7 @@
 		0AC7C388035A937859369C48 /* IconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPickerView.swift; sourceTree = "<group>"; };
 		0B0459953290FD365F1B2DF6 /* StatusFeedbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusFeedbackTests.swift; sourceTree = "<group>"; };
 		0C14D435609D5583A39FA164 /* ResultCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultCardView.swift; sourceTree = "<group>"; };
+		0CB7CF86CA702AEF008FD8E5 /* SearchEnginePresetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEnginePresetTests.swift; sourceTree = "<group>"; };
 		0CF97DDF5B196383416AB162 /* CompletionActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionActionTests.swift; sourceTree = "<group>"; };
 		0D770B00EA584CD6DC259086 /* CalendarAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarAction.swift; sourceTree = "<group>"; };
 		0D7A473B890B4C97C343497A /* AppIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIcon.swift; sourceTree = "<group>"; };
@@ -639,6 +642,7 @@
 		D65DE0BF7E0609929C64B1DA /* AXElementInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXElementInspector.swift; sourceTree = "<group>"; };
 		D719D2B6B3F32C056AED329D /* CalculateActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculateActionTests.swift; sourceTree = "<group>"; };
 		D9FE4B50AD5CCA0A39301667 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
+		DAD285A6E160A8CFE29AB959 /* SearchEnginePreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEnginePreset.swift; sourceTree = "<group>"; };
 		DB02C8F39926FFDCB6BBF5D1 /* ActionDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionDelivery.swift; sourceTree = "<group>"; };
 		DCA0A12F58628A20E611FABA /* SubBarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubBarPanel.swift; sourceTree = "<group>"; };
 		DDD3B55E83E9C71B05706009 /* CursorClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorClassifier.swift; sourceTree = "<group>"; };
@@ -918,6 +922,7 @@
 				CB70EAE4A67E1C59A1977A8D /* DefineAction.swift */,
 				301F027F5438EEDF87A6645B /* PasteAction.swift */,
 				C5FC00AC73CC488DBF7F7240 /* SearchAction.swift */,
+				DAD285A6E160A8CFE29AB959 /* SearchEnginePreset.swift */,
 			);
 			path = Builtin;
 			sourceTree = "<group>";
@@ -1277,6 +1282,7 @@
 				E1A3B31A9407EA4D8E0EBF6E /* RotatingFileLogSinkTests.swift */,
 				06C43223F2E4E777CC9F7673 /* RuleEngineTests.swift */,
 				BA4CE0EEDB520B882DB1A0CD /* ScriptActionExecutionTests.swift */,
+				0CB7CF86CA702AEF008FD8E5 /* SearchEnginePresetTests.swift */,
 				C7987E34A7967713991DA9F3 /* SecretActionOptionStoreTests.swift */,
 				F4AD51BBA1C1F3ABEF4061B8 /* SelectionGatePolicyTests.swift */,
 				8D8A87C79135F4CF21CF2AF8 /* SelectionRetrievalCoordinatorTests.swift */,
@@ -1526,6 +1532,7 @@
 				87B7B3D8AAA1E4C9D01750FE /* RotatingFileLogSinkTests.swift in Sources */,
 				611F612CDB50CBDCE4916F4E /* RuleEngineTests.swift in Sources */,
 				3B367A7B4C49C2F54DB9FAD4 /* ScriptActionExecutionTests.swift in Sources */,
+				F71A7F8F3E0FDB5E5504D490 /* SearchEnginePresetTests.swift in Sources */,
 				935725012DC74D36432AB713 /* SecretActionOptionStoreTests.swift in Sources */,
 				C29F35CC3C92862EF2972660 /* SelectionGatePolicyTests.swift in Sources */,
 				8A768A0D221B74CC422DE0C7 /* SelectionRetrievalCoordinatorTests.swift in Sources */,
@@ -1619,6 +1626,7 @@
 				02AF81963047538ADE0363F5 /* RuleEngine.swift in Sources */,
 				386E98180E02243B9DE6B5CA /* ScriptAction.swift in Sources */,
 				7CDDEAAD6790A7471D61A940 /* SearchAction.swift in Sources */,
+				B878E8AD390655A32B1948AB /* SearchEnginePreset.swift in Sources */,
 				EBE9FB46AD56F10020544D24 /* SelectionContext.swift in Sources */,
 				A255B2AD8EDA8F740EABEE0F /* SelectionGatePolicy.swift in Sources */,
 				C02DCB05C24F9A9EFA004B12 /* SelectionMonitoring.swift in Sources */,
