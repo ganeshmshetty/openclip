@@ -4,6 +4,29 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 
 ---
 
+## v1.2.0 - 2026-09-01
+
+### Features & Improvements
+- **Custom Action Groups & Sub-Action Bar**: Group multiple actions and extensions together into unified action items. Hovering reveals a floating horizontal sub-bar for instant sub-action selection, and clicking opens a scoped search palette.
+- **Simplified Chinese Localization**: Full UI localization in Simplified Chinese (`zh-Hans`), adapting automatically to macOS system language preferences.
+- **Search Engine Presets**: Added one-click engine presets (Google, DuckDuckGo, Kagi, Brave Search, Bing, Ecosia, and Custom) to the built-in Search action settings.
+- **In-App Software Updates**: Integrated Sparkle 2 updater with automatic background update checks, status bar notifications, and release note presentation.
+- **AI Loading Toast Lifecycle**: AI preset execution displays a non-blocking floating loading toast, smoothly transitioning to streaming result cards upon receipt.
+- **Toast UI Scaling**: Result toasts and copy notifications scale dynamically with user-selected `popupScale` preferences.
+- **Menu Bar Icon Visibility Toggle**: Added an option in General Preferences to hide the menu bar icon while keeping hotkey and selection triggers active.
+
+### Fixes & Stability
+- **Cursor Stickiness**: Resolved cursor stickiness across popup panel edges by installing AppKit tracking areas and asserting arrow cursors on interactive views.
+- **Sub-Bar Coordinate Hit-Testing**: Fixed sub-bar hover state tracking using window coordinate conversions and dynamic click-through ignore handling.
+- **AI Session State**: Preserved AI streaming session identifiers and active tasks across loading toast state transitions.
+- **Empty Action Group Support**: Allowed creating and configuring empty action groups from Preferences without auto-disbandment.
+
+### Contributors
+- @ayangweb ([#5](https://github.com/ganeshmshetty/openclip/pull/5), [#12](https://github.com/ganeshmshetty/openclip/pull/12), [#13](https://github.com/ganeshmshetty/openclip/pull/13))
+- @cauton2020 ([#3](https://github.com/ganeshmshetty/openclip/pull/3))
+
+---
+
 ## v1.1.1 - 2026-08-28
 
 ### Features & Improvements
