@@ -468,5 +468,53 @@ final class SubBarPanelControllerTests: XCTestCase {
         host.mouseEntered(with: dummyEvent)
         host.resetCursorRects()
     }
+
+    func testSubBarHoverLocationPublishedOnMouseMoveAndClearedOnHide() {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let subBar = SubBarPanelController()
+        let controller = PopupWindowController(
+            resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
+            subBarController: subBar
+        )
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .symbol("star"))
+        let buttonFrame = NSRect(x: 200, y: 300, width: 40, height: 29)
+
+        subBar.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1],
+            parentButtonScreenFrame: buttonFrame,
+            isPinned: false,
+            searchResultsAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+
+        XCTAssertTrue(subBar.isShowing)
+
+        // Mouse over center of sub-bar
+        let center = CGPoint(x: subBar.panelFrame.midX, y: subBar.panelFrame.midY)
+        controller.updateSubBarHover(at: center)
+        XCTAssertNotNil(SubBarHoverState.shared.location, "SubBarHoverState location must be set when hovering over sub-bar")
+
+        // Mouse moved far away
+        let farAway = CGPoint(x: 10, y: 10)
+        controller.updateSubBarHover(at: farAway)
+        XCTAssertNil(SubBarHoverState.shared.location, "SubBarHoverState location must be nil when cursor is outside sub-bar")
+
+        // Hide clears state
+        subBar.hide()
+        XCTAssertNil(SubBarHoverState.shared.location)
+    }
 }
 
