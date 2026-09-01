@@ -2,6 +2,8 @@
 // OpenClipTests
 
 import XCTest
+import AppKit
+import SwiftUI
 @testable import OpenClip
 @testable import Core
 
@@ -429,6 +431,42 @@ final class SubBarPanelControllerTests: XCTestCase {
         XCTAssertEqual(controller.activeState?.groupID, "group.test")
         controller.hide()
         XCTAssertFalse(controller.isShowing)
+    }
+
+    func testSubBarPanelContentViewInstallsTrackingAreaForCursorUpdate() {
+        let panel = SubBarPanel()
+        let host = SubBarPanel.ContentView(rootView: AnyView(Text("test")))
+        host.frame = NSRect(x: 0, y: 0, width: 200, height: 60)
+        panel.contentView = host
+        host.updateTrackingAreas()
+
+        let trackingAreas = host.trackingAreas
+        XCTAssertFalse(trackingAreas.isEmpty, "ContentView must install a tracking area")
+        guard let area = trackingAreas.first else { return }
+        XCTAssertTrue(area.options.contains(.cursorUpdate), "Tracking area must contain .cursorUpdate")
+        XCTAssertTrue(area.options.contains(.activeAlways), "Tracking area must contain .activeAlways")
+        XCTAssertTrue(area.options.contains(.inVisibleRect), "Tracking area must contain .inVisibleRect")
+        XCTAssertTrue(area.options.contains(.mouseEnteredAndExited), "Tracking area must contain .mouseEnteredAndExited")
+    }
+
+    func testSubBarPanelContentViewCursorUpdateAndMouseEntered() {
+        let host = SubBarPanel.ContentView(rootView: AnyView(Text("test")))
+        let dummyEvent = NSEvent.mouseEvent(
+            with: .mouseMoved,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 0,
+            pressure: 0
+        )!
+
+        // Should execute cleanly without runtime error
+        host.cursorUpdate(with: dummyEvent)
+        host.mouseEntered(with: dummyEvent)
+        host.resetCursorRects()
     }
 }
 

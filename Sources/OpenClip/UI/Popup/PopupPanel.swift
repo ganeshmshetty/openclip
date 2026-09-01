@@ -39,6 +39,7 @@ public class PopupPanel: NSPanel {
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = false   // SwiftUI draws its own shadow; panel shadow causes double artifacts
+        self.acceptsMouseMovedEvents = true
     }
 
     override public var canBecomeKey: Bool { allowsKey }
@@ -52,6 +53,8 @@ public class PopupPanel: NSPanel {
     /// whatever window is actually beneath the pointer, where the controller's global monitor then
     /// dismisses the popup.
     public final class ContentView: NSHostingView<PopupView> {
+        private var trackingAreaRef: NSTrackingArea?
+
         /// Pure hit-test rule (unit-testable without a live SwiftUI tree): only the area inside the
         /// shadow ring belongs to the popup.
         public static func isInsideClickableRegion(point: NSPoint, bounds: NSRect) -> Bool {
@@ -60,6 +63,38 @@ public class PopupPanel: NSPanel {
 
         public override func isMousePoint(_ point: NSPoint, in rect: NSRect) -> Bool {
             Self.isInsideClickableRegion(point: point, bounds: bounds)
+        }
+
+        public override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let existing = trackingAreaRef {
+                removeTrackingArea(existing)
+            }
+            let area = NSTrackingArea(
+                rect: bounds,
+                options: [.cursorUpdate, .activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(area)
+            self.trackingAreaRef = area
+        }
+
+        public override func cursorUpdate(with event: NSEvent) {
+            NSCursor.arrow.set()
+        }
+
+        public override func mouseEntered(with event: NSEvent) {
+            super.mouseEntered(with: event)
+            NSCursor.arrow.set()
+        }
+
+        public override func resetCursorRects() {
+            super.resetCursorRects()
+            let clickable = bounds.insetBy(dx: PopupMetrics.popupShadowInset, dy: PopupMetrics.popupShadowInset)
+            if !clickable.isEmpty {
+                addCursorRect(clickable, cursor: .arrow)
+            }
         }
     }
 
