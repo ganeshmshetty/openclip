@@ -81,6 +81,25 @@ struct DynamicOptionRowView: View {
     }
 
     var body: some View {
+        if isSearchURLOption {
+            SearchEngineURLOptionView(
+                actionID: actionID,
+                option: option,
+                optionStore: optionStore,
+                isMissing: isMissing
+            )
+        } else {
+            standardRowBody
+        }
+    }
+
+    /// The built-in Search action's `url` option gets the search-engine preset picker (Google /
+    /// DuckDuckGo / Kagi / Brave / Bing / Ecosia / Custom) instead of a bare template text field.
+    private var isSearchURLOption: Bool {
+        actionID == SearchAction().id && option.identifier == "url"
+    }
+
+    private var standardRowBody: some View {
         HStack(spacing: 12) {
             HStack(spacing: 6) {
                 Text(option.label)
@@ -153,6 +172,113 @@ struct DynamicOptionRowView: View {
         case "google": return "Google Calendar"
         default: return choice.capitalized
         }
+    }
+}
+
+/// Renders the built-in Search action's URL option as a search-engine preset picker. Provides
+/// one-click selection among curated presets (Google / DuckDuckGo / Kagi / Brave / Bing / Ecosia)
+/// while keeping a raw `{query}` template field reachable through the trailing "Custom..." choice.
+/// Every write still routes through the injected option store (SettingsStore-backed), so the stored
+/// `action.builtin.search.option.url` value remains the single source of truth; a stored template
+/// that matches no preset simply shows the picker on "Custom..." with the template in the field.
+@MainActor
+private struct SearchEngineURLOptionView: View {
+    let actionID: String
+    let option: ExtensionOption
+    let optionStore: any ActionOptionReading & ActionOptionWriting
+    var isMissing: Bool
+
+    private enum SearchEngineSelection: Hashable {
+        case preset(String) // stable preset id
+        case custom
+    }
+
+    @State private var selection: SearchEngineSelection
+    @State private var customTemplate: String
+
+    init(
+        actionID: String,
+        option: ExtensionOption,
+        optionStore: any ActionOptionReading & ActionOptionWriting,
+        isMissing: Bool
+    ) {
+        self.actionID = actionID
+        self.option = option
+        self.optionStore = optionStore
+        self.isMissing = isMissing
+        let stored = optionStore.stringValue(actionID: actionID, option: option)
+        _selection = State(initialValue: Self.initialSelection(for: stored))
+        _customTemplate = State(initialValue: stored)
+    }
+
+    /// Preset when the stored template matches exactly; otherwise Custom (covers self-hosted or
+    /// hand-edited endpoints, which are never silently snapped back to a preset).
+    private static func initialSelection(for stored: String) -> SearchEngineSelection {
+        SearchEnginePreset.preset(matching: stored).map { .preset($0.id) } ?? .custom
+    }
+
+    private var pickerBinding: Binding<SearchEngineSelection> {
+        Binding(
+            get: { selection },
+            set: { newValue in
+                selection = newValue
+                if case .preset(let presetID) = newValue, let preset = SearchEnginePreset.preset(id: presetID) {
+                    customTemplate = preset.urlTemplate
+                    optionStore.setStringValue(preset.urlTemplate, actionID: actionID, option: option)
+                }
+            }
+        )
+    }
+
+    private var customTemplateBinding: Binding<String> {
+        Binding(
+            get: { customTemplate },
+            set: { newValue in
+                customTemplate = newValue
+                optionStore.setStringValue(newValue, actionID: actionID, option: option)
+            }
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                HStack(spacing: 6) {
+                    Text(option.label)
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+
+                    if isMissing {
+                        Text("Required")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.red)
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                Picker("", selection: pickerBinding) {
+                    ForEach(SearchEnginePreset.all) { preset in
+                        Text(preset.displayName).tag(SearchEngineSelection.preset(preset.id))
+                    }
+                    Text(String(localized: "Custom...")).tag(SearchEngineSelection.custom)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(maxWidth: 200)
+                .missingFieldHighlight(isMissing)
+            }
+
+            if selection == .custom {
+                TextField("https://example.com/search?q={query}", text: customTemplateBinding)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                    .missingFieldHighlight(isMissing)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 }
 

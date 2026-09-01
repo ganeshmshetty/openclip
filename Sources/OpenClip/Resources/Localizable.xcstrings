@@ -471,6 +471,26 @@
         }
       }
     },
+    "Bing": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "必应"
+          }
+        }
+      }
+    },
+    "Brave Search": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Brave 搜索"
+          }
+        }
+      }
+    },
     "Browse 100+ extensions in Menu Bar → Preferences": {
       "localizations": {
         "zh-Hans": {
@@ -871,6 +891,16 @@
         }
       }
     },
+    "Custom...": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义…"
+          }
+        }
+      }
+    },
     "Cut": {
       "localizations": {
         "zh-Hans": {
@@ -971,12 +1001,32 @@
         }
       }
     },
+    "DuckDuckGo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DuckDuckGo"
+          }
+        }
+      }
+    },
     "EXECUTION LOGIC": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "执行逻辑"
+          }
+        }
+      }
+    },
+    "Ecosia": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ecosia"
           }
         }
       }
@@ -1291,6 +1341,16 @@
         }
       }
     },
+    "Google": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "谷歌"
+          }
+        }
+      }
+    },
     "Google Gemini": {
       "localizations": {
         "zh-Hans": {
@@ -1517,6 +1577,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "问题反馈"
+          }
+        }
+      }
+    },
+    "Kagi": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kagi"
           }
         }
       }

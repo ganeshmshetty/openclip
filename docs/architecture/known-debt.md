@@ -32,8 +32,12 @@ areas; stale debt notes are worse than none.
   restored without terminating OpenClip.
 - **`ActionConfigSheet` is gone** (dead code — zero presenting call sites; its `useText` keys were
   write-only). Removing it also dropped the only UI that wrote `SettingKey.searchURL` /
-  `SettingKey.calculateMode`; the actions still read those keys (defaults apply), so a future
-  Preferences surface for search-engine / calculate-result-mode would restore configurability.
+  `SettingKey.calculateMode`; the actions still read those keys (defaults apply). Search-engine
+  configurability is **restored** via the built-in Search action's preset picker in the Preferences
+  edit sheet (`DynamicActionConfigView` — Google / DuckDuckGo / Kagi / Brave / Bing / Ecosia /
+  Custom), which writes the option-store key `action.builtin.search.option.url`
+  (`SearchEnginePreset` in Core holds the curated catalog); calculate-result-mode still has no
+  Preferences surface.
   `ConfigurableAction` keeps only `preferenceIconName` (used by `tableIcon`/`rowIcon` icon fallback).
 - **Dynamic action option keys** (`JavaScriptAction`, `AppleScriptAction`): the target pattern is
   `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. The JS
