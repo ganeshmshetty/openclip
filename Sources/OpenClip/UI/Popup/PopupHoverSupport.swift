@@ -17,6 +17,16 @@ public final class PopupHoverState: ObservableObject {
     public init() {}
 }
 
+@MainActor
+public final class SubBarHoverState: ObservableObject {
+    public static let shared = SubBarHoverState()
+
+    @Published public var location: CGPoint?
+    @Published public var usesGlobalMouseMonitoring = false
+
+    public init() {}
+}
+
 public enum PopupHoverTarget: Hashable, Sendable {
     case action(Int)
     case subAction(Int)

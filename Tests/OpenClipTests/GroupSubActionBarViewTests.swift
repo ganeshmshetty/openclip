@@ -1,5 +1,6 @@
 // GroupSubActionBarViewTests.swift
 import XCTest
+import SwiftUI
 @testable import OpenClip
 @testable import Core
 
@@ -81,6 +82,51 @@ final class GroupSubActionBarViewTests: XCTestCase {
 
         let widthWithChevrons = GroupSubActionBarView.measuredPageWidth(actions: [a1, a2], hasLeftChevron: true, hasRightChevron: true)
         XCTAssertEqual(widthWithChevrons, expectedActionWidth + 29 + 29)
+    }
+
+    @MainActor
+    func testSubBarHoverStateIsolation() {
+        let subBarState = SubBarHoverState.shared
+        let mainState = PopupHoverState.shared
+
+        subBarState.location = CGPoint(x: 123, y: 456)
+        mainState.location = CGPoint(x: 789, y: 101)
+
+        XCTAssertEqual(subBarState.location, CGPoint(x: 123, y: 456))
+        XCTAssertEqual(mainState.location, CGPoint(x: 789, y: 101))
+
+        subBarState.location = nil
+        XCTAssertNil(subBarState.location)
+        XCTAssertEqual(mainState.location, CGPoint(x: 789, y: 101), "Modifying SubBarHoverState must not touch PopupHoverState")
+
+        mainState.location = nil
+    }
+
+    @MainActor
+    func testGroupSubActionBarViewCustomHoverStateInjection() {
+        let customState = SubBarHoverState()
+        customState.usesGlobalMouseMonitoring = true
+        customState.location = CGPoint(x: 50, y: 20)
+
+        let a1 = TestAction(id: "1", title: "A", icon: .symbol("star"))
+        var page = 0
+        let view = GroupSubActionBarView(
+            subActions: [a1],
+            currentPage: Binding(get: { page }, set: { page = $0 }),
+            hoverState: customState,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary },
+            context: ActionContext(selection: SelectionContext(text: "test", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)),
+            presenter: ActionCustomizationManager.shared,
+            effectiveTheme: "dark",
+            hoveredTarget: nil,
+            scale: 1.0
+        )
+        XCTAssertNotNil(view)
     }
 }
 
