@@ -182,7 +182,13 @@ public final class AIServiceManager: ObservableObject {
         }
     }
 
+    /// Overrides the AI provider instance (for testing/mocking).
+    public var providerOverride: (any AIProvider)? = nil
+
     public var currentProvider: any AIProvider {
+        if let providerOverride {
+            return providerOverride
+        }
         switch activeProviderType {
         case .apple:
             return AppleIntelligenceProvider()

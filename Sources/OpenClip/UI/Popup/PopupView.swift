@@ -536,6 +536,7 @@ public struct PopupView: View {
                 // no-op
             } catch {
                 guard !Task.isCancelled else { return }
+                Log.ai.error("AI preset execution failed in PopupView: \(error.localizedDescription)")
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 onAIResult?(message, true, title, false)
             }
