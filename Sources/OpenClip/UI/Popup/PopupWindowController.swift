@@ -744,6 +744,9 @@ public class PopupWindowController {
         if PopupHoverState.shared.usesGlobalMouseMonitoring {
             panel.ignoresMouseEvents = !overContent
         }
+        if overContent {
+            NSCursor.arrow.set()
+        }
 
         let windowPoint = panel.convertPoint(fromScreen: screenLocation)
         let contentPoint = contentView.convert(windowPoint, from: nil)
@@ -758,12 +761,15 @@ public class PopupWindowController {
         // pixel boundary; `@Published` emits on every assignment, so skip identical locations to
         // keep the `.onReceive` hit-tests from re-running at event-monitor rate.
         guard point != PopupHoverState.shared.location else { return }
-        NSCursor.arrow.set()
         PopupHoverState.shared.location = point
     }
 
     private func updateSubBarHover(at screenLocation: CGPoint) {
         guard subBarController.isShowing, !subBarController.isPinned else { return }
+
+        if subBarController.isOverContent(screenLocation) {
+            NSCursor.arrow.set()
+        }
 
         // Is the pointer anywhere over the sub-bar window (including comfort margin)?
         let overSubBar = subBarController.panelFrame.insetBy(dx: -4, dy: -4).contains(screenLocation)
