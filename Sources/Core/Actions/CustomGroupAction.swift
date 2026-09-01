@@ -27,7 +27,7 @@ public struct CustomGroupAction: Action, SubActionProviding, Sendable {
 
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        !context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !memberActionIDs.isEmpty && !context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     @MainActor

@@ -20,7 +20,7 @@ final class ActionGroupIntegrationTests: XCTestCase {
         coordinator = ActionCoordinator(registry: registry, settingsStore: settingsStore)
     }
 
-    func testUninstallExtensionInsideGroupUsesCanonicalIDAndDisbandsGroup() async throws {
+    func testUninstallExtensionInsideGroupUsesCanonicalIDAndPrunesMember() async throws {
         let extAction1 = CustomAction(id: "com.custom.ext1", title: "Ext 1", iconName: "star", type: .textSnippet(template: "1"))
         let extAction2 = CustomAction(id: "com.custom.ext2", title: "Ext 2", iconName: "star", type: .textSnippet(template: "2"))
         coordinator.register(action: extAction1)
@@ -32,8 +32,8 @@ final class ActionGroupIntegrationTests: XCTestCase {
         // Simulating unregister of canonical ID
         coordinator.unregister(actionID: "com.custom.ext1")
 
-        XCTAssertTrue(coordinator.actionGroupDefs.isEmpty, "Group must disband when member drops below 2")
-        XCTAssertEqual(coordinator.actions.map(\.id), ["com.custom.ext2"])
+        XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["com.custom.ext2"])
     }
 
     func testMoveCustomGroupExpandsMembersAtomically() {
@@ -73,7 +73,7 @@ final class ActionGroupIntegrationTests: XCTestCase {
         XCTAssertEqual(coordinator.actions.map(\.id), ["action.1", "action.2"])
     }
 
-    func testRemoveMemberViaCoordinatorLeavesRemainingMembersAtTopLevelWhenDisbanded() {
+    func testRemoveMemberViaCoordinatorKeepsGroupDefWithRemainingMembers() {
         let a1 = DummyAction(id: "action.1", title: "Action 1")
         let a2 = DummyAction(id: "action.2", title: "Action 2")
         coordinator.register(action: a1)
@@ -84,8 +84,8 @@ final class ActionGroupIntegrationTests: XCTestCase {
         let groupID = coordinator.actionGroupDefs[0].id
 
         coordinator.removeFromGroup(actionID: "action.1", groupID: groupID)
-        XCTAssertTrue(coordinator.actionGroupDefs.isEmpty, "Group must disband when < 2 members remain")
-        XCTAssertEqual(coordinator.actions.map(\.id), ["action.1", "action.2"])
+        XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.2"])
     }
 
     func testDisabledGroupHidesMembersFromAvailableActions() {
@@ -159,6 +159,46 @@ final class ActionGroupIntegrationTests: XCTestCase {
         let persistedData = settingsStore.get(.actionGroups)
         let decoded = try ActionGroupDef.decode(from: XCTUnwrap(persistedData))
         XCTAssertEqual(decoded.first?.memberActionIDs, ["action.1", "action.2", "action.3"])
+    }
+
+    func testEmptyGroupCreationAndAddingActions() throws {
+        let a1 = DummyAction(id: "action.1", title: "Action 1")
+        let a2 = DummyAction(id: "action.2", title: "Action 2")
+        coordinator.register(action: a1)
+        coordinator.register(action: a2)
+
+        // Create empty group
+        coordinator.createGroup(title: "Empty Group", iconName: "folder", memberActionIDs: [])
+        XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
+        let groupID = coordinator.actionGroupDefs[0].id
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, [])
+
+        // Empty group is present in coordinator.actions list (for Preferences UI)
+        XCTAssertTrue(coordinator.actions.contains(where: { $0.id == groupID }))
+
+        // But empty group is hidden from popup bar availableActions
+        let context = ActionContext(
+            selection: SelectionContext(
+                text: "test text",
+                sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+                cursorPosition: .zero,
+                timestamp: Date(),
+                appPolicy: .default
+            )
+        )
+        var available = coordinator.resolveActions(for: context)
+        XCTAssertFalse(available.contains(where: { $0.id == groupID }), "Empty group must not appear on popup bar")
+        XCTAssertTrue(available.contains(where: { $0.id == "action.1" }))
+        XCTAssertTrue(available.contains(where: { $0.id == "action.2" }))
+
+        // Drag action.1 into the empty group
+        coordinator.addToGroup(actionID: "action.1", groupID: groupID)
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.1"])
+
+        // Now group has 1 member -> visible on popup bar
+        available = coordinator.resolveActions(for: context)
+        XCTAssertTrue(available.contains(where: { $0.id == groupID }), "Group with members must appear on popup bar")
+        XCTAssertTrue(available.contains(where: { $0.id == "action.1" }))
     }
 }
 

@@ -46,9 +46,19 @@ public struct CreateGroupSheet: View {
                 }
             }
 
-            Text("\(memberActionIDs.count) actions will be grouped.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            if memberActionIDs.isEmpty {
+                Text("Empty group. Drag actions into this group in the actions list.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else if memberActionIDs.count == 1 {
+                Text("1 action will be grouped.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("\(memberActionIDs.count) actions will be grouped.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             HStack {
                 Spacer()
