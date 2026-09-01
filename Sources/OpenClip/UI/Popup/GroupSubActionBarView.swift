@@ -24,6 +24,7 @@ public struct GroupSubActionBarView: View {
     public let hoveredTarget: PopupHoverTarget?
     public let scale: CGFloat
     @Binding public var currentPage: Int
+    private let hoverState: SubBarHoverState
 
     @AppStorage(SettingKey.popupPageSize.name) private var pageSize: Int = SettingKey.popupPageSize.defaultValue
 
@@ -34,6 +35,7 @@ public struct GroupSubActionBarView: View {
     public init(
         subActions: [any Action],
         currentPage: Binding<Int>,
+        hoverState: SubBarHoverState = .shared,
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onRunAI: @escaping @MainActor (String) -> Void,
         onRunLoadingAction: @escaping @MainActor (any Action) -> Void,
@@ -49,6 +51,7 @@ public struct GroupSubActionBarView: View {
     ) {
         self.subActions = subActions
         self._currentPage = currentPage
+        self.hoverState = hoverState
         self.onResult = onResult
         self.onRunAI = onRunAI
         self.onRunLoadingAction = onRunLoadingAction
@@ -232,7 +235,7 @@ public struct GroupSubActionBarView: View {
         .accessibilityLabel(action.displayTitle(using: presenter))
         .popupHoverTarget(.subAction(index))
         .onHover { isHovering in
-            onHoverTarget(.subAction(index), isHovering)
+            useLocalHoverFallback(for: .subAction(index), isHovering: isHovering)
         }
     }
 
@@ -251,7 +254,12 @@ public struct GroupSubActionBarView: View {
         .accessibilityLabel(label)
         .popupHoverTarget(.chevron(targetKey))
         .onHover { isHovering in
-            onHoverTarget(.chevron(targetKey), isHovering)
+            useLocalHoverFallback(for: .chevron(targetKey), isHovering: isHovering)
         }
+    }
+
+    private func useLocalHoverFallback(for target: PopupHoverTarget, isHovering: Bool) {
+        guard !hoverState.usesGlobalMouseMonitoring else { return }
+        onHoverTarget(target, isHovering)
     }
 }
