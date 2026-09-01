@@ -136,7 +136,7 @@ public struct PreferencesView: View {
             // Detail Area
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center) {
-                    Text(selectedTab.rawValue)
+                    Text(selectedTab.localizedTitle)
                         .font(.system(size: 20, weight: .bold))
                     
                     Spacer()
