@@ -53,17 +53,28 @@ jobs:
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "Built OpenClip v$VERSION with SHA256: $SHA256"
 
+      - name: Extract Release Notes from CHANGELOG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="## v$VERSION" '
+            $0 ~ ver { flag=1; next }
+            flag && /^## v/ { flag=0 }
+            flag { print }
+          ' CHANGELOG.md > /tmp/release_notes.md
+          cat /tmp/release_notes.md
+
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: /tmp/release_notes.md
           files: |
             build/release/*.zip
             build/release/*.dmg
             build/release/appcast.xml
           draft: false
           prerelease: ${{ contains(github.ref, '-') }}
-          generate_release_notes: true
+          generate_release_notes: false
           overwrite: true
 
       - name: Update Homebrew Tap
