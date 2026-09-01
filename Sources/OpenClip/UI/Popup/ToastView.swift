@@ -11,7 +11,15 @@ struct ToastView: View {
 
     @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
+    @AppStorage(SettingKey.popupScale.name) private var popupScale: Int = SettingKey.popupScale.defaultValue
     @Environment(\.colorScheme) private var colorScheme
+
+    /// Visual multiplier derived from the user's Popup Scale level (1...5) so the toast keeps pace
+    /// with the popup bar it attaches to — same scale factor `PopupView` applies to the bar.
+    private var scale: CGFloat { PopupMetrics.scaleMultiplier(for: popupScale) }
+
+    /// Corner radius for the toast bubble, scaled with the popup scale.
+    private var cornerRadius: CGFloat { PopupMetrics.toastCornerRadius * scale }
 
     private var isGlass: Bool {
         PopupThemeModel.category(fromStored: selectedTheme) == .glass
@@ -48,43 +56,47 @@ struct ToastView: View {
     }
 
     var body: some View {
-        let content = HStack(spacing: 6) {
+        let content = HStack(spacing: 6 * scale) {
             if feedback.isLoading {
+                // macOS `.small` spinner is 16pt; scale its frame AND rendering so both the panel
+                // sizing (hostingView.fittingSize) and the visible spinner track the popup scale.
                 ProgressView()
                     .controlSize(.small)
+                    .scaleEffect(scale)
+                    .frame(width: 16 * scale, height: 16 * scale)
             } else if let symbol = feedback.symbolName {
                 Image(systemName: symbol)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 10 * scale, weight: .medium))
                     .foregroundColor(feedback.style == .error ? Color.red : (feedback.style == .success ? Color.accentColor : textColor))
             }
             Text(feedback.message)
-                .font(.system(size: 11, weight: .regular))
+                .font(.system(size: 11 * scale, weight: .regular))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
         .foregroundColor(textColor)
-        .padding(.horizontal, 11)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 11 * scale)
+        .padding(.vertical, 5 * scale)
 
         Group {
             if isGlass {
                 content
                     .background(
-                        RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .fill(.ultraThinMaterial)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .stroke(glassBorderColor, lineWidth: 1.0)
                     )
                     .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 1)
             } else {
                 content
                     .background(opaqueBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: PopupMetrics.toastCornerRadius, style: .continuous)
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .stroke(opaqueBorder, lineWidth: 1.0)
                     )
                     .shadow(color: Color.black.opacity(effectiveTheme == "light" ? 0.10 : 0.20), radius: 4, x: 0, y: 1)

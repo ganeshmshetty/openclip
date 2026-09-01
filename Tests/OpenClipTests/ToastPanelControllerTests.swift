@@ -120,6 +120,39 @@ final class ToastPanelControllerTests: XCTestCase {
         XCTAssertFalse(controller.isShowing, "info toast should auto-dismiss")
     }
 
+    /// Regression: the toast must scale with the user's Popup Scale preference, matching the popup
+    /// bar it attaches to. `ToastView` reads `SettingKey.popupScale` via @AppStorage; a larger scale
+    /// must produce a larger bubble (and vice-versa). The default level 3 must stay byte-identical
+    /// to the legacy fixed layout (baseline 77×24), so only the relative growth is asserted.
+    @MainActor
+    func testToastScalesWithPopupScale() {
+        let defaults = UserDefaults.standard
+        let key = SettingKey.popupScale.name
+        let original = defaults.object(forKey: key)
+        defer {
+            if let original {
+                defaults.set(original, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        let controller = ToastPanelController()
+
+        defaults.set(5, forKey: key)
+        controller.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"))
+        let largeSize = controller.panelFrame.size
+        controller.hide()
+
+        defaults.set(1, forKey: key)
+        controller.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"))
+        let smallSize = controller.panelFrame.size
+        controller.hide()
+
+        XCTAssertGreaterThan(largeSize.height, smallSize.height, "toast panel height must grow with popupScale")
+        XCTAssertGreaterThan(largeSize.width, smallSize.width, "toast panel width must grow with popupScale")
+    }
+
     @MainActor
     func testLoadingToastHasNoTimer() async throws {
         let controller = ToastPanelController(autoDismissNanoseconds: 5_000_000)
