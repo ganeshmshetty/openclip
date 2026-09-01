@@ -9,7 +9,7 @@ import CoreGraphics
 
 public enum PopupMetrics {
     /// Corner radius for popup action bars and content cards (normalized baseline).
-    public static let popupCornerRadius: CGFloat = 11.0
+    public static let popupCornerRadius: CGFloat = 8.5
     /// Corner radius for the action-search palette.
     public static let searchCornerRadius: CGFloat = 10.0
     /// Corner radius for floating toast bubbles.

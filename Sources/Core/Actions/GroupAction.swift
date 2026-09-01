@@ -51,6 +51,7 @@ public struct GroupAction: Action, SubActionProviding {
     // Sub-actions are the registry entries whose id is `\(self.id).\(subID)` (the uniform convention
     // used by DefaultActionFactory). The group itself, AI launchers, and the inline completion
     // pseudo-action are excluded.
+    @MainActor
     public func subActions(in catalog: [any Action]) -> [any Action] {
         catalog.filter { action in
             guard action.id != self.id, action.id.hasPrefix(self.id + ".") else { return false }

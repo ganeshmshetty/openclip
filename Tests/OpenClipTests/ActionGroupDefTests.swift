@@ -39,6 +39,7 @@ final class ActionGroupDefTests: XCTestCase {
         XCTAssertEqual(ActionGroupDef.decodeOrEmpty(from: "invalid json".data(using: .utf8)), [])
     }
 
+    @MainActor
     func testCustomGroupActionResolvesSubActionsFromCatalogByCanonicalIDPreservingCatalogOrder() {
         let action1 = DummyAction(id: "builtin.copy", title: "Copy")
         let action2 = DummyAction(id: "builtin.paste", title: "Paste")

@@ -28,4 +28,15 @@ final class AIActionTests: XCTestCase {
             return
         }
     }
+
+    func testAIActionIconDefaultMatchesPresetIcon() {
+        let action = AIAction(presetID: "proofread", title: "Proofread")
+        XCTAssertEqual(action.icon, .text("Proofread"))
+    }
+
+    func testAIActionIconForPreset() {
+        XCTAssertEqual(AIAction.iconForPreset(presetID: "proofread"), .text("Proofread"))
+        XCTAssertEqual(AIAction.iconForPreset(presetID: "summarize"), .text("Summarize"))
+        XCTAssertEqual(AIAction.iconForPreset(presetID: "custom_other"), .text("custom_other"))
+    }
 }

@@ -118,6 +118,9 @@ public final class ActionCustomizationManager: ObservableObject, ActionPresentin
         if let symbol = ov?.customIconSymbol, !symbol.isEmpty {
             return .symbol(symbol)
         }
+        if ActionIdentity.isAIPreset(action) {
+            return .symbol(Constants.defaultAIIconSymbol)
+        }
         // `preferenceIconName` is an SF Symbol name. For builtins it is hand-written (Cut/Copy/Paste
         // expose real symbols despite `.text` icons); for extension actions it is *derived* from the
         // icon, and that derivation is only valid for `.symbol` icons — `.local` degrades to the

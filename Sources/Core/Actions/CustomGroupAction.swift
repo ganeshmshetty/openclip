@@ -40,6 +40,7 @@ public struct CustomGroupAction: Action, SubActionProviding, Sendable {
         .none
     }
 
+    @MainActor
     public func subActions(in catalog: [any Action]) -> [any Action] {
         let memberSet = Set(memberActionIDs)
         return catalog.filter { memberSet.contains($0.id) }

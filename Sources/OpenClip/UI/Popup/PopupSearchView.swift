@@ -236,7 +236,7 @@ public struct PopupSearchView: View {
 
     /// Render an action's icon (symbol / iconify / url / local / text) at field size.
     private func actionIcon(_ action: any Action) -> some View {
-        ActionIconView(icon: action.icon, size: 14)
+        ActionIconView(icon: rowIcon(for: action), size: 14)
     }
 
     private var resultsList: some View {
@@ -361,7 +361,7 @@ public struct PopupSearchView: View {
 
     /// Indexes the palette's candidates (scoped children when scoped, the full catalog otherwise)
     /// once per palette entry. Runs only when the catalog/scope inputs change, never per body eval.
-    private static func buildIndex(catalog: [any Action], scope: SearchScope?, usageRecency: [String: Int], presenter: any ActionPresenting) -> [ActionSearchIndex] {
+    static func buildIndex(catalog: [any Action], scope: SearchScope?, usageRecency: [String: Int], presenter: any ActionPresenting) -> [ActionSearchIndex] {
         let candidates = scope?.children ?? catalog
         // The unscoped palette lists leaf actions only: container rows (group rows) are hidden so
         // the results never surface an inert row that performs `.none`. Their sub-actions are
@@ -406,7 +406,14 @@ public struct PopupSearchView: View {
         // The group row is filtered out of the palette, so its name must index its children to
         // stay searchable.
         for group in catalog where group.chrome.popupBehavior == .showSubActions {
-            guard group.id != action.id, action.id.hasPrefix(group.id + ".") else { continue }
+            guard group.id != action.id else { continue }
+            let isMember: Bool
+            if let provider = group as? any SubActionProviding {
+                isMember = provider.subActions(in: catalog).contains { $0.id == action.id }
+            } else {
+                isMember = action.id.hasPrefix(group.id + ".")
+            }
+            guard isMember else { continue }
             parts.append(group.title)
             if case .extensionPkg(let packageName) = group.chrome.badge {
                 parts.append(packageName)
@@ -419,6 +426,9 @@ public struct PopupSearchView: View {
     /// resolve symbol-first (custom override, then the action's SF Symbol preference), matching the
     /// preferences table.
     private func rowIcon(for action: any Action) -> ActionIcon {
+        if ActionIdentity.isAIPreset(action) {
+            return .symbol(Constants.defaultAIIconSymbol)
+        }
         let resolved = action.displayIcon(using: presenter)
         switch resolved {
         case .symbol, .url, .local:

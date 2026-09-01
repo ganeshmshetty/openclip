@@ -719,4 +719,25 @@ final class PopupPanelTests: XCTestCase {
         controller.handleEvent(farEvent)
         XCTAssertFalse(controller.isVisible, "Popup should dismiss when cursor moves far away and onboarding is not visible")
     }
+
+    func testSubBarActivePinsBottomEdgeWhenResultsAbove() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 150))
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        // When searchResultsAbove is false (sub-bar below main bar), pinBottomEdgeOnResize remains false
+        controller.modeStore.searchResultsAbove = false
+        controller.modeStore.isSubBarActive = true
+        XCTAssertFalse(panel.pinBottomEdgeOnResize)
+
+        // When searchResultsAbove is true (sub-bar above main bar), pinBottomEdgeOnResize is true
+        controller.modeStore.searchResultsAbove = true
+        controller.modeStore.isSubBarActive = true
+        XCTAssertTrue(panel.pinBottomEdgeOnResize)
+
+        // Deactivating sub-bar preserves searchResultsAbove anchoring (preventing window crawl)
+        controller.modeStore.isSubBarActive = false
+        XCTAssertTrue(panel.pinBottomEdgeOnResize)
+    }
 }

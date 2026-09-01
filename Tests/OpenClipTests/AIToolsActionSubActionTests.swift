@@ -27,4 +27,13 @@ final class AIToolsActionSubActionTests: XCTestCase {
         let ids = tools.subActions(in: [preset1, preset2, other]).map(\.id)
         XCTAssertEqual(ids, ["ai.preset.1", "ai.preset.2"])
     }
+
+    @MainActor
+    func testAIToolsResolvesFromAIServiceManagerWhenCatalogLacksPresets() {
+        let tools = AIToolsAction()
+        let other = FakeAIAction(id: "builtin.copy", source: .builtin)
+        let subActions = tools.subActions(in: [other])
+        XCTAssertFalse(subActions.isEmpty)
+        XCTAssertTrue(subActions.allSatisfy { ActionIdentity.isAIPreset($0) })
+    }
 }

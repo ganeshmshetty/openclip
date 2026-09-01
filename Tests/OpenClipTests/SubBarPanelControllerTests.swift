@@ -1,0 +1,282 @@
+// SubBarPanelControllerTests.swift
+// OpenClipTests
+
+import XCTest
+@testable import OpenClip
+@testable import Core
+
+@MainActor
+final class SubBarPanelControllerTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        TestIsolation.reset()
+    }
+
+    private struct TestAction: Action, Sendable {
+        let id: String
+        let title: String
+        let icon: ActionIcon
+        var chrome: ActionChrome { ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin) }
+        @MainActor func isEnabled(for context: ActionContext) -> Bool { true }
+        @MainActor func perform(_ context: ActionContext) async throws -> ActionResult { .none }
+    }
+
+    private func makeContext() -> ActionContext {
+        let selection = SelectionContext(
+            text: "test",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        return ActionContext(selection: selection)
+    }
+
+    func testSubBarPanelProperties() {
+        let panel = SubBarPanel()
+        XCTAssertEqual(panel.level, .popUpMenu)
+        XCTAssertFalse(panel.canBecomeKey)
+        XCTAssertFalse(panel.canBecomeMain)
+        XCTAssertFalse(panel.ignoresMouseEvents)
+        XCTAssertFalse(panel.isOpaque)
+        XCTAssertEqual(panel.backgroundColor, .clear)
+    }
+
+    func testShowAndHideSubBar() {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .text("One"))
+        let sub2 = TestAction(id: "sub.2", title: "Sub 2", icon: .text("Two"))
+
+        let parentFrame = NSRect(x: 200, y: 300, width: 40, height: 29)
+        controller.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1, sub2],
+            parentButtonScreenFrame: parentFrame,
+            isPinned: false,
+            searchResultsAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+
+        XCTAssertTrue(controller.isShowing)
+        XCTAssertEqual(controller.activeState?.groupID, "group.test")
+        XCTAssertFalse(controller.isPinned)
+
+        controller.pin()
+        XCTAssertTrue(controller.isPinned)
+
+        controller.hide()
+        XCTAssertFalse(controller.isShowing)
+        XCTAssertNil(controller.activeState)
+    }
+
+    func testIsOverContentExcludesShadowRing() {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .symbol("star"))
+
+        let parentFrame = NSRect(x: 200, y: 300, width: 40, height: 29)
+        controller.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1],
+            parentButtonScreenFrame: parentFrame,
+            isPinned: true,
+            searchResultsAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+
+        let frame = controller.panelFrame
+        // Center of panel is interactive content
+        let centerPoint = CGPoint(x: frame.midX, y: frame.midY)
+        XCTAssertTrue(controller.isOverContent(centerPoint))
+
+        // Extreme corner is inside frame but inside transparent shadow ring
+        let cornerPoint = CGPoint(x: frame.minX + 2, y: frame.minY + 2)
+        XCTAssertFalse(controller.isOverContent(cornerPoint))
+
+        // Outside frame entirely is false
+        let outsidePoint = CGPoint(x: frame.minX - 50, y: frame.minY - 50)
+        XCTAssertFalse(controller.isOverContent(outsidePoint))
+
+        controller.hide()
+    }
+
+    func testLeftAnchoringExpandsRightward() {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .symbol("star"))
+
+        let shadowInset = PopupMetrics.popupShadowInset
+
+        // Any button anchors its content left flush with the button's left edge, expanding rightward
+        let buttonFrame = NSRect(x: 420, y: 310, width: 30, height: 30)
+        controller.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1],
+            parentButtonScreenFrame: buttonFrame,
+            isPinned: true,
+            searchResultsAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+        // Content left must align flush with button's left edge when no overhang
+        XCTAssertEqual(controller.panelFrame.minX + shadowInset, buttonFrame.minX, accuracy: 0.5)
+
+        controller.hide()
+    }
+
+    func testOverhangPullsTowardMainBar() {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .symbol("star"))
+        let sub2 = TestAction(id: "sub.2", title: "Sub 2", icon: .symbol("heart"))
+        let sub3 = TestAction(id: "sub.3", title: "Sub 3", icon: .symbol("bolt"))
+        let sub4 = TestAction(id: "sub.4", title: "Sub 4", icon: .symbol("gear"))
+
+        let shadowInset = PopupMetrics.popupShadowInset
+        // Main bar spans from 100 to 300 (content span 116 to 284)
+        let mainBarFrame = NSRect(x: 100, y: 300, width: 200, height: 60)
+        // Button near the right edge of main bar
+        let buttonFrame = NSRect(x: 240, y: 310, width: 30, height: 30)
+
+        controller.show(
+            for: parent,
+            parentIndex: 3,
+            subActions: [sub1, sub2, sub3, sub4],
+            parentButtonScreenFrame: buttonFrame,
+            mainBarScreenFrame: mainBarFrame,
+            isPinned: false,
+            searchResultsAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+
+        let contentLeft = controller.panelFrame.minX + shadowInset
+        // Should be pulled to the left of button's minX to reduce right overhang
+        XCTAssertLessThan(contentLeft, buttonFrame.minX)
+        // But should still cover or reach the button's right edge
+        let contentRight = controller.panelFrame.maxX - shadowInset
+        XCTAssertGreaterThanOrEqual(contentRight, buttonFrame.minX)
+
+        controller.hide()
+    }
+
+    func testOnDismissCalledWhenSubBarHides() {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .symbol("star"))
+
+        var dismissCount = 0
+        controller.onDismiss = {
+            dismissCount += 1
+        }
+
+        controller.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1],
+            parentButtonScreenFrame: NSRect(x: 200, y: 300, width: 40, height: 29),
+            isPinned: true,
+            searchResultsAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+
+        XCTAssertEqual(dismissCount, 0)
+        controller.hide()
+        XCTAssertEqual(dismissCount, 1)
+    }
+
+    func testIsImmediateNeighbor() {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .symbol("star"))
+
+        // Active parent at index 2
+        controller.show(
+            for: parent,
+            parentIndex: 2,
+            subActions: [sub1],
+            parentButtonScreenFrame: NSRect(x: 200, y: 300, width: 40, height: 29),
+            isPinned: false,
+            searchResultsAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+
+        // Same button
+        XCTAssertTrue(controller.isImmediateNeighbor(actionIndex: 2))
+        // Immediate left neighbor
+        XCTAssertTrue(controller.isImmediateNeighbor(actionIndex: 1))
+        // Immediate right neighbor
+        XCTAssertTrue(controller.isImmediateNeighbor(actionIndex: 3))
+        // Distant left
+        XCTAssertFalse(controller.isImmediateNeighbor(actionIndex: 0))
+        // Distant right
+        XCTAssertFalse(controller.isImmediateNeighbor(actionIndex: 4))
+        XCTAssertFalse(controller.isImmediateNeighbor(actionIndex: 5))
+
+        controller.hide()
+        // Nil when no sub-bar is visible
+        XCTAssertFalse(controller.isImmediateNeighbor(actionIndex: 2))
+    }
+}

@@ -166,14 +166,15 @@ public struct ActionIconView: View {
             case .text(let text):
                 if text.count <= 2 {
                     Text(text)
-                        .font(.system(size: targetDimension * 0.95, weight: .semibold, design: .rounded))
+                        .font(.system(size: targetDimension * 0.90, weight: .semibold, design: .rounded))
                         .lineLimit(1)
                         .frame(minWidth: targetDimension, minHeight: targetDimension, alignment: .center)
                 } else {
                     Text(text)
-                        .font(.system(size: 14 * scale, weight: .regular))
+                        .font(.system(size: 13 * scale, weight: .regular))
                         .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: 118 * scale)
                 }
             case .url(let url):
                 AsyncImage(url: url) { phase in
