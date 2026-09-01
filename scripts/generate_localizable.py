@@ -337,6 +337,14 @@ TRANSLATIONS: dict[str, str] = {
     "Word Completion": "单词补全",
     "Search Engine URL Template": "搜索引擎 URL 模板",
     "Calendar Destination": "日历目标",
+    # Search engine presets (built-in Search action)
+    "Google": "谷歌",
+    "DuckDuckGo": "DuckDuckGo",
+    "Kagi": "Kagi",
+    "Brave Search": "Brave 搜索",
+    "Bing": "必应",
+    "Ecosia": "Ecosia",
+    "Custom...": "自定义…",
     "Required option not set.": "尚未设置必填选项。",
     "Required options not set.": "尚未设置必填选项。",
     # Deep link / alerts
