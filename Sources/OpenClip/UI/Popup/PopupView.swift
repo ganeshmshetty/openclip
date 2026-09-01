@@ -695,10 +695,10 @@ public struct PopupView: View {
 
         switch action.gesturePolicy.singleClick {
         case .openSubActions:
-            // Group rows open/toggle the standalone horizontal sub-bar
+            // Group rows open scoped search palette on click; sub-bar opens on hover dwell
             Button {
-                let frame = hoverFrames[.action(index)] ?? .zero
-                onRequestSubBarToggle?(action, index, frame)
+                onCancelSubBarDwell?()
+                onEnteredScopedSearch?(action)
             } label: {
                 labelView
             }
@@ -716,10 +716,10 @@ public struct PopupView: View {
             }
         case .perform:
             if action.chrome.launchesAI {
-                // AI Tools launcher opens standalone sub-bar with AI presets
+                // AI Tools launcher opens scoped search palette on click; sub-bar opens on hover dwell
                 Button {
-                    let frame = hoverFrames[.action(index)] ?? .zero
-                    onRequestSubBarToggle?(action, index, frame)
+                    onCancelSubBarDwell?()
+                    onEnteredScopedSearch?(action)
                 } label: {
                     labelView
                 }

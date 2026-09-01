@@ -333,6 +333,9 @@ public class PopupWindowController {
     /// stays active throughout.
     public func enterSearch(with scope: SearchScope? = nil) {
         guard panel?.isVisible == true else { return }
+        subBarController.hide()
+        modeStore.isSubBarActive = false
+        modeStore.activeSubGroupID = nil
         if modeStore.mode != .search || scope != nil {
             modeStore.scope = scope
         }

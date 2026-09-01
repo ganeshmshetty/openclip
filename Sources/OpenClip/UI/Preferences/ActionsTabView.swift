@@ -333,13 +333,15 @@ struct ActionsTab: View {
                     Label("Add Custom Action", systemImage: "plus.circle")
                 })
 
-                if candidateSelectedActionIDs.count >= 2 {
-                    Button(action: {
-                        showingCreateGroupSheet = true
-                    }, label: {
+                Button(action: {
+                    showingCreateGroupSheet = true
+                }, label: {
+                    if candidateSelectedActionIDs.count >= 2 {
                         Label("Group Selected (\(candidateSelectedActionIDs.count))", systemImage: "folder.badge.plus")
-                    })
-                }
+                    } else {
+                        Label("New Group", systemImage: "folder.badge.plus")
+                    }
+                })
                 
                 Button(action: {
                     openInstallExtensionPanel()

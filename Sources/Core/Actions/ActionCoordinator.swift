@@ -134,10 +134,10 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     private func pruneOrphans(in defs: [ActionGroupDef]) -> [ActionGroupDef] {
         let active = registry.registeredActionIDs
         guard !active.isEmpty, !defs.isEmpty else { return defs }
-        return defs.compactMap { def -> ActionGroupDef? in
+        return defs.map { def in
             var copy = def
             copy.memberActionIDs.removeAll { !active.contains($0) }
-            return copy.memberActionIDs.count >= 2 ? copy : nil
+            return copy
         }
     }
 
@@ -148,12 +148,8 @@ public final class ActionCoordinator: ObservableObject, Sendable {
             if def.memberActionIDs.contains(actionID) {
                 def.memberActionIDs.removeAll { $0 == actionID }
                 changed = true
-                if def.memberActionIDs.count >= 2 {
-                    updated.append(def)
-                }
-            } else {
-                updated.append(def)
             }
+            updated.append(def)
         }
         if changed {
             actionGroupDefs = updated
@@ -161,7 +157,7 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         }
     }
 
-    public func createGroup(title: String, iconName: String, memberActionIDs: [String]) {
+    public func createGroup(title: String, iconName: String, memberActionIDs: [String] = []) {
         var seen = Set<String>()
         var deduped: [String] = []
         for rawID in memberActionIDs {
@@ -171,16 +167,13 @@ public final class ActionCoordinator: ObservableObject, Sendable {
                 deduped.append(id)
             }
         }
-        guard deduped.count >= 2 else { return }
 
         // Remove members from existing groups
         let memberSet = Set(deduped)
         var updated: [ActionGroupDef] = []
         for var def in actionGroupDefs {
             def.memberActionIDs.removeAll { memberSet.contains($0) }
-            if def.memberActionIDs.count >= 2 {
-                updated.append(def)
-            }
+            updated.append(def)
         }
 
         let newID = "vgroup.\(UUID().uuidString.prefix(8).lowercased())"
@@ -201,10 +194,6 @@ public final class ActionCoordinator: ObservableObject, Sendable {
                 deduped.append(id)
             }
         }
-        if deduped.count < 2 {
-            ungroup(groupID: groupID)
-            return
-        }
         actionGroupDefs[index].title = title
         actionGroupDefs[index].iconName = iconName
         actionGroupDefs[index].memberActionIDs = deduped
@@ -223,8 +212,6 @@ public final class ActionCoordinator: ObservableObject, Sendable {
                 updated[i].memberActionIDs.removeAll { $0 == trimmedID }
             }
         }
-        // Auto-disband any other groups that dropped below 2 members
-        updated = updated.filter { $0.id == groupID || $0.memberActionIDs.count >= 2 }
 
         guard let targetIndex = updated.firstIndex(where: { $0.id == groupID }) else { return }
         var members = updated[targetIndex].memberActionIDs
@@ -247,9 +234,6 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     public func removeFromGroup(actionID: String, groupID: String) {
         guard let index = actionGroupDefs.firstIndex(where: { $0.id == groupID }) else { return }
         actionGroupDefs[index].memberActionIDs.removeAll { $0 == actionID }
-        if actionGroupDefs[index].memberActionIDs.count < 2 {
-            actionGroupDefs.remove(at: index)
-        }
         saveAndApplyGroupDefs()
     }
 

@@ -15,7 +15,7 @@
 
 <br />
 
-<img src="./assets/all.gif" alt="OpenClip Walkthrough" width="720" style="border-radius: 8px;" />
+https://github.com/user-attachments/assets/0dc0d328-5e50-4190-8f6f-23020072f059
 
 </div>
 
