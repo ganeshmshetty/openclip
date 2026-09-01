@@ -781,4 +781,71 @@ final class PopupPanelTests: XCTestCase {
         host.mouseEntered(with: dummyEvent)
         host.resetCursorRects()
     }
+
+    func testResultCardViewRendersWithStreamingPayload() {
+        let payload = ResultCardPayload(
+            text: "Generating response text...",
+            isError: false,
+            title: "Summarize",
+            icon: .symbol("sparkles"),
+            isStreaming: true
+        )
+        let view = ResultCardView(
+            payload: payload,
+            canPaste: true,
+            onExit: {},
+            onPaste: {},
+            onCopy: {}
+        )
+        XCTAssertNotNil(view)
+    }
+
+    func testRunAIPresetShowsLoadingToastAndDismissesOnResultCard() {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
+        let panel = PopupPanel()
+        panel.setFrame(NSRect(x: 100, y: 100, width: 200, height: 50), display: false)
+        controller.panel = panel
+
+        let context = SelectionContext(
+            text: "sample selection",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.startTestSession(for: context)
+        defer { controller.hide() }
+
+        controller.runAIPreset(prompt: "Translate", title: "Translate")
+        XCTAssertTrue(controller.toastController.isLoading, "Toast should be loading while AI generation is in progress")
+        XCTAssertEqual(controller.toastController.currentFeedback?.message, "Generating…")
+
+        // When the first result card arrives
+        controller.showResultCard(text: "Translation result", isError: false, title: "Translate", isStreaming: true, session: controller.aiSessionID)
+        XCTAssertFalse(controller.toastController.isLoading, "Loading toast must be dismissed once result card is shown")
+    }
+
+    func testRunAIPresetToastDismissedOnHide() {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
+        let panel = PopupPanel()
+        panel.setFrame(NSRect(x: 100, y: 100, width: 200, height: 50), display: false)
+        controller.panel = panel
+
+        let context = SelectionContext(
+            text: "sample selection",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.startTestSession(for: context)
+
+        controller.runAIPreset(prompt: "Translate", title: "Translate")
+        XCTAssertTrue(controller.toastController.isLoading)
+
+        controller.hide()
+        XCTAssertFalse(controller.toastController.isLoading, "Loading toast must be dismissed on hide()")
+    }
 }

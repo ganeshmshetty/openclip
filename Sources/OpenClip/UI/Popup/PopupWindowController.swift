@@ -71,7 +71,7 @@ public class PopupWindowController {
 
     /// The floating toast surface for statuses and the paste→copy "Copied" notice. Independent of
     /// the popup panel: it shows whether the popup is up or has already hidden. Injected for tests.
-    private let toastController: ToastPanelController
+    let toastController: ToastPanelController
 
     /// The standalone floating panel hosting group sub-actions and AI tool presets.
     public let subBarController: SubBarPanelController
@@ -402,6 +402,9 @@ public class PopupWindowController {
     /// current popup into content mode. Internal for tests.
     func showResultCard(text: String, isError: Bool, title: String, icon: ActionIcon? = nil, isStreaming: Bool = false, session: UUID) {
         guard session == aiSessionID else { return }
+        if toastController.isLoading {
+            toastController.hide()
+        }
         modeStore.isProcessingAI = isStreaming
         modeStore.resultCard = ResultCardPayload(text: text, isError: isError, title: title, icon: icon, isStreaming: isStreaming)
         if modeStore.mode != .content {
@@ -525,7 +528,7 @@ public class PopupWindowController {
         activeStreamingTask = nil
         aiSessionID = UUID()
 
-        if toastController.currentFeedback?.keepVisible == true {
+        if toastController.currentFeedback?.keepVisible == true || toastController.isLoading {
             toastController.hide()
         }
         subBarController.hide()
@@ -945,12 +948,19 @@ public class PopupWindowController {
         )
     }
 
-    private func runAIPreset(prompt: String, title: String) {
+    func runAIPreset(prompt: String, title: String) {
         guard let context = currentActionContext else { return }
         activeStreamingTask?.cancel()
         activeStreamingTask = nil
+
+        let selection = context.selection
+        let selectionText = selection.text
+        let anchorFrame = panel?.frame ?? lastPopupFrame
+
+        hide()
         let session = aiSessionID
-        let selectionText = context.selection.text
+
+        toastController.showLoading(message: String(localized: "Generating…"), anchorFrame: anchorFrame)
 
         let task = Task { @MainActor in
             self.modeStore.isProcessingAI = true
@@ -965,7 +975,11 @@ public class PopupWindowController {
                 let provider = AIServiceManager.shared.currentProvider
                 if provider.type == .browser {
                     _ = try await provider.process(prompt: prompt, text: selectionText)
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled else {
+                        self.toastController.hide()
+                        return
+                    }
+                    self.toastController.hide()
                     self.deliverResult(.success)
                     return
                 }
@@ -974,27 +988,51 @@ public class PopupWindowController {
                 var hasYielded = false
 
                 for try await chunk in provider.processStream(prompt: prompt, text: selectionText) {
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled else {
+                        self.toastController.hide()
+                        return
+                    }
                     accumulated += chunk
                     let cleaned = AIRequestSupport.extractResultText(accumulated)
                     if !cleaned.isEmpty {
-                        hasYielded = true
-                        self.showResultCard(text: cleaned, isError: false, title: title, isStreaming: true, session: session)
+                        if !hasYielded {
+                            hasYielded = true
+                            self.toastController.hide()
+                            let canPaste = await self.pasteProbe.canPaste(in: NSWorkspace.shared.frontmostApplication, policy: selection.appPolicy) ?? false
+                            self.show(for: selection, pasteAvailable: canPaste)
+                        }
+                        self.showResultCard(text: cleaned, isError: false, title: title, isStreaming: true, session: self.aiSessionID)
                     }
                 }
 
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else {
+                    self.toastController.hide()
+                    return
+                }
+                self.toastController.hide()
                 let finalResponse = AIRequestSupport.extractResultText(accumulated)
                 if finalResponse.isEmpty {
                     if !hasYielded {
-                        self.showResultCard(text: "No response generated", isError: true, title: title, isStreaming: false, session: session)
+                        let canPaste = await self.pasteProbe.canPaste(in: NSWorkspace.shared.frontmostApplication, policy: selection.appPolicy) ?? false
+                        self.show(for: selection, pasteAvailable: canPaste)
+                        self.showResultCard(text: "No response generated", isError: true, title: title, isStreaming: false, session: self.aiSessionID)
                     }
                 } else {
-                    self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
+                    if !hasYielded {
+                        let canPaste = await self.pasteProbe.canPaste(in: NSWorkspace.shared.frontmostApplication, policy: selection.appPolicy) ?? false
+                        self.show(for: selection, pasteAvailable: canPaste)
+                    }
+                    self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: self.aiSessionID)
                 }
             } catch {
-                guard !Task.isCancelled else { return }
-                self.showResultCard(text: error.localizedDescription, isError: true, title: title, isStreaming: false, session: session)
+                guard !Task.isCancelled else {
+                    self.toastController.hide()
+                    return
+                }
+                self.toastController.hide()
+                let canPaste = await self.pasteProbe.canPaste(in: NSWorkspace.shared.frontmostApplication, policy: selection.appPolicy) ?? false
+                self.show(for: selection, pasteAvailable: canPaste)
+                self.showResultCard(text: error.localizedDescription, isError: true, title: title, isStreaming: false, session: self.aiSessionID)
             }
         }
         activeStreamingTask = task
