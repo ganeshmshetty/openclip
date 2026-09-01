@@ -229,6 +229,8 @@ TRANSLATIONS: dict[str, str] = {
     "Model “%@” is not supported by the configured cloud endpoint.": "当前云端接口不支持模型“%@”。",
     "Selected text is too long for this provider.": "选中文本对该提供方来说太长。",
     "AI request was cancelled.": "AI 请求已取消。",
+    "Generating…": "正在生成…",
+    "Generating...": "正在生成…",
     # App rules
     "Application Rules": "应用规则",
     "Configure per-app trigger and paste behavior.": "按应用配置触发和粘贴行为。",

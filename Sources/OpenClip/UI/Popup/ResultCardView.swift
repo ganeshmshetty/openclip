@@ -130,10 +130,7 @@ public struct ResultCardView: View {
             .accessibilityLabel("Back to actions")
             .onHover { isChevronHovered = $0 }
 
-            if payload.isStreaming {
-                ProgressView()
-                    .controlSize(.small)
-            } else if let icon = payload.icon {
+            if let icon = payload.icon {
                 // The producing action's own icon (bar-resolution: honors user overrides),
                 // so extension results keep their identity in the card.
                 ActionIconView(icon: icon, size: 13)
