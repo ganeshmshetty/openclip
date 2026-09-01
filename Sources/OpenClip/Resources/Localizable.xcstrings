@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%lld actions will be grouped.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个动作将被合并到分组。"
+          }
+        }
+      }
+    },
     "%lldd ago": {
       "localizations": {
         "zh-Hans": {
@@ -571,6 +581,16 @@
         }
       }
     },
+    "Checking for Updates…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查更新…"
+          }
+        }
+      }
+    },
     "Choose a .openclipext folder, .zip archive, or script file": {
       "localizations": {
         "zh-Hans": {
@@ -691,6 +711,16 @@
         }
       }
     },
+    "Configure Group": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置分组"
+          }
+        }
+      }
+    },
     "Configure per-app trigger and paste behavior.": {
       "localizations": {
         "zh-Hans": {
@@ -777,6 +807,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "拷贝回复到剪贴板并关闭（⏎）"
+          }
+        }
+      }
+    },
+    "Create": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建"
+          }
+        }
+      }
+    },
+    "Create Action Group": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建动作分组"
+          }
+        }
+      }
+    },
+    "Create Group from Selection…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从选中项创建分组…"
           }
         }
       }
@@ -937,6 +997,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "编辑动作提示词"
+          }
+        }
+      }
+    },
+    "Edit Group": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑分组"
           }
         }
       }
@@ -1261,6 +1331,26 @@
         }
       }
     },
+    "Group Name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分组名称"
+          }
+        }
+      }
+    },
+    "Group Selected (%lld)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合并选中项 (%lld)"
+          }
+        }
+      }
+    },
     "Highlight any part of the text below to see the real action bar appear.": {
       "localizations": {
         "zh-Hans": {
@@ -1431,6 +1521,16 @@
         }
       }
     },
+    "Keep OpenClip visible in the macOS menu bar for quick access to preferences and updates.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 macOS 菜单栏中保持显示 OpenClip 图标，以便快速访问偏好设置和更新。"
+          }
+        }
+      }
+    },
     "Later": {
       "localizations": {
         "zh-Hans": {
@@ -1471,6 +1571,16 @@
         }
       }
     },
+    "MEMBERS": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成员"
+          }
+        }
+      }
+    },
     "Make Shorter": {
       "localizations": {
         "zh-Hans": {
@@ -1481,12 +1591,32 @@
         }
       }
     },
+    "Manage Actions…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理动作…"
+          }
+        }
+      }
+    },
     "Manage Extensions…": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "管理扩展…"
+          }
+        }
+      }
+    },
+    "Menu Bar Icon": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "菜单栏图标"
           }
         }
       }
@@ -1541,12 +1671,32 @@
         }
       }
     },
+    "New extension found in folder. Toggle on to enable.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在文件夹中发现新扩展。请开启以启用。"
+          }
+        }
+      }
+    },
     "Next page": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "下一页"
+          }
+        }
+      }
+    },
+    "No Actions Available": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无可用动作"
           }
         }
       }
@@ -2061,6 +2211,16 @@
         }
       }
     },
+    "Quit": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出"
+          }
+        }
+      }
+    },
     "Quit OpenClip": {
       "localizations": {
         "zh-Hans": {
@@ -2131,6 +2291,16 @@
         }
       }
     },
+    "Remove from Group": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从分组中移除"
+          }
+        }
+      }
+    },
     "Removing…": {
       "localizations": {
         "zh-Hans": {
@@ -2157,6 +2327,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "用输出替换选中内容"
+          }
+        }
+      }
+    },
+    "Report Issue…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "报告问题…"
           }
         }
       }
@@ -2227,6 +2407,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "恢复默认"
+          }
+        }
+      }
+    },
+    "Restart to Apply Update": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重启以应用更新"
           }
         }
       }
@@ -2481,6 +2671,16 @@
         }
       }
     },
+    "Settings…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置…"
+          }
+        }
+      }
+    },
     "Shell Script": {
       "localizations": {
         "zh-Hans": {
@@ -2507,6 +2707,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "显示图标"
+          }
+        }
+      }
+    },
+    "Show Menu Bar Icon": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在菜单栏中显示图标"
           }
         }
       }
@@ -2671,6 +2881,26 @@
         }
       }
     },
+    "This extension requires OpenClip %@ or newer.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此扩展需要 OpenClip %@ 或更高版本。"
+          }
+        }
+      }
+    },
+    "This extension was modified externally. Toggle on to verify and re-enable.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此扩展在外部被修改。请开启以验证并重新启用。"
+          }
+        }
+      }
+    },
     "Title": {
       "localizations": {
         "zh-Hans": {
@@ -2696,7 +2926,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将文本准确翻译成自然流畅的中文"
+            "value": "将文本准确翻译成自然流畅的英文"
           }
         }
       }
@@ -2771,12 +3001,52 @@
         }
       }
     },
+    "Ungroup": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解散分组"
+          }
+        }
+      }
+    },
+    "Up to Date": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已是最新版本"
+          }
+        }
+      }
+    },
     "Update": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "更新"
+          }
+        }
+      }
+    },
+    "Update Available": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有可用更新"
+          }
+        }
+      }
+    },
+    "Update Available (v%@)…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有可用更新 (v%@)…"
           }
         }
       }

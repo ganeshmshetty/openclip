@@ -352,9 +352,9 @@ private struct SubBarContentView: View {
                 guard index < subActions.count else { return nil }
                 return subActions[index].displayTitle(using: presenter)
             case .chevron("chevron.left.sub"):
-                return "Previous page"
+                return String(localized: "Previous page")
             case .chevron("chevron.right.sub"):
-                return "Next page"
+                return String(localized: "Next page")
             default:
                 return nil
             }

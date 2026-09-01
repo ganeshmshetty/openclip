@@ -818,11 +818,11 @@ private struct GateInfoIcon: View {
 private func gateTooltip(for reason: ExtensionGateReason) -> String? {
     switch reason {
     case .filesChanged:
-        return "This extension was modified externally. Toggle on to verify and re-enable."
+        return String(localized: "This extension was modified externally. Toggle on to verify and re-enable.")
     case .notEnabled:
-        return "New extension found in folder. Toggle on to enable."
+        return String(localized: "New extension found in folder. Toggle on to enable.")
     case .needsNewerApp(let required):
-        return "This extension requires OpenClip \(required) or newer."
+        return String(localized: "This extension requires OpenClip \(required) or newer.")
     case .revoked:
         return nil
     }
