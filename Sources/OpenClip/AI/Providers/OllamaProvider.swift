@@ -3,6 +3,7 @@
 //
 // Implements AI text processing by connecting to locally hosted Ollama API instances.
 import Foundation
+import Core
 
 @MainActor
 public final class OllamaProvider: AIProvider {
@@ -49,7 +50,9 @@ public final class OllamaProvider: AIProvider {
                             errorBytes.append(byte)
                             if errorBytes.count > 1024 { break }
                         }
-                        continuation.finish(throwing: AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes))
+                        let httpError = AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes)
+                        Log.ai.error("Ollama request failed: \(httpError.localizedDescription)")
+                        continuation.finish(throwing: httpError)
                         return
                     }
 

@@ -3,6 +3,7 @@
 //
 // Implements AI processing by querying cloud-based LLM API endpoints (such as OpenAI or Anthropic).
 import Foundation
+import Core
 
 @MainActor
 public final class CloudAPIProvider: AIProvider {
@@ -142,7 +143,9 @@ public final class CloudAPIProvider: AIProvider {
                             errorBytes.append(byte)
                             if errorBytes.count > 1024 { break }
                         }
-                        continuation.finish(throwing: AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes))
+                        let httpError = AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes)
+                        Log.ai.error("OpenAI-compatible request failed: \(httpError.localizedDescription)")
+                        continuation.finish(throwing: httpError)
                         return
                     }
 
@@ -218,7 +221,9 @@ public final class CloudAPIProvider: AIProvider {
                             errorBytes.append(byte)
                             if errorBytes.count > 1024 { break }
                         }
-                        continuation.finish(throwing: AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes))
+                        let httpError = AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes)
+                        Log.ai.error("Anthropic request failed: \(httpError.localizedDescription)")
+                        continuation.finish(throwing: httpError)
                         return
                     }
 
@@ -290,7 +295,9 @@ public final class CloudAPIProvider: AIProvider {
                             errorBytes.append(byte)
                             if errorBytes.count > 1024 { break }
                         }
-                        continuation.finish(throwing: AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes))
+                        let httpError = AIRequestSupport.httpErrorMessage(status: http.statusCode, data: errorBytes)
+                        Log.ai.error("Gemini request failed: \(httpError.localizedDescription)")
+                        continuation.finish(throwing: httpError)
                         return
                     }
 

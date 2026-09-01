@@ -848,4 +848,107 @@ final class PopupPanelTests: XCTestCase {
         controller.hide()
         XCTAssertFalse(controller.toastController.isLoading, "Loading toast must be dismissed on hide()")
     }
+
+    func testRunAIPresetStreamsChunksAndTransitionsToResultCard() async {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
+        let panel = PopupPanel()
+        panel.setFrame(NSRect(x: 100, y: 100, width: 200, height: 50), display: false)
+        controller.panel = panel
+
+        let mockProvider = MockStreamingAIProvider(chunks: ["Hello", " World", "!"])
+        AIServiceManager.shared.providerOverride = mockProvider
+        defer { AIServiceManager.shared.providerOverride = nil }
+
+        let context = SelectionContext(
+            text: "sample selection",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.startTestSession(for: context)
+        defer { controller.hide() }
+
+        controller.runAIPreset(prompt: "Translate", title: "Translate")
+        XCTAssertTrue(controller.toastController.isLoading)
+
+        // Wait for the streaming task to yield all chunks and complete
+        let task = controller.activeStreamingTask
+        _ = await task?.value
+
+        XCTAssertFalse(controller.toastController.isLoading, "Loading toast must be dismissed after stream yields")
+        XCTAssertEqual(controller.modeStore.mode, .content, "Mode should transition to .content result card")
+        XCTAssertEqual(controller.modeStore.resultCard?.text, "Hello World!")
+        XCTAssertEqual(controller.modeStore.resultCard?.isError, false)
+        XCTAssertEqual(controller.modeStore.resultCard?.isStreaming, false)
+    }
+
+    func testRunAIPresetShowsErrorInResultCardOnFailure() async {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
+        let panel = PopupPanel()
+        panel.setFrame(NSRect(x: 100, y: 100, width: 200, height: 50), display: false)
+        controller.panel = panel
+
+        let mockProvider = MockStreamingAIProvider(chunks: [], error: AIError.missingAPIKey)
+        AIServiceManager.shared.providerOverride = mockProvider
+        defer { AIServiceManager.shared.providerOverride = nil }
+
+        let context = SelectionContext(
+            text: "sample selection",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.startTestSession(for: context)
+        defer { controller.hide() }
+
+        controller.runAIPreset(prompt: "Translate", title: "Translate")
+        let task = controller.activeStreamingTask
+        _ = await task?.value
+
+        XCTAssertFalse(controller.toastController.isLoading)
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        XCTAssertEqual(controller.modeStore.resultCard?.isError, true)
+        XCTAssertEqual(controller.modeStore.resultCard?.text, AIError.missingAPIKey.errorDescription)
+    }
+}
+
+@MainActor
+private final class MockStreamingAIProvider: AIProvider {
+    let type: AIProviderType = .cloud
+    let chunks: [String]
+    let error: Error?
+
+    init(chunks: [String], error: Error? = nil) {
+        self.chunks = chunks
+        self.error = error
+    }
+
+    func process(prompt: String, text: String) async throws -> String {
+        if let error { throw error }
+        return chunks.joined()
+    }
+
+    func processStream(prompt: String, text: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let error = self.error
+            let chunks = self.chunks
+            Task {
+                for chunk in chunks {
+                    if Task.isCancelled { break }
+                    continuation.yield(chunk)
+                    // Small yield so MainActor turns process
+                    await Task.yield()
+                }
+                if let error {
+                    continuation.finish(throwing: error)
+                } else {
+                    continuation.finish()
+                }
+            }
+        }
+    }
 }

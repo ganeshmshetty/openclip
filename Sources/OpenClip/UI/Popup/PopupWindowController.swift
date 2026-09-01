@@ -139,12 +139,23 @@ public class PopupWindowController {
     }
 
     public func show(for context: SelectionContext, pasteAvailable: Bool? = nil) {
-        // A new session invalidates any still-running stream from the previous one: cancel its
-        // task and bump the token so late chunks are dropped even before the old view unwinds.
-        activeStreamingTask?.cancel()
-        activeStreamingTask = nil
-        let aiSession = UUID()
-        aiSessionID = aiSession
+        show(for: context, pasteAvailable: pasteAvailable, preservingSessionID: nil, streamingTask: nil)
+    }
+
+    func show(for context: SelectionContext, pasteAvailable: Bool?, preservingSessionID: UUID?, streamingTask: Task<Void, Never>?) {
+        let aiSession: UUID
+        if let preservingSessionID {
+            aiSession = preservingSessionID
+            aiSessionID = preservingSessionID
+            activeStreamingTask = streamingTask
+        } else {
+            // A new session invalidates any still-running stream from the previous one: cancel its
+            // task and bump the token so late chunks are dropped even before the old view unwinds.
+            activeStreamingTask?.cancel()
+            activeStreamingTask = nil
+            aiSession = UUID()
+            aiSessionID = aiSession
+        }
 
         isMenuTracking = false
         currentContext = context
@@ -949,7 +960,10 @@ public class PopupWindowController {
     }
 
     func runAIPreset(prompt: String, title: String) {
-        guard let context = currentActionContext else { return }
+        guard let context = currentActionContext else {
+            Log.ai.error("Cannot run AI preset: currentActionContext is nil")
+            return
+        }
         activeStreamingTask?.cancel()
         activeStreamingTask = nil
 
@@ -971,11 +985,13 @@ public class PopupWindowController {
                 }
             }
 
+            var hasYielded = false
+
             do {
                 let provider = AIServiceManager.shared.currentProvider
                 if provider.type == .browser {
                     _ = try await provider.process(prompt: prompt, text: selectionText)
-                    guard !Task.isCancelled else {
+                    guard !Task.isCancelled, session == self.aiSessionID else {
                         self.toastController.hide()
                         return
                     }
@@ -985,10 +1001,9 @@ public class PopupWindowController {
                 }
 
                 var accumulated = ""
-                var hasYielded = false
 
                 for try await chunk in provider.processStream(prompt: prompt, text: selectionText) {
-                    guard !Task.isCancelled else {
+                    guard !Task.isCancelled, session == self.aiSessionID else {
                         self.toastController.hide()
                         return
                     }
@@ -999,13 +1014,14 @@ public class PopupWindowController {
                             hasYielded = true
                             self.toastController.hide()
                             let canPaste = await self.pasteProbe.canPaste(in: NSWorkspace.shared.frontmostApplication, policy: selection.appPolicy) ?? false
-                            self.show(for: selection, pasteAvailable: canPaste)
+                            guard !Task.isCancelled, session == self.aiSessionID else { return }
+                            self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
                         }
-                        self.showResultCard(text: cleaned, isError: false, title: title, isStreaming: true, session: self.aiSessionID)
+                        self.showResultCard(text: cleaned, isError: false, title: title, isStreaming: true, session: session)
                     }
                 }
 
-                guard !Task.isCancelled else {
+                guard !Task.isCancelled, session == self.aiSessionID else {
                     self.toastController.hide()
                     return
                 }
@@ -1014,25 +1030,32 @@ public class PopupWindowController {
                 if finalResponse.isEmpty {
                     if !hasYielded {
                         let canPaste = await self.pasteProbe.canPaste(in: NSWorkspace.shared.frontmostApplication, policy: selection.appPolicy) ?? false
-                        self.show(for: selection, pasteAvailable: canPaste)
-                        self.showResultCard(text: "No response generated", isError: true, title: title, isStreaming: false, session: self.aiSessionID)
+                        guard !Task.isCancelled, session == self.aiSessionID else { return }
+                        self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
+                        self.showResultCard(text: "No response generated", isError: true, title: title, isStreaming: false, session: session)
                     }
                 } else {
                     if !hasYielded {
                         let canPaste = await self.pasteProbe.canPaste(in: NSWorkspace.shared.frontmostApplication, policy: selection.appPolicy) ?? false
-                        self.show(for: selection, pasteAvailable: canPaste)
+                        guard !Task.isCancelled, session == self.aiSessionID else { return }
+                        self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
                     }
-                    self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: self.aiSessionID)
+                    self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
                 }
             } catch {
-                guard !Task.isCancelled else {
+                guard !Task.isCancelled, session == self.aiSessionID else {
                     self.toastController.hide()
                     return
                 }
                 self.toastController.hide()
-                let canPaste = await self.pasteProbe.canPaste(in: NSWorkspace.shared.frontmostApplication, policy: selection.appPolicy) ?? false
-                self.show(for: selection, pasteAvailable: canPaste)
-                self.showResultCard(text: error.localizedDescription, isError: true, title: title, isStreaming: false, session: self.aiSessionID)
+                Log.ai.error("AI preset execution failed: \(error.localizedDescription)")
+                if !hasYielded {
+                    let canPaste = await self.pasteProbe.canPaste(in: NSWorkspace.shared.frontmostApplication, policy: selection.appPolicy) ?? false
+                    guard !Task.isCancelled, session == self.aiSessionID else { return }
+                    self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
+                }
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                self.showResultCard(text: message, isError: true, title: title, isStreaming: false, session: session)
             }
         }
         activeStreamingTask = task
