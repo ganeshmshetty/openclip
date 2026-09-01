@@ -213,6 +213,8 @@ public final class SubBarPanelController {
         cancelGrace()
         guard isShowing || activeState != nil else { return }
         activeState = nil
+        SubBarHoverState.shared.location = nil
+        panel.ignoresMouseEvents = false
         panel.orderOut(nil)
         panel.contentView = nil
         onDismiss?()
@@ -249,6 +251,7 @@ private struct SubBarContentView: View {
     let onHoverChange: @MainActor @Sendable (Bool) -> Void
 
     @State private var currentPage: Int = 0
+    private let hoverState: SubBarHoverState = .shared
     @State private var hoveredTarget: PopupHoverTarget? = nil
     @State private var activeTooltip: (text: String, frame: CGRect)? = nil
     @State private var isTooltipHot: Bool = false
@@ -261,6 +264,7 @@ private struct SubBarContentView: View {
         let subBar = GroupSubActionBarView(
             subActions: subActions,
             currentPage: $currentPage,
+            hoverState: hoverState,
             onResult: onResult,
             onRunAI: onRunAI,
             onRunLoadingAction: onRunLoadingAction,
@@ -317,6 +321,10 @@ private struct SubBarContentView: View {
         .coordinateSpace(name: "popupHoverSpace")
         .onPreferenceChange(PopupHoverFramePreferenceKey.self) { frames in
             hoverFrames = frames
+            updateHoveredTarget(for: hoverState.location)
+        }
+        .onReceive(hoverState.$location) { location in
+            updateHoveredTarget(for: location)
         }
         .overlay(alignment: .topLeading) {
             GeometryReader { geo in
@@ -339,6 +347,14 @@ private struct SubBarContentView: View {
         .onChange(of: hoveredTarget) { _, newTarget in
             updateTooltip(for: newTarget)
         }
+    }
+
+    private func updateHoveredTarget(for location: CGPoint?) {
+        let target = location.flatMap { point in
+            hoverFrames.first(where: { $0.value.contains(point) })?.key
+        }
+        guard target != hoveredTarget else { return }
+        hoveredTarget = target
     }
 
     private func updateTooltip(for target: PopupHoverTarget?) {

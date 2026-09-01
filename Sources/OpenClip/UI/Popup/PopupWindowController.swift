@@ -557,6 +557,7 @@ public class PopupWindowController {
         hoveredAction = nil
         isMenuTracking = false
         PopupHoverState.shared.location = nil
+        SubBarHoverState.shared.location = nil
     }
     
     private func setupMonitors() {
@@ -564,6 +565,7 @@ public class PopupWindowController {
 
         let canMonitorGlobally = PermissionManager.shared.isAccessibilityGranted
         PopupHoverState.shared.usesGlobalMouseMonitoring = canMonitorGlobally
+        SubBarHoverState.shared.usesGlobalMouseMonitoring = canMonitorGlobally
         if canMonitorGlobally {
             globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
                 self?.handleEvent(event)
@@ -729,7 +731,7 @@ public class PopupWindowController {
         return contentView.bounds.contains(contentPoint)
     }
 
-    private func updatePopupHover(at screenLocation: CGPoint) {
+    func updatePopupHover(at screenLocation: CGPoint) {
         guard let panel, panel.isVisible, let contentView = panel.contentView else {
             PopupHoverState.shared.location = nil
             return
@@ -764,12 +766,39 @@ public class PopupWindowController {
         PopupHoverState.shared.location = point
     }
 
-    private func updateSubBarHover(at screenLocation: CGPoint) {
-        guard subBarController.isShowing, !subBarController.isPinned else { return }
+    func updateSubBarHover(at screenLocation: CGPoint) {
+        guard subBarController.isShowing else {
+            SubBarHoverState.shared.location = nil
+            return
+        }
 
-        if subBarController.isOverContent(screenLocation) {
+        let subPanel = subBarController.panel
+        guard subPanel.isVisible, let contentView = subPanel.contentView else {
+            SubBarHoverState.shared.location = nil
+            return
+        }
+
+        let overContent = subBarController.isOverContent(screenLocation)
+        if SubBarHoverState.shared.usesGlobalMouseMonitoring {
+            subPanel.ignoresMouseEvents = !overContent
+        }
+        if overContent {
             NSCursor.arrow.set()
         }
+
+        let windowPoint = subPanel.convertPoint(fromScreen: screenLocation)
+        let contentPoint = contentView.convert(windowPoint, from: nil)
+        if contentView.bounds.contains(contentPoint) {
+            let y = contentView.isFlipped ? contentPoint.y : contentView.bounds.height - contentPoint.y
+            let point = CGPoint(x: contentPoint.x, y: y)
+            if point != SubBarHoverState.shared.location {
+                SubBarHoverState.shared.location = point
+            }
+        } else {
+            SubBarHoverState.shared.location = nil
+        }
+
+        guard !subBarController.isPinned else { return }
 
         // Is the pointer anywhere over the sub-bar window (including comfort margin)?
         let overSubBar = subBarController.panelFrame.insetBy(dx: -4, dy: -4).contains(screenLocation)
