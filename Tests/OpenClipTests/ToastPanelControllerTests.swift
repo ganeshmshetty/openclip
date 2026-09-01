@@ -8,6 +8,10 @@ final class ToastPanelControllerTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         try await MainActor.run {
+            TestIsolation.reset()
+            UserDefaults.standard.removeObject(forKey: SettingKey.popupScale.name)
+            UserDefaults.standard.removeObject(forKey: SettingKey.popupTheme.name)
+            UserDefaults.standard.removeObject(forKey: SettingKey.popupThemeColor.name)
             try XCTSkipUnless(NSScreen.main != nil, "no screen")
         }
     }

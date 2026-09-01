@@ -279,4 +279,156 @@ final class SubBarPanelControllerTests: XCTestCase {
         // Nil when no sub-bar is visible
         XCTAssertFalse(controller.isImmediateNeighbor(actionIndex: 2))
     }
+
+    func testSubBarGraceRestartAfterShowCancellation() async throws {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .symbol("star"))
+
+        // Place outside typical mouse location
+        let buttonFrame = NSRect(x: 20000, y: 20000, width: 40, height: 29)
+
+        // 1. Initial show
+        controller.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1],
+            parentButtonScreenFrame: buttonFrame,
+            isPinned: false,
+            searchResultsAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+        XCTAssertTrue(controller.isShowing)
+
+        // 2. Start grace timer
+        controller.startGrace()
+
+        // 3. Show again (e.g. updating actions or re-hovering group button)
+        controller.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1],
+            parentButtonScreenFrame: buttonFrame,
+            isPinned: false,
+            searchResultsAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+        XCTAssertTrue(controller.isShowing)
+
+        // 4. Start grace timer again after second show
+        controller.startGrace()
+
+        // 5. Wait for grace timer (350ms) to fire
+        try await Task.sleep(nanoseconds: 450_000_000)
+
+        // If graceTask was not cleared upon cancellation in show(), startGrace() failed and panel is still showing
+        XCTAssertFalse(controller.isShowing)
+    }
+
+    func testSubBarGraceRestartAfterHideAndDwellCancellation() async throws {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .symbol("star"))
+        let buttonFrame = NSRect(x: 20000, y: 20000, width: 40, height: 29)
+
+        func showSubBar() {
+            controller.show(
+                for: parent,
+                parentIndex: 0,
+                subActions: [sub1],
+                parentButtonScreenFrame: buttonFrame,
+                isPinned: false,
+                searchResultsAbove: true,
+                effectiveTheme: "dark",
+                effectiveColorScheme: .dark,
+                scale: 1.0,
+                context: makeContext(),
+                presenter: ActionCustomizationManager.shared,
+                onResult: { _ in },
+                onRunAI: { _ in },
+                onRunLoadingAction: { _ in },
+                onWillPerformAction: { _ in },
+                onActionPerformed: { _ in },
+                onClickIntent: { .primary }
+            )
+        }
+
+        // Test hide() cancellation:
+        showSubBar()
+        controller.startGrace()
+        controller.hide() // Should cancel and clear graceTask
+        XCTAssertFalse(controller.isShowing)
+
+        // Show again and start grace
+        showSubBar()
+        XCTAssertTrue(controller.isShowing)
+        controller.startGrace()
+        try await Task.sleep(nanoseconds: 450_000_000)
+        XCTAssertFalse(controller.isShowing)
+
+        // Test startDwell() cancellation:
+        showSubBar()
+        controller.startGrace()
+        // Calling startDwell when showing fast-switches and cancels grace
+        controller.startDwell {
+            showSubBar()
+        }
+        XCTAssertTrue(controller.isShowing)
+        controller.startGrace()
+        try await Task.sleep(nanoseconds: 450_000_000)
+        XCTAssertFalse(controller.isShowing)
+    }
+
+    func testShowSubBarWithGlassTheme() {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .symbol("star"))
+        let buttonFrame = NSRect(x: 200, y: 300, width: 40, height: 29)
+
+        controller.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1],
+            parentButtonScreenFrame: buttonFrame,
+            isPinned: false,
+            searchResultsAbove: false,
+            effectiveTheme: "glass",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+
+        XCTAssertTrue(controller.isShowing)
+        XCTAssertEqual(controller.activeState?.groupID, "group.test")
+        controller.hide()
+        XCTAssertFalse(controller.isShowing)
+    }
 }
+

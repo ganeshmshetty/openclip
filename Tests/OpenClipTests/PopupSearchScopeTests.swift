@@ -14,9 +14,14 @@ private struct GroupScopeAction: Action {
     @MainActor func perform(_ context: ActionContext) async throws -> ActionResult { .success }
 }
 
+@MainActor
 final class PopupSearchScopeTests: XCTestCase {
 
-    @MainActor
+    override func setUp() {
+        super.setUp()
+        TestIsolation.reset()
+    }
+
     func testScopedPaletteBuildsResultsFromChildrenOnly() {
         // Exercise the same path PopupView uses: SubActionResolver over a catalog, wrapped in SearchScope.
         let group = GroupAction(id: "com.pkg.g", title: "G", icon: .symbol("folder"), chrome: ActionChrome(popupBehavior: .showSubActions))

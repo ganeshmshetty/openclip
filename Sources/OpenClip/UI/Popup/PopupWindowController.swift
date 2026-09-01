@@ -857,7 +857,12 @@ public class PopupWindowController {
         modeStore.activeSubGroupID = action.id
 
         let scale = PopupMetrics.scaleMultiplier(for: settingsStore.get(SettingKey.popupScale))
-        let effectiveTheme = PopupThemeModel.classicToken(appearance: settingsStore.get(SettingKey.popupThemeColor), systemIsDark: NSApp.effectiveAppearance.name.rawValue.contains("Dark"))
+        let rawTheme = settingsStore.get(SettingKey.popupTheme)
+        let themeCategory = PopupThemeModel.category(fromStored: rawTheme)
+        let appearance = settingsStore.get(SettingKey.popupThemeColor)
+        let systemIsDark = NSApp.effectiveAppearance.name.rawValue.contains("Dark")
+        let effectiveTheme = themeCategory == .glass ? "glass" : PopupThemeModel.classicToken(appearance: appearance, systemIsDark: systemIsDark)
+        let effectiveColorScheme = PopupThemeModel.effectiveScheme(appearance: appearance, systemIsDark: systemIsDark)
 
         subBarController.show(
             for: action,
@@ -868,7 +873,7 @@ public class PopupWindowController {
             isPinned: isPinned,
             searchResultsAbove: modeStore.searchResultsAbove,
             effectiveTheme: effectiveTheme,
-            effectiveColorScheme: NSApp.effectiveAppearance.name.rawValue.contains("Dark") ? .dark : .light,
+            effectiveColorScheme: effectiveColorScheme,
             scale: scale,
             context: context,
             presenter: ActionCustomizationManager.shared,

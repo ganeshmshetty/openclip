@@ -53,19 +53,25 @@ final class AppUpdateManagerTests: XCTestCase {
         XCTAssertNil(manager.availableUpdateVersion)
     }
 
-    func testStatusBarControllerUpdatesMenuItemWhenUpdateAvailable() {
+    func testStatusBarControllerUpdatesMenuItemWhenUpdateAvailable() async {
         let store = MemorySettingsStore()
         store.set(.showMenuBarIcon, value: true)
         let controller = StatusBarController(settingsStore: store)
         XCTAssertEqual(controller.updateMenuItemTitle, "Check for Updates…")
 
         AppUpdateManager.shared.setAvailableUpdateVersionForTesting("1.5.0")
-        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+        for _ in 0..<20 {
+            if controller.updateMenuItemTitle == "Update Available (v1.5.0)…" { break }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
 
         XCTAssertEqual(controller.updateMenuItemTitle, "Update Available (v1.5.0)…")
 
         AppUpdateManager.shared.setAvailableUpdateVersionForTesting(nil)
-        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+        for _ in 0..<20 {
+            if controller.updateMenuItemTitle == "Check for Updates…" { break }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
 
         XCTAssertEqual(controller.updateMenuItemTitle, "Check for Updates…")
     }

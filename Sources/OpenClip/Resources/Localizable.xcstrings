@@ -1421,12 +1421,22 @@
         }
       }
     },
-    "Highlighted text stays strictly on your Mac and is never collected or sent over the network.": {
+    "Highlighted text stays on your Mac by default and is only sent to external services when you explicitly invoke cloud AI or browser actions.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "选中的文本只会留在你的 Mac 上，不会被收集或通过网络发送。"
+            "value": "选中的文本默认保留在你的 Mac 上，仅在你明确调用云端 AI 或浏览器动作时才会发送到配置的外部服务。"
+          }
+        }
+      }
+    },
+    "Highlighted text stays on your Mac by default. OpenClip never collects background data, and only transmits text when you explicitly invoke cloud AI or browser actions.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选中的文本默认保留在你的 Mac 上。OpenClip 不会在后台收集数据，仅在你明确调用云端 AI 或浏览器动作时才会传输文本。"
           }
         }
       }
@@ -2831,12 +2841,12 @@
         }
       }
     },
-    "So OpenClip can see what you've selected — nothing is sent anywhere.": {
+    "So OpenClip can see what you've selected — text stays local by default unless you invoke cloud AI or browser actions.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "这样 OpenClip 才能看到你选中的内容 — 不会发送到任何地方。"
+            "value": "这样 OpenClip 才能看到你选中的内容 — 文本默认保留在本地，仅在你调用云端 AI 或浏览器动作时才会发送。"
           }
         }
       }
@@ -3217,16 +3227,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "单词补全"
-          }
-        }
-      }
-    },
-    "Your highlighted text never leaves your Mac. OpenClip runs entirely locally and never collects or transmits data.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "你选中的文本不会离开这台 Mac。OpenClip 完全在本地运行，从不收集或传输数据。"
           }
         }
       }

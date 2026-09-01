@@ -8,6 +8,9 @@
 import CoreGraphics
 
 public enum PopupMetrics {
+    /// Standard width and height of an action button in the popup bar and sub-bar (normalized baseline at 1.0 scale).
+    public static let actionButtonWidth: CGFloat = 34.0
+    public static let barButtonHeight: CGFloat = 29.0
     /// Corner radius for popup action bars and content cards (normalized baseline).
     public static let popupCornerRadius: CGFloat = 8.5
     /// Corner radius for the action-search palette.

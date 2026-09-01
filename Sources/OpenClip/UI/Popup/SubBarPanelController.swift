@@ -47,7 +47,8 @@ public final class SubBarPanelController {
         onClickIntent: @escaping @MainActor @Sendable () -> ActionResultDelivery.ClickIntent
     ) {
         dwellTask?.cancel()
-        graceTask?.cancel()
+        dwellTask = nil
+        cancelGrace()
 
         guard !subActions.isEmpty else {
             hide()
@@ -92,7 +93,7 @@ public final class SubBarPanelController {
         hosting.layoutSubtreeIfNeeded()
 
         let fit = hosting.fittingSize
-        let panelWidth = max(fit.width, 40)
+        let panelWidth = max(fit.width, PopupMetrics.actionButtonWidth)
         let panelHeight = max(fit.height, 30)
 
         // Horizontal positioning:
@@ -156,7 +157,8 @@ public final class SubBarPanelController {
     /// Start a 150ms dwell timer before opening a transient sub-bar on hover.
     public func startDwell(action: @escaping @MainActor () -> Void) {
         dwellTask?.cancel()
-        graceTask?.cancel()
+        dwellTask = nil
+        cancelGrace()
 
         // Fast-switching: if already showing, switch immediately
         if isShowing {
@@ -167,12 +169,14 @@ public final class SubBarPanelController {
         dwellTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 150_000_000)
             guard !Task.isCancelled else { return }
+            self.dwellTask = nil
             action()
         }
     }
 
     public func cancelDwell(startGrace: Bool = true) {
         dwellTask?.cancel()
+        dwellTask = nil
         if startGrace && !isPinned && isShowing {
             self.startGrace()
         }
@@ -205,7 +209,8 @@ public final class SubBarPanelController {
 
     public func hide() {
         dwellTask?.cancel()
-        graceTask?.cancel()
+        dwellTask = nil
+        cancelGrace()
         guard isShowing || activeState != nil else { return }
         activeState = nil
         panel.orderOut(nil)
@@ -276,7 +281,7 @@ private struct SubBarContentView: View {
             scale: scale
         )
 
-        Group {
+        let styledSubBar = Group {
             if effectiveTheme == "glass" {
                 let glassBorderColor: Color = effectiveColorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
                 subBar
@@ -304,7 +309,11 @@ private struct SubBarContentView: View {
                     .shadow(color: Color.black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 6, x: 0, y: 3)
             }
         }
-        .padding(PopupMetrics.popupShadowInset)
+
+        styledSubBar
+            .environment(\.colorScheme, effectiveColorScheme)
+            .environment(\.popupEffectiveTheme, effectiveTheme)
+            .padding(PopupMetrics.popupShadowInset)
         .coordinateSpace(name: "popupHoverSpace")
         .onPreferenceChange(PopupHoverFramePreferenceKey.self) { frames in
             hoverFrames = frames

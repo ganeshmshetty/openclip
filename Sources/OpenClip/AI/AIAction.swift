@@ -26,14 +26,14 @@ public struct AIAction: Action {
             return .text(title)
         }
         switch presetID {
-        case "proofread": return .text("Proofread")
-        case "rewrite": return .text("Rewrite")
-        case "summarize": return .text("Summarize")
-        case "explain": return .text("Explain")
-        case "translate": return .text("Translate")
-        case "fix_code": return .text("Fix Code")
-        case "make_shorter": return .text("Make Shorter")
-        case "formal_tone": return .text("Formal Tone")
+        case "proofread": return .text(String(localized: "Proofread"))
+        case "rewrite": return .text(String(localized: "Rewrite"))
+        case "summarize": return .text(String(localized: "Summarize"))
+        case "explain": return .text(String(localized: "Explain"))
+        case "translate": return .text(String(localized: "Translate"))
+        case "fix_code": return .text(String(localized: "Fix Code"))
+        case "make_shorter": return .text(String(localized: "Make Shorter"))
+        case "formal_tone": return .text(String(localized: "Formal Tone"))
         default: return .text(presetID)
         }
     }

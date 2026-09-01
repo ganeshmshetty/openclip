@@ -27,8 +27,8 @@ public struct GroupSubActionBarView: View {
 
     @AppStorage(SettingKey.popupPageSize.name) private var pageSize: Int = SettingKey.popupPageSize.defaultValue
 
-    private var buttonWidth: CGFloat { 40 * scale }
-    private var barButtonHeight: CGFloat { 29 * scale }
+    private var buttonWidth: CGFloat { PopupMetrics.actionButtonWidth * scale }
+    private var barButtonHeight: CGFloat { PopupMetrics.barButtonHeight * scale }
     private var cornerRadius: CGFloat { PopupMetrics.popupCornerRadius * scale }
 
     public init(
@@ -77,9 +77,9 @@ public struct GroupSubActionBarView: View {
             let charWidth: CGFloat = 7.8 * scale
             let horizontalPadding: CGFloat = 22.0 * scale
             let estimated = CGFloat(text.count) * charWidth + horizontalPadding
-            return max(40 * scale, min(125 * scale, estimated))
+            return max(PopupMetrics.actionButtonWidth * scale, min(125 * scale, estimated))
         }
-        return 40 * scale
+        return PopupMetrics.actionButtonWidth * scale
     }
 
     public static func computePages(
@@ -127,9 +127,7 @@ public struct GroupSubActionBarView: View {
             sum + estimatedButtonWidth(for: action, scale: scale, presenter: presenter)
         }
         let chevronsWidth = (hasLeftChevron ? 29 * scale : 0) + (hasRightChevron ? 29 * scale : 0)
-        let firstPadding = (!hasLeftChevron && !actions.isEmpty) ? 6.0 * scale : 0
-        let lastPadding = (!hasRightChevron && !actions.isEmpty) ? 4.0 * scale : 0
-        return actionsWidth + chevronsWidth + firstPadding + lastPadding
+        return actionsWidth + chevronsWidth
     }
 
     public static func totalPages(actionCount: Int, pageSize: Int) -> Int {
@@ -166,7 +164,7 @@ public struct GroupSubActionBarView: View {
         HStack(spacing: 0) {
             ForEach(Array(pagedSubActions.enumerated()), id: \.offset) { index, action in
                 let isHovered = hoveredTarget == .subAction(index)
-                subActionButton(action: action, index: index, isHovered: isHovered, showDivider: false)
+                subActionButton(action: action, index: index, isHovered: isHovered)
             }
 
             if hasLeftChevron {
@@ -189,13 +187,8 @@ public struct GroupSubActionBarView: View {
     }
 
     @ViewBuilder
-    private func subActionButton(action: any Action, index: Int, isHovered: Bool, showDivider: Bool) -> some View {
+    private func subActionButton(action: any Action, index: Int, isHovered: Bool) -> some View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
-        let dividerColor = PopupThemeModel.dividerColor(for: effectiveTheme)
-        let isFirst = index == 0 && !hasLeftChevron
-        let isLast = index == pagedSubActions.count - 1 && !hasRightChevron
-        let firstLeadingPadding: CGFloat = isFirst ? 6.0 * scale : 0.0
-        let lastTrailingPadding: CGFloat = isLast ? 4.0 * scale : 0.0
 
         Button {
             if ActionIdentity.isAIPreset(action) {
@@ -231,17 +224,8 @@ public struct GroupSubActionBarView: View {
                     if case .text = action.displayIcon(using: presenter) { return 10.0 * scale }
                     return 0.0
                 }())
-                .padding(.leading, firstLeadingPadding)
-                .padding(.trailing, lastTrailingPadding)
-                .frame(minWidth: buttonWidth + firstLeadingPadding + lastTrailingPadding, maxWidth: 130 * scale, minHeight: barButtonHeight)
+                .frame(minWidth: buttonWidth, maxWidth: 130 * scale, minHeight: barButtonHeight)
                 .background(isHovered ? Color.accentColor : Color.clear)
-                .overlay(alignment: .trailing) {
-                    if showDivider && !isHovered {
-                        Rectangle()
-                            .fill(dividerColor)
-                            .frame(width: 0.6, height: barButtonHeight)
-                    }
-                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
