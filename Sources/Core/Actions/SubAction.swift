@@ -9,6 +9,7 @@ import Foundation
 
 /// Opt-in capability: an action declares its sub-actions given the full catalog.
 public protocol SubActionProviding: Action {
+    @MainActor
     func subActions(in catalog: [any Action]) -> [any Action]
 }
 
@@ -17,6 +18,7 @@ public protocol SubActionProviding: Action {
 public struct SubActionResolver {
     public init() {}
 
+    @MainActor
     public func subActions(of parent: any Action, in catalog: [any Action]) -> [any Action] {
         guard let provider = parent as? any SubActionProviding else { return [] }
         return provider.subActions(in: catalog)

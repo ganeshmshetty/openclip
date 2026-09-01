@@ -13,6 +13,7 @@
 // ActionResult.dismissesPopup.
 import AppKit
 import SwiftUI
+import Combine
 import Core
 
 @MainActor
@@ -25,6 +26,8 @@ public class PopupWindowController {
     private var cardAbove = false
     /// Popup display mode (actions bar ↔ search palette ↔ result card), observed by PopupView.
     public let modeStore = PopupModeStore()
+    private var cancellables = Set<AnyCancellable>()
+
     /// Records action usage for search recency ranking.
     private let usageStore = ActionUsageStore()
     /// Frontmost app before the panel became key (search or content); captured once per session in
@@ -70,6 +73,12 @@ public class PopupWindowController {
     /// the popup panel: it shows whether the popup is up or has already hidden. Injected for tests.
     private let toastController: ToastPanelController
 
+    /// The standalone floating panel hosting group sub-actions and AI tool presets.
+    public let subBarController: SubBarPanelController
+
+    /// The resolved active actions for the current session, used for sub-action resolution.
+    private var currentActions: [any Action]? = nil
+
     /// Frame of the popup during its most recent on-screen session (screen coords), captured right
     /// after each placement so toasts stay linked to where the popup actually was even after
     /// hide() — never falling back to the pointer. Internal for tests.
@@ -96,11 +105,25 @@ public class PopupWindowController {
     public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
                 pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe(),
                 toastController: ToastPanelController = ToastPanelController(),
+                subBarController: SubBarPanelController = SubBarPanelController(),
                 settingsStore: SettingsStore = DefaultSettingsStore.shared) {
         self.resultHandler = resultHandler
         self.pasteProbe = pasteProbe
         self.toastController = toastController
+        self.subBarController = subBarController
         self.settingsStore = settingsStore
+
+        self.subBarController.onDismiss = { [weak self] in
+            self?.modeStore.isSubBarActive = false
+            self?.modeStore.activeSubGroupID = nil
+        }
+
+        modeStore.$isSubBarActive.sink { [weak self] _ in
+            guard let self, let panel = self.panel else { return }
+            if self.modeStore.mode == .actions {
+                panel.pinBottomEdgeOnResize = self.modeStore.searchResultsAbove
+            }
+        }.store(in: &cancellables)
     }
 
     /// Kicks off the paste-availability probe for the given target app (rules first, then the AX
@@ -156,8 +179,14 @@ public class PopupWindowController {
         // so the bar/search gate Paste/Cut correctly on the first render. `nil` keeps them visible.
         modeStore.canPaste = pasteAvailable
 
+        let activeActions = pasteAvailable == false
+            ? availableActions.filter { !($0 is any PasteRequiringAction) }
+            : availableActions
+        self.currentActions = activeActions
+
         let rootView = PopupView(
-            actions: availableActions,
+            actions: activeActions,
+            allActions: activeActions,
             context: actionContext,
             initialAICardAboveBar: cardAbove,
             modeStore: modeStore,
@@ -182,6 +211,15 @@ public class PopupWindowController {
             },
             onAIResult: { [weak self] text, isError, title, isStreaming in
                 self?.showResultCard(text: text, isError: isError, title: title, isStreaming: isStreaming, session: aiSession)
+            },
+            onRequestSubBarToggle: { [weak self] action, index, frame in
+                self?.handleSubBarToggle(for: action, index: index, frame: frame)
+            },
+            onRequestSubBarDwell: { [weak self] action, index, frame in
+                self?.handleSubBarDwell(for: action, index: index, frame: frame)
+            },
+            onCancelSubBarDwell: { [weak self] in
+                self?.handleCancelSubBarDwell()
             },
             onHoveredActionChanged: { [weak self] action in
                 self?.updateHoveredAction(action)
@@ -490,6 +528,8 @@ public class PopupWindowController {
         if toastController.currentFeedback?.keepVisible == true {
             toastController.hide()
         }
+        subBarController.hide()
+        currentActions = nil
         modeStore.resultCard = nil
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
@@ -502,6 +542,8 @@ public class PopupWindowController {
         isRightClickInProgress = false
         modeStore.isProcessingAI = false
         modeStore.mode = .actions
+        modeStore.isSubBarActive = false
+        modeStore.activeSubGroupID = nil
         modeStore.scope = nil
         panel?.pinBottomEdgeOnResize = false
         panel?.recenterXOnResize = false
@@ -565,17 +607,30 @@ public class PopupWindowController {
         
         switch event.type {
         case .mouseMoved:
-            updatePopupHover(at: NSEvent.mouseLocation)
             let cursorLoc = NSEvent.mouseLocation
+            updatePopupHover(at: cursorLoc)
+            updateSubBarHover(at: cursorLoc)
             // Distance dismissal suspends in search mode (typing elsewhere must not dismiss the
             // palette), while the AI result card is open (modal), while AI is actively processing,
             // and while onboarding is visible (sandbox experience); it is active otherwise.
             let distanceDismissActive = modeStore.mode != .search && modeStore.mode != .content && !modeStore.isProcessingAI && !isOnboardingVisible
             if distanceDismissActive, let panel = panel {
                 let frame = panel.frame
-                let dx = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
-                let dy = max(0, max(frame.minY - cursorLoc.y, cursorLoc.y - frame.maxY))
-                if hypot(dx, dy) > PopupMetrics.popupDismissalDistance {
+                let dxMain = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
+                let dyMain = max(0, max(frame.minY - cursorLoc.y, cursorLoc.y - frame.maxY))
+                let distMain = hypot(dxMain, dyMain)
+
+                let dist: CGFloat
+                if subBarController.isShowing {
+                    let subFrame = subBarController.panelFrame
+                    let dxSub = max(0, max(subFrame.minX - cursorLoc.x, cursorLoc.x - subFrame.maxX))
+                    let dySub = max(0, max(subFrame.minY - cursorLoc.y, cursorLoc.y - subFrame.maxY))
+                    dist = min(distMain, hypot(dxSub, dySub))
+                } else {
+                    dist = distMain
+                }
+
+                if dist > PopupMetrics.popupDismissalDistance {
                     hide()
                 }
             }
@@ -583,20 +638,22 @@ public class PopupWindowController {
             let clickLoc = NSEvent.mouseLocation
             // Content test, not frame test: clicks in the transparent shadow ring dismiss the
             // popup like any outside click (the ring only hosts the SwiftUI drop shadow).
-            let inBar = isOverPanelContent(clickLoc)
+            let inMain = isOverPanelContent(clickLoc)
+            let inSub = subBarController.isShowing && subBarController.isOverContent(clickLoc)
             // Capture the modifier state at click time so the action that runs on mouse-up (via the
             // SwiftUI Button) delivers as a copy when ⇧ is held.
             let isShift = event.modifierFlags.contains(.shift)
             pendingClickIntent = isShift ? .secondary : .primary
-            if !inBar {
+            if !inMain && !inSub {
                 hide()
             }
         case .rightMouseDown:
             // Right-click down: prepare force-copy intent and mark right-click in progress.
             // Execution waits for rightMouseUp (matching standard button click-release semantics).
             let clickLoc = NSEvent.mouseLocation
-            let inBar = isOverPanelContent(clickLoc)
-            if inBar {
+            let inMain = isOverPanelContent(clickLoc)
+            let inSub = subBarController.isShowing && subBarController.isOverContent(clickLoc)
+            if inMain || inSub {
                 pendingClickIntent = .secondary
                 isRightClickInProgress = true
             } else {
@@ -609,7 +666,12 @@ public class PopupWindowController {
             let clickLoc = NSEvent.mouseLocation
             let inBar = isOverPanelContent(clickLoc)
             if inBar, let hoveredAction, let actionContext = currentActionContext, modeStore.mode == .actions {
-                runAction(hoveredAction, with: actionContext, isSecondaryClick: true)
+                let isGroup = hoveredAction.gesturePolicy.singleClick == .openSubActions || hoveredAction.chrome.launchesAI
+                if isGroup {
+                    enterScopedSearch(for: hoveredAction)
+                } else {
+                    runAction(hoveredAction, with: actionContext, isSecondaryClick: true)
+                }
             }
         case .scrollWheel:
             // Search mode scrolls the results list (panel key); the AI result card is modal and
@@ -635,6 +697,14 @@ public class PopupWindowController {
                 return   // Esc belongs to the card component (SwiftUI .onKeyPress);
                          // the global monitor stays observation-only — do NOT handle Esc here (M8)
             }
+            // Sub-bar Escape: when a sub-bar is open, Escape closes it instead of
+            // dismissing the entire popup. The next Escape will dismiss the popup.
+            if (subBarController.isShowing || modeStore.isSubBarActive), event.keyCode == 53 {
+                subBarController.hide()
+                modeStore.isSubBarActive = false
+                modeStore.activeSubGroupID = nil
+                return
+            }
             hide()
         default:
             break
@@ -653,7 +723,7 @@ public class PopupWindowController {
               panel.frame.contains(screenLocation) else { return false }
         let windowPoint = panel.convertPoint(fromScreen: screenLocation)
         let contentPoint = contentView.convert(windowPoint, from: nil)
-        if let popupContent = contentView as? PopupPanel.ContentView {
+        if contentView is PopupPanel.ContentView {
             return PopupPanel.ContentView.isInsideClickableRegion(point: contentPoint, bounds: contentView.bounds)
         }
         return contentView.bounds.contains(contentPoint)
@@ -691,6 +761,49 @@ public class PopupWindowController {
         NSCursor.arrow.set()
         PopupHoverState.shared.location = point
     }
+
+    private func updateSubBarHover(at screenLocation: CGPoint) {
+        guard subBarController.isShowing, !subBarController.isPinned else { return }
+
+        // Is the pointer anywhere over the sub-bar window (including comfort margin)?
+        let overSubBar = subBarController.panelFrame.insetBy(dx: -4, dy: -4).contains(screenLocation)
+
+        // Is the pointer over the parent group action OR an immediate neighbor in the main bar?
+        let isNearAction: Bool = {
+            guard isOverPanelContent(screenLocation), let hoveredAction, let actions = currentActions else {
+                return false
+            }
+            if hoveredAction.id == subBarController.activeState?.groupID {
+                return true
+            }
+            if let currentIndex = actions.firstIndex(where: { $0.id == hoveredAction.id }) {
+                return subBarController.isImmediateNeighbor(actionIndex: currentIndex)
+            }
+            return false
+        }()
+
+        if overSubBar || isNearAction {
+            subBarController.cancelGrace()
+        } else if isOverPanelContent(screenLocation) {
+            // Pointer is over a distant action on the main bar: close the sub-bar!
+            subBarController.hide()
+        } else {
+            // Pointer has left both the sub-bar and the main bar (moving across the gap or away)
+            subBarController.startGrace()
+        }
+    }
+
+    private func handleCancelSubBarDwell() {
+        if let hoveredAction, let actions = currentActions,
+           let currentIndex = actions.firstIndex(where: { $0.id == hoveredAction.id }),
+           subBarController.isImmediateNeighbor(actionIndex: currentIndex) {
+            // Pointer is over an immediate neighbor action: cancel pending dwell without starting grace!
+            subBarController.cancelDwell(startGrace: false)
+            subBarController.cancelGrace()
+            return
+        }
+        subBarController.cancelDwell()
+    }
     
     @objc private func appDidDeactivate() {
         // A right-click fires didResignActiveNotification before rightMouseUp arrives; suppressing
@@ -698,6 +811,153 @@ public class PopupWindowController {
         if !isMenuTracking && !isRightClickInProgress {
             hide()
         }
+    }
+
+    // MARK: - Sub-Bar Presentation
+
+    private func convertHoverFrameToScreen(_ hoverFrame: CGRect) -> NSRect {
+        guard let panel, let contentView = panel.contentView else { return .zero }
+        let viewRect = NSRect(x: hoverFrame.minX, y: hoverFrame.minY, width: hoverFrame.width, height: hoverFrame.height)
+        let windowRect = contentView.convert(viewRect, to: nil)
+        return panel.convertToScreen(windowRect)
+    }
+
+    private func handleSubBarToggle(for action: any Action, index: Int, frame: CGRect) {
+        if subBarController.isShowing, subBarController.activeState?.groupID == action.id {
+            subBarController.hide()
+            modeStore.isSubBarActive = false
+            modeStore.activeSubGroupID = nil
+            return
+        }
+        // Click and hover feel the same: both open transiently with immediate-neighbor tolerance
+        showSubBar(for: action, index: index, frame: frame, isPinned: false)
+    }
+
+    private func handleSubBarDwell(for action: any Action, index: Int, frame: CGRect) {
+        subBarController.startDwell { [weak self] in
+            guard let self else { return }
+            self.showSubBar(for: action, index: index, frame: frame, isPinned: false)
+        }
+    }
+
+    private func showSubBar(for action: any Action, index: Int, frame: CGRect, isPinned: Bool) {
+        guard let context = currentActionContext else { return }
+        let resolver = SubActionResolver()
+        let catalog = currentActions ?? ActionCoordinator.shared.resolveActions(for: context)
+        let children = resolver.subActions(of: action, in: catalog)
+        guard !children.isEmpty else {
+            subBarController.hide()
+            modeStore.isSubBarActive = false
+            modeStore.activeSubGroupID = nil
+            return
+        }
+
+        let buttonScreenFrame = convertHoverFrameToScreen(frame)
+        modeStore.isSubBarActive = true
+        modeStore.activeSubGroupID = action.id
+
+        let scale = PopupMetrics.scaleMultiplier(for: settingsStore.get(SettingKey.popupScale))
+        let effectiveTheme = PopupThemeModel.classicToken(appearance: settingsStore.get(SettingKey.popupThemeColor), systemIsDark: NSApp.effectiveAppearance.name.rawValue.contains("Dark"))
+
+        subBarController.show(
+            for: action,
+            parentIndex: index,
+            subActions: children,
+            parentButtonScreenFrame: buttonScreenFrame,
+            mainBarScreenFrame: panel?.frame,
+            isPinned: isPinned,
+            searchResultsAbove: modeStore.searchResultsAbove,
+            effectiveTheme: effectiveTheme,
+            effectiveColorScheme: NSApp.effectiveAppearance.name.rawValue.contains("Dark") ? .dark : .light,
+            scale: scale,
+            context: context,
+            presenter: ActionCustomizationManager.shared,
+            onResult: { [weak self] result in
+                self?.subBarController.hide()
+                self?.modeStore.isSubBarActive = false
+                self?.modeStore.activeSubGroupID = nil
+                self?.deliverResult(result)
+            },
+            onRunAI: { [weak self] actionID in
+                self?.usageStore.record(actionID)
+                guard let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
+                self?.subBarController.hide()
+                self?.modeStore.isSubBarActive = false
+                self?.modeStore.activeSubGroupID = nil
+                self?.runAIPreset(prompt: preset.prompt, title: preset.title)
+            },
+            onRunLoadingAction: { [weak self] action in
+                guard let self, let context = self.currentActionContext else { return }
+                self.subBarController.hide()
+                self.modeStore.isSubBarActive = false
+                self.modeStore.activeSubGroupID = nil
+                self.runLoadingAction(action, with: context, isSecondaryClick: self.pendingClickIntent == .secondary)
+            },
+            onWillPerformAction: { [weak self] action in
+                self?.pendingDelivery = action.delivery
+                self?.pendingActionTitle = action.title
+                self?.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
+            },
+            onActionPerformed: { [weak self] actionID in
+                self?.usageStore.record(actionID)
+            },
+            onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary }
+        )
+    }
+
+    private func runAIPreset(prompt: String, title: String) {
+        guard let context = currentActionContext else { return }
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+        let session = aiSessionID
+        let selectionText = context.selection.text
+
+        let task = Task { @MainActor in
+            self.modeStore.isProcessingAI = true
+            defer {
+                if !Task.isCancelled {
+                    self.activeStreamingTask = nil
+                    self.modeStore.isProcessingAI = false
+                }
+            }
+
+            do {
+                let provider = AIServiceManager.shared.currentProvider
+                if provider.type == .browser {
+                    _ = try await provider.process(prompt: prompt, text: selectionText)
+                    guard !Task.isCancelled else { return }
+                    self.deliverResult(.success)
+                    return
+                }
+
+                var accumulated = ""
+                var hasYielded = false
+
+                for try await chunk in provider.processStream(prompt: prompt, text: selectionText) {
+                    guard !Task.isCancelled else { return }
+                    accumulated += chunk
+                    let cleaned = AIRequestSupport.extractResultText(accumulated)
+                    if !cleaned.isEmpty {
+                        hasYielded = true
+                        self.showResultCard(text: cleaned, isError: false, title: title, isStreaming: true, session: session)
+                    }
+                }
+
+                guard !Task.isCancelled else { return }
+                let finalResponse = AIRequestSupport.extractResultText(accumulated)
+                if finalResponse.isEmpty {
+                    if !hasYielded {
+                        self.showResultCard(text: "No response generated", isError: true, title: title, isStreaming: false, session: session)
+                    }
+                } else {
+                    self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.showResultCard(text: error.localizedDescription, isError: true, title: title, isStreaming: false, session: session)
+            }
+        }
+        activeStreamingTask = task
     }
     
     /// Settable in `init` so the effect-delivery tests can inject a recording handler.

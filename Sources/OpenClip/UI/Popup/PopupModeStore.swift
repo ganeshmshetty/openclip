@@ -29,6 +29,11 @@ public final class PopupModeStore: ObservableObject {
     @Published public var canPaste: Bool? = nil
     /// True while an asynchronous AI action is executing, used to suspend distance auto-dismiss.
     @Published public var isProcessingAI: Bool = false
+    /// True while the horizontal group sub-bar is visible (transient or pinned). Read by
+    /// `PopupWindowController` to intercept Escape before dismissing the full popup.
+    @Published public var isSubBarActive: Bool = false
+    /// The ID of the currently active group action whose sub-bar is visible.
+    @Published public var activeSubGroupID: String? = nil
 
     public init() {}
 }

@@ -32,9 +32,16 @@ public struct AIToolsAction: Action, SubActionProviding {
     }
 
     // The AI Tools launcher's sub-actions are the registered AI presets (chrome source `.ai`).
+    @MainActor
     public func subActions(in catalog: [any Action]) -> [any Action] {
-        catalog.filter { action in
+        let presets = catalog.filter { action in
             ActionIdentity.isAIPreset(action)
+        }
+        if !presets.isEmpty {
+            return presets
+        }
+        return AIServiceManager.shared.enabledPresets.map { preset in
+            AIAction(presetID: preset.id, title: preset.title)
         }
     }
 }

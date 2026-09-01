@@ -83,4 +83,44 @@ final class PopupKeyModeTests: XCTestCase {
         panel.allowsKey = false
         XCTAssertFalse(panel.canBecomeKey)
     }
+
+    func testSubBarEscapeInterception() {
+        let controller = makeController()
+        defer { controller.hide() }
+
+        controller.modeStore.isSubBarActive = true
+        guard let escEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "\u{1b}",
+            charactersIgnoringModifiers: "\u{1b}",
+            isARepeat: false,
+            keyCode: 53
+        ) else {
+            XCTFail("Failed to construct Escape key event")
+            return
+        }
+
+        // First Escape closes the sub-bar, but does not call hide()
+        controller.handleEvent(escEvent)
+        XCTAssertFalse(controller.modeStore.isSubBarActive, "Escape should close the sub-bar")
+        XCTAssertTrue(controller.isVisible, "First Escape should keep popup visible")
+
+        // Second Escape dismisses the popup (calling hide())
+        controller.handleEvent(escEvent)
+        XCTAssertFalse(controller.isVisible, "Second Escape should dismiss the popup")
+    }
+
+    func testHideResetsSubBarActive() {
+        let controller = makeController()
+        controller.modeStore.isSubBarActive = true
+        XCTAssertTrue(controller.modeStore.isSubBarActive)
+
+        controller.hide()
+        XCTAssertFalse(controller.modeStore.isSubBarActive, "hide() must reset isSubBarActive")
+    }
 }

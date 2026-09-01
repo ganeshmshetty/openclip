@@ -17,8 +17,9 @@ public final class PopupHoverState: ObservableObject {
     public init() {}
 }
 
-enum PopupHoverTarget: Hashable {
+public enum PopupHoverTarget: Hashable, Sendable {
     case action(Int)
+    case subAction(Int)
     case completion(Int)
     case chevron(String)
     case search

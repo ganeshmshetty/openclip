@@ -19,7 +19,25 @@ public struct AIAction: Action {
 
     public var id: String { "ai.preset.\(presetID)" }
     public let title: String
-    public var icon: ActionIcon { .symbol(Constants.defaultAIIconSymbol) }
+    public var icon: ActionIcon { Self.iconForPreset(presetID: presetID, title: title) }
+
+    public static func iconForPreset(presetID: String, title: String? = nil) -> ActionIcon {
+        if let title, !title.isEmpty {
+            return .text(title)
+        }
+        switch presetID {
+        case "proofread": return .text("Proofread")
+        case "rewrite": return .text("Rewrite")
+        case "summarize": return .text("Summarize")
+        case "explain": return .text("Explain")
+        case "translate": return .text("Translate")
+        case "fix_code": return .text("Fix Code")
+        case "make_shorter": return .text("Make Shorter")
+        case "formal_tone": return .text("Formal Tone")
+        default: return .text(presetID)
+        }
+    }
+
     public var chrome: ActionChrome {
         ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .ai)
     }
