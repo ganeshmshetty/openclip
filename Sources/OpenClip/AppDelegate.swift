@@ -41,6 +41,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         _ = DebugLogStore.shared
 
         switch DebugLogCommand.parse(CommandLine.arguments) {
+        case .showVersion:
+            print(DebugLogCommand.version)
+            exit(0)
         case .showHelp:
             print(DebugLogCommand.usage)
             exit(0)
