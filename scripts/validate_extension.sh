@@ -9,6 +9,7 @@
 #   * group sub-actions are validated recursively
 #   * option identifiers are unique and complete
 #   * referenced script files must exist inside the package
+#   * referenced local icon files must exist inside the package
 #
 # Usage: scripts/validate_extension.sh <extension-directory>
 # Exit: 0 = manifest found and valid; 1 = manifest found but invalid; 2 = no manifest found.
@@ -160,6 +161,33 @@ done < <(jq -r '[.. | objects | .script?] | map(select(type == "string" and leng
 
 if [ -n "$MISSING" ]; then
     echo "validate_extension: $MANIFEST references missing script file(s):$MISSING" >&2
+    exit 1
+fi
+
+# Referenced local icon files must exist inside the package.
+# Mirrors the host's ExtensionManager.parseIcon (see Constants.imageExtensions):
+# a value ending with a known image extension is resolved as a local file inside
+# the package directory; everything else — `symbol(...)` / `symbol:` prefixes,
+# bare SF Symbol names, and HTTP(S) URLs — is a symbol and needs no file.
+MISSING_ICON=""
+while IFS= read -r icon; do
+    [ -n "$icon" ] || continue
+    case "$icon" in
+        symbol\(*|symbol:*|http://*|https://*) continue ;;
+    esac
+    icon_lower="$(printf '%s' "$icon" | tr '[:upper:]' '[:lower:]')"
+    case "$icon_lower" in
+        *.png|*.jpg|*.jpeg|*.icns|*.gif|*.svg)
+            if [ ! -f "$SRC_DIR/$icon" ]; then
+                MISSING_ICON="$MISSING_ICON missing icon file: $icon"
+            fi
+            ;;
+        *) continue ;;
+    esac
+done < <(jq -r '[.. | objects | .icon?] | map(select(type == "string" and length > 0)) | unique[]' "$MANIFEST")
+
+if [ -n "$MISSING_ICON" ]; then
+    echo "validate_extension: $MANIFEST references missing local icon file(s):$MISSING_ICON" >&2
     exit 1
 fi
 
