@@ -222,18 +222,17 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     /// Temporary `.ics` files handed to the Calendar app (via `.openURL`) are deleted after a short
     /// deferred delay so they don't accumulate in the temp directory. Only files that match the
     /// producer's exact convention (`Constants.icsFilenamePrefix`, `.ics` extension, inside the temp
-    /// directory) are touched — arbitrary `.ics` files and non-temp paths are left alone.
+    /// directory, and a regular file) are touched — directories, arbitrary `.ics` files, and non-temp
+    /// paths are left alone.
     private func scheduleICSFileCleanupIfNeeded(for url: URL) {
-        guard url.isFileURL,
-              url.pathExtension.lowercased() == "ics",
-              url.lastPathComponent.hasPrefix(Constants.icsFilenamePrefix),
-              Self.isInTemporaryDirectory(url) else { return }
+        guard Self.isCleanableTemporaryICSFile(url) else { return }
 
         let fileURL = url
         let delay = icsCleanupDelay
         Task {
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
+            guard Self.isCleanableTemporaryICSFile(fileURL) else { return }
             do {
                 try FileManager.default.removeItem(at: fileURL)
                 Log.resultHandler.info("Removed temporary calendar event file \(fileURL.lastPathComponent, privacy: .public)")
@@ -249,10 +248,9 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     public static func purgeStaleCalendarTempFiles() {
         let tempDir = FileManager.default.temporaryDirectory
         guard let items = try? FileManager.default.contentsOfDirectory(
-            at: tempDir, includingPropertiesForKeys: nil
+            at: tempDir, includingPropertiesForKeys: [.isRegularFileKey]
         ) else { return }
-        for item in items where item.pathExtension.lowercased() == "ics"
-            && item.lastPathComponent.hasPrefix(Constants.icsFilenamePrefix) {
+        for item in items where isCleanableTemporaryICSFile(item) {
             do {
                 try FileManager.default.removeItem(at: item)
                 Log.resultHandler.info("Purged stale temporary calendar event file \(item.lastPathComponent, privacy: .public)")
@@ -260,6 +258,20 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 Log.resultHandler.error("Failed to purge temporary calendar event file: \(error.localizedDescription, privacy: .private)")
             }
         }
+    }
+
+    private static func isCleanableTemporaryICSFile(_ url: URL) -> Bool {
+        guard url.isFileURL,
+              url.pathExtension.lowercased() == "ics",
+              url.lastPathComponent.hasPrefix(Constants.icsFilenamePrefix),
+              isInTemporaryDirectory(url),
+              isRegularFile(url) else { return false }
+        return true
+    }
+
+    private static func isRegularFile(_ url: URL) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && !isDir.boolValue
     }
 
     private static func isInTemporaryDirectory(_ url: URL) -> Bool {

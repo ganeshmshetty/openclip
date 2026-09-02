@@ -4,6 +4,11 @@ import XCTest
 
 final class BuiltinActionsTests: XCTestCase {
     
+    override func setUp() async throws {
+        try await super.setUp()
+        await TestIsolation.reset()
+    }
+    
     func createMockContext(with text: String) -> ActionContext {
         let selection = SelectionContext(text: text, sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
         return ActionContext(selection: selection, modifiers: [])
@@ -65,7 +70,8 @@ final class BuiltinActionsTests: XCTestCase {
     
     @MainActor
     func testSearchAction() async throws {
-        let action = SearchAction()
+        let store = MemorySettingsStore()
+        let action = SearchAction(settingsStore: store)
         let context = createMockContext(with: "test search")
 
         XCTAssertTrue(action.isEnabled(for: context))

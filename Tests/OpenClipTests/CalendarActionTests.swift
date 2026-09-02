@@ -233,6 +233,26 @@ final class CalendarActionTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path), "stale OpenClipEvent .ics must be purged at launch")
         XCTAssertTrue(FileManager.default.fileExists(atPath: keep.path), "unrelated .ics must be preserved by the launch purge")
     }
+
+    func testHandlerDoesNotDeleteDirectoryMatchingICSPattern() async throws {
+        let dirURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(Constants.icsFilenamePrefix)\(UUID().uuidString).ics", isDirectory: true)
+        try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dirURL) }
+
+        let handler = DefaultActionResultHandler(
+            settingsStore: MemorySettingsStore(),
+            pasteboard: NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)")),
+            icsCleanupDelay: 0.05,
+            openURL: { _ in }
+        )
+        try await handler.handle(.openURL(dirURL), in: nil)
+        try await Task.sleep(nanoseconds: 250_000_000)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dirURL.path), "directory matching .ics pattern must not be deleted by deferred cleanup")
+
+        DefaultActionResultHandler.purgeStaleCalendarTempFiles()
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dirURL.path), "directory matching .ics pattern must not be deleted by launch purge")
+    }
 }
 
 /// Thread-safe recorder for the injected `openURL` seam, so tests can assert which URLs the handler
