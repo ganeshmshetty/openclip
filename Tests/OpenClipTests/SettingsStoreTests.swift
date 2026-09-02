@@ -75,6 +75,47 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.get(.secondaryClickBehavior), "paste")
     }
 
+    // MARK: - Safe fallbacks (issue #21)
+
+    @MainActor
+    func testSetKeyWithUnexpectedStoredTypeReturnsDefault() {
+        // A non-array value stored under a Set<String> key must not crash — fall back to [].
+        userDefaults.set("not-an-array", forKey: SettingKey.disabledActionIDs.name)
+        XCTAssertEqual(store.get(.disabledActionIDs), [])
+
+        // An array of the wrong element type is not readable as [String] — fall back to [].
+        userDefaults.set([1, 2, 3], forKey: SettingKey.disabledPackages.name)
+        XCTAssertEqual(store.get(.disabledPackages), [])
+    }
+
+    @MainActor
+    func testSetKeyRoundTripStillWorks() {
+        store.set(.disabledActionIDs, value: ["builtin.search", "builtin.define"])
+        XCTAssertEqual(store.get(.disabledActionIDs), ["builtin.search", "builtin.define"])
+        store.set(.disabledActionIDs, value: [])
+        XCTAssertEqual(store.get(.disabledActionIDs), [])
+    }
+
+    @MainActor
+    func testOptionalDataKeyWithUnexpectedStoredTypeReturnsDefault() {
+        // A non-data value stored under a Data? key must not crash — fall back to nil.
+        userDefaults.set("not-data", forKey: SettingKey.actionGroups.name)
+        XCTAssertNil(store.get(.actionGroups))
+
+        userDefaults.set(42, forKey: SettingKey.actionCustomizations.name)
+        XCTAssertNil(store.get(.actionCustomizations))
+    }
+
+    @MainActor
+    func testOptionalDataKeyRoundTrip() {
+        // Unset key reads back the default (nil).
+        XCTAssertNil(store.get(.actionGroups))
+
+        let payload = "hello".data(using: .utf8)
+        store.set(.actionCustomizations, value: payload)
+        XCTAssertEqual(store.get(.actionCustomizations), payload)
+    }
+
     func testResultDeliveryPreferenceMapping() {
         XCTAssertEqual(ResultDeliveryPreference.allCases, [.preview, .paste, .copy])
         XCTAssertEqual(ResultDeliveryPreference(rawValue: "preview"), .preview)
