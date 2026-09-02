@@ -38,15 +38,12 @@ body:
     validations:
       required: true
 
-  - type: dropdown
+  - type: input
     id: macos-version
     attributes:
       label: macOS Version
-      options:
-        - macOS 15 Sequoia
-        - macOS 14 Sonoma
-        - macOS 13 Ventura or earlier
-        - Other (specify in description)
+      description: e.g. run `sw_vers` in Terminal or check Apple Menu -> About This Mac.
+      placeholder: e.g. 15.3, 14.7, macOS Sequoia / Sonoma
     validations:
       required: true
 
@@ -55,7 +52,7 @@ body:
     attributes:
       label: Chip Architecture
       options:
-        - Apple Silicon (M1 / M2 / M3 / M4)
+        - Apple Silicon (M1 / M2 / M3 / M4 / M5)
         - Intel (x86_64)
     validations:
       required: true
@@ -63,9 +60,9 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: OpenClip Version
-      description: e.g. 0.1.0 or Git commit hash (see Menu Bar -> About OpenClip).
-      placeholder: 0.1.0
+      label: OpenClip Version / Build
+      description: Run `openclip --version` or check Menu Bar -> About OpenClip / commit hash.
+      placeholder: e.g. 0.2.0, commit hash
     validations:
       required: true
 
