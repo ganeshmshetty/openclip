@@ -608,6 +608,15 @@ Read-only input context:
   `openclip.input.matchedText`, `openclip.input.captures` (array),
   `openclip.input.app.bundleID`, `openclip.input.app.name`,
   `openclip.input.isSecondaryClick` (true on a right-click or ⇧-click — see §5c)
+- `openclip.pasteboard` — current system pasteboard snapshot with reactive getters & setters:
+  - `openclip.pasteboard.text` (getter returns string; setter `openclip.pasteboard.text = "..."` emits `openclip.copy`)
+  - `openclip.pasteboard.html` (getter returns HTML string; setter emits `openclip.copyContent({ html })`)
+  - `openclip.pasteboard.rtf` (getter returns RTF string; setter emits `openclip.copyContent({ rtf })`)
+  - `openclip.pasteboard.content` (getter returns `{ 'public.utf8-plain-text', 'public.html', 'public.rtf' }`; setter emits `openclip.copyContent(...)`)
+  - `openclip.pasteboard.hasContent` (boolean, true if non-empty, non-concealed content is present)
+  - `openclip.pasteboard.hasHtml` / `openclip.pasteboard.hasRtf` (booleans)
+  - `openclip.pasteboard.types` (string array of available UTI types)
+  - *Privacy guard*: password managers (`org.nspasteboard.ConcealedType`, `com.agilebits.onepassword`) are redacted to empty strings and `hasContent: false`.
 - `openclip.options` — `{ optionID: stringValue }` resolved through the option store
 - `openclip.option(id)` — functional form returning the same value string
 
