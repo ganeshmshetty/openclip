@@ -26,12 +26,15 @@ public final class DefaultSettingsStore: SettingsStore, @unchecked Sendable {
     }
 
     public func get<T>(_ key: SettingKey<T>) -> T {
+        // All branches use conditional casts and fall back to key.defaultValue: stored
+        // preferences can be missing, corrupted, or hold an unexpected type, and setting
+        // retrieval must never crash the host process.
         if T.self == Set<String>.self {
             let array = userDefaults.stringArray(forKey: key.name) ?? []
-            return (Set(array) as! T)
+            return (Set(array) as? T) ?? key.defaultValue
         }
         if T.self == Data?.self {
-            return (userDefaults.data(forKey: key.name) as! T)
+            return (userDefaults.data(forKey: key.name) as? T) ?? key.defaultValue
         }
         return (userDefaults.object(forKey: key.name) as? T) ?? key.defaultValue
     }
