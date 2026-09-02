@@ -7,9 +7,9 @@
 // and are cleared via swapTo/hide.
 //
 // Toasts are linked to the popup that produced them: each show takes an anchor frame (the
-// popup's screen frame) and the bubble attaches just below it — flipping above when there is no
-// room below — clamped to the visible frame. There is deliberately no pointer fallback: an
-// unanchored toast centers on the main screen rather than chasing the cursor.
+// popup's screen frame) and the bubble centers directly in-place over that frame, clamped
+// to the visible frame. There is deliberately no pointer fallback: an unanchored toast
+// centers on the main screen rather than chasing the cursor.
 import AppKit
 import SwiftUI
 import Core
@@ -109,9 +109,8 @@ public final class ToastPanelController {
         }
     }
 
-    /// Attaches the toast to the anchored popup frame: horizontally centered on it, sitting just
-    /// below its bottom edge — flipping above its top edge when there is no room below — clamped
-    /// to the visible frame. `size` is the bubble's size; the window frame adds the
+    /// Centers the toast directly over the anchored popup frame (horizontally and vertically),
+    /// clamped to the visible frame. `size` is the bubble's size; the window frame adds the
     /// `toastShadowInset` ring around it so anchoring math stays in bubble coordinates.
     private func place(at size: CGSize) {
         guard let anchor = _lastAnchorFrame else {
@@ -122,12 +121,8 @@ public final class ToastPanelController {
         }
         let screen = NSScreen.screens.first { $0.frame.intersects(anchor) } ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
-        let gap = PopupMetrics.toastAnchorGap
         var origin = CGPoint(x: anchor.midX - size.width / 2,
-                             y: anchor.minY - size.height - gap)
-        if origin.y < visible.minY {
-            origin.y = anchor.maxY + gap
-        }
+                             y: anchor.midY - size.height / 2)
         origin.x = min(max(origin.x, visible.minX), max(visible.minX, visible.maxX - size.width))
         origin.y = min(max(origin.y, visible.minY), max(visible.minY, visible.maxY - size.height))
         setPanelFrame(contentOrigin: origin, contentSize: size)

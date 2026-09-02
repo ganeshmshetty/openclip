@@ -58,32 +58,29 @@ final class ToastPanelControllerTests: XCTestCase {
         controller.hide()
     }
 
-    /// The toast must attach just below the anchored popup frame, centered on it — linked to the
+    /// The toast must center directly in-place over the anchored popup frame — linked to the
     /// popup surface, never the cursor.
     @MainActor
-    func testAnchorsBelowPopupFrameCenteredOnIt() {
+    func testAnchorsCenteredOnPopupFrame() {
         let controller = ToastPanelController()
         let popup = NSRect(x: 400, y: 420, width: 220, height: 44)
         controller.show(StatusFeedback(message: "Copied", style: .success, symbolName: "checkmark"), anchorFrame: popup)
         XCTAssertEqual(controller.panelFrame.midX, popup.midX, accuracy: 1)
-        // The window frame includes the toastShadowInset ring; the bubble's top edge is inset below it.
-        XCTAssertEqual(controller.panelFrame.maxY - PopupMetrics.toastShadowInset,
-                       popup.minY - PopupMetrics.toastAnchorGap, accuracy: 1)
+        XCTAssertEqual(controller.panelFrame.midY, popup.midY, accuracy: 1)
         XCTAssertEqual(controller.lastAnchorFrame, popup)
         XCTAssertGreaterThan(controller.panelFrame.width, 0)
         controller.hide()
     }
 
-    /// Near the screen bottom there is no room below: the toast flips above the popup's top edge.
+    /// When near screen boundaries, the toast stays clamped within the visible frame.
     @MainActor
-    func testFlipsAbovePopupWhenNoRoomBelow() throws {
+    func testClampsToVisibleFrameWhenPopupNearEdge() throws {
         let visible = try XCTUnwrap(NSScreen.main?.visibleFrame)
         let controller = ToastPanelController()
         let popup = NSRect(x: 300, y: visible.minY + 2, width: 200, height: 40)
         controller.show(StatusFeedback(message: "Copied", style: .success), anchorFrame: popup)
-        XCTAssertEqual(controller.panelFrame.minY + PopupMetrics.toastShadowInset,
-                       popup.maxY + PopupMetrics.toastAnchorGap, accuracy: 1)
         XCTAssertEqual(controller.panelFrame.midX, popup.midX, accuracy: 1)
+        XCTAssertGreaterThanOrEqual(controller.panelFrame.minY + PopupMetrics.toastShadowInset, visible.minY)
         controller.hide()
     }
 
@@ -96,8 +93,7 @@ final class ToastPanelControllerTests: XCTestCase {
         controller.showLoading(message: "Opening…", anchorFrame: popup)
         controller.swapTo(StatusFeedback(message: "Done", style: .info))
         XCTAssertEqual(controller.panelFrame.midX, popup.midX, accuracy: 1)
-        XCTAssertEqual(controller.panelFrame.maxY - PopupMetrics.toastShadowInset,
-                       popup.minY - PopupMetrics.toastAnchorGap, accuracy: 1)
+        XCTAssertEqual(controller.panelFrame.midY, popup.midY, accuracy: 1)
         controller.hide()
     }
 
