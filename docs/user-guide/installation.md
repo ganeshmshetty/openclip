@@ -43,10 +43,11 @@ System Settings ---> Privacy & Security ---> Accessibility ---> Enable OpenClip
 
 ## First-Launch Onboarding Workflow
 
-When launched for the first time, OpenClip presents a 3-step onboarding wizard:
+When launched for the first time, OpenClip presents a 4-step onboarding wizard:
 
-1. **Welcome**: Overview of how OpenClip works, plus the Accessibility permission check. Access can also be granted later from Preferences.
-2. **AI Assistant**: Pick and configure an AI engine (Apple Intelligence, Ollama, Cloud, or Browser Redirect). Optional — change anytime in **Preferences → AI**.
-3. **Extensions**: Browse recommended extensions or install one from a file.
+1. **Welcome**: Concept overview of turning selected text into instant contextual actions.
+2. **Access**: Accessibility permission check with 100% on-device privacy guarantee.
+3. **Extensions**: Recommended essential extensions (translations, word count, speech) with one-click installation.
+4. **Try It**: Interactive live playground sandbox to test text selection and see the real action bar in action.
 
-Onboarding can be skipped at any step; finishing it starts text-selection monitoring and shows a one-time tip near the menu bar icon. You can also trigger the popup anytime with the global shortcut (**⌥⌘C** by default), and change the popup bar's theme anytime in **Preferences → Appearance**.
+Onboarding can be skipped at any step; finishing it starts text-selection monitoring. You can also trigger the popup anytime with the global shortcut (**⌥⌘C** by default), configure AI providers anytime in **Preferences → AI**, and customize the popup bar's theme in **Preferences → Appearance**.

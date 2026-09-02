@@ -268,10 +268,11 @@ picker** (`showServices`) on the selected text. Nothing is required.
 ```jsonc
 {
   "title": "Text tools",
+  "icon": "symbol(folder)",
   "type": "group",
   "subActions": [
-    { "id": "upper", "title": "UPPERCASE", "type": "url", "url": "https://example.com/?q={text}" },
-    { "id": "bold",  "title": "Bold",      "type": "keypress", "keyPress": "command+b" }
+    { "id": "upper", "title": "UPPERCASE", "icon": "symbol(textformat.upper)", "type": "url", "url": "https://example.com/?q={text}" },
+    { "id": "bold",  "title": "Bold",      "icon": "symbol(bold)",             "type": "keypress", "keyPress": "command+b" }
   ]
 }
 ```
@@ -284,6 +285,11 @@ sub-action**. Membership is by the **ID-prefix convention**:
 
 For `identifier: "com.example.words"`, group `id:"tools"` → group id `com.example.words.tools` and
 sub-action ids `com.example.words.tools.upper`, `com.example.words.tools.bold`.
+
+**Icon handling:**
+- The group row displays its declared `icon` (or default `symbol(folder)` / `symbol(wand.and.stars)`) on the main popup bar.
+- Each sub-action can specify its own `icon` to render inside the sub-menu or palette.
+- **Icon inheritance**: When a sub-action omits its `icon`, it automatically inherits the group's icon (`inheritedIcon`).
 
 There is **no `parentGroupID` field** — that design was deliberately deferred. Sub-actions are
 matched to their group purely by this id-prefix. **Do not write a `parentGroupID` key.** Nested
@@ -344,11 +350,11 @@ only the JSON manifest remains canonical — custom-actions JSON is retired.
 
 ### 4b. Secret vs non-secret storage
 
-The app injects `KeychainActionOptionStore` (`AppDelegate`) into the factory. At runtime:
+The app injects `SecretActionOptionStore` (`AppDelegate`) into the factory. At runtime:
 
-- **`type: "secret"`** values are read/written in the **macOS Keychain**, keyed by account
+- **`type: "secret"`** values are read/written in `SecretStore` (`~/.openclip/secrets.json` with POSIX 0600 permissions), keyed by
   `"action.<actionID>.option.<optionID>"` — they never reach UserDefaults. An empty secret value
-  deletes the Keychain entry.
+  deletes the secret entry.
 - **All other types** (`string`, `boolean`, `multiple`) are stored in `SettingsStore` under the
   same `"action.<actionID>.option.<optionID>"` key (`SettingKey.actionOption`). Values live in
   `~/.openclip` user defaults, never by direct `UserDefaults` calls.
@@ -566,7 +572,7 @@ a laid-out content measurement (`layoutSubtreeIfNeeded()` before reading the hos
 hosting view sits in a plain container so the window's constraint engine never tracks the SwiftUI
 content (an `NSHostingView` as a direct contentView that re-measures during the display cycle
 crashes with "marked as needing another Update Constraints in Window pass"). Info/error toasts
-auto-dismiss after `PopupMetrics.toastDurationNanoseconds` (1.8 s); loading toasts have no timer
+auto-dismiss after `PopupMetrics.toastDurationNanoseconds` (1.2 s); loading toasts have no timer
 and stay until the result lands.
 
 ---
@@ -779,7 +785,7 @@ Once installed, "Look up" opens Wikipedia for the selected text.
 }
 ```
 
-The `api` value is stored in the Keychain (never UserDefaults) and would be read in JS as
+The `api` value is stored in `SecretStore` (`~/.openclip/secrets.json`, never UserDefaults) and would be read in JS as
 `openclip.options.api` / `openclip.option('api')`.
 
 ---
@@ -899,7 +905,7 @@ so pre-existing extensions keep working with zero action.
 - **Do not put AppKit/SwiftUI in Core** — extension *parsing* (`OpenClipSnippetParser`) and model
   types in `Sources/Core/` are pure; keep them free of UI imports.
 - **Do not write to `UserDefaults` directly** in extension code paths — Option storage goes through
-  `ActionOptionStore`/`SettingKey`; secrets go through the Keychain store.
+  `ActionOptionStore`/`SettingKey`; secrets go through `SecretStore`.
 - **Do not skip the subprocess watchdog** — any new action that spawns a subprocess must terminate
   it past `Constants.scriptTimeout` (30 s). Existing shell/shortcut runtimes already do.
 - **Do not `switch action.id`** for presentation decisions — use `action.chrome`, icons, and
@@ -918,7 +924,7 @@ so pre-existing extensions keep working with zero action.
   esbuild" message); inline `scriptCode` has no `require` at all, and `require` may only reach files
   inside the package directory. See `docs/developer-guide/extensions-modules.md`.
 - **Do not use `?key=` for Gemini/auth in URLs**; credentials go in headers, and secrets belong in
-  Keychain-backed options, not in a manifest.
+  SecretStore-backed options, not in a manifest.
 
 ---
 
@@ -938,5 +944,5 @@ so pre-existing extensions keep working with zero action.
 - Result card (native SwiftUI, any text-returning action): `Sources/OpenClip/UI/Popup/ResultCardView.swift`.
 - Visibility/required options: `Sources/Core/Actions/ActionVisibility.swift`, `ExtensionActionRules.swift`.
 - Options storage: `Sources/Core/Settings/ActionOptionStore.swift`, `SettingKey.swift`,
-  `Sources/OpenClip/Platform/Extensions/KeychainActionOptionStore.swift`.
+  `Sources/OpenClip/Platform/Extensions/SecretActionOptionStore.swift`, `Sources/OpenClip/Platform/SecretStore.swift`.
 - Shell JSON effects + watchdog: `Sources/Core/Extensions/ShellProcessRunner.swift`.

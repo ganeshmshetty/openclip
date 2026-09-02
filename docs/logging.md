@@ -52,7 +52,7 @@ Each subsystem owns a dedicated `LogChannel` property on `Log` under the `com.op
 
 | Category         | Owns                                                        |
 | :--------------- | :---------------------------------------------------------- |
-| `settings`       | `SettingsStore` paths, rule load/save, launch-at-login, AI config persistence (Keychain), installed-app scanning |
+| `settings`       | `SettingsStore` paths, rule load/save, launch-at-login, `SecretStore` persistence, installed-app scanning |
 | `presentation`   | popup/panel UI, hover, action-run error surfacing, status bubbles |
 | `chrome`         | popup window chrome & sizing (currently unused — reserved)  |
 | `factory`        | action factory, extension manifest authoring (Add/Edit sheets) |

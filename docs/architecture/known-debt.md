@@ -323,7 +323,7 @@ areas; stale debt notes are worse than none.
 
 - **Single `Log` surface is in.** `Sources/Core/Log.swift` owns every `os.Logger` category
   (`settings`, `presentation`, `chrome`, `factory`, `coordinator`, `result-handler`, `shell`, `js`,
-  `selection`, `extensions`, `ai`, `permissions`, `icons`); all `print()` calls are gone. See
+  `selection`, `extensions`, `ai`, `permissions`, `icons`, `updates`); all `print()` calls are gone. See
   `docs/logging.md` for the category table and filtering workflow.
 - **Level budget is conservative.** Most messages are `.notice`/`.error`; `.debug` is used for
   defensive parses and transient network hiccups (filtered out by default in Console).

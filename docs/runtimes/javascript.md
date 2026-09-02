@@ -66,7 +66,7 @@ those names surfaces a JS error (`.toast(.error)`).
 Extension options declared in the manifest are resolved through the injected option store
 (`ActionOptionReading`) — **not** `UserDefaults` directly. Non-secret options come from
 `SettingsStore` (`SettingKey<String>("action.<id>.option.<identifier>")`); `.secret` options come
-from the Keychain via `KeychainActionOptionStore`. Values land in `openclip.options` and
+from `SecretStore` (`~/.openclip/secrets.json` with POSIX 0600 permissions) via `SecretActionOptionStore`. Values land in `openclip.options` and
 `openclip.option(id)`. The wrapped script also receives them as the second argument:
 
 ```javascript

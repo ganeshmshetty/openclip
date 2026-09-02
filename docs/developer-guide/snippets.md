@@ -7,8 +7,7 @@ In addition to `.openclipext` package directories, OpenClip supports **standalon
 ## Parser Architecture & Design Constraints
 
 - **Text Parser**: `OpenClipSnippetParser` operates purely on string content and line scanning.
-- **Zero UI Dependencies**: Free of AppKit and SwiftUI.
-- **Current limitation**: The parser is annotated `@MainActor`, which forces main-actor hops during extension directory scanning. Removing the annotation is planned but not done; treat it as a pure string parser conceptually.
+- **Non-isolated & Sendable**: `OpenClipSnippetParser` is non-isolated and `Sendable`, operating cleanly on background queues without main-actor hops during extension directory scanning.
 
 ---
 

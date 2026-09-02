@@ -118,8 +118,7 @@ Notes:
   pasteboard, and `openclip.*` effects).
 - **Subprocess watchdog.** Every subprocess-spawning runtime (`shell`, `scriptfile`, `shortcut`)
   is terminated past `Constants.scriptTimeout` (30 s) — a liveness guard, not a privilege guard.
-- **Secrets.** Option values of `type: "secret"` live in the Keychain and never reach
-  UserDefaults or the manifest itself.
+- **Secrets.** Option values of `type: "secret"` live in `SecretStore` (`~/.openclip/secrets.json` with POSIX 0600 permissions) and never reach UserDefaults or the manifest itself.
 
 ---
 

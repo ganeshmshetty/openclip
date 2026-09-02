@@ -21,30 +21,29 @@ When a user selects a URL template action:
 
 | Placeholder Token | Replacement Value | Encoding |
 | :--- | :--- | :--- |
-| `{query}` | Selected text string | Percent-encoded (`Constants.queryValueAllowed` — escapes `&`, `=`, `?`, `+`, etc.) |
-| `{text}` | Selected text string | Percent-encoded (`Constants.queryValueAllowed`) |
+| `{query}`, `{text}` | Selected text string | Percent-encoded (`Constants.queryValueAllowed`) |
+| `{matched}` | Substring matched by regex (full text if no regex) | Percent-encoded (`Constants.queryValueAllowed`) |
+| `{capture1}`…`{captureN}` / `{1}`…`{N}` | Regex capture groups | Percent-encoded (`Constants.queryValueAllowed`) |
+| `{bundleID}` | Source application bundle identifier | Percent-encoded (`Constants.queryValueAllowed`) |
+| `{html}`, `{rtf}` | HTML/RTF selection content if present | Percent-encoded (`Constants.queryValueAllowed`) |
 
 ---
 
-## Regex Pattern Gating (`regexPattern`)
+## Regex Pattern Gating & Visibility Rules
 
-URL template actions accept an optional `regexPattern` field. When provided, the action is enabled only when the selected text matches the regular expression pattern.
+URL template actions support regex gating (via `regexPattern` or `ExtensionActionRules`). When evaluated, enablement and capture extraction delegate to [`ActionVisibility`](../../Sources/Core/Actions/ActionVisibility.swift):
 
 ```swift
+@MainActor
 public func isEnabled(for context: ActionContext) -> Bool {
- let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
- guard !text.isEmpty else { return false }
-
- if let pattern = regexPattern, !pattern.isEmpty {
- do {
- let regex = try NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive])
- let range = NSRange(text.startIndex..., in: text)
- return regex.firstMatch(in: text, options: [], range: range) != nil
- } catch {
- return true
- }
- }
- return true
+    guard let rules else {
+        return ActionVisibility.isEnabled(
+            requirements: nil,
+            legacyRegex: regexPattern,
+            context: context
+        ).enabled
+    }
+    return rules.resolveVisibility(for: context).enabled
 }
 ```
 

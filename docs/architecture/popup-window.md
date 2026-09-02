@@ -116,7 +116,7 @@ that replaced the former interactive canvas.
 - **Status**: every `StatusFeedback` renders as a floating one-line toast anchored to the popup frame (flipping above when clamped, or centered on the main screen when no anchor exists) via
   `ToastPanelController` (`ToastPanel` + SwiftUI `ToastView`), independent of the popup — it shows
   whether the bar is up or already hidden. Info/error toasts auto-dismiss after
-  `PopupMetrics.toastDurationNanoseconds` (1.8 s) unless `keepVisible: true`, which disables
+  `PopupMetrics.toastDurationNanoseconds` (1.2 s) unless `keepVisible: true`, which disables
   auto-dismiss; the paste→copy downgrade surfaces a "Copied"
   toast, or an action's declared per-click toast (`Action.delivery` `primaryToast`/`secondaryToast`)
   when one is declared (a script-emitted `.toast` suppresses these — one toast per run). The inline banner and its queue (`modeStore.statusBanner`, `pendingStatus`,

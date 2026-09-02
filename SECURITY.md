@@ -50,8 +50,9 @@ reported to their maintainers, though a private heads-up here is appreciated.
   pollute the clipboard while monitoring.
 - **Secure extension installs.** Remote extension downloads require HTTPS and are
   validated against Zip-Slip traversal before install.
-- **Keychain-first secrets.** AI provider API keys are read from the Keychain,
-  never written to plain preferences.
+- **Isolated file-backed secrets.** AI provider API keys and secret options are stored securely
+  in `~/.openclip/secrets.json` with POSIX 0600 permissions via `SecretStore`, never written to
+  plain preferences or UserDefaults.
 - **Credentials never in URLs.** Gemini authentication uses the `x-goog-api-key`
   header only, so keys cannot leak through logged or shared URLs.
 - **Subprocess sandboxing.** Script actions run under a 30-second watchdog that

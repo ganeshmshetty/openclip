@@ -63,9 +63,16 @@ Scripts can return a JSON payload to specify explicit platform actions:
 Supported `type` values:
 - `"paste"` → `ActionResult.paste(value)` (replaces selection in target application).
 - `"copy"` → `ActionResult.copy(value)` (copies text to system clipboard).
-- `"pasteContent"` → `ActionResult.pasteContent` (rich multi-type paste; fields: `value` = plain text, `html`, `rtf`).
-- `"copyContent"` → `ActionResult.copyContent` (rich multi-type copy; same fields as `"pasteContent"`).
-- `"openURL"` → `ActionResult.openURL(URL)` (opens URL in default browser; URL parsed from `value`).
+- `"pasteContent"` / `"paste-content"` → `ActionResult.pasteContent` (rich multi-type paste; fields: `value` = plain text, `html`, `rtf`).
+- `"copyContent"` / `"copy-content"` → `ActionResult.copyContent` (rich multi-type copy; same fields as `"pasteContent"`).
+- `"cut"` → `ActionResult.cut(value)` (copies text and sends backspace delete event).
+- `"openURL"` / `"url"` → `ActionResult.openURL(URL)` (opens URL in default browser; URL parsed from `value`).
+- `"keyPress"` / `"keypress"` → `ActionResult.keyPress(KeyPressSpec)` (`key`, `modifiers: ["command", "shift", ...]`).
+- `"runShortcut"` / `"shortcut"` → `ActionResult.runShortcut(name:input:)` (`name`/`shortcutName`, `input`/`value`).
+- `"notify"` / `"notification"` → `ActionResult.notify(title:body:)` (`title`, `body`/`message`).
+- `"shareService"` / `"share"` → `ActionResult.shareService(identifier:text:)` (`identifier` required, `value`/`input`).
+- `"sequence"` → `ActionResult.sequence([ActionResult])` (`actions: [ScriptJSONOutput]`).
+- `"fail"` / `"failure"` / `"error"` → surfaces error toast (`message`/`reason`/`value`).
 - `"toast"` → `ActionResult.toast` (`message`, `style`: `"success"`/`"error"`/`"info"`, `keepVisible` optional, default `false`).
 - `"configure"` → `ActionResult.openConfiguration` (`reason`, `missing: [optionID]`).
 

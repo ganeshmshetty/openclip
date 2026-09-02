@@ -63,21 +63,19 @@ The preview always reflects the active combination, and a pinned appearance forc
 > [!NOTE]
 > The Liquid Glass effect requires macOS 26+. On macOS 14–15 the Glass option renders as an `.ultraThinMaterial` frosted surface.
 
-The same theme control appears on the onboarding **Finish** step, so the popup can be styled before first use.
-
 ---
 
 ## AI Provider Setup
 
 OpenClip includes an AI assistant overlay that processes text selections using local or cloud AI models.
 
-Navigate to **Preferences > AI Assistant** to configure your provider:
+Navigate to **Preferences > AI** to configure your provider:
 
 | Provider | Description | Setup Requirements |
 | :--- | :--- | :--- |
 | **Apple Intelligence** | On-device macOS intelligence framework | macOS 15.0+ with Apple Intelligence enabled |
 | **Ollama (Local)** | Privacy-focused local LLM execution | Running Ollama instance (`http://localhost:11434`) |
-| **Cloud AI (OpenAI / Claude)** | Cloud API language models | Valid API Key stored securely in Keychain |
+| **Cloud AI (OpenAI / Claude / Gemini / DeepSeek / Groq / OpenRouter / Custom)** | Cloud API language models | Valid API Key stored securely in `SecretStore` (`~/.openclip/secrets.json`) |
 | **Browser Redirect** | Opens AI query in browser | No API key required |
 
 ### AI Settings Channel

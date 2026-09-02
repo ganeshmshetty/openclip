@@ -17,7 +17,7 @@ Sources/
 └── OpenClip/           # macOS Application (OpenClip.app)
     ├── AI/             # AI service integrations (Ollama, Cloud API, Apple Intelligence)
     ├── Notifications/  # macOS system notification names & dispatchers
-    ├── Platform/       # macOS OS adapters (Accessibility API, Pasteboard, Hotkeys, Keychain)
+    ├── Platform/       # macOS OS adapters (Accessibility API, Pasteboard, Hotkeys, SecretStore)
     │   └── Runtimes/   # Concrete action execution engines (JS, AppleScript, KeyPress)
     └── UI/             # macOS AppKit windows (NSPanel) & SwiftUI views
         ├── Design/     # LiquidGlass & visual design tokens

@@ -71,8 +71,8 @@ brew install --cask ganeshmshetty/tap/openclip
 > Accessibility permission is required: it's how OpenClip detects selections and reads the selected
 > text without relying on the clipboard. You can grant or revoke it any time from Preferences.
 
-First launch walks you through a 4-step onboarding — AI assistant (optional), extensions, and the
-popup theme — before text-selection monitoring starts.
+First launch walks you through a 4-step onboarding — permissions, essential extensions, and an
+interactive playground — before text-selection monitoring starts.
 
 ## Getting started
 
@@ -126,7 +126,7 @@ A minimal extension is a folder with one `openclip.json`:
 }
 ```
 
-Actions can also expose options (strings, booleans, dropdowns, Keychain-backed secrets), gate
+Actions can also expose options (strings, booleans, dropdowns, `SecretStore`-backed secrets), gate
 visibility with app/regex rules, and render rich results — status, notifications,
 or chained effects — from JSON emitted by a shell script.
 

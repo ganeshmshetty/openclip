@@ -93,7 +93,7 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `shortcutName` | String | Name of a macOS Shortcut to run (for `type: "shortcut"`). |
 | `serviceName` | String | Reserved for the macOS Services menu (for `type: "service"`). |
 | `subActions` | Array | Sub-action objects for `type: "group"`; rendered as a sub-menu with IDs `<groupID>.<subID>`. |
-| `secondary` | Object | Optional. Secondary-click (right-click/⇧-click) outcome: `{ "type": "copy" | "paste" | "openURL" | "status" | "success" | "none", "value"?, "message"? }`. **Non-JS kinds only** — rejected on `javascript` (JS authors branch on `openclip.input.isSecondaryClick` in-script instead). |
+| `secondary` | Object | Optional. Secondary-click (right-click/⇧-click) outcome: `{ "type": "copy" | "paste" | "openURL" | "toast" | "success" | "none", "value"?, "message"? }`. **Non-JS kinds only** — rejected on `javascript` (JS authors branch on `openclip.input.isSecondaryClick` in-script instead). |
 | `toast` | Object | Optional. Primary-click companion toast `{ "message": string, "style"?: "success" | "error" | "info" }` (default style `success`). Valid on all kinds. |
 | `secondaryToast` | Object | Optional. Secondary-click companion toast (same shape as `toast`). Valid on all kinds. Dash alias: `secondary-toast`. |
 
@@ -116,11 +116,11 @@ Extensions can expose user preferences rendered in the Preferences window under 
 | :--- | :--- | :--- | :--- |
 | `identifier` | String | `id`, `Identifier` | Option key used when reading configuration. |
 | `label` | String | `Label` | User-facing title in the Preferences panel. |
-| `type` | String | `Type` | Input control type: `"string"`, `"boolean"`, `"multiple"` (picker; see `options`), `"secret"` (Keychain-backed). |
+| `type` | String | `Type` | Input control type: `"string"`, `"boolean"`, `"multiple"` (picker; see `options`), `"secret"` (SecretStore-backed). |
 | `default` | String | `Default` | Default value if unspecified by the user. |
 | `options` | Array | `Options` | Candidate choices for `type: "multiple"`. |
 
 ### Option Storage & Retrieval
 - Non-secret option values are saved through [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) using typed setting key strings: `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)`.
-- `type: "secret"` option values live in the **Keychain**, never `SettingsStore`/UserDefaults — resolved via [`KeychainActionOptionStore`](../../Sources/OpenClip/Platform/Extensions/KeychainActionOptionStore.swift) (Keychain account from `ActionOptionKey.keychainAccount(actionID:optionID:)`).
+- `type: "secret"` option values live in `SecretStore` (`~/.openclip/secrets.json` with POSIX 0600 permissions), never `SettingsStore`/UserDefaults — resolved via [`SecretActionOptionStore`](../../Sources/OpenClip/Platform/Extensions/SecretActionOptionStore.swift).
 - Direct `UserDefaults.standard` access is discouraged and should not be added in new code. The JavaScript runtime reads options through the injected `ActionOptionReading` store (`OpenClipJSHost`), not `UserDefaults`.
