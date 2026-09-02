@@ -21,6 +21,7 @@ enum DebugLogCommand {
         case none
         case dumpLogs(DumpOptions)
         case showHelp
+        case showVersion
         case usageError(String)
     }
 
@@ -33,8 +34,10 @@ enum DebugLogCommand {
             let arg = args[index]
             if arg == "--dump-logs" {
                 sawDump = true
-            } else if arg == "--help" {
+            } else if arg == "--help" || arg == "-h" {
                 return .showHelp
+            } else if arg == "--version" || arg == "-v" {
+                return .showVersion
             } else if let (key, value) = splitFlag(arg) {
                 switch key {
                 case "category": options.category = value
@@ -74,23 +77,40 @@ enum DebugLogCommand {
         return (String(body[..<eq]), String(body[body.index(after: eq)...]))
     }
 
+    /// The app version and build, e.g. `OpenClip 1.2.0 (5)`. Reads the running binary's
+    /// `CFBundleShortVersionString` / `CFBundleVersion` (XcodeGen derives both from
+    /// `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in project.yml), falling back to
+    /// `unknown` if the keys are absent.
+    static var version: String {
+        let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        if let build, !build.isEmpty {
+            return "OpenClip \(short) (\(build))"
+        }
+        return "OpenClip \(short)"
+    }
+
     static var usage: String {
         """
-        Usage: OpenClip --dump-logs [options]
+        Usage: OpenClip [--version | --help] [--dump-logs [options]]
 
-        Prints recent OpenClip log entries (subsystem com.openclip) from this process
-        and exits. Run the app binary directly (not via dev_run.sh).
+        Prints the OpenClip version, shows help, or dumps recent OpenClip log entries
+        (subsystem com.openclip) from this process and exits. Run the app binary
+        directly (not via dev_run.sh).
 
         Logs are also persistently written to ~/Library/Logs/OpenClip/openclip.log.
 
         Options:
+          --version, -v          Print the OpenClip version and exit
+          --help, -h             Show this help
+          --dump-logs            Dump recent log entries and exit
           --category=<name>      Only entries from this Log category (e.g. extensions)
           --level=<level>        Only entries at this severity: debug, info, notice, warning, error, fault
           --count=<N>            Max number of lines (default 500)
           --collect=<seconds>    Collect window before dumping (default 4)
-          --help                 Show this help
 
         Examples:
+          OpenClip --version
           OpenClip --dump-logs --category=extensions --level=error
           OpenClip --dump-logs --count=20 --collect=0
         """
