@@ -4,6 +4,27 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 
 ---
 
+## v1.2.1 - 2026-09-02
+
+### Features & Improvements
+- **Context-Aware Web Search**: When triggered inside a supported web browser (Safari, Chrome, Arc, Brave, Edge, etc.), web searches now open directly in the active browser rather than defaulting to the system default browser ([#25](https://github.com/ganeshmshetty/openclip/issues/25)).
+- **Configurable Bar Width Slider & Dynamic Packing**: Replaced fixed page sizes with an intuitive 5-level bar width slider and dynamic page packing in the floating popup HUD.
+- **Command Line Flags**: Added CLI support for `--version` / `-v` and `--help` / `-h` flags for quick version and usage inspection from the terminal ([#29](https://github.com/ganeshmshetty/openclip/pull/29)).
+- **Extension Local Icon Validation**: Added automated verification in `validate_extension.sh` to ensure referenced local icon files exist and are accessible ([#30](https://github.com/ganeshmshetty/openclip/pull/30)).
+
+### Fixes & Stability
+- **Action Group Persistence**: Preserved custom user action group configurations and member assignments across extension updates and catalog reloads ([#24](https://github.com/ganeshmshetty/openclip/issues/24)).
+- **Toast Positioning**: Centered toast notifications in-place directly over the closed popup frame to prevent visual jumps during action execution.
+- **Extension Update Error Reporting**: Enhanced extension updater to log and surface individual update failures instead of silently dropping errors ([#32](https://github.com/ganeshmshetty/openclip/pull/32)).
+- **Calendar Event Cleanup**: Ensured temporary `.ics` event files are cleanly removed following Calendar imports with strict regular-file verification ([#31](https://github.com/ganeshmshetty/openclip/pull/31)).
+- **Settings Type Safety**: Replaced unsafe force-casts in `SettingsStore.get` with safe fallback defaults ([#26](https://github.com/ganeshmshetty/openclip/pull/26)).
+- **Documentation & Localization**: Synchronized documentation with Swift 6 and updated contributing prerequisites for Xcode 16+ ([#28](https://github.com/ganeshmshetty/openclip/pull/28)).
+
+### Contributors
+- @ayangweb ([#26](https://github.com/ganeshmshetty/openclip/pull/26), [#27](https://github.com/ganeshmshetty/openclip/pull/27), [#28](https://github.com/ganeshmshetty/openclip/pull/28), [#29](https://github.com/ganeshmshetty/openclip/pull/29), [#30](https://github.com/ganeshmshetty/openclip/pull/30), [#31](https://github.com/ganeshmshetty/openclip/pull/31), [#32](https://github.com/ganeshmshetty/openclip/pull/32))
+
+---
+
 ## v1.2.0 - 2026-09-01
 
 ### Features & Improvements

@@ -225,7 +225,7 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
             gate.wait()
             return Self.fixtureTarget(role: "AXTextField", selectedText: "held text")
-        })
+        }, browserRead: { _ in nil }, copyCapture: { _ in nil })
 
         var delivered: SelectionContext?
         monitor.onSelection = { context, _ in delivered = context }
@@ -259,7 +259,7 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
             gate.wait()
             return Self.fixtureTarget(role: "AXButton", selectedText: "irrelevant")
-        })
+        }, browserRead: { _ in nil }, copyCapture: { _ in nil })
         // Isolated empty pasteboard so the clipboard fallback can't rescue the hold.
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         pasteboard.clearContents()
@@ -336,7 +336,7 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
             gate.wait()
             return Self.fixtureTarget(role: "AXGroup", selectedText: nil)
-        })
+        }, browserRead: { _ in nil }, copyCapture: { _ in nil })
 
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         pasteboard.declareTypes([.string], owner: nil)
@@ -370,7 +370,7 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
             gate.wait()
             return Self.fixtureTarget(role: "AXTextField", selectedText: nil)
-        })
+        }, browserRead: { _ in nil }, copyCapture: { _ in nil })
 
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         pasteboard.declareTypes([.string], owner: nil)
@@ -405,7 +405,7 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
             gate.wait()
             return Self.fixtureTarget(role: "AXStaticText", selectedText: nil)
-        })
+        }, browserRead: { _ in nil }, copyCapture: { _ in nil })
 
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         pasteboard.declareTypes([.string], owner: nil)
@@ -436,7 +436,7 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
             gate.wait()
             return Self.fixtureTarget(role: "AXTextField", selectedText: "selected word")
-        })
+        }, browserRead: { _ in nil }, copyCapture: { _ in nil })
 
         var delivered: SelectionContext?
         monitor.onSelection = { context, _ in delivered = context }
@@ -460,7 +460,7 @@ final class MacSelectionMonitorTests: XCTestCase {
 
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
             Self.fixtureTarget(role: "AXTextField", selectedText: "selected word")
-        })
+        }, browserRead: { _ in nil }, copyCapture: { _ in nil })
 
         var delivered: SelectionContext?
         monitor.onSelection = { context, _ in delivered = context }
@@ -481,7 +481,7 @@ final class MacSelectionMonitorTests: XCTestCase {
 
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
             Self.fixtureTarget(role: "AXTextField", selectedText: "selected word")
-        })
+        }, browserRead: { _ in nil }, copyCapture: { _ in nil })
 
         var delivered: SelectionContext?
         monitor.onSelection = { context, _ in delivered = context }
