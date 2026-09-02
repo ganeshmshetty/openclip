@@ -103,15 +103,20 @@ final class ActionCoordinatorGroupTests: XCTestCase {
         XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, [])
     }
 
-    func testUnregisterExtensionPrunesMemberAndRetainsGroupDef() {
+    func testUnregisterExtensionRetainsGroupMembershipInDefs() {
         coordinator.createGroup(title: "Valid", iconName: "folder", memberActionIDs: ["action.1", "action.2"])
         coordinator.unregister(actionID: "action.1")
 
+        // Group definitions persist intact
         XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
-        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.2"])
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.1", "action.2"])
+
+        // Re-registering action restores it in group without mutating definitions
+        coordinator.register(action: DummyAction(id: "action.1", title: "Action 1"))
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.1", "action.2"])
     }
 
-    func testLoadGroupDefsPrunesOrphanActionIDs() throws {
+    func testLoadGroupDefsPreservesAllGroupMembersEvenIfTemporarilyUnregistered() throws {
         let defA = ActionGroupDef(id: "vgroup.a", title: "Group A", iconName: "folder", memberActionIDs: ["action.1", "action.2", "nonexistent.1"])
         let defB = ActionGroupDef(id: "vgroup.b", title: "Group B", iconName: "folder", memberActionIDs: ["action.3", "nonexistent.2"])
         let data = try ActionGroupDef.encode([defA, defB])
@@ -121,9 +126,9 @@ final class ActionCoordinatorGroupTests: XCTestCase {
 
         XCTAssertEqual(coordinator.actionGroupDefs.count, 2)
         XCTAssertEqual(coordinator.actionGroupDefs[0].id, "vgroup.a")
-        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.1", "action.2"])
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.1", "action.2", "nonexistent.1"])
         XCTAssertEqual(coordinator.actionGroupDefs[1].id, "vgroup.b")
-        XCTAssertEqual(coordinator.actionGroupDefs[1].memberActionIDs, ["action.3"])
+        XCTAssertEqual(coordinator.actionGroupDefs[1].memberActionIDs, ["action.3", "nonexistent.2"])
     }
 
     func testResetClearsDefsAndSetting() {

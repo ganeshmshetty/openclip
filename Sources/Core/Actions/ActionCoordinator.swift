@@ -45,9 +45,8 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         extensionManager.onRegister = { [registry] action in
             registry.register(action: action)
         }
-        extensionManager.onUnregister = { [weak self, registry] actionID in
+        extensionManager.onUnregister = { [registry] actionID in
             registry.unregister(actionID: actionID)
-            self?.pruneGroups(removing: actionID)
         }
 
         // 1. Core builtins
@@ -82,7 +81,6 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     
     public func unregister(actionID: String) {
         registry.unregister(actionID: actionID)
-        pruneGroups(removing: actionID)
     }
     
     public func moveActions(from source: IndexSet, to destination: Int) {
@@ -121,40 +119,9 @@ public final class ActionCoordinator: ObservableObject, Sendable {
 
     public func loadGroupDefs() {
         let data = settingsStore.get(.actionGroups)
-        var defs = ActionGroupDef.decodeOrEmpty(from: data)
-        let pruned = pruneOrphans(in: defs)
-        if pruned != defs {
-            defs = pruned
-            saveGroupDefs(defs)
-        }
+        let defs = ActionGroupDef.decodeOrEmpty(from: data)
         actionGroupDefs = defs
         registry.setGroupDefs(actionGroupDefs)
-    }
-
-    private func pruneOrphans(in defs: [ActionGroupDef]) -> [ActionGroupDef] {
-        let active = registry.registeredActionIDs
-        guard !active.isEmpty, !defs.isEmpty else { return defs }
-        return defs.map { def in
-            var copy = def
-            copy.memberActionIDs.removeAll { !active.contains($0) }
-            return copy
-        }
-    }
-
-    private func pruneGroups(removing actionID: String) {
-        var updated: [ActionGroupDef] = []
-        var changed = false
-        for var def in actionGroupDefs {
-            if def.memberActionIDs.contains(actionID) {
-                def.memberActionIDs.removeAll { $0 == actionID }
-                changed = true
-            }
-            updated.append(def)
-        }
-        if changed {
-            actionGroupDefs = updated
-            saveAndApplyGroupDefs()
-        }
     }
 
     public func createGroup(title: String, iconName: String, memberActionIDs: [String] = []) {

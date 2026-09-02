@@ -20,7 +20,7 @@ final class ActionGroupIntegrationTests: XCTestCase {
         coordinator = ActionCoordinator(registry: registry, settingsStore: settingsStore)
     }
 
-    func testUninstallExtensionInsideGroupUsesCanonicalIDAndPrunesMember() async throws {
+    func testUnregisterAndReinstallExtensionInsideGroupPreservesGroupMembership() async throws {
         let extAction1 = CustomAction(id: "com.custom.ext1", title: "Ext 1", iconName: "star", type: .textSnippet(template: "1"))
         let extAction2 = CustomAction(id: "com.custom.ext2", title: "Ext 2", iconName: "star", type: .textSnippet(template: "2"))
         coordinator.register(action: extAction1)
@@ -29,11 +29,20 @@ final class ActionGroupIntegrationTests: XCTestCase {
         coordinator.createGroup(title: "My Custom Exts", iconName: "folder", memberActionIDs: ["com.custom.ext1", "com.custom.ext2"])
         XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
 
-        // Simulating unregister of canonical ID
+        // Simulating reload / reinstall unregister of canonical ID
         coordinator.unregister(actionID: "com.custom.ext1")
 
+        // Group definitions persist intact
         XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
-        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["com.custom.ext2"])
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["com.custom.ext1", "com.custom.ext2"])
+
+        // Simulating re-registration upon reinstallation
+        coordinator.register(action: extAction1)
+
+        // Re-registered action is restored inside the group
+        let groupID = coordinator.actionGroupDefs[0].id
+        XCTAssertEqual(coordinator.actions.first?.id, groupID)
+        XCTAssertEqual(Set(coordinator.actions.dropFirst().map(\.id)), Set(["com.custom.ext1", "com.custom.ext2"]))
     }
 
     func testMoveCustomGroupExpandsMembersAtomically() {

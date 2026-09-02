@@ -62,7 +62,7 @@ public func loadInitialState(
 ### Registration & Unregistration
 When extension packages are added, updated, or removed:
 - `ExtensionManager.loadExtensions()` unregisters previous extension actions and reports newly discovered ones through the `onRegister`/`onUnregister` callbacks (wired to the registry by `ActionCoordinator.loadInitialState()`).
-- When an extension is unregistered, `ActionCoordinator` prunes it from any custom action groups via `pruneGroups(removing: actionID)`. If removing a member causes a group to drop below the required 2-member threshold, the group is automatically dissolved.
+- Custom action group definitions (`ActionGroupDef`) in `SettingsStore` persist across extension unregistrations, reloads, and updates. Absent members are dynamically filtered out at runtime by `CustomGroupAction.subActions(in:)` without mutating the saved user configuration.
 - Neither Core domain manager touches `ActionRegistry.shared` directly; `ActionCoordinator` is the only type that does.
 
 ---
