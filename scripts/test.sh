@@ -43,7 +43,11 @@ CORE_TEST_FLAGS=(
 
 run_xcodebuild() {
     local extra_args=("$@")
-    local cmd=(xcodebuild -project OpenClip.xcodeproj -scheme OpenClipTests -destination 'platform=macOS' "${extra_args[@]}" test)
+    # Force tests to run in English (-testLanguage en) so hardcoded English assertions in the
+    # suite are deterministic regardless of the host machine's locale (dev machines run zh-Hans;
+    # CI runners are en). Without this, `String(localized:)` resolves per-locale and tests that
+    # assert English copy fail outside English environments.
+    local cmd=(xcodebuild -project OpenClip.xcodeproj -scheme OpenClipTests -destination 'platform=macOS' -testLanguage en "${extra_args[@]}" test)
 
     if [ "$VERBOSE" = true ]; then
         "${cmd[@]}"
