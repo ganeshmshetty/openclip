@@ -116,7 +116,7 @@ public struct CalendarAction: ConfigurableAction {
         """
 
         let tempDir = FileManager.default.temporaryDirectory
-        let fileURL = tempDir.appendingPathComponent("OpenClipEvent-\(UUID().uuidString.prefix(8)).ics")
+        let fileURL = tempDir.appendingPathComponent("\(Constants.icsFilenamePrefix)\(UUID().uuidString.prefix(8)).ics")
         do {
             try icsContent.write(to: fileURL, atomically: true, encoding: .utf8)
             return fileURL
