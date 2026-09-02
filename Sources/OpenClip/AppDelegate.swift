@@ -40,6 +40,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         Log.addSink(rotatingSink)
         _ = DebugLogStore.shared
 
+        // Remove temporary calendar .ics files a previous session left behind before its
+        // deferred cleanup could run (crash or quit during the delay window).
+        DefaultActionResultHandler.purgeStaleCalendarTempFiles()
+
         switch DebugLogCommand.parse(CommandLine.arguments) {
         case .showHelp:
             print(DebugLogCommand.usage)

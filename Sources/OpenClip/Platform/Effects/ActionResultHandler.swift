@@ -62,6 +62,8 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     private let pasteboard: NSPasteboard
     private let pasteboardRestoreDelay: TimeInterval
     private let dictionaryLookup: DictionaryLookup
+    private let icsCleanupDelay: TimeInterval
+    private let openURL: @MainActor @Sendable (URL) -> Void
     private var pendingRestoreTask: Task<Void, Never>?
 
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
@@ -73,18 +75,24 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         self.pasteboard = pasteboard
         self.dictionaryLookup = dictionaryLookup
         self.pasteboardRestoreDelay = Constants.pasteboardRestoreDelay
+        self.icsCleanupDelay = Constants.icsCleanupDelay
+        self.openURL = { NSWorkspace.shared.open($0) }
     }
 
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
                 keyboardPoster: KeyboardEventPosting = SessionEventTapPoster(),
                 pasteboard: NSPasteboard = .general,
                 dictionaryLookup: @escaping DictionaryLookup = DictionaryLookupFactory.systemLookup,
-                pasteboardRestoreDelay: TimeInterval = Constants.pasteboardRestoreDelay) {
+                pasteboardRestoreDelay: TimeInterval = Constants.pasteboardRestoreDelay,
+                icsCleanupDelay: TimeInterval = Constants.icsCleanupDelay,
+                openURL: @escaping @MainActor @Sendable (URL) -> Void = { NSWorkspace.shared.open($0) }) {
         self.settingsStore = settingsStore
         self.keyboardPoster = keyboardPoster
         self.pasteboard = pasteboard
         self.dictionaryLookup = dictionaryLookup
         self.pasteboardRestoreDelay = pasteboardRestoreDelay
+        self.icsCleanupDelay = icsCleanupDelay
+        self.openURL = openURL
     }
 
 
@@ -163,7 +171,8 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             }
 
         case .openURL(let url):
-            NSWorkspace.shared.open(url)
+            openURL(url)
+            scheduleICSFileCleanupIfNeeded(for: url)
 
         case .showServices(let text):
             let picker = NSSharingServicePicker(items: [text])
@@ -206,6 +215,57 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         case .failure(let error):
             throw error
         }
+    }
+
+    // MARK: - Temporary .ics cleanup
+
+    /// Temporary `.ics` files handed to the Calendar app (via `.openURL`) are deleted after a short
+    /// deferred delay so they don't accumulate in the temp directory. Only files that match the
+    /// producer's exact convention (`Constants.icsFilenamePrefix`, `.ics` extension, inside the temp
+    /// directory) are touched — arbitrary `.ics` files and non-temp paths are left alone.
+    private func scheduleICSFileCleanupIfNeeded(for url: URL) {
+        guard url.isFileURL,
+              url.pathExtension.lowercased() == "ics",
+              url.lastPathComponent.hasPrefix(Constants.icsFilenamePrefix),
+              Self.isInTemporaryDirectory(url) else { return }
+
+        let fileURL = url
+        let delay = icsCleanupDelay
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            do {
+                try FileManager.default.removeItem(at: fileURL)
+                Log.resultHandler.info("Removed temporary calendar event file \(fileURL.lastPathComponent, privacy: .public)")
+            } catch {
+                Log.resultHandler.error("Failed to remove temporary calendar event file: \(error.localizedDescription, privacy: .private)")
+            }
+        }
+    }
+
+    /// Removes stale `OpenClipEvent-*.ics` files left in the temp directory by a previous session
+    /// that exited before the deferred cleanup ran (crash, quit during the delay window, etc.).
+    /// Called once at app launch.
+    public static func purgeStaleCalendarTempFiles() {
+        let tempDir = FileManager.default.temporaryDirectory
+        guard let items = try? FileManager.default.contentsOfDirectory(
+            at: tempDir, includingPropertiesForKeys: nil
+        ) else { return }
+        for item in items where item.pathExtension.lowercased() == "ics"
+            && item.lastPathComponent.hasPrefix(Constants.icsFilenamePrefix) {
+            do {
+                try FileManager.default.removeItem(at: item)
+                Log.resultHandler.info("Purged stale temporary calendar event file \(item.lastPathComponent, privacy: .public)")
+            } catch {
+                Log.resultHandler.error("Failed to purge temporary calendar event file: \(error.localizedDescription, privacy: .private)")
+            }
+        }
+    }
+
+    private static func isInTemporaryDirectory(_ url: URL) -> Bool {
+        let tempPath = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().path
+        let filePath = url.resolvingSymlinksInPath().path
+        return filePath == tempPath || filePath.hasPrefix(tempPath + "/")
     }
 
     /// Posts a user notification via `UNUserNotificationCenter`. Requests authorization if status is
