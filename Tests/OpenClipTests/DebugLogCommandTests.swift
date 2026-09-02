@@ -55,6 +55,22 @@ final class DebugLogCommandTests: XCTestCase {
         XCTAssertEqual(DebugLogCommand.parse(["OpenClip", "--help"]), .showHelp)
     }
 
+    func testShortHelpFlag() {
+        XCTAssertEqual(DebugLogCommand.parse(["OpenClip", "-h"]), .showHelp)
+    }
+
+    func testVersionLongFlag() {
+        XCTAssertEqual(DebugLogCommand.parse(["OpenClip", "--version"]), .showVersion)
+    }
+
+    func testVersionShortFlag() {
+        XCTAssertEqual(DebugLogCommand.parse(["OpenClip", "-v"]), .showVersion)
+    }
+
+    func testVersionStringPrefixedWithAppName() {
+        XCTAssertTrue(DebugLogCommand.version.hasPrefix("OpenClip"))
+    }
+
     func testUnknownFlagIsUsageError() {
         guard case .usageError(let message) = DebugLogCommand.parse(["OpenClip", "--bogus"]) else {
             return XCTFail("expected usageError")
