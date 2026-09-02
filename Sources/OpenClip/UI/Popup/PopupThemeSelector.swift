@@ -20,7 +20,7 @@ struct PopupThemeSelector: View {
     @AppStorage(SettingKey.popupTheme.name) private var theme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
     @AppStorage(SettingKey.popupScale.name) private var popupScale: Int = SettingKey.popupScale.defaultValue
-    @AppStorage(SettingKey.popupPageSize.name) private var pageSize: Int = SettingKey.popupPageSize.defaultValue
+    @AppStorage(SettingKey.popupBarWidth.name) private var barWidthLevel: Int = SettingKey.popupBarWidth.defaultValue
 
     private struct AppearanceOption: Identifiable {
         let label: String
@@ -68,14 +68,14 @@ struct PopupThemeSelector: View {
         theme == SettingKey.popupTheme.defaultValue &&
         themeColor == SettingKey.popupThemeColor.defaultValue &&
         popupScale == SettingKey.popupScale.defaultValue &&
-        pageSize == SettingKey.popupPageSize.defaultValue
+        barWidthLevel == SettingKey.popupBarWidth.defaultValue
     }
 
     private func resetToDefaults() {
         theme = SettingKey.popupTheme.defaultValue
         themeColor = SettingKey.popupThemeColor.defaultValue
         popupScale = SettingKey.popupScale.defaultValue
-        pageSize = SettingKey.popupPageSize.defaultValue
+        barWidthLevel = SettingKey.popupBarWidth.defaultValue
     }
 
     var body: some View {
@@ -84,7 +84,7 @@ struct PopupThemeSelector: View {
                 themeRow
                 modeRow
                 sizeRow
-                paginationRow
+                barWidthRow
             } footer: {
                 HStack {
                     Spacer()
@@ -161,29 +161,29 @@ struct PopupThemeSelector: View {
         .padding(.vertical, 3)
     }
 
-    private var pageSizeBinding: Binding<Double> {
-        Binding<Double>(
-            get: { Double(pageSize) },
-            set: { pageSize = Int(round($0)) }
-        )
-    }
-
-    private var paginationRow: some View {
+    private var barWidthRow: some View {
         HStack(spacing: 12) {
             rowTitle(
-                icon: "square.grid.2x2",
-                title: "Actions Per Page"
+                icon: "arrow.left.and.right",
+                title: "Bar Width"
             )
             Spacer()
             HStack(spacing: 8) {
-                Slider(value: pageSizeBinding, in: 3...12, step: 1)
-                    .accessibilityLabel("Actions Per Page")
-                    .accessibilityValue("\(pageSize)")
-                    .frame(width: 120)
-                Text("\(pageSize)")
+                Slider(
+                    value: Binding(
+                        get: { Double(barWidthLevel) },
+                        set: { barWidthLevel = max(1, min(5, Int(round($0)))) }
+                    ),
+                    in: 1...5,
+                    step: 1
+                )
+                .accessibilityLabel("Bar Width")
+                .accessibilityValue("\(barWidthLevel)")
+                .frame(width: 120)
+                Text("\(barWidthLevel)")
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(.secondary)
-                    .frame(width: 42, alignment: .trailing)
+                    .frame(width: 32, alignment: .trailing)
             }
         }
         .frame(minHeight: 24)

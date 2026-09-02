@@ -461,6 +461,16 @@
         }
       }
     },
+    "Bar Width": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "栏宽度"
+          }
+        }
+      }
+    },
     "Base Endpoint URL": {
       "localizations": {
         "zh-Hans": {

@@ -67,6 +67,7 @@ TRANSLATIONS: dict[str, str] = {
     "Popup Theme": "弹出栏主题",
     "Color Mode": "颜色模式",
     "Popup Scale": "弹出栏缩放",
+    "Bar Width": "栏宽度",
     "Actions Per Page": "每页动作数",
     "Reset to Defaults": "恢复默认",
     "Classic": "经典",

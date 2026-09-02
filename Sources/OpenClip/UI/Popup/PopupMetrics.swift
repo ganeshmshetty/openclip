@@ -73,4 +73,17 @@ public enum PopupMetrics {
         default: return 1.00
         }
     }
+
+    /// Converts a 1...5 discrete bar width level to a maximum baseline width budget (pt at 1.0 scale).
+    /// Level 3 is the standard default (540 pt).
+    public static func barWidth(for level: Int) -> CGFloat {
+        switch level {
+        case 1: return 340.0
+        case 2: return 440.0
+        case 3: return 540.0
+        case 4: return 650.0
+        case 5: return 780.0
+        default: return 540.0
+        }
+    }
 }

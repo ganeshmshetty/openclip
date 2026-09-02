@@ -22,10 +22,25 @@ public class PopupPanel: NSPanel {
     /// When true (search mode with results above the field), content-driven growth keeps the
     /// panel's bottom edge fixed and grows upward so the field never shifts.
     public var pinBottomEdgeOnResize: Bool = false
-    /// When true, content-driven width changes keep the panel centered on its current horizontal
-    /// center (search palette, pagination), instead of the hosting view's top-anchored default that
-    /// preserves origin.x and drifts the popup off the cursor.
-    public var recenterXOnResize: Bool = false
+    public enum HorizontalAnchor: Sendable {
+        case none
+        case center
+        case left
+        case right
+    }
+
+    /// Controls how horizontal width changes anchor the window:
+    /// - `.none`: preserve requested origin.x
+    /// - `.center`: preserve frame.midX (re-center)
+    /// - `.left`: preserve frame.minX (grow/shrink from right)
+    /// - `.right`: preserve frame.maxX (grow/shrink from left, chevrons stay under cursor)
+    public var horizontalAnchor: HorizontalAnchor = .none
+
+    /// Backwards-compatible property for `.center` anchoring.
+    public var recenterXOnResize: Bool {
+        get { horizontalAnchor == .center }
+        set { horizontalAnchor = newValue ? .center : .none }
+    }
 
     public init() {
         super.init(
@@ -106,7 +121,8 @@ public class PopupPanel: NSPanel {
     override public func setFrame(_ frameRect: NSRect, display flag: Bool) {
         var clamped = frameRect
         let heightWasClamped = clamped.size.height > PopupMetrics.popupMaxHeight
-        if let screenFrame = screen?.visibleFrame ?? NSScreen.main?.visibleFrame {
+        let activeScreenFrame = screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+        if let screenFrame = activeScreenFrame {
             let maxWidth = max(0, screenFrame.width - PopupMetrics.popupPadding * 2)
             clamped.size.width = min(clamped.size.width, maxWidth)
         }
@@ -117,15 +133,38 @@ public class PopupPanel: NSPanel {
             clamped.origin.y = frameRect.maxY - clamped.height
         }
 
-        if frame.width > 0, recenterXOnResize, clamped.width != frame.width {
-            clamped.origin.x = frame.midX - clamped.width / 2
+        if self.frame.width > 0, horizontalAnchor != .none, clamped.width != self.frame.width {
+            let unconstrainedX: CGFloat
+            switch horizontalAnchor {
+            case .none:
+                unconstrainedX = clamped.origin.x
+            case .center:
+                unconstrainedX = self.frame.midX - clamped.width / 2
+            case .left:
+                unconstrainedX = self.frame.minX
+            case .right:
+                unconstrainedX = self.frame.maxX - clamped.width
+            }
+
+            if let screenFrame = activeScreenFrame {
+                let padding = PopupMetrics.popupPadding
+                let minX = screenFrame.minX + padding
+                let maxX = screenFrame.maxX - clamped.width - padding
+                if maxX >= minX {
+                    clamped.origin.x = max(minX, min(unconstrainedX, maxX))
+                } else {
+                    clamped.origin.x = minX
+                }
+            } else {
+                clamped.origin.x = unconstrainedX
+            }
         }
 
         // Re-anchor the pinned edge whenever the request changed the panel size OR was height-clamped.
         // A clamped request reaches this block with clamped.height == frame.height (the panel already
         // grew to the cap), yet its top-anchored origin still encodes the un-clamped height — without
         // re-anchoring, the clamped-off delta leaks into the origin and the pinned edge drifts.
-        let sizeChangedOrClamped = frame.height > 0 && recenterXOnResize
+        let sizeChangedOrClamped = frame.height > 0 && horizontalAnchor != .none
             && (clamped.height != frame.height || heightWasClamped)
         if sizeChangedOrClamped {
             if pinBottomEdgeOnResize {

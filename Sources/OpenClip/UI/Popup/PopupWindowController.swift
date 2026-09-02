@@ -34,6 +34,9 @@ public class PopupWindowController {
     /// show(for:), reactivated on exitKeyMode/hide, cleared only by hide(). Internal for tests.
     var previousFrontmostApp: NSRunningApplication?
 
+    /// Frame of the main bar prior to entering search mode, so exitSearch() can restore exact placement.
+    private var preSearchFrame: NSRect?
+
     private var hoveredAction: (any Action)?
 
     private var isMenuTracking = false
@@ -175,7 +178,8 @@ public class PopupWindowController {
         // A fresh show is an intentional placement: never re-anchor it (stale search-mode pinning
         // must not correct the new frame). enterSearch() re-enables pinning for growth.
         panel.pinBottomEdgeOnResize = false
-        panel.recenterXOnResize = false
+        panel.horizontalAnchor = .none
+        preSearchFrame = nil
 
         // Pre-compute card direction from real screen position
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
@@ -205,7 +209,7 @@ public class PopupWindowController {
             registerStreamingTask: { [weak self] task in
                 self?.activeStreamingTask = task
             },
-            onEnterSearch: { [weak self] in self?.enterSearch() },
+            onEnterSearch: { [weak self] frame in self?.enterSearch(buttonLocalFrame: frame) },
             onExitSearch: { [weak self] in self?.exitSearch() },
             onExitContent: { [weak self] in self?.exitContent() },
             onCardEffect: { [weak self] result in
@@ -235,8 +239,11 @@ public class PopupWindowController {
             onHoveredActionChanged: { [weak self] action in
                 self?.updateHoveredAction(action)
             },
-            onEnteredScopedSearch: { [weak self] action in
-                self?.enterScopedSearch(for: action)
+            onEnteredScopedSearch: { [weak self] action, frame in
+                self?.enterScopedSearch(for: action, buttonLocalFrame: frame)
+            },
+            onPaginationAnchor: { [weak self] anchor in
+                self?.panel?.horizontalAnchor = anchor
             },
             onActionPerformed: { [weak self] actionID in
                 self?.usageStore.record(actionID)
@@ -249,6 +256,10 @@ public class PopupWindowController {
             onRunLoadingAction: { [weak self] action in
                 guard let self, let context = self.currentActionContext else { return }
                 self.runLoadingAction(action, with: context, isSecondaryClick: self.pendingClickIntent == .secondary)
+            },
+            onRunAI: { [weak self] actionID in
+                guard let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
+                self?.runAIPreset(prompt: preset.prompt, title: preset.title)
             },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary }
         )
@@ -266,7 +277,7 @@ public class PopupWindowController {
         lastPopupFrame = panel.frame
         // Placement is fixed; any subsequent content-driven width change (search palette,
         // pagination) must re-center rather than drift off the cursor.
-        panel.recenterXOnResize = true
+        panel.horizontalAnchor = .center
         // Content-driven growth keeps the panel's bottom edge fixed when the popup sits low on
         // screen — same anchor rule as search/content mode.
         panel.pinBottomEdgeOnResize = cardAbove
@@ -331,8 +342,8 @@ public class PopupWindowController {
     /// (a scoped, user-initiated exception to the never-key rule) so the search field can receive
     /// typing. A nonactivating panel can become key without activating this app, so the source app
     /// stays active throughout.
-    public func enterSearch(with scope: SearchScope? = nil) {
-        guard panel?.isVisible == true else { return }
+    public func enterSearch(with scope: SearchScope? = nil, buttonLocalFrame: CGRect? = nil) {
+        guard let panel, panel.isVisible else { return }
         subBarController.hide()
         modeStore.isSubBarActive = false
         modeStore.activeSubGroupID = nil
@@ -342,7 +353,23 @@ public class PopupWindowController {
         modeStore.mode = .search
         // Content-driven growth keeps the panel's bottom edge fixed (results render above the field,
         // so growth must extend upward); see PopupPanel.setFrame.
-        panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        panel.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        panel.horizontalAnchor = .center
+
+        if let buttonLocalFrame {
+            preSearchFrame = panel.frame
+            let buttonScreenMidX = panel.frame.minX + buttonLocalFrame.midX
+            let searchPanelWidth: CGFloat = 280 + 2 * PopupMetrics.popupShadowInset
+            let screen = panel.screen ?? NSScreen.main
+            let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+            let padding = PopupMetrics.popupPadding
+            let minMidX = screenBounds.minX + padding + searchPanelWidth / 2
+            let maxMidX = max(minMidX, screenBounds.maxX - padding - searchPanelWidth / 2)
+            let clampedMidX = max(minMidX, min(buttonScreenMidX, maxMidX))
+
+            panel.setFrame(CGRect(x: clampedMidX - panel.frame.width / 2, y: panel.frame.origin.y, width: panel.frame.width, height: panel.frame.height), display: false)
+        }
+
         enterKeyMode()
         // Explicitly make the search field first responder on the next run-loop turn. A @FocusState
         // request issued during the mode-change render can be silently dropped on macOS before the
@@ -356,13 +383,13 @@ public class PopupWindowController {
     /// Opens the palette scoped to a bar row's sub-actions. The parent action supplies its children
     /// via `SubActionProviding` (core, id/`.ai`-driven); resolution happens here so the view never
     /// type-checks against the action catalog.
-    private func enterScopedSearch(for action: any Action) {
+    private func enterScopedSearch(for action: any Action, buttonLocalFrame: CGRect? = nil) {
         guard let actionContext = currentActionContext else { return }
         let children = SubActionResolver().subActions(
             of: action,
             in: ActionCoordinator.shared.searchCatalog(for: actionContext)
         )
-        enterSearch(with: SearchScope(parent: action, children: children))
+        enterSearch(with: SearchScope(parent: action, children: children), buttonLocalFrame: buttonLocalFrame)
     }
 
     private func focusSearchField() {
@@ -392,6 +419,10 @@ public class PopupWindowController {
         // (strip renders above the bar when the popup sits low), so set it explicitly rather than
         // leaving the search-mode value behind. Cleared by show()/hide() before placement.
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        if let preSearchFrame, let panel {
+            panel.setFrame(CGRect(x: preSearchFrame.midX - panel.frame.width / 2, y: panel.frame.origin.y, width: panel.frame.width, height: panel.frame.height), display: false)
+        }
+        preSearchFrame = nil
         exitKeyMode() // reactivates previousFrontmostApp but keeps it for the session
     }
 
@@ -423,7 +454,7 @@ public class PopupWindowController {
         modeStore.resultCard = ResultCardPayload(text: text, isError: isError, title: title, icon: icon, isStreaming: isStreaming)
         if modeStore.mode != .content {
             panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
-            panel?.recenterXOnResize = true
+            panel?.horizontalAnchor = .center
             modeStore.mode = .content
             enterKeyMode()
         }
@@ -563,7 +594,8 @@ public class PopupWindowController {
         modeStore.activeSubGroupID = nil
         modeStore.scope = nil
         panel?.pinBottomEdgeOnResize = false
-        panel?.recenterXOnResize = false
+        panel?.horizontalAnchor = .none
+        preSearchFrame = nil
         panel?.ignoresMouseEvents = false // clear any hover-driven click-through from the last session
         exitKeyMode() // allowsKey=false + reactivate previousFrontmostApp
         previousFrontmostApp = nil // hide() is the only thing that ends the key-mode session

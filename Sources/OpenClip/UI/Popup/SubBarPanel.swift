@@ -9,6 +9,9 @@ import Core
 
 @MainActor
 public final class SubBarPanel: NSPanel {
+    /// Controls how horizontal width changes anchor the sub-bar window (e.g. .right for pagination).
+    public var horizontalAnchor: PopupPanel.HorizontalAnchor = .none
+
     public init() {
         super.init(
             contentRect: .zero,
@@ -25,6 +28,44 @@ public final class SubBarPanel: NSPanel {
         self.acceptsMouseMovedEvents = true
         self.isMovable = false
         self.hidesOnDeactivate = false
+    }
+
+    override public func setFrame(_ frameRect: NSRect, display flag: Bool) {
+        var clamped = frameRect
+        let activeScreenFrame = screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+        if let screenFrame = activeScreenFrame {
+            let maxWidth = max(0, screenFrame.width - PopupMetrics.popupPadding * 2)
+            clamped.size.width = min(clamped.size.width, maxWidth)
+        }
+
+        if self.frame.width > 0, horizontalAnchor != .none, clamped.width != self.frame.width {
+            let unconstrainedX: CGFloat
+            switch horizontalAnchor {
+            case .none:
+                unconstrainedX = clamped.origin.x
+            case .center:
+                unconstrainedX = self.frame.midX - clamped.width / 2
+            case .left:
+                unconstrainedX = self.frame.minX
+            case .right:
+                unconstrainedX = self.frame.maxX - clamped.width
+            }
+
+            if let screenFrame = activeScreenFrame {
+                let padding = PopupMetrics.popupPadding
+                let minX = screenFrame.minX + padding
+                let maxX = screenFrame.maxX - clamped.width - padding
+                if maxX >= minX {
+                    clamped.origin.x = max(minX, min(unconstrainedX, maxX))
+                } else {
+                    clamped.origin.x = minX
+                }
+            } else {
+                clamped.origin.x = unconstrainedX
+            }
+        }
+
+        super.setFrame(clamped, display: flag)
     }
 
     public override var canBecomeKey: Bool { false }

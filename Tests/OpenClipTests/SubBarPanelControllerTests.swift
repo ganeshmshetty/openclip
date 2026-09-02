@@ -516,5 +516,23 @@ final class SubBarPanelControllerTests: XCTestCase {
         subBar.hide()
         XCTAssertNil(SubBarHoverState.shared.location)
     }
+
+    func testSubBarPanelRightAnchorPreservesRightEdgeOnResize() {
+        let panel = SubBarPanel()
+        panel.setFrame(NSRect(x: 200, y: 300, width: 300, height: 50), display: false)
+        XCTAssertEqual(panel.frame.maxX, 500)
+
+        panel.horizontalAnchor = .right
+
+        // Shrink width to 100
+        panel.setFrame(NSRect(x: 200, y: 300, width: 100, height: 50), display: false)
+        XCTAssertEqual(panel.frame.maxX, 500, "SubBarPanel right edge must stay pinned when horizontalAnchor is .right")
+        XCTAssertEqual(panel.frame.origin.x, 400)
+
+        // Expand width to 400
+        panel.setFrame(NSRect(x: 200, y: 300, width: 400, height: 50), display: false)
+        XCTAssertEqual(panel.frame.maxX, 500, "SubBarPanel right edge must stay pinned when expanding with .right anchor")
+        XCTAssertEqual(panel.frame.origin.x, 100)
+    }
 }
 

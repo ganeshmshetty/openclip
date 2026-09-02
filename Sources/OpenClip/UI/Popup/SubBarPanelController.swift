@@ -63,6 +63,7 @@ public final class SubBarPanelController {
             parentButtonFrame: parentButtonScreenFrame
         )
         self.activeState = state
+        panel.horizontalAnchor = .none
 
         let contentView = SubBarContentView(
             subActions: subActions,
@@ -84,6 +85,9 @@ public final class SubBarPanelController {
                 } else {
                     self.startGrace()
                 }
+            },
+            onPaginationAnchor: { [weak self] anchor in
+                self?.panel.horizontalAnchor = anchor
             }
         )
 
@@ -214,6 +218,7 @@ public final class SubBarPanelController {
         guard isShowing || activeState != nil else { return }
         activeState = nil
         SubBarHoverState.shared.location = nil
+        panel.horizontalAnchor = .none
         panel.ignoresMouseEvents = false
         panel.orderOut(nil)
         panel.contentView = nil
@@ -249,6 +254,7 @@ private struct SubBarContentView: View {
     let onActionPerformed: @MainActor @Sendable (String) -> Void
     let onClickIntent: @MainActor @Sendable () -> ActionResultDelivery.ClickIntent
     let onHoverChange: @MainActor @Sendable (Bool) -> Void
+    let onPaginationAnchor: (@MainActor (PopupPanel.HorizontalAnchor) -> Void)?
 
     @State private var currentPage: Int = 0
     private let hoverState: SubBarHoverState = .shared
@@ -278,6 +284,7 @@ private struct SubBarContentView: View {
                     hoveredTarget = nil
                 }
             },
+            onPaginationAnchor: onPaginationAnchor,
             context: context,
             presenter: presenter,
             effectiveTheme: effectiveTheme,

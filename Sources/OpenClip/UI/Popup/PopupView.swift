@@ -43,7 +43,9 @@ public struct PopupView: View {
     public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
     /// Opens a scoped palette for a bar row's sub-actions (group rows via `.openSubActions` and the
     /// AI Tools launcher): the controller resolves + owns the SearchScope and enters search mode.
-    public let onEnteredScopedSearch: (@MainActor (any Action) -> Void)?
+    public let onEnteredScopedSearch: (@MainActor (any Action, CGRect?) -> Void)?
+    /// Sets the horizontal anchor mode on the popup panel before pagination or mode transitions.
+    public let onPaginationAnchor: (@MainActor (PopupPanel.HorizontalAnchor) -> Void)?
     /// Called when an action is actually run (bar / palette / AI), so the controller can record usage.
     public let onActionPerformed: (@MainActor (String) -> Void)?
     /// Called right before an action performs (before `onResult` can fire), so the controller can
@@ -52,6 +54,8 @@ public struct PopupView: View {
     /// Called when a `showsLoading` bar action is clicked: the controller early-closes the popup
     /// and runs the action via the loading toast flow instead of the inline perform path.
     public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
+    /// Called when an AI preset action is run: the controller closes the popup and runs via the loading toast flow.
+    public let onRunAI: (@MainActor (String) -> Void)?
     /// Returns the click intent captured at mouse-down for the current click, so the left-click
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
@@ -62,7 +66,7 @@ public struct PopupView: View {
     @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
     @AppStorage(SettingKey.popupScale.name) private var popupScale: Int = SettingKey.popupScale.defaultValue
-    @AppStorage(SettingKey.popupPageSize.name) private var pageSize: Int = SettingKey.popupPageSize.defaultValue
+    @AppStorage(SettingKey.popupBarWidth.name) private var barWidthLevel: Int = SettingKey.popupBarWidth.defaultValue
     @Environment(\.colorScheme) private var colorScheme
 
     private var themeCategory: PopupThemeModel.Category {
@@ -97,7 +101,7 @@ public struct PopupView: View {
     /// PopupWindowController; the static preview passes a throwaway store.
     @ObservedObject private var modeStore: PopupModeStore
     /// Requests entering/leaving search mode; the controller owns the key-window changes.
-    private let onEnterSearch: @MainActor () -> Void
+    private let onEnterSearch: @MainActor (CGRect?) -> Void
     private let onExitSearch: @MainActor () -> Void
     /// The popup session this view belongs to. Stamped into every streaming delivery so the
     /// controller can drop chunks from an abandoned stream (dismissed mid-stream, superseded).
@@ -139,7 +143,7 @@ public struct PopupView: View {
         modeStore: PopupModeStore = PopupModeStore(),
         sessionID: UUID = UUID(),
         registerStreamingTask: @escaping @MainActor (Task<Void, Never>?) -> Void = { _ in },
-        onEnterSearch: @escaping @MainActor () -> Void = {},
+        onEnterSearch: @escaping @MainActor (CGRect?) -> Void = { _ in },
         onExitSearch: @escaping @MainActor () -> Void = {},
         onExitContent: @escaping @MainActor () -> Void = {},
         onCardEffect: @escaping @MainActor (ActionResult) -> Void = { _ in },
@@ -152,10 +156,12 @@ public struct PopupView: View {
         onRequestSubBarDwell: (@MainActor (any Action, Int, CGRect) -> Void)? = nil,
         onCancelSubBarDwell: (@MainActor () -> Void)? = nil,
         onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
-        onEnteredScopedSearch: (@MainActor (any Action) -> Void)? = nil,
+        onEnteredScopedSearch: (@MainActor (any Action, CGRect?) -> Void)? = nil,
+        onPaginationAnchor: (@MainActor (PopupPanel.HorizontalAnchor) -> Void)? = nil,
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
+        onRunAI: (@MainActor (String) -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary }
     ) {
         self.actions = actions
@@ -173,9 +179,11 @@ public struct PopupView: View {
         self.onCardEffect = onCardEffect
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
+        self.onPaginationAnchor = onPaginationAnchor
         self.onActionPerformed = onActionPerformed
         self.onWillPerformAction = onWillPerformAction
         self.onRunLoadingAction = onRunLoadingAction
+        self.onRunAI = onRunAI
         self.onClickIntent = onClickIntent
         self.isStatic = isStatic
         self.hoverState = hoverState
@@ -236,17 +244,32 @@ public struct PopupView: View {
         modeStore.canPaste == false && action is any PasteRequiringAction
     }
 
+    private var maxBarBudget: CGFloat {
+        PopupMetrics.barWidth(for: barWidthLevel) * scale
+    }
+
+    private var pages: [[any Action]] {
+        let leadingWidth = hasCompletions ? (chevronWidth) : 0
+        let trailingWidth = buttonWidth // search button
+        return PopupPageLayout.computePages(
+            actions: displayActions,
+            leadingWidth: leadingWidth,
+            trailingWidth: trailingWidth,
+            maxBudget: maxBarBudget,
+            scale: scale,
+            presenter: presenter
+        )
+    }
+
     private var totalPages: Int {
-        guard !displayActions.isEmpty else { return 1 }
-        return Int(ceil(Double(displayActions.count) / Double(pageSize)))
+        max(1, pages.count)
     }
 
     private var pagedActions: [any Action] {
-        let list = displayActions
-        let startIndex = currentPage * pageSize
-        guard startIndex < list.count else { return [] }
-        let endIndex = min(startIndex + pageSize, list.count)
-        return Array(list[startIndex..<endIndex])
+        let p = pages
+        let clamped = max(0, min(currentPage, p.count - 1))
+        guard clamped < p.count else { return [] }
+        return p[clamped]
     }
 
     private var hasLeftChevron: Bool { currentPage > 0 }
@@ -457,9 +480,13 @@ public struct PopupView: View {
             },
             onRunAI: { actionID in
                 onActionPerformed?(actionID)
-                guard let preset = aiManager.preset(forActionID: actionID) else { return }
                 onExitSearch()
-                runAIPreset(prompt: preset.prompt, title: preset.title)
+                if let onRunAI {
+                    onRunAI(actionID)
+                } else {
+                    guard let preset = aiManager.preset(forActionID: actionID) else { return }
+                    runAIPreset(prompt: preset.prompt, title: preset.title)
+                }
             },
             onActionPerformed: onActionPerformed,
             onWillPerformAction: onWillPerformAction,
@@ -560,6 +587,7 @@ public struct PopupView: View {
         HStack(spacing: 0) {
             // Far Left: Up Arrow button toggles to normal actions mode
             chevronButton(systemImage: "chevron.up", label: "Back to actions") {
+                onPaginationAnchor?(.left)
                 isShowingCompletions = false
             }
             
@@ -582,6 +610,7 @@ public struct PopupView: View {
             // right (just before the command affordance) so next/previous are easy to reach.
             if hasCompletions {
                 chevronButton(systemImage: "chevron.down", label: "Show completions") {
+                    onPaginationAnchor?(.left)
                     isShowingCompletions = true
                 }
             }
@@ -596,10 +625,16 @@ public struct PopupView: View {
             // the other actions and its click opens AI mode via the branch in actionButton.
 
             if hasLeftChevron {
-                chevronButton(systemImage: "chevron.left", label: "Previous page") { currentPage -= 1 }
+                chevronButton(systemImage: "chevron.left", label: "Previous page") {
+                    onPaginationAnchor?(.right)
+                    currentPage -= 1
+                }
             }
             if hasRightChevron {
-                chevronButton(systemImage: "chevron.right", label: "Next page") { currentPage += 1 }
+                chevronButton(systemImage: "chevron.right", label: "Next page") {
+                    onPaginationAnchor?(.right)
+                    currentPage += 1
+                }
             }
 
             // Action-search affordance: command glyph. Kept outside
@@ -607,7 +642,8 @@ public struct PopupView: View {
             let isHovered = hoveredTarget == .search
             let affordanceForeground = PopupThemeModel.restForeground(for: effectiveTheme)
             Button {
-                onEnterSearch()
+                let frame = hoverFrames[.search]
+                onEnterSearch(frame)
             } label: {
                 Image(systemName: "command")
                     .font(.system(size: 13 * scale, weight: .regular))
@@ -698,7 +734,8 @@ public struct PopupView: View {
             // Group rows open scoped search palette on click; sub-bar opens on hover dwell
             Button {
                 onCancelSubBarDwell?()
-                onEnteredScopedSearch?(action)
+                let frame = hoverFrames[.action(index)]
+                onEnteredScopedSearch?(action, frame)
             } label: {
                 labelView
             }
@@ -719,7 +756,8 @@ public struct PopupView: View {
                 // AI Tools launcher opens scoped search palette on click; sub-bar opens on hover dwell
                 Button {
                     onCancelSubBarDwell?()
-                    onEnteredScopedSearch?(action)
+                    let frame = hoverFrames[.action(index)]
+                    onEnteredScopedSearch?(action, frame)
                 } label: {
                     labelView
                 }

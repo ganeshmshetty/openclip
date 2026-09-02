@@ -628,6 +628,116 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertEqual(panel.frame.origin.y, 100, "Repositioning must place the panel at the requested origin.y")
     }
 
+    func testSetFrameRecenteringClampsToScreenRightEdgeWhenExpanding() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let panel = PopupPanel()
+        let visibleFrame = screen.visibleFrame
+        let padding = PopupMetrics.popupPadding
+
+        // Narrow panel initially positioned against the right screen edge
+        let initialWidth: CGFloat = 100
+        let initialX = visibleFrame.maxX - initialWidth - padding
+        panel.setFrame(NSRect(x: initialX, y: visibleFrame.midY, width: initialWidth, height: 50), display: false)
+        XCTAssertEqual(panel.frame.maxX, visibleFrame.maxX - padding, "precondition: panel is flush with right padding edge")
+
+        panel.recenterXOnResize = true
+
+        // Expand width to 350 (e.g. closing word completions -> wide action bar)
+        let expandedWidth: CGFloat = 350
+        panel.setFrame(NSRect(x: initialX, y: visibleFrame.midY, width: expandedWidth, height: 50), display: false)
+
+        XCTAssertLessThanOrEqual(panel.frame.maxX, visibleFrame.maxX - padding,
+                                 "Expanded panel right edge (\(panel.frame.maxX)) exceeded screen right edge (\(visibleFrame.maxX - padding))")
+        XCTAssertEqual(panel.frame.origin.x, visibleFrame.maxX - expandedWidth - padding,
+                       "Expanded panel should be clamped flush with right edge")
+    }
+
+    func testSetFrameRecenteringClampsToScreenLeftEdgeWhenExpanding() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let panel = PopupPanel()
+        let visibleFrame = screen.visibleFrame
+        let padding = PopupMetrics.popupPadding
+
+        // Narrow panel initially positioned against the left screen edge
+        let initialWidth: CGFloat = 100
+        let initialX = visibleFrame.minX + padding
+        panel.setFrame(NSRect(x: initialX, y: visibleFrame.midY, width: initialWidth, height: 50), display: false)
+        XCTAssertEqual(panel.frame.minX, visibleFrame.minX + padding, "precondition: panel is flush with left padding edge")
+
+        panel.recenterXOnResize = true
+
+        // Expand width to 350 (e.g. closing word completions -> wide action bar)
+        let expandedWidth: CGFloat = 350
+        panel.setFrame(NSRect(x: initialX, y: visibleFrame.midY, width: expandedWidth, height: 50), display: false)
+
+        XCTAssertGreaterThanOrEqual(panel.frame.minX, visibleFrame.minX + padding,
+                                    "Expanded panel left edge (\(panel.frame.minX)) fell below screen left edge (\(visibleFrame.minX + padding))")
+        XCTAssertEqual(panel.frame.origin.x, visibleFrame.minX + padding,
+                       "Expanded panel should be clamped flush with left edge")
+    }
+
+    func testSetFrameRightAnchorPreservesRightEdgeOnResize() throws {
+        let panel = PopupPanel()
+        panel.setFrame(NSRect(x: 200, y: 300, width: 300, height: 50), display: false)
+        XCTAssertEqual(panel.frame.maxX, 500)
+
+        panel.horizontalAnchor = .right
+
+        // Shrink width to 100 (e.g. paginating to a 1-item page)
+        panel.setFrame(NSRect(x: 200, y: 300, width: 100, height: 50), display: false)
+        XCTAssertEqual(panel.frame.maxX, 500, "Right edge must stay pinned when horizontalAnchor is .right")
+        XCTAssertEqual(panel.frame.origin.x, 400)
+
+        // Expand width to 400
+        panel.setFrame(NSRect(x: 200, y: 300, width: 400, height: 50), display: false)
+        XCTAssertEqual(panel.frame.maxX, 500, "Right edge must stay pinned when expanding with .right anchor")
+        XCTAssertEqual(panel.frame.origin.x, 100)
+    }
+
+    func testSetFrameLeftAnchorPreservesLeftEdgeOnResize() throws {
+        let panel = PopupPanel()
+        panel.setFrame(NSRect(x: 200, y: 300, width: 300, height: 50), display: false)
+        XCTAssertEqual(panel.frame.minX, 200)
+
+        panel.horizontalAnchor = .left
+
+        // Shrink width to 100
+        panel.setFrame(NSRect(x: 200, y: 300, width: 100, height: 50), display: false)
+        XCTAssertEqual(panel.frame.minX, 200, "Left edge must stay pinned when horizontalAnchor is .left")
+        XCTAssertEqual(panel.frame.origin.x, 200)
+
+        // Expand width to 400
+        panel.setFrame(NSRect(x: 200, y: 300, width: 400, height: 50), display: false)
+        XCTAssertEqual(panel.frame.minX, 200, "Left edge must stay pinned when expanding with .left anchor")
+        XCTAssertEqual(panel.frame.origin.x, 200)
+    }
+
+    func testEnterSearchWithButtonAnchorCentersSearchOnButton() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let cursor = CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200)
+        let controller = try shownPanel(for: cursor)
+        defer { controller.hide() }
+        let panel = try visiblePanel()
+
+        let initialBarFrame = panel.frame
+        let buttonLocalX: CGFloat = 250
+        let buttonWidth: CGFloat = 34
+        let buttonLocalFrame = CGRect(x: buttonLocalX, y: 0, width: buttonWidth, height: 29)
+        let expectedButtonScreenMidX = initialBarFrame.minX + buttonLocalFrame.midX
+
+        controller.enterSearch(buttonLocalFrame: buttonLocalFrame)
+        waitForSearchResize(panel, barHeight: initialBarFrame.height)
+
+        let searchFrame = panel.frame
+        XCTAssertEqual(searchFrame.midX, expectedButtonScreenMidX, accuracy: 2.0,
+                       "Search palette should be centered horizontally on the clicked button")
+
+        controller.exitSearch()
+        waitForSearchCollapse(panel, barHeight: initialBarFrame.height)
+        XCTAssertEqual(panel.frame.midX, initialBarFrame.midX, accuracy: 2.0,
+                       "Exiting search should restore the bar's horizontal position")
+    }
+
     func testDistanceDismissalSuspendsWhileAIProcessing() throws {
         let controller = PopupWindowController()
         let panel = PopupPanel()
@@ -913,6 +1023,30 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.mode, .content)
         XCTAssertEqual(controller.modeStore.resultCard?.isError, true)
         XCTAssertEqual(controller.modeStore.resultCard?.text, AIError.missingAPIKey.errorDescription)
+    }
+
+    func testPopupViewOnRunAIDelegatesToControllerAndShowsLoadingToast() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.maxY - 200))
+        defer { controller.hide() }
+
+        var ranAIWithID: String?
+        let selection = SelectionContext(text: "Proofread this", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection)
+        let view = PopupView(
+            actions: [],
+            context: context,
+            onResult: { _ in },
+            onRunAI: { actionID in
+                ranAIWithID = actionID
+                controller.runAIPreset(prompt: "Proofread this", title: "Proofread")
+            }
+        )
+        view.onRunAI?("ai.preset.proofread")
+
+        XCTAssertEqual(ranAIWithID, "ai.preset.proofread")
+        XCTAssertTrue(controller.toastController.isLoading, "Toast should be loading while AI generation is in progress")
+        XCTAssertEqual(controller.toastController.currentFeedback?.message, "Generating…")
     }
 }
 

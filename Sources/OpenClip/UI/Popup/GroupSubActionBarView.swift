@@ -18,6 +18,7 @@ public struct GroupSubActionBarView: View {
     public let onActionPerformed: @MainActor (String) -> Void
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
     public let onHoverTarget: @MainActor (PopupHoverTarget, Bool) -> Void
+    public let onPaginationAnchor: (@MainActor (PopupPanel.HorizontalAnchor) -> Void)?
     public let context: ActionContext
     public let presenter: any ActionPresenting
     public let effectiveTheme: String
@@ -26,7 +27,7 @@ public struct GroupSubActionBarView: View {
     @Binding public var currentPage: Int
     private let hoverState: SubBarHoverState
 
-    @AppStorage(SettingKey.popupPageSize.name) private var pageSize: Int = SettingKey.popupPageSize.defaultValue
+    @AppStorage(SettingKey.popupBarWidth.name) private var barWidthLevel: Int = SettingKey.popupBarWidth.defaultValue
 
     private var buttonWidth: CGFloat { PopupMetrics.actionButtonWidth * scale }
     private var barButtonHeight: CGFloat { PopupMetrics.barButtonHeight * scale }
@@ -43,6 +44,7 @@ public struct GroupSubActionBarView: View {
         onActionPerformed: @escaping @MainActor (String) -> Void,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent,
         onHoverTarget: @escaping @MainActor (PopupHoverTarget, Bool) -> Void = { _, _ in },
+        onPaginationAnchor: (@MainActor (PopupPanel.HorizontalAnchor) -> Void)? = nil,
         context: ActionContext,
         presenter: any ActionPresenting,
         effectiveTheme: String,
@@ -59,6 +61,7 @@ public struct GroupSubActionBarView: View {
         self.onActionPerformed = onActionPerformed
         self.onClickIntent = onClickIntent
         self.onHoverTarget = onHoverTarget
+        self.onPaginationAnchor = onPaginationAnchor
         self.context = context
         self.presenter = presenter
         self.effectiveTheme = effectiveTheme
@@ -68,21 +71,12 @@ public struct GroupSubActionBarView: View {
 
     // MARK: - Width-Budgeted Pagination helpers
 
-    public static let maxSubBarWidth: CGFloat = 720.0
-
     public static func estimatedButtonWidth(
         for action: any Action,
         scale: CGFloat = 1.0,
         presenter: any ActionPresenting = ActionCustomizationManager.shared
     ) -> CGFloat {
-        let icon = action.displayIcon(using: presenter)
-        if case .text(let text) = icon, text.count > 2 {
-            let charWidth: CGFloat = 7.8 * scale
-            let horizontalPadding: CGFloat = 22.0 * scale
-            let estimated = CGFloat(text.count) * charWidth + horizontalPadding
-            return max(PopupMetrics.actionButtonWidth * scale, min(125 * scale, estimated))
-        }
-        return PopupMetrics.actionButtonWidth * scale
+        PopupPageLayout.estimatedItemWidth(for: action, scale: scale, presenter: presenter)
     }
 
     public static func computePages(
@@ -91,32 +85,7 @@ public struct GroupSubActionBarView: View {
         scale: CGFloat = 1.0,
         presenter: any ActionPresenting = ActionCustomizationManager.shared
     ) -> [[any Action]] {
-        guard !actions.isEmpty else { return [[]] }
-        let chevronWidth: CGFloat = 29 * scale
-        var pages: [[any Action]] = []
-        var currentPage: [any Action] = []
-        var currentWidth: CGFloat = 0
-
-        for (index, action) in actions.enumerated() {
-            let itemWidth = estimatedButtonWidth(for: action, scale: scale, presenter: presenter)
-            let isFirst = currentPage.isEmpty
-            let hasLeft = !pages.isEmpty
-            let remainingAfterThis = actions.count - 1 - index
-            let neededChevrons = (hasLeft ? chevronWidth : 0) + (remainingAfterThis > 0 ? chevronWidth : 0)
-
-            if !isFirst && (currentWidth + itemWidth + neededChevrons > maxBudget) {
-                pages.append(currentPage)
-                currentPage = [action]
-                currentWidth = itemWidth
-            } else {
-                currentPage.append(action)
-                currentWidth += itemWidth
-            }
-        }
-        if !currentPage.isEmpty {
-            pages.append(currentPage)
-        }
-        return pages.isEmpty ? [[]] : pages
+        PopupPageLayout.computePages(actions: actions, leadingWidth: 0, trailingWidth: 0, maxBudget: maxBudget, scale: scale, presenter: presenter)
     }
 
     public static func measuredPageWidth(
@@ -126,11 +95,7 @@ public struct GroupSubActionBarView: View {
         scale: CGFloat = 1.0,
         presenter: any ActionPresenting = ActionCustomizationManager.shared
     ) -> CGFloat {
-        let actionsWidth = actions.reduce(0) { sum, action in
-            sum + estimatedButtonWidth(for: action, scale: scale, presenter: presenter)
-        }
-        let chevronsWidth = (hasLeftChevron ? 29 * scale : 0) + (hasRightChevron ? 29 * scale : 0)
-        return actionsWidth + chevronsWidth
+        PopupPageLayout.measuredBarWidth(actions: actions, hasLeftChevron: hasLeftChevron, hasRightChevron: hasRightChevron, leadingWidth: 0, trailingWidth: 0, scale: scale, presenter: presenter)
     }
 
     public static func totalPages(actionCount: Int, pageSize: Int) -> Int {
@@ -145,8 +110,12 @@ public struct GroupSubActionBarView: View {
         return Array(ids[start..<end])
     }
 
+    private var maxSubBarBudget: CGFloat {
+        PopupMetrics.barWidth(for: barWidthLevel) * scale
+    }
+
     private var pages: [[any Action]] {
-        Self.computePages(actions: subActions, maxBudget: Self.maxSubBarWidth * scale, scale: scale, presenter: presenter)
+        PopupPageLayout.computePages(actions: subActions, leadingWidth: 0, trailingWidth: 0, maxBudget: maxSubBarBudget, scale: scale, presenter: presenter)
     }
 
     private var totalPages: Int {
@@ -174,6 +143,7 @@ public struct GroupSubActionBarView: View {
                 let isHovered = hoveredTarget == .chevron("chevron.left.sub")
                 chevronButton(systemImage: "chevron.left", targetKey: "chevron.left.sub",
                               label: "Previous page", isHovered: isHovered) {
+                    onPaginationAnchor?(.right)
                     currentPage -= 1
                 }
             }
@@ -181,6 +151,7 @@ public struct GroupSubActionBarView: View {
                 let isHovered = hoveredTarget == .chevron("chevron.right.sub")
                 chevronButton(systemImage: "chevron.right", targetKey: "chevron.right.sub",
                               label: "Next page", isHovered: isHovered) {
+                    onPaginationAnchor?(.right)
                     currentPage += 1
                 }
             }

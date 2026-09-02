@@ -65,8 +65,10 @@ public extension SettingKey where Value == Bool {
 }
 
 public extension SettingKey where Value == Int {
-    /// Number of actions displayed per page in the popup bar (default 7).
+    /// Number of actions displayed per page in the popup bar (legacy, default 7).
     static var popupPageSize: SettingKey<Int> { SettingKey<Int>("popupPageSize", defaultValue: 7) }
+    /// Maximum width budget level for the popup bar from 1 to 5 (3 = Standard / Default ~540pt).
+    static var popupBarWidth: SettingKey<Int> { SettingKey<Int>("popupBarWidth", defaultValue: 3) }
     /// Visual scaling level for the popup from 1 to 5 (3 = Normal / Default).
     static var popupScale: SettingKey<Int> { SettingKey<Int>("popupScale", defaultValue: 3) }
 }
