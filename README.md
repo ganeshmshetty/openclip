@@ -21,9 +21,6 @@ https://github.com/user-attachments/assets/0dc0d328-5e50-4190-8f6f-23020072f059
 
 Select any text in any app, and OpenClip appears with contextual actions — copy, transform, calculate, AI writing, or custom extensions. Press <kbd>⌥⌘C</kbd> to open a fuzzy search palette over your entire action library.
 
-> [!NOTE]
-> **100% On-Device & Privacy First**: OpenClip reads selections live via macOS Accessibility APIs. It never touches or pollutes your clipboard history while monitoring, and stores zero data.
-
 ---
 
 ## Features
