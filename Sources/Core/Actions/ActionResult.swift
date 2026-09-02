@@ -12,6 +12,7 @@ public indirect enum ActionResult: Sendable {
     case failure(Error)
     case simulatePaste
     case openURL(URL)
+    case openURLInApp(url: URL, appBundleIdentifier: String)
     case copy(String)
     case cut(String)
     case paste(String)

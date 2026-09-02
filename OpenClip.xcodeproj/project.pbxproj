@@ -91,6 +91,7 @@
 		49C06EBA5B3FD035E51BA83A /* PasteAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301F027F5438EEDF87A6645B /* PasteAction.swift */; };
 		4AB80D47D3E30B72061B9910 /* CutAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56934780251D06C70C9D3172 /* CutAction.swift */; };
 		4B02DF82BA5A3B961C1BE2C5 /* GeneralTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F63399A1C7D78E9E1667DF /* GeneralTabView.swift */; };
+		4C093E8147C7BB9AB7BEA56A /* BrowserDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD5BFC0CF295E615C2535C32 /* BrowserDetector.swift */; };
 		4C292689D2C7C7564D4D9AFF /* DebugLogCommandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F292704F06603C30BB2C77 /* DebugLogCommandTests.swift */; };
 		4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */; };
 		4C7A369633219B87FC717CF6 /* DebugLogBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D3417470E254AA1CA970D2 /* DebugLogBufferTests.swift */; };
@@ -650,6 +651,7 @@
 		DAD285A6E160A8CFE29AB959 /* SearchEnginePreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEnginePreset.swift; sourceTree = "<group>"; };
 		DB02C8F39926FFDCB6BBF5D1 /* ActionDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionDelivery.swift; sourceTree = "<group>"; };
 		DCA0A12F58628A20E611FABA /* SubBarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubBarPanel.swift; sourceTree = "<group>"; };
+		DD5BFC0CF295E615C2535C32 /* BrowserDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserDetector.swift; sourceTree = "<group>"; };
 		DDD3B55E83E9C71B05706009 /* CursorClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorClassifier.swift; sourceTree = "<group>"; };
 		DDF25B7CA70822AE323518F8 /* MemorySettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsStore.swift; sourceTree = "<group>"; };
 		DECAB4B5213F632283318CD6 /* SelectionMonitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionMonitoring.swift; sourceTree = "<group>"; };
@@ -1185,6 +1187,7 @@
 			children = (
 				750ADA88A976EEF10B2481E2 /* AppFilter.swift */,
 				556EAA8E99BA35061EE49D9F /* AppIdentifying.swift */,
+				DD5BFC0CF295E615C2535C32 /* BrowserDetector.swift */,
 				17E803385A2D8E9D1D257F00 /* Constants.swift */,
 				8F741E6F7B6D8F5B61A13F0F /* SelectionContext.swift */,
 				DECAB4B5213F632283318CD6 /* SelectionMonitoring.swift */,
@@ -1589,6 +1592,7 @@
 				8DFC838BDE16FA27F0C19FBB /* AppIdentifying.swift in Sources */,
 				907C67F8CA91B89F985DB37F /* AppLaunchClassifier.swift in Sources */,
 				B776223E716B18F4F53A4D3F /* AppRule.swift in Sources */,
+				4C093E8147C7BB9AB7BEA56A /* BrowserDetector.swift in Sources */,
 				EBBDD5144B39E9622CA4F910 /* BuiltinRegistry.swift in Sources */,
 				589E69527B1AD912FFEF303B /* CalculateAction.swift in Sources */,
 				998C035B69CC6C290A1403CE /* CalendarAction.swift in Sources */,

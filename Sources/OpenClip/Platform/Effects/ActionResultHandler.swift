@@ -64,6 +64,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     private let dictionaryLookup: DictionaryLookup
     private let icsCleanupDelay: TimeInterval
     private let openURL: @MainActor @Sendable (URL) -> Void
+    private let openURLInApp: @MainActor @Sendable (URL, String) -> Void
     private var pendingRestoreTask: Task<Void, Never>?
 
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
@@ -77,6 +78,18 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         self.pasteboardRestoreDelay = Constants.pasteboardRestoreDelay
         self.icsCleanupDelay = Constants.icsCleanupDelay
         self.openURL = { NSWorkspace.shared.open($0) }
+        self.openURLInApp = { url, bundleID in
+            let success = NSWorkspace.shared.open(
+                [url],
+                withAppBundleIdentifier: bundleID,
+                options: [],
+                additionalEventParamDescriptor: nil,
+                launchIdentifiers: nil
+            )
+            if !success {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
@@ -85,7 +98,19 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 dictionaryLookup: @escaping DictionaryLookup = DictionaryLookupFactory.systemLookup,
                 pasteboardRestoreDelay: TimeInterval = Constants.pasteboardRestoreDelay,
                 icsCleanupDelay: TimeInterval = Constants.icsCleanupDelay,
-                openURL: @escaping @MainActor @Sendable (URL) -> Void = { NSWorkspace.shared.open($0) }) {
+                openURL: @escaping @MainActor @Sendable (URL) -> Void = { NSWorkspace.shared.open($0) },
+                openURLInApp: @escaping @MainActor @Sendable (URL, String) -> Void = { url, bundleID in
+                    let success = NSWorkspace.shared.open(
+                        [url],
+                        withAppBundleIdentifier: bundleID,
+                        options: [],
+                        additionalEventParamDescriptor: nil,
+                        launchIdentifiers: nil
+                    )
+                    if !success {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
         self.settingsStore = settingsStore
         self.keyboardPoster = keyboardPoster
         self.pasteboard = pasteboard
@@ -93,6 +118,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         self.pasteboardRestoreDelay = pasteboardRestoreDelay
         self.icsCleanupDelay = icsCleanupDelay
         self.openURL = openURL
+        self.openURLInApp = openURLInApp
     }
 
 
@@ -172,6 +198,10 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
 
         case .openURL(let url):
             openURL(url)
+            scheduleICSFileCleanupIfNeeded(for: url)
+
+        case .openURLInApp(let url, let appBundleIdentifier):
+            openURLInApp(url, appBundleIdentifier)
             scheduleICSFileCleanupIfNeeded(for: url)
 
         case .showServices(let text):

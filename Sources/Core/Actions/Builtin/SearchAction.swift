@@ -44,6 +44,10 @@ public struct SearchAction: ConfigurableAction {
                 "https://www.google.com/search?q=\(encodedQuery)"
 
             if let url = URL(string: urlString) {
+                let sourceBundleID = context.selection.sourceApp.bundleIdentifier
+                if BrowserDetector.isBrowser(bundleIdentifier: sourceBundleID), let sourceBundleID {
+                    return .openURLInApp(url: url, appBundleIdentifier: sourceBundleID)
+                }
                 return .openURL(url)
             }
         }
