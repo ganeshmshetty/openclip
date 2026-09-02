@@ -245,6 +245,7 @@
 		BA308E09D1ED265BC04ACBD5 /* ActionCoordinatorGroupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACBA587ACDBB04B70F0E8E79 /* ActionCoordinatorGroupTests.swift */; };
 		BA797BFCDFA54D7BA61814F7 /* ExtensionManifestStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AA4E570571EC92C79EC5666 /* ExtensionManifestStore.swift */; };
 		BAAC7407A886FC8D771D2ED6 /* SettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E51843D196C894F4B98910 /* SettingsStoreTests.swift */; };
+		BC727CC4D70CB3699178E4C2 /* ExtensionUpdateBatchResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6F86E04A467D76646B39845 /* ExtensionUpdateBatchResult.swift */; };
 		BCB8FC0BDBC8396AF4A017A4 /* SubActionResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2EA847B6CB570918B4952D1 /* SubActionResolverTests.swift */; };
 		BCD32C05AB22670492608CB7 /* SecretActionOptionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EE09E2B85D8F93D9436ED5B /* SecretActionOptionStore.swift */; };
 		BD148FAD394544222DBF6DC3 /* ActionOptionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B13094FEDF487CD5EE929B /* ActionOptionStoreTests.swift */; };
@@ -640,6 +641,7 @@
 		D472E48BB7CBCC599EE48E92 /* TopLevelActionResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopLevelActionResolverTests.swift; sourceTree = "<group>"; };
 		D4A106241D07C43ED6F7226F /* OllamaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaProvider.swift; sourceTree = "<group>"; };
 		D65DE0BF7E0609929C64B1DA /* AXElementInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXElementInspector.swift; sourceTree = "<group>"; };
+		D6F86E04A467D76646B39845 /* ExtensionUpdateBatchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUpdateBatchResult.swift; sourceTree = "<group>"; };
 		D719D2B6B3F32C056AED329D /* CalculateActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculateActionTests.swift; sourceTree = "<group>"; };
 		D9FE4B50AD5CCA0A39301667 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		DAD285A6E160A8CFE29AB959 /* SearchEnginePreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEnginePreset.swift; sourceTree = "<group>"; };
@@ -952,6 +954,7 @@
 				208E1DDA96B874A04C415CE2 /* ExtensionsAPIClient.swift */,
 				B704F280421B7F41B35BB7C9 /* ExtensionsModels.swift */,
 				8A1F0A70907A39A46DAC2196 /* ExtensionStoreCache.swift */,
+				D6F86E04A467D76646B39845 /* ExtensionUpdateBatchResult.swift */,
 				45EDC48BB789417097D3B8A4 /* ExtensionUpdatePlanner.swift */,
 				0433AD358F1B636910C66094 /* OpenClipSnippetParser.swift */,
 				2F9C20B7C7D633121BA39CDA /* ScriptAction.swift */,
@@ -1607,6 +1610,7 @@
 				4E427DB028CD9AA797FDD7A5 /* ExtensionStoreCache.swift in Sources */,
 				AD8D6DC58BE9E129ADADD8FB /* ExtensionTrustGate.swift in Sources */,
 				F84E32706E2047EE57752FAD /* ExtensionTrustState.swift in Sources */,
+				BC727CC4D70CB3699178E4C2 /* ExtensionUpdateBatchResult.swift in Sources */,
 				3A08CF84C306A22EAEFDDBA5 /* ExtensionUpdatePlanner.swift in Sources */,
 				714F641630B8C17979890D5C /* ExtensionsAPIClient.swift in Sources */,
 				8A76237BE8A09680AB8B3350 /* ExtensionsModels.swift in Sources */,
