@@ -11,7 +11,7 @@ required reading before touching code.
 
 ## Getting started
 
-**Prerequisites:** macOS 14+, [Xcode 15+](https://apps.apple.com/us/app/xcode/id497799835),
+**Prerequisites:** macOS 14+, [Xcode 16+](https://apps.apple.com/us/app/xcode/id497799835),
 [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
 ```bash
