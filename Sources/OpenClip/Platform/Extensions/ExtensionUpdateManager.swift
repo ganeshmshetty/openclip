@@ -14,6 +14,9 @@ public final class ExtensionUpdateManager: ObservableObject {
 
     @Published public private(set) var updatablePackageIDs: [String] = []
     @Published public private(set) var isChecking = false
+    /// Outcome of the most recent updateAll batch; nil until the first batch runs. UI can observe
+    /// this to surface a summary toast (X succeeded, Y failed).
+    @Published public private(set) var lastBatchResult: ExtensionUpdateBatchResult?
 
     private init() {}
 
@@ -101,11 +104,25 @@ public final class ExtensionUpdateManager: ObservableObject {
         await checkForUpdates()
     }
 
-    public func updateAll() async {
-        for packageID in updatablePackageIDs {
-            try? await update(packageID: packageID)
+    /// Updates every package in `updatablePackageIDs`. Individual failures are logged and collected
+    /// into the returned result rather than aborting the batch or being silently swallowed by `try?`.
+    @discardableResult
+    public func updateAll() async -> ExtensionUpdateBatchResult {
+        var succeeded: [String] = []
+        var failed: [String: String] = [:]
+        for id in updatablePackageIDs {
+            do {
+                try await update(packageID: id)
+                succeeded.append(id)
+            } catch {
+                failed[id] = error.localizedDescription
+                Log.extensions.error("Failed to update extension '\(id, privacy: .public)': \(error.localizedDescription, privacy: .public)")
+            }
         }
+        let result = ExtensionUpdateBatchResult(succeeded: succeeded, failed: failed)
+        lastBatchResult = result
         await checkForUpdates()
+        return result
     }
 
     private func storeItem(for packageID: String) async -> ExtensionItem? {
