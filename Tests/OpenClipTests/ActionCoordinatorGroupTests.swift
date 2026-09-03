@@ -173,13 +173,178 @@ final class ActionCoordinatorGroupTests: XCTestCase {
         coordinator.addToGroup(actionID: "action.3", groupID: groupID, atIndex: 1)
         XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.1", "action.3", "action.2"])
     }
+
+    func testCoordinatorPreventsIneligibleActionsFromEnteringGroup() {
+        let aiTools = DummyAction(
+            id: "builtin.ai_tools",
+            title: "AI Tools",
+            chrome: ActionChrome(popupBehavior: .perform, launchesAI: true)
+        )
+        let wordCompletion = DummyAction(
+            id: "builtin.completion",
+            title: "Word Completion",
+            chrome: ActionChrome(popupBehavior: .provideCompletions)
+        )
+        let aiPreset = DummyAction(
+            id: "preset.proofread",
+            title: "Proofread",
+            chrome: ActionChrome(popupBehavior: .perform, source: .ai)
+        )
+        coordinator.register(action: aiTools)
+        coordinator.register(action: wordCompletion)
+        coordinator.register(action: aiPreset)
+
+        // Try creating group with ineligible actions
+        coordinator.createGroup(
+            title: "Mixed Group",
+            iconName: "folder",
+            memberActionIDs: ["action.1", "builtin.ai_tools", "builtin.completion", "preset.proofread"]
+        )
+        let group = coordinator.actionGroupDefs.first(where: { $0.title == "Mixed Group" })
+        XCTAssertNotNil(group)
+        XCTAssertEqual(group?.memberActionIDs, ["action.1"])
+
+        guard let groupID = group?.id else { return }
+
+        // Try adding AI tools
+        coordinator.addToGroup(actionID: "builtin.ai_tools", groupID: groupID)
+        XCTAssertFalse(coordinator.actionGroupDefs[0].memberActionIDs.contains("builtin.ai_tools"))
+
+        // Try adding word completion
+        coordinator.addToGroup(actionID: "builtin.completion", groupID: groupID)
+        XCTAssertFalse(coordinator.actionGroupDefs[0].memberActionIDs.contains("builtin.completion"))
+
+        // Try adding AI preset
+        coordinator.addToGroup(actionID: "preset.proofread", groupID: groupID)
+        XCTAssertFalse(coordinator.actionGroupDefs[0].memberActionIDs.contains("preset.proofread"))
+
+        // Try adding another group into this group
+        coordinator.createGroup(title: "Other Group", iconName: "folder", memberActionIDs: ["action.2"])
+        let otherGroupID = coordinator.actionGroupDefs.first(where: { $0.title == "Other Group" })!.id
+        coordinator.addToGroup(actionID: otherGroupID, groupID: groupID)
+        XCTAssertFalse(coordinator.actionGroupDefs.first(where: { $0.id == groupID })!.memberActionIDs.contains(otherGroupID))
+    }
+
+    func testCoordinatorSyncCatalogOrderOnGroupUpdate() {
+        coordinator.createGroup(title: "Reorder Group", iconName: "folder", memberActionIDs: ["action.1", "action.2", "action.3"])
+        guard let groupID = coordinator.actionGroupDefs.first?.id else { return XCTFail() }
+
+        // Reverse order of members
+        coordinator.updateGroup(groupID: groupID, title: "Reorder Group", iconName: "folder", memberActionIDs: ["action.3", "action.2", "action.1"])
+
+        XCTAssertEqual(coordinator.actionGroupDefs.first?.memberActionIDs, ["action.3", "action.2", "action.1"])
+
+        // Check catalog action order
+        let catalogIDs = coordinator.actions.map(\.id)
+        guard let gIndex = catalogIDs.firstIndex(of: groupID) else { return XCTFail("Group ID not found in catalog") }
+        guard catalogIDs.count > gIndex + 3 else {
+            return XCTFail("Expected three member entries after the group parent, got \(catalogIDs)")
+        }
+        XCTAssertEqual(Array(catalogIDs[(gIndex + 1)...(gIndex + 3)]), ["action.3", "action.2", "action.1"])
+    }
+
+    func testUpdateGroupRetainsUnregisteredExistingMember() {
+        coordinator.createGroup(title: "Retain Test", iconName: "folder", memberActionIDs: ["action.1", "action.2"])
+        guard let groupID = coordinator.actionGroupDefs.first?.id else { return XCTFail() }
+
+        // Unregister action.1 (e.g. extension unloaded or disabled)
+        coordinator.unregister(actionID: "action.1")
+        XCTAssertFalse(coordinator.actions.contains(where: { $0.id == "action.1" }))
+
+        // Update the group (e.g. renaming or reordering with action.1 still in member list)
+        coordinator.updateGroup(
+            groupID: groupID,
+            title: "Retain Test Renamed",
+            iconName: "folder",
+            memberActionIDs: ["action.2", "action.1"]
+        )
+
+        // Verify that action.1 is retained even though it is currently unregistered
+        let group = coordinator.actionGroupDefs.first(where: { $0.id == groupID })
+        XCTAssertNotNil(group)
+        XCTAssertEqual(group?.memberActionIDs, ["action.2", "action.1"])
+        XCTAssertEqual(group?.title, "Retain Test Renamed")
+    }
+
+    func testExtensionGroupPackageActionsAreIneligibleForCustomGrouping() {
+        // Extension group package with a .showSubActions parent and sub-actions
+        let groupParent = DummyAction(
+            id: "pkg.dev.tools",
+            title: "Dev Tools",
+            chrome: ActionChrome(
+                rowStyle: .actionGroup,
+                popupBehavior: .showSubActions,
+                source: .extensionPkg(packageID: "pkg.dev")
+            )
+        )
+        let groupChild = DummyAction(
+            id: "pkg.dev.format",
+            title: "Format Code",
+            chrome: ActionChrome(
+                popupBehavior: .perform,
+                source: .extensionPkg(packageID: "pkg.dev")
+            )
+        )
+        // Standalone unaffected extension action in another package without .showSubActions
+        let standaloneAction = DummyAction(
+            id: "pkg.standalone.run",
+            title: "Run Script",
+            chrome: ActionChrome(
+                popupBehavior: .perform,
+                source: .extensionPkg(packageID: "pkg.standalone")
+            )
+        )
+
+        coordinator.register(action: groupParent)
+        coordinator.register(action: groupChild)
+        coordinator.register(action: standaloneAction)
+
+        // Sub-actions and parents from extension group package must be ineligible
+        XCTAssertFalse(coordinator.isEligibleForGrouping(actionID: "pkg.dev.format"))
+        XCTAssertFalse(coordinator.isEligibleForGrouping(actionID: "pkg.dev.tools"))
+
+        // Unaffected standalone extension action must preserve eligibility
+        XCTAssertTrue(coordinator.isEligibleForGrouping(actionID: "pkg.standalone.run"))
+
+        // Attempting to create group with ineligible child should filter it out
+        coordinator.createGroup(
+            title: "Custom Group",
+            iconName: "folder",
+            memberActionIDs: ["pkg.standalone.run", "pkg.dev.format"]
+        )
+        let group = coordinator.actionGroupDefs.first(where: { $0.title == "Custom Group" })
+        XCTAssertNotNil(group)
+        XCTAssertEqual(group?.memberActionIDs, ["pkg.standalone.run"])
+
+        guard let groupID = group?.id else { return }
+
+        // Attempting to addToGroup with ineligible child should be rejected
+        coordinator.addToGroup(actionID: "pkg.dev.format", groupID: groupID)
+        XCTAssertFalse(coordinator.actionGroupDefs[0].memberActionIDs.contains("pkg.dev.format"))
+
+        // Attempting to updateGroup with ineligible child should reject it
+        coordinator.updateGroup(
+            groupID: groupID,
+            title: "Custom Group",
+            iconName: "folder",
+            memberActionIDs: ["pkg.standalone.run", "pkg.dev.format"]
+        )
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["pkg.standalone.run"])
+    }
 }
 
 private struct DummyAction: Action, Sendable {
     let id: String
     let title: String
     var icon: ActionIcon { .symbol("star") }
-    var chrome: ActionChrome { ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin) }
+    var chrome: ActionChrome
+
+    init(id: String, title: String, chrome: ActionChrome = ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin)) {
+        self.id = id
+        self.title = title
+        self.chrome = chrome
+    }
+
     @MainActor func isEnabled(for context: ActionContext) -> Bool { true }
     @MainActor func perform(_ context: ActionContext) async throws -> ActionResult { .none }
 }

@@ -38,10 +38,9 @@ enum ActionsSubTab: String, CaseIterable, Hashable {
 
 @MainActor
 public struct PreferencesView: View {
-    /// Shared max content width for the detail area. Matches the grouped-form content
-    /// cap (600pt on macOS 15+), so Actions/Appearance render at the same
-    /// width as the form-based tabs instead of stretching with the window.
-    private static let detailContentMaxWidth: CGFloat = 600
+    /// Shared max content width for the detail area. Keeps Actions/Appearance
+    /// compact and aligned with the window rather than stretching infinitely.
+    private static let detailContentMaxWidth: CGFloat = 480
 
     @State private var disabledActionIDs: Set<String> = []
     @State private var disabledPackages: Set<String> = []
@@ -49,6 +48,8 @@ public struct PreferencesView: View {
     @State private var aiSubTab: AISubTab = .configure
     @State private var actionsSubTab: ActionsSubTab = .actions
     @State private var activeSheet: PreferencesSheet?
+    @State private var showingAddActionSheet = false
+    @State private var showingCreateGroupSheet = false
     @ObservedObject private var coordinator = ActionCoordinator.shared
 
     public init(initialTab: PreferenceTab = .general) {
@@ -150,13 +151,47 @@ public struct PreferencesView: View {
                         .labelsHidden()
                         .frame(width: 170)
                     } else if selectedTab == .actions {
-                        Picker("", selection: $actionsSubTab) {
-                            Text("Actions").tag(ActionsSubTab.actions)
-                            Text("Store").tag(ActionsSubTab.store)
+                        HStack(spacing: 10) {
+                            if actionsSubTab == .actions {
+                                Menu {
+                                    Button {
+                                        showingCreateGroupSheet = true
+                                    } label: {
+                                        Label(String(localized: "New Group"), systemImage: "folder.badge.plus")
+                                    }
+
+                                    Button {
+                                        showingAddActionSheet = true
+                                    } label: {
+                                        Label(String(localized: "Add Custom Action"), systemImage: "plus.circle")
+                                    }
+
+                                    Button {
+                                        presentInstallExtensionPanel()
+                                    } label: {
+                                        Label(String(localized: "Install Extension…"), systemImage: "square.and.arrow.down")
+                                    }
+                                } label: {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                }
+                                .menuStyle(.borderlessButton)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.primary.opacity(0.06))
+                                .cornerRadius(6)
+                                .help(String(localized: "Add Action or Group"))
+                            }
+
+                            Picker("", selection: $actionsSubTab) {
+                                Text("Actions").tag(ActionsSubTab.actions)
+                                Text("Store").tag(ActionsSubTab.store)
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            .frame(width: 170)
                         }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(width: 170)
                     }
                 }
                 .frame(maxWidth: Self.detailContentMaxWidth)
@@ -177,6 +212,8 @@ public struct PreferencesView: View {
                             ActionsTab(
                                 disabledActionIDs: $disabledActionIDs,
                                 disabledPackages: $disabledPackages,
+                                showingAddActionSheet: $showingAddActionSheet,
+                                showingCreateGroupSheet: $showingCreateGroupSheet,
                                 onOpenAI: {
                                     aiSubTab = .configure
                                     selectedTab = .ai
@@ -196,8 +233,8 @@ public struct PreferencesView: View {
                 .frame(maxWidth: Self.detailContentMaxWidth)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 16)
-                // General's grouped form runs edge-to-edge to the window bottom; other tabs keep breathing room.
-                .padding(.bottom, selectedTab == .general ? 0 : 16)
+                // General and Actions run edge-to-edge to the window bottom; other tabs keep breathing room.
+                .padding(.bottom, (selectedTab == .general || selectedTab == .actions) ? 0 : 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

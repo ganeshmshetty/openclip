@@ -46,4 +46,18 @@ public enum ActionIdentity {
     public static func isCompletionPseudoAction(_ action: any Action) -> Bool {
         action.chrome.popupBehavior == .provideCompletions
     }
+
+    /// Whether an action is eligible to be placed inside a custom action group.
+    /// Ineligible actions include AI presets, AI launchers, word completion pseudo-actions,
+    /// and other action groups (no nested groups).
+    public static func isEligibleForGrouping(_ action: any Action) -> Bool {
+        !isAIPreset(action) &&
+        !action.chrome.launchesAI &&
+        action.id != "builtin.ai_tools" &&
+        !isCompletionPseudoAction(action) &&
+        action.id != "builtin.completion" &&
+        action.chrome.popupBehavior != .showSubActions &&
+        action.chrome.rowStyle != .actionGroup &&
+        !action.id.hasPrefix("vgroup.")
+    }
 }

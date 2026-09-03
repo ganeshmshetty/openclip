@@ -15,7 +15,7 @@
 
 <br />
 
-https://github.com/user-attachments/assets/0dc0d328-5e50-4190-8f6f-23020072f059
+<img src="./assets/all.gif" alt="OpenClip in action" />
 
 </div>
 

@@ -103,7 +103,9 @@ public struct ExtensionStoreView: View {
             filterBar
             storeContent
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.top, 4)
+        .padding(.bottom, 0)
         .task {
             await viewModel.resetAndFetch()
         }
@@ -183,15 +185,6 @@ public struct ExtensionStoreView: View {
                 }
                 .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
                 .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
     }
@@ -209,15 +202,6 @@ public struct ExtensionStoreView: View {
                 }
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.03))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

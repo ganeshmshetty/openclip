@@ -109,6 +109,17 @@ public final class ActionCoordinator: ObservableObject, Sendable {
                 changed = true
             }
         }
+
+        let sortedDefs = updated.sorted { defA, defB in
+            let rankA = orderIndexMap[defA.id] ?? Int.max
+            let rankB = orderIndexMap[defB.id] ?? Int.max
+            return rankA < rankB
+        }
+        if sortedDefs != updated {
+            updated = sortedDefs
+            changed = true
+        }
+
         if changed {
             actionGroupDefs = updated
             saveAndApplyGroupDefs()
@@ -124,12 +135,33 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         registry.setGroupDefs(actionGroupDefs)
     }
 
+    private var extensionGroupPackageIDs: Set<String> {
+        Set(
+            actions
+                .filter { $0.chrome.popupBehavior == .showSubActions }
+                .compactMap { ActionIdentity.extensionPackageID(of: $0) }
+        )
+    }
+
+    private func isBelongingToExtensionGroupPackage(_ action: any Action) -> Bool {
+        guard let pkgID = ActionIdentity.extensionPackageID(of: action) else { return false }
+        return extensionGroupPackageIDs.contains(pkgID)
+    }
+
+    public func isEligibleForGrouping(actionID: String) -> Bool {
+        guard let action = actions.first(where: { $0.id == actionID }) else { return false }
+        if actionGroupDefs.contains(where: { $0.id == actionID }) { return false }
+        guard ActionIdentity.isEligibleForGrouping(action) else { return false }
+        guard !isBelongingToExtensionGroupPackage(action) else { return false }
+        return true
+    }
+
     public func createGroup(title: String, iconName: String, memberActionIDs: [String] = []) {
         var seen = Set<String>()
         var deduped: [String] = []
         for rawID in memberActionIDs {
             let id = rawID.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !id.isEmpty else { continue }
+            guard !id.isEmpty && isEligibleForGrouping(actionID: id) else { continue }
             if seen.insert(id).inserted {
                 deduped.append(id)
             }
@@ -151,13 +183,34 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         saveAndApplyGroupDefs()
     }
 
+    private func isEligible(actionID: String, forGroup groupID: String, existingMembers: Set<String>) -> Bool {
+        let trimmed = actionID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard trimmed != groupID && !trimmed.hasPrefix("vgroup.") else { return false }
+        guard trimmed != "builtin.ai_tools" && trimmed != "builtin.completion" else { return false }
+        if actionGroupDefs.contains(where: { $0.id == trimmed }) { return false }
+        for def in actionGroupDefs where def.id != groupID {
+            if def.memberActionIDs.contains(trimmed) { return false }
+        }
+
+        if let action = actions.first(where: { $0.id == trimmed }) {
+            guard ActionIdentity.isEligibleForGrouping(action) else { return false }
+            guard !isBelongingToExtensionGroupPackage(action) else { return false }
+            return true
+        }
+
+        // An unresolved action ID is accepted only when it already belongs to the group being edited
+        return existingMembers.contains(trimmed)
+    }
+
     public func updateGroup(groupID: String, title: String, iconName: String, memberActionIDs: [String]) {
         guard let index = actionGroupDefs.firstIndex(where: { $0.id == groupID }) else { return }
+        let existingMembers = Set(actionGroupDefs[index].memberActionIDs)
         var seen = Set<String>()
         var deduped: [String] = []
         for rawID in memberActionIDs {
             let id = rawID.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !id.isEmpty else { continue }
+            guard !id.isEmpty && isEligible(actionID: id, forGroup: groupID, existingMembers: existingMembers) else { continue }
             if seen.insert(id).inserted {
                 deduped.append(id)
             }
@@ -167,12 +220,33 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         actionGroupDefs[index].iconName = resolvedIcon
         actionGroupDefs[index].memberActionIDs = deduped
         saveAndApplyGroupDefs()
+        syncCatalogOrder(for: groupID, memberIDs: deduped)
+    }
+
+    private func syncCatalogOrder(for groupID: String, memberIDs: [String]) {
+        guard !memberIDs.isEmpty else { return }
+        var currentActions = registry.actions
+        guard let _ = currentActions.firstIndex(where: { $0.id == groupID }) else { return }
+
+        let memberSet = Set(memberIDs)
+        let actionMap = Dictionary(uniqueKeysWithValues: currentActions.filter { memberSet.contains($0.id) }.map { ($0.id, $0) })
+        currentActions.removeAll { memberSet.contains($0.id) }
+
+        guard let newGroupIndex = currentActions.firstIndex(where: { $0.id == groupID }) else { return }
+        let orderedMembers = memberIDs.compactMap { actionMap[$0] }
+        currentActions.insert(contentsOf: orderedMembers, at: newGroupIndex + 1)
+
+        let newOrder = currentActions.map(\.id)
+        settingsStore.set(.actionOrder, value: newOrder)
+        registry.setGroupDefs(actionGroupDefs)
     }
 
     public func addToGroup(actionID: String, groupID: String, atIndex: Int? = nil) {
-        guard let groupIndex = actionGroupDefs.firstIndex(where: { $0.id == groupID }) else { return }
+        guard let _ = actionGroupDefs.firstIndex(where: { $0.id == groupID }) else { return }
         let trimmedID = actionID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedID.isEmpty else { return }
+        guard isEligibleForGrouping(actionID: trimmedID) else { return }
+        guard trimmedID != groupID else { return }
 
         // Remove action from any other existing group
         var updated = actionGroupDefs
@@ -218,6 +292,13 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     }
 
     private func saveAndApplyGroupDefs() {
+        for i in 0..<actionGroupDefs.count {
+            let groupID = actionGroupDefs[i].id
+            let existingMembers = Set(actionGroupDefs[i].memberActionIDs)
+            actionGroupDefs[i].memberActionIDs = actionGroupDefs[i].memberActionIDs.filter {
+                isEligible(actionID: $0, forGroup: groupID, existingMembers: existingMembers)
+            }
+        }
         saveGroupDefs(actionGroupDefs)
         registry.setGroupDefs(actionGroupDefs)
     }

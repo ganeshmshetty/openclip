@@ -88,6 +88,36 @@ public struct EditGroupSheet: View {
                                 .font(.system(size: 12))
                         }
                         Spacer()
+                        if let index = memberIDs.firstIndex(of: actionID) {
+                            HStack(spacing: 4) {
+                                Button {
+                                    guard index > 0 else { return }
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        memberIDs.swapAt(index, index - 1)
+                                    }
+                                } label: {
+                                    Image(systemName: "chevron.up")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(index > 0 ? .secondary : .secondary.opacity(0.25))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(index == 0)
+
+                                Button {
+                                    guard index < memberIDs.count - 1 else { return }
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        memberIDs.swapAt(index, index + 1)
+                                    }
+                                } label: {
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(index < memberIDs.count - 1 ? .secondary : .secondary.opacity(0.25))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(index >= memberIDs.count - 1)
+                            }
+                            .padding(.trailing, 4)
+                        }
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 memberIDs.removeAll { $0 == actionID }
