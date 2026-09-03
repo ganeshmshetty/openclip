@@ -98,16 +98,33 @@ fi
 
 DOWNLOAD_PREFIX="https://github.com/ganeshmshetty/openclip/releases/download/v$VERSION/"
 
+echo "==> Extracting release notes for v$VERSION from CHANGELOG.md..."
+NOTES_FILE="$BUILD_DIR/OpenClip-v$VERSION.md"
+awk -v ver="## v$VERSION" '
+    $0 ~ ver { flag=1; next }
+    flag && /^## v/ { flag=0 }
+    flag && !/^---$/ { print }
+' "$PROJECT_DIR/CHANGELOG.md" > "$NOTES_FILE"
+
+if [ ! -s "$NOTES_FILE" ]; then
+    echo "warning: No entry found for v$VERSION in CHANGELOG.md; generating default note."
+    echo "OpenClip version $VERSION release." > "$NOTES_FILE"
+fi
+
 if [ -n "${SPARKLE_ED_PRIVATE_KEY:-}" ]; then
     printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | "$GENERATE_APPCAST" \
         --ed-key-file - \
         --download-url-prefix "$DOWNLOAD_PREFIX" \
+        --embed-release-notes \
+        --full-release-notes-url "https://github.com/ganeshmshetty/openclip/releases/tag/v$VERSION" \
         -o appcast.xml \
         "$BUILD_DIR"
 else
     "$GENERATE_APPCAST" \
         --account openclip \
         --download-url-prefix "$DOWNLOAD_PREFIX" \
+        --embed-release-notes \
+        --full-release-notes-url "https://github.com/ganeshmshetty/openclip/releases/tag/v$VERSION" \
         -o appcast.xml \
         "$BUILD_DIR"
 fi

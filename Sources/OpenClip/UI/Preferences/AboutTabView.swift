@@ -46,22 +46,53 @@ struct AboutTab: View {
             }
 
             // ── Updates Card ──
-            VStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 if let newVersion = updateManager.availableUpdateVersion {
-                    HStack(spacing: 8) {
-                        Image(systemName: "sparkles")
-                            .foregroundStyle(.tint)
-                        Text("Update Available: v\(newVersion)")
-                            .font(.system(size: 12, weight: .semibold))
-                        Spacer()
-                        Button {
-                            updateManager.checkForUpdates()
-                        } label: {
-                            Text("Update Now")
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.tint)
+                            Text(updateManager.isUpdateStagedForQuitInstall
+                                 ? String(localized: "Update Ready: v\(newVersion)")
+                                 : String(localized: "Update Available: v\(newVersion)"))
                                 .font(.system(size: 12, weight: .semibold))
+                            Spacer()
+                            Button {
+                                updateManager.installUpdateNow()
+                            } label: {
+                                Text(String(localized: "Update Now"))
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+
+                            Button {
+                                updateManager.installUpdateOnQuit()
+                            } label: {
+                                Text(String(localized: "Update on Quit"))
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
+
+                        if let notes = updateManager.availableUpdateReleaseNotes, !notes.isEmpty {
+                            DisclosureGroup(String(localized: "Release Notes")) {
+                                ScrollView {
+                                    Text(notes)
+                                        .font(.system(size: 11))
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .textSelection(.enabled)
+                                        .padding(6)
+                                }
+                                .frame(maxHeight: 100)
+                                .background(Color(NSColor.textBackgroundColor).opacity(0.5))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        }
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -69,37 +100,71 @@ struct AboutTab: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
-                HStack(spacing: 12) {
-                    Toggle("", isOn: $updateManager.automaticallyChecksForUpdates)
-                        .labelsHidden()
-                        .controlSize(.mini)
-                        .accessibilityLabel("Check for Updates Automatically")
-                    Text("Auto-update")
+                // Row 1: Automatically Download Updates
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: 13))
+                        .foregroundColor(updateManager.automaticallyDownloadsUpdates ? .accentColor : .secondary)
+                        .frame(width: 18, alignment: .center)
+
+                    Text(String(localized: "Automatically Download Updates"))
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
 
                     Spacer()
 
+                    Toggle("", isOn: $updateManager.automaticallyDownloadsUpdates)
+                        .labelsHidden()
+                        .controlSize(.mini)
+                        .accessibilityLabel(String(localized: "Automatically Download Updates"))
+                }
+                .padding(.vertical, 2)
+
+                // Row 2: Notify on Update
+                HStack(spacing: 8) {
+                    Image(systemName: "bell.badge")
+                        .font(.system(size: 13))
+                        .foregroundColor(updateManager.notifyOnUpdate ? .accentColor : .secondary)
+                        .frame(width: 18, alignment: .center)
+
+                    Text(String(localized: "Notify on Update"))
+                        .font(.system(size: 12))
+
+                    Spacer()
+
+                    Toggle("", isOn: $updateManager.notifyOnUpdate)
+                        .labelsHidden()
+                        .controlSize(.mini)
+                        .accessibilityLabel(String(localized: "Notify on Update"))
+                }
+                .padding(.vertical, 2)
+
+                Divider()
+                    .padding(.vertical, 2)
+
+                // Row 3: Check for Updates Status & Button
+                HStack(spacing: 8) {
                     if let lastCheck = updateManager.lastUpdateCheckDate {
-                        Text(Self.shortTimeAgo(lastCheck))
+                        Text(String(localized: "Last checked: \(Self.shortTimeAgo(lastCheck))"))
                             .font(.system(size: 11))
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                     }
 
+                    Spacer()
+
                     Button {
                         updateManager.checkForUpdates()
                     } label: {
-                        Text("Check for Updates")
-                            .font(.system(size: 12, weight: .medium))
+                        Text(String(localized: "Check for Updates"))
+                            .font(.system(size: 11, weight: .medium))
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(!updateManager.canCheckForUpdates)
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(Color(NSColor.controlBackgroundColor).opacity(0.7))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(

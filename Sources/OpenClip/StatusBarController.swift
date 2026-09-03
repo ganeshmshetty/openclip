@@ -59,6 +59,13 @@ class StatusBarController: NSObject, NSMenuDelegate {
                 self?.updateUpdateMenuItem(version: version)
             }
             .store(in: &cancellables)
+
+        AppUpdateManager.shared.$isUpdateStagedForQuitInstall
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateUpdateMenuItem(version: AppUpdateManager.shared.availableUpdateVersion)
+            }
+            .store(in: &cancellables)
     }
     
     /// Sets up the menu for the status bar item following standard macOS menu hierarchy.
@@ -116,7 +123,11 @@ class StatusBarController: NSObject, NSMenuDelegate {
     private func updateUpdateMenuItem(version: String?) {
         guard let updateMenuItem else { return }
         if let version {
-            updateMenuItem.title = String(localized: "Update Available (v\(version))…")
+            if AppUpdateManager.shared.isUpdateStagedForQuitInstall {
+                updateMenuItem.title = String(localized: "Update Ready on Quit (v\(version))…")
+            } else {
+                updateMenuItem.title = String(localized: "Update Available (v\(version))…")
+            }
         } else {
             updateMenuItem.title = String(localized: "Check for Updates…")
         }

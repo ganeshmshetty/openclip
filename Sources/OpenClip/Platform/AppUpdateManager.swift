@@ -24,25 +24,63 @@ public final class AppUpdateManager: NSObject, ObservableObject, SPUUpdaterDeleg
     /// Set when a newer version has been detected, nil when up to date.
     @Published public private(set) var availableUpdateVersion: String?
 
+    /// Release notes for the detected update version, extracted from appcast description.
+    @Published public private(set) var availableUpdateReleaseNotes: String?
+
+    /// True when the update archive has been downloaded and staged to install upon app termination.
+    @Published public private(set) var isUpdateStagedForQuitInstall: Bool = false
+
     /// KVO-backed published state so SwiftUI views can bind directly.
     @Published public private(set) var canCheckForUpdates = false
-    @Published public var automaticallyChecksForUpdates: Bool = false {
+
+    @Published public var automaticallyChecksForUpdates: Bool {
         didSet {
+            DefaultSettingsStore.shared.set(.automaticallyChecksForUpdates, value: automaticallyChecksForUpdates)
             controller?.updater.automaticallyChecksForUpdates = automaticallyChecksForUpdates
+            if !automaticallyChecksForUpdates && automaticallyDownloadsUpdates {
+                automaticallyDownloadsUpdates = false
+            }
         }
     }
 
+    @Published public var automaticallyDownloadsUpdates: Bool {
+        didSet {
+            DefaultSettingsStore.shared.set(.automaticallyDownloadsUpdates, value: automaticallyDownloadsUpdates)
+            controller?.updater.automaticallyDownloadsUpdates = automaticallyDownloadsUpdates
+            if automaticallyDownloadsUpdates && !automaticallyChecksForUpdates {
+                automaticallyChecksForUpdates = true
+            }
+        }
+    }
+
+    @Published public var notifyOnUpdate: Bool {
+        didSet {
+            DefaultSettingsStore.shared.set(.notifyOnUpdate, value: notifyOnUpdate)
+        }
+    }
+
+    private var immediateInstallationBlock: (() -> Void)?
     private var cancellables = Set<AnyCancellable>()
     private var lastNotifiedVersion: String?
 
     private override init() {
+        let autoCheck = DefaultSettingsStore.shared.get(.automaticallyChecksForUpdates)
+        let autoDownload = DefaultSettingsStore.shared.get(.automaticallyDownloadsUpdates)
+        let notify = DefaultSettingsStore.shared.get(.notifyOnUpdate)
+
+        self.automaticallyChecksForUpdates = autoCheck
+        self.automaticallyDownloadsUpdates = autoDownload
+        self.notifyOnUpdate = notify
+
         super.init()
+
         controller = SPUStandardUpdaterController(
-            startingUpdater: true,
+            startingUpdater: autoCheck,
             updaterDelegate: self,
             userDriverDelegate: nil
         )
-        automaticallyChecksForUpdates = controller.updater.automaticallyChecksForUpdates
+        controller.updater.automaticallyChecksForUpdates = autoCheck
+        controller.updater.automaticallyDownloadsUpdates = autoDownload
 
         // Mirror Sparkle's KVO-observable `canCheckForUpdates` into our @Published property.
         controller.updater
@@ -52,6 +90,15 @@ public final class AppUpdateManager: NSObject, ObservableObject, SPUUpdaterDeleg
                 self?.canCheckForUpdates = value
             }
             .store(in: &cancellables)
+
+        // Perform an initial background check after a brief grace period on launch if enabled
+        if autoCheck {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                guard let self, self.automaticallyChecksForUpdates else { return }
+                self.controller.updater.checkForUpdatesInBackground()
+            }
+        }
     }
 
     // MARK: - SPUUpdaterDelegate
@@ -65,6 +112,21 @@ public final class AppUpdateManager: NSObject, ObservableObject, SPUUpdaterDeleg
         controller.checkForUpdates(nil)
     }
 
+    /// Installs the update immediately and relaunches the app.
+    public func installUpdateNow() {
+        if let block = immediateInstallationBlock {
+            block()
+        } else {
+            controller.checkForUpdates(nil)
+        }
+    }
+
+    /// Marks the update as staged to install automatically when OpenClip terminates.
+    public func installUpdateOnQuit() {
+        self.isUpdateStagedForQuitInstall = true
+        Log.updates.info("User confirmed update will be applied on quit")
+    }
+
     /// Returns the date of the last successful update check, if any.
     public var lastUpdateCheckDate: Date? {
         controller.updater.lastUpdateCheckDate
@@ -74,25 +136,45 @@ public final class AppUpdateManager: NSObject, ObservableObject, SPUUpdaterDeleg
         let version = item.displayVersionString ?? item.versionString
         Log.updates.info("Sparkle found valid update: v\(version, privacy: .public)")
         self.availableUpdateVersion = version
-        self.postUpdateNotification(version: version)
+        self.availableUpdateReleaseNotes = item.itemDescription
+        if notifyOnUpdate {
+            self.postUpdateNotification(version: version, isReadyToInstall: false)
+        }
     }
 
     public func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: any Error) {
         Log.updates.info("Sparkle: no update found or up to date: \(error.localizedDescription, privacy: .private)")
         self.availableUpdateVersion = nil
+        self.availableUpdateReleaseNotes = nil
+        self.isUpdateStagedForQuitInstall = false
+        self.immediateInstallationBlock = nil
     }
 
     public func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
         Log.updates.info("Sparkle: no update found or up to date")
         self.availableUpdateVersion = nil
+        self.availableUpdateReleaseNotes = nil
+        self.isUpdateStagedForQuitInstall = false
+        self.immediateInstallationBlock = nil
     }
 
     public func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
         self.availableUpdateVersion = nil
+        self.availableUpdateReleaseNotes = nil
+        self.isUpdateStagedForQuitInstall = false
+        self.immediateInstallationBlock = nil
     }
 
     public func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem, immediateInstallationBlock: @escaping () -> Void) {
-        self.availableUpdateVersion = nil
+        let version = item.displayVersionString ?? item.versionString
+        Log.updates.info("Sparkle: update v\(version, privacy: .public) downloaded and staged for install on quit")
+        self.availableUpdateVersion = version
+        self.availableUpdateReleaseNotes = item.itemDescription
+        self.isUpdateStagedForQuitInstall = true
+        self.immediateInstallationBlock = immediateInstallationBlock
+        if notifyOnUpdate {
+            self.postUpdateNotification(version: version, isReadyToInstall: true)
+        }
     }
 
     public func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
@@ -101,8 +183,8 @@ public final class AppUpdateManager: NSObject, ObservableObject, SPUUpdaterDeleg
 
     // MARK: - User Notifications
 
-    private func postUpdateNotification(version: String) {
-        guard lastNotifiedVersion != version else { return }
+    private func postUpdateNotification(version: String, isReadyToInstall: Bool = false) {
+        guard lastNotifiedVersion != version || isReadyToInstall else { return }
         lastNotifiedVersion = version
 
         Task {
@@ -119,8 +201,10 @@ public final class AppUpdateManager: NSObject, ObservableObject, SPUUpdaterDeleg
             guard isAuthorized else { return }
 
             let content = UNMutableNotificationContent()
-            content.title = "OpenClip Update Available"
-            content.body = "Version \(version) is available. Click to install the update."
+            content.title = isReadyToInstall ? "OpenClip Update Ready" : "OpenClip Update Available"
+            content.body = isReadyToInstall
+                ? "Version \(version) is ready to install on quit, or click to install now."
+                : "Version \(version) is available. Click to install the update."
             content.sound = .default
             content.categoryIdentifier = Self.updateNotificationCategory
             content.userInfo = ["type": "app_update", "version": version]
@@ -140,7 +224,13 @@ public final class AppUpdateManager: NSObject, ObservableObject, SPUUpdaterDeleg
 
     // MARK: - Testing Hooks
 
-    public func setAvailableUpdateVersionForTesting(_ version: String?) {
+    public func setAvailableUpdateVersionForTesting(
+        _ version: String?,
+        releaseNotes: String? = nil,
+        isStagedForQuit: Bool = false
+    ) {
         self.availableUpdateVersion = version
+        self.availableUpdateReleaseNotes = releaseNotes
+        self.isUpdateStagedForQuitInstall = isStagedForQuit
     }
 }

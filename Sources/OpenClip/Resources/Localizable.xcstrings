@@ -451,6 +451,26 @@
         }
       }
     },
+    "Automatically Check for Updates": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动检查更新"
+          }
+        }
+      }
+    },
+    "Automatically Download Updates": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动下载更新"
+          }
+        }
+      }
+    },
     "Back": {
       "localizations": {
         "zh-Hans": {
@@ -601,6 +621,16 @@
         }
       }
     },
+    "Check Now": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即检查"
+          }
+        }
+      }
+    },
     "Check for Updates": {
       "localizations": {
         "zh-Hans": {
@@ -627,6 +657,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "检查更新…"
+          }
+        }
+      }
+    },
+    "Check for updates automatically": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动检查更新"
           }
         }
       }
@@ -1027,6 +1067,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "文档"
+          }
+        }
+      }
+    },
+    "Download updates automatically": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动下载更新"
           }
         }
       }
@@ -1681,6 +1731,16 @@
         }
       }
     },
+    "Last checked: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次检查：%@"
+          }
+        }
+      }
+    },
     "Later": {
       "localizations": {
         "zh-Hans": {
@@ -1927,6 +1987,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "没有选中可处理的文本。"
+          }
+        }
+      }
+    },
+    "Notify on Update": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有可用更新时通知"
+          }
+        }
+      }
+    },
+    "Notify when updates are available": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有可用更新时通知我"
           }
         }
       }
@@ -2387,6 +2467,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "退出 OpenClip"
+          }
+        }
+      }
+    },
+    "Release Notes": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本说明"
           }
         }
       }
@@ -3207,6 +3297,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "有可用更新 (v%@)…"
+          }
+        }
+      }
+    },
+    "Update Available: v%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有可用更新：v%@"
+          }
+        }
+      }
+    },
+    "Update Now": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即更新"
+          }
+        }
+      }
+    },
+    "Update Ready on Quit (v%@)…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新已就绪，退出时安装 (v%@)…"
+          }
+        }
+      }
+    },
+    "Update Ready: v%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新已就绪：v%@"
+          }
+        }
+      }
+    },
+    "Update on Quit": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出时更新"
           }
         }
       }

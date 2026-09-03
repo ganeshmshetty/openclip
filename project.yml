@@ -34,6 +34,7 @@ targets:
         SUPublicEDKey: JbyKx5LUkYkM+ovsJ1NPDR2W+1ptfdsu6b51KBsKhWo=
         SUScheduledCheckInterval: 86400
         SUEnableAutomaticChecks: true
+        SUAutomaticallyUpdate: true
         CFBundleLocalizations:
           - en
           - zh-Hans
