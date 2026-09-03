@@ -30,7 +30,7 @@ public struct CreateGroupSheet: View {
                     showingIconPicker.toggle()
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: iconName)
+                        AnyIconView(iconId: iconName.isEmpty ? "folder" : iconName)
                             .frame(width: 16, height: 16)
                         Image(systemName: "chevron.down")
                             .font(.caption2)
@@ -55,7 +55,7 @@ public struct CreateGroupSheet: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else {
-                Text("\(memberActionIDs.count) actions will be grouped.")
+                Text(String(localized: "\(memberActionIDs.count) actions will be grouped."))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

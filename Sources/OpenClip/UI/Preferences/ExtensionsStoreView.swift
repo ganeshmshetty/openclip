@@ -44,13 +44,13 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             guard let self else { return }
             try? await Task.sleep(nanoseconds: self.debounceNanos)
             guard !Task.isCancelled else { return }
-            await self.resetAndFetch()
+            await self.resetAndFetch(keepPrevious: true)
         }
     }
 
-    public func fetchNextPage() async {
+    public func fetchNextPage(isReset: Bool = false) async {
         let gen = generation
-        guard !isLoading, currentPage <= totalPages else { return }
+        guard !isLoading || isReset, currentPage <= totalPages else { return }
         isLoading = true
 
         do {
@@ -58,7 +58,11 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             // Superseded mid-flight (newer search/reset owns the result set): touch nothing,
             // especially not `isLoading`, which now belongs to the winning generation.
             guard gen == generation else { return }
-            extensions.append(contentsOf: response.extensions)
+            if isReset {
+                extensions = response.extensions
+            } else {
+                extensions.append(contentsOf: response.extensions)
+            }
             totalPages = response.totalPages
             currentPage += 1
             isLoading = false
@@ -67,19 +71,25 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         } catch {
             guard gen == generation else { return }
             Log.extensions.warning("Failed to fetch extension store page \(self.currentPage) for query '\(self.searchQuery)'")
+            if isReset && extensions.isEmpty {
+                extensions = []
+            }
             isLoading = false
         }
     }
 
-    public func resetAndFetch(limit: Int = Constants.storePageLimit) async {
+    public func resetAndFetch(limit: Int = Constants.storePageLimit, keepPrevious: Bool = false) async {
         // Bump first: any in-flight request from the previous generation is dead on arrival
         // and can neither append rows nor hold the loading flag against this fetch.
         generation += 1
         pageLimit = limit
         currentPage = 1
-        extensions = []
-        isLoading = false
-        await fetchNextPage()
+        totalPages = 1
+        if !keepPrevious {
+            extensions = []
+        }
+        isLoading = true
+        await fetchNextPage(isReset: true)
     }
 }
 
@@ -110,6 +120,12 @@ public struct ExtensionStoreView: View {
                     .onChange(of: viewModel.searchQuery) { _, _ in
                         viewModel.queryDidChange()
                     }
+                if viewModel.isLoading && !viewModel.extensions.isEmpty {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.65)
+                        .frame(width: 14, height: 14)
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -133,7 +149,9 @@ public struct ExtensionStoreView: View {
 
     private var storeContent: some View {
         VStack(spacing: 0) {
-            if viewModel.extensions.isEmpty && !viewModel.isLoading {
+            if viewModel.extensions.isEmpty && viewModel.isLoading {
+                skeletonList
+            } else if viewModel.extensions.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
                     Image(systemName: "sparkles")
@@ -163,6 +181,8 @@ public struct ExtensionStoreView: View {
                         }
                     }
                 }
+                .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
+                .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(Color.primary.opacity(0.03))
@@ -172,6 +192,72 @@ public struct ExtensionStoreView: View {
                         .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+        }
+    }
+
+    private var skeletonList: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                ForEach(0..<6, id: \.self) { index in
+                    if index > 0 {
+                        Divider()
+                            .padding(.leading, 60)
+                            .padding(.trailing, 14)
+                    }
+                    ExtensionCardSkeletonRow()
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+// MARK: - Extension Card Skeleton Row
+
+private struct ExtensionCardSkeletonRow: View {
+    @State private var isPulsing = false
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.primary.opacity(0.07))
+                .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(Color.primary.opacity(0.10))
+                        .frame(width: 110, height: 12)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(Color.primary.opacity(0.05))
+                        .frame(width: 60, height: 10)
+                }
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+                    .frame(width: 220, height: 11)
+            }
+
+            Spacer()
+
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.primary.opacity(0.07))
+                .frame(width: 64, height: 24)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .opacity(isPulsing ? 0.35 : 0.85)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: true)) {
+                isPulsing = true
             }
         }
     }

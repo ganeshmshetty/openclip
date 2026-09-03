@@ -41,6 +41,16 @@
         }
       }
     },
+    "1 action will be grouped.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 个动作将被合并到分组。"
+          }
+        }
+      }
+    },
     "100% Private & On-Device": {
       "localizations": {
         "zh-Hans": {
@@ -307,6 +317,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "添加日程"
+          }
+        }
+      }
+    },
+    "Add to Group": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加到分组"
           }
         }
       }
@@ -1011,6 +1031,16 @@
         }
       }
     },
+    "Drag icon to add to a group": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动图标以添加到分组"
+          }
+        }
+      }
+    },
     "DuckDuckGo": {
       "localizations": {
         "zh-Hans": {
@@ -1067,6 +1097,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "编辑分组"
+          }
+        }
+      }
+    },
+    "Empty group. Drag actions into this group in the actions list.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空分组。在动作列表中将动作拖入此分组。"
           }
         }
       }
@@ -1777,6 +1817,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "系统图标"
+          }
+        }
+      }
+    },
+    "New Group": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建分组"
           }
         }
       }

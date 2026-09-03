@@ -204,7 +204,19 @@ public struct PreferencesView: View {
         .ignoresSafeArea(.all, edges: .top)
         .background(Color(NSColor.windowBackgroundColor))
         .frame(minWidth: 760, idealWidth: 760, minHeight: 520, idealHeight: 600)
-        .onAppear { loadDisabledState() }
+        .onAppear {
+            loadDisabledState()
+            Task {
+                _ = try? await ExtensionsAPIClient.shared.fetchExtensions()
+            }
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab == .actions {
+                Task {
+                    _ = try? await ExtensionsAPIClient.shared.fetchExtensions()
+                }
+            }
+        }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledState() }
         .onChange(of: disabledPackages) { _, _ in saveDisabledState() }
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenActionConfiguration)) { notification in

@@ -144,7 +144,8 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         }
 
         let newID = "vgroup.\(UUID().uuidString.prefix(8).lowercased())"
-        let newDef = ActionGroupDef(id: newID, title: title, iconName: iconName, memberActionIDs: deduped)
+        let resolvedIcon = iconName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "folder" : iconName
+        let newDef = ActionGroupDef(id: newID, title: title, iconName: resolvedIcon, memberActionIDs: deduped)
         updated.append(newDef)
         actionGroupDefs = updated
         saveAndApplyGroupDefs()
@@ -161,8 +162,9 @@ public final class ActionCoordinator: ObservableObject, Sendable {
                 deduped.append(id)
             }
         }
+        let resolvedIcon = iconName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "folder" : iconName
         actionGroupDefs[index].title = title
-        actionGroupDefs[index].iconName = iconName
+        actionGroupDefs[index].iconName = resolvedIcon
         actionGroupDefs[index].memberActionIDs = deduped
         saveAndApplyGroupDefs()
     }

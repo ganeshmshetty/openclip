@@ -47,7 +47,7 @@ public struct EditGroupSheet: View {
                     showingIconPicker.toggle()
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: iconName)
+                        AnyIconView(iconId: iconName.isEmpty ? "folder" : iconName)
                             .frame(width: 16, height: 16)
                         Image(systemName: "chevron.down")
                             .font(.caption2)
@@ -70,15 +70,28 @@ public struct EditGroupSheet: View {
             VStack(spacing: 6) {
                 ForEach(memberIDs, id: \.self) { actionID in
                     let resolvedAction = coordinator.actions.first(where: { $0.id == actionID })
-                    HStack {
-                        if let icon = resolvedAction?.icon {
-                            ActionIconView(icon: icon, size: 14)
+                    let presentation = resolvedAction.map { ActionCustomizationManager.shared.presented($0, surface: .table) }
+                    HStack(spacing: 8) {
+                        if let presentation {
+                            ZStack {
+                                ActionIconView(icon: presentation.icon, size: 14)
+                            }
+                            .frame(width: 18, height: 18, alignment: .center)
+
+                            Text(presentation.title)
+                                .font(.system(size: 12))
+                        } else {
+                            Color.clear
+                                .frame(width: 18, height: 18)
+
+                            Text(actionID)
+                                .font(.system(size: 12))
                         }
-                        Text(resolvedAction?.title ?? actionID)
-                            .font(.system(size: 12))
                         Spacer()
                         Button {
-                            memberIDs.removeAll { $0 == actionID }
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                memberIDs.removeAll { $0 == actionID }
+                            }
                         } label: {
                             Image(systemName: "minus.circle")
                                 .foregroundColor(.red)
@@ -110,7 +123,7 @@ public struct EditGroupSheet: View {
                     coordinator.updateGroup(
                         groupID: groupID,
                         title: title.trimmingCharacters(in: .whitespaces),
-                        iconName: iconName,
+                        iconName: iconName.isEmpty ? "folder" : iconName,
                         memberActionIDs: memberIDs
                     )
                     dismiss()
@@ -124,7 +137,7 @@ public struct EditGroupSheet: View {
         .onAppear {
             if let groupDef {
                 title = groupDef.title
-                iconName = groupDef.iconName
+                iconName = groupDef.iconName.isEmpty ? "folder" : groupDef.iconName
                 memberIDs = groupDef.memberActionIDs
             }
         }

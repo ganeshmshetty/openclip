@@ -161,6 +161,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 selectionMonitor?.start()
             }
             showPostOnboardingCoachMark()
+            Task {
+                _ = try? await ExtensionsAPIClient.shared.fetchExtensions()
+            }
         }
 
         NotificationCenter.default.addObserver(
