@@ -204,6 +204,11 @@ areas; stale debt notes are worse than none.
   the popup open for the card render (Task 4) — dismissal for `.text` is decided by the controller's
   `shouldDismiss`, not `dismissesPopup`. The loading re-show path (`settleLoadingResult`)
   re-creates the popup from the pre-early-close selection snapshot to present the card.
+  - **Target application and delivery context snapshotted before perform.** Asynchronous actions snapshot
+    the target application, app policy, and declared delivery into an `inFlightDeliveryContext` (or local task
+    constant) before performing. If the user switches applications while an asynchronous action is executing,
+    `resolveDelivery` detects that the target application is no longer active and safely downgrades `.paste`
+    to `.copy` with a "Copied" toast to prevent pasting into the newly focused application.
   - **Re-show binds to the current frontmost app.** The loading-preview re-show
     (`settleLoadingResult`) re-creates the popup from the selection snapshot, but `hide()`
     clears `previousFrontmostApp`, so the re-show re-captures whatever is frontmost at settle

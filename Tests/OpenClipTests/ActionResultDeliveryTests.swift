@@ -1103,6 +1103,117 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertNil(PasteAction().delivery,
                      "PasteAction must rely on the default nil delivery (paste→copy default)")
     }
+
+    @MainActor
+    func testAsyncActionCompletingAfterHidePreservesDeliveryPolicyAndContext() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: AppPolicyContext(denyPaste: true))
+        let action = SlowPasteStubAction(text: "delayed")
+        let context = controller.currentActionContext!
+
+        controller.runAction(action, with: context, isSecondaryClick: false)
+        // Dismiss popup while action is executing
+        controller.hide()
+
+        let delivered = try await awaitDelivery(from: handler)
+        // Must still be .copy because the snapshotted policy had denyPaste, even though hide() was called
+        assertCase(delivered, .copy("delayed"))
+    }
+
+    @MainActor
+    func testAsyncActionDowngradesPasteToCopyWhenTargetAppIsNoLongerActive() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
+
+        let targetApp = NSWorkspace.shared.runningApplications.first!
+        controller.previousFrontmostApp = targetApp
+
+        // When action completes, frontmost application is different (user switched apps)
+        let otherApp = NSWorkspace.shared.runningApplications.first { $0.processIdentifier != targetApp.processIdentifier }!
+        controller.frontmostApplicationProvider = { otherApp }
+
+        let action = SlowPasteStubAction(text: "unsafe paste")
+        let context = controllerCurrentContext(controller)
+
+        controller.runAction(action, with: context, isSecondaryClick: false)
+
+        let delivered = try await awaitDelivery(from: handler)
+        // Must downgrade to .copy to avoid pasting into the wrong application
+        assertCase(delivered, .copy("unsafe paste"))
+        await awaitToastMessage(toast, String(localized: "Copied"))
+    }
+
+    @MainActor
+    func testDeliverResultAfterHidePreservesPrecapturedInFlightDeliveryContext() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: AppPolicyContext(denyPaste: true))
+        let stub = SlowPasteStubAction(text: "will copy")
+
+        // Simulate onWillPerformAction firing before async perform
+        controller.inFlightDeliveryContext = controller.deliverySnapshot(for: stub)
+
+        // User switches windows or clicks outside -> hide() clears live session
+        controller.hide()
+        XCTAssertNil(controller.currentActionContext, "hide() must clear live context")
+
+        // Action completes later and calls deliverResult
+        controller.deliverResult(.paste("will copy"))
+
+        // Must still be .copy because inFlightDeliveryContext preserved the denyPaste policy
+        assertCase(try await awaitDelivery(from: handler), .copy("will copy"))
+    }
+
+    @MainActor
+    func testDeliverResultAfterHideDowngradesToCopyWhenTargetAppChanged() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
+
+        let targetApp = NSWorkspace.shared.runningApplications.first!
+        controller.previousFrontmostApp = targetApp
+        let stub = SlowPasteStubAction(text: "safe copy")
+
+        controller.inFlightDeliveryContext = controller.deliverySnapshot(for: stub)
+
+        // User switches to another application
+        let otherApp = NSWorkspace.shared.runningApplications.first { $0.processIdentifier != targetApp.processIdentifier }!
+        controller.frontmostApplicationProvider = { otherApp }
+
+        controller.hide()
+
+        // Action completes
+        controller.deliverResult(.paste("safe copy"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("safe copy"))
+        await awaitToastMessage(toast, String(localized: "Copied"))
+    }
+}
+
+/// A slow action returning `.paste` after a short delay to model asynchronous background execution.
+private final class SlowPasteStubAction: Action, @unchecked Sendable {
+    let id = "stub.slowpaste"
+    let title = "Slow Paste"
+    let icon: ActionIcon = .symbol("sparkles")
+    var chrome: ActionChrome { ActionChrome(source: .builtin) }
+    private let text: String
+    init(text: String = "loaded paste") { self.text = text }
+    func isEnabled(for context: ActionContext) -> Bool { true }
+    func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
+    func perform(_ context: ActionContext) async throws -> ActionResult {
+        try await Task.sleep(nanoseconds: 30_000_000)
+        return .paste(text)
+    }
 }
 
 /// Records every effect the handler is asked to deliver. @MainActor-isolated, matching the

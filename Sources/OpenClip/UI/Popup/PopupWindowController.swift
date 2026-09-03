@@ -22,7 +22,7 @@ public class PopupWindowController {
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var currentContext: SelectionContext?
-    private var currentActionContext: ActionContext?
+    var currentActionContext: ActionContext?
     private var cardAbove = false
     /// Popup display mode (actions bar ↔ search palette ↔ result card), observed by PopupView.
     public let modeStore = PopupModeStore()
@@ -68,6 +68,17 @@ public class PopupWindowController {
     /// The most recent bar/palette action's display icon (customization-resolved, mirroring the bar
     /// row), for the result card header. Lifecycle mirrors `pendingActionTitle`. Internal for tests.
     var pendingActionIcon: ActionIcon? = nil
+
+    /// In-flight delivery context snapshotted before an action performs, preserved across hide()
+    /// so an asynchronous action that finishes after popup dismissal or app-switching delivers with
+    /// its original context. Internal for tests.
+    var inFlightDeliveryContext: DeliveryContext? = nil
+
+    /// Provider for the current frontmost application. Defaults to NSWorkspace.shared.frontmostApplication.
+    /// Injected for testing app-switching scenarios.
+    var frontmostApplicationProvider: @MainActor () -> NSRunningApplication? = {
+        NSWorkspace.shared.frontmostApplication
+    }
 
     /// Probes whether the frontmost app supports Paste. Injected for tests.
     private let pasteProbe: PasteAvailabilityProbing
@@ -249,9 +260,11 @@ public class PopupWindowController {
                 self?.usageStore.record(actionID)
             },
             onWillPerformAction: { [weak self] action in
-                self?.pendingDelivery = action.delivery
-                self?.pendingActionTitle = action.title
-                self?.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
+                guard let self else { return }
+                self.pendingDelivery = action.delivery
+                self.pendingActionTitle = action.title
+                self.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
+                self.inFlightDeliveryContext = self.deliverySnapshot(for: action)
             },
             onRunLoadingAction: { [weak self] action in
                 guard let self, let context = self.currentActionContext else { return }
@@ -983,9 +996,11 @@ public class PopupWindowController {
                 self.runLoadingAction(action, with: context, isSecondaryClick: self.pendingClickIntent == .secondary)
             },
             onWillPerformAction: { [weak self] action in
-                self?.pendingDelivery = action.delivery
-                self?.pendingActionTitle = action.title
-                self?.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
+                guard let self else { return }
+                self.pendingDelivery = action.delivery
+                self.pendingActionTitle = action.title
+                self.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
+                self.inFlightDeliveryContext = self.deliverySnapshot(for: action)
             },
             onActionPerformed: { [weak self] actionID in
                 self?.usageStore.record(actionID)
@@ -1132,17 +1147,34 @@ public class PopupWindowController {
     /// Snapshots the delivery inputs from the current session state. Called on the main actor,
     /// synchronously, before any dismissal or await, so the decision never depends on live state
     /// read after `hide()` or after the probe suspension.
-    private func deliverySnapshot() -> DeliveryContext {
-        DeliveryContext(
+    func deliverySnapshot(for action: (any Action)? = nil, clickIntent: ActionResultDelivery.ClickIntent? = nil) -> DeliveryContext {
+        let intent = clickIntent ?? pendingClickIntent
+        let actionDelivery = action?.delivery ?? pendingDelivery
+        let title = action?.title ?? pendingActionTitle
+        let icon = action?.displayIcon(using: ActionCustomizationManager.shared) ?? pendingActionIcon
+        let targetApp = previousFrontmostApp ?? (frontmostApplicationProvider()?.bundleIdentifier != Bundle.main.bundleIdentifier ? frontmostApplicationProvider() : previousFrontmostApp)
+        return DeliveryContext(
             policy: currentActionContext?.selection.appPolicy ?? .default,
-            clickIntent: pendingClickIntent,
-            delivery: pendingDelivery,
-            application: NSWorkspace.shared.frontmostApplication,
-            preference: preference(for: pendingClickIntent),
-            actionTitle: pendingActionTitle,
-            actionIcon: pendingActionIcon,
+            clickIntent: intent,
+            delivery: actionDelivery,
+            application: targetApp,
+            preference: preference(for: intent),
+            actionTitle: title,
+            actionIcon: icon,
             selection: currentActionContext?.selection
         )
+    }
+
+    /// Checks if the target application is still the active frontmost application.
+    /// If the user switched to a different application while an action was executing asynchronously,
+    /// automated paste must not blindly post into the new foreground window.
+    private func isTargetApplicationActive(_ targetApp: NSRunningApplication?) -> Bool {
+        guard let targetApp else { return true }
+        guard let frontmost = frontmostApplicationProvider() else { return true }
+        if frontmost.bundleIdentifier == Bundle.main.bundleIdentifier {
+            return true
+        }
+        return frontmost.processIdentifier == targetApp.processIdentifier
     }
 
     /// Routes a performed result into the tree-walk, snapshotting the delivery inputs first.
@@ -1153,15 +1185,16 @@ public class PopupWindowController {
     /// delivery is single-use per perform: the snapshot is its only consumer, so it is cleared
     /// immediately after — a later `onResult` paste (completion buttons route here directly) must
     /// never reuse a prior action's declaration. Internal for tests.
-    func deliverResult(_ result: ActionResult) {
-        let delivery = deliverySnapshot()
+    func deliverResult(_ result: ActionResult, delivery: DeliveryContext? = nil) {
+        let resolvedDelivery = delivery ?? inFlightDeliveryContext ?? deliverySnapshot()
+        inFlightDeliveryContext = nil
         pendingDelivery = nil
         pendingActionTitle = nil
         pendingActionIcon = nil
-        if shouldDismiss(result, delivery: delivery) {
+        if shouldDismiss(result, delivery: resolvedDelivery) {
             hide()
         }
-        handleActionResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
+        handleActionResult(result, delivery: resolvedDelivery, suppressDeliveryToast: result.containsToast)
     }
 
     /// Walks an ActionResult produced by a perform, rendering presentation results in the popup and
@@ -1247,9 +1280,10 @@ public class PopupWindowController {
         // Otherwise probe the target app and treat unknown availability as cannot-paste — the safe
         // default: never paste blindly when we cannot confirm the target supports it. The target is
         // the snapshotted app captured before hide(), never frontmost state read after suspension.
+        let isTargetActive = isTargetApplicationActive(delivery.application)
         let canPaste: Bool
-        if !couldPaste {
-            canPaste = false // unused: `resolve` only consults it for a selected `.paste`
+        if !couldPaste || !isTargetActive {
+            canPaste = false // unused: `resolve` only consults it for a selected `.paste`, or target app inactive
         } else if (delivery.clickIntent == .secondary && !(declaredSecondaryIsPaste || textPrefersPaste)) || !PasteAvailability.needsProbe(policy: delivery.policy) {
             canPaste = PasteAvailability.effective(policy: delivery.policy, probe: nil) ?? false
         } else {
@@ -1319,16 +1353,18 @@ public class PopupWindowController {
         // `deliverResult` (e.g. a completion-paste from a preview card) must never reuse this
         // perform's declaration.
         let preference = preference(for: clickIntent)
+        let targetApp = previousFrontmostApp ?? (frontmostApplicationProvider()?.bundleIdentifier != Bundle.main.bundleIdentifier ? frontmostApplicationProvider() : previousFrontmostApp)
         let delivery = DeliveryContext(
             policy: context.selection.appPolicy,
             clickIntent: clickIntent,
             delivery: action.delivery,
-            application: NSWorkspace.shared.frontmostApplication,
+            application: targetApp,
             preference: preference,
             actionTitle: action.title,
             actionIcon: action.displayIcon(using: ActionCustomizationManager.shared),
             selection: context.selection
         )
+        inFlightDeliveryContext = delivery
         usageStore.record(action.id)
         let match = action.matchInfo(for: context)
         let performContext = ActionContext(
@@ -1344,9 +1380,11 @@ public class PopupWindowController {
                     self.hide()
                 }
                 self.handleActionResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
+                self.inFlightDeliveryContext = nil
             } catch {
                 Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
                 self.handleActionResult(.toast(StatusFeedback(error: error)))
+                self.inFlightDeliveryContext = nil
             }
         }
     }
@@ -1363,16 +1401,18 @@ public class PopupWindowController {
         // perform path's only consumer. Unlike the bar/search path, no `onWillPerformAction`
         // precedes it, so `pendingDelivery`/`pendingActionTitle` must stay untouched: a later
         // `deliverResult` must never reuse this perform's declaration.
+        let targetApp = previousFrontmostApp ?? (frontmostApplicationProvider()?.bundleIdentifier != Bundle.main.bundleIdentifier ? frontmostApplicationProvider() : previousFrontmostApp)
         let delivery = DeliveryContext(
             policy: context.selection.appPolicy,
             clickIntent: clickIntent,
             delivery: action.delivery,
-            application: NSWorkspace.shared.frontmostApplication,
+            application: targetApp,
             preference: preference(for: clickIntent),
             actionTitle: action.title,
             actionIcon: action.displayIcon(using: ActionCustomizationManager.shared),
             selection: context.selection
         )
+        inFlightDeliveryContext = delivery
         usageStore.record(action.id)
         let match = action.matchInfo(for: context)
         let performContext = ActionContext(
