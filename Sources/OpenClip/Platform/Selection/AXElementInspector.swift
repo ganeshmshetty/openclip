@@ -31,7 +31,7 @@ public struct AXElementInspector {
 
     /// Maximum number of ancestor levels walked when collecting parent/container roles and
     /// hunting for a containing web area.
-    public static let ancestorWalkDepth = 4
+    public static let ancestorWalkDepth = 25
 
     /// Canonical AX role string for WebKit web content. Not exposed as a named constant by this
     /// SDK, so it is spelled out here.
@@ -86,6 +86,13 @@ public struct AXElementInspector {
             }
         }
 
+        // Fallback: If focusedElement was not inside an AXWebArea (e.g. user selected static text on a page
+        // so focus remained at the window or outer container level), search the focused window for the active AXWebArea.
+        if webArea == nil, let app = focusedApp,
+           let window = read(app, kAXFocusedWindowAttribute).flatMap({ axElement($0) }) {
+            webArea = findFirstChild(role: webAreaRole, in: window, maxDepth: 6)
+        }
+
         // Text/value attributes and selection bounds, where supported.
         let selectedText = focusedElement.flatMap { read($0, kAXSelectedTextAttribute) as? String }
         let selectedTextMarkerRange = selectedTextMarkerRange(focusedElement: focusedElement, webArea: webArea)
@@ -116,6 +123,29 @@ public struct AXElementInspector {
         read: (AXUIElement, String) -> CFTypeRef? = { read($0, $1) }
     ) -> AnyObject? {
         focusedElement.flatMap { read($0, selectedTextMarkerRangeAttribute) } ?? webArea.flatMap { read($0, selectedTextMarkerRangeAttribute) }
+    }
+
+    /// Bounded depth-first search for a descendant UI element matching `role`.
+    static func findFirstChild(
+        role: String,
+        in element: AXUIElement,
+        maxDepth: Int,
+        read: (AXUIElement, String) -> CFTypeRef? = { read($0, $1) }
+    ) -> AXUIElement? {
+        guard maxDepth >= 0 else { return nil }
+        if (read(element, kAXRoleAttribute) as? String) == role {
+            return element
+        }
+        guard maxDepth > 0 else { return nil }
+        guard let childrenVal = read(element, kAXChildrenAttribute),
+              CFGetTypeID(childrenVal) == CFArrayGetTypeID() else { return nil }
+        let children = childrenVal as! [AXUIElement]
+        for child in children {
+            if let found = findFirstChild(role: role, in: child, maxDepth: maxDepth - 1, read: read) {
+                return found
+            }
+        }
+        return nil
     }
 
     /// Reads a single AX attribute, returning `nil` on any error or unsupported attribute.

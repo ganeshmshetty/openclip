@@ -259,22 +259,16 @@ areas; stale debt notes are worse than none.
 
 ## Selection Retrieval
 
-- **The coordinator runs a single canonical strategy chain, not per-mode switch routing.**
-  `retrievalMode` picks the entry point; retrieval then runs that strategy and every strategy below
-  it in the chain (`ax-text-control → browser-script → ax-web-area → menu-copy → keyboard-copy`).
-  An app with no rule starts at the top (auto). This mirrors SelectedTextKit's `.auto` model and
-  removes the old `requireSelectionBeforeCopy` pre-gate — the copy engine decides whether a
-  selection existed by observing the clipboard change. The chain is unit-tested with fixture
-  targets, but the live per-app ordering is not exercised by an integration test.
+- **The coordinator runs a targeted strategy chain with native AX prioritization.**
+  `retrievalMode` picks the entry point; retrieval runs that strategy and its fallbacks
+  (native text controls fall back to keyboard copy unless strictly native; web areas cascade
+  `ax-web-area → keyboard-copy`). Browsers resolve natively via `AXWebArea` in <1 ms with deep
+  ancestor search (depth 25 + window search) and fall back to keyboard copy with a 0.6 s timeout,
+  completely removing the legacy `browser-script` AppleScript subprocess churn and permission friction.
 - **Web-area settle-retry exhaustion is untested.** The `.axWebArea` retry loop
   (`webAreaSettleMaxRetries` = 6, re-inspecting fresh each attempt) returns `nil` when the text
   never appears, but the exhausted path has no dedicated test — the loop is exercised only through
-  fixture snapshots in `SelectionRetrievalCoordinatorTests`. The `browser-script` fallback onto
-  `AXWebAreaStrategy` is likewise covered by coordinator unit tests, not a live browser.
-- **`browser-script` runs the osascript subprocess twice.** Each retrieval fires two AppleScript
-  runs (selection text, then page URL) over Apple Events — up to 2 × `browserScriptTimeout` worst
-  case. A single combined script would halve the automation round-trips but was left as two
-  separately bounded runs for simplicity.
+  fixture snapshots in `SelectionRetrievalCoordinatorTests`.
 - **Copy-path clipboard visibility caveat.** The `.menuCopy`/`.keyboardCopy` engine leaves the
   captured selection on the general pasteboard for up to `pasteboardRestoreDelay` (0.8 s) before
   restoring the archived items. The restore is tagged `org.nspasteboard.TransientType` +

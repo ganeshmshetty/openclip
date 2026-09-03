@@ -59,6 +59,34 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func testGateAllowsButtonRoleInsideWebArea() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: {
+                AXElementInspector.Target(
+                    focusedApp: nil,
+                    focusedElement: nil,
+                    role: "AXButton",
+                    subRole: nil,
+                    parentRoles: ["AXWebArea"],
+                    containedInRoles: ["AXWebArea"],
+                    webArea: nil,
+                    selectedText: "button text inside web",
+                    selectedTextMarkerRange: nil,
+                    value: nil,
+                    selectedTextRange: nil,
+                    bounds: nil
+                )
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl, gate: .default)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.test.app"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "button text inside web")
+    }
+
     func testUnknownCursorProceedsEvenWhenNotAllowed() async {
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.textFieldTarget(selectedText: "proceed") }
@@ -131,7 +159,8 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
                     return Self.webAreaTarget(selectedText: "")
                 }
                 return Self.webAreaTarget(selectedText: "settled web text")
-            }
+            },
+            copyCapture: { _ in nil }
         )
         let policy = AppPolicyContext(retrievalMode: .axWebArea)
         let result = await coordinator.retrieve(
@@ -143,70 +172,31 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertGreaterThan(calls.value, 2)
     }
 
-    func testBrowserScriptReturnsBrowserText() async {
+    func testBrowserModeUsesWebAreaSelection() async {
         let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.textFieldTarget(selectedText: "ignored") },
-            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "browser selection") }
+            inspect: { Self.webAreaTarget(selectedText: "web selection") }
         )
-        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let policy = AppPolicyContext(retrievalMode: .axWebArea)
         let result = await coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.apple.Safari"),
             policy: policy,
             cursor: .unknown
         )
-        XCTAssertEqual(result?.text, "browser selection")
+        XCTAssertEqual(result?.text, "web selection")
     }
 
-    func testBrowserScriptNilFallsBackToWebArea() async {
+    func testBrowserModeNilFallsBackToKeyboardCopy() async {
         let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.webAreaTarget(selectedText: "web fallback") },
-            browserRead: { _ in nil },
-            copyCapture: { _ in nil }
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            copyCapture: { _ in TextResult(text: "copy fallback") }
         )
-        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let policy = AppPolicyContext(retrievalMode: .axWebArea)
         let result = await coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.apple.Safari"),
             policy: policy,
             cursor: .unknown
         )
-        XCTAssertEqual(result?.text, "web fallback")
-    }
-
-    func testBrowserScriptEmptyFallsBackToWebArea() async {
-        let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.webAreaTarget(selectedText: "web fallback") },
-            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "") },
-            copyCapture: { _ in nil }
-        )
-        let policy = AppPolicyContext(retrievalMode: .browserScript)
-        let result = await coordinator.retrieve(
-            for: AppIdentity(bundleIdentifier: "com.apple.Safari"),
-            policy: policy,
-            cursor: .unknown
-        )
-        XCTAssertEqual(result?.text, "web fallback")
-    }
-
-    func testChromiumPatternBundleReachesBrowserReadWithoutEnrichment() async {
-        final class Counter: @unchecked Sendable { var calls = 0 }
-        let counter = Counter()
-        let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.webAreaTarget(selectedText: "ax text") },
-            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "js text", html: "<b>js</b> text") },
-            copyCapture: { _ in
-                counter.calls += 1
-                return TextResult(text: "captured")
-            }
-        )
-        let policy = AppPolicyContext(retrievalMode: .browserScript)
-        let result = await coordinator.retrieve(
-            for: AppIdentity(bundleIdentifier: "com.google.Chrome"),
-            policy: policy,
-            cursor: .unknown
-        )
-        XCTAssertEqual(result?.text, "js text")
-        XCTAssertEqual(result?.html, "<b>js</b> text")
-        XCTAssertEqual(counter.calls, 0)
+        XCTAssertEqual(result?.text, "copy fallback")
     }
 
     // MARK: - Copy modes
@@ -496,6 +486,54 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(result?.text, "copied from notes")
     }
 
+    func testNativeAppWithEmbeddedWebAreaCascadesToWebArea() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.webAreaTarget(selectedText: "mail web body") }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.apple.mail"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "mail web body")
+    }
+
+    func testPreviewAppFallsBackToKeyboardCopy() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            copyCapture: { _ in TextResult(text: "copied from preview pdf") }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axTextControl)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.apple.Preview"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "copied from preview pdf")
+    }
+
+    func testBrowserCascadeOmitsBrowserScript() async {
+        final class Counter: @unchecked Sendable { var calls = 0 }
+        let counter = Counter()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            browserRead: { _ in
+                counter.calls += 1
+                return BrowserScriptStrategy.BrowserResult(text: "unexpected script")
+            },
+            copyCapture: { _ in TextResult(text: "copied") }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axWebArea)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.google.Chrome"),
+            policy: policy,
+            cursor: .unknown
+        )
+        XCTAssertEqual(result?.text, "copied")
+        XCTAssertEqual(counter.calls, 0, "Browsers must not invoke browserScript")
+    }
+
     // MARK: - Rich-content enrichment
 
     func testTextOnlyWebAreaWinEnrichesFromPasteboardCapture() async {
@@ -504,7 +542,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
             browserRead: { _ in nil },
             copyCapture: { _ in TextResult(text: "rich selection", html: "<b>rich</b> selection") }
         )
-        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let policy = AppPolicyContext(retrievalMode: .axWebArea)
         let result = await coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.google.Chrome"),
             policy: policy,
@@ -536,26 +574,25 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(counter.calls, 0)
     }
 
-    func testRichBrowserWinSkipsEnrichmentCapture() async {
+    func testKeyboardCopySkipsEnrichmentCapture() async {
         final class Counter: @unchecked Sendable { var calls = 0 }
         let counter = Counter()
         let coordinator = SelectionRetrievalCoordinator(
-            inspect: { Self.webAreaTarget(selectedText: "ax text") },
-            browserRead: { _ in BrowserScriptStrategy.BrowserResult(text: "browser text", html: "<i>browser</i> text") },
+            inspect: { Self.textFieldTarget(selectedText: nil) },
             copyCapture: { _ in
                 counter.calls += 1
                 return TextResult(text: "captured", html: "<b>captured</b>")
             }
         )
-        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let policy = AppPolicyContext(retrievalMode: .keyboardCopy)
         let result = await coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.google.Chrome"),
             policy: policy,
             cursor: .unknown
         )
-        XCTAssertEqual(result?.text, "browser text")
-        XCTAssertEqual(result?.html, "<i>browser</i> text")
-        XCTAssertEqual(counter.calls, 0)
+        XCTAssertEqual(result?.text, "captured")
+        XCTAssertEqual(result?.html, "<b>captured</b>")
+        XCTAssertEqual(counter.calls, 1)
     }
 
     func testEnrichmentKeepsOriginalWhenCaptureYieldsNoRichContent() async {
@@ -564,7 +601,7 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
             browserRead: { _ in nil },
             copyCapture: { _ in TextResult(text: "plain capture") }
         )
-        let policy = AppPolicyContext(retrievalMode: .browserScript)
+        let policy = AppPolicyContext(retrievalMode: .axWebArea)
         let result = await coordinator.retrieve(
             for: AppIdentity(bundleIdentifier: "com.google.Chrome"),
             policy: policy,

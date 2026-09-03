@@ -33,7 +33,7 @@ final class HotkeyManagerTests: XCTestCase {
 
     func testExcludedAppsNeverTrigger() {
         // A bundle from AppFilter's exclusion list must be rejected even when enabled.
-        let excluded = MockFrontmostApp(bundleID: "org.vim.MacVim")
+        let excluded = MockFrontmostApp(bundleID: "com.adobe.photoshop")
         XCTAssertFalse(HotkeyManager.triggerAllowed(isAppEnabled: true, frontmost: excluded))
     }
 

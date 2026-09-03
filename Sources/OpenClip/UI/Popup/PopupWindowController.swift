@@ -182,7 +182,7 @@ public class PopupWindowController {
         preSearchFrame = nil
 
         // Pre-compute card direction from real screen position
-        let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
+        let screen = PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let tempFrame = PopupPositioner.calculateFrame(
             for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds)
@@ -556,7 +556,7 @@ public class PopupWindowController {
     }
 
     private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext) {
-        let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
+        let screen = PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let frame = PopupPositioner.calculateFrame(
             for: context,

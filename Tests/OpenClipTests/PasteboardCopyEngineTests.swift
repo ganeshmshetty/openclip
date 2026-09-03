@@ -152,4 +152,28 @@ final class PasteboardCopyEngineTests: XCTestCase {
         XCTAssertTrue(PasteboardCopyEngine.hasSelection("x"))
         XCTAssertTrue(PasteboardCopyEngine.hasSelection("  hello  "))
     }
+
+    @MainActor
+    func testBrowserPollingTimeout() {
+        XCTAssertEqual(
+            PasteboardCopyEngine.pollingTimeout(for: "com.google.Chrome"),
+            Constants.safariPasteboardCopyTimeout
+        )
+        XCTAssertEqual(
+            PasteboardCopyEngine.pollingTimeout(for: "org.mozilla.firefox"),
+            Constants.safariPasteboardCopyTimeout
+        )
+        XCTAssertEqual(
+            PasteboardCopyEngine.pollingTimeout(for: "com.apple.Safari"),
+            Constants.safariPasteboardCopyTimeout
+        )
+        XCTAssertEqual(
+            PasteboardCopyEngine.pollingTimeout(for: "company.thebrowser.Browser"),
+            Constants.safariPasteboardCopyTimeout
+        )
+        XCTAssertEqual(
+            PasteboardCopyEngine.pollingTimeout(for: "com.apple.TextEdit"),
+            Constants.pasteboardCopyTimeout
+        )
+    }
 }

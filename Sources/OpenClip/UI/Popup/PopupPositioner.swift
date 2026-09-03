@@ -97,4 +97,15 @@ public struct PopupPositioner: Sendable {
 
         return CGRect(x: x, y: y, width: popupWidth, height: popupSize.height)
     }
+
+    /// Selects the screen containing `point`, with a 2pt inclusive margin so cursor coordinates
+    /// resting exactly on the maxX/maxY boundaries of secondary displays do not fail resolution.
+    public static func screen(containing point: CGPoint, in screens: [NSScreen] = NSScreen.screens) -> NSScreen? {
+        screens.first { $0.frame.insetBy(dx: -2, dy: -2).contains(point) } ?? screens.first
+    }
+
+    /// Selects the screen frame containing `point` with inclusive boundary tolerance.
+    public static func screenFrame(containing point: CGPoint, screenFrames: [CGRect]) -> CGRect? {
+        screenFrames.first { $0.insetBy(dx: -2, dy: -2).contains(point) } ?? screenFrames.first
+    }
 }

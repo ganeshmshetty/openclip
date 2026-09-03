@@ -60,7 +60,32 @@ final class AXElementInspectorTests: XCTestCase {
     }
 
     func testAncestorWalkDepthIsBounded() {
-        XCTAssertEqual(AXElementInspector.ancestorWalkDepth, 4)
+        XCTAssertEqual(AXElementInspector.ancestorWalkDepth, 25)
+    }
+
+    func testFindFirstChildFindsNestedRole() {
+        let child = AXUIElementCreateApplication(300)
+        let parent = AXUIElementCreateApplication(400)
+        let dummyMarker = "dummy" as NSString
+
+        let found = AXElementInspector.findFirstChild(
+            role: "AXWebArea",
+            in: parent,
+            maxDepth: 3,
+            read: { element, attribute in
+                if CFEqual(element, parent), attribute == kAXChildrenAttribute {
+                    return [child] as NSArray
+                }
+                if CFEqual(element, child), attribute == kAXRoleAttribute {
+                    return "AXWebArea" as NSString
+                }
+                return nil
+            }
+        )
+        XCTAssertNotNil(found)
+        if let found {
+            XCTAssertTrue(CFEqual(found, child))
+        }
     }
 
     func testSelectedTextMarkerRangeFallsBackToWebAreaWhenFocusedElementExposesNoMarker() {

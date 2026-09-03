@@ -54,8 +54,8 @@ Rules are stored in JSON configuration files (such as `~/.openclip/rules.json`) 
 | Value | Strategy | Target Context |
 | :--- | :--- | :--- |
 | `ax-text-control` | Direct AX read of `kAXSelectedTextAttribute` — zero pasteboard side-effects. Default. | Standard native text controls |
-| `ax-web-area` | AX web-area read via text-marker ranges, with a settle-retry loop. | Web views and WebKit content |
-| `browser-script` | Browser AppleScript bridge (`do JavaScript` / `execute javascript`); falls back to the AX web-area read on automation-permission errors. | Supported web browsers |
+| `ax-web-area` | AX web-area read via text-marker ranges, with a settle-retry loop and deep DOM walk. | Web browsers (Safari, Chrome, Firefox, Arc) and embedded web content |
+| `browser-script` | **Legacy alias.** Formerly executed AppleScript in browsers; now maps directly to `ax-web-area` with `keyboard-copy` fallback for sub-millisecond selection without automation permission prompts. | Supported web browsers |
 | `menu-copy` | AXPress the Edit ▸ Copy menu item, then archive-and-restore the pasteboard. | Terminal emulators and CLI tools |
 | `keyboard-copy` | Synthesized ⌘C key event, then archive-and-restore the pasteboard. | Custom code editors and Electron apps |
 

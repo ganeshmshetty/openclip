@@ -49,7 +49,7 @@ Every retrieval request (mouse-up drag, ⌘A/⇧+arrow gesture, or the ⌥⌘C h
 The canonical chain:
 
 ```
-ax-text-control → browser-script → ax-web-area → menu-copy → keyboard-copy
+ax-text-control → ax-web-area → menu-copy → keyboard-copy
 ```
 
 ```mermaid
@@ -62,12 +62,10 @@ flowchart TD
   Gate -- select-all on non-text --> Nil
   Gate -- pass --> Chain[Run chain from preferred entry point<br/>first non-blank result wins]
   Chain --> AXText[AXTextControlStrategy]
-  Chain --> BS[BrowserScriptStrategy<br/>browser bundle IDs only]
   Chain --> AXWeb[AXWebAreaStrategy<br/>settle-retry x6, fresh inspect each]
   Chain --> MenuCopy[Menu copy]
   Chain --> KBCopy[Keyboard copy]
   AXText --> Out[TextResult]
-  BS --> Out
   AXWeb --> Out
   MenuCopy --> Out
   KBCopy --> Out
@@ -77,13 +75,13 @@ Chain suffix per preferred mode:
 
 | Preferred mode | Strategies run (in order) |
 | :--- | :--- |
-| `ax-text-control` (default / no rule) | AX text → browser script → AX web area → menu copy → keyboard copy |
-| `browser-script` | browser script → AX web area → menu copy → keyboard copy |
-| `ax-web-area` | AX web area → menu copy → keyboard copy |
-| `menu-copy` | menu copy → keyboard copy |
+| `ax-text-control` (default / no rule) | AX text → (embedded web-area detected? AX web area → keyboard copy; otherwise AX text → keyboard copy) |
+| `ax-web-area` (browsers) | AX web area → keyboard copy |
+| `browser-script` (legacy alias) | AX web area → keyboard copy |
+| `menu-copy` | menu copy |
 | `keyboard-copy` | keyboard copy |
 
-`browser-script` is skipped automatically when the frontmost app is not a known browser bundle ID, so the default chain never wastes an osascript subprocess on TextEdit.
+Web selections run directly through native Accessibility (`AXWebArea`), reading `kAXSelectedTextMarkerRange` in <1 ms without spawning subprocesses or requiring Apple Events permissions. If Accessibility yields no text (e.g. Google Docs canvas or custom editors), the coordinator falls back to `keyboard-copy`.
 
 
 ### Retrieval modes
@@ -91,14 +89,14 @@ Chain suffix per preferred mode:
 | Mode | kebab-case key | Strategy |
 | :--- | :--- | :--- |
 | AX native text control | `ax-text-control` | `AXTextControlStrategy` reads `kAXSelectedTextAttribute` (falling back to `value` + `selectedTextRange` substring) and the selection bounds. Zero pasteboard side-effects. Default. |
-| AX web area | `ax-web-area` | `AXWebAreaStrategy` reads `kAXSelectedTextMarkerRange` → `AXStringForTextMarkerRange` (fallback `selectedText`). Includes a **settle-retry** loop: the snapshot is re-inspected fresh on every retry (up to `webAreaSettleMaxRetries` = 6, `webAreaSettleInterval` = 50 ms apart) so text appearing after focus is observed instead of a frozen target. |
-| Browser script | `browser-script` | `BrowserScriptStrategy` reads the page selection through the browser's AppleScript automation bridge (`do JavaScript` on Safari-family front documents, `execute javascript` on Chromium/Firefox/Arc active tabs) via the watchdog-killable `osascript` subprocess. Returns nil on automation-permission errors so the coordinator falls back to `AXWebAreaStrategy`. |
+| AX web area | `ax-web-area` | `AXWebAreaStrategy` reads `kAXSelectedTextMarkerRange` → `AXStringForTextMarkerRange` (fallback `selectedText`). Includes a **settle-retry** loop: the snapshot is re-inspected fresh on every retry (up to `webAreaSettleMaxRetries` = 6, `webAreaSettleInterval` = 50 ms apart) so text appearing after focus is observed instead of a frozen target. `AXElementInspector` walks up to 25 ancestor levels and searches the window on focus mismatch. |
+| Browser script (legacy) | `browser-script` | Formerly used AppleScript `execute javascript`; now maps directly to `ax-web-area` with `keyboard-copy` fallback to eliminate subprocess latency and permission friction. |
 | Menu copy | `menu-copy` | `PasteboardCopyEngine` archives the pasteboard, AXPresses the app's **Edit ▸ Copy** menu item (matched by action identifier `copy:`, ⌘C key equivalent, or localized title via `AXMenuNavigator`, fired on the dedicated AX queue), polls for an advanced `changeCount` with non-empty text, then restores. Used for terminals. |
 | Keyboard copy | `keyboard-copy` | The same engine with a synthesized ⌘C key event (`SessionEventTapPoster`) as the trigger. Used for custom code editors and Electron apps whose AX selection reads are unreliable. |
 
 ### The copy engine and transient markers
 
-Both copy modes run through [`PasteboardCopyEngine`](../../Sources/OpenClip/Platform/PasteboardCopyEngine.swift): archive every type of every pasteboard item → run the trigger → poll every 2 ms up to a per-app timeout (`pasteboardCopyTimeout` 0.6 s, or `safariPasteboardCopyTimeout` 1.0 s for Safari) for an advanced `changeCount` yielding non-empty text (a `changeCount` advance with empty content keeps polling, covering the PopClip-style race; recopying identical text succeeds as long as `changeCount` advances) → read the new string → restore the archived items **synchronously before returning**, tagged with the **nspasteboard markers** `org.nspasteboard.TransientType` and `org.nspasteboard.AutoGeneratedType` (empty data). The markers tell clipboard managers to skip the restore as a user-visible copy. The clipboard is therefore clean by the time retrieval returns; there is no lingering visibility window.
+Both copy modes run through [`PasteboardCopyEngine`](../../Sources/OpenClip/Platform/PasteboardCopyEngine.swift): archive every type of every pasteboard item → run the trigger → poll every 2 ms up to a per-app timeout (`pasteboardCopyTimeout` 0.25 s, or `safariPasteboardCopyTimeout` 0.6 s for browsers) for an advanced `changeCount` yielding non-empty text (a `changeCount` advance with empty content keeps polling, covering the PopClip-style race; recopying identical text succeeds as long as `changeCount` advances) → read the new string → restore the archived items **synchronously before returning**, tagged with the **nspasteboard markers** `org.nspasteboard.TransientType` and `org.nspasteboard.AutoGeneratedType` (empty data). The markers tell clipboard managers to skip the restore as a user-visible copy. The clipboard is therefore clean by the time retrieval returns; there is no lingering visibility window.
 
 ### Per-app routing (default catalog)
 
@@ -106,10 +104,10 @@ Both copy modes run through [`PasteboardCopyEngine`](../../Sources/OpenClip/Plat
 
 | Group | Target Application Category | Mode |
 | :--- | :--- | :--- |
-| `safariGroup` | Safari & WebKit-based browsers | `browser-script` |
-| `chromiumGroup` | Chromium-based browsers | `browser-script` |
-| `firefoxGroup` | Firefox & Gecko-based browsers | `browser-script` |
-| `arcGroup` | Arc browsers | `browser-script` |
+| `safariGroup` | Safari & WebKit-based browsers | `ax-web-area` |
+| `chromiumGroup` | Chromium-based browsers | `ax-web-area` |
+| `firefoxGroup` | Firefox & Gecko-based browsers | `ax-web-area` |
+| `arcGroup` | Arc browsers | `ax-web-area` |
 | `keyboardCopyApps` | Code editors, IDEs, markdown & note apps | `keyboard-copy` |
 | `menuCopyApps` | Terminal emulators | `menu-copy` |
 | `denyPasteApps` | Applications requiring paste suppression | `denyPaste: true` |

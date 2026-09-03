@@ -66,13 +66,26 @@ public struct PasteboardCopyEngine {
         return result
     }
 
-    /// Per-app copy polling timeout. Safari is the observed outlier needing more time for its
-    /// selected-text copy to stabilize; all other apps resolve within the default budget.
+    /// Per-app copy polling timeout. Browsers (Chromium, Safari, Firefox, Arc) need more time
+    /// for asynchronous multi-process IPC clipboard operations to stabilize; other apps resolve
+    /// within the default budget.
+    public static func pollingTimeout(for bundleID: String?) -> TimeInterval {
+        guard let bundleID else { return Constants.pasteboardCopyTimeout }
+        if isBrowser(bundleID) {
+            return Constants.safariPasteboardCopyTimeout
+        }
+        return Constants.pasteboardCopyTimeout
+    }
+
+    public static func isBrowser(_ bundleID: String) -> Bool {
+        DefaultAppRules.matchesAny(
+            DefaultAppRules.safariGroup + DefaultAppRules.chromiumGroup + DefaultAppRules.firefoxGroup + DefaultAppRules.arcGroup,
+            bundleID: bundleID
+        )
+    }
+
     private static func pollingTimeout() -> TimeInterval {
-        let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        return bundleID == "com.apple.Safari"
-            ? Constants.safariPasteboardCopyTimeout
-            : Constants.pasteboardCopyTimeout
+        pollingTimeout(for: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
     }
 
     /// Returns `true` only when `text` is non-nil and contains visible, substantial characters.

@@ -176,13 +176,13 @@ final class RuleEngineTests: XCTestCase {
     @MainActor
     func testBrowserScriptModeResolvesForBrowserGroups() async throws {
         let safariContext = RuleEngine.shared.resolvePolicies(for: "com.apple.Safari")
-        XCTAssertEqual(safariContext.retrievalMode, .browserScript)
+        XCTAssertEqual(safariContext.retrievalMode, .axWebArea)
         
         let firefoxContext = RuleEngine.shared.resolvePolicies(for: "org.mozilla.firefox")
-        XCTAssertEqual(firefoxContext.retrievalMode, .browserScript)
+        XCTAssertEqual(firefoxContext.retrievalMode, .axWebArea)
         
         let arcContext = RuleEngine.shared.resolvePolicies(for: "company.thebrowser.Browser")
-        XCTAssertEqual(arcContext.retrievalMode, .browserScript)
+        XCTAssertEqual(arcContext.retrievalMode, .axWebArea)
     }
 
     @MainActor

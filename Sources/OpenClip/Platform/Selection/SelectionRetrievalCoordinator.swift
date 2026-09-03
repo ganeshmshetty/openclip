@@ -84,9 +84,14 @@ public struct SelectionRetrievalCoordinator: Sendable {
         }
 
         // Gate 1: skip UI roles that can never hold a text selection.
+        // Elements in web areas or containing web content frequently use role="button" or <button>
+        // for clickable text/tags that are legitimately selectable.
+        let isWeb = target.webArea != nil || target.role == "AXWebArea" || target.containedInRoles.contains("AXWebArea")
         if let role = target.role, policy.gate.skipRoles.contains(role) {
-            Log.selection.debug("coordinator: skipping \(app.bundleIdentifier ?? "unknown", privacy: .public); role \(role, privacy: .private) is gated")
-            return nil
+            if !(isWeb && role == "AXButton") {
+                Log.selection.debug("coordinator: skipping \(app.bundleIdentifier ?? "unknown", privacy: .public); role \(role, privacy: .private) is gated")
+                return nil
+            }
         }
 
         // Gate 2: only read when the cursor class suggests a text context. `.unknown` is never a
@@ -198,23 +203,25 @@ public struct SelectionRetrievalCoordinator: Sendable {
     ) -> [RetrievalStrategy] {
         switch policy.retrievalMode {
         case .axTextControl:
+            // Embedded webview (e.g. Apple Mail email body, Help viewer, Xcode documentation) -> web cascade
+            if target.webArea != nil || target.role == "AXWebArea" || target.containedInRoles.contains("AXWebArea") {
+                return [.axWebArea, .keyboardCopy]
+            }
+            // Preview.app viewing PDFs uses PDFView (AXScrollArea/AXPage) which doesn't expose AX text controls;
+            // allow keyboard-copy fallback.
+            if bundleIdentifier == "com.apple.Preview" {
+                return [.axTextControl, .keyboardCopy]
+            }
             // 100% native Apple apps (Notes, TextEdit, Pages, Finder, etc.) are strictly authoritative in AX.
             // When AX reports no text selected, terminate immediately in 0ms without redundant ⌘C copy.
             if let bundleIdentifier, Self.strictlyNativeBundleIDs.contains(bundleIdentifier) {
                 return [.axTextControl]
             }
-            // Embedded webview (e.g. Help viewer or Xcode documentation) -> web cascade
-            if target.webArea != nil || target.role == "AXWebArea" {
-                return [.axWebArea, .browserScript, .keyboardCopy]
-            }
             // Unlisted third-party apps -> AX with keyboard-copy safety net
             return [.axTextControl, .keyboardCopy]
 
-        case .axWebArea:
-            return [.axWebArea, .browserScript, .keyboardCopy]
-
-        case .browserScript:
-            return [.browserScript, .axWebArea, .keyboardCopy]
+        case .axWebArea, .browserScript:
+            return [.axWebArea, .keyboardCopy]
 
         case .menuCopy:
             return [.menuCopy]
@@ -255,14 +262,6 @@ public struct SelectionRetrievalCoordinator: Sendable {
             return nil
 
         case .browserScript:
-            // Only browsers can answer over the JS bridge; a non-browser would just burn an osascript
-            // subprocess and a timeout before falling through.
-            guard let bundleIdentifier = app.bundleIdentifier,
-                  Self.isScriptableBrowser(app.bundleIdentifier) else { return nil }
-            if let browserResult = await browserRead(bundleIdentifier),
-               !browserResult.text.isEmpty {
-                return TextResult(text: browserResult.text, bounds: target.bounds, html: browserResult.html)
-            }
             return nil
 
         case .menuCopy, .keyboardCopy:

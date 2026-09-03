@@ -220,19 +220,19 @@ public enum DefaultAppRules: Sendable {
         ),
         AppRule(
             bundleIdentifiers: safariGroup,
-            retrievalMode: .browserScript
+            retrievalMode: .axWebArea
         ),
         AppRule(
             bundleIdentifiers: chromiumGroup,
-            retrievalMode: .browserScript
+            retrievalMode: .axWebArea
         ),
         AppRule(
             bundleIdentifiers: firefoxGroup,
-            retrievalMode: .browserScript
+            retrievalMode: .axWebArea
         ),
         AppRule(
             bundleIdentifiers: arcGroup,
-            retrievalMode: .browserScript
+            retrievalMode: .axWebArea
         ),
         AppRule(
             bundleIdentifiers: keyboardCopyApps,

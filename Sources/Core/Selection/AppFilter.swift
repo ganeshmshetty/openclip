@@ -27,9 +27,7 @@ public struct AppFilter: Sendable {
         "com.vmware.*",
         "net.java.openjdk.cmd",
         "org.keepassx.keepassx",
-        "org.vim.MacVim",
-        "com.edovia.screens.*",
-        "com.jetbrains.*"
+        "com.edovia.screens.*"
     ]
     
     public static func isExcluded(bundleID: String) -> Bool {

@@ -35,12 +35,12 @@ application answers over Apple Events — it cannot be cancelled, has no timeout
 thread-safe across instances. Running each script as a killable subprocess keeps the
 cooperative-thread pool free: the watchdog terminates the subprocess at `Constants.scriptTimeout`,
 so a stuck script can never wedge a thread forever. Callers that need a tighter budget pass an
-explicit `timeout` that shortens the subprocess watchdog (e.g. `BrowserScriptStrategy` bounds each
-AppleScript run at `Constants.browserScriptTimeout`, 1.0 s) instead of racing a separate deadline.
+explicit `timeout` that shortens the subprocess watchdog instead of racing a separate deadline.
 
-`BrowserScriptStrategy` (via `AppleScriptRunner`) and `AppleScriptAction` both route through the
-shared subprocess runner. The deadline-capped AX inspect in `SelectionRetrievalCoordinator` uses
-`OnceResume` to guarantee exactly-once continuation resume between the worker and the deadline.
+`AppleScriptAction` and custom AppleScript actions route through the shared subprocess runner.
+The deadline-capped AX inspect in `SelectionRetrievalCoordinator` uses `OnceResume` to guarantee
+exactly-once continuation resume between the worker and the deadline. Web selection itself runs
+directly over native Accessibility APIs without touching AppleScript.
 
 ---
 

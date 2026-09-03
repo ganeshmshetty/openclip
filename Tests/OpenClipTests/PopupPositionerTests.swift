@@ -85,4 +85,14 @@ final class PopupPositionerTests: XCTestCase {
         let nearLeft = PopupPositioner.centeredX(releaseX: 5, width: 300, screenBounds: screen)
         XCTAssertEqual(nearLeft, screen.minX + 8, "clamped to left padding edge")
     }
+
+    func testScreenFrameResolutionInclusivelyMatchesEdges() {
+        let screen1 = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let screen2 = CGRect(x: 1920, y: 0, width: 1920, height: 1080)
+
+        // Point exactly on the boundary of screen 2 (x = 3840)
+        let pointOnRightEdge = CGPoint(x: 3840, y: 500)
+        let resolved = PopupPositioner.screenFrame(containing: pointOnRightEdge, screenFrames: [screen1, screen2])
+        XCTAssertEqual(resolved, screen2)
+    }
 }
