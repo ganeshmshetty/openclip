@@ -75,6 +75,10 @@ TRANSLATIONS: dict[str, str] = {
     "System": "跟随系统",
     "Light": "浅色",
     "Dark": "深色",
+    "Bar Alignment": "对齐方式",
+    "Left": "居左",
+    "Center": "居中",
+    "Right": "居右",
     # Actions tab
     "Add Custom Action": "添加自定义动作",
     "Install Extension…": "安装扩展…",

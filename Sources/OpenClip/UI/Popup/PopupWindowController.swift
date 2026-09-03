@@ -181,11 +181,14 @@ public class PopupWindowController {
         panel.horizontalAnchor = .none
         preSearchFrame = nil
 
+        let rawAlignment = settingsStore.get(SettingKey.popupAlignment)
+        let alignment = PopupBarAlignment(rawValue: rawAlignment) ?? .left
+
         // Pre-compute card direction from real screen position
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let tempFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds)
+            for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds, alignment: alignment)
         cardAbove = tempFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
 
         modeStore.mode = .actions
@@ -269,11 +272,11 @@ public class PopupWindowController {
 
         // Compute card direction from real screen position using the actual rendered panel size.
         let calculatedFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: size, in: screenBounds)
+            for: context, popupSize: size, in: screenBounds, alignment: alignment)
         cardAbove = calculatedFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
         modeStore.searchResultsAbove = cardAbove
 
-        positionPanel(panel, size: size, for: context)
+        positionPanel(panel, size: size, for: context, alignment: alignment)
         lastPopupFrame = panel.frame
         // Placement is fixed; any subsequent content-driven width change (search palette,
         // pagination) must re-center rather than drift off the cursor.
@@ -555,13 +558,14 @@ public class PopupWindowController {
         return size
     }
 
-    private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext) {
+    private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext, alignment: PopupBarAlignment = .left) {
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let frame = PopupPositioner.calculateFrame(
             for: context,
             popupSize: size,
-            in: screenBounds
+            in: screenBounds,
+            alignment: alignment
         )
         panel.setFrame(frame, display: true)
     }

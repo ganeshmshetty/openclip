@@ -5,15 +5,35 @@ final class PopupPositionerTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 800, height: 600)
     private let size = CGSize(width: 50, height: 50)
 
-    // Popup should appear above release point for normal/upward drag
+    // Popup should appear above release point for normal/upward drag (center alignment)
     func testNormalPositioning() {
         let release = CGPoint(x: 400, y: 200)
         let frame = PopupPositioner.placeNearReleasePoint(
-            releasePoint: release, popupSize: size, screenBounds: screen
+            releasePoint: release, popupSize: size, screenBounds: screen, alignment: .center
         )
         // X: centered on release → 400 - 25 = 375
         XCTAssertEqual(frame.origin.x, 375)
         // Y: above release → 200 + 6 (gap) = 206
+        XCTAssertEqual(frame.origin.y, 206)
+    }
+
+    func testLeftAlignmentPositioning() {
+        let release = CGPoint(x: 400, y: 200)
+        let frame = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release, popupSize: size, screenBounds: screen, alignment: .left
+        )
+        // X: left-aligned with firstActionCenterOffset (16 + 17 = 33) -> 400 - 33 = 367
+        XCTAssertEqual(frame.origin.x, 367)
+        XCTAssertEqual(frame.origin.y, 206)
+    }
+
+    func testRightAlignmentPositioning() {
+        let release = CGPoint(x: 400, y: 200)
+        let frame = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release, popupSize: size, screenBounds: screen, alignment: .right
+        )
+        // X: right-aligned with firstActionCenterOffset -> 400 - (50 - 33) = 383
+        XCTAssertEqual(frame.origin.x, 383)
         XCTAssertEqual(frame.origin.y, 206)
     }
 
@@ -84,5 +104,17 @@ final class PopupPositionerTests: XCTestCase {
 
         let nearLeft = PopupPositioner.centeredX(releaseX: 5, width: 300, screenBounds: screen)
         XCTAssertEqual(nearLeft, screen.minX + 8, "clamped to left padding edge")
+    }
+
+    func testAlignedXPositions() {
+        let releaseX: CGFloat = 400
+        let leftX = PopupPositioner.alignedX(releaseX: releaseX, width: 200, screenBounds: screen, alignment: .left)
+        XCTAssertEqual(leftX, 400 - PopupPositioner.firstActionCenterOffset)
+
+        let centerX = PopupPositioner.alignedX(releaseX: releaseX, width: 200, screenBounds: screen, alignment: .center)
+        XCTAssertEqual(centerX, 400 - 100)
+
+        let rightX = PopupPositioner.alignedX(releaseX: releaseX, width: 200, screenBounds: screen, alignment: .right)
+        XCTAssertEqual(rightX, 400 - (200 - PopupPositioner.firstActionCenterOffset))
     }
 }

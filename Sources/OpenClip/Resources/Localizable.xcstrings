@@ -481,6 +481,16 @@
         }
       }
     },
+    "Bar Alignment": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对齐方式"
+          }
+        }
+      }
+    },
     "Bar Width": {
       "localizations": {
         "zh-Hans": {
@@ -587,6 +597,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "取消"
+          }
+        }
+      }
+    },
+    "Center": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "居中"
           }
         }
       }
@@ -1691,6 +1711,16 @@
         }
       }
     },
+    "Left": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "居左"
+          }
+        }
+      }
+    },
     "Left click": {
       "localizations": {
         "zh-Hans": {
@@ -2627,6 +2657,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "在保持原意和语言的前提下，提升清晰度、流畅度和用词"
+          }
+        }
+      }
+    },
+    "Right": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "居右"
           }
         }
       }

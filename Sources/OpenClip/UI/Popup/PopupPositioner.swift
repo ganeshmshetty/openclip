@@ -12,33 +12,64 @@ public struct PopupPositioner: Sendable {
     // How far the popup sits from the release point (points)
     private static let gap: CGFloat = 6
 
-    /// Main entry point — positions relative to mouse release point and drag direction.
+    /// Main entry point — positions relative to mouse release point, drag direction, and alignment.
     public static func calculateFrame(
         for context: SelectionContext,
         popupSize: CGSize,
-        in screenBounds: CGRect
+        in screenBounds: CGRect,
+        alignment: PopupBarAlignment = .left
     ) -> CGRect {
         placeNearReleasePoint(
             releasePoint: context.cursorPosition,
             mouseDownPoint: context.mouseDownLocation,
             popupSize: popupSize,
-            screenBounds: screenBounds
+            screenBounds: screenBounds,
+            alignment: alignment
         )
     }
 
-    /// Horizontal origin that centers a popup of the given width on the release X, clamped to the
-    /// screen's padding-inset edges. Used for both initial placement and re-centering on resize so a
-    /// width change (search palette, pagination) never drifts the bar off the cursor.
-    public static func centeredX(releaseX: CGFloat, width: CGFloat, screenBounds: CGRect) -> CGFloat {
+    /// Distance from the window frame's left edge to the center of the first action button
+    /// (shadow inset + half the button width).
+    public static let firstActionCenterOffset: CGFloat = PopupMetrics.popupShadowInset + (PopupMetrics.actionButtonWidth / 2)
+
+    /// Horizontal origin that aligns a popup of the given width relative to the release X,
+    /// clamped to the screen's padding-inset edges.
+    public static func alignedX(
+        releaseX: CGFloat,
+        width: CGFloat,
+        screenBounds: CGRect,
+        alignment: PopupBarAlignment = .left
+    ) -> CGFloat {
         let padding: CGFloat = PopupMetrics.popupPadding
 
         // --- Clamp popup width so a too-wide popup never overflows the right edge ---
         let maxPopupWidth = max(0, screenBounds.width - 2 * padding)
         let popupWidth = max(0, min(width, maxPopupWidth))
 
-        // --- Horizontal: center on release X, clamp to edges ---
-        let x = releaseX - popupWidth / 2
-        return max(screenBounds.minX + padding, min(x, screenBounds.maxX - popupWidth - padding))
+        let unconstrainedX: CGFloat
+        switch alignment {
+        case .left:
+            unconstrainedX = releaseX - firstActionCenterOffset
+        case .center:
+            unconstrainedX = releaseX - popupWidth / 2
+        case .right:
+            unconstrainedX = releaseX - (popupWidth - firstActionCenterOffset)
+        }
+
+        let minX = screenBounds.minX + padding
+        let maxX = screenBounds.maxX - popupWidth - padding
+        if maxX >= minX {
+            return max(minX, min(unconstrainedX, maxX))
+        } else {
+            return minX
+        }
+    }
+
+    /// Horizontal origin that centers a popup of the given width on the release X, clamped to the
+    /// screen's padding-inset edges. Used for both initial placement and re-centering on resize so a
+    /// width change (search palette, pagination) never drifts the bar off the cursor.
+    public static func centeredX(releaseX: CGFloat, width: CGFloat, screenBounds: CGRect) -> CGFloat {
+        alignedX(releaseX: releaseX, width: width, screenBounds: screenBounds, alignment: .center)
     }
 
     /// Place the popup near the mouse-release point.
@@ -51,7 +82,8 @@ public struct PopupPositioner: Sendable {
         releasePoint: CGPoint,
         mouseDownPoint: CGPoint? = nil,
         popupSize: CGSize,
-        screenBounds: CGRect
+        screenBounds: CGRect,
+        alignment: PopupBarAlignment = .left
     ) -> CGRect {
         let padding: CGFloat = PopupMetrics.popupPadding
 
@@ -59,8 +91,8 @@ public struct PopupPositioner: Sendable {
         let maxPopupWidth = max(0, screenBounds.width - 2 * padding)
         let popupWidth = max(0, min(popupSize.width, maxPopupWidth))
 
-        // --- Horizontal: center on release X, clamp to edges ---
-        let x = centeredX(releaseX: releasePoint.x, width: popupWidth, screenBounds: screenBounds)
+        // --- Horizontal: align relative to release X, clamp to edges ---
+        let x = alignedX(releaseX: releasePoint.x, width: popupWidth, screenBounds: screenBounds, alignment: alignment)
 
         // --- Vertical Direction Check ---
         // macOS screen coords: Y increases upwards (0 is bottom of screen).

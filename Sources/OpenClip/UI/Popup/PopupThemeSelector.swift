@@ -21,6 +21,7 @@ struct PopupThemeSelector: View {
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
     @AppStorage(SettingKey.popupScale.name) private var popupScale: Int = SettingKey.popupScale.defaultValue
     @AppStorage(SettingKey.popupBarWidth.name) private var barWidthLevel: Int = SettingKey.popupBarWidth.defaultValue
+    @AppStorage(SettingKey.popupAlignment.name) private var popupAlignment: String = SettingKey.popupAlignment.defaultValue
 
     private struct AppearanceOption: Identifiable {
         let label: String
@@ -56,6 +57,14 @@ struct PopupThemeSelector: View {
         ]
     }
 
+    private var alignmentOptions: [AppearanceOption] {
+        [
+            AppearanceOption(label: "Left", value: "left", icon: "text.alignleft"),
+            AppearanceOption(label: "Center", value: "center", icon: "text.aligncenter"),
+            AppearanceOption(label: "Right", value: "right", icon: "text.alignright")
+        ]
+    }
+
     private var activeAppearance: String {
         themeColor
     }
@@ -68,7 +77,8 @@ struct PopupThemeSelector: View {
         theme == SettingKey.popupTheme.defaultValue &&
         themeColor == SettingKey.popupThemeColor.defaultValue &&
         popupScale == SettingKey.popupScale.defaultValue &&
-        barWidthLevel == SettingKey.popupBarWidth.defaultValue
+        barWidthLevel == SettingKey.popupBarWidth.defaultValue &&
+        popupAlignment == SettingKey.popupAlignment.defaultValue
     }
 
     private func resetToDefaults() {
@@ -76,6 +86,7 @@ struct PopupThemeSelector: View {
         themeColor = SettingKey.popupThemeColor.defaultValue
         popupScale = SettingKey.popupScale.defaultValue
         barWidthLevel = SettingKey.popupBarWidth.defaultValue
+        popupAlignment = SettingKey.popupAlignment.defaultValue
     }
 
     var body: some View {
@@ -83,6 +94,7 @@ struct PopupThemeSelector: View {
             Section {
                 themeRow
                 modeRow
+                alignmentRow
                 sizeRow
                 barWidthRow
             } footer: {
@@ -126,6 +138,20 @@ struct PopupThemeSelector: View {
                 options: appearanceOptions,
                 isSelected: { activeAppearance == $0.value },
                 select: selectAppearance
+            )
+        }
+        .frame(minHeight: 24)
+        .padding(.vertical, 3)
+    }
+
+    private var alignmentRow: some View {
+        HStack(spacing: 12) {
+            rowTitle(icon: "text.alignleft", title: "Bar Alignment")
+            Spacer()
+            iconTiles(
+                options: alignmentOptions,
+                isSelected: { popupAlignment == $0.value },
+                select: { popupAlignment = $0 }
             )
         }
         .frame(minHeight: 24)
