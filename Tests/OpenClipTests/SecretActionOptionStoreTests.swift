@@ -164,17 +164,52 @@ final class SecretActionOptionStoreTests: XCTestCase {
         XCTAssertFalse(SecretStore.set("val", account: "acc"))
     }
 
-    func testSecretStoreCorruptedFileFailsHardWithoutOverwritingOrCaching() throws {
+    func testSecretStoreCorruptedFileSelfHealsAndBacksUpCorruptedData() throws {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let corruptedPayload = "corrupted-non-json-data".data(using: .utf8)!
         FileManager.default.createFile(atPath: tempFileURL.path, contents: corruptedPayload, attributes: [.posixPermissions: 0o600])
 
+        // Unparseable secrets file returns nil and triggers self-healing backup
         XCTAssertNil(SecretStore.get(account: "apiKey"), "get must return nil on unparseable secrets file")
-        XCTAssertFalse(SecretStore.set("newval", account: "apiKey"), "set must return false and not overwrite corrupted file")
-        XCTAssertFalse(SecretStore.delete(account: "apiKey"), "delete must return false on corrupted file")
 
-        let diskContent = try Data(contentsOf: tempFileURL)
-        XCTAssertEqual(diskContent, corruptedPayload, "Corrupted file must not be overwritten or wiped on failed operations")
+        // Self-healing: set must succeed instead of permanently locking out the user
+        XCTAssertTrue(SecretStore.set("newval", account: "apiKey"), "set must succeed after self-healing recovery")
+        XCTAssertEqual(SecretStore.get(account: "apiKey"), "newval")
+
+        // Corrupted file was safely preserved in a .corrupt.<timestamp> backup
+        let files = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
+        let backupFiles = files.filter { $0.contains("secrets.json.corrupt.") }
+        XCTAssertEqual(backupFiles.count, 1, "Corrupted file must be backed up")
+        if let backupFile = backupFiles.first {
+            let backupContent = try Data(contentsOf: tempDir.appendingPathComponent(backupFile))
+            XCTAssertEqual(backupContent, corruptedPayload, "Corrupted data must be preserved in backup file")
+        }
+
+        // New secrets.json was created cleanly
+        let newContent = try Data(contentsOf: tempFileURL)
+        let json = try JSONSerialization.jsonObject(with: newContent) as? [String: String]
+        XCTAssertEqual(json?["apiKey"], "newval")
+    }
+
+    func testSecretStoreZeroByteTruncatedFileSelfHeals() throws {
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        FileManager.default.createFile(atPath: tempFileURL.path, contents: Data(), attributes: [.posixPermissions: 0o600])
+
+        XCTAssertNil(SecretStore.get(account: "apiKey"), "get must return nil on 0-byte truncated file")
+        XCTAssertTrue(SecretStore.set("recovered", account: "apiKey"), "set must self-heal and succeed on 0-byte truncated file")
+        XCTAssertEqual(SecretStore.get(account: "apiKey"), "recovered")
+    }
+
+    func testSecretStoreStagingPermissionsNotAffectedByUmask() throws {
+        #if canImport(Darwin)
+        let oldUmask = umask(0000)
+        defer { umask(oldUmask) }
+        #endif
+
+        XCTAssertTrue(SecretStore.set("secret-under-umask", account: "umaskAccount"))
+        let attrs = try FileManager.default.attributesOfItem(atPath: tempFileURL.path)
+        let posix = (attrs[.posixPermissions] as? NSNumber)?.intValue
+        XCTAssertEqual(posix, 0o600, "Secrets file must have 0600 POSIX permissions even under umask 0000")
     }
 }
 

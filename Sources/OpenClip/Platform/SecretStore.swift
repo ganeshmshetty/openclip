@@ -7,6 +7,9 @@
 import Foundation
 import Core
 import Security
+#if canImport(Darwin)
+import Darwin
+#endif
 
 public enum SecretStore {
     private static let lock = NSLock()
@@ -70,13 +73,17 @@ public enum SecretStore {
                 let data = try Data(contentsOf: fileURL)
                 guard let json = try JSONSerialization.jsonObject(with: data) as? [String: String] else {
                     Log.settings.error("Secrets file at \(fileURL.path) is not a valid JSON dictionary of strings")
-                    return nil
+                    handleCorruptedSecretsFileLocked()
+                    _cache = [:]
+                    return [:]
                 }
                 _cache = json
                 return json
             } catch {
                 Log.settings.error("Failed to read secrets file at \(fileURL.path): \(error.localizedDescription)")
-                return nil
+                handleCorruptedSecretsFileLocked()
+                _cache = [:]
+                return [:]
             }
         }
 
@@ -91,6 +98,26 @@ public enum SecretStore {
 
         _cache = loaded
         return loaded
+    }
+
+    /// Backs up a corrupted or unparseable secrets file to secrets.json.corrupt.<timestamp>
+    /// so the user is never permanently locked out of saving credentials, while preserving
+    /// the corrupted payload for forensics or recovery.
+    private static func handleCorruptedSecretsFileLocked() {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        var corruptBackupURL = fileURL.deletingLastPathComponent().appendingPathComponent("\(fileURL.lastPathComponent).corrupt.\(timestamp)")
+        if FileManager.default.fileExists(atPath: corruptBackupURL.path) {
+            let nano = DispatchTime.now().uptimeNanoseconds
+            corruptBackupURL = fileURL.deletingLastPathComponent().appendingPathComponent("\(fileURL.lastPathComponent).corrupt.\(timestamp).\(nano)")
+        }
+
+        if rename(fileURL.path, corruptBackupURL.path) == 0 {
+            Log.settings.warning("Backed up corrupted secrets file to \(corruptBackupURL.path, privacy: .public)")
+        } else {
+            let err = errno
+            Log.settings.error("Failed to rename corrupted secrets file at \(fileURL.path, privacy: .public) to \(corruptBackupURL.path, privacy: .public): \(String(cString: strerror(err)))")
+            try? FileManager.default.removeItem(at: fileURL)
+        }
     }
 
     @discardableResult
@@ -110,24 +137,67 @@ public enum SecretStore {
         }
 
         let tempFileURL = directory.appendingPathComponent(".\(fileURL.lastPathComponent).\(UUID().uuidString).tmp")
+        let tempPath = tempFileURL.path
+
         defer {
-            if FileManager.default.fileExists(atPath: tempFileURL.path) {
-                try? FileManager.default.removeItem(at: tempFileURL)
+            if FileManager.default.fileExists(atPath: tempPath) {
+                unlink(tempPath)
             }
         }
 
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: data, options: [.prettyPrinted, .sortedKeys])
-            guard FileManager.default.createFile(
-                atPath: tempFileURL.path,
-                contents: jsonData,
-                attributes: [FileAttributeKey.posixPermissions: 0o600]
-            ) else {
-                Log.settings.error("Failed to create staged secrets file at \(tempFileURL.path)")
+
+            // Open with POSIX open() and S_IRUSR | S_IWUSR (0600) directly to avoid the
+            // umask permissions race where world/group-readable files exist before chmod.
+            let fd = open(tempPath, O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, S_IRUSR | S_IWUSR)
+            guard fd >= 0 else {
+                let err = errno
+                Log.settings.error("Failed to open staged secrets file at \(tempPath): \(String(cString: strerror(err)))")
                 return false
             }
 
-            guard rename(tempFileURL.path, fileURL.path) == 0 else {
+            fchmod(fd, S_IRUSR | S_IWUSR)
+
+            var writeSucceeded = false
+            defer {
+                close(fd)
+                if !writeSucceeded {
+                    unlink(tempPath)
+                }
+            }
+
+            let writeResult = jsonData.withUnsafeBytes { rawBuffer -> Bool in
+                guard let baseAddress = rawBuffer.baseAddress else { return true }
+                var bytesRemaining = rawBuffer.count
+                var currentPtr = baseAddress
+                while bytesRemaining > 0 {
+                    let bytesWritten = write(fd, currentPtr, bytesRemaining)
+                    if bytesWritten < 0 {
+                        let err = errno
+                        if err == EINTR { continue }
+                        Log.settings.error("Failed to write staged secrets data to \(tempPath): \(String(cString: strerror(err)))")
+                        return false
+                    }
+                    bytesRemaining -= bytesWritten
+                    currentPtr = currentPtr.advanced(by: bytesWritten)
+                }
+                return true
+            }
+
+            guard writeResult else { return false }
+
+            #if canImport(Darwin)
+            if fcntl(fd, F_FULLFSYNC) < 0 {
+                _ = fsync(fd)
+            }
+            #else
+            _ = fsync(fd)
+            #endif
+
+            writeSucceeded = true
+
+            guard rename(tempPath, fileURL.path) == 0 else {
                 let err = errno
                 Log.settings.error("Failed to atomically install secrets file at \(fileURL.path): \(String(cString: strerror(err)))")
                 return false
