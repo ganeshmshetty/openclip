@@ -141,6 +141,16 @@
         }
       }
     },
+    "Above": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上方"
+          }
+        }
+      }
+    },
     "Access": {
       "localizations": {
         "zh-Hans": {
@@ -441,6 +451,16 @@
         }
       }
     },
+    "Auto": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动"
+          }
+        }
+      }
+    },
     "Auto-update": {
       "localizations": {
         "zh-Hans": {
@@ -507,6 +527,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "接口地址"
+          }
+        }
+      }
+    },
+    "Below": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下方"
           }
         }
       }
@@ -3297,6 +3327,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "版本 %@"
+          }
+        }
+      }
+    },
+    "Vertical Position": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "垂直位置"
           }
         }
       }

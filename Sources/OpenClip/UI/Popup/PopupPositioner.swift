@@ -12,25 +12,32 @@ public struct PopupPositioner: Sendable {
     // How far the popup sits from the release point (points)
     private static let gap: CGFloat = 6
 
-    /// Main entry point — positions relative to mouse release point, drag direction, and alignment.
+    /// Main entry point — positions relative to mouse release point, drag direction, alignment, and vertical placement mode.
     public static func calculateFrame(
         for context: SelectionContext,
         popupSize: CGSize,
         in screenBounds: CGRect,
-        alignment: PopupBarAlignment = .left
+        alignment: PopupBarAlignment = .left,
+        verticalPosition: PopupVerticalPosition = .auto
     ) -> CGRect {
         placeNearReleasePoint(
             releasePoint: context.cursorPosition,
             mouseDownPoint: context.mouseDownLocation,
             popupSize: popupSize,
             screenBounds: screenBounds,
-            alignment: alignment
+            alignment: alignment,
+            verticalPosition: verticalPosition
         )
     }
 
     /// Distance from the window frame's left edge to the center of the first action button
     /// (shadow inset + half the button width).
     public static let firstActionCenterOffset: CGFloat = PopupMetrics.popupShadowInset + (PopupMetrics.actionButtonWidth / 2)
+
+    /// Returns true if the placed popup frame sits above the cursor release point.
+    public static func isPlacedAbove(frame: CGRect, releasePoint: CGPoint) -> Bool {
+        frame.minY >= releasePoint.y
+    }
 
     /// Horizontal origin that aligns a popup of the given width relative to the release X,
     /// clamped to the screen's padding-inset edges.
@@ -75,15 +82,19 @@ public struct PopupPositioner: Sendable {
     /// Place the popup near the mouse-release point.
     ///
     /// Vertical rule:
-    ///  - Top-to-Bottom drag (mouse released below start point): place BELOW cursor so it doesn't cover selected text.
-    ///  - Bottom-to-Top or Horizontal drag: place ABOVE cursor.
-    ///  - Flips if near screen edge.
+    ///  - Auto:
+    ///     * Top-to-Bottom drag (mouse released below start point): place BELOW cursor so it doesn't cover selected text.
+    ///     * Bottom-to-Top or Horizontal drag: place ABOVE cursor.
+    ///     * Flips if near screen edge.
+    ///  - Above: place ABOVE cursor by default; flips to below if near screen top edge.
+    ///  - Below: place BELOW cursor by default; flips to above if near screen bottom edge.
     public static func placeNearReleasePoint(
         releasePoint: CGPoint,
         mouseDownPoint: CGPoint? = nil,
         popupSize: CGSize,
         screenBounds: CGRect,
-        alignment: PopupBarAlignment = .left
+        alignment: PopupBarAlignment = .left,
+        verticalPosition: PopupVerticalPosition = .auto
     ) -> CGRect {
         let padding: CGFloat = PopupMetrics.popupPadding
 
@@ -97,18 +108,27 @@ public struct PopupPositioner: Sendable {
         // --- Vertical Direction Check ---
         // macOS screen coords: Y increases upwards (0 is bottom of screen).
         // Top-to-Bottom drag -> releasePoint.y < mouseDownPoint.y.
-        // The text sits ABOVE the release point. Placing popup above would cover the text!
         let isDraggingDown: Bool = {
             guard let mouseDown = mouseDownPoint else { return false }
             return (releasePoint.y - mouseDown.y) < -10.0
         }()
 
+        let shouldPlaceBelow: Bool
+        switch verticalPosition {
+        case .auto:
+            shouldPlaceBelow = isDraggingDown
+        case .above:
+            shouldPlaceBelow = false
+        case .below:
+            shouldPlaceBelow = true
+        }
+
         let yAbove = releasePoint.y + gap
         let yBelow = releasePoint.y - popupSize.height - gap
 
         var y: CGFloat
-        if isDraggingDown {
-            // Dragged down -> text is above cursor -> place BELOW cursor by default
+        if shouldPlaceBelow {
+            // Dragged down or forced below -> place BELOW cursor by default
             if yBelow >= screenBounds.minY + padding {
                 y = yBelow
             } else if yAbove + popupSize.height <= screenBounds.maxY - padding {
@@ -117,7 +137,7 @@ public struct PopupPositioner: Sendable {
                 y = screenBounds.minY + padding
             }
         } else {
-            // Dragged up or horizontal -> text is below/beside cursor -> place ABOVE cursor by default
+            // Dragged up/horizontal or forced above -> place ABOVE cursor by default
             if yAbove + popupSize.height <= screenBounds.maxY - padding {
                 y = yAbove
             } else if yBelow >= screenBounds.minY + padding {

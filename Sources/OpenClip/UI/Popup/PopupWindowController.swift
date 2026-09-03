@@ -183,12 +183,14 @@ public class PopupWindowController {
 
         let rawAlignment = settingsStore.get(SettingKey.popupAlignment)
         let alignment = PopupBarAlignment(rawValue: rawAlignment) ?? .left
+        let rawVertical = settingsStore.get(SettingKey.popupVerticalPosition)
+        let verticalPosition = PopupVerticalPosition(rawValue: rawVertical) ?? .auto
 
         // Pre-compute card direction from real screen position
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let tempFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds, alignment: alignment)
+            for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
         cardAbove = tempFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
 
         modeStore.mode = .actions
@@ -272,11 +274,11 @@ public class PopupWindowController {
 
         // Compute card direction from real screen position using the actual rendered panel size.
         let calculatedFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: size, in: screenBounds, alignment: alignment)
+            for: context, popupSize: size, in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
         cardAbove = calculatedFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
         modeStore.searchResultsAbove = cardAbove
 
-        positionPanel(panel, size: size, for: context, alignment: alignment)
+        positionPanel(panel, size: size, for: context, alignment: alignment, verticalPosition: verticalPosition)
         lastPopupFrame = panel.frame
         // Placement is fixed; any subsequent content-driven width change (search palette,
         // pagination) must re-center rather than drift off the cursor.
@@ -558,14 +560,15 @@ public class PopupWindowController {
         return size
     }
 
-    private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext, alignment: PopupBarAlignment = .left) {
+    private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext, alignment: PopupBarAlignment = .left, verticalPosition: PopupVerticalPosition = .auto) {
         let screen = NSScreen.screens.first { $0.frame.contains(context.cursorPosition) } ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let frame = PopupPositioner.calculateFrame(
             for: context,
             popupSize: size,
             in: screenBounds,
-            alignment: alignment
+            alignment: alignment,
+            verticalPosition: verticalPosition
         )
         panel.setFrame(frame, display: true)
     }
@@ -952,6 +955,13 @@ public class PopupWindowController {
         let effectiveTheme = themeCategory == .glass ? "glass" : PopupThemeModel.classicToken(appearance: appearance, systemIsDark: systemIsDark)
         let effectiveColorScheme = PopupThemeModel.effectiveScheme(appearance: appearance, systemIsDark: systemIsDark)
 
+        let mainBarAbove: Bool
+        if let panel, let currentContext {
+            mainBarAbove = PopupPositioner.isPlacedAbove(frame: panel.frame, releasePoint: currentContext.cursorPosition)
+        } else {
+            mainBarAbove = modeStore.searchResultsAbove
+        }
+
         subBarController.show(
             for: action,
             parentIndex: index,
@@ -960,6 +970,7 @@ public class PopupWindowController {
             mainBarScreenFrame: panel?.frame,
             isPinned: isPinned,
             searchResultsAbove: modeStore.searchResultsAbove,
+            mainBarAbove: mainBarAbove,
             effectiveTheme: effectiveTheme,
             effectiveColorScheme: effectiveColorScheme,
             scale: scale,

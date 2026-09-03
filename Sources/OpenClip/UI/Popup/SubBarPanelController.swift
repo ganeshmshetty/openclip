@@ -33,7 +33,8 @@ public final class SubBarPanelController {
         parentButtonScreenFrame: NSRect,
         mainBarScreenFrame: NSRect? = nil,
         isPinned: Bool,
-        searchResultsAbove: Bool,
+        searchResultsAbove: Bool = true,
+        mainBarAbove: Bool? = nil,
         effectiveTheme: String,
         effectiveColorScheme: ColorScheme,
         scale: CGFloat,
@@ -131,13 +132,30 @@ public final class SubBarPanelController {
         let clampedX = max(minX, min(panelX, maxX))
 
         // Vertical positioning: 6pt visual gap from the main bar's button
+        // Prefers opening in the same direction as the main bar (away from selected text),
+        // but flips if constrained by the screen boundaries.
+        let preferAbove = mainBarAbove ?? searchResultsAbove
+        let yAbove = parentButtonScreenFrame.maxY + 6 - shadowInset
+        let yBelow = parentButtonScreenFrame.minY - 6 + shadowInset - panelHeight
+        let padding = PopupMetrics.popupPadding
+
         let panelY: CGFloat
-        if searchResultsAbove {
-            // Sub-bar sits above the main bar
-            panelY = parentButtonScreenFrame.maxY + 6 - shadowInset
+        if preferAbove {
+            if yAbove + panelHeight <= screenBounds.maxY - padding {
+                panelY = yAbove
+            } else if yBelow >= screenBounds.minY + padding {
+                panelY = yBelow
+            } else {
+                panelY = yAbove
+            }
         } else {
-            // Sub-bar sits below the main bar
-            panelY = parentButtonScreenFrame.minY - 6 + shadowInset - panelHeight
+            if yBelow >= screenBounds.minY + padding {
+                panelY = yBelow
+            } else if yAbove + panelHeight <= screenBounds.maxY - padding {
+                panelY = yAbove
+            } else {
+                panelY = yBelow
+            }
         }
 
         panel.setFrame(NSRect(x: clampedX, y: panelY, width: panelWidth, height: panelHeight), display: true)

@@ -534,5 +534,77 @@ final class SubBarPanelControllerTests: XCTestCase {
         XCTAssertEqual(panel.frame.maxX, 500, "SubBarPanel right edge must stay pinned when expanding with .right anchor")
         XCTAssertEqual(panel.frame.origin.x, 100)
     }
+
+    func testSubBarVerticalPositionFollowsMainBarAbove() {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .text("One"))
+
+        let parentFrame = NSRect(x: 200, y: 300, width: 40, height: 29)
+
+        // When mainBarAbove is true, sub-bar should be placed ABOVE the main bar's button
+        controller.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1],
+            parentButtonScreenFrame: parentFrame,
+            isPinned: false,
+            searchResultsAbove: false, // even if searchResultsAbove is false, mainBarAbove takes precedence
+            mainBarAbove: true,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+
+        XCTAssertTrue(controller.isShowing)
+        let shadowInset = PopupMetrics.popupShadowInset
+        let contentMinY = controller.panelFrame.minY + shadowInset
+        XCTAssertGreaterThanOrEqual(contentMinY, parentFrame.maxY, "Sub-bar visual content should sit above parent button")
+        controller.hide()
+    }
+
+    func testSubBarVerticalPositionFollowsMainBarBelow() {
+        let controller = SubBarPanelController()
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let sub1 = TestAction(id: "sub.1", title: "Sub 1", icon: .text("One"))
+
+        let parentFrame = NSRect(x: 200, y: 400, width: 40, height: 29)
+
+        // When mainBarAbove is false, sub-bar should be placed BELOW the main bar's button
+        controller.show(
+            for: parent,
+            parentIndex: 0,
+            subActions: [sub1],
+            parentButtonScreenFrame: parentFrame,
+            isPinned: false,
+            searchResultsAbove: true, // even if searchResultsAbove is true, mainBarAbove takes precedence
+            mainBarAbove: false,
+            effectiveTheme: "dark",
+            effectiveColorScheme: .dark,
+            scale: 1.0,
+            context: makeContext(),
+            presenter: ActionCustomizationManager.shared,
+            onResult: { _ in },
+            onRunAI: { _ in },
+            onRunLoadingAction: { _ in },
+            onWillPerformAction: { _ in },
+            onActionPerformed: { _ in },
+            onClickIntent: { .primary }
+        )
+
+        XCTAssertTrue(controller.isShowing)
+        let shadowInset = PopupMetrics.popupShadowInset
+        let contentMaxY = controller.panelFrame.maxY - shadowInset
+        XCTAssertLessThanOrEqual(contentMaxY, parentFrame.minY, "Sub-bar visual content should sit below parent button")
+        controller.hide()
+    }
 }
 

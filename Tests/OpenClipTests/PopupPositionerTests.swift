@@ -117,4 +117,61 @@ final class PopupPositionerTests: XCTestCase {
         let rightX = PopupPositioner.alignedX(releaseX: releaseX, width: 200, screenBounds: screen, alignment: .right)
         XCTAssertEqual(rightX, 400 - (200 - PopupPositioner.firstActionCenterOffset))
     }
+
+    func testVerticalPositionAboveForcesPlacementAbove() {
+        // Even with a downward drag that would normally place below, .above forces placement above
+        let start = CGPoint(x: 400, y: 350)
+        let release = CGPoint(x: 400, y: 200)
+        let frame = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release,
+            mouseDownPoint: start,
+            popupSize: size,
+            screenBounds: screen,
+            verticalPosition: .above
+        )
+        // Above release: 200 + 6 = 206
+        XCTAssertEqual(frame.origin.y, 206)
+        XCTAssertTrue(PopupPositioner.isPlacedAbove(frame: frame, releasePoint: release))
+    }
+
+    func testVerticalPositionAboveFlipsWhenNearTopEdge() {
+        let release = CGPoint(x: 400, y: 580)
+        let frame = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release,
+            popupSize: size,
+            screenBounds: screen,
+            verticalPosition: .above
+        )
+        // No room above (580 + 6 + 50 > 592), flips below: 580 - 50 - 6 = 524
+        XCTAssertEqual(frame.origin.y, 524)
+        XCTAssertFalse(PopupPositioner.isPlacedAbove(frame: frame, releasePoint: release))
+    }
+
+    func testVerticalPositionBelowForcesPlacementBelow() {
+        // With an upward/horizontal drag, .below forces placement below
+        let release = CGPoint(x: 400, y: 200)
+        let frame = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release,
+            popupSize: size,
+            screenBounds: screen,
+            verticalPosition: .below
+        )
+        // Below release: 200 - 50 - 6 = 144
+        XCTAssertEqual(frame.origin.y, 144)
+        XCTAssertFalse(PopupPositioner.isPlacedAbove(frame: frame, releasePoint: release))
+    }
+
+    func testVerticalPositionBelowFlipsWhenNearBottomEdge() {
+        let release = CGPoint(x: 400, y: 30)
+        let frame = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release,
+            popupSize: size,
+            screenBounds: screen,
+            verticalPosition: .below
+        )
+        // No room below (30 - 50 - 6 = -26 < 8), flips above: 30 + 6 = 36
+        XCTAssertEqual(frame.origin.y, 36)
+        XCTAssertTrue(PopupPositioner.isPlacedAbove(frame: frame, releasePoint: release))
+    }
 }
+

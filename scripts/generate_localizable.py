@@ -79,6 +79,10 @@ TRANSLATIONS: dict[str, str] = {
     "Left": "居左",
     "Center": "居中",
     "Right": "居右",
+    "Vertical Position": "垂直位置",
+    "Auto": "自动",
+    "Above": "上方",
+    "Below": "下方",
     # Actions tab
     "Add Custom Action": "添加自定义动作",
     "Install Extension…": "安装扩展…",
