@@ -311,7 +311,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         let controller = NSHostingController(rootView: PreferencesView(initialTab: tab))
         let window = NSWindow(contentViewController: controller)
         window.title = String(localized: "OpenClip Preferences")
-        window.setContentSize(NSSize(width: 760, height: 600))
+        window.setContentSize(NSSize(width: 760, height: 620))
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden

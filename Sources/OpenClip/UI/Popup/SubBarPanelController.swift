@@ -25,7 +25,7 @@ public final class SubBarPanelController {
         self.panel = panel
     }
 
-    /// Shows or updates the sub-bar for the given group action and parent button screen frame.
+    @discardableResult
     public func show(
         for groupAction: any Action,
         parentIndex: Int,
@@ -46,14 +46,14 @@ public final class SubBarPanelController {
         onWillPerformAction: @escaping @MainActor @Sendable (any Action) -> Void,
         onActionPerformed: @escaping @MainActor @Sendable (String) -> Void,
         onClickIntent: @escaping @MainActor @Sendable () -> ActionResultDelivery.ClickIntent
-    ) {
+    ) -> Bool {
         dwellTask?.cancel()
         dwellTask = nil
         cancelGrace()
 
         guard !subActions.isEmpty else {
             hide()
-            return
+            return false
         }
 
         let state = ActiveSubGroupState(
@@ -160,6 +160,7 @@ public final class SubBarPanelController {
 
         panel.setFrame(NSRect(x: clampedX, y: panelY, width: panelWidth, height: panelHeight), display: true)
         panel.orderFront(nil)
+        return panelY == yAbove
     }
 
     /// Pin the current active sub-bar so it stays open until explicitly closed or an action runs.

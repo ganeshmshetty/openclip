@@ -9,13 +9,10 @@ import Core
 @MainActor
 struct AppearanceTab: View {
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             PopupPreview()
 
             PopupThemeSelector()
-
-            Spacer()
         }
-        .padding(24)
     }
 }

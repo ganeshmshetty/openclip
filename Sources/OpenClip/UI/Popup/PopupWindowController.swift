@@ -195,6 +195,7 @@ public class PopupWindowController {
 
         modeStore.mode = .actions
         modeStore.searchResultsAbove = cardAbove
+        modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: tempFrame, releasePoint: context.cursorPosition)
         // Probed before selection retrieval by the trigger sites and resolved before this frame,
         // so the bar/search gate Paste/Cut correctly on the first render. `nil` keeps them visible.
         modeStore.canPaste = pasteAvailable
@@ -277,6 +278,7 @@ public class PopupWindowController {
             for: context, popupSize: size, in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
         cardAbove = calculatedFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
         modeStore.searchResultsAbove = cardAbove
+        modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: calculatedFrame, releasePoint: context.cursorPosition)
 
         positionPanel(panel, size: size, for: context, alignment: alignment, verticalPosition: verticalPosition)
         lastPopupFrame = panel.frame
@@ -962,7 +964,7 @@ public class PopupWindowController {
             mainBarAbove = modeStore.searchResultsAbove
         }
 
-        subBarController.show(
+        let actuallyAbove = subBarController.show(
             for: action,
             parentIndex: index,
             subActions: children,
@@ -1007,6 +1009,7 @@ public class PopupWindowController {
             },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary }
         )
+        modeStore.subBarAbove = actuallyAbove
     }
 
     func runAIPreset(prompt: String, title: String) {

@@ -196,14 +196,14 @@ public struct PreferencesView: View {
                 .frame(maxWidth: Self.detailContentMaxWidth)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 16)
-                // General's grouped form runs edge-to-edge to the window bottom; other tabs keep breathing room.
-                .padding(.bottom, selectedTab == .general ? 0 : 16)
+                // General and Appearance grouped forms run edge-to-edge to the window bottom; other tabs keep breathing room.
+                .padding(.bottom, (selectedTab == .general || selectedTab == .appearance) ? 0 : 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .ignoresSafeArea(.all, edges: .top)
         .background(Color(NSColor.windowBackgroundColor))
-        .frame(minWidth: 760, idealWidth: 760, minHeight: 520, idealHeight: 600)
+        .frame(minWidth: 760, idealWidth: 760, minHeight: 520, idealHeight: 620)
         .onAppear {
             loadDisabledState()
             Task {

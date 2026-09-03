@@ -20,6 +20,9 @@ public final class PopupModeStore: ObservableObject {
     @Published public var scope: SearchScope? = nil
     /// True when the popup sits low on screen and search results render above the field.
     @Published public var searchResultsAbove: Bool = false
+    /// True when the group sub-bar opens above the main bar (indicator triangle sits at the top pointing up).
+    /// False when it opens below the main bar (indicator triangle sits at the bottom pointing down).
+    @Published public var subBarAbove: Bool = true
     /// The native result card currently shown (only meaningful while `mode == .content`). Any
     /// action whose resolved outcome is text renders here, not just AI presets.
     @Published public var resultCard: ResultCardPayload? = nil
