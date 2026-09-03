@@ -57,8 +57,10 @@ public struct PasteboardCopyEngine {
         }
 
         guard let result else {
-            Log.selection.debug("Copy engine: no non-empty pasteboard text within deadline; restoring immediately")
-            snapshot.restore(to: pasteboard, transientMarkers: true)
+            if pasteboard.changeCount != initialChangeCount {
+                Log.selection.debug("Copy engine: no non-empty pasteboard text within deadline; restoring immediately")
+                snapshot.restore(to: pasteboard, transientMarkers: true)
+            }
             return nil
         }
 
