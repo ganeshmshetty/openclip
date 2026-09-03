@@ -10,8 +10,11 @@
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange?style=flat-square&logo=swift&logoColor=white)](https://www.swift.org)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 [![Homebrew](https://img.shields.io/badge/Homebrew-OpenClip-ffcc00?style=flat-square&logo=homebrew&logoColor=black)](https://github.com/ganeshmshetty/homebrew-tap)
+[![AlternativeTo](https://img.shields.io/badge/AlternativeTo-OpenClip-0081C6?style=flat-square&logo=alternativeto&logoColor=white)](https://alternativeto.net/software/openclip/about/?utm_source=badge&utm_medium=referral)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/sy4MeFxf8)
+[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-OpenClip-DA552F?style=flat-square&logo=producthunt&logoColor=white)](https://www.producthunt.com/products/openclip)
 
-[Features](#features) • [Installation](#installation) • [Getting started](#getting-started) • [Extending](#extending-openclip) • [Building from source](#building-from-source) • [Documentation](#documentation) • [License](#license)
+[Features](#features) • [Installation](#installation) • [Getting started](#getting-started) • [Extending](#extending-openclip) • [Community](#community--support) • [Documentation](#documentation) • [License](#license)
 
 <br />
 
@@ -56,7 +59,7 @@ brew install --cask ganeshmshetty/tap/openclip
 
 ### Direct Download
 
-1. Download the latest release (`.dmg` or `.zip`) from the [releases page](https://github.com/ganeshmshetty/openclip/releases).
+1. Download the latest release (`.dmg`) directly from [getopenclip.app/download](https://getopenclip.app/download) (or browse all assets on the [releases page](https://github.com/ganeshmshetty/openclip/releases)).
 2. Drag `OpenClip.app` into your `/Applications` folder.
 3. Launch OpenClip and grant **Accessibility** permission when prompted:
 
@@ -170,6 +173,13 @@ The full technical documentation lives in the [`docs/`](docs/index.md) hub:
 - **Runtimes** — AppleScript, JavaScript, URL templates, and shell/Python execution (env vars, JSON effects, 30-second watchdog).
 - **User guide** — installation, preferences, app rules, and extension management.
 - **Logging** — the single `Log` surface and per-subsystem categories.
+
+## Community & Support
+
+- 💬 **Discord**: [Join our Discord community](https://discord.gg/sy4MeFxf8) to share custom extensions, request features, and get support.
+- ⭐️ **AlternativeTo**: Find and support OpenClip on [AlternativeTo](https://alternativeto.net/software/openclip/about/?utm_source=badge&utm_medium=referral).
+- 🚀 **Product Hunt**: Check out our launch on [Product Hunt](https://www.producthunt.com/products/openclip).
+- 🐛 **Issues & Feedback**: Report bugs or suggest ideas on [GitHub Issues](https://github.com/ganeshmshetty/openclip/issues).
 
 ## License
 
