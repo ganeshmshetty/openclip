@@ -103,6 +103,13 @@ def check_action($p):
          else empty end)
       ]
     else [] end;
+  def scriptErrors:
+    if (($self.script? | sv) | is_blank | not) then
+      (($self.script? | sv) as $sc |
+       if ($sc | startswith("/")) or ($sc | startswith("~")) or ($sc | contains(":")) or ($sc | test("(^|/)\\.\\.(/|$)")) then
+         ["\($p): script path escapes extension directory \"\($sc)\""]
+       else [] end)
+    else [] end;
   ($self | option_dups($p)) +
   [
     (($self.type // "url") | ascii_downcase) as $t |
@@ -119,7 +126,7 @@ def check_action($p):
     else
       (if ($self | has_payload | not) then "\($p): missing required payload (url, script, or scriptCode)" else empty end)
     end
-  ] + secondaryErrors + toastErrors("toast") + toastErrors("secondaryToast") + toastErrors("secondary-toast") + subErrors;
+  ] + secondaryErrors + toastErrors("toast") + toastErrors("secondaryToast") + toastErrors("secondary-toast") + scriptErrors + subErrors;
 
 # ---- top-level ----
 . as $m |
@@ -153,11 +160,31 @@ fi
 
 # Referenced script files must exist inside the package.
 MISSING=""
+UNSAFE=""
+real_base="$(cd "$SRC_DIR" && pwd -P)"
 while IFS= read -r script; do
-    if [ -n "$script" ] && [ ! -f "$SRC_DIR/$script" ]; then
+    [ -n "$script" ] || continue
+    case "$script" in
+        /*|~*|*:*)
+            UNSAFE="$UNSAFE unsafe script path: $script"
+            continue
+            ;;
+    esac
+    if [ ! -f "$SRC_DIR/$script" ]; then
         MISSING="$MISSING missing script file: $script"
+    else
+        real_script="$(cd "$(dirname "$SRC_DIR/$script")" 2>/dev/null && pwd -P)/$(basename "$script")"
+        case "$real_script" in
+            "$real_base"/*) ;;
+            *) UNSAFE="$UNSAFE script path escapes extension directory: $script" ;;
+        esac
     fi
 done < <(jq -r '[.. | objects | .script?] | map(select(type == "string" and length > 0)) | unique[]' "$MANIFEST")
+
+if [ -n "$UNSAFE" ]; then
+    echo "validate_extension: $MANIFEST references unsafe script file(s):$UNSAFE" >&2
+    exit 1
+fi
 
 if [ -n "$MISSING" ]; then
     echo "validate_extension: $MANIFEST references missing script file(s):$MISSING" >&2

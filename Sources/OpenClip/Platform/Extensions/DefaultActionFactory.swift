@@ -367,6 +367,15 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         let scriptURL = directoryURL.appendingPathComponent(scriptName)
         let ext = scriptURL.pathExtension.lowercased()
 
+        guard !scriptName.hasPrefix("/"),
+              !scriptName.hasPrefix("~"),
+              !scriptName.contains(":"),
+              Constants.isPathSafe(destinationURL: scriptURL, baseDirectory: directoryURL),
+              scriptURL.standardized.path != directoryURL.standardized.path else {
+            Log.factory.error("Script path escapes extension directory: \(scriptName, privacy: .public)")
+            return nil
+        }
+
         // Guard against garbage metadata: with neither url, scriptCode, nor an existing script file,
         // there is nothing executable to run. A directory (fileExists is true for directories) or a
         // script that can't be read must not register as an empty action.

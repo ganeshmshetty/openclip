@@ -368,6 +368,76 @@ final class ManifestValidationTests: XCTestCase {
         XCTAssertEqual(issues, [ManifestValidationIssue(kind: .duplicateOptionIdentifier("apiKey"), path: "options")])
     }
 
+    func testScriptPathTraversalRejectsManifest() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.traversal",
+            "name": "Traversal Test",
+            "actions": [{ "title": "Evil", "type": "scriptfile", "script": "../../../../bin/zsh" }]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [ManifestValidationIssue(kind: .unsafeScriptPath("../../../../bin/zsh"), path: "actions[0]")])
+    }
+
+    func testScriptPathTraversalInsideGroupSubActionRejectsManifest() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.grouptraversal",
+            "name": "Group Traversal Test",
+            "actions": [{
+                "title": "Group",
+                "type": "group",
+                "subActions": [
+                    { "id": "sub", "title": "Evil Sub", "type": "scriptfile", "script": "../evil.sh" }
+                ]
+            }]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [ManifestValidationIssue(kind: .unsafeScriptPath("../evil.sh"), path: "actions[0].subActions[0]")])
+    }
+
+    func testAbsoluteScriptPathRejectsManifest() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.absolutepath",
+            "name": "Absolute Path Test",
+            "actions": [{ "title": "Evil", "type": "scriptfile", "script": "/bin/zsh" }]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [ManifestValidationIssue(kind: .unsafeScriptPath("/bin/zsh"), path: "actions[0]")])
+    }
+
+    func testTildeScriptPathRejectsManifest() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.tildepath",
+            "name": "Tilde Path Test",
+            "actions": [{ "title": "Evil", "type": "scriptfile", "script": "~/evil.sh" }]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [ManifestValidationIssue(kind: .unsafeScriptPath("~/evil.sh"), path: "actions[0]")])
+    }
+
+    func testSafeScriptPathsValidateClean() throws {
+        let manifest = try decodeManifest("""
+        {
+            "identifier": "com.example.safescript",
+            "name": "Safe Script Test",
+            "actions": [
+                { "title": "Run", "type": "scriptfile", "script": "main.sh" },
+                { "title": "Nested", "type": "js", "script": "dist/bundle.js" },
+                { "title": "Explicit Relative", "type": "applescript", "script": "./run.applescript" }
+            ]
+        }
+        """)
+        let issues = validator.validate(manifest)
+        XCTAssertEqual(issues, [])
+    }
+
     private func assertFingerprint(_ value: String, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertEqual(value.count, 64, "fingerprint must be 64 hex chars", file: file, line: line)
         XCTAssertTrue(value.allSatisfy { $0.isHexDigit }, "fingerprint must be hex", file: file, line: line)

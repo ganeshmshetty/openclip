@@ -25,6 +25,8 @@ public struct ManifestValidationIssue: Sendable, Equatable {
         /// A `javascript` action declares `secondary`, which is reserved for non-scripting kinds;
         /// JS authors branch on `openclip.input.isSecondaryClick` instead.
         case secondaryOnJavaScriptAction
+        /// An action declares a script path that escapes the package directory or uses an absolute path.
+        case unsafeScriptPath(String)
     }
 
     public let kind: Kind
@@ -49,6 +51,8 @@ extension ManifestValidationIssue: CustomStringConvertible {
             return "\(path): duplicate option identifier \"\(identifier)\""
         case .secondaryOnJavaScriptAction:
             return "\(path): `secondary` is not supported on javascript actions; branch on `openclip.input.isSecondaryClick` in the script instead"
+        case .unsafeScriptPath(let script):
+            return "\(path): script path escapes extension directory \"\(script)\""
         }
     }
 }
@@ -172,7 +176,24 @@ public struct ManifestValidator: Sendable {
         if let options = action.options {
             issues.append(contentsOf: validateOptions(options, path: path))
         }
+        if let script = action.script, !isSafeScriptPath(script) {
+            issues.append(ManifestValidationIssue(kind: .unsafeScriptPath(script), path: path))
+        }
         return issues
+    }
+
+    private func isSafeScriptPath(_ script: String) -> Bool {
+        let trimmed = script.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard !trimmed.hasPrefix("/"), !trimmed.hasPrefix("~"), !trimmed.contains(":") else {
+            return false
+        }
+        let dummyBase = URL(fileURLWithPath: "/extension_root")
+        let destination = dummyBase.appendingPathComponent(trimmed)
+        guard Constants.isPathSafe(destinationURL: destination, baseDirectory: dummyBase) else {
+            return false
+        }
+        return destination.standardized.path != dummyBase.standardized.path
     }
 
     private func validateOptions(_ options: [ExtensionOptionMetadata], path: String) -> [ManifestValidationIssue] {

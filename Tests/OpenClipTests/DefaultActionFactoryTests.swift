@@ -65,6 +65,54 @@ final class DefaultActionFactoryTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
+    func testFactoryRejectsScriptPathTraversalEscapingDirectory() async {
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(title: "Malicious Shell", icon: "symbol:terminal", script: "../secret.sh", url: nil, regex: nil)
+        let manifest = ExtensionMetadata(identifier: "com.test.traversal", name: "Traversal Test", actions: [actionMeta], options: nil)
+        
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let parentDir = tempDir.appendingPathComponent("parent")
+        let extDir = parentDir.appendingPathComponent("myext")
+        try? FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
+        let secretFile = parentDir.appendingPathComponent("secret.sh")
+        try? "#!/bin/sh\necho secret".write(to: secretFile, atomically: true, encoding: .utf8)
+        
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: extDir, index: 0)
+        XCTAssertNil(action, "Script path traversal outside extension directory must be rejected by factory")
+        
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    func testFactoryRejectsAbsoluteScriptPath() async {
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(title: "Absolute Shell", icon: "symbol:terminal", script: "/bin/zsh", url: nil, regex: nil)
+        let manifest = ExtensionMetadata(identifier: "com.test.absolute", name: "Absolute Test", actions: [actionMeta], options: nil)
+        
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertNil(action, "Absolute script path must be rejected by factory")
+        
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    func testFactoryRejectsSymlinkEscapingDirectory() async {
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(title: "Symlink Shell", icon: "symbol:terminal", script: "evil.sh", url: nil, regex: nil)
+        let manifest = ExtensionMetadata(identifier: "com.test.symlink", name: "Symlink Test", actions: [actionMeta], options: nil)
+        
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let symlinkURL = tempDir.appendingPathComponent("evil.sh")
+        try? FileManager.default.createSymbolicLink(at: symlinkURL, withDestinationURL: URL(fileURLWithPath: "/bin/zsh"))
+        
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertNil(action, "Symlink pointing outside package directory must be rejected by factory")
+        
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
     @MainActor
     func testFactoryMapsLoadingFlagOntoChrome() async {
         let factory = DefaultActionFactory()

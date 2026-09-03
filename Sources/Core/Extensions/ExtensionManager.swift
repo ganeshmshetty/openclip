@@ -475,6 +475,14 @@ public final class ExtensionManager: Sendable {
                 } else {
                     let scriptName = actionMeta.script ?? Constants.defaultScriptName
                     let scriptURL = directoryURL.appendingPathComponent(scriptName)
+                    guard !scriptName.hasPrefix("/"),
+                          !scriptName.hasPrefix("~"),
+                          !scriptName.contains(":"),
+                          Constants.isPathSafe(destinationURL: scriptURL, baseDirectory: directoryURL),
+                          scriptURL.standardized.path != directoryURL.standardized.path else {
+                        Log.extensions.error("Script path escapes extension directory: \(scriptName, privacy: .public)")
+                        continue
+                    }
                     let action = ScriptAction(id: actionId, title: title, icon: icon, scriptURL: scriptURL, chrome: extensionChrome)
                     actions.append(action)
                 }

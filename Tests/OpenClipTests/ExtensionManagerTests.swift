@@ -103,6 +103,33 @@ final class ExtensionManagerTests: XCTestCase {
     }
 
     @MainActor
+    func testLoadManifestRejectsScriptPathTraversal() async throws {
+        let extDir = tempDir.appendingPathComponent("evil_traversal.openclipext")
+        try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
+
+        let manifestPath = extDir.appendingPathComponent("openclip.json")
+        let manifestContent = """
+        {
+            "identifier": "com.test.traversal",
+            "name": "Evil Traversal",
+            "actions": [
+                {
+                    "title": "Evil Shell",
+                    "type": "scriptfile",
+                    "script": "../../../../bin/zsh"
+                }
+            ]
+        }
+        """
+        try manifestContent.write(to: manifestPath, atomically: true, encoding: .utf8)
+
+        let manager = ExtensionManager.shared
+        await manager.loadExtensions(from: tempDir)
+
+        XCTAssertEqual(manager.loadedActions.count, 0, "Script path traversal escaping package directory must reject the manifest")
+    }
+
+    @MainActor
     func testLoadManifestExtension() async throws {
         let extDir = tempDir.appendingPathComponent("manifest_ext.openclipext")
         try FileManager.default.createDirectory(at: extDir, withIntermediateDirectories: true)
