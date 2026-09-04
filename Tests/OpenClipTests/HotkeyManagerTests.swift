@@ -53,6 +53,23 @@ final class HotkeyManagerTests: XCTestCase {
         let ordinary = MockFrontmostApp(bundleID: "com.apple.TextEdit")
         XCTAssertTrue(HotkeyManager.triggerAllowed(isAppEnabled: true, frontmost: ordinary))
     }
+
+    func testPauseUntilTimestampBlocksTrigger() {
+        let store = MemorySettingsStore()
+        let app = MockFrontmostApp(bundleID: "com.apple.TextEdit")
+
+        // Unpaused: allowed
+        store.set(.pauseUntilTimestamp, value: 0.0)
+        XCTAssertTrue(HotkeyManager.triggerAllowed(isAppEnabled: true, frontmost: app, settingsStore: store))
+
+        // Paused in future: blocked
+        store.set(.pauseUntilTimestamp, value: Date().timeIntervalSince1970 + 1800)
+        XCTAssertFalse(HotkeyManager.triggerAllowed(isAppEnabled: true, frontmost: app, settingsStore: store))
+
+        // Expired pause in past: allowed
+        store.set(.pauseUntilTimestamp, value: Date().timeIntervalSince1970 - 10)
+        XCTAssertTrue(HotkeyManager.triggerAllowed(isAppEnabled: true, frontmost: app, settingsStore: store))
+    }
 }
 
 /// `NSRunningApplication` cannot be constructed with an arbitrary bundle ID; the gate only reads

@@ -35,6 +35,11 @@ public enum PopupMetrics {
     public static let popupShadowInset: CGFloat = 16.0
     /// Cursor distance (pt) beyond which the popup auto-dismisses (suspended in search/content mode).
     public static let popupDismissalDistance: CGFloat = 160.0
+    /// Dynamically scales dismissal distance based on screen width, scaling between 180pt and 280pt
+    /// so the boundary is natural on both compact laptop screens and large desktop displays.
+    public static func dismissalDistance(for screenFrame: CGRect) -> CGFloat {
+        max(180.0, min(screenFrame.width * 0.12, 280.0))
+    }
     /// Vertical threshold (pt) from the bottom of the screen bounds below which the card renders
     /// above the action bar instead of below (numerically equals `popupDismissalDistance`).
     public static let cardAboveThreshold: CGFloat = 280.0

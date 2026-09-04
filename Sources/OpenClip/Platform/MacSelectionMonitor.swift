@@ -175,6 +175,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         triggeredByHold = false
         mouseHoldTask?.cancel()
 
+        guard settingsStore.get(.pauseUntilTimestamp) <= Date().timeIntervalSince1970 else { return }
         guard settingsStore.get(.isMouseHoldEnabled) else { return }
         let holdDuration = settingsStore.get(.mouseHoldDuration)
         guard holdDuration > 0 else { return }
@@ -310,7 +311,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         mouseHoldTask = nil
 
         debounceTask?.cancel()
-        
+
+        guard settingsStore.get(.pauseUntilTimestamp) <= Date().timeIntervalSince1970 else { return }
+
         debounceTask = Task { @MainActor in
             if let bundleID = app.bundleIdentifier, AppFilter.isExcluded(bundleID: bundleID) {
                 return
@@ -356,6 +359,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// reject unless the focused element is text-bearing (row selection in Finder/Mail/table views).
     internal func handleSelectionTrigger(isSelectAll: Bool) {
         debounceTask?.cancel()
+        guard settingsStore.get(.pauseUntilTimestamp) <= Date().timeIntervalSince1970 else { return }
         debounceTask = Task { @MainActor in
             do {
                 try await Task.sleep(nanoseconds: UInt64(Constants.keyboardSelectionDebounceInterval * 1_000_000_000))

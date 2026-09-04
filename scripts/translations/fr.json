@@ -399,5 +399,16 @@
   "Translate the text accurately into natural Simplified Chinese, or into natural English if the text is already in Chinese": "Traduire fidèlement le texte dans un chinois simplifié naturel, ou en anglais si le texte est déjà en chinois",
   "Translate the text accurately into natural Traditional Chinese, or into natural English if the text is already in Chinese": "Traduire fidèlement le texte dans un chinois traditionnel naturel, ou en anglais si le texte est déjà en chinois",
   "Translate the text accurately into natural French, or into natural English if the text is already in French": "Traduire fidèlement le texte dans un français naturel, ou en anglais si le texte est déjà en français",
-  "Translate the text accurately into natural Japanese, or into natural English if the text is already in Japanese": "Traduire fidèlement le texte dans un japonais naturel, ou en anglais si le texte est déjà en japonais"
+  "Translate the text accurately into natural Japanese, or into natural English if the text is already in Japanese": "Traduire fidèlement le texte dans un japonais naturel, ou en anglais si le texte est déjà en japonais",
+  "Pause": "Suspendre",
+  "Pause for 30 Minutes": "Suspendre pendant 30 minutes",
+  "Pause for 1 Hour": "Suspendre pendant 1 heure",
+  "Pause Until Tomorrow": "Suspendre jusqu'à demain",
+  "Resume OpenClip": "Reprendre OpenClip",
+  "OpenClip is paused": "OpenClip est suspendu",
+  "Current App": "Application actuelle",
+  "Pause in %@": "Mettre en pause dans %@",
+  "Paused in %@": "En pause dans %@",
+  "Pause in App": "Mettre en pause dans l'application",
+  "Resume OpenClip (%lldm left)": "Reprendre OpenClip (%lld min restantes)"
 }

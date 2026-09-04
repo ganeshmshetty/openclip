@@ -16,9 +16,16 @@ public final class HotkeyManager {
     public static let shared = HotkeyManager()
     private var lastFallbackClipboard: (changeCount: Int, text: String)?
     
-    internal static func triggerAllowed(isAppEnabled: Bool, frontmost: NSRunningApplication?) -> Bool {
-        guard isAppEnabled,
-              let frontmost,
+    internal static func triggerAllowed(
+        isAppEnabled: Bool,
+        frontmost: NSRunningApplication?,
+        settingsStore: SettingsStore = DefaultSettingsStore.shared
+    ) -> Bool {
+        guard isAppEnabled else { return false }
+        if settingsStore.get(.pauseUntilTimestamp) > Date().timeIntervalSince1970 {
+            return false
+        }
+        guard let frontmost,
               let bundleID = frontmost.bundleIdentifier else { return false }
         if AppFilter.isExcluded(bundleID: bundleID) {
             return false

@@ -106,7 +106,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let macMonitor = MacSelectionMonitor()
         macMonitor.onSelection = { [weak self] context, canPaste in
             let isEnabled = DefaultSettingsStore.shared.get(.isAppEnabled)
-            if isEnabled {
+            let isPaused = DefaultSettingsStore.shared.get(.pauseUntilTimestamp) > Date().timeIntervalSince1970
+            if isEnabled && !isPaused {
                 // A real selection means the user has seen (or no longer needs) the nudge.
                 self?.coachMarkController?.dismiss()
                 self?.popupController?.show(for: context, pasteAvailable: canPaste)

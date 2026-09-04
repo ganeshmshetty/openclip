@@ -399,5 +399,16 @@
   "Translate the text accurately into natural Simplified Chinese, or into natural English if the text is already in Chinese": "テキストを自然な簡体字中国語に正確に翻訳してください。テキストがすでに中国語の場合は英語に翻訳してください",
   "Translate the text accurately into natural Traditional Chinese, or into natural English if the text is already in Chinese": "テキストを自然な繁体字中国語に正確に翻訳してください。テキストがすでに中国語の場合は英語に翻訳してください",
   "Translate the text accurately into natural French, or into natural English if the text is already in French": "テキストを自然なフランス語に正確に翻訳してください。テキストがすでにフランス語の場合は英語に翻訳してください",
-  "Translate the text accurately into natural Japanese, or into natural English if the text is already in Japanese": "テキストを自然な日本語に正確に翻訳してください。テキストがすでに日本語の場合は英語に翻訳してください"
+  "Translate the text accurately into natural Japanese, or into natural English if the text is already in Japanese": "テキストを自然な日本語に正確に翻訳してください。テキストがすでに日本語の場合は英語に翻訳してください",
+  "Pause": "一時停止",
+  "Pause for 30 Minutes": "30分間一時停止",
+  "Pause for 1 Hour": "1時間一時停止",
+  "Pause Until Tomorrow": "明日まで一時停止",
+  "Resume OpenClip": "OpenClip を再開",
+  "OpenClip is paused": "OpenClip は一時停止中です",
+  "Current App": "現在のアプリ",
+  "Pause in %@": "%@ で一時停止",
+  "Paused in %@": "%@ で一時停止中",
+  "Pause in App": "アプリで一時停止",
+  "Resume OpenClip (%lldm left)": "OpenClip を再開 (残り %lld 分)"
 }

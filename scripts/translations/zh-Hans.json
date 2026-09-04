@@ -399,5 +399,16 @@
   "Translate the text accurately into natural Simplified Chinese, or into natural English if the text is already in Chinese": "将文本准确翻译成自然流畅的简体中文，如果文本已是中文则翻译为英文",
   "Translate the text accurately into natural Traditional Chinese, or into natural English if the text is already in Chinese": "将文本准确翻译成自然流畅的繁体中文，如果文本已是中文则翻译为英文",
   "Translate the text accurately into natural French, or into natural English if the text is already in French": "将文本准确翻译成自然流畅的法语，如果文本已是法语则翻译为英文",
-  "Translate the text accurately into natural Japanese, or into natural English if the text is already in Japanese": "将文本准确翻译成自然流畅的日语，如果文本已是日语则翻译为英文"
+  "Translate the text accurately into natural Japanese, or into natural English if the text is already in Japanese": "将文本准确翻译成自然流畅的日语，如果文本已是日语则翻译为英文",
+  "Pause": "暂停",
+  "Pause for 30 Minutes": "暂停 30 分钟",
+  "Pause for 1 Hour": "暂停 1 小时",
+  "Pause Until Tomorrow": "暂停至明天",
+  "Resume OpenClip": "恢复 OpenClip",
+  "OpenClip is paused": "OpenClip 已暂停",
+  "Current App": "当前应用",
+  "Pause in %@": "在 %@ 中暂停",
+  "Paused in %@": "已在 %@ 中暂停",
+  "Pause in App": "在应用中暂停",
+  "Resume OpenClip (%lldm left)": "恢复 OpenClip (剩余 %lld 分钟)"
 }

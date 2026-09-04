@@ -116,6 +116,10 @@ public class PopupWindowController {
     /// during the onboarding sandbox experience.
     public var isOnboardingVisible: Bool = false
 
+    /// Accumulator for trackpad scroll wheel displacement to avoid false-positive dismissals
+    /// from resting palms or finger-lift micro-scrolls.
+    private var accumulatedScrollDelta: CGFloat = 0
+
     public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
                 pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe(),
                 toastController: ToastPanelController = ToastPanelController(),
@@ -601,6 +605,7 @@ public class PopupWindowController {
         pendingDelivery = nil
         pendingActionTitle = nil
         pendingActionIcon = nil
+        accumulatedScrollDelta = 0
         isRightClickInProgress = false
         modeStore.isProcessingAI = false
         modeStore.mode = .actions
@@ -645,6 +650,8 @@ public class PopupWindowController {
         NotificationCenter.default.addObserver(self, selector: #selector(menuDidBeginTracking), name: NSMenu.didBeginTrackingNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(menuDidEndTracking), name: NSMenu.didEndTrackingNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(appDidDeactivate), name: NSApplication.didResignActiveNotification, object: nil)
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(workspaceDidActivateApp(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(workspaceActiveSpaceDidChange), name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
     }
     
     @objc private func menuDidBeginTracking() {
@@ -665,6 +672,7 @@ public class PopupWindowController {
             localEventMonitor = nil
         }
         NotificationCenter.default.removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
     func handleEvent(_ event: NSEvent) {
@@ -681,6 +689,9 @@ public class PopupWindowController {
             let distanceDismissActive = modeStore.mode != .search && modeStore.mode != .content && !modeStore.isProcessingAI && !isOnboardingVisible
             if distanceDismissActive, let panel = panel {
                 let frame = panel.frame
+                let screenBounds = panel.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? panel.frame
+                let dismissalLimit = PopupMetrics.dismissalDistance(for: screenBounds)
+
                 let dxMain = max(0, max(frame.minX - cursorLoc.x, cursorLoc.x - frame.maxX))
                 let dyMain = max(0, max(frame.minY - cursorLoc.y, cursorLoc.y - frame.maxY))
                 let distMain = hypot(dxMain, dyMain)
@@ -688,14 +699,25 @@ public class PopupWindowController {
                 let dist: CGFloat
                 if subBarController.isShowing {
                     let subFrame = subBarController.panelFrame
-                    let dxSub = max(0, max(subFrame.minX - cursorLoc.x, cursorLoc.x - subFrame.maxX))
-                    let dySub = max(0, max(subFrame.minY - cursorLoc.y, cursorLoc.y - subFrame.maxY))
-                    dist = min(distMain, hypot(dxSub, dySub))
+                    // Safe hover pathway / corridor between main panel and sub-bar
+                    let corridorMinX = min(frame.minX, subFrame.minX) - 16.0
+                    let corridorMaxX = max(frame.maxX, subFrame.maxX) + 16.0
+                    let corridorMinY = min(frame.minY, subFrame.minY) - 16.0
+                    let corridorMaxY = max(frame.maxY, subFrame.maxY) + 16.0
+                    let corridorRect = CGRect(x: corridorMinX, y: corridorMinY, width: corridorMaxX - corridorMinX, height: corridorMaxY - corridorMinY)
+
+                    if corridorRect.contains(cursorLoc) {
+                        dist = 0.0
+                    } else {
+                        let dxSub = max(0, max(subFrame.minX - cursorLoc.x, cursorLoc.x - subFrame.maxX))
+                        let dySub = max(0, max(subFrame.minY - cursorLoc.y, cursorLoc.y - subFrame.maxY))
+                        dist = min(distMain, hypot(dxSub, dySub))
+                    }
                 } else {
                     dist = distMain
                 }
 
-                if dist > PopupMetrics.popupDismissalDistance {
+                if dist > dismissalLimit {
                     hide()
                 }
             }
@@ -748,7 +770,22 @@ public class PopupWindowController {
             let dominated = event.phase == .mayBegin || event.phase == .cancelled
             let zeroScroll = event.scrollingDeltaX == 0 && event.scrollingDeltaY == 0
             if dominated && zeroScroll { break }
-            hide()
+
+            let rawDelta = hypot(event.scrollingDeltaX, event.scrollingDeltaY)
+            let delta = event.hasPreciseScrollingDeltas ? rawDelta : (rawDelta > 0 || event.deltaY != 0 ? 12.0 : 0.0)
+
+            if event.phase == .began {
+                accumulatedScrollDelta = delta
+            } else if event.phase == .ended || event.phase == .cancelled {
+                accumulatedScrollDelta = 0
+            } else {
+                accumulatedScrollDelta += delta
+            }
+
+            if accumulatedScrollDelta >= 12.0 {
+                accumulatedScrollDelta = 0
+                hide()
+            }
         case .keyDown:
             // Actions mode: any keystroke (including Escape) dismisses the popup; the panel is
             // never key here, so keys land in the source app and are merely observed.
@@ -909,6 +946,23 @@ public class PopupWindowController {
         if !isMenuTracking && !isRightClickInProgress {
             hide()
         }
+    }
+
+    @objc private func workspaceDidActivateApp(_ notification: Notification) {
+        guard let app = (notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)
+            ?? NSWorkspace.shared.frontmostApplication else { return }
+        if app.bundleIdentifier == Bundle.main.bundleIdentifier { return }
+        if let sourceBundleID = currentContext?.sourceApp.bundleIdentifier,
+           app.bundleIdentifier == sourceBundleID {
+            return
+        }
+        if !isRightClickInProgress {
+            hide()
+        }
+    }
+
+    @objc private func workspaceActiveSpaceDidChange() {
+        hide()
     }
 
     // MARK: - Sub-Bar Presentation

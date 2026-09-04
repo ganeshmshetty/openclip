@@ -1048,6 +1048,130 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertTrue(controller.toastController.isLoading, "Toast should be loading while AI generation is in progress")
         XCTAssertEqual(controller.toastController.currentFeedback?.message, "Generating…")
     }
+
+    func testDisplayAwareDismissalDistanceCalculation() {
+        // Compact display (1366x768): 1366 * 0.12 = 163.92 -> clamped to 180
+        let compactFrame = CGRect(x: 0, y: 0, width: 1366, height: 768)
+        XCTAssertEqual(PopupMetrics.dismissalDistance(for: compactFrame), 180.0)
+
+        // Standard 1080p display (1920x1080): 1920 * 0.12 = 230.4
+        let standardFrame = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        XCTAssertEqual(PopupMetrics.dismissalDistance(for: standardFrame), 230.4, accuracy: 0.01)
+
+        // Large Retina / 1440p (2560x1440): 2560 * 0.12 = 307.2 -> clamped to 280
+        let largeFrame = CGRect(x: 0, y: 0, width: 2560, height: 1440)
+        XCTAssertEqual(PopupMetrics.dismissalDistance(for: largeFrame), 280.0)
+
+        // UltraWide (3440x1440): clamped to 280
+        let ultrawideFrame = CGRect(x: 0, y: 0, width: 3440, height: 1440)
+        XCTAssertEqual(PopupMetrics.dismissalDistance(for: ultrawideFrame), 280.0)
+    }
+
+    func testWorkspaceApplicationSwitchDismissesPopup() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.midY))
+        defer { controller.hide() }
+        XCTAssertTrue(controller.isVisible)
+
+        let switchedApp = MockPopupFrontmostApp(bundleID: "com.apple.Notes")
+        let notif = Notification(
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            userInfo: [NSWorkspace.applicationUserInfoKey: switchedApp]
+        )
+        NSWorkspace.shared.notificationCenter.post(notif)
+        XCTAssertFalse(controller.isVisible, "Popup must dismiss on Cmd+Tab / workspace app activation")
+    }
+
+    func testWorkspaceSpaceSwitchDismissesPopup() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.midY))
+        defer { controller.hide() }
+        XCTAssertTrue(controller.isVisible)
+
+        NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        XCTAssertFalse(controller.isVisible, "Popup must dismiss on Mission Control active space change")
+    }
+
+    func testCorridorRectProtectsSubBarPathway() {
+        let controller = PopupWindowController()
+        let currentMouse = NSEvent.mouseLocation
+        let panel = PopupPanel()
+        // Main panel positioned below cursor
+        panel.setFrame(NSRect(x: currentMouse.x - 50, y: currentMouse.y - 60, width: 100, height: 40), display: false)
+        controller.panel = panel
+        let context = SelectionContext(
+            text: "test",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.startTestSession(for: context)
+        defer {
+            controller.subBarController.panel.orderOut(nil)
+            controller.hide()
+        }
+
+        // Sub-bar panel positioned above cursor: cursor is in the corridor between main bar and sub-bar
+        controller.subBarController.panel.setFrame(NSRect(x: currentMouse.x - 50, y: currentMouse.y + 20, width: 100, height: 40), display: false)
+        controller.subBarController.panel.orderFront(nil)
+        controller.modeStore.isSubBarActive = true
+
+        let dummyEvent = NSEvent.mouseEvent(
+            with: .mouseMoved,
+            location: currentMouse,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: panel.windowNumber,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 0,
+            pressure: 0
+        )!
+
+        controller.handleEvent(dummyEvent)
+        XCTAssertTrue(controller.isVisible, "Cursor traversing the corridor between main bar and sub-bar must not dismiss the popup")
+    }
+
+    func testTrackpadScrollSensitivityThreshold() {
+        let controller = PopupWindowController()
+        let panel = PopupPanel()
+        panel.setFrame(NSRect(x: 200, y: 200, width: 200, height: 50), display: false)
+        controller.panel = panel
+        let context = SelectionContext(
+            text: "test",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        controller.startTestSession(for: context)
+        defer { controller.hide() }
+
+        XCTAssertTrue(controller.isVisible)
+
+        // Sub-threshold event: began phase with 3pt delta
+        let cgBegan = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 3, wheel2: 0, wheel3: 0)!
+        cgBegan.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+        let eventBegan = NSEvent(cgEvent: cgBegan)!
+        controller.handleEvent(eventBegan)
+        XCTAssertTrue(controller.isVisible, "Sub-threshold scroll (3pt) should not dismiss popup")
+
+        // Micro-jitter: changed phase with 4pt delta (accumulated 7pt < 12pt)
+        let cgChanged = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 4, wheel2: 0, wheel3: 0)!
+        cgChanged.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+        let eventChanged = NSEvent(cgEvent: cgChanged)!
+        controller.handleEvent(eventChanged)
+        XCTAssertTrue(controller.isVisible, "Accumulated micro-scroll (7pt) should not dismiss popup")
+
+        // Exceeding threshold: changed phase with 6pt delta (accumulated 13pt >= 12pt)
+        let cgDismiss = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 6, wheel2: 0, wheel3: 0)!
+        cgDismiss.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+        let eventDismiss = NSEvent(cgEvent: cgDismiss)!
+        controller.handleEvent(eventDismiss)
+        XCTAssertFalse(controller.isVisible, "Accumulated scroll >= 12pt should dismiss popup")
+    }
 }
 
 @MainActor
@@ -1085,4 +1209,15 @@ private final class MockStreamingAIProvider: AIProvider {
             }
         }
     }
+}
+
+private final class MockPopupFrontmostApp: NSRunningApplication {
+    private let bundleID: String?
+
+    init(bundleID: String?) {
+        self.bundleID = bundleID
+        super.init()
+    }
+
+    override var bundleIdentifier: String? { bundleID }
 }

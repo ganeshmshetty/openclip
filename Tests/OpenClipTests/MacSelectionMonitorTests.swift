@@ -128,6 +128,32 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertNil(monitor.debounceTask)
     }
 
+    func testPauseUntilTimestampSuppressesSelectionTriggers() {
+        let store = MemorySettingsStore()
+        let monitor = MacSelectionMonitor(settingsStore: store)
+
+        // Paused in future
+        store.set(.pauseUntilTimestamp, value: Date().timeIntervalSince1970 + 1800)
+
+        // Keyboard trigger should be ignored
+        monitor.handleSelectionTrigger(isSelectAll: false)
+        XCTAssertNil(monitor.debounceTask)
+
+        // Mouse down should be ignored (no hold task spawned)
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        XCTAssertNil(monitor.mouseHoldTask)
+
+        // Mouse up should be ignored (no debounce task spawned)
+        monitor.handleMouseUp(app: NSRunningApplication(), cursor: CGPoint(x: 100, y: 100), clickCount: 1)
+        XCTAssertNil(monitor.debounceTask)
+
+        // Unpaused
+        store.set(.pauseUntilTimestamp, value: 0.0)
+        monitor.handleSelectionTrigger(isSelectAll: false)
+        XCTAssertNotNil(monitor.debounceTask)
+        monitor.debounceTask?.cancel()
+    }
+
     func testStopCancelsPendingMouseHoldTask() {
         let store = MemorySettingsStore()
         store.set(.mouseHoldDuration, value: 0.3)
