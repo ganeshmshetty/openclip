@@ -406,8 +406,8 @@ public enum ShellProcessRunner {
                 let timer = DispatchSource.makeTimerSource(queue: .global())
                 timer.schedule(deadline: .now() + budget, leeway: .milliseconds(50))
                 timer.setEventHandler { [weak process] in
-                    timeoutFlag.markTimedOut()
                     guard let process, process.isRunning else { return }
+                    timeoutFlag.markTimedOut()
                     terminateProcessGroup(process, fallbackDelay: 0.5)
                 }
                 timer.resume()

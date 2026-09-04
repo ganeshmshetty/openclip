@@ -275,5 +275,20 @@ final class ExtensionManifestTests: XCTestCase {
             }
         }
     }
+
+    func testToastRequiresMessage() throws {
+        let jsonWithoutMessage = """
+        {
+          "style": "success"
+        }
+        """.data(using: .utf8)!
+        XCTAssertThrowsError(try JSONDecoder().decode(ExtensionToastDeclaration.self, from: jsonWithoutMessage)) { error in
+            guard case DecodingError.keyNotFound(let key, _) = error else {
+                XCTFail("Expected DecodingError.keyNotFound but got \(error)")
+                return
+            }
+            XCTAssertEqual(key.stringValue, "message")
+        }
+    }
 }
 

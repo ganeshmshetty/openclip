@@ -242,8 +242,12 @@ public struct ExtensionToastDeclaration: Codable, Sendable, Equatable {
         let baseMessage = try? container.decodeIfPresent(LocalizedStringValue.self, forKey: .message)
         let messageLocales = (try? container.decodeIfPresent([String: String].self, forKey: .messageLocales))
             ?? (try? container.decodeIfPresent([String: String].self, forKey: .messages))
-        let resolved = LocalizedStringValue.merge(base: baseMessage, locales: messageLocales)
-            ?? LocalizedStringValue(string: (try? container.decode(String.self, forKey: .message)) ?? "")
+        guard let resolved = LocalizedStringValue.merge(base: baseMessage, locales: messageLocales) else {
+            throw DecodingError.keyNotFound(
+                CodingKeys.message,
+                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Missing required key: message")
+            )
+        }
         self.localizedMessage = resolved
         self.message = resolved.resolve()
         self.style = try container.decodeIfPresent(String.self, forKey: .style)

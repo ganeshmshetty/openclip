@@ -11,7 +11,7 @@ Selection Context ---> AppleScriptAction.perform(_:)
                          |
                          v
               AppleScriptRunner (osascript subprocess)
-                         |   ShellProcessRunner.run (30s watchdog)
+                         |   ShellProcessRunner.run (60s watchdog)
                          v
   ActionResult (.text / .success / .failure)
 ```
