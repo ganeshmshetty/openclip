@@ -141,6 +141,151 @@ final class ExtensionsStoreViewTests: XCTestCase {
         XCTAssertNil(cleared)
     }
 
+    // MARK: - Store Filter & Badges
+
+    @MainActor
+    func testStoreFilterInitialStateAndDisplayedExtensions() {
+        let api = RecordingStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+        XCTAssertEqual(viewModel.selectedFilter, .all)
+
+        let item1 = ExtensionItem(id: "com.openclip.quick-translate", name: "Quick Translate",
+                                  description: "", author: "openclip", icon: "", downloadCount: 1500, downloadURL: "")
+        let item2 = ExtensionItem(id: "com.openclip.render-html", name: "Render HTML",
+                                  description: "", author: "openclip", icon: "", downloadCount: 100, downloadURL: "", version: "1.1.0")
+        let item3 = ExtensionItem(id: "com.openclip.basic-tool", name: "Basic Tool",
+                                  description: "", author: "openclip", icon: "", downloadCount: 0, downloadURL: "", version: "1.0.0")
+
+        viewModel.extensions = [item1, item2, item3]
+
+        // All filter returns everything
+        viewModel.selectedFilter = .all
+        XCTAssertEqual(viewModel.displayedExtensions.map(\.id), ["com.openclip.quick-translate", "com.openclip.render-html", "com.openclip.basic-tool"])
+
+        // Showcase sections in 'All'
+        XCTAssertEqual(viewModel.featuredSectionItems.map(\.id), ["com.openclip.quick-translate"])
+        XCTAssertEqual(viewModel.newSectionItems.map(\.id), ["com.openclip.render-html"])
+        XCTAssertEqual(viewModel.remainingAllSectionItems.map(\.id), ["com.openclip.basic-tool"])
+
+        // Popular filter includes curated item (quick-translate) and popular items
+        viewModel.selectedFilter = .popular
+        let popularIDs = viewModel.displayedExtensions.map(\.id)
+        XCTAssertTrue(popularIDs.contains("com.openclip.quick-translate"))
+        XCTAssertFalse(popularIDs.contains("com.openclip.basic-tool"))
+
+        // New filter includes render-html (version 1.1.0 / in recent list)
+        viewModel.selectedFilter = .new
+        let newIDs = viewModel.displayedExtensions.map(\.id)
+        XCTAssertTrue(newIDs.contains("com.openclip.render-html"))
+        XCTAssertFalse(newIDs.contains("com.openclip.basic-tool"))
+    }
+
+    @MainActor
+    func testSearchQueryResetsFilterToAll() {
+        let api = RecordingStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+        viewModel.selectedFilter = .popular
+
+        viewModel.searchQuery = "translate"
+        viewModel.queryDidChange()
+
+        XCTAssertEqual(viewModel.selectedFilter, .all, "Non-empty search query should automatically reset filter to .all")
+    }
+
+    /// When the last fetched item belongs to featured/new sections, it does not appear in
+    /// remainingAllSectionItems. Pagination must still trigger from the final rendered sectioned item.
+    @MainActor
+    func testPaginationTriggeredWhenLastFetchedItemNotInRemainingAllSectionItems() async throws {
+        let api = GatedStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+
+        // Item 1: standard item (lives in remainingAllSectionItems)
+        let basic = ExtensionItem(id: "com.openclip.basic-tool", name: "Basic Tool",
+                                  description: "", author: "openclip", icon: "", downloadCount: 0, downloadURL: "", version: "1.0.0")
+        // Item 2: curated featured item (lives in featuredSectionItems, absent from remainingAllSectionItems)
+        let featured = ExtensionItem(id: "com.openclip.quick-translate", name: "Quick Translate",
+                                     description: "", author: "openclip", icon: "", downloadCount: 1500, downloadURL: "")
+
+        let initial = Task { await viewModel.resetAndFetch() }
+        try await waitUntil { await api.hasPending(query: "", page: 1) }
+        await api.release(query: "", page: 1, items: [basic, featured], totalPages: 2)
+        await initial.value
+
+        XCTAssertEqual(viewModel.currentPage, 2)
+        XCTAssertEqual(viewModel.extensions.last?.id, "com.openclip.quick-translate")
+        XCTAssertEqual(viewModel.remainingAllSectionItems.map(\.id), ["com.openclip.basic-tool"])
+        XCTAssertEqual(viewModel.featuredSectionItems.map(\.id), ["com.openclip.quick-translate"])
+
+        // The final rendered item in the sectioned view is the last item of remainingAllSectionItems.
+        XCTAssertEqual(viewModel.lastRenderedSectionedItemID, "com.openclip.basic-tool")
+        XCTAssertTrue(viewModel.shouldTriggerSectionedPagination(for: "com.openclip.basic-tool"))
+        XCTAssertFalse(viewModel.shouldTriggerSectionedPagination(for: "com.openclip.quick-translate"))
+
+        // Simulating the onAppear trigger on the last rendered card initiates page 2 fetch.
+        let nextPage = Task { await viewModel.fetchNextPage() }
+        try await waitUntil { await api.hasPending(query: "", page: 2) }
+        let page2Item = ExtensionItem(id: "com.openclip.extra-tool", name: "Extra Tool",
+                                      description: "", author: "openclip", icon: "", downloadCount: 10, downloadURL: "")
+        await api.release(query: "", page: 2, items: [page2Item], totalPages: 2)
+        await nextPage.value
+
+        XCTAssertEqual(viewModel.currentPage, 3)
+        XCTAssertEqual(viewModel.extensions.map(\.id), ["com.openclip.basic-tool", "com.openclip.quick-translate", "com.openclip.extra-tool"])
+
+        // Also verify case where remainingAllSectionItems is empty (all items are featured/new):
+        let showcaseOnlyVM = ExtensionsStoreViewModel(api: api)
+        let renderHtml = ExtensionItem(id: "com.openclip.render-html", name: "Render HTML",
+                                       description: "", author: "openclip", icon: "", downloadCount: 100, downloadURL: "", version: "1.1.0")
+        let showcaseInitial = Task { await showcaseOnlyVM.resetAndFetch() }
+        try await waitUntil { await api.hasPending(query: "", page: 1) }
+        await api.release(query: "", page: 1, items: [featured, renderHtml], totalPages: 2)
+        await showcaseInitial.value
+
+        XCTAssertTrue(showcaseOnlyVM.remainingAllSectionItems.isEmpty)
+        XCTAssertEqual(showcaseOnlyVM.lastRenderedSectionedItemID, "com.openclip.render-html")
+        XCTAssertTrue(showcaseOnlyVM.shouldTriggerSectionedPagination(for: "com.openclip.render-html"))
+    }
+
+    /// When the last fetched item is excluded by the active filter (e.g. .popular), it does not
+    /// appear in displayedExtensions. Pagination must trigger from displayedExtensions.last.
+    @MainActor
+    func testPaginationTriggeredWhenLastFetchedItemExcludedByActiveFilter() async throws {
+        let api = GatedStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+        viewModel.selectedFilter = .popular
+
+        let popularItem = ExtensionItem(id: "com.openclip.custom-popular", name: "Popular",
+                                        description: "", author: "openclip", icon: "", downloadCount: 500, downloadURL: "")
+        let obscureItem = ExtensionItem(id: "com.openclip.obscure-tool", name: "Obscure",
+                                        description: "", author: "openclip", icon: "", downloadCount: 0, downloadURL: "", version: "1.0.0")
+
+        let initial = Task { await viewModel.resetAndFetch() }
+        try await waitUntil { await api.hasPending(query: "", page: 1) }
+        await api.release(query: "", page: 1, items: [popularItem, obscureItem], totalPages: 2)
+        await initial.value
+
+        XCTAssertEqual(viewModel.currentPage, 2)
+        // Last fetched item in full extensions array is obscureItem
+        XCTAssertEqual(viewModel.extensions.last?.id, "com.openclip.obscure-tool")
+        // But displayedExtensions in .popular only includes popularItem
+        XCTAssertEqual(viewModel.displayedExtensions.map(\.id), ["com.openclip.custom-popular"])
+
+        // Flat pagination must trigger on the last displayed item, not obscureItem
+        XCTAssertTrue(viewModel.shouldTriggerFlatPagination(for: "com.openclip.custom-popular"))
+        XCTAssertFalse(viewModel.shouldTriggerFlatPagination(for: "com.openclip.obscure-tool"))
+
+        // Simulating the onAppear trigger on the last rendered card initiates page 2 fetch.
+        let nextPage = Task { await viewModel.fetchNextPage() }
+        try await waitUntil { await api.hasPending(query: "", page: 2) }
+        let page2Item = ExtensionItem(id: "com.openclip.page2-popular", name: "Page 2 Popular",
+                                      description: "", author: "openclip", icon: "", downloadCount: 200, downloadURL: "")
+        await api.release(query: "", page: 2, items: [page2Item], totalPages: 2)
+        await nextPage.value
+
+        XCTAssertEqual(viewModel.currentPage, 3)
+        XCTAssertEqual(viewModel.displayedExtensions.map(\.id), ["com.openclip.custom-popular", "com.openclip.page2-popular"])
+    }
+
     // MARK: - Helpers
 
     @MainActor
@@ -182,16 +327,20 @@ private actor GatedStoreAPI: ExtensionStoreFetching {
         pending["\(query)|\(page)"] != nil
     }
 
-    func release(query: String, page: Int = 1, names: [String], totalPages: Int = 1) {
+    func release(query: String, page: Int = 1, items: [ExtensionItem], totalPages: Int = 1) {
         guard let continuation = pending.removeValue(forKey: "\(query)|\(page)") else {
             fatalError("no gated request for '\(query)|\(page)'")
         }
+        continuation.resume(returning:
+            ExtensionsPageResponse(extensions: items, page: page, totalPages: totalPages, totalCount: items.count))
+    }
+
+    func release(query: String, page: Int = 1, names: [String], totalPages: Int = 1) {
         let items = names.map {
             ExtensionItem(id: $0, name: $0, description: "", author: "", icon: "",
                           downloadCount: 0, downloadURL: "")
         }
-        continuation.resume(returning:
-            ExtensionsPageResponse(extensions: items, page: page, totalPages: totalPages, totalCount: items.count))
+        release(query: query, page: page, items: items, totalPages: totalPages)
     }
 }
 

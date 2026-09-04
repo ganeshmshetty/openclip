@@ -180,7 +180,6 @@ struct ActionsOutlineView: NSViewRepresentable {
     @Binding var selectedRowIDs: Set<String>
     @Binding var disabledActionIDs: Set<String>
     @Binding var disabledPackages: Set<String>
-    let onOpenAI: () -> Void
     let onEditGroup: (String) -> Void
     let onCreateGroupFromSelection: () -> Void
 
@@ -429,7 +428,6 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                     action: action,
                     presentationModel: presentation,
                     isEnabled: enabledBinding(for: action),
-                    onOpenAI: parent.onOpenAI,
                     showsControls: showsControls
                 )
             )

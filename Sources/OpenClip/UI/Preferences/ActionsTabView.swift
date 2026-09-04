@@ -14,9 +14,6 @@ struct ActionsTab: View {
     @Binding var disabledPackages: Set<String>
     @Binding var showingAddActionSheet: Bool
     @Binding var showingCreateGroupSheet: Bool
-    /// Called by the AI Tools row's gear to open the AI tab. Wired in PreferencesView to switch
-    /// `selectedTab` to `.ai` (and land on the Configure sub-tab where `isAIEnabled` lives).
-    let onOpenAI: () -> Void
 
     @State private var editingGroupID: String? = nil
     @State private var selectedRowIDs: Set<String> = []
@@ -45,7 +42,6 @@ struct ActionsTab: View {
             selectedRowIDs: $selectedRowIDs,
             disabledActionIDs: $disabledActionIDs,
             disabledPackages: $disabledPackages,
-            onOpenAI: onOpenAI,
             onEditGroup: { groupID in
                 editingGroupID = groupID
             },
@@ -79,20 +75,17 @@ struct ActionRowView: View {
     let action: any Action
     let presentationModel: ActionPresentationModel
     let isEnabled: Binding<Bool>
-    let onOpenAI: (() -> Void)?
     let showsControls: Bool
 
     init(
         action: any Action,
         presentationModel: ActionPresentationModel,
         isEnabled: Binding<Bool>,
-        onOpenAI: (() -> Void)? = nil,
         showsControls: Bool = true
     ) {
         self.action = action
         self.presentationModel = presentationModel
         self.isEnabled = isEnabled
-        self.onOpenAI = onOpenAI
         self.showsControls = showsControls
     }
 
@@ -168,36 +161,24 @@ struct ActionRowView: View {
                 }
 
                 // Settings
-                if isAITools {
-                    if let onOpenAI {
-                        Button(action: onOpenAI) {
-                            Image(systemName: "gearshape")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .frame(width: 20, height: 20)
-                        .help(String(localized: "Open AI settings"))
-                        .accessibilityLabel(String(localized: "Open AI settings"))
-                    }
-                } else {
-                    Button(action: {
-                        showingConfigSheet.toggle()
-                    }) {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 12))
-                            .foregroundColor(showingConfigSheet ? .accentColor : .secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .help(action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action"))
-                    .accessibilityLabel(action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action"))
-                    .popover(isPresented: $showingConfigSheet, arrowEdge: .leading) {
-                        if action.chrome.rowStyle == .actionGroup {
-                            EditGroupSheet(groupID: action.id)
-                        } else {
-                            EditActionSheet(action: action)
-                        }
+                Button(action: {
+                    showingConfigSheet.toggle()
+                }) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 12))
+                        .foregroundColor(showingConfigSheet ? .accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+                .frame(width: 20, height: 20)
+                .help(isAITools ? String(localized: "Open AI settings") : (action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action")))
+                .accessibilityLabel(isAITools ? String(localized: "Open AI settings") : (action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action")))
+                .popover(isPresented: $showingConfigSheet, arrowEdge: .leading) {
+                    if isAITools {
+                        ConfigureAISheet()
+                    } else if action.chrome.rowStyle == .actionGroup {
+                        EditGroupSheet(groupID: action.id)
+                    } else {
+                        EditActionSheet(action: action)
                     }
                 }
 

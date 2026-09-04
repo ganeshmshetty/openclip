@@ -24,15 +24,6 @@ public struct AIConfigureForm: View {
     public var body: some View {
         Form {
             Section {
-                Toggle(isOn: $aiManager.isAIEnabled) {
-                    Text("Enable AI Actions")
-                        .font(.body)
-                        .fontWeight(.medium)
-                }
-                .toggleStyle(.switch)
-            }
-
-            Section {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Active AI Engine")
                         .font(.headline)
@@ -51,7 +42,6 @@ public struct AIConfigureForm: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
             }
-            .disabled(!aiManager.isAIEnabled)
 
             Section(header: Text("Provider Settings")) {
                 if aiManager.activeProviderType == .apple {

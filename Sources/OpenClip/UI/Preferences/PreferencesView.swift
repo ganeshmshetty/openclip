@@ -10,7 +10,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
     case general = "General"
     case appearance = "Appearance"
     case actions = "Actions"
-    case ai = "AI"
+    case store = "Store"
     case appRules = "App Rules"
     case about = "About"
     
@@ -23,17 +23,11 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
         case .general: return "gearshape.fill"
         case .appearance: return "paintbrush.fill"
         case .actions: return "bolt.horizontal.fill"
-        case .ai: return Constants.defaultAIIconSymbol
+        case .store: return "bag.fill"
         case .appRules: return "shield.checkerboard"
         case .about: return "info.circle.fill"
         }
     }
-}
-
-/// Sub-tab selector for the Actions tab (Actions | Store).
-enum ActionsSubTab: String, CaseIterable, Hashable {
-    case actions = "Actions"
-    case store = "Store"
 }
 
 @MainActor
@@ -45,11 +39,10 @@ public struct PreferencesView: View {
     @State private var disabledActionIDs: Set<String> = []
     @State private var disabledPackages: Set<String> = []
     @State private var selectedTab: PreferenceTab
-    @State private var aiSubTab: AISubTab = .configure
-    @State private var actionsSubTab: ActionsSubTab = .actions
     @State private var activeSheet: PreferencesSheet?
     @State private var showingAddActionSheet = false
     @State private var showingCreateGroupSheet = false
+    @StateObject private var storeViewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
 
     public init(initialTab: PreferenceTab = .general) {
@@ -142,59 +135,56 @@ public struct PreferencesView: View {
                     
                     Spacer()
 
-                    if selectedTab == .ai {
-                        Picker("", selection: $aiSubTab) {
-                            Text("Configure").tag(AISubTab.configure)
-                            Text("Actions").tag(AISubTab.actions)
+                    if selectedTab == .actions {
+                        Menu {
+                            Button {
+                                showingCreateGroupSheet = true
+                            } label: {
+                                Label(String(localized: "New Group"), systemImage: "folder.badge.plus")
+                            }
+
+                            Button {
+                                showingAddActionSheet = true
+                            } label: {
+                                Label(String(localized: "Add Custom Action"), systemImage: "plus.circle")
+                            }
+
+                            Button {
+                                presentInstallExtensionPanel()
+                            } label: {
+                                Label(String(localized: "Install Extension…"), systemImage: "square.and.arrow.down")
+                            }
+                        } label: {
+                            Label(String(localized: "Add"), systemImage: "plus")
                         }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(width: 170)
-                    } else if selectedTab == .actions {
-                        HStack(spacing: 10) {
-                            if actionsSubTab == .actions {
-                                Menu {
-                                    Button {
-                                        showingCreateGroupSheet = true
-                                    } label: {
-                                        Label(String(localized: "New Group"), systemImage: "folder.badge.plus")
-                                    }
-
-                                    Button {
-                                        showingAddActionSheet = true
-                                    } label: {
-                                        Label(String(localized: "Add Custom Action"), systemImage: "plus.circle")
-                                    }
-
-                                    Button {
-                                        presentInstallExtensionPanel()
-                                    } label: {
-                                        Label(String(localized: "Install Extension…"), systemImage: "square.and.arrow.down")
-                                    }
-                                } label: {
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(.secondary)
+                        .menuStyle(.button)
+                        .help(String(localized: "Add Action or Group"))
+                    } else if selectedTab == .store {
+                        HStack(spacing: 6) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 12))
+                            TextField(String(localized: "Search extensions..."), text: $storeViewModel.searchQuery)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 12))
+                                .onChange(of: storeViewModel.searchQuery) { _, _ in
+                                    storeViewModel.queryDidChange()
                                 }
-                                .menuStyle(.borderlessButton)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.primary.opacity(0.06))
-                                .cornerRadius(6)
-                                .help(String(localized: "Add Action or Group"))
+                            if storeViewModel.isLoading && !storeViewModel.extensions.isEmpty {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .scaleEffect(0.65)
+                                    .frame(width: 14, height: 14)
                             }
-
-                            Picker("", selection: $actionsSubTab) {
-                                Text("Actions").tag(ActionsSubTab.actions)
-                                Text("Store").tag(ActionsSubTab.store)
-                            }
-                            .pickerStyle(.segmented)
-                            .labelsHidden()
-                            .frame(width: 170)
                         }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.primary.opacity(0.06))
+                        .cornerRadius(6)
+                        .frame(width: 200)
                     }
                 }
-                .frame(maxWidth: Self.detailContentMaxWidth)
+                .frame(maxWidth: selectedTab == .store ? .infinity : Self.detailContentMaxWidth)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 36)
                 .padding(.horizontal, 24)
@@ -207,34 +197,25 @@ public struct PreferencesView: View {
                     case .appearance: 
                         AppearanceTab()
                     case .actions:
-                        switch actionsSubTab {
-                        case .actions:
-                            ActionsTab(
-                                disabledActionIDs: $disabledActionIDs,
-                                disabledPackages: $disabledPackages,
-                                showingAddActionSheet: $showingAddActionSheet,
-                                showingCreateGroupSheet: $showingCreateGroupSheet,
-                                onOpenAI: {
-                                    aiSubTab = .configure
-                                    selectedTab = .ai
-                                }
-                            )
-                        case .store:
-                            ExtensionStoreView()
-                        }
-                    case .ai:
-                        AITab(selectedSubTab: $aiSubTab)
+                        ActionsTab(
+                            disabledActionIDs: $disabledActionIDs,
+                            disabledPackages: $disabledPackages,
+                            showingAddActionSheet: $showingAddActionSheet,
+                            showingCreateGroupSheet: $showingCreateGroupSheet
+                        )
+                    case .store:
+                        ExtensionStoreView(viewModel: storeViewModel)
                     case .appRules: 
                         AppRulesTab()
                     case .about: 
                         AboutTab()
                     }
                 }
-                .frame(maxWidth: Self.detailContentMaxWidth)
+                .frame(maxWidth: selectedTab == .store ? .infinity : Self.detailContentMaxWidth)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 16)
-                // General, Appearance, and Actions run edge-to-edge to the window bottom; other tabs keep breathing room.
-                .padding(.bottom, (selectedTab == .general || selectedTab == .appearance || selectedTab == .actions) ? 0 : 16)
+                .padding(.horizontal, selectedTab == .store ? 20 : 16)
+                // General, Appearance, Actions, and Store run edge-to-edge to the window bottom; other tabs keep breathing room.
+                .padding(.bottom, (selectedTab == .general || selectedTab == .appearance || selectedTab == .actions || selectedTab == .store) ? 0 : 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -248,7 +229,7 @@ public struct PreferencesView: View {
             }
         }
         .onChange(of: selectedTab) { _, newTab in
-            if newTab == .actions {
+            if newTab == .store {
                 Task {
                     _ = try? await ExtensionsAPIClient.shared.fetchExtensions()
                 }
@@ -269,7 +250,11 @@ public struct PreferencesView: View {
         .sheet(item: $activeSheet) { route in
             switch route {
             case .configure(let action, let request):
-                EditActionSheet(action: action, configurationRequest: request)
+                if action.chrome.launchesAI {
+                    ConfigureAISheet()
+                } else {
+                    EditActionSheet(action: action, configurationRequest: request)
+                }
             }
         }
     }

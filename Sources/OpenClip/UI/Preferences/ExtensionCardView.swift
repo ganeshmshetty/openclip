@@ -60,6 +60,26 @@ struct ExtensionCardView: View {
         }
     }
 
+    private var isFeatured: Bool {
+        ExtensionsStoreViewModel.isFeatured(item)
+    }
+
+    private var isBrandNew: Bool {
+        ExtensionsStoreViewModel.isNew(item) && (item.version == nil || item.version == "1.0.0")
+    }
+
+    private func formattedDownloadCount(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            let millions = Double(count) / 1_000_000.0
+            return String(format: "%.1fM", millions)
+        } else if count >= 1_000 {
+            let thousands = Double(count) / 1_000.0
+            return thousands.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(thousands))k" : String(format: "%.1fk", thousands)
+        } else {
+            return "\(count)"
+        }
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             // Leading icon: normalized adaptive SVG from the publish pipeline when
@@ -89,6 +109,24 @@ struct ExtensionCardView: View {
                         .foregroundColor(.primary)
                         .lineLimit(1)
 
+                    if isFeatured {
+                        Image(systemName: "rosette")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.accentColor)
+                            .help(String(localized: "Featured"))
+                            .accessibilityLabel(String(localized: "Featured"))
+                    }
+
+                    if isBrandNew {
+                        Text(String(localized: "New"))
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.accentColor)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.accentColor.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
+
                     if !item.author.isEmpty {
                         Text("by @\(item.author)")
                             .font(.system(size: 11))
@@ -114,6 +152,17 @@ struct ExtensionCardView: View {
 
             // Right Action Buttons
             HStack(spacing: 8) {
+                if item.downloadCount > 0 {
+                    HStack(spacing: 2) {
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 8.5, weight: .medium))
+                        Text(formattedDownloadCount(item.downloadCount))
+                            .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(.secondary.opacity(0.8))
+                    .padding(.trailing, 2)
+                }
+
                 if isInstalled {
                     if updateManager.updatablePackageIDs.contains(item.id) {
                         Button(action: {

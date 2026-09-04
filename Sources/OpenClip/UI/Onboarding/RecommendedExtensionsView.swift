@@ -9,14 +9,9 @@ import Core
 @MainActor
 public struct RecommendedExtensionsView: View {
     /// Curated featured extensions in priority order
-    private static let curatedRecommendedIDs = [
-        "com.openclip.quick-translate",  // Quick Translate
-        "com.openclip.wordcount",       // Word & Character Count
-        "com.openclip.speakselection",  // Speak Selection
-        "com.openclip.obsidiancapture", // Obsidian Capture
-        "com.openclip.applereminders",  // Apple Reminders
-        "com.openclip.githubsearch",    // GitHub Search
-    ]
+    private static var curatedRecommendedIDs: [String] {
+        ExtensionsStoreViewModel.curatedFeaturedIDs
+    }
 
     private static let fallbackItems: [ExtensionItem] = [
         ExtensionItem(

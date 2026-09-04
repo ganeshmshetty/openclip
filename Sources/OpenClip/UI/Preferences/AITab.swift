@@ -50,11 +50,6 @@ public struct AITab: View {
                     .foregroundColor(.accentColor)
                 }) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Enable or disable AI actions for the popup bar, or click the edit icon to customize prompts.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.bottom, 4)
-
                         ForEach(aiManager.presets) { preset in
                             HStack(alignment: .center, spacing: 12) {
                                 Toggle("", isOn: Binding(
@@ -260,3 +255,56 @@ struct EditAIPresetSheet: View {
         .frame(width: 440)
     }
 }
+
+/// Modal configuration sheet for AI Tools, opened from the gear icon in the Actions tab.
+@MainActor
+public struct ConfigureAISheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedSubTab: AISubTab
+
+    public init(initialSubTab: AISubTab = .configure) {
+        _selectedSubTab = State(initialValue: initialSubTab)
+    }
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack(alignment: .center) {
+                Text(String(localized: "AI Tools"))
+                    .font(.system(size: 13, weight: .semibold))
+
+                Spacer()
+
+                Picker("", selection: $selectedSubTab) {
+                    Text(String(localized: "Configure")).tag(AISubTab.configure)
+                    Text(String(localized: "Actions")).tag(AISubTab.actions)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 170)
+
+                Spacer()
+
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(String(localized: "Close"))
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
+
+            Divider()
+
+            AITab(selectedSubTab: $selectedSubTab)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
+        }
+        .frame(width: 440, height: 480)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+

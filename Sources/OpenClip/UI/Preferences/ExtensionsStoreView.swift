@@ -6,13 +6,140 @@
 import SwiftUI
 import Core
 
+public enum StoreFilter: String, CaseIterable, Identifiable, Sendable {
+    case all
+    case popular
+    case new
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .all: return String(localized: "All")
+        case .popular: return String(localized: "Popular")
+        case .new: return String(localized: "New")
+        }
+    }
+}
+
 @MainActor
 public final class ExtensionsStoreViewModel: ObservableObject {
     @Published public var searchQuery: String = ""
     @Published public var extensions: [ExtensionItem] = []
+    @Published public var selectedFilter: StoreFilter = .all
     @Published public var isLoading: Bool = false
     @Published public var currentPage: Int = 1
     @Published public var totalPages: Int = 1
+
+    /// Curated featured extensions in priority order (shared with onboarding).
+    public static let curatedFeaturedIDs: [String] = [
+        "com.openclip.quick-translate",  // Quick Translate
+        "com.openclip.wordcount",       // Word & Character Count
+        "com.openclip.speakselection",  // Speak Selection
+        "com.openclip.obsidiancapture", // Obsidian Capture
+        "com.openclip.applereminders",  // Apple Reminders
+        "com.openclip.githubsearch",    // GitHub Search
+    ]
+
+    /// Extensions recognized as recent or highlighted catalog additions.
+    public static let recentNewIDs: [String] = [
+        "com.openclip.render-html",
+        "com.openclip.caniuse",
+        "com.openclip.devdocs",
+        "com.openclip.waybackmachine",
+        "com.openclip.logseqcapture",
+        "com.openclip.craftdocs",
+        "com.openclip.fantasticalevent",
+        "com.openclip.wikipedia",
+        "com.openclip.applemusic",
+    ]
+
+    public static func isFeatured(_ item: ExtensionItem) -> Bool {
+        curatedFeaturedIDs.contains(where: { $0.caseInsensitiveCompare(item.id) == .orderedSame })
+    }
+
+    public static func isNew(_ item: ExtensionItem) -> Bool {
+        if recentNewIDs.contains(where: { $0.caseInsensitiveCompare(item.id) == .orderedSame }) {
+            return true
+        }
+        if let v = item.version, v != "1.0.0", !v.hasPrefix("1.0.0") {
+            return true
+        }
+        return false
+    }
+
+    /// Curated featured/popular items (first few for the showcase section).
+    public var featuredSectionItems: [ExtensionItem] {
+        let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
+        let curated = Self.curatedFeaturedIDs.compactMap { byID[$0.lowercased()] }
+        return Array(curated.prefix(4))
+    }
+
+    /// Top new/updated items for the showcase section.
+    public var newSectionItems: [ExtensionItem] {
+        let featuredIDs = Set(featuredSectionItems.map { $0.id.lowercased() })
+        let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
+        let curatedNew = Self.recentNewIDs.compactMap { byID[$0.lowercased()] }
+        let updated = extensions.filter { ext in
+            Self.isNew(ext) && !featuredIDs.contains(ext.id.lowercased())
+        }
+        var chosen = Set<String>()
+        var result: [ExtensionItem] = []
+        for item in (curatedNew + updated) {
+            let id = item.id.lowercased()
+            if !featuredIDs.contains(id) && chosen.insert(id).inserted {
+                result.append(item)
+            }
+        }
+        return Array(result.prefix(4))
+    }
+
+    /// The remaining catalog items for the "All Extensions" section when browsing "All",
+    /// deduplicating items showcased in the featured and new sections above.
+    public var remainingAllSectionItems: [ExtensionItem] {
+        let showcased = Set(featuredSectionItems.map { $0.id.lowercased() } + newSectionItems.map { $0.id.lowercased() })
+        return extensions.filter { !showcased.contains($0.id.lowercased()) }
+    }
+
+    /// ID of the last item rendered across the sectioned storefront, used to trigger pagination.
+    public var lastRenderedSectionedItemID: String? {
+        remainingAllSectionItems.last?.id
+            ?? newSectionItems.last?.id
+            ?? featuredSectionItems.last?.id
+    }
+
+    /// True when the given item is the final rendered item in the sectioned storefront.
+    public func shouldTriggerSectionedPagination(for itemID: String) -> Bool {
+        itemID == lastRenderedSectionedItemID
+    }
+
+    /// True when the given item is the final rendered item in the flat store list.
+    public func shouldTriggerFlatPagination(for itemID: String) -> Bool {
+        itemID == displayedExtensions.last?.id
+    }
+
+    /// Full list when the "Popular" filter tab is selected.
+    public var popularFilterItems: [ExtensionItem] {
+        let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
+        let curated = Self.curatedFeaturedIDs.compactMap { byID[$0.lowercased()] }
+        var chosen = Set(curated.map { $0.id.lowercased() })
+        let popular = extensions
+            .filter { !chosen.contains($0.id.lowercased()) && $0.downloadCount > 0 }
+            .sorted { $0.downloadCount > $1.downloadCount }
+        for item in popular { chosen.insert(item.id.lowercased()) }
+        return curated + popular
+    }
+
+    /// Full list when the "New" filter tab is selected.
+    public var newFilterItems: [ExtensionItem] {
+        let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
+        let curatedNew = Self.recentNewIDs.compactMap { byID[$0.lowercased()] }
+        var chosen = Set(curatedNew.map { $0.id.lowercased() })
+        let updated = extensions.filter { ext in
+            !chosen.contains(ext.id.lowercased()) && Self.isNew(ext)
+        }
+        return curatedNew + updated
+    }
 
     /// Monotonic result-set generation. Every reset bumps it; any response that resolves
     /// against a superseded generation is discarded, so a slow earlier request landing late
@@ -35,10 +162,28 @@ public final class ExtensionsStoreViewModel: ObservableObject {
 
     deinit { searchTask?.cancel() }
 
+    public var displayedExtensions: [ExtensionItem] {
+        let query = searchQuery.trimmingCharacters(in: .whitespaces)
+        if !query.isEmpty {
+            return extensions
+        }
+        switch selectedFilter {
+        case .all:
+            return extensions
+        case .popular:
+            return popularFilterItems
+        case .new:
+            return newFilterItems
+        }
+    }
+
     /// Debounced, cancellable search entry point for per-keystroke changes. Coalesces rapid
     /// typing into one request and cancels any in-flight one; the view calls this from
     /// `onChange(of: searchQuery)` instead of spawning its own unstructured task.
     public func queryDidChange() {
+        if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
+            selectedFilter = .all
+        }
         searchTask?.cancel()
         searchTask = Task { [weak self] in
             guard let self else { return }
@@ -94,66 +239,77 @@ public final class ExtensionsStoreViewModel: ObservableObject {
 }
 
 public struct ExtensionStoreView: View {
-    @StateObject private var viewModel = ExtensionsStoreViewModel()
+    @ObservedObject var viewModel: ExtensionsStoreViewModel
 
-    public init() {}
+    public init(viewModel: ExtensionsStoreViewModel) {
+        self.viewModel = viewModel
+    }
+
+    private var isSearching: Bool {
+        !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     public var body: some View {
-        VStack(spacing: 12) {
-            filterBar
+        VStack(spacing: 0) {
+            filterPillsRow
             storeContent
         }
         .padding(.horizontal, 12)
         .padding(.top, 4)
         .padding(.bottom, 0)
         .task {
-            await viewModel.resetAndFetch()
+            if viewModel.extensions.isEmpty {
+                await viewModel.resetAndFetch(limit: 100)
+            }
         }
     }
 
-    private var filterBar: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 13))
-                TextField("Search extensions...", text: $viewModel.searchQuery)
-                    .textFieldStyle(.plain)
-                    .onChange(of: viewModel.searchQuery) { _, _ in
-                        viewModel.queryDidChange()
+    private var filterPillsRow: some View {
+        HStack(spacing: 8) {
+            ForEach(StoreFilter.allCases) { filter in
+                let isSelected = viewModel.selectedFilter == filter && !isSearching
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        if isSearching {
+                            viewModel.searchQuery = ""
+                        }
+                        viewModel.selectedFilter = filter
                     }
-                if viewModel.isLoading && !viewModel.extensions.isEmpty {
-                    ProgressView()
-                        .controlSize(.small)
-                        .scaleEffect(0.65)
-                        .frame(width: 14, height: 14)
+                } label: {
+                    HStack(spacing: 4.5) {
+                        if filter == .popular {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 9.5, weight: .semibold))
+                        } else if filter == .new {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 9.5, weight: .semibold))
+                        }
+                        Text(filter.title)
+                            .font(.system(size: 11.5, weight: isSelected ? .semibold : .medium))
+                    }
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 4.5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
+                    )
+                    .foregroundColor(isSelected ? .white : .secondary)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-            )
-
             Spacer()
-
-            Button(action: {
-                presentInstallExtensionPanel()
-            }) {
-                Label("Install File…", systemImage: "square.and.arrow.down")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
-        .padding(.horizontal, 2)
+        .padding(.horizontal, 14)
+        .padding(.bottom, 8)
+        .opacity(isSearching ? 0.4 : 1.0)
     }
 
     private var storeContent: some View {
         VStack(spacing: 0) {
             if viewModel.extensions.isEmpty && viewModel.isLoading {
                 skeletonList
-            } else if viewModel.extensions.isEmpty {
+            } else if viewModel.displayedExtensions.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
                     Image(systemName: "sparkles")
@@ -165,28 +321,117 @@ public struct ExtensionStoreView: View {
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if !isSearching && viewModel.selectedFilter == .all {
+                sectionedAllStoreContent
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(viewModel.extensions.enumerated()), id: \.element.id) { index, ext in
-                            if index > 0 {
-                                Divider()
-                                    .padding(.leading, 60)
-                                    .padding(.trailing, 14)
-                            }
-                            ExtensionCardView(item: ext)
-                                .onAppear {
-                                    if ext.id == viewModel.extensions.last?.id {
-                                        Task { await viewModel.fetchNextPage() }
-                                    }
-                                }
-                        }
-                    }
-                }
-                .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
-                .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
+                flatStoreContent
             }
         }
+    }
+
+    private func sectionHeader(title: String, icon: String, count: Int? = nil) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.accentColor)
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+            if let count {
+                Text("(\(count))")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary.opacity(0.7))
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 14)
+        .padding(.bottom, 4)
+    }
+
+    private var sectionedAllStoreContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                // Section 1: Featured
+                if !viewModel.featuredSectionItems.isEmpty {
+                    sectionHeader(title: String(localized: "Featured"), icon: "rosette")
+                    ForEach(Array(viewModel.featuredSectionItems.enumerated()), id: \.element.id) { index, ext in
+                        if index > 0 {
+                            Divider()
+                                .padding(.leading, 60)
+                                .padding(.trailing, 14)
+                        }
+                        ExtensionCardView(item: ext)
+                            .onAppear {
+                                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
+                                    Task { await viewModel.fetchNextPage() }
+                                }
+                            }
+                    }
+                }
+
+                // Section 2: New & Updated
+                if !viewModel.newSectionItems.isEmpty {
+                    sectionHeader(title: String(localized: "New & Updated"), icon: "clock.arrow.circlepath")
+                    ForEach(Array(viewModel.newSectionItems.enumerated()), id: \.element.id) { index, ext in
+                        if index > 0 {
+                            Divider()
+                                .padding(.leading, 60)
+                                .padding(.trailing, 14)
+                        }
+                        ExtensionCardView(item: ext)
+                            .onAppear {
+                                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
+                                    Task { await viewModel.fetchNextPage() }
+                                }
+                            }
+                    }
+                }
+
+                // Section 3: All Extensions
+                if !viewModel.remainingAllSectionItems.isEmpty {
+                    sectionHeader(title: String(localized: "All Extensions"), icon: "square.grid.2x2", count: viewModel.remainingAllSectionItems.count)
+                    ForEach(Array(viewModel.remainingAllSectionItems.enumerated()), id: \.element.id) { index, ext in
+                        if index > 0 {
+                            Divider()
+                                .padding(.leading, 60)
+                                .padding(.trailing, 14)
+                        }
+                        ExtensionCardView(item: ext)
+                            .onAppear {
+                                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
+                                    Task { await viewModel.fetchNextPage() }
+                                }
+                            }
+                    }
+                }
+            }
+        }
+        .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
+    }
+
+    private var flatStoreContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(viewModel.displayedExtensions.enumerated()), id: \.element.id) { index, ext in
+                    if index > 0 {
+                        Divider()
+                            .padding(.leading, 60)
+                            .padding(.trailing, 14)
+                    }
+                    ExtensionCardView(item: ext)
+                        .onAppear {
+                            if viewModel.shouldTriggerFlatPagination(for: ext.id) {
+                                Task { await viewModel.fetchNextPage() }
+                            }
+                        }
+                }
+            }
+        }
+        .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
     }
 
     private var skeletonList: some View {
