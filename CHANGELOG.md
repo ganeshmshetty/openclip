@@ -4,6 +4,34 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 
 ---
 
+## v1.3.0 - 2026-09-04
+
+### Highlights
+- **`openclip.pasteboard` JavaScript Extension API**: Extensions can now read, inspect, and write clipboard content directly with granular type support and change-count tracking.
+- **Customizable Popup Alignment & Vertical Positioning**: Configure popup bar alignment (Left, Center, Right) and vertical placement (Auto, Above cursor, Below cursor) in Preferences, with synchronized sub-action bar tracking ([#52](https://github.com/ganeshmshetty/openclip/pull/52)).
+- **Full Multilingual Localization & Search**: Added complete UI translations for Traditional Chinese (`zh-Hant`), French (`fr`), and Japanese (`ja`), along with multi-lingual action search keyword indexing.
+- **Storefront & Actions Tab Overhaul**: Redesigned extension storefront with category filter tabs and pagination, plus an NSOutlineView-based Actions preference hierarchy with zebra striping and drag-and-drop improvements.
+- **Snooze & App Pause Rules**: Temporarily pause OpenClip from the status bar menu (15 min, 1 hour, etc.) or configure per-app pause toggles.
+
+### Features & Improvements
+- **Extension Runtime Script Budget & Interactive Cancellation**: Enforced a 60-second execution watchdog across process runners and added interactive task cancellation for long-running scripts.
+- **Native AXWebArea Selection Cascade**: Accelerated selection detection across Chromium and WebKit browsers with direct AXWebArea integration and multi-app selection resilience.
+- **Status Bar Menu Enhancements**: Added snooze presets, per-application pause toggles, and refined popup dismissal responsiveness.
+- **Preferences UI Polish**: Added sectioned storefront views with filter tabs, rendered pagination triggers, and aligned group indicators.
+
+### Fixes & Stability
+- **Extension Security**: Prevented path traversal and unauthorized script execution in extension manifests ([#38](https://github.com/ganeshmshetty/openclip/issues/38)).
+- **Clipboard & Pasteboard Preservation**: Preserved lazy pasteboard items and prevented clearing untouched clipboards ([#34](https://github.com/ganeshmshetty/openclip/issues/34)).
+- **Delivery Context & Paste Races**: Guarded against application-switch paste races by snapshotting delivery context at trigger time ([#41](https://github.com/ganeshmshetty/openclip/issues/41)).
+- **Secret Staging Race**: Eliminated file permission race conditions during secret storage staging with self-healing recovery ([#49](https://github.com/ganeshmshetty/openclip/issues/49)).
+- **Update Flow & Sparkle Integration**: Improved release notes presentation in update prompts and preserved user settings across version updates.
+- **Action Group Sheets & Drag-and-Drop**: Fixed group creation sheets and improved reordering in Preferences.
+
+### Community
+- Join our [Discord community](https://discord.gg/sy4MeFxf8) to share extensions, suggest features, and get support!
+
+---
+
 ## v1.2.1 - 2026-09-02
 
 ### Features & Improvements
