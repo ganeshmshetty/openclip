@@ -202,15 +202,21 @@ public class PopupWindowController {
         panel.horizontalAnchor = .none
         preSearchFrame = nil
 
+        let rawAlignment = settingsStore.get(SettingKey.popupAlignment)
+        let alignment = PopupBarAlignment(rawValue: rawAlignment) ?? .left
+        let rawVertical = settingsStore.get(SettingKey.popupVerticalPosition)
+        let verticalPosition = PopupVerticalPosition(rawValue: rawVertical) ?? .auto
+
         // Pre-compute card direction from real screen position
         let screen = PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let tempFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds)
+            for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
         cardAbove = tempFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
 
         modeStore.mode = .actions
         modeStore.searchResultsAbove = cardAbove
+        modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: tempFrame, releasePoint: context.cursorPosition)
         // Probed before selection retrieval by the trigger sites and resolved before this frame,
         // so the bar/search gate Paste/Cut correctly on the first render. `nil` keeps them visible.
         modeStore.canPaste = pasteAvailable
@@ -293,11 +299,12 @@ public class PopupWindowController {
 
         // Compute card direction from real screen position using the actual rendered panel size.
         let calculatedFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: size, in: screenBounds)
+            for: context, popupSize: size, in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
         cardAbove = calculatedFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
         modeStore.searchResultsAbove = cardAbove
+        modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: calculatedFrame, releasePoint: context.cursorPosition)
 
-        positionPanel(panel, size: size, for: context)
+        positionPanel(panel, size: size, for: context, alignment: alignment, verticalPosition: verticalPosition)
         lastPopupFrame = panel.frame
         // Placement is fixed; any subsequent content-driven width change (search palette,
         // pagination) must re-center rather than drift off the cursor.
@@ -579,13 +586,15 @@ public class PopupWindowController {
         return size
     }
 
-    private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext) {
+    private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext, alignment: PopupBarAlignment = .left, verticalPosition: PopupVerticalPosition = .auto) {
         let screen = PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let frame = PopupPositioner.calculateFrame(
             for: context,
             popupSize: size,
-            in: screenBounds
+            in: screenBounds,
+            alignment: alignment,
+            verticalPosition: verticalPosition
         )
         panel.setFrame(frame, display: true)
     }
@@ -1041,7 +1050,14 @@ public class PopupWindowController {
         let effectiveTheme = themeCategory == .glass ? "glass" : PopupThemeModel.classicToken(appearance: appearance, systemIsDark: systemIsDark)
         let effectiveColorScheme = PopupThemeModel.effectiveScheme(appearance: appearance, systemIsDark: systemIsDark)
 
-        subBarController.show(
+        let mainBarAbove: Bool
+        if let panel, let currentContext {
+            mainBarAbove = PopupPositioner.isPlacedAbove(frame: panel.frame, releasePoint: currentContext.cursorPosition)
+        } else {
+            mainBarAbove = modeStore.searchResultsAbove
+        }
+
+        let actuallyAbove = subBarController.show(
             for: action,
             parentIndex: index,
             subActions: children,
@@ -1049,6 +1065,7 @@ public class PopupWindowController {
             mainBarScreenFrame: panel?.frame,
             isPinned: isPinned,
             searchResultsAbove: modeStore.searchResultsAbove,
+            mainBarAbove: mainBarAbove,
             effectiveTheme: effectiveTheme,
             effectiveColorScheme: effectiveColorScheme,
             scale: scale,
@@ -1088,6 +1105,7 @@ public class PopupWindowController {
             },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary }
         )
+        modeStore.subBarAbove = actuallyAbove
     }
 
     func runAIPreset(prompt: String, title: String) {

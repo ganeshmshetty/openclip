@@ -28,6 +28,20 @@ public enum ActionOptionKey {
     }
 }
 
+/// Horizontal alignment of the popup bar relative to the cursor ("left" | "center" | "right").
+public enum PopupBarAlignment: String, Codable, CaseIterable, Sendable {
+    case left
+    case center
+    case right
+}
+
+/// Vertical placement mode of the popup bar relative to the cursor/selection ("auto" | "above" | "below").
+public enum PopupVerticalPosition: String, Codable, CaseIterable, Sendable {
+    case auto
+    case above
+    case below
+}
+
 public extension SettingKey where Value == [String] {
     static var actionOrder: SettingKey<[String]> { SettingKey<[String]>("action.order", defaultValue: []) }
 }
@@ -101,6 +115,10 @@ public extension SettingKey where Value == String {
     /// Popup theme ("classic"/"glass") and shared appearance ("system"/"light"/"dark").
     static var popupTheme: SettingKey<String> { SettingKey<String>("popupTheme", defaultValue: "classic") }
     static var popupThemeColor: SettingKey<String> { SettingKey<String>("popupThemeColor", defaultValue: "system") }
+    /// Popup horizontal alignment relative to cursor ("left" | "center" | "right").
+    static var popupAlignment: SettingKey<String> { SettingKey<String>("popupAlignment", defaultValue: PopupBarAlignment.left.rawValue) }
+    /// Popup vertical placement relative to cursor/selection ("auto" | "above" | "below").
+    static var popupVerticalPosition: SettingKey<String> { SettingKey<String>("popupVerticalPosition", defaultValue: PopupVerticalPosition.auto.rawValue) }
 
     /// The last version string (CFBundleShortVersionString) the app was launched on.
     /// Used to classify launch scenarios (First Install, App Update, Reinstall, Normal Launch).

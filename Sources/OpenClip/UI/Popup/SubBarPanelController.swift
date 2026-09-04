@@ -25,7 +25,7 @@ public final class SubBarPanelController {
         self.panel = panel
     }
 
-    /// Shows or updates the sub-bar for the given group action and parent button screen frame.
+    @discardableResult
     public func show(
         for groupAction: any Action,
         parentIndex: Int,
@@ -33,7 +33,8 @@ public final class SubBarPanelController {
         parentButtonScreenFrame: NSRect,
         mainBarScreenFrame: NSRect? = nil,
         isPinned: Bool,
-        searchResultsAbove: Bool,
+        searchResultsAbove: Bool = true,
+        mainBarAbove: Bool? = nil,
         effectiveTheme: String,
         effectiveColorScheme: ColorScheme,
         scale: CGFloat,
@@ -45,14 +46,14 @@ public final class SubBarPanelController {
         onWillPerformAction: @escaping @MainActor @Sendable (any Action) -> Void,
         onActionPerformed: @escaping @MainActor @Sendable (String) -> Void,
         onClickIntent: @escaping @MainActor @Sendable () -> ActionResultDelivery.ClickIntent
-    ) {
+    ) -> Bool {
         dwellTask?.cancel()
         dwellTask = nil
         cancelGrace()
 
         guard !subActions.isEmpty else {
             hide()
-            return
+            return false
         }
 
         let state = ActiveSubGroupState(
@@ -131,17 +132,35 @@ public final class SubBarPanelController {
         let clampedX = max(minX, min(panelX, maxX))
 
         // Vertical positioning: 6pt visual gap from the main bar's button
+        // Prefers opening in the same direction as the main bar (away from selected text),
+        // but flips if constrained by the screen boundaries.
+        let preferAbove = mainBarAbove ?? searchResultsAbove
+        let yAbove = parentButtonScreenFrame.maxY + 6 - shadowInset
+        let yBelow = parentButtonScreenFrame.minY - 6 + shadowInset - panelHeight
+        let padding = PopupMetrics.popupPadding
+
         let panelY: CGFloat
-        if searchResultsAbove {
-            // Sub-bar sits above the main bar
-            panelY = parentButtonScreenFrame.maxY + 6 - shadowInset
+        if preferAbove {
+            if yAbove + panelHeight <= screenBounds.maxY - padding {
+                panelY = yAbove
+            } else if yBelow >= screenBounds.minY + padding {
+                panelY = yBelow
+            } else {
+                panelY = yAbove
+            }
         } else {
-            // Sub-bar sits below the main bar
-            panelY = parentButtonScreenFrame.minY - 6 + shadowInset - panelHeight
+            if yBelow >= screenBounds.minY + padding {
+                panelY = yBelow
+            } else if yAbove + panelHeight <= screenBounds.maxY - padding {
+                panelY = yAbove
+            } else {
+                panelY = yBelow
+            }
         }
 
         panel.setFrame(NSRect(x: clampedX, y: panelY, width: panelWidth, height: panelHeight), display: true)
         panel.orderFront(nil)
+        return panelY == yAbove
     }
 
     /// Pin the current active sub-bar so it stays open until explicitly closed or an action runs.

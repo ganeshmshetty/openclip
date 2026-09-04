@@ -21,6 +21,8 @@ struct PopupThemeSelector: View {
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
     @AppStorage(SettingKey.popupScale.name) private var popupScale: Int = SettingKey.popupScale.defaultValue
     @AppStorage(SettingKey.popupBarWidth.name) private var barWidthLevel: Int = SettingKey.popupBarWidth.defaultValue
+    @AppStorage(SettingKey.popupAlignment.name) private var popupAlignment: String = SettingKey.popupAlignment.defaultValue
+    @AppStorage(SettingKey.popupVerticalPosition.name) private var popupVerticalPosition: String = SettingKey.popupVerticalPosition.defaultValue
 
     private struct AppearanceOption: Identifiable {
         let label: String
@@ -56,6 +58,22 @@ struct PopupThemeSelector: View {
         ]
     }
 
+    private var alignmentOptions: [AppearanceOption] {
+        [
+            AppearanceOption(label: "Left", value: "left", icon: "text.alignleft"),
+            AppearanceOption(label: "Center", value: "center", icon: "text.aligncenter"),
+            AppearanceOption(label: "Right", value: "right", icon: "text.alignright")
+        ]
+    }
+
+    private var verticalPositionOptions: [AppearanceOption] {
+        [
+            AppearanceOption(label: "Auto", value: "auto", icon: ""),
+            AppearanceOption(label: "Above", value: "above", icon: ""),
+            AppearanceOption(label: "Below", value: "below", icon: "")
+        ]
+    }
+
     private var activeAppearance: String {
         themeColor
     }
@@ -68,7 +86,9 @@ struct PopupThemeSelector: View {
         theme == SettingKey.popupTheme.defaultValue &&
         themeColor == SettingKey.popupThemeColor.defaultValue &&
         popupScale == SettingKey.popupScale.defaultValue &&
-        barWidthLevel == SettingKey.popupBarWidth.defaultValue
+        barWidthLevel == SettingKey.popupBarWidth.defaultValue &&
+        popupAlignment == SettingKey.popupAlignment.defaultValue &&
+        popupVerticalPosition == SettingKey.popupVerticalPosition.defaultValue
     }
 
     private func resetToDefaults() {
@@ -76,6 +96,8 @@ struct PopupThemeSelector: View {
         themeColor = SettingKey.popupThemeColor.defaultValue
         popupScale = SettingKey.popupScale.defaultValue
         barWidthLevel = SettingKey.popupBarWidth.defaultValue
+        popupAlignment = SettingKey.popupAlignment.defaultValue
+        popupVerticalPosition = SettingKey.popupVerticalPosition.defaultValue
     }
 
     var body: some View {
@@ -83,6 +105,8 @@ struct PopupThemeSelector: View {
             Section {
                 themeRow
                 modeRow
+                alignmentRow
+                verticalPositionRow
                 sizeRow
                 barWidthRow
             } footer: {
@@ -126,6 +150,35 @@ struct PopupThemeSelector: View {
                 options: appearanceOptions,
                 isSelected: { activeAppearance == $0.value },
                 select: selectAppearance
+            )
+        }
+        .frame(minHeight: 24)
+        .padding(.vertical, 3)
+    }
+
+    private var alignmentRow: some View {
+        HStack(spacing: 12) {
+            rowTitle(icon: "text.alignleft", title: "Bar Alignment")
+            Spacer()
+            iconTiles(
+                options: alignmentOptions,
+                isSelected: { popupAlignment == $0.value },
+                select: { popupAlignment = $0 }
+            )
+        }
+        .frame(minHeight: 24)
+        .padding(.vertical, 3)
+    }
+
+    private var verticalPositionRow: some View {
+        HStack(spacing: 12) {
+            rowTitle(icon: "arrow.up.and.down", title: "Vertical Position")
+            Spacer()
+            labelSegments(
+                options: verticalPositionOptions,
+                segmentWidth: 44,
+                isSelected: { popupVerticalPosition == $0.value },
+                select: { popupVerticalPosition = $0 }
             )
         }
         .frame(minHeight: 24)
@@ -205,6 +258,7 @@ struct PopupThemeSelector: View {
     /// Label-only segments for the Theme row.
     private func labelSegments(
         options: [AppearanceOption],
+        segmentWidth: CGFloat = 56,
         isSelected: @escaping (AppearanceOption) -> Bool,
         select: @escaping (String) -> Void
     ) -> some View {
@@ -215,6 +269,7 @@ struct PopupThemeSelector: View {
                 }
                 segmentButton(
                     label: LocalizedStringKey(option.label),
+                    width: segmentWidth,
                     isSelected: isSelected(option),
                     action: { select(option.value) }
                 )
@@ -270,6 +325,7 @@ struct PopupThemeSelector: View {
 
     private func segmentButton(
         label: LocalizedStringKey,
+        width: CGFloat = 56,
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
@@ -277,8 +333,8 @@ struct PopupThemeSelector: View {
             Text(label)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(isSelected ? .white : .primary)
-                .frame(width: segmentWidth, height: trayContentHeight)
-                .padding(.horizontal, 6)
+                .frame(width: width, height: trayContentHeight)
+                .padding(.horizontal, 4)
                 .contentShape(Rectangle())
                 .background(
                     RoundedRectangle(cornerRadius: 4, style: .continuous)

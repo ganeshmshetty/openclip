@@ -40,6 +40,14 @@ struct PopupPreview: View {
     }
 
     @AppStorage(SettingKey.popupScale.name) private var popupScale: Int = SettingKey.popupScale.defaultValue
+    @AppStorage(SettingKey.popupVerticalPosition.name) private var popupVerticalPosition: String = SettingKey.popupVerticalPosition.defaultValue
+
+    private var previewModeStore: PopupModeStore {
+        let store = PopupModeStore()
+        let pos = PopupVerticalPosition(rawValue: popupVerticalPosition) ?? .auto
+        store.subBarAbove = (pos != .below)
+        return store
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -53,7 +61,7 @@ struct PopupPreview: View {
                 context: mockContext,
                 hoverState: Self.previewHoverState,
                 isStatic: true,
-                modeStore: PopupModeStore()
+                modeStore: previewModeStore
             ) { _ in }
                 .padding(.vertical, 8)
         }
