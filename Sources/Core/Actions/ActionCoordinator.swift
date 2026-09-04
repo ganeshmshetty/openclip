@@ -229,7 +229,7 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         guard let _ = currentActions.firstIndex(where: { $0.id == groupID }) else { return }
 
         let memberSet = Set(memberIDs)
-        let actionMap = Dictionary(uniqueKeysWithValues: currentActions.filter { memberSet.contains($0.id) }.map { ($0.id, $0) })
+        let actionMap = Dictionary(currentActions.filter { memberSet.contains($0.id) }.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         currentActions.removeAll { memberSet.contains($0.id) }
 
         guard let newGroupIndex = currentActions.firstIndex(where: { $0.id == groupID }) else { return }

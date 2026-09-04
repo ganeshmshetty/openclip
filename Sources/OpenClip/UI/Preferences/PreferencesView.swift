@@ -225,13 +225,13 @@ public struct PreferencesView: View {
         .onAppear {
             loadDisabledState()
             Task {
-                _ = try? await ExtensionsAPIClient.shared.fetchExtensions()
+                await storeViewModel.resetAndFetch(limit: 100)
             }
         }
         .onChange(of: selectedTab) { _, newTab in
-            if newTab == .store {
+            if newTab == .store && storeViewModel.extensions.isEmpty {
                 Task {
-                    _ = try? await ExtensionsAPIClient.shared.fetchExtensions()
+                    await storeViewModel.resetAndFetch(limit: 100)
                 }
             }
         }

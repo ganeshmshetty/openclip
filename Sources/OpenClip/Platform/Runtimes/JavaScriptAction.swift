@@ -118,7 +118,8 @@ public struct JavaScriptAction: ConfigurableAction {
             rules: rules ?? ExtensionActionRules(),
             isAsync: isAsync,
             packageDirectory: packageDirectory,
-            entryDirectory: entryDirectory
+            entryDirectory: entryDirectory,
+            pasteboardContent: OpenClipJSHost.PasteboardContent.read()
         )
         return try await OpenClipJSHost().run(request)
     }

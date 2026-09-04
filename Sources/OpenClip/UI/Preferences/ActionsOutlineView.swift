@@ -438,11 +438,13 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
 
     func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
         let identifier = NSUserInterfaceItemIdentifier("OutlineTableRowView")
-        if let rowView = outlineView.makeView(withIdentifier: identifier, owner: self) as? OutlineTableRowView {
-            return rowView
+        let rowView: OutlineTableRowView
+        if let existing = outlineView.makeView(withIdentifier: identifier, owner: self) as? OutlineTableRowView {
+            rowView = existing
+        } else {
+            rowView = OutlineTableRowView()
+            rowView.identifier = identifier
         }
-        let rowView = OutlineTableRowView()
-        rowView.identifier = identifier
         let rowIndex = outlineView.row(forItem: item)
         rowView.isAlternate = (rowIndex >= 0 && rowIndex % 2 == 1)
         return rowView

@@ -33,6 +33,8 @@ public struct PasteboardSnapshot: @unchecked Sendable {
                 } else if let plist = item.propertyList(forType: type) {
                     copy.setPropertyList(plist, forType: type)
                 } else {
+                    // Fallback for lazy/promised types providing nil synchronously: register empty Data
+                    // so the item retains its declared type in the snapshot rather than being dropped entirely (fix #34).
                     copy.setData(Data(), forType: type)
                 }
             }

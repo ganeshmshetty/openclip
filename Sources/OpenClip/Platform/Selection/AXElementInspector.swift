@@ -139,7 +139,7 @@ public struct AXElementInspector {
         guard maxDepth > 0 else { return nil }
         guard let childrenVal = read(element, kAXChildrenAttribute),
               CFGetTypeID(childrenVal) == CFArrayGetTypeID() else { return nil }
-        let children = childrenVal as! [AXUIElement]
+        guard let children = childrenVal as? [AXUIElement] else { return nil }
         for child in children {
             if let found = findFirstChild(role: role, in: child, maxDepth: maxDepth - 1, read: read) {
                 return found

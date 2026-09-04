@@ -491,6 +491,19 @@ class StatusBarController: NSObject, NSMenuDelegate {
                     )
                     RuleEngine.shared.addOrUpdateRule(updatedRule, saveURL: rulesSaveURL)
                 } else {
+                    let remainingIDs = existingRule.bundleIdentifiers.filter { $0 != bundleID }
+                    let updatedRule = AppRule(
+                        bundleIdentifiers: remainingIDs,
+                        disabled: existingRule.disabled,
+                        hotkeyOnly: existingRule.hotkeyOnly,
+                        useMenuCopy: existingRule.useMenuCopy,
+                        denyPaste: existingRule.denyPaste,
+                        retrievalMode: existingRule.retrievalMode,
+                        gate: existingRule.gate
+                    )
+                    RuleEngine.shared.removeRule(id: existingRule.id, saveURL: rulesSaveURL)
+                    RuleEngine.shared.addOrUpdateRule(updatedRule, saveURL: rulesSaveURL)
+
                     let rule = AppRule(bundleIdentifiers: [bundleID], disabled: true)
                     RuleEngine.shared.addOrUpdateRule(rule, saveURL: rulesSaveURL)
                 }

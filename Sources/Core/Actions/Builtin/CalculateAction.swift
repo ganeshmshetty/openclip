@@ -117,6 +117,9 @@ public struct CalculateAction: ConfigurableAction {
                 } else if parts.count == 2 {
                     let intPart = parts[0]
                     let fracPart = parts[1]
+                    // Precedence heuristic: If exactly 3 fractional digits and non-zero integer on a
+                    // period-decimal locale (e.g. US "1,250"), assume comma is a thousands separator ("1250").
+                    // Otherwise (e.g. European "12,5" or "0,250"), normalize comma to decimal period ("12.5").
                     if fracPart.count != 3 || intPart == "0" || isSystemCommaDecimal {
                         normalizedToken = "\(intPart).\(fracPart)"
                     } else {
