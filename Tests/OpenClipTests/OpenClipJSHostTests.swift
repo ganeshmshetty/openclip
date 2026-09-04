@@ -98,7 +98,8 @@ final class OpenClipJSHostTests: XCTestCase {
         isAsync: Bool = false,
         timeout: TimeInterval? = nil,
         isSecondaryClick: Bool = false,
-        context: ActionContext? = nil
+        context: ActionContext? = nil,
+        pasteboardContent: OpenClipJSHost.PasteboardContent? = nil
     ) -> OpenClipJSHost.Request {
         OpenClipJSHost.Request(
             actionID: "test.action",
@@ -108,7 +109,8 @@ final class OpenClipJSHostTests: XCTestCase {
             optionStore: optionStore,
             rules: rules,
             isAsync: isAsync,
-            timeout: timeout
+            timeout: timeout,
+            pasteboardContent: pasteboardContent
         )
     }
 
@@ -1029,5 +1031,128 @@ final class OpenClipJSHostTests: XCTestCase {
             return XCTFail("Expected .text, got \(result)")
         }
         XCTAssertEqual(text, "Bonjour")
+    }
+
+    // MARK: - openclip.pasteboard API Tests
+
+    func testPasteboardReadPlainText() async throws {
+        let pb = OpenClipJSHost.PasteboardContent(text: "Existing Clipboard Text", hasContent: true, types: ["public.utf8-plain-text"])
+        let script = """
+        function action(sel) {
+            return "PB: " + openclip.pasteboard.text + " | SEL: " + sel;
+        }
+        """
+        let result = try await host.run(makeRequest(script: script, pasteboardContent: pb))
+        guard case .text(let output) = result else {
+            return XCTFail("Expected .text, got \(result)")
+        }
+        XCTAssertEqual(output, "PB: Existing Clipboard Text | SEL: hello")
+    }
+
+    func testPasteboardReadHtmlAndRtf() async throws {
+        let pb = OpenClipJSHost.PasteboardContent(
+            text: "Plain",
+            html: "<b>Rich</b>",
+            rtf: "{\\rtf1 Rich}",
+            hasContent: true,
+            hasHtml: true,
+            hasRtf: true,
+            types: ["public.utf8-plain-text", "public.html", "public.rtf"]
+        )
+        let script = """
+        function action() {
+            return openclip.pasteboard.html + " / " + openclip.pasteboard.rtf;
+        }
+        """
+        let result = try await host.run(makeRequest(script: script, pasteboardContent: pb))
+        guard case .text(let output) = result else {
+            return XCTFail("Expected .text, got \(result)")
+        }
+        XCTAssertEqual(output, "<b>Rich</b> / {\\rtf1 Rich}")
+    }
+
+    func testPasteboardConcealedPasswordRedacted() async throws {
+        // ConcealedType marker returns empty text/html/rtf and hasContent false
+        let pb = OpenClipJSHost.PasteboardContent(
+            text: "",
+            html: "",
+            rtf: "",
+            hasContent: false,
+            hasHtml: false,
+            hasRtf: false,
+            types: ["org.nspasteboard.ConcealedType", "public.utf8-plain-text"]
+        )
+        let script = """
+        function action() {
+            if (openclip.pasteboard.hasContent) {
+                return "FAIL: has content";
+            }
+            return "CONCEALED: '" + openclip.pasteboard.text + "'";
+        }
+        """
+        let result = try await host.run(makeRequest(script: script, pasteboardContent: pb))
+        guard case .text(let output) = result else {
+            return XCTFail("Expected .text, got \(result)")
+        }
+        XCTAssertEqual(output, "CONCEALED: ''")
+    }
+
+    func testPasteboardHasContentAndTypes() async throws {
+        let pb = OpenClipJSHost.PasteboardContent(
+            text: "Some note",
+            hasContent: true,
+            hasHtml: false,
+            hasRtf: false,
+            types: ["public.utf8-plain-text"]
+        )
+        let script = """
+        function action() {
+            var hasText = openclip.pasteboard.hasContent;
+            var typeCount = openclip.pasteboard.types.length;
+            return "has=" + hasText + ", types=" + typeCount;
+        }
+        """
+        let result = try await host.run(makeRequest(script: script, pasteboardContent: pb))
+        guard case .text(let output) = result else {
+            return XCTFail("Expected .text, got \(result)")
+        }
+        XCTAssertEqual(output, "has=true, types=1")
+    }
+
+    func testPasteboardTextSetterTriggersCopy() async throws {
+        let pb = OpenClipJSHost.PasteboardContent(text: "Initial Clip", hasContent: true)
+        let script = """
+        function action(sel) {
+            openclip.pasteboard.text = openclip.pasteboard.text + "\\n" + sel;
+        }
+        """
+        let result = try await host.run(makeRequest(script: script, pasteboardContent: pb))
+        guard case .copy(let text) = result else {
+            return XCTFail("Expected .copy, got \(result)")
+        }
+        XCTAssertEqual(text, "Initial Clip\nhello")
+    }
+
+    func testPasteboardContentSetterTriggersCopyContent() async throws {
+        let pb = OpenClipJSHost.PasteboardContent(
+            text: "Hello",
+            html: "<b>Hello</b>",
+            hasContent: true,
+            hasHtml: true
+        )
+        let script = """
+        function action(sel) {
+            openclip.pasteboard.content = {
+                text: openclip.pasteboard.text + " " + sel,
+                html: openclip.pasteboard.html + " <i>" + sel + "</i>"
+            };
+        }
+        """
+        let result = try await host.run(makeRequest(script: script, pasteboardContent: pb))
+        guard case .copyContent(let payload) = result else {
+            return XCTFail("Expected .copyContent, got \(result)")
+        }
+        XCTAssertEqual(payload.plainText, "Hello hello")
+        XCTAssertEqual(payload.html, "<b>Hello</b> <i>hello</i>")
     }
 }

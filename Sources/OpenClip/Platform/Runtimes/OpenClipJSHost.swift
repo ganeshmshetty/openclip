@@ -22,11 +22,70 @@
 import Foundation
 import JavaScriptCore
 import Core
+import AppKit
 
 /// Stateless facade over a URLSession that executes one JS run per call. `@unchecked Sendable`
 /// because it only holds `let session` (URLSession) — all mutable evaluation state lives in locals
 /// passed down to `execute`, and JS VM access is confined to the detached task's thread.
 public final class OpenClipJSHost: @unchecked Sendable {
+    public struct PasteboardContent: Sendable {
+        public let text: String
+        public let html: String
+        public let rtf: String
+        public let hasContent: Bool
+        public let hasHtml: Bool
+        public let hasRtf: Bool
+        public let types: [String]
+
+        public init(
+            text: String = "",
+            html: String = "",
+            rtf: String = "",
+            hasContent: Bool = false,
+            hasHtml: Bool = false,
+            hasRtf: Bool = false,
+            types: [String] = []
+        ) {
+            self.text = text
+            self.html = html
+            self.rtf = rtf
+            self.hasContent = hasContent
+            self.hasHtml = hasHtml
+            self.hasRtf = hasRtf
+            self.types = types
+        }
+
+        public static func read(from pasteboard: NSPasteboard = .general) -> PasteboardContent {
+            guard let items = pasteboard.pasteboardItems, let firstItem = items.first else {
+                return PasteboardContent()
+            }
+
+            let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
+            let onePasswordType = NSPasteboard.PasteboardType("com.agilebits.onepassword")
+            let isConcealed = firstItem.types.contains(concealedType) || firstItem.types.contains(onePasswordType)
+
+            if isConcealed {
+                return PasteboardContent(types: firstItem.types.map(\.rawValue))
+            }
+
+            let text = pasteboard.string(forType: .string) ?? ""
+            let html = pasteboard.string(forType: .html) ?? ""
+            let rtf = pasteboard.string(forType: .rtf) ?? ""
+            let types = firstItem.types.map(\.rawValue)
+
+            let hasContent = !text.isEmpty || !html.isEmpty || !rtf.isEmpty
+            return PasteboardContent(
+                text: text,
+                html: html,
+                rtf: rtf,
+                hasContent: hasContent,
+                hasHtml: !html.isEmpty,
+                hasRtf: !rtf.isEmpty,
+                types: types
+            )
+        }
+    }
+
     public struct Request: Sendable {
         public var actionID: String
         public var scriptCode: String
@@ -44,6 +103,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var packageDirectory: URL?
         /// The entry script's parent directory. When nil, defaults to packageDirectory.
         public var entryDirectory: URL?
+        /// Optional pre-captured pasteboard content (injectable for testing).
+        public var pasteboardContent: PasteboardContent?
 
         public init(
             actionID: String,
@@ -55,7 +116,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
             isAsync: Bool = false,
             timeout: TimeInterval? = nil,
             packageDirectory: URL? = nil,
-            entryDirectory: URL? = nil
+            entryDirectory: URL? = nil,
+            pasteboardContent: PasteboardContent? = nil
         ) {
             self.actionID = actionID
             self.scriptCode = scriptCode
@@ -67,6 +129,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             self.timeout = timeout
             self.packageDirectory = packageDirectory
             self.entryDirectory = entryDirectory
+            self.pasteboardContent = pasteboardContent
         }
     }
 
@@ -216,6 +279,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         // Read-only input context. Options are injected as a plain dictionary (values resolved via
         // the option store); `option(id)` is a functional form over the same dictionary.
         let optionsDict = optionValues(for: request)
+        let pbContent = request.pasteboardContent ?? PasteboardContent.read()
         guard let openclip = makeOpenClipObject(
             in: jsContext,
             text: text,
@@ -225,7 +289,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
             captures: captures,
             sourceApp: request.context.selection.sourceApp,
             isSecondaryClick: request.context.isSecondaryClick,
-            options: optionsDict
+            options: optionsDict,
+            pasteboardContent: pbContent
         ) else {
             throw NSError(domain: Constants.actionErrorDomain,
                           code: Constants.actionErrorCode,
@@ -342,6 +407,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         }
 
         jsContext.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
+        installPasteboardBridge(in: jsContext)
         jsContext.evaluateScript("openclip.option = function(id) { return openclip.options[id]; }")
         jsContext.evaluateScript("openclip.i18n = function(dict) { if (!dict) return ''; var baseLang = (openclip.language || '').split('-')[0]; return dict[openclip.language] || dict[openclip.locale] || dict[baseLang] || dict['en'] || Object.values(dict)[0] || ''; }")
         if request.isAsync, let promiseState {
@@ -490,6 +556,75 @@ public final class OpenClipJSHost: @unchecked Sendable {
                 }
                 __consoleLog(parts.join(' '));
             };
+        })();
+        """)
+    }
+
+    /// Installs getters and setters on `openclip.pasteboard` for reactive read/write access.
+    private static func installPasteboardBridge(in context: JSContext) {
+        context.evaluateScript("""
+        (function() {
+            var _pb = openclip.pasteboard;
+            if (!_pb) return;
+            var _text = _pb.text;
+            var _html = _pb.html;
+            var _rtf = _pb.rtf;
+
+            Object.defineProperty(openclip.pasteboard, 'text', {
+                get: function() { return _text; },
+                set: function(v) {
+                    _text = (v === null || v === undefined) ? "" : String(v);
+                    openclip.copy(_text);
+                },
+                configurable: true,
+                enumerable: true
+            });
+
+            Object.defineProperty(openclip.pasteboard, 'html', {
+                get: function() { return _html; },
+                set: function(v) {
+                    _html = (v === null || v === undefined) ? "" : String(v);
+                    openclip.copyContent({ html: _html });
+                },
+                configurable: true,
+                enumerable: true
+            });
+
+            Object.defineProperty(openclip.pasteboard, 'rtf', {
+                get: function() { return _rtf; },
+                set: function(v) {
+                    _rtf = (v === null || v === undefined) ? "" : String(v);
+                    openclip.copyContent({ rtf: _rtf });
+                },
+                configurable: true,
+                enumerable: true
+            });
+
+            Object.defineProperty(openclip.pasteboard, 'content', {
+                get: function() {
+                    return {
+                        'public.utf8-plain-text': _text,
+                        'public.html': _html,
+                        'public.rtf': _rtf
+                    };
+                },
+                set: function(v) {
+                    if (v && typeof v === 'object') {
+                        if (v['public.utf8-plain-text'] !== undefined) _text = String(v['public.utf8-plain-text']);
+                        else if (v.text !== undefined) _text = String(v.text);
+                        else if (v.plainText !== undefined) _text = String(v.plainText);
+
+                        if (v['public.html'] !== undefined) _html = String(v['public.html']);
+                        else if (v.html !== undefined) _html = String(v.html);
+
+                        if (v['public.rtf'] !== undefined) _rtf = String(v['public.rtf']);
+                        else if (v.rtf !== undefined) _rtf = String(v.rtf);
+                    }
+                    openclip.copyContent(v);
+                },
+                configurable: true,
+                enumerable: true
+            });
         })();
         """)
     }
@@ -760,11 +895,13 @@ public final class OpenClipJSHost: @unchecked Sendable {
         captures: [String],
         sourceApp: AppIdentity,
         isSecondaryClick: Bool,
-        options: [String: Any]
+        options: [String: Any],
+        pasteboardContent: PasteboardContent
     ) -> JSValue? {
         guard let openclip = JSValue(newObjectIn: jsContext),
               let input = JSValue(newObjectIn: jsContext),
-              let app = JSValue(newObjectIn: jsContext) else {
+              let app = JSValue(newObjectIn: jsContext),
+              let pasteboard = JSValue(newObjectIn: jsContext) else {
             return nil
         }
 
@@ -789,10 +926,19 @@ public final class OpenClipJSHost: @unchecked Sendable {
             fullLangTag = langCode
         }
 
+        pasteboard.setObject(pasteboardContent.text, forKeyedSubscript: "text")
+        pasteboard.setObject(pasteboardContent.html, forKeyedSubscript: "html")
+        pasteboard.setObject(pasteboardContent.rtf, forKeyedSubscript: "rtf")
+        pasteboard.setObject(pasteboardContent.hasContent, forKeyedSubscript: "hasContent")
+        pasteboard.setObject(pasteboardContent.hasHtml, forKeyedSubscript: "hasHtml")
+        pasteboard.setObject(pasteboardContent.hasRtf, forKeyedSubscript: "hasRtf")
+        pasteboard.setObject(pasteboardContent.types, forKeyedSubscript: "types")
+
         openclip.setObject(input, forKeyedSubscript: "input")
         openclip.setObject(options, forKeyedSubscript: "options")
         openclip.setObject(activeTag, forKeyedSubscript: "locale")
         openclip.setObject(fullLangTag, forKeyedSubscript: "language")
+        openclip.setObject(pasteboard, forKeyedSubscript: "pasteboard")
         return openclip
     }
 
