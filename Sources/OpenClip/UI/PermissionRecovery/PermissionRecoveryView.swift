@@ -28,7 +28,7 @@ public struct PermissionRecoveryView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 16) {
             // Header Hero
             VStack(spacing: 8) {
                 Image(systemName: permissionManager.isAccessibilityGranted ? "checkmark.shield.fill" : (isUpdate ? "arrow.triangle.2.circlepath.circle.fill" : "hand.raised.square.fill"))
@@ -45,36 +45,9 @@ public struct PermissionRecoveryView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 8)
             }
-
-            // 100% Private On-Device Card
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "lock.shield.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .font(.system(size: 18))
-                    .foregroundColor(.green)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("100% Private & On-Device")
-                        .font(.system(size: 12, weight: .semibold))
-
-                    Text("Highlighted text stays on your Mac by default and is only sent to external services when you explicitly invoke cloud AI or browser actions.")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-            )
 
             // Action / Status
             if permissionManager.isAccessibilityGranted {
@@ -97,6 +70,7 @@ public struct PermissionRecoveryView: View {
                     Text("Flip the switch next to OpenClip to ON in System Settings.")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
@@ -113,7 +87,7 @@ public struct PermissionRecoveryView: View {
             }
         }
         .padding(22)
-        .frame(width: 440, height: 320)
+        .frame(width: 440, height: 260)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             permissionManager.startMonitoring()

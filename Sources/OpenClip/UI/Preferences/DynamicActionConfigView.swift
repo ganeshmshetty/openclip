@@ -165,11 +165,11 @@ struct DynamicOptionRowView: View {
 
     private func choiceDisplayLabel(_ choice: String) -> String {
         switch choice.lowercased() {
-        case "native": return "Native (Default .ics)"
+        case "native": return String(localized: "Native (Default .ics)")
         case "busycal": return "BusyCal"
         case "fantastical": return "Fantastical"
-        case "apple": return "Apple Calendar"
-        case "google": return "Google Calendar"
+        case "apple": return String(localized: "Apple Calendar")
+        case "google": return String(localized: "Google Calendar")
         default: return choice.capitalized
         }
     }

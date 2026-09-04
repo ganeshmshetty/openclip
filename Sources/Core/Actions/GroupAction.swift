@@ -14,19 +14,22 @@ public struct GroupAction: Action, SubActionProviding {
     public let icon: ActionIcon
     public let chrome: ActionChrome
     public let rules: ExtensionActionRules?
+    public let keywords: [String]
 
     public init(
         id: String,
         title: String,
         icon: ActionIcon,
         chrome: ActionChrome,
-        rules: ExtensionActionRules? = nil
+        rules: ExtensionActionRules? = nil,
+        keywords: [String] = []
     ) {
         self.id = id
         self.title = title
         self.icon = icon
         self.chrome = chrome
         self.rules = rules
+        self.keywords = keywords
     }
 
     @MainActor

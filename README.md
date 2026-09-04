@@ -133,7 +133,7 @@ or chained effects — from JSON emitted by a shell script.
 - **Action kinds** — `url`, `javascript` (JavaScriptCore with an `openclip.*` bridge + async/`fetch`), `applescript`, `shell`, `textsnippet`, `keypress`, `shortcut`, `service`, and `group` sub-menus.
 - **Install one-liner** — `./scripts/install_extension.sh path/to/extension.openclipext`
 - **From the app** — browse and install from the built-in Extension Store in **Preferences → Extension Store**, or author URL/search/script actions in **Preferences → Actions**.
-- **Authoring guide** — the full manifest schema, options, visibility rules, and the `openclip.*` bridge: [`docs/developer-guide/AGENTS.md`](docs/developer-guide/AGENTS.md).
+- **Authoring guide** — the full manifest schema, options, visibility rules, and the `openclip.*` bridge: [`Extensions/AGENTS.md`](Extensions/AGENTS.md).
 
 ## Building from source
 

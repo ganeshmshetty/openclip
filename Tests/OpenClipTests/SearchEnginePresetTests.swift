@@ -22,7 +22,7 @@ final class SearchEnginePresetTests: XCTestCase {
     /// localized and may vary with the test host's locale).
     func testCatalogMatchesRequestedPresets() {
         let ids = SearchEnginePreset.all.map(\.id)
-        XCTAssertEqual(ids, ["google", "duckduckgo", "kagi", "brave", "bing", "ecosia"])
+        XCTAssertEqual(ids, ["google", "duckduckgo", "kagi", "brave", "bing", "ecosia", "baidu", "yahoojapan"])
         let templates = SearchEnginePreset.all.map(\.urlTemplate)
         XCTAssertEqual(templates, [
             "https://www.google.com/search?q={query}",
@@ -31,6 +31,8 @@ final class SearchEnginePresetTests: XCTestCase {
             "https://search.brave.com/search?q={query}",
             "https://www.bing.com/search?q={query}",
             "https://www.ecosia.org/search?q={query}",
+            "https://www.baidu.com/s?wd={query}",
+            "https://search.yahoo.co.jp/search?p={query}"
         ])
     }
 

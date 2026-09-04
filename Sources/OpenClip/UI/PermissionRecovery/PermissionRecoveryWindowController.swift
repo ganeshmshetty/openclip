@@ -23,7 +23,7 @@ public final class PermissionRecoveryWindowController: NSWindowController, NSWin
         onDismiss: @escaping @MainActor () -> Void = {}
     ) {
         let window = KeyableWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 320),
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 260),
             styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false

@@ -137,6 +137,11 @@ public final class AIServiceManager: ObservableObject {
         presets = Self.defaultPresets
     }
 
+    /// Resolves the effective prompt for an AI preset.
+    public func promptForPreset(_ preset: AIActionPreset) -> String {
+        preset.prompt
+    }
+
     private static let cloudAPIKeyAccount = "aiCloudAPIKey"
 
     private init() {
@@ -215,13 +220,13 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .openai: return "OpenAI (ChatGPT)"
-        case .anthropic: return "Anthropic (Claude)"
-        case .google: return "Google Gemini"
-        case .deepseek: return "DeepSeek"
-        case .groq: return "Groq"
-        case .openrouter: return "OpenRouter"
-        case .custom: return "Custom OpenAI-Compatible Endpoint"
+        case .openai: return String(localized: "OpenAI (ChatGPT)")
+        case .anthropic: return String(localized: "Anthropic (Claude)")
+        case .google: return String(localized: "Google Gemini")
+        case .deepseek: return String(localized: "DeepSeek")
+        case .groq: return String(localized: "Groq")
+        case .openrouter: return String(localized: "OpenRouter")
+        case .custom: return String(localized: "Custom OpenAI-Compatible Endpoint")
         }
     }
 

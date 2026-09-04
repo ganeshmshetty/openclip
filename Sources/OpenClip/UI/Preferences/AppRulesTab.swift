@@ -81,7 +81,7 @@ private struct AppRuleRowView: View {
     let onDelete: () -> Void
     
     private var bundleID: String {
-        rule.bundleIdentifiers.first ?? "Unknown App"
+        rule.bundleIdentifiers.first ?? String(localized: "Unknown App")
     }
     
     private var isDisabled: Bool {

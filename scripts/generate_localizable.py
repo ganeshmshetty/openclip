@@ -1,415 +1,70 @@
 #!/usr/bin/env python3
-"""Generate Sources/OpenClip/Resources/Localizable.xcstrings from the translation table."""
+"""Generate Sources/OpenClip/Resources/Localizable.xcstrings from the translation tables in scripts/translations/."""
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-# English source key -> Simplified Chinese. Keys must match the Swift source literals
-# (including ellipsis characters and interpolation format specifiers).
-TRANSLATIONS: dict[str, str] = {
-    # Menu bar
-    "Appear Automatically": "自动弹出",
-    "Appear Automatically is on": "已开启自动弹出",
-    "Appear Automatically is off": "已关闭自动弹出",
-    "Preferences…": "偏好设置…",
-    "Settings…": "设置…",
-    "Extensions": "扩展",
-    "Check for Updates…": "检查更新…",
-    "Checking for Updates…": "正在检查更新…",
-    "Update Available (v%@)…": "有可用更新 (v%@)…",
-    "Update Available": "有可用更新",
-    "Up to Date": "已是最新版本",
-    "Restart to Apply Update": "重启以应用更新",
-    "Report an Issue…": "报告问题…",
-    "Report Issue…": "报告问题…",
-    "Quit OpenClip": "退出 OpenClip",
-    "Quit": "退出",
-    "Manage Extensions…": "管理扩展…",
-    "Manage Actions…": "管理动作…",
-    "No Extensions Installed": "尚未安装扩展",
-    "No Actions Available": "无可用动作",
-    "OpenClip Preferences": "OpenClip 偏好设置",
-    # Preferences tabs
-    "General": "通用",
-    "Appearance": "外观",
-    "Actions": "动作",
-    "AI": "AI",
-    "App Rules": "应用规则",
-    "About": "关于",
-    "Store": "商店",
-    "Configure": "配置",
-    "Documentation": "文档",
-    "GitHub Repository": "GitHub 仓库",
-    # General tab
-    "General Controls": "通用控制",
-    "Trigger Popup Shortcut": "弹出栏快捷键",
-    "Hold Mouse to Trigger": "按住鼠标触发",
-    "Show Menu Bar Icon": "在菜单栏中显示图标",
-    "Menu Bar Icon": "菜单栏图标",
-    "Keep OpenClip visible in the macOS menu bar for quick access to preferences and updates.": "在 macOS 菜单栏中保持显示 OpenClip 图标，以便快速访问偏好设置和更新。",
-    "Start at Login": "登录时启动",
-    "Action Results": "动作结果",
-    "Primary click": "主要点击",
-    "Left click": "左键点击",
-    "Secondary click": "次要点击",
-    "Right click or ⇧-click": "右键或 ⇧-点击",
-    "Preview": "预览",
-    "Paste": "粘贴",
-    "Copy": "拷贝",
-    "System Permissions": "系统权限",
-    "Accessibility Access": "辅助功能权限",
-    "Granted": "已授权",
-    "Required": "需要授权",
-    "Open Settings": "打开设置",
-    # Appearance
-    "Popup Preview": "弹出栏预览",
-    "Popup Theme": "弹出栏主题",
-    "Color Mode": "颜色模式",
-    "Popup Scale": "弹出栏缩放",
-    "Bar Width": "栏宽度",
-    "Actions Per Page": "每页动作数",
-    "Reset to Defaults": "恢复默认",
-    "Classic": "经典",
-    "Glass": "玻璃",
-    "System": "跟随系统",
-    "Light": "浅色",
-    "Dark": "深色",
-    # Actions tab
-    "Add Custom Action": "添加自定义动作",
-    "Install Extension…": "安装扩展…",
-    "Remove Extension": "移除扩展",
-    "Enable %@": "启用 %@",
-    "Collapse %@": "折叠 %@",
-    "Expand %@": "展开 %@",
-    "Select Extension to Install": "选择要安装的扩展",
-    "Choose a .openclipext folder, .zip archive, or script file": "选择 .openclipext 文件夹、.zip 压缩包或脚本文件",
-    "Extension Install Failed": "扩展安装失败",
-    "Remove Failed": "移除失败",
-    "OK": "好",
-    "This extension was modified externally. Toggle on to verify and re-enable.": "此扩展在外部被修改。请开启以验证并重新启用。",
-    "New extension found in folder. Toggle on to enable.": "在文件夹中发现新扩展。请开启以启用。",
-    "This extension requires OpenClip %@ or newer.": "此扩展需要 OpenClip %@ 或更高版本。",
-    # Custom action groups
-    "Create Action Group": "创建动作分组",
-    "New Group": "新建分组",
-    "Edit Group": "编辑分组",
-    "Group Name": "分组名称",
-    "Group Selected (%lld)": "合并选中项 (%lld)",
-    "Create Group from Selection…": "从选中项创建分组…",
-    "Remove from Group": "从分组中移除",
-    "Add to Group": "添加到分组",
-    "Drag icon to add to a group": "拖动图标以添加到分组",
-    "Ungroup": "解散分组",
-    "MEMBERS": "成员",
-    "Create": "创建",
-    "Empty group. Drag actions into this group in the actions list.": "空分组。在动作列表中将动作拖入此分组。",
-    "1 action will be grouped.": "1 个动作将被合并到分组。",
-    "%lld actions will be grouped.": "%lld 个动作将被合并到分组。",
-    "Configure Group": "配置分组",
-    # Custom action sheet
-    "Action Type": "动作类型",
-    "Web Search": "网页搜索",
-    "Text Snippet": "文本片段",
-    "Shell Script": "Shell 脚本",
-    "Action Title / Text": "动作标题 / 文本",
-    "URL Template": "URL 模板",
-    "Use **{text}** as a placeholder for the selected text.": "用 **{text}** 作为选中文本的占位符。",
-    "Snippet Template": "片段模板",
-    "Shell Script (Zsh)": "Shell 脚本（Zsh）",
-    "Use **$OPENCLIP_TEXT** for the selected text.": "用 **$OPENCLIP_TEXT** 表示选中的文本。",
-    "Replace selection with output": "用输出替换选中内容",
-    "Cancel": "取消",
-    "Add Action": "添加动作",
-    # Edit action
-    "Configure Action": "配置动作",
-    "Close": "关闭",
-    "OPTIONS": "选项",
-    "EXECUTION LOGIC": "执行逻辑",
-    "Type": "类型",
-    "Replace selected text with output": "用输出替换选中文本",
-    "This action is a standalone script file with no editable manifest. Re-create it as an extension package to customize its behavior.": "此动作是独立脚本文件，没有可编辑的清单。请将其重建为扩展包后再自定义行为。",
-    "Reset to Default": "恢复默认",
-    "Save Changes": "保存更改",
-    "Unable to Save Changes": "无法保存更改",
-    # Action appearance
-    "Action Name": "动作名称",
-    "Popup Bar:": "弹出栏：",
-    "Show Icon": "显示图标",
-    "Show Text": "显示文字",
-    "Choose icon": "选择图标",
-    "Icon: %@ — click to change": "图标：%@ — 点击更换",
-    "Popup bar shows “%@” — click to choose the icon for icon mode": "弹出栏显示“%@” — 点击可为图标模式选择图标",
-    "Text glyph “%@” — click to replace with an icon": "文字图标“%@” — 点击替换为图标",
-    "Remote image — click to replace with an icon": "远程图片 — 点击替换为图标",
-    "Package image “%@” — click to replace with an icon": "扩展包图片“%@” — 点击替换为图标",
-    # Icon picker
-    "Native Icons": "系统图标",
-    "Open Source": "开源图标",
-    "Loading SF Symbols…": "正在加载 SF Symbols…",
-    "Search SF Symbols…": "搜索 SF Symbols…",
-    "Search Iconify (press Enter)…": "搜索 Iconify（按回车）…",
-    "Search to browse 50,000+ open source icons\n(Lucide, Tabler, Material Symbols, MDI…)": "搜索浏览 50,000+ 开源图标\n（Lucide、Tabler、Material Symbols、MDI…）",
-    "No icons found for \"%@\"": "没有找到“%@”相关图标",
-    "Searching Iconify…": "正在搜索 Iconify…",
-    # Store / extensions
-    "Search extensions...": "搜索扩展…",
-    "Install File…": "安装文件…",
-    "No extensions found": "未找到扩展",
-    "by @%@": "来自 @%@",
-    "Installed": "已安装",
-    "Installing…": "正在安装…",
-    "Install": "安装",
-    "Update": "更新",
-    "Updating…": "正在更新…",
-    "Remove": "移除",
-    "Removing…": "正在移除…",
-    "Remove %@": "移除 %@",
-    # AI
-    "Enable AI Actions": "启用 AI 动作",
-    "Active AI Engine": "当前 AI 引擎",
-    "Select which provider powers AI features when invoked.": "选择调用 AI 功能时使用的提供方。",
-    "Apple": "Apple",
-    "Ollama": "Ollama",
-    "Cloud API": "云端 API",
-    "Browser": "浏览器",
-    "Provider Settings": "提供方设置",
-    "Apple Intelligence (On-Device)": "Apple Intelligence（本机）",
-    "Service Provider": "服务提供方",
-    "Model": "模型",
-    "Query failed: %@": "查询失败：%@",
-    "Server Endpoint": "服务器地址",
-    "Model Name": "模型名称",
-    "Default Chatbot": "默认聊天机器人",
-    "ChatGPT (OpenAI)": "ChatGPT（OpenAI）",
-    "Claude (Anthropic)": "Claude（Anthropic）",
-    "Perplexity AI": "Perplexity AI",
-    "Google Gemini": "Google Gemini",
-    "DeepSeek": "DeepSeek",
-    "Custom URL...": "自定义 URL…",
-    "Custom Web URL": "自定义网页 URL",
-    "Use **{text}** as a placeholder for the prompt and selection.": "用 **{text}** 作为提示词和选中文本的占位符。",
-    "Base Endpoint URL": "接口地址",
-    "Configured AI Actions": "已配置的 AI 动作",
-    "Reset Defaults": "恢复默认",
-    "Enable or disable AI actions for the popup bar, or click the edit icon to customize prompts.": "启用或关闭弹出栏中的 AI 动作，或点击编辑图标自定义提示词。",
-    "Edit Action Prompt": "编辑动作提示词",
-    "Delete Custom Action": "删除自定义动作",
-    "Add Custom AI Action": "添加自定义 AI 动作",
-    "Action Title": "动作标题",
-    "Prompt Instruction": "提示词",
-    "e.g. Simplify": "例如：简化",
-    "e.g. Rewrite text using simple 5th-grade vocabulary": "例如：用简单易懂的词汇改写文本",
-    "Edit AI Action": "编辑 AI 动作",
-    "Title": "标题",
-    "Prompt instruction...": "提示词…",
-    "Delete Action": "删除动作",
-    "Save": "保存",
-    "Apple Intelligence": "Apple Intelligence",
-    "Ollama (Local LLM)": "Ollama（本地大模型）",
-    "Cloud API (OpenAI/Claude)": "云端 API（OpenAI/Claude）",
-    "Browser Redirection": "浏览器跳转",
-    "Proofread": "校对",
-    "Fix all spelling, punctuation, and grammatical errors while preserving the original wording, tone, and formatting": "在保留原文用词、语气和格式的前提下，修正所有拼写、标点和语法错误",
-    "Rewrite": "改写",
-    "Rewrite to improve clarity, flow, and vocabulary while keeping the original meaning and language": "在保持原意和语言的前提下，提升清晰度、流畅度和用词",
-    "Summarize": "总结",
-    "Provide a concise bulleted summary capturing the key points": "用简洁的条目概括要点",
-    "Explain": "解释",
-    "Explain the core concept clearly and concisely in simple terms": "用简单的语言清晰、简洁地解释核心概念",
-    "Translate": "翻译",
-    "Translate the text accurately into natural English": "将文本准确翻译成自然流畅的英文",
-    "Fix Code": "修复代码",
-    "Fix bugs, syntax errors, and logic issues in this code snippet. Return only the raw working code without markdown code blocks or explanations": "修复这段代码中的缺陷、语法错误和逻辑问题。只返回可运行的原始代码，不要 markdown 代码块或解释",
-    "Make Shorter": "缩短",
-    "Condense this text to be as concise as possible while keeping all essential information": "在保留全部关键信息的前提下，把文本尽量压缩得更短",
-    "Formal Tone": "正式语气",
-    "Rewrite this text in a polished, professional, and formal tone": "用更得体、专业、正式的语气改写这段文本",
-    "AI Tools": "AI 工具",
-    "No text selected to process.": "没有选中可处理的文本。",
-    "API key required. Configure it in Preferences → AI.": "需要 API 密钥。请在偏好设置 → AI 中配置。",
-    "Invalid URL: %@": "无效的 URL：%@",
-    "The AI provider returned an empty or unreadable response.": "AI 提供方返回了空响应或无法解析的响应。",
-    "AI request failed (HTTP %lld): %@": "AI 请求失败（HTTP %lld）：%@",
-    "AI request failed (HTTP %lld).": "AI 请求失败（HTTP %lld）。",
-    "Model “%@” is not supported by the configured cloud endpoint.": "当前云端接口不支持模型“%@”。",
-    "Selected text is too long for this provider.": "选中文本对该提供方来说太长。",
-    "AI request was cancelled.": "AI 请求已取消。",
-    "Generating…": "正在生成…",
-    "Generating...": "正在生成…",
-    # App rules
-    "Application Rules": "应用规则",
-    "Configure per-app trigger and paste behavior.": "按应用配置触发和粘贴行为。",
-    "Add Application": "添加应用",
-    "No App Rules Configured": "尚未配置应用规则",
-    "OpenClip works in all applications by default. Click 'Add Application' to configure per-app rules or exclusions.": "默认情况下 OpenClip 在所有应用中生效。点击“添加应用”可配置按应用规则或排除项。",
-    "Add Application Rule": "添加应用规则",
-    "Applications": "应用程序",
-    "Custom": "自定义",
-    "Search applications...": "搜索应用…",
-    "e.g. com.apple.Terminal": "例如 com.apple.Terminal",
-    "Hotkey Only": "仅快捷键",
-    "Copy Result Only": "仅拷贝结果",
-    "Remove Rule": "移除规则",
-    "More Actions": "更多操作",
-    "Enable in this app": "在此应用中启用",
-    "Disable in this app": "在此应用中停用",
-    # About
-    "Version %@": "版本 %@",
-    "Instant actions for selected text on macOS": "为 macOS 选中文本提供即时动作",
-    "Check for Updates Automatically": "自动检查更新",
-    "Automatically Check for Updates": "自动检查更新",
-    "Automatically Download Updates": "自动下载更新",
-    "Auto-update": "自动更新",
-    "Check for updates automatically": "自动检查更新",
-    "Download updates automatically": "自动下载更新",
-    "Notify when updates are available": "有可用更新时通知我",
-    "Notify on Update": "有可用更新时通知",
-    "Update Ready: v%@": "更新已就绪：v%@",
-    "Update Available: v%@": "有可用更新：v%@",
-    "Update Now": "立即更新",
-    "Update on Quit": "退出时更新",
-    "Release Notes": "版本说明",
-    "Update Ready on Quit (v%@)…": "更新已就绪，退出时安装 (v%@)…",
-    "Check for Updates": "检查更新",
-    "Check Now": "立即检查",
-    "Last checked: %@": "上次检查：%@",
-    "Website": "网站",
-    "GitHub": "GitHub",
-    "Issues": "问题反馈",
-    "Export Logs": "导出日志",
-    "Exporting…": "正在导出…",
-    "Reveal Log File": "在访达中显示日志",
-    "Open source under MIT License": "以 MIT 许可证开源",
-    "Export Logs Failed": "导出日志失败",
-    "An unknown error occurred.": "发生未知错误。",
-    "just now": "刚刚",
-    "%lldm ago": "%lld 分钟前",
-    "%lldh ago": "%lld 小时前",
-    "yesterday": "昨天",
-    "%lldd ago": "%lld 天前",
-    # Onboarding
-    "Welcome": "欢迎",
-    "Access": "权限",
-    "Try It": "试用",
-    "Welcome to OpenClip": "欢迎使用 OpenClip",
-    "Turn selected text in any app into instant contextual actions.": "在任何应用中选中文本，即可获得即时上下文动作。",
-    "Calculates math, translates languages, speaks text & runs extensions.": "计算数学、翻译语言、朗读文本，并运行扩展。",
-    "So OpenClip can see what you've selected — text stays local by default unless you invoke cloud AI or browser actions.": "这样 OpenClip 才能看到你选中的内容 — 文本默认保留在本地，仅在你调用云端 AI 或浏览器动作时才会发送。",
-    "100% Private & On-Device": "100% 隐私，全部在本机完成",
-    "Highlighted text stays on your Mac by default. OpenClip never collects background data, and only transmits text when you explicitly invoke cloud AI or browser actions.": "选中的文本默认保留在你的 Mac 上。OpenClip 不会在后台收集数据，仅在你明确调用云端 AI 或浏览器动作时才会传输文本。",
-    "Accessibility Permission Granted": "已获得辅助功能权限",
-    "Grant Access in System Settings…": "在系统设置中授权…",
-    "Essential Extensions": "常用扩展",
-    "Install top extensions for instant translations, counts & speech.": "安装热门扩展，即可翻译、计数和朗读。",
-    "Browse 100+ extensions in Menu Bar → Preferences": "可在菜单栏 → 偏好设置中浏览 100+ 扩展",
-    "Try It Right Now": "马上试试",
-    "Highlight any part of the text below to see the real action bar appear.": "选中下方任意文字，即可看到真正的动作栏。",
-    "Interactive Playground — select text:": "互动演示 — 请选中文字：",
-    "OpenClip detected selection! The action bar is active.": "OpenClip 已检测到选中内容！动作栏已出现。",
-    "Press ⌥⌘C anytime to open OpenClip manually.": "随时按 ⌥⌘C 即可手动打开 OpenClip。",
-    "Skip": "跳过",
-    "Back": "返回",
-    "Get Started": "开始使用",
-    "Continue": "继续",
-    "Step %lld of %lld": "第 %lld 步，共 %lld 步",
-    "Speak": "朗读",
-    # Permission recovery
-    "OpenClip Updated": "OpenClip 已更新",
-    "OpenClip Permissions": "OpenClip 权限",
-    "OpenClip Has Been Updated": "OpenClip 已更新",
-    "Accessibility Access Required": "需要辅助功能权限",
-    "macOS requires re-enabling Accessibility to continue detecting text selections.": "macOS 需要重新开启辅助功能，才能继续检测文本选中。",
-    "OpenClip needs Accessibility access to detect selected text and display action bars.": "OpenClip 需要辅助功能权限，才能检测选中文本并显示动作栏。",
-    "Highlighted text stays on your Mac by default and is only sent to external services when you explicitly invoke cloud AI or browser actions.": "选中的文本默认保留在你的 Mac 上，仅在你明确调用云端 AI 或浏览器动作时才会发送到配置的外部服务。",
-    "Open System Settings…": "打开系统设置…",
-    "Flip the switch next to OpenClip to ON in System Settings.": "在系统设置中打开 OpenClip 旁边的开关。",
-    "Later": "稍后",
-    # Coach mark
-    "Select any text to see OpenClip": "选中任意文本即可看到 OpenClip",
-    "Finish setting up OpenClip": "完成 OpenClip 设置",
-    "A bar with quick actions appears near your cursor.": "光标附近会出现带快捷动作的工具栏。",
-    "Grant Accessibility to detect your text selections.": "授予辅助功能权限后才能检测文本选中。",
-    "Open Preferences": "打开偏好设置",
-    "Dismiss": "关闭",
-    # Popup / search / results
-    "Search all actions": "搜索全部动作",
-    "Search within %@": "在 %@ 中搜索",
-    "No matching actions": "没有匹配的动作",
-    "No matches for “%@”": "没有与“%@”匹配的结果",
-    "Press esc to go back": "按 esc 返回",
-    "Back to actions": "返回动作",
-    "Copy response and close": "拷贝回复并关闭",
-    "Paste response over selection": "将回复粘贴到选中内容上",
-    "Previous page": "上一页",
-    "Next page": "下一页",
-    "Show completions": "显示补全",
-    "Copy the response to the clipboard and close (⏎)": "拷贝回复到剪贴板并关闭（⏎）",
-    "Copy the response to the clipboard and close (⇧⏎)": "拷贝回复到剪贴板并关闭（⇧⏎）",
-    "Opening %@…": "正在打开 %@…",
-    "Copied": "已拷贝",
-    # Builtin actions
-    "Cut": "剪切",
-    "Search": "搜索",
-    "Calculate": "计算",
-    "Define": "释义",
-    "Add Event": "添加日程",
-    "Open Link": "打开链接",
-    "Reveal in Finder": "在访达中显示",
-    "Word Completion": "单词补全",
-    "Search Engine URL Template": "搜索引擎 URL 模板",
-    "Calendar Destination": "日历目标",
-    # Search engine presets (built-in Search action)
-    "Google": "谷歌",
-    "DuckDuckGo": "DuckDuckGo",
-    "Kagi": "Kagi",
-    "Brave Search": "Brave 搜索",
-    "Bing": "必应",
-    "Ecosia": "Ecosia",
-    "Custom...": "自定义…",
-    "Required option not set.": "尚未设置必填选项。",
-    "Required options not set.": "尚未设置必填选项。",
-    # Deep link / alerts
-    "Install Extension?": "安装扩展？",
-    "OpenClip wants to install the extension \"%@\" from %@. Extensions can run scripts when you select text. Only proceed if you trust this source.": "OpenClip 想要从 %2$@ 安装扩展“%1$@”。扩展可在你选中文本时运行脚本。请确认你信任该来源后再继续。",
-    "OpenClip could not install \"%@\": %@": "OpenClip 无法安装“%@”：%@",
-    "OpenClip could not remove extension: %@": "OpenClip 无法移除扩展：%@",
-    "Invalid download URL.": "下载地址无效。",
-    "Exit search": "退出搜索",
-    "Back to actions (Esc)": "返回动作（Esc）",
-    "Paste the response over the selection (⏎)": "将回复粘贴到选中内容上（⏎）",
-    "Open AI settings": "打开 AI 设置",
-    "Fetch available models live from API": "从 API 实时获取可用模型",
-    "Fetch installed models from local Ollama instance": "从本机 Ollama 获取已安装模型",
-}
+ROOT = Path(__file__).resolve().parents[1]
+TRANSLATIONS_DIR = Path(__file__).resolve().parent / "translations"
+
+# Supported target languages
+LANGUAGES = ["zh-Hans", "zh-Hant", "fr", "ja"]
 
 
-def catalog(translations: dict[str, str]) -> dict:
+def load_translations() -> dict[str, dict[str, str]]:
+    tables: dict[str, dict[str, str]] = {}
+    for lang in LANGUAGES:
+        lang_file = TRANSLATIONS_DIR / f"{lang}.json"
+        if lang_file.exists():
+            with open(lang_file, "r", encoding="utf-8") as f:
+                tables[lang] = json.load(f)
+        else:
+            tables[lang] = {}
+    return tables
+
+
+# Backwards compatibility export: TRANSLATIONS is zh-Hans
+_all_tables = load_translations()
+TRANSLATIONS: dict[str, str] = _all_tables.get("zh-Hans", {})
+
+
+def catalog(tables: dict[str, dict[str, str]]) -> dict:
+    all_keys: set[str] = set()
+    for lang_dict in tables.values():
+        all_keys.update(lang_dict.keys())
+
     strings = {}
-    for key, zh in translations.items():
-        strings[key] = {
-            "localizations": {
-                "zh-Hans": {
+    for key in sorted(all_keys):
+        localizations = {}
+        for lang in LANGUAGES:
+            lang_dict = tables.get(lang, {})
+            if key in lang_dict:
+                localizations[lang] = {
                     "stringUnit": {
                         "state": "translated",
-                        "value": zh,
+                        "value": lang_dict[key],
                     }
                 }
-            }
+        strings[key] = {
+            "localizations": localizations
         }
+
     return {
         "sourceLanguage": "en",
-        "strings": dict(sorted(strings.items())),
+        "strings": strings,
         "version": "1.0",
     }
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parents[1]
-    dest = root / "Sources" / "OpenClip" / "Resources" / "Localizable.xcstrings"
+    tables = load_translations()
+    dest = ROOT / "Sources" / "OpenClip" / "Resources" / "Localizable.xcstrings"
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps(catalog(TRANSLATIONS), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Wrote {len(TRANSLATIONS)} strings to {dest}")
+    cat = catalog(tables)
+    dest.write_text(json.dumps(cat, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    counts = ", ".join(f"{lang}: {len(tables[lang])}" for lang in LANGUAGES)
+    print(f"Wrote {len(cat['strings'])} keys to {dest} ({counts})")
 
 
 if __name__ == "__main__":

@@ -34,6 +34,7 @@ public struct DeliveryDecoratedAction: Action {
     public var icon: ActionIcon { base.icon }
     public var chrome: ActionChrome { base.chrome }
     public var actionOptions: [ExtensionOption] { base.actionOptions }
+    public var keywords: [String] { base.keywords }
 
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -48,5 +49,11 @@ public struct DeliveryDecoratedAction: Action {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         try await base.perform(context)
+    }
+}
+
+extension DeliveryDecoratedAction: ConfigurableAction {
+    public var preferenceIconName: String {
+        (base as? any ConfigurableAction)?.preferenceIconName ?? Constants.defaultIconSymbol
     }
 }

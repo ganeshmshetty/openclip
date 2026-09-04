@@ -485,7 +485,7 @@ public struct PopupView: View {
                     onRunAI(actionID)
                 } else {
                     guard let preset = aiManager.preset(forActionID: actionID) else { return }
-                    runAIPreset(prompt: preset.prompt, title: preset.title)
+                    runAIPreset(prompt: aiManager.promptForPreset(preset), title: preset.title)
                 }
             },
             onActionPerformed: onActionPerformed,

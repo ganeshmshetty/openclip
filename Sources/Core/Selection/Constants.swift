@@ -72,6 +72,8 @@ public enum Constants {
     public static let envVarCapturePrefix: String = "OPENCLIP_CAPTURE_"
     public static let envVarBundleID: String = "OPENCLIP_BUNDLE_ID"
     public static let envVarActionID: String = "OPENCLIP_ACTION_ID"
+    public static let envVarLocale: String = "OPENCLIP_LOCALE"
+    public static let envVarLanguage: String = "OPENCLIP_LANGUAGE"
     public static let shortcutsBinaryPath: String = "/usr/bin/shortcuts"
     public static let maxHeaderLinesToScan: Int = 50
 

@@ -52,7 +52,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Logging](logging.md) — the single `Log` surface, category table, and per-subsystem filtering workflow.
 
 ### Developer Guide
-- [AGENTS.md — Authoring & Packaging Extensions](developer-guide/AGENTS.md) — **Start here.** Self-contained guide: manifest schema, all action kinds, options, requirements, groups, and the result surface.
+- [AGENTS.md — Authoring & Packaging Extensions](../Extensions/AGENTS.md) — **Start here.** Self-contained guide: manifest schema, all action kinds, options, requirements, groups, and the result surface.
 - [Extending OpenClip Overview](developer-guide/overview.md) — Extension architecture and custom action integration.
 - [Extension Package Format](developer-guide/package-format.md) — `.openclipext` bundle structure, `manifest.json` schema, and options definitions.
 - [Standalone Snippet Parsing](developer-guide/snippets.md) — Pure header parsing via `OpenClipSnippetParser`.

@@ -38,6 +38,9 @@ interface OpenClipBridge {
   };
   options: Record<string, string>; // Resolved option values (values only, read-only)
   option(id: string): string | undefined; // Functional form of options[id]
+  locale: string;          // User's active locale identifier (e.g. "zh_CN", "en_US")
+  language: string;        // Active language/script tag (e.g. "zh-Hans", "en")
+  i18n(dict: Record<string, string>): string; // Resolves dictionary against active language with fallbacks
 
   // Effect functions (call order is preserved):
   paste(value: string): void;
@@ -103,7 +106,7 @@ function action(selection) {
 
 The effect the branch picks becomes the action's primary result, so the standard delivery pipeline
 still applies to it (the paste→copy probe, and the click's declared `toast`/`secondaryToast`, see
-[`docs/developer-guide/AGENTS.md` §5b/§5c](../developer-guide/AGENTS.md)).
+[`Extensions/AGENTS.md` §5b/§5c](../../Extensions/AGENTS.md)).
 
 ## Async Mode (`"async": true`)
 

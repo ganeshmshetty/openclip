@@ -111,7 +111,7 @@ Keep messages focused and lowercase-scope where applicable (e.g. `feat(extension
 5. In the PR description, describe the change and what you tested.
 
 Extension authors: the extension format is documented in
-[`docs/developer-guide/AGENTS.md`](docs/developer-guide/AGENTS.md); the built-in
+[`Extensions/AGENTS.md`](Extensions/AGENTS.md); the built-in
 store catalog lives in the `Extensions/` submodule.
 
 ## Code of Conduct

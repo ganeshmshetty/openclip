@@ -2,7 +2,7 @@ name: OpenClip
 options:
   bundleIdPrefix: com.openclip
   developmentLanguage: en
-  knownRegions: [en, Base, zh-Hans]
+  knownRegions: [en, Base, zh-Hans, zh-Hant, fr, ja]
 targets:
   Core:
     type: framework
@@ -38,6 +38,9 @@ targets:
         CFBundleLocalizations:
           - en
           - zh-Hans
+          - zh-Hant
+          - fr
+          - ja
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

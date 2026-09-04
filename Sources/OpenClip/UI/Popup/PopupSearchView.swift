@@ -407,7 +407,11 @@ public struct PopupSearchView: View {
         if case .extensionPkg(let packageID) = action.chrome.badge {
             parts.append(packageID)
         }
-        // Fold each container (group) row's title + package name into its sub-actions' keywords.
+        // Action-declared keywords (e.g. from manifest or custom metadata)
+        parts.append(contentsOf: action.keywords)
+        // Multi-lingual search synonyms dictionary (EN, ZH-Hans, ZH-Hant, FR, JA)
+        parts.append(contentsOf: ActionSearchKeywords.keywords(for: action.id, actionTitle: action.title))
+        // Fold each container (group) row's title + package name + keywords into its sub-actions' keywords.
         // The group row is filtered out of the palette, so its name must index its children to
         // stay searchable.
         for group in catalog where group.chrome.popupBehavior == .showSubActions {
@@ -420,6 +424,8 @@ public struct PopupSearchView: View {
             }
             guard isMember else { continue }
             parts.append(group.title)
+            parts.append(contentsOf: group.keywords)
+            parts.append(contentsOf: ActionSearchKeywords.keywords(for: group.id, actionTitle: group.title))
             if case .extensionPkg(let packageName) = group.chrome.badge {
                 parts.append(packageName)
             }

@@ -32,6 +32,7 @@ public struct MenuDecoratedAction: Action, RelevanceProviding {
     /// decorator around a delivery-declaring action (e.g. DeliveryDecoratedAction) never
     /// shadows the declared delivery with the protocol's nil default.
     public var delivery: ActionDelivery? { base.delivery }
+    public var keywords: [String] { base.keywords }
 
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -65,5 +66,11 @@ public struct MenuDecoratedAction: Action, RelevanceProviding {
         }
         let range = NSRange(trimmed.startIndex..., in: trimmed)
         return pattern.firstMatch(in: trimmed, options: [], range: range) != nil
+    }
+}
+
+extension MenuDecoratedAction: ConfigurableAction {
+    public var preferenceIconName: String {
+        (base as? any ConfigurableAction)?.preferenceIconName ?? Constants.defaultIconSymbol
     }
 }

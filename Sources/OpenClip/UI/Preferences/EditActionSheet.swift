@@ -69,7 +69,7 @@ public struct EditActionSheet: View {
         guard let configurationRequest else { return nil }
         if let reason = configurationRequest.reason, !reason.isEmpty { return reason }
         if !configurationRequest.missingOptionIDs.isEmpty {
-            return "This action needs configuration before it can run."
+            return String(localized: "This action needs configuration before it can run.")
         }
         return nil
     }
@@ -469,7 +469,7 @@ public struct EditActionSheet: View {
         guard let state = manifestState else {
             // Defensive: the Save button is disabled in this state, but if reached anyway (e.g. a
             // keyboard path) surface the reason instead of silently returning with edits dropped.
-            saveAlertMessage = "This action is backed by a standalone script file with no editable manifest, so changes cannot be saved here."
+            saveAlertMessage = String(localized: "This action is backed by a standalone script file with no editable manifest, so changes cannot be saved here.")
             showingSaveAlert = true
             return false
         }
@@ -521,7 +521,10 @@ public struct EditActionSheet: View {
             loadingMessage: meta.loadingMessage,
             secondary: meta.secondary,
             toast: meta.toast,
-            secondaryToast: meta.secondaryToast
+            secondaryToast: meta.secondaryToast,
+            keywords: meta.keywords,
+            localizedTitle: (finalTitle.isEmpty || finalTitle == meta.title || finalTitle == meta.localizedTitle?.resolve()) ? meta.localizedTitle : nil,
+            localizedLoadingMessage: meta.localizedLoadingMessage
         )
 
         var actions = state.manifest.actions
@@ -533,14 +536,18 @@ public struct EditActionSheet: View {
             options: state.manifest.options,
             version: state.manifest.version,
             capabilities: state.manifest.capabilities,
-            minOpenClipVersion: state.manifest.minOpenClipVersion
+            minOpenClipVersion: state.manifest.minOpenClipVersion,
+            keywords: state.manifest.keywords,
+            localizedName: state.manifest.localizedName,
+            description: state.manifest.description,
+            localizedDescription: state.manifest.localizedDescription
         )
 
         do {
             try ExtensionManifestStore.writeManifest(updatedManifest, to: state.manifestURL)
         } catch {
             Log.factory.error("Failed to save action manifest: \(error.localizedDescription)")
-            saveAlertMessage = "Failed to save the action manifest: \(error.localizedDescription)"
+            saveAlertMessage = String(localized: "Failed to save the action manifest: \(error.localizedDescription)")
             showingSaveAlert = true
             return false
         }

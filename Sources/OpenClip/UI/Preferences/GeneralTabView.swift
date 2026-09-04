@@ -211,7 +211,7 @@ struct GeneralTab: View {
                         HStack(spacing: 5) {
                             Image(systemName: permissionManager.isAccessibilityGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                                 .font(.caption)
-                            Text(permissionManager.isAccessibilityGranted ? String(localized: "Granted") : String(localized: "Required"))
+                            Text(permissionManager.isAccessibilityGranted ? String(localized: "Granted") : String(localized: "Access Required"))
                                 .font(.caption)
                                 .fontWeight(.semibold)
                         }

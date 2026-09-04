@@ -44,7 +44,7 @@ tail -f ~/Library/Logs/OpenClip/openclip.log
 
 ## Extensions
 
-The **authoritative manifest / JS-bridge spec is `docs/developer-guide/AGENTS.md`** — read it before touching anything extension-related. Don't invent manifest keys (unknown keys are ignored; unknown `type` strings reject the whole package). Extensions live in `~/.openclip/extensions`, scanned at startup (~2 s hot reload if running).
+The **authoritative manifest / JS-bridge spec is `Extensions/AGENTS.md`** — read it before touching anything extension-related. Don't invent manifest keys (unknown keys are ignored; unknown `type` strings reject the whole package). Extensions live in `~/.openclip/extensions`, scanned at startup (~2 s hot reload if running).
 
 ```bash
 ./scripts/new_extension.sh <Name> [--type js|group|url]  # scaffold -> Extensions/raw/
@@ -61,10 +61,10 @@ The **authoritative manifest / JS-bridge spec is `docs/developer-guide/AGENTS.md
 
 ## Localization
 
-User-facing copy lives in `Sources/OpenClip/Resources/Localizable.xcstrings` (English source, Simplified Chinese translations). SwiftUI string literals look up the catalog automatically; AppKit titles, interpolated strings, and Core builtin action titles use `String(localized:)`. When adding copy:
+User-facing copy lives in `Sources/OpenClip/Resources/Localizable.xcstrings` (English source with Simplified Chinese `zh-Hans`, Traditional Chinese `zh-Hant`, French `fr`, and Japanese `ja` translations). SwiftUI string literals look up the catalog automatically; AppKit titles, interpolated strings, and Core builtin action titles use `String(localized:)`. Multi-lingual search keywords live in `ActionSearchKeywords.swift`. When adding copy:
 
 1. Use a stable English literal as the key (don't concatenate fragments).
-2. Add the `zh-Hans` translation in `scripts/generate_localizable.py` and re-run `python3 scripts/generate_localizable.py`.
+2. Add the translations to `scripts/translations/{zh-Hans,zh-Hant,fr,ja}.json` and re-run `python3 scripts/generate_localizable.py`.
 3. AppKit / ternary / interpolated strings must wrap `String(localized:)` — a `String` variable passed to `Text(...)` will not localize.
 
 ## Docs & housekeeping

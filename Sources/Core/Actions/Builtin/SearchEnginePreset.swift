@@ -53,9 +53,19 @@ public struct SearchEnginePreset: Sendable, Equatable, Identifiable {
         displayName: String(localized: "Ecosia"),
         urlTemplate: "https://www.ecosia.org/search?q={query}"
     )
+    public static let baidu = SearchEnginePreset(
+        id: "baidu",
+        displayName: String(localized: "Baidu"),
+        urlTemplate: "https://www.baidu.com/s?wd={query}"
+    )
+    public static let yahooJapan = SearchEnginePreset(
+        id: "yahoojapan",
+        displayName: String(localized: "Yahoo! JAPAN"),
+        urlTemplate: "https://search.yahoo.co.jp/search?p={query}"
+    )
 
     /// All curated presets, in picker order.
-    public static let all: [SearchEnginePreset] = [google, duckduckgo, kagi, brave, bing, ecosia]
+    public static let all: [SearchEnginePreset] = [google, duckduckgo, kagi, brave, bing, ecosia, baidu, yahooJapan]
 
     /// Default `{query}` template (Google). Single source of truth for the Search action's default.
     public static let defaultURLTemplate = google.urlTemplate

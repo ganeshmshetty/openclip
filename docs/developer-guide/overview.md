@@ -1,6 +1,6 @@
 # Extending OpenClip Overview
 
-> **Start here:** the self-contained authoring guide is [`docs/developer-guide/AGENTS.md`](./AGENTS.md)
+> **Start here:** the self-contained authoring guide is [`Extensions/AGENTS.md`](../../Extensions/AGENTS.md)
 > (manifest schema, all action kinds, options/requirements, groups, and the result surface).
 > This page is a high-level orientation.
 

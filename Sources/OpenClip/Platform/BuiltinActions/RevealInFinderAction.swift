@@ -26,7 +26,7 @@ public struct RevealInFinderAction: Action {
             return .failure(NSError(
                 domain: Constants.actionErrorDomain,
                 code: Constants.actionErrorCode,
-                userInfo: [NSLocalizedDescriptionKey: "No existing file path found in selection."]
+                userInfo: [NSLocalizedDescriptionKey: String(localized: "No existing file path found in selection.")]
             ))
         }
         

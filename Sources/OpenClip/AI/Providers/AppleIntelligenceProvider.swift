@@ -75,7 +75,7 @@ public final class AppleIntelligenceProvider: AIProvider {
             #endif
 
             // 2. Return clear error if on-device model is unavailable on this device/OS
-            continuation.finish(throwing: AIError.providerUnavailable("Apple Intelligence requires macOS 26.0+ with supported Apple Silicon hardware. Configure another provider in Preferences → AI."))
+            continuation.finish(throwing: AIError.providerUnavailable(String(localized: "Apple Intelligence requires macOS 26.0+ with supported Apple Silicon hardware. Configure another provider in Preferences → AI.")))
         }
     }
 }

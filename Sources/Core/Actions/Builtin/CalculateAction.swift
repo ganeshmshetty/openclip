@@ -59,8 +59,8 @@ public struct CalculateAction: ConfigurableAction {
         s = s.replacingOccurrences(of: " x ", with: " * ")
              .replacingOccurrences(of: " X ", with: " * ")
 
-        // Normalize comma as thousands separator
-        s = s.replacingOccurrences(of: ",", with: "")
+        // Normalize decimal & thousands separators intelligently
+        s = normalizeSeparators(s)
 
         s = s.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !s.isEmpty else { return nil }
@@ -68,6 +68,67 @@ public struct CalculateAction: ConfigurableAction {
         // Allowed character set (digits, operators, parens, dot, percent, power, spaces)
         let allowed = CharacterSet(charactersIn: "0123456789.+-*/%^() ")
         guard s.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return nil }
+
+        return s
+    }
+
+    /// Intelligently resolves decimal points and thousands separators across US (1,250.50)
+    /// and European (1.250,50 / 12,5 + 3,5) math expressions without requiring manual settings.
+    private func normalizeSeparators(_ text: String) -> String {
+        guard text.contains(",") else { return text }
+
+        guard let regex = try? NSRegularExpression(pattern: #"[0-9]+(?:[.,][0-9]+)+"#) else {
+            return text
+        }
+
+        var s = text
+        let nsString = s as NSString
+        let matches = regex.matches(in: s, range: NSRange(location: 0, length: nsString.length))
+        guard !matches.isEmpty else { return s }
+
+        let isSystemCommaDecimal = Locale.current.decimalSeparator == ","
+
+        for match in matches.reversed() {
+            let tokenRange = match.range
+            guard let swiftRange = Range(tokenRange, in: s) else { continue }
+            let token = String(s[swiftRange])
+            guard token.contains(",") else { continue }
+
+            let normalizedToken: String
+            if token.contains(".") {
+                // Contains both '.' and ','
+                if let lastDot = token.lastIndex(of: "."),
+                   let lastComma = token.lastIndex(of: ","),
+                   lastDot < lastComma {
+                    // Dot precedes comma: European style ("1.250,50" -> "1250.50")
+                    var t = token.replacingOccurrences(of: ".", with: "")
+                    t = t.replacingOccurrences(of: ",", with: ".")
+                    normalizedToken = t
+                } else {
+                    // Comma precedes dot: US style ("1,250.50" -> "1250.50")
+                    normalizedToken = token.replacingOccurrences(of: ",", with: "")
+                }
+            } else {
+                // Contains only ','
+                let parts = token.split(separator: ",")
+                if parts.count > 2 {
+                    // Multiple commas: e.g. "1,000,000"
+                    normalizedToken = token.replacingOccurrences(of: ",", with: "")
+                } else if parts.count == 2 {
+                    let intPart = parts[0]
+                    let fracPart = parts[1]
+                    if fracPart.count != 3 || intPart == "0" || isSystemCommaDecimal {
+                        normalizedToken = "\(intPart).\(fracPart)"
+                    } else {
+                        normalizedToken = token.replacingOccurrences(of: ",", with: "")
+                    }
+                } else {
+                    normalizedToken = token.replacingOccurrences(of: ",", with: ".")
+                }
+            }
+
+            s.replaceSubrange(swiftRange, with: normalizedToken)
+        }
 
         return s
     }

@@ -201,10 +201,12 @@ public final class AppUpdateManager: NSObject, ObservableObject, SPUUpdaterDeleg
             guard isAuthorized else { return }
 
             let content = UNMutableNotificationContent()
-            content.title = isReadyToInstall ? "OpenClip Update Ready" : "OpenClip Update Available"
+            content.title = isReadyToInstall
+                ? String(localized: "OpenClip Update Ready")
+                : String(localized: "OpenClip Update Available")
             content.body = isReadyToInstall
-                ? "Version \(version) is ready to install on quit, or click to install now."
-                : "Version \(version) is available. Click to install the update."
+                ? String(localized: "Version \(version) is ready to install on quit, or click to install now.")
+                : String(localized: "Version \(version) is available. Click to install the update.")
             content.sound = .default
             content.categoryIdentifier = Self.updateNotificationCategory
             content.userInfo = ["type": "app_update", "version": version]

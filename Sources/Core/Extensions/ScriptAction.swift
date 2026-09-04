@@ -75,6 +75,8 @@ public struct ScriptAction: Action {
                 env[Constants.envVarCapturePrefix + "\(index + 1)"] = capture
             }
         }
+        env[Constants.envVarLocale] = Locale.current.identifier
+        env[Constants.envVarLanguage] = Locale.current.language.languageCode?.identifier ?? "en"
 
         let output = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
             executableURL: scriptURL,

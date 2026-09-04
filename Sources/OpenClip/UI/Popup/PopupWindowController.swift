@@ -271,8 +271,9 @@ public class PopupWindowController {
                 self.runLoadingAction(action, with: context, isSecondaryClick: self.pendingClickIntent == .secondary)
             },
             onRunAI: { [weak self] actionID in
-                guard let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
-                self?.runAIPreset(prompt: preset.prompt, title: preset.title)
+                guard let self, let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
+                let prompt = AIServiceManager.shared.promptForPreset(preset)
+                self.runAIPreset(prompt: prompt, title: preset.title)
             },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary }
         )
@@ -982,11 +983,12 @@ public class PopupWindowController {
             },
             onRunAI: { [weak self] actionID in
                 self?.usageStore.record(actionID)
-                guard let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
-                self?.subBarController.hide()
-                self?.modeStore.isSubBarActive = false
-                self?.modeStore.activeSubGroupID = nil
-                self?.runAIPreset(prompt: preset.prompt, title: preset.title)
+                guard let self, let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
+                self.subBarController.hide()
+                self.modeStore.isSubBarActive = false
+                self.modeStore.activeSubGroupID = nil
+                let prompt = AIServiceManager.shared.promptForPreset(preset)
+                self.runAIPreset(prompt: prompt, title: preset.title)
             },
             onRunLoadingAction: { [weak self] action in
                 guard let self, let context = self.currentActionContext else { return }

@@ -45,11 +45,15 @@ public protocol Action: Sendable {
     /// Declares a secondary (⇧-click / secondary-click) result and per-click toasts. Defaults to
     /// nil (derive secondary from the primary result); see `ActionDelivery`.
     var delivery: ActionDelivery? { get }
+
+    /// Search keywords for the action palette.
+    var keywords: [String] { get }
 }
 
 public extension Action {
     var actionOptions: [ExtensionOption] { [] }
     var delivery: ActionDelivery? { nil }
+    var keywords: [String] { [] }
     var chrome: ActionChrome {
         ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin)
     }

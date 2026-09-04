@@ -28,7 +28,7 @@ public struct OpenURLAction: Action {
         return .failure(NSError(
             domain: Constants.actionErrorDomain,
             code: Constants.actionErrorCode,
-            userInfo: [NSLocalizedDescriptionKey: "No valid URL found in selection."]
+            userInfo: [NSLocalizedDescriptionKey: String(localized: "No valid URL found in selection.")]
         ))
     }
     

@@ -245,5 +245,35 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertEqual(updatedManifest.version, "2.1.0")
         XCTAssertEqual(updatedManifest.capabilities, ["fetch"])
     }
+
+    func testManifestRequiresName() throws {
+        let jsonWithoutName = """
+        {
+          "identifier": "com.example.noname",
+          "actions": []
+        }
+        """.data(using: .utf8)!
+        XCTAssertThrowsError(try JSONDecoder().decode(ExtensionMetadata.self, from: jsonWithoutName)) { error in
+            guard case DecodingError.keyNotFound = error else {
+                XCTFail("Expected DecodingError.keyNotFound but got \(error)")
+                return
+            }
+        }
+    }
+
+    func testOptionRequiresLabel() throws {
+        let jsonWithoutLabel = """
+        {
+          "identifier": "opt1",
+          "type": "string"
+        }
+        """.data(using: .utf8)!
+        XCTAssertThrowsError(try JSONDecoder().decode(ExtensionOptionMetadata.self, from: jsonWithoutLabel)) { error in
+            guard case DecodingError.keyNotFound = error else {
+                XCTFail("Expected DecodingError.keyNotFound but got \(error)")
+                return
+            }
+        }
+    }
 }
 

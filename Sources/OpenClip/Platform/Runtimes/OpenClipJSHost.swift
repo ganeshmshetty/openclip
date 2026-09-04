@@ -316,6 +316,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
         jsContext.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
         jsContext.evaluateScript("openclip.option = function(id) { return openclip.options[id]; }")
+        jsContext.evaluateScript("openclip.i18n = function(dict) { if (!dict) return ''; var baseLang = (openclip.language || '').split('-')[0]; return dict[openclip.language] || dict[openclip.locale] || dict[baseLang] || dict['en'] || Object.values(dict)[0] || ''; }")
         if request.isAsync, let promiseState {
             registerAsyncBridge(
                 openclip: openclip,
@@ -741,9 +742,21 @@ public final class OpenClipJSHost: @unchecked Sendable {
         app.setObject(sourceApp.bundleIdentifier ?? "", forKeyedSubscript: "bundleID")
         app.setObject(sourceApp.localizedName ?? "", forKeyedSubscript: "name")
         input.setObject(app, forKeyedSubscript: "app")
+        let currentLocale = Locale.current
+        let activeTag = currentLocale.identifier
+        let langCode = currentLocale.language.languageCode?.identifier ?? "en"
+        let scriptCode = currentLocale.language.script?.identifier
+        let fullLangTag: String
+        if let scriptCode {
+            fullLangTag = "\(langCode)-\(scriptCode)"
+        } else {
+            fullLangTag = langCode
+        }
 
         openclip.setObject(input, forKeyedSubscript: "input")
         openclip.setObject(options, forKeyedSubscript: "options")
+        openclip.setObject(activeTag, forKeyedSubscript: "locale")
+        openclip.setObject(fullLangTag, forKeyedSubscript: "language")
         return openclip
     }
 

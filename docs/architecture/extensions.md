@@ -2,7 +2,7 @@
 
 This page documents **what an extension is allowed to do**, how OpenClip decides that, and where
 the line is between malformed and untrusted. The authoritative manifest schema lives in
-[`docs/developer-guide/AGENTS.md`](../developer-guide/AGENTS.md); this page is about the security
+[`Extensions/AGENTS.md`](../../Extensions/AGENTS.md); this page is about the security
 and trust posture.
 
 Source of truth: `Sources/Core/Extensions/` (`ExtensionManager.swift`,

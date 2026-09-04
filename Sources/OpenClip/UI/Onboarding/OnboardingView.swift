@@ -330,7 +330,7 @@ public struct OnboardingView: View {
         }
     }
 
-    private func actionPill(icon: String, label: String) -> some View {
+    private func actionPill(icon: String, label: LocalizedStringKey) -> some View {
         HStack(spacing: 3.5) {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .semibold))

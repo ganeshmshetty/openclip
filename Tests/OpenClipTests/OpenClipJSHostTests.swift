@@ -1016,4 +1016,18 @@ final class OpenClipJSHostTests: XCTestCase {
             }
         }
     }
+
+    func testI18nFallsBackToBaseLanguage() async throws {
+        let script = """
+        function action() {
+            openclip.language = 'fr-CA';
+            return openclip.i18n({ 'fr': 'Bonjour', 'en': 'Hello' });
+        }
+        """
+        let result = try await host.run(makeRequest(script: script))
+        guard case .text(let text) = result else {
+            return XCTFail("Expected .text, got \(result)")
+        }
+        XCTAssertEqual(text, "Bonjour")
+    }
 }
