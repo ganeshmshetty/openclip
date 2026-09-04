@@ -19,11 +19,12 @@ public final class ToastPanel: NSPanel {
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = false
-        // Purely informational surface — never key, no interactive content. Let every click (the
-        // bubble AND the toastShadowInset ring hosting its shadow) fall through to the app below.
+        // Defaults to passive pass-through. When showing interactive loading toasts,
+        // ToastPanelController sets ignoresMouseEvents = false so clicks can cancel the task.
         self.ignoresMouseEvents = true
         self.isMovable = false
         self.hidesOnDeactivate = false
+        self.acceptsMouseMovedEvents = true
     }
 
     public override var canBecomeKey: Bool { false }

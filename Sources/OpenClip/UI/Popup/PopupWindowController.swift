@@ -112,6 +112,10 @@ public class PopupWindowController {
     /// depend on SwiftUI view teardown racing AppKit's hide().
     var activeStreamingTask: Task<Void, Never>?
 
+    /// Active loading action task reference so clicking the loading toast can cancel in-flight execution.
+    var activeLoadingTask: Task<Void, Never>?
+    private var activeLoadingID: UUID?
+
     /// When true, distance-based auto-dismiss is suppressed so the popup stays visible
     /// during the onboarding sandbox experience.
     public var isOnboardingVisible: Bool = false
@@ -171,6 +175,8 @@ public class PopupWindowController {
             // task and bump the token so late chunks are dropped even before the old view unwinds.
             activeStreamingTask?.cancel()
             activeStreamingTask = nil
+            activeLoadingTask?.cancel()
+            activeLoadingTask = nil
             aiSession = UUID()
             aiSessionID = aiSession
         }
@@ -589,6 +595,9 @@ public class PopupWindowController {
         // chunk already in flight is dropped instead of re-flipping state after the resets below.
         activeStreamingTask?.cancel()
         activeStreamingTask = nil
+        activeLoadingTask?.cancel()
+        activeLoadingTask = nil
+        activeLoadingID = nil
         aiSessionID = UUID()
 
         if toastController.currentFeedback?.keepVisible == true || toastController.isLoading {
@@ -626,6 +635,22 @@ public class PopupWindowController {
         isMenuTracking = false
         PopupHoverState.shared.location = nil
         SubBarHoverState.shared.location = nil
+    }
+
+    /// Cancels any in-flight background tasks (loading actions and AI streaming) and hides the toast.
+    @MainActor
+    public func cancelActiveTasks() {
+        if activeLoadingTask != nil || activeStreamingTask != nil {
+            Log.presentation.info("Cancelling active in-flight task(s) via loading toast")
+        }
+        activeLoadingTask?.cancel()
+        activeLoadingTask = nil
+        activeLoadingID = nil
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+        inFlightDeliveryContext = nil
+        modeStore.isProcessingAI = false
+        toastController.hide()
     }
     
     private func setupMonitors() {
@@ -1080,7 +1105,9 @@ public class PopupWindowController {
         hide()
         let session = aiSessionID
 
-        toastController.showLoading(message: String(localized: "Generating…"), anchorFrame: anchorFrame)
+        toastController.showLoading(message: String(localized: "Generating…"), anchorFrame: anchorFrame) { [weak self] in
+            self?.cancelActiveTasks()
+        }
 
         let task = Task { @MainActor in
             self.modeStore.isProcessingAI = true
@@ -1148,6 +1175,9 @@ public class PopupWindowController {
                     }
                     self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
                 }
+            } catch is CancellationError {
+                Log.ai.info("AI streaming cancelled")
+                self.toastController.hide()
             } catch {
                 guard !Task.isCancelled, session == self.aiSessionID else {
                     self.toastController.hide()
@@ -1481,16 +1511,38 @@ public class PopupWindowController {
         let anchorFrame = panel?.frame ?? lastPopupFrame
         hide()
         let message = action.chrome.loadingMessage ?? String(localized: "Opening \(action.title)…")
-        toastController.showLoading(message: message, anchorFrame: anchorFrame)
-        Task { @MainActor in
+        toastController.showLoading(message: message, anchorFrame: anchorFrame) { [weak self] in
+            self?.cancelActiveTasks()
+        }
+        let runID = UUID()
+        activeLoadingID = runID
+        let loadingTask = Task { @MainActor in
+            defer {
+                if self.activeLoadingID == runID {
+                    self.activeLoadingTask = nil
+                    self.activeLoadingID = nil
+                }
+            }
             do {
                 let result = try await action.perform(performContext)
-                await settleLoadingResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
+                guard !Task.isCancelled else {
+                    self.toastController.hide()
+                    return
+                }
+                await self.settleLoadingResult(result, delivery: delivery, suppressDeliveryToast: result.containsToast)
+            } catch is CancellationError {
+                Log.presentation.info("Loading action cancelled (id \(action.id, privacy: .public))")
+                self.toastController.hide()
             } catch {
+                guard !Task.isCancelled else {
+                    self.toastController.hide()
+                    return
+                }
                 Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
-                await settleLoadingResult(.toast(StatusFeedback(error: error)), delivery: delivery)
+                await self.settleLoadingResult(.toast(StatusFeedback(error: error)), delivery: delivery)
             }
         }
+        activeLoadingTask = loadingTask
     }
 
     /// Resolves a loading action's result into the toast: `.toast` swaps to that status,

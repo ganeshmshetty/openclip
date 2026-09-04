@@ -110,6 +110,7 @@
   "Use **$OPENCLIP_TEXT** for the selected text.": "Utilisez **$OPENCLIP_TEXT** pour le texte sélectionné.",
   "Replace selection with output": "Remplacer la sélection par le résultat",
   "Cancel": "Annuler",
+  "Cancel Task": "Annuler la tâche",
   "Add Action": "Ajouter l’action",
   "Configure Action": "Configurer l’action",
   "This action needs configuration before it can run.": "Cette action doit être configurée avant de pouvoir être exécutée.",

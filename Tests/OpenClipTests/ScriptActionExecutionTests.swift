@@ -229,6 +229,47 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
 
+    /// Cancelling the Swift Task executing a subprocess must immediately signal and kill the
+    /// subprocess group and throw CancellationError without waiting for the full timeout.
+    func testScriptActionCancellationKillsSubprocessImmediately() async throws {
+        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("cancel_test_\(UUID().uuidString).sh")
+        let scriptContent = """
+        #!/bin/bash
+        exec sleep 60
+        """
+        try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
+
+        let startTime = Date()
+        let task = Task {
+            try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+                executableURL: tempScript,
+                arguments: [],
+                environment: [:],
+                stdinText: nil,
+                timeout: 60.0
+            ))
+        }
+
+        // Wait slightly for process to spawn
+        try await Task.sleep(nanoseconds: 50_000_000)
+        task.cancel()
+
+        do {
+            _ = try await task.value
+            XCTFail("Expected task to be cancelled and throw CancellationError")
+        } catch is CancellationError {
+            // Expected
+        } catch {
+            XCTFail("Expected CancellationError, got \(error)")
+        }
+
+        let elapsed = Date().timeIntervalSince(startTime)
+        XCTAssertLessThan(elapsed, 5.0, "Subprocess cancellation should abort almost immediately, took \(elapsed)s")
+
+        try? FileManager.default.removeItem(at: tempScript)
+    }
+
     /// Large stdout output spanning multiple pipe buffer chunks must be completely and
     /// cleanly accumulated without truncation.
     func testScriptActionLargeOutputIsCapturedCompletely() async throws {

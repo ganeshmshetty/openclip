@@ -130,8 +130,8 @@ These are hard limits of the shipped runtime, not open questions:
   can never ship.
 - **No native `.node` bindings.** esbuild rejects them at build time.
 - **No DOM.** The runtime is JavaScriptCore — no `window`, `document`, or browser globals.
-- **Mind the 30 s watchdog.** A never-settling async script is killed after
-  `Constants.scriptTimeout` (30 s) and surfaces as an error status.
+- **Mind the 60 s watchdog.** A never-settling async script is killed after
+  `Constants.scriptTimeout` (60 s) and surfaces as an error status. Users can also click the loading toast anytime to cancel running scripts immediately.
 - **JSC's global set is not Node's.** The host runtime is JavaScriptCore, not Node: expect the JS
   language and the `openclip.*` bridge, not Node globals. A few names overlap (`setTimeout`, `Buffer`)
   but with JSC semantics, not Node's — treat any reliance on Node-global behavior as a known

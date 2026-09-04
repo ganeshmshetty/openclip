@@ -68,7 +68,7 @@ areas; stale debt notes are worse than none.
   the click intent, and the unified paste
   availability. The old `after` translator (the pre-refactor `after` orchestration step and its
   adapter) is **fully removed**. Async JS runs are guarded by the
-  `TimeoutFlag` watchdog (30 s, same pattern as `ShellProcessRunner`).
+  `TimeoutFlag` watchdog (60 s, same pattern as `ShellProcessRunner`) and cooperative Swift task cancellation.
 - **Custom Action Groups use canonical IDs with dynamic materialization and strict $\ge 2$ member invariant.**
   User-defined action groups are defined via `ActionGroupDef` (`Sources/Core/Actions/ActionGroupDef.swift`),
   stored as JSON in `SettingKey.actionGroups`. Rather than rewriting action identifiers with virtual ID

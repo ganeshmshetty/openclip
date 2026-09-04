@@ -1961,6 +1961,34 @@
         }
       }
     },
+    "Cancel Task": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消任务"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消任務"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler la tâche"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タスクをキャンセル"
+          }
+        }
+      }
+    },
     "ChatGPT (OpenAI)": {
       "localizations": {
         "zh-Hans": {

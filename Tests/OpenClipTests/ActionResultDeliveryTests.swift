@@ -898,6 +898,34 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertFalse(toast.isShowing, "hide() must dismiss any keepVisible toast")
     }
 
+    /// Clicking cancel (or calling cancelActiveTasks) while a loading action is running
+    /// cancels the active task and hides the toast without showing an error banner.
+    @MainActor
+    func testLoadingActionCancellationDismissesToastWithoutError() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        controller.runLoadingAction(SlowStubAction(), with: controllerCurrentContext(controller), isSecondaryClick: false)
+        XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
+
+        // Cancel the active tasks (same callback triggered when user clicks the loading toast)
+        controller.cancelActiveTasks()
+
+        XCTAssertFalse(toast.isLoading, "toast should immediately stop loading")
+        XCTAssertFalse(toast.isShowing, "toast should be hidden")
+        XCTAssertNil(controller.activeLoadingTask, "activeLoadingTask must be nil after cancellation")
+
+        // Wait slightly to ensure no error toast or result leaks
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertNil(toast.currentFeedback, "no error toast should be surfaced on cancellation")
+        XCTAssertTrue(handler.results.isEmpty, "no result should be delivered")
+    }
+
     // MARK: - Secondary-click threading: runAction must propagate the click intent into the action context
 
     /// A right-click (secondary click) on an action must reach `perform` as

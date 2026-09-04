@@ -16,21 +16,71 @@
 // AppKit/SwiftUI.
 import Foundation
 
-/// Thread-safe flag set by a subprocess watchdog when the execution budget is exceeded.
-final class TimeoutFlag: @unchecked Sendable {
+/// Thread-safe boolean flag guarded by an NSLock.
+public final class AtomicFlag: @unchecked Sendable {
     private let lock = NSLock()
-    private var timedOut = false
+    private var flag = false
 
-    func markTimedOut() {
-        lock.lock()
-        defer { lock.unlock() }
-        timedOut = true
+    public init(initialValue: Bool = false) {
+        self.flag = initialValue
     }
 
-    var isTimedOut: Bool {
+    public func set() {
         lock.lock()
         defer { lock.unlock() }
-        return timedOut
+        flag = true
+    }
+
+    public var isSet: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return flag
+    }
+
+    public func markTimedOut() { set() }
+    public var isTimedOut: Bool { isSet }
+    public func markCancelled() { set() }
+    public var isCancelled: Bool { isSet }
+}
+
+public typealias TimeoutFlag = AtomicFlag
+public typealias CancellationFlag = AtomicFlag
+
+/// Thread-safe container to hold a running Process so that Task cancellation handlers
+/// can immediately terminate the process and its subprocess group.
+final class ProcessBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private weak var process: Process?
+    private var cancelled = false
+
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return cancelled
+    }
+
+    func set(_ process: Process) {
+        lock.lock()
+        self.process = process
+        let shouldKill = cancelled && process.isRunning
+        lock.unlock()
+        if shouldKill {
+            terminate(process)
+        }
+    }
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        let proc = process
+        lock.unlock()
+        if let proc, proc.isRunning {
+            terminate(proc)
+        }
+    }
+
+    private func terminate(_ process: Process) {
+        ShellProcessRunner.terminateProcessGroup(process, fallbackDelay: 0.5)
     }
 }
 
@@ -252,7 +302,7 @@ public enum ShellProcessRunner {
         /// Text written to the subprocess's stdin (then the pipe is closed). nil leaves stdin unseeded.
         public var stdinText: String?
         /// Runtime budget before the watchdog kills the subprocess. Defaults to
-        /// `Constants.scriptTimeout` (30 s); tests override with a short value.
+        /// `Constants.scriptTimeout` (60 s); tests override with a short value.
         public var timeout: TimeInterval?
 
         public init(
@@ -276,105 +326,133 @@ public enum ShellProcessRunner {
         public let terminationStatus: Int32
     }
 
-    public static func run(_ invocation: Invocation) async throws -> Output {
-        try await Task.detached {
-            let process = Process()
-            process.executableURL = invocation.executableURL
-            process.arguments = invocation.arguments
-            process.environment = invocation.environment
-
-            let stdOutPipe = Pipe()
-            process.standardOutput = stdOutPipe
-            let stdErrPipe = Pipe()
-            process.standardError = stdErrPipe
-            let stdInPipe = Pipe()
-            process.standardInput = stdInPipe
-
-            // GCD-backed pipe readers: they never block a Swift cooperative thread, so a slow or
-            // stuck child can't wedge the concurrency pool the way blocking readToEnd() calls could.
-            let outReader = PipeAccumulator(fileHandle: stdOutPipe.fileHandleForReading)
-            let errReader = PipeAccumulator(fileHandle: stdErrPipe.fileHandleForReading)
-            outReader.start()
-            errReader.start()
-
-            try process.run()
-
-            // Move the child into its own process group so a watchdog kill can signal the whole tree
-            // (the script plus any grandchildren it spawned) rather than only the direct child. The
-            // child's pid becomes the group id; a failed setpgid is tolerated — the group signal just
-            // no-ops below.
-            setpgid(process.processIdentifier, process.processIdentifier)
-
-            // Watchdog on a GCD timer — independent of the Swift concurrency executor, so it always
-            // fires even if the cooperative pool is starved. Past the budget it terminates the
-            // process and hard-kills it shortly after if the signal was ignored, then releases the
-            // pipes. A watchdog kill surfaces as a timeout error. Armed before the stdin write below
-            // so an oversized write that blocks the child not reading still gets killed on budget.
-            let timeoutFlag = TimeoutFlag()
-            let budget = invocation.timeout ?? Constants.scriptTimeout
-            let watchdog = DispatchSource.makeTimerSource(queue: .global())
-            watchdog.schedule(deadline: .now() + budget, leeway: .milliseconds(50))
-            watchdog.setEventHandler { [weak process] in
-                timeoutFlag.markTimedOut()
-                guard let process, process.isRunning else { return }
-                let pid = process.processIdentifier
-                guard pid > 0 else { return }
-                // Signal the entire process group (SIGTERM) so grandchildren can't outlive the child
-                // and keep holding our pipes open.
-                let pgid = -pid
-                kill(pgid, SIGTERM)
-                // Hard-kill the group a moment later if the signal was ignored. Retain the Process and
-                // re-check it's still running so a recycled PID can't be signaled by accident.
-                DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
-                    if process.isRunning {
-                        kill(pgid, SIGKILL)
-                    }
+    public static func terminateProcessGroup(_ process: Process, fallbackDelay: TimeInterval = 0.5) {
+        let pid = process.processIdentifier
+        guard pid > 0 else { return }
+        process.terminate()
+        if getpgid(pid) == pid {
+            kill(-pid, SIGTERM)
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + fallbackDelay) {
+            if process.isRunning {
+                process.terminate()
+                if getpgid(pid) == pid {
+                    kill(-pid, SIGKILL)
+                } else {
+                    kill(pid, SIGKILL)
                 }
             }
-            watchdog.resume()
+        }
+    }
 
-            // Seed stdin synchronously and close the write end, so a child script that reads stdin
-            // always sees EOF — it can never block forever waiting for input.
-            if let textData = invocation.stdinText?.data(using: .utf8) {
-                try? stdInPipe.fileHandleForWriting.write(contentsOf: textData)
-            }
-            try? stdInPipe.fileHandleForWriting.close()
+    public static func run(_ invocation: Invocation) async throws -> Output {
+        try Task.checkCancellation()
 
-            defer {
-                watchdog.cancel()
-                outReader.finish()
-                errReader.finish()
-            }
+        let processBox = ProcessBox()
 
-            process.waitUntilExit()
-            watchdog.cancel()
-            outReader.finish()
-            errReader.finish()
+        return try await withTaskCancellationHandler {
+            try await Task.detached {
+                if processBox.isCancelled {
+                    throw CancellationError()
+                }
 
-            if timeoutFlag.isTimedOut {
-                throw NSError(domain: Constants.actionErrorDomain,
-                              code: Int(Constants.actionErrorCode) + 1,
-                              userInfo: [NSLocalizedDescriptionKey: "Script timed out after \(Int(budget)) seconds"])
-            }
+                let process = Process()
+                process.executableURL = invocation.executableURL
+                process.arguments = invocation.arguments
+                process.environment = invocation.environment
 
-            let outData = outReader.data
-            let errData = errReader.data
+                let stdOutPipe = Pipe()
+                process.standardOutput = stdOutPipe
+                let stdErrPipe = Pipe()
+                process.standardError = stdErrPipe
+                let stdInPipe = Pipe()
+                process.standardInput = stdInPipe
 
-            if process.terminationStatus != 0 {
-                let errText = String(data: errData, encoding: .utf8) ?? ""
-                let errMsg = errText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? "Script exited with code \(process.terminationStatus)"
-                    : errText
-                throw NSError(domain: Constants.actionErrorDomain,
-                              code: Int(process.terminationStatus),
-                              userInfo: [NSLocalizedDescriptionKey: errMsg])
-            }
+                // GCD-backed pipe readers: they never block a Swift cooperative thread, so a slow or
+                // stuck child can't wedge the concurrency pool the way blocking readToEnd() calls could.
+                let outReader = PipeAccumulator(fileHandle: stdOutPipe.fileHandleForReading)
+                let errReader = PipeAccumulator(fileHandle: stdErrPipe.fileHandleForReading)
+                outReader.start()
+                errReader.start()
 
-            return Output(
-                stdout: String(data: outData, encoding: .utf8) ?? "",
-                stderr: String(data: errData, encoding: .utf8) ?? "",
-                terminationStatus: process.terminationStatus
-            )
-        }.value
+                var watchdog: DispatchSourceTimer?
+                defer {
+                    watchdog?.cancel()
+                    outReader.finish()
+                    errReader.finish()
+                }
+
+                try process.run()
+
+                // Move the child into its own process group so a watchdog kill can signal the whole tree
+                // (the script plus any grandchildren it spawned) rather than only the direct child. The
+                // child's pid becomes the group id; a failed setpgid is tolerated — the group signal just
+                // no-ops below.
+                setpgid(process.processIdentifier, process.processIdentifier)
+                processBox.set(process)
+
+                if processBox.isCancelled {
+                    process.waitUntilExit()
+                    throw CancellationError()
+                }
+
+                // Watchdog on a GCD timer — independent of the Swift concurrency executor, so it always
+                // fires even if the cooperative pool is starved. Past the budget it terminates the
+                // process and hard-kills it shortly after if the signal was ignored, then releases the
+                // pipes. A watchdog kill surfaces as a timeout error. Armed before the stdin write below
+                // so an oversized write that blocks the child not reading still gets killed on budget.
+                let timeoutFlag = TimeoutFlag()
+                let budget = invocation.timeout ?? Constants.scriptTimeout
+                let timer = DispatchSource.makeTimerSource(queue: .global())
+                timer.schedule(deadline: .now() + budget, leeway: .milliseconds(50))
+                timer.setEventHandler { [weak process] in
+                    timeoutFlag.markTimedOut()
+                    guard let process, process.isRunning else { return }
+                    terminateProcessGroup(process, fallbackDelay: 0.5)
+                }
+                timer.resume()
+                watchdog = timer
+
+                // Seed stdin synchronously and close the write end, so a child script that reads stdin
+                // always sees EOF — it can never block forever waiting for input.
+                if let textData = invocation.stdinText?.data(using: .utf8) {
+                    try? stdInPipe.fileHandleForWriting.write(contentsOf: textData)
+                }
+                try? stdInPipe.fileHandleForWriting.close()
+
+                process.waitUntilExit()
+
+                if processBox.isCancelled {
+                    throw CancellationError()
+                }
+
+                if timeoutFlag.isTimedOut {
+                    throw NSError(domain: Constants.actionErrorDomain,
+                                  code: Int(Constants.actionErrorCode) + 1,
+                                  userInfo: [NSLocalizedDescriptionKey: "Script timed out after \(Int(budget)) seconds"])
+                }
+
+                let outData = outReader.data
+                let errData = errReader.data
+
+                if process.terminationStatus != 0 {
+                    let errText = String(data: errData, encoding: .utf8) ?? ""
+                    let errMsg = errText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? "Script exited with code \(process.terminationStatus)"
+                        : errText
+                    throw NSError(domain: Constants.actionErrorDomain,
+                                  code: Int(process.terminationStatus),
+                                  userInfo: [NSLocalizedDescriptionKey: errMsg])
+                }
+
+                return Output(
+                    stdout: String(data: outData, encoding: .utf8) ?? "",
+                    stderr: String(data: errData, encoding: .utf8) ?? "",
+                    terminationStatus: process.terminationStatus
+                )
+            }.value
+        } onCancel: {
+            processBox.cancel()
+        }
     }
 }

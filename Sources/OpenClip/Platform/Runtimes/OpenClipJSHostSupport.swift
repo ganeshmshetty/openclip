@@ -6,25 +6,7 @@
 // the JS effect blocks. Split out of OpenClipJSHost.swift.
 import Foundation
 import JavaScriptCore
-
-/// Thread-safe flag set by the watchdog when the execution budget is exceeded (mirrors the
-/// TimeoutFlag pattern in ShellProcessRunner).
-final class TimeoutFlag: @unchecked Sendable {
-    private let lock = NSLock()
-    private var timedOut = false
-
-    func markTimedOut() {
-        lock.lock()
-        defer { lock.unlock() }
-        timedOut = true
-    }
-
-    var isTimedOut: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return timedOut
-    }
-}
+import Core
 
 /// Bounds the number of concurrent synchronous JS evaluations. A stuck sync script holds its slot
 /// forever (it cannot be interrupted), so `tryEnter` refuses new evaluations once the cap is
@@ -192,3 +174,5 @@ final class FetchTaskBox: @unchecked Sendable {
         }
     }
 }
+
+

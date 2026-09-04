@@ -8,6 +8,10 @@ import Core
 
 struct ToastView: View {
     let feedback: StatusFeedback
+    var onCancel: (() -> Void)? = nil
+    var reservedWidth: CGFloat? = nil
+
+    @State private var isHovered = false
 
     @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
     @AppStorage(SettingKey.popupThemeColor.name) private var themeColor: String = SettingKey.popupThemeColor.defaultValue
@@ -56,52 +60,91 @@ struct ToastView: View {
     }
 
     var body: some View {
+        let isInteractive = feedback.isLoading && onCancel != nil
+        let displayedMessage = (isInteractive && isHovered) ? String(localized: "Cancel Task") : feedback.message
+        let activeForeground: Color = (isInteractive && isHovered) ? .white : textColor
+
         let content = HStack(spacing: 6 * scale) {
             if feedback.isLoading {
-                // macOS `.small` spinner is 16pt; scale its frame AND rendering so both the panel
-                // sizing (hostingView.fittingSize) and the visible spinner track the popup scale.
-                ProgressView()
-                    .controlSize(.small)
-                    .scaleEffect(scale)
-                    .frame(width: 16 * scale, height: 16 * scale)
+                ToastSpinnerView(color: activeForeground, scale: scale)
             } else if let symbol = feedback.symbolName {
                 Image(systemName: symbol)
                     .font(.system(size: 10 * scale, weight: .medium))
-                    .foregroundColor(feedback.style == .error ? Color.red : (feedback.style == .success ? Color.accentColor : textColor))
+                    .foregroundColor(feedback.style == .error ? Color.red : (feedback.style == .success ? Color.accentColor : activeForeground))
             }
-            Text(feedback.message)
+            Text(displayedMessage)
                 .font(.system(size: 11 * scale, weight: .regular))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .foregroundColor(textColor)
+        .foregroundColor(activeForeground)
         .padding(.horizontal, 11 * scale)
         .padding(.vertical, 5 * scale)
+        .frame(minWidth: reservedWidth, alignment: .leading)
 
         Group {
             if isGlass {
                 content
                     .background(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(.ultraThinMaterial)
+                            .fill((isInteractive && isHovered) ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.ultraThinMaterial))
                     )
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(glassBorderColor, lineWidth: 1.0)
+                            .stroke((isInteractive && isHovered) ? Color.accentColor : glassBorderColor, lineWidth: 1.0)
                     )
                     .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 1)
             } else {
                 content
-                    .background(opaqueBackground)
+                    .background((isInteractive && isHovered) ? Color.accentColor : opaqueBackground)
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(opaqueBorder, lineWidth: 1.0)
+                            .stroke((isInteractive && isHovered) ? Color.accentColor : opaqueBorder, lineWidth: 1.0)
                     )
                     .shadow(color: Color.black.opacity(effectiveTheme == "light" ? 0.10 : 0.20), radius: 4, x: 0, y: 1)
             }
         }
+        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .onHover { hovering in
+            guard isInteractive else { return }
+            isHovered = hovering
+        }
+        .onTapGesture {
+            guard isInteractive else { return }
+            onCancel?()
+        }
         .environment(\.colorScheme, effectiveColorScheme)
     }
 }
+
+/// A smoothly rotating, color-adaptive spinner that respects foreground styling and scales with the popup.
+/// Replaces AppKit-backed `ProgressView`, whose native CoreUI blades ignore `.foregroundColor`,
+/// `.tint`, and `.colorMultiply` on macOS.
+private struct ToastSpinnerView: View {
+    let color: Color
+    let scale: CGFloat
+
+    @State private var isSpinning = false
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<8) { i in
+                RoundedRectangle(cornerRadius: 0.75 * scale, style: .continuous)
+                    .fill(color)
+                    .opacity(0.20 + 0.80 * (Double(i) / 7.0))
+                    .frame(width: 1.5 * scale, height: 3.5 * scale)
+                    .offset(y: -5.25 * scale)
+                    .rotationEffect(.degrees(Double(i) * 45))
+            }
+        }
+        .frame(width: 16 * scale, height: 16 * scale)
+        .rotationEffect(.degrees(isSpinning ? 360 : 0))
+        .animation(.linear(duration: 0.8).repeatForever(autoreverses: false), value: isSpinning)
+        .onAppear {
+            isSpinning = true
+        }
+    }
+}
+

@@ -143,8 +143,8 @@ Every run executes inside a `Task.detached` on a background thread — never the
 JavaScript VM access is confined to that single thread; URLSession completions hop back onto the
 thread's CFRunLoop via `CFRunLoopPerformBlock` + `CFRunLoopWakeUp`, and the host pumps the runloop
 until the promise settles. A watchdog (`TimeoutFlag`, mirroring the `ShellProcessRunner` pattern)
-throws `Script timed out after N seconds` after `Constants.scriptTimeout` (30 s; tests override via
-`Request.timeout`).
+throws `Script timed out after N seconds` after `Constants.scriptTimeout` (60 s; tests override via
+`Request.timeout`). Running async tasks can also be cancelled immediately by clicking the loading toast, which cancels in-flight fetch requests.
 
 **Synchronous evaluations are capped.** A CPU-bound synchronous script cannot be interrupted
 (`JSVirtualMachine.invalidate` no longer exists), so a stuck sync script would permanently park a

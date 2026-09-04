@@ -24,8 +24,8 @@ Selection Context ---> AppleScriptAction.perform(_:)
   property OPENCLIP_RTF : "<escaped_selected_rtf>"
   ```
 3. **Subprocess Execution**: The script runs as an `/usr/bin/osascript` subprocess through
-   [`AppleScriptRunner`](../../Sources/OpenClip/Platform/AppleScriptRunner.swift), which delegates
-   to the shared `ShellProcessRunner` (the same 30 s watchdog used by shell actions).
+    [`AppleScriptRunner`](../../Sources/OpenClip/Platform/AppleScriptRunner.swift), which delegates
+    to the shared `ShellProcessRunner` (the same 60 s watchdog used by shell actions, with instant cancellation support).
 
 ### Why a subprocess (bounded off-main strategy)
 

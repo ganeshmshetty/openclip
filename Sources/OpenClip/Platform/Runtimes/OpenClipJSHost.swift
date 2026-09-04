@@ -136,25 +136,53 @@ public final class OpenClipJSHost: @unchecked Sendable {
             )
         }
 
+        let cancellationFlag = CancellationFlag()
+        let fetchTasks = FetchTaskBox()
+
         // Note: reference static members via the explicit type name, not `Self` — `Self.X` inside a
         // Task.detached closure triggers a Swift 6 region-based-isolation checker bug ("pattern that
         // the region-based isolation checker does not understand how to check").
-        return try await Task.detached {
-            defer { gate.leave() }
-            return try OpenClipJSHost.execute(request, session: session)
-        }.value
+        return try await withTaskCancellationHandler {
+            try await Task.detached {
+                defer { gate.leave() }
+                return try OpenClipJSHost.execute(
+                    request,
+                    session: session,
+                    cancellationFlag: cancellationFlag,
+                    fetchTasks: fetchTasks
+                )
+            }.value
+        } onCancel: {
+            cancellationFlag.markCancelled()
+            fetchTasks.cancelAll()
+        }
     }
 
     // MARK: - JS evaluation
 
     /// Runs the whole evaluation on the calling thread (the detached task's thread). Kept as a thin
     /// nonisolated function so the @Sendable detached closure stays a single call.
-    private static func execute(_ request: Request, session: URLSession) throws -> ActionResult {
-        let evaluation = try evaluate(request, session: session)
+    private static func execute(
+        _ request: Request,
+        session: URLSession,
+        cancellationFlag: CancellationFlag,
+        fetchTasks: FetchTaskBox
+    ) throws -> ActionResult {
+        let evaluation = try evaluate(
+            request,
+            session: session,
+            cancellationFlag: cancellationFlag,
+            fetchTasks: fetchTasks
+        )
         return makeActionResult(evaluation, request: request)
     }
 
-    private static func evaluate(_ request: Request, session: URLSession) throws -> EvaluationResult {
+    private static func evaluate(
+        _ request: Request,
+        session: URLSession,
+        cancellationFlag: CancellationFlag,
+        fetchTasks: FetchTaskBox
+    ) throws -> EvaluationResult {
         let text = request.context.selection.text
         let matchedText = request.context.match?.matchedText ?? text
         let captures = request.context.match?.captures ?? []
@@ -180,7 +208,6 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let collected = CollectedBox()
         let effects = EffectsBox()
         let promiseState = request.isAsync ? PromiseState() : nil
-        let fetchTasks = FetchTaskBox()
 
         // Give scripts a global `console.log` before anything runs, so it routes to Log.js instead
         // of throwing a ReferenceError that breaks the action.
@@ -338,6 +365,11 @@ public final class OpenClipJSHost: @unchecked Sendable {
         }
         let jsResult = jsContext.evaluateScript(wrappedScript)
 
+        if cancellationFlag.isCancelled {
+            fetchTasks.cancelAll()
+            throw CancellationError()
+        }
+
         if timeoutFlag.isTimedOut {
             fetchTasks.cancelAll()
             throw timeoutError(timeoutSeconds)
@@ -351,6 +383,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
         // promise microtasks land here via CFRunLoopPerformBlock) or the watchdog fires.
         if request.isAsync, let promiseState {
             while !promiseState.isSettled {
+                if cancellationFlag.isCancelled {
+                    fetchTasks.cancelAll()
+                    throw CancellationError()
+                }
                 if timeoutFlag.isTimedOut {
                     fetchTasks.cancelAll()
                     throw timeoutError(timeoutSeconds)

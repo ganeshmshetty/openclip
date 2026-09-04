@@ -170,4 +170,40 @@ final class ToastPanelControllerTests: XCTestCase {
         XCTAssertTrue(controller.isShowing, "keep-visible toast must not auto-dismiss")
         controller.hide()
     }
+
+    @MainActor
+    func testLoadingToastIsInteractiveAndTogglesIgnoresMouseEvents() {
+        let controller = ToastPanelController()
+        controller.showLoading(message: "Opening…", onCancel: {})
+        XCTAssertFalse(controller.panelIgnoresMouseEvents, "loading toast with onCancel must accept mouse events")
+
+        controller.swapTo(StatusFeedback(message: "Done", style: .info))
+        XCTAssertTrue(controller.panelIgnoresMouseEvents, "settled toast must ignore mouse events")
+        controller.hide()
+        XCTAssertTrue(controller.panelIgnoresMouseEvents, "hidden toast must ignore mouse events")
+    }
+
+    @MainActor
+    func testLoadingToastPassiveWithoutCancelHandler() {
+        let controller = ToastPanelController()
+        controller.showLoading(message: "Opening…")
+        XCTAssertTrue(controller.panelIgnoresMouseEvents, "loading toast without onCancel must ignore mouse events")
+        controller.hide()
+    }
+
+    @MainActor
+    func testLoadingToastReservesWidthForCancelMessage() {
+        let controller = ToastPanelController()
+        // Single character message is much narrower than "Cancel Task"
+        controller.showLoading(message: "A", onCancel: {})
+        let shortMessageWidth = controller.panelFrame.width
+        controller.hide()
+
+        let cancelFeedback = StatusFeedback(message: String(localized: "Cancel Task"), style: .info, isLoading: true)
+        controller.show(cancelFeedback, onCancel: {})
+        let cancelOnlyWidth = controller.panelFrame.width
+        controller.hide()
+
+        XCTAssertGreaterThanOrEqual(shortMessageWidth, cancelOnlyWidth - 2, "short loading message must reserve at least Cancel Task width")
+    }
 }

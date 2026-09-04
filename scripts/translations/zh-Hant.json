@@ -110,6 +110,7 @@
   "Use **$OPENCLIP_TEXT** for the selected text.": "使用 **$OPENCLIP_TEXT** 表示選取的文字。",
   "Replace selection with output": "以輸出取代選取內容",
   "Cancel": "取消",
+  "Cancel Task": "取消任務",
   "Add Action": "加入動作",
   "Configure Action": "設定動作",
   "This action needs configuration before it can run.": "此動作需要先設定才能執行。",
