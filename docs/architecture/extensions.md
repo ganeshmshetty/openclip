@@ -35,7 +35,7 @@ Consequences of this model:
   install.
 - **No sandbox.** Every runtime executes with the app's user context:
   - `shell`/`scriptfile` actions spawn real subprocesses (`/bin/zsh`).
-  - `applescript` runs `NSAppleScript` with the user's Apple Events automation rights.
+  - `applescript` runs `/usr/bin/osascript` with the user's Apple Events automation rights.
   - `keypress` posts synthetic keyboard events to the frontmost app.
   - `js` async mode can reach the network via a `fetch` polyfill, and the `openclip.*` bridge can
     paste/copy to the pasteboard, post notifications, run Shortcuts, and synthesize keys.
@@ -116,7 +116,7 @@ Notes:
   specifiers are rejected (`OpenClipModuleLoader` + `Constants.isPathSafe`). This bounds a script's
   *file reads* to the package; it is not a privilege boundary (see §2 — JS still reaches the network,
   pasteboard, and `openclip.*` effects).
-- **Subprocess watchdog.** Every subprocess-spawning runtime (`shell`, `scriptfile`, `shortcut`)
+- **Subprocess watchdog.** Every subprocess-spawning runtime (`shell`, `scriptfile`, `applescript`, `shortcut`)
   is terminated past `Constants.scriptTimeout` (60 s) — a liveness guard, not a privilege guard. The runner kills the direct child, the process group when the child is the leader, and remaining descendants. Users can also abort running loading tasks anytime by clicking the loading toast.
 - **Secrets.** Option values of `type: "secret"` live in `SecretStore` (`~/.openclip/secrets.json` with POSIX 0600 permissions) and never reach UserDefaults or the manifest itself.
 
