@@ -232,8 +232,13 @@ final class ScriptActionExecutionTests: XCTestCase {
     /// A grandchild that leaves the process group must still die when the watchdog fires.
     /// `set -m` puts the background sleep in a new group (same hole as setsid/setpgid).
     func testScriptActionWatchdogKillsDetachedGrandchild() async throws {
-        let pidFile = URL(fileURLWithPath: "/tmp/openclip-detached-pid-\(UUID().uuidString).txt")
-        defer { try? FileManager.default.removeItem(at: pidFile) }
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("openclip-watchdog-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tempDir.path)
+        let pidFile = tempDir.appendingPathComponent("grandchild.pid")
+        FileManager.default.createFile(atPath: pidFile.path, contents: Data(), attributes: [.posixPermissions: 0o600])
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         do {
             _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
