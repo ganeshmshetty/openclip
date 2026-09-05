@@ -16,6 +16,8 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
     /// Absolute URL to the normalized adaptive web icon (currentColor SVG) generated
     /// by the extensions publish pipeline; absent for older catalog snapshots.
     public let iconURL: String?
+    /// ISO 8601 publication or release timestamp from catalog.json; nil if unavailable.
+    public let publishedAt: String?
 
     public init(
         id: String,
@@ -26,7 +28,8 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
         downloadCount: Int,
         downloadURL: String,
         version: String? = nil,
-        iconURL: String? = nil
+        iconURL: String? = nil,
+        publishedAt: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -37,17 +40,22 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
         self.downloadURL = downloadURL
         self.version = version
         self.iconURL = iconURL
+        self.publishedAt = publishedAt
     }
 }
 
 public struct ExtensionsPageResponse: Sendable, Codable {
     public let extensions: [ExtensionItem]
+    public let featured: [ExtensionItem]?
+    public let new: [ExtensionItem]?
     public let page: Int
     public let totalPages: Int
     public let totalCount: Int
     
-    public init(extensions: [ExtensionItem], page: Int, totalPages: Int, totalCount: Int) {
+    public init(extensions: [ExtensionItem], featured: [ExtensionItem]? = nil, new: [ExtensionItem]? = nil, page: Int, totalPages: Int, totalCount: Int) {
         self.extensions = extensions
+        self.featured = featured
+        self.new = new
         self.page = page
         self.totalPages = totalPages
         self.totalCount = totalCount

@@ -26,6 +26,8 @@ public enum StoreFilter: String, CaseIterable, Identifiable, Sendable {
 public final class ExtensionsStoreViewModel: ObservableObject {
     @Published public var searchQuery: String = ""
     @Published public var extensions: [ExtensionItem] = []
+    @Published public var featuredItems: [ExtensionItem] = []
+    @Published public var newItems: [ExtensionItem] = []
     @Published public var selectedFilter: StoreFilter = .all
     @Published public var isLoading: Bool = false
     @Published public var currentPage: Int = 1
@@ -39,6 +41,55 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         "com.openclip.obsidiancapture", // Obsidian Capture
         "com.openclip.applereminders",  // Apple Reminders
         "com.openclip.githubsearch",    // GitHub Search
+    ]
+
+    /// High-quality built-in fallbacks for curated items ensuring the Featured showcase
+    /// reliably renders all 4 extensions even offline, on slow network, or across pagination slices.
+    public static let fallbackFeaturedItems: [ExtensionItem] = [
+        ExtensionItem(
+            id: "com.openclip.quick-translate",
+            name: "Quick Translate",
+            description: "Translate selected text instantly — result previewed in the popup or pasted in place.",
+            author: "OpenClip Team",
+            icon: "character.bubble",
+            downloadCount: 121,
+            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.quick-translate@1.0.0/QuickTranslate.openclipext.zip",
+            version: "1.0.0",
+            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.quick-translate.svg"
+        ),
+        ExtensionItem(
+            id: "com.openclip.wordcount",
+            name: "Word & Character Count",
+            description: "Count the words and characters in the selected text.",
+            author: "OpenClip Team",
+            icon: "text.alignleft",
+            downloadCount: 84,
+            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.wordcount@1.0.2/WordCount.openclipext.zip",
+            version: "1.0.2",
+            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.wordcount.svg"
+        ),
+        ExtensionItem(
+            id: "com.openclip.speakselection",
+            name: "Speak Selection",
+            description: "Text-to-speech using system voice.",
+            author: "OpenClip Team",
+            icon: "icon.svg",
+            downloadCount: 74,
+            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.speakselection@1.0.1/SpeakSelection.openclipext.zip",
+            version: "1.0.1",
+            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.speakselection.svg"
+        ),
+        ExtensionItem(
+            id: "com.openclip.obsidiancapture",
+            name: "Obsidian Capture",
+            description: "Capture selected text to an Obsidian vault note.",
+            author: "OpenClip Team",
+            icon: "icon.svg",
+            downloadCount: 6,
+            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.obsidiancapture@1.0.0/ObsidianCapture.openclipext.zip",
+            version: "1.0.0",
+            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.obsidiancapture.svg"
+        )
     ]
 
     /// Extensions recognized as recent or highlighted catalog additions.
@@ -69,7 +120,12 @@ public final class ExtensionsStoreViewModel: ObservableObject {
     }
 
     /// Curated featured/popular items (first few for the showcase section).
+    /// Uses server-provided curated extensions from the API when available,
+    /// or filters loaded catalog extensions by curated IDs.
     public var featuredSectionItems: [ExtensionItem] {
+        if !featuredItems.isEmpty {
+            return Array(featuredItems.prefix(4))
+        }
         let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
         let curated = Self.curatedFeaturedIDs.compactMap { byID[$0.lowercased()] }
         return Array(curated.prefix(4))
@@ -77,6 +133,9 @@ public final class ExtensionsStoreViewModel: ObservableObject {
 
     /// Top new/updated items for the showcase section.
     public var newSectionItems: [ExtensionItem] {
+        if !newItems.isEmpty {
+            return Array(newItems.prefix(4))
+        }
         let featuredIDs = Set(featuredSectionItems.map { $0.id.lowercased() })
         let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
         let curatedNew = Self.recentNewIDs.compactMap { byID[$0.lowercased()] }
@@ -121,7 +180,7 @@ public final class ExtensionsStoreViewModel: ObservableObject {
     /// Full list when the "Popular" filter tab is selected.
     public var popularFilterItems: [ExtensionItem] {
         let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
-        let curated = Self.curatedFeaturedIDs.compactMap { byID[$0.lowercased()] }
+        let curated = !featuredItems.isEmpty ? featuredItems : Self.curatedFeaturedIDs.compactMap { byID[$0.lowercased()] }
         var chosen = Set(curated.map { $0.id.lowercased() })
         let popular = extensions
             .filter { !chosen.contains($0.id.lowercased()) && $0.downloadCount > 0 }
@@ -132,6 +191,13 @@ public final class ExtensionsStoreViewModel: ObservableObject {
 
     /// Full list when the "New" filter tab is selected.
     public var newFilterItems: [ExtensionItem] {
+        if !newItems.isEmpty {
+            var chosen = Set(newItems.map { $0.id.lowercased() })
+            let other = extensions.filter { ext in
+                !chosen.contains(ext.id.lowercased()) && Self.isNew(ext)
+            }
+            return newItems + other
+        }
         let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
         let curatedNew = Self.recentNewIDs.compactMap { byID[$0.lowercased()] }
         var chosen = Set(curatedNew.map { $0.id.lowercased() })
@@ -189,7 +255,7 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             guard let self else { return }
             try? await Task.sleep(nanoseconds: self.debounceNanos)
             guard !Task.isCancelled else { return }
-            await self.resetAndFetch(keepPrevious: true)
+            await self.resetAndFetch(limit: self.pageLimit, keepPrevious: true)
         }
     }
 
@@ -203,6 +269,12 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             // Superseded mid-flight (newer search/reset owns the result set): touch nothing,
             // especially not `isLoading`, which now belongs to the winning generation.
             guard gen == generation else { return }
+            if let featured = response.featured, !featured.isEmpty {
+                featuredItems = featured
+            }
+            if let new = response.new, !new.isEmpty {
+                newItems = new
+            }
             if isReset {
                 extensions = response.extensions
             } else {

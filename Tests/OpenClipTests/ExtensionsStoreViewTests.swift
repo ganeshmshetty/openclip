@@ -286,6 +286,95 @@ final class ExtensionsStoreViewTests: XCTestCase {
         XCTAssertEqual(viewModel.displayedExtensions.map(\.id), ["com.openclip.custom-popular", "com.openclip.page2-popular"])
     }
 
+    /// The Featured section must always return 4 extensions: even before fetching,
+    /// When the API response includes `featured` extensions (as provided by the website API),
+    /// featuredSectionItems returns all curated featured items directly.
+    @MainActor
+    func testServerDrivenFeaturedExtensionsPopulatesFeaturedSection() async throws {
+        let api = GatedStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+
+        let serverFeatured = [
+            ExtensionItem(id: "com.openclip.quick-translate", name: "Quick Translate", description: "", author: "openclip", icon: "", downloadCount: 120, downloadURL: ""),
+            ExtensionItem(id: "com.openclip.wordcount", name: "Word Count", description: "", author: "openclip", icon: "", downloadCount: 84, downloadURL: ""),
+            ExtensionItem(id: "com.openclip.speakselection", name: "Speak Selection", description: "", author: "openclip", icon: "", downloadCount: 74, downloadURL: ""),
+            ExtensionItem(id: "com.openclip.obsidiancapture", name: "Obsidian Capture", description: "", author: "openclip", icon: "", downloadCount: 6, downloadURL: "")
+        ]
+
+        let fetchTask = Task { await viewModel.resetAndFetch() }
+        try await waitUntil { await api.hasPending(query: "", page: 1) }
+        let reminderItem = ExtensionItem(id: "com.openclip.applereminders", name: "Apple Reminders",
+                                         description: "Live from API", author: "openclip", icon: "", downloadCount: 50, downloadURL: "")
+        await api.release(query: "", page: 1, items: [reminderItem], featured: serverFeatured)
+        await fetchTask.value
+
+        // Must have all 4 featured items from the server response
+        XCTAssertEqual(viewModel.featuredSectionItems.count, 4)
+        XCTAssertEqual(viewModel.featuredSectionItems.map(\.id), [
+            "com.openclip.quick-translate",
+            "com.openclip.wordcount",
+            "com.openclip.speakselection",
+            "com.openclip.obsidiancapture"
+        ])
+    }
+
+    /// Server-provided `response.featured` dynamically overrides local fallbacks, allowing
+    /// featured extensions to be updated instantly from the website without native app updates.
+    @MainActor
+    func testServerDrivenFeaturedExtensionsOverridesCatalogAndFallbacks() async throws {
+        let api = GatedStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+
+        let serverFeatured = [
+            ExtensionItem(id: "com.custom.promo-1", name: "Promo 1", description: "", author: "openclip", icon: "", downloadCount: 100, downloadURL: ""),
+            ExtensionItem(id: "com.custom.promo-2", name: "Promo 2", description: "", author: "openclip", icon: "", downloadCount: 200, downloadURL: ""),
+            ExtensionItem(id: "com.custom.promo-3", name: "Promo 3", description: "", author: "openclip", icon: "", downloadCount: 300, downloadURL: ""),
+            ExtensionItem(id: "com.custom.promo-4", name: "Promo 4", description: "", author: "openclip", icon: "", downloadCount: 400, downloadURL: "")
+        ]
+
+        let fetchTask = Task { await viewModel.resetAndFetch() }
+        try await waitUntil { await api.hasPending(query: "", page: 1) }
+        await api.release(query: "", page: 1, items: [], featured: serverFeatured)
+        await fetchTask.value
+
+        XCTAssertEqual(viewModel.featuredSectionItems.map(\.id), [
+            "com.custom.promo-1",
+            "com.custom.promo-2",
+            "com.custom.promo-3",
+            "com.custom.promo-4"
+        ])
+
+        // Query change should preserve featuredSectionItems
+        viewModel.searchQuery = "promo"
+        viewModel.queryDidChange()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(viewModel.featuredSectionItems.map(\.id), [
+            "com.custom.promo-1",
+            "com.custom.promo-2",
+            "com.custom.promo-3",
+            "com.custom.promo-4"
+        ])
+    }
+
+    /// Server-provided `response.new` dynamically populates the New & Updated showcase section.
+    @MainActor
+    func testServerDrivenNewExtensionsOverridesCatalog() async throws {
+        let api = GatedStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+
+        let serverNew = [
+            ExtensionItem(id: "com.custom.new-1", name: "New 1", description: "", author: "openclip", icon: "", downloadCount: 10, downloadURL: "", version: "1.2.0"),
+            ExtensionItem(id: "com.custom.new-2", name: "New 2", description: "", author: "openclip", icon: "", downloadCount: 20, downloadURL: "", version: "1.1.0")
+        ]
+
+        let fetchTask = Task { await viewModel.resetAndFetch() }
+        try await waitUntil { await api.hasPending(query: "", page: 1) }
+        await api.release(query: "", page: 1, items: [], new: serverNew)
+        await fetchTask.value
+
+        XCTAssertEqual(viewModel.newSectionItems.map(\.id), ["com.custom.new-1", "com.custom.new-2"])
+    }
+
     // MARK: - Helpers
 
     @MainActor
@@ -327,12 +416,12 @@ private actor GatedStoreAPI: ExtensionStoreFetching {
         pending["\(query)|\(page)"] != nil
     }
 
-    func release(query: String, page: Int = 1, items: [ExtensionItem], totalPages: Int = 1) {
+    func release(query: String, page: Int = 1, items: [ExtensionItem], featured: [ExtensionItem]? = nil, new: [ExtensionItem]? = nil, totalPages: Int = 1) {
         guard let continuation = pending.removeValue(forKey: "\(query)|\(page)") else {
             fatalError("no gated request for '\(query)|\(page)'")
         }
         continuation.resume(returning:
-            ExtensionsPageResponse(extensions: items, page: page, totalPages: totalPages, totalCount: items.count))
+            ExtensionsPageResponse(extensions: items, featured: featured, new: new, page: page, totalPages: totalPages, totalCount: items.count))
     }
 
     func release(query: String, page: Int = 1, names: [String], totalPages: Int = 1) {

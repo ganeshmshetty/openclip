@@ -13,35 +13,9 @@ public struct RecommendedExtensionsView: View {
         ExtensionsStoreViewModel.curatedFeaturedIDs
     }
 
-    private static let fallbackItems: [ExtensionItem] = [
-        ExtensionItem(
-            id: "com.openclip.quick-translate",
-            name: "Quick Translate",
-            description: "Translate selected text into your preferred language",
-            author: "openclip",
-            icon: "symbol:character.book.closed.fill",
-            downloadCount: 1500,
-            downloadURL: "https://www.getopenclip.app/api/v1/extensions/com.openclip.quick-translate/download"
-        ),
-        ExtensionItem(
-            id: "com.openclip.wordcount",
-            name: "Word & Character Count",
-            description: "Count words, characters, and estimated reading time",
-            author: "openclip",
-            icon: "symbol:textformat.123",
-            downloadCount: 1200,
-            downloadURL: "https://www.getopenclip.app/api/v1/extensions/com.openclip.wordcount/download"
-        ),
-        ExtensionItem(
-            id: "com.openclip.speakselection",
-            name: "Speak Selection",
-            description: "Read selected text aloud using macOS speech synthesis",
-            author: "openclip",
-            icon: "symbol:speaker.wave.2.fill",
-            downloadCount: 950,
-            downloadURL: "https://www.getopenclip.app/api/v1/extensions/com.openclip.speakselection/download"
-        )
-    ]
+    private static var fallbackItems: [ExtensionItem] {
+        ExtensionsStoreViewModel.fallbackFeaturedItems
+    }
 
     @StateObject private var viewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
@@ -49,8 +23,11 @@ public struct RecommendedExtensionsView: View {
     public init() {}
 
     private var recommended: [ExtensionItem] {
+        if !viewModel.featuredItems.isEmpty {
+            return Array(viewModel.featuredItems.prefix(3))
+        }
         if viewModel.extensions.isEmpty {
-            return Self.fallbackItems
+            return Array(Self.fallbackItems.prefix(3))
         }
 
         let byID = Dictionary(viewModel.extensions.map { ($0.id.lowercased(), $0) },
