@@ -383,7 +383,6 @@ public enum ShellProcessRunner {
 
     private static func descendantProcessIDs(of root: pid_t) -> [pid_t] {
         let selfPid = getpid()
-        let childrenByParent = childMap()
         var ids: [pid_t] = []
         var queue: [pid_t] = [root]
         var seen: Set<pid_t> = [root]
@@ -391,7 +390,7 @@ public enum ShellProcessRunner {
         while index < queue.count {
             let parent = queue[index]
             index += 1
-            for child in childrenByParent[parent] ?? [] {
+            for child in childProcessIDs(of: parent) {
                 guard child > 1, child != selfPid, !seen.contains(child) else { continue }
                 seen.insert(child)
                 ids.append(child)
@@ -401,40 +400,26 @@ public enum ShellProcessRunner {
         return ids
     }
 
-    /// One all-pid snapshot plus parent-pid lookup. `proc_listpids(..., nil, 0)` is not a
-    /// reliable size probe; `proc_listallpids` returns a pid count.
-    private static func childMap() -> [pid_t: [pid_t]] {
-        var map: [pid_t: [pid_t]] = [:]
-        for pid in allProcessIDs() {
-            guard let parent = parentProcessID(of: pid) else { continue }
-            map[parent, default: []].append(pid)
+    /// Direct children of one pid, so the walk stays inside our own subtree instead of building a
+    /// parent map over every process on the system. A nil-buffer call reports a pid count, which can
+    /// grow before the second call, so the buffer keeps slack; a probe of 0 is also read once,
+    /// because missing a descendant here means a hung grandchild survives the watchdog.
+    private static func childProcessIDs(of parent: pid_t) -> [pid_t] {
+        var capacity = Int(proc_listchildpids(parent, nil, 0))
+        if capacity <= 0 {
+            capacity = 8
         }
-        return map
-    }
-
-    private static func allProcessIDs() -> [pid_t] {
-        var estimatedCount = proc_listallpids(nil, 0)
-        if estimatedCount <= 0 {
-            estimatedCount = 1024
-        }
-        estimatedCount += 64
-        var pids = [pid_t](repeating: 0, count: Int(estimatedCount))
+        capacity += 16
+        var pids = [pid_t](repeating: 0, count: capacity)
         let written = pids.withUnsafeMutableBufferPointer { buffer in
-            proc_listallpids(
+            proc_listchildpids(
+                parent,
                 buffer.baseAddress,
                 Int32(buffer.count * MemoryLayout<pid_t>.stride)
             )
         }
         guard written > 0 else { return [] }
         return pids.prefix(Int(written)).filter { $0 > 0 }
-    }
-
-    private static func parentProcessID(of pid: pid_t) -> pid_t? {
-        var info = proc_bsdinfo()
-        let size = Int32(MemoryLayout<proc_bsdinfo>.stride)
-        let result = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size)
-        guard result == size else { return nil }
-        return pid_t(info.pbi_ppid)
     }
 
     private static func processStartTime(pid: pid_t) -> ProcessStartTime? {
