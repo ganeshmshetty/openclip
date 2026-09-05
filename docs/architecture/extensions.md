@@ -117,7 +117,7 @@ Notes:
   *file reads* to the package; it is not a privilege boundary (see §2 — JS still reaches the network,
   pasteboard, and `openclip.*` effects).
 - **Subprocess watchdog.** Every subprocess-spawning runtime (`shell`, `scriptfile`, `shortcut`)
-  is terminated past `Constants.scriptTimeout` (60 s) — a liveness guard, not a privilege guard. Users can also abort running loading tasks anytime by clicking the loading toast.
+  is terminated past `Constants.scriptTimeout` (60 s) — a liveness guard, not a privilege guard. The runner kills the direct child, the process group when the child is the leader, and remaining descendants. Users can also abort running loading tasks anytime by clicking the loading toast.
 - **Secrets.** Option values of `type: "secret"` live in `SecretStore` (`~/.openclip/secrets.json` with POSIX 0600 permissions) and never reach UserDefaults or the manifest itself.
 
 ---

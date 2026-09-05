@@ -24,7 +24,7 @@ All Swift is Swift 6 with `SWIFT_STRICT_CONCURRENCY: complete`. Targets (see `pr
 - **No direct `UserDefaults.standard`** in new code — route through `SettingsStore` + `SettingKey`. The only remaining raw access is the one-time `aiCloudAPIKey` migration in `AIServiceManager` (read-then-delete); don't add more. Secrets (AI API key, secret options) go to `SecretStore` (`~/.openclip/secrets.json` with 0600 POSIX permissions), never UserDefaults.
 - **`ActionCoordinator` is the composition root.** Managers report registry changes via `onRegister`/`onUnregister` callbacks only; nothing else touches `ActionRegistry.shared`.
 - **No `switch action.id` string-matching** in UI/presentation — use `ActionChrome` / `ConfigurableAction.preferenceIconName` instead.
-- Any new subprocess-spawning action must kill the child after `Constants.scriptTimeout` (60 s, the shared watchdog); shell/AppleScript/JS runtimes all join the existing `ShellProcessRunner` executor rather than spawning their own.
+- Any new subprocess-spawning action must kill the child and its descendants after `Constants.scriptTimeout` (60 s, the shared watchdog); shell/AppleScript/JS runtimes all join the existing `ShellProcessRunner` executor rather than spawning their own.
 - Verified current-state details (incl. residual debt and the search/content popup modes) live in `docs/architecture/known-debt.md` — update it when you touch those areas.
 
 ## Logging
