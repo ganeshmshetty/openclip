@@ -4,6 +4,19 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 
 ---
 
+## v1.3.1 - 2026-09-05
+
+### Features & Improvements
+- **Direct Action Search**: Launch straight into the search palette via shortcut, centered on screen with instant focus, and dismiss cleanly with `Escape`.
+- **Search Alignment Clamping**: Fixed search palette positioning so it never overflows the action bar or screen bounds.
+- **Layered Glass Theme Contrast**: Upgraded glass surfaces with an adaptive backing scrim and specular borders to eliminate background bleed-through.
+- **Preferences Polish**: Renamed settings labels to "Horizontal Position" and "Popup Width" with updated translations.
+
+### Fixes & Stability
+- **Extension Store Resilience**: Added network retry handling, loading states, and offline diagnostics to the in-app extension store.
+
+---
+
 ## v1.3.0 - 2026-09-04
 
 ### Highlights
