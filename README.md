@@ -13,9 +13,17 @@
 [![AlternativeTo](https://img.shields.io/badge/AlternativeTo-OpenClip-0081C6?style=flat-square&logo=alternativeto&logoColor=white)](https://alternativeto.net/software/openclip/about/?utm_source=badge&utm_medium=referral)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/sy4MeFxf8)
 [![Product Hunt](https://img.shields.io/badge/Product%20Hunt-OpenClip-DA552F?style=flat-square&logo=producthunt&logoColor=white)](https://www.producthunt.com/products/openclip)
+<br />
 
-[Features](#features) • [Installation](#installation) • [Getting started](#getting-started) • [Extending](#extending-openclip) • [Community](#community--support) • [Documentation](#documentation) • [License](#license)
+<a href="https://github.com/sponsors/ganeshmshetty" target="_blank">
+  <img src="https://img.shields.io/badge/Sponsor%20on%20GitHub-EA4AAA?style=for-the-badge&logo=github-sponsors&logoColor=white" height="32" alt="Sponsor on GitHub" />
+</a>
+<a href="https://buymeacoffee.com/ganeshmshetty" target="_blank">
+  <img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" height="32" alt="Buy Me A Coffee" />
+</a>
 
+<br />
+<br />
 <br />
 
 <img src="./assets/all.gif" alt="OpenClip in action" />
