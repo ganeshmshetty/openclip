@@ -229,6 +229,49 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
 
+    /// A grandchild that leaves the process group must still die when the watchdog fires.
+    /// `set -m` puts the background sleep in a new group (same hole as setsid/setpgid).
+    func testScriptActionWatchdogKillsDetachedGrandchild() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("openclip-watchdog-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tempDir.path)
+        let pidFile = tempDir.appendingPathComponent("grandchild.pid")
+        FileManager.default.createFile(atPath: pidFile.path, contents: Data(), attributes: [.posixPermissions: 0o600])
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        do {
+            _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+                executableURL: URL(fileURLWithPath: "/bin/bash"),
+                arguments: [
+                    "-c",
+                    "set -m; /bin/sleep 60 </dev/null >/dev/null 2>&1 & echo $! > '\(pidFile.path)'; /bin/sleep 60"
+                ],
+                environment: ["PATH": "/usr/bin:/bin"],
+                stdinText: nil,
+                timeout: 0.4
+            ))
+            XCTFail("Expected watchdog timeout")
+        } catch {
+            let nsError = error as NSError
+            XCTAssertEqual(nsError.domain, Constants.actionErrorDomain)
+            XCTAssertTrue(nsError.localizedDescription.contains("timed out"),
+                          "expected timeout error, got \(nsError.localizedDescription)")
+        }
+
+        guard FileManager.default.fileExists(atPath: pidFile.path),
+              let pidText = try? String(contentsOf: pidFile, encoding: .utf8)
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              let grandchildPid = pid_t(pidText),
+              grandchildPid > 0 else {
+            return XCTFail("script must record the detached grandchild pid at \(pidFile.path)")
+        }
+
+        // Wait past terminateProcessGroup's 0.5 s SIGKILL fallback.
+        try await Task.sleep(nanoseconds: 800_000_000)
+        XCTAssertNotEqual(kill(grandchildPid, 0), 0, "detached grandchild must be gone after watchdog")
+    }
+
     /// Cancelling the Swift Task executing a subprocess must immediately signal and kill the
     /// subprocess group and throw CancellationError without waiting for the full timeout.
     func testScriptActionCancellationKillsSubprocessImmediately() async throws {

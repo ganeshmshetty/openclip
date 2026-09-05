@@ -73,7 +73,7 @@ Sources/
 │   │   │   └── ValidateExpression.swift      # Computed visibility expression DSL AST & evaluator
 │   │   ├── OpenClipSnippetParser.swift       # Standalone snippet header parser (nonisolated, pure text); body mode ends only at `#` header keys, `//` lines stay body
 │   │   ├── ScriptAction.swift                # Executable script action
-│   │   ├── ShellProcessRunner.swift          # Shared subprocess executor; GCD-timer 30s watchdog + readabilityHandler reads (never blocks a thread); hosts TimeoutFlag/OnceGate; maps stdout JSON via ShellResultMapper
+│   │   ├── ShellProcessRunner.swift          # Shared subprocess executor; GCD-timer 60s watchdog always terminates the child, signals the process group only when the child is group leader, and otherwise signals snapshotted descendants individually + readabilityHandler reads (never blocks a thread); hosts TimeoutFlag/OnceGate; maps stdout JSON via ShellResultMapper
 │   │   └── Trust/                            # Extension trust & consent gate
 │   │       ├── ContentFingerprint.swift      # Package SHA-256 fingerprinting
 │   │       ├── ExtensionPackageHashResolver.swift # Recursive package hashing

@@ -77,4 +77,4 @@ return (upperText as text)
   preference (preview/paste/copy; a secondary click derives copy via delivery).
 - **No Return Value (empty)**: If the script executes without returning text, it returns `ActionResult.success`.
 - **Error Handling**: On a non-zero subprocess exit (the AppleScript error text goes to stderr), the runtime returns `ActionResult.failure(error)` with the error message.
-- **Timeout**: If the subprocess is still running after `Constants.scriptTimeout`, the watchdog terminates it and execution surfaces as a timeout failure.
+- **Timeout**: If the subprocess is still running after `Constants.scriptTimeout`, the watchdog terminates `osascript`, the process group when it is the leader, and remaining descendants. Execution surfaces as a timeout failure.

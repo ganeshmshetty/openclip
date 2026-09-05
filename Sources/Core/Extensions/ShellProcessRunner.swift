@@ -15,6 +15,9 @@
 // expanded `ScriptJSONOutput` DTO, and the shared JSON→ActionResult mapper. Pure Foundation — no
 // AppKit/SwiftUI.
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#endif
 
 /// Thread-safe boolean flag guarded by an NSLock.
 public final class AtomicFlag: @unchecked Sendable {
@@ -329,12 +332,23 @@ public enum ShellProcessRunner {
     public static func terminateProcessGroup(_ process: Process, fallbackDelay: TimeInterval = 0.5) {
         let pid = process.processIdentifier
         guard pid > 0 else { return }
+
+        // Snapshot the tree while the parent still runs. After terminate(), grandchildren that
+        // left the group reparent to launchd and a later ppid walk cannot find them.
+        let descendants = descendantSnapshots(of: pid)
+
         process.terminate()
         if getpgid(pid) == pid {
             kill(-pid, SIGTERM)
         }
+        for snapshot in descendants {
+            guard isProcessPresent(snapshot.pid),
+                  processStartTime(pid: snapshot.pid) == snapshot.startTime else { continue }
+            kill(snapshot.pid, SIGTERM)
+        }
+
         DispatchQueue.global().asyncAfter(deadline: .now() + fallbackDelay) {
-            if process.isRunning {
+            if process.isRunning, process.processIdentifier == pid {
                 process.terminate()
                 if getpgid(pid) == pid {
                     kill(-pid, SIGKILL)
@@ -342,7 +356,83 @@ public enum ShellProcessRunner {
                     kill(pid, SIGKILL)
                 }
             }
+            for snapshot in descendants {
+                guard isProcessPresent(snapshot.pid),
+                      processStartTime(pid: snapshot.pid) == snapshot.startTime else { continue }
+                kill(snapshot.pid, SIGKILL)
+            }
         }
+    }
+
+    private struct ProcessStartTime: Equatable, Sendable {
+        let sec: UInt64
+        let usec: UInt64
+    }
+
+    private struct DescendantSnapshot: Sendable {
+        let pid: pid_t
+        let startTime: ProcessStartTime
+    }
+
+    private static func descendantSnapshots(of root: pid_t) -> [DescendantSnapshot] {
+        descendantProcessIDs(of: root).compactMap { child in
+            guard let startTime = processStartTime(pid: child) else { return nil }
+            return DescendantSnapshot(pid: child, startTime: startTime)
+        }
+    }
+
+    private static func descendantProcessIDs(of root: pid_t) -> [pid_t] {
+        let selfPid = getpid()
+        var ids: [pid_t] = []
+        var queue: [pid_t] = [root]
+        var seen: Set<pid_t> = [root]
+        var index = 0
+        while index < queue.count {
+            let parent = queue[index]
+            index += 1
+            for child in childProcessIDs(of: parent) {
+                guard child > 1, child != selfPid, !seen.contains(child) else { continue }
+                seen.insert(child)
+                ids.append(child)
+                queue.append(child)
+            }
+        }
+        return ids
+    }
+
+    /// Direct children of one pid, so the walk stays inside our own subtree instead of building a
+    /// parent map over every process on the system. A nil-buffer call reports a pid count, which can
+    /// grow before the second call, so the buffer keeps slack; a probe of 0 is also read once,
+    /// because missing a descendant here means a hung grandchild survives the watchdog.
+    private static func childProcessIDs(of parent: pid_t) -> [pid_t] {
+        var capacity = Int(proc_listchildpids(parent, nil, 0))
+        if capacity <= 0 {
+            capacity = 8
+        }
+        capacity += 16
+        var pids = [pid_t](repeating: 0, count: capacity)
+        let written = pids.withUnsafeMutableBufferPointer { buffer in
+            proc_listchildpids(
+                parent,
+                buffer.baseAddress,
+                Int32(buffer.count * MemoryLayout<pid_t>.stride)
+            )
+        }
+        guard written > 0 else { return [] }
+        return pids.prefix(Int(written)).filter { $0 > 0 }
+    }
+
+    private static func processStartTime(pid: pid_t) -> ProcessStartTime? {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.stride)
+        let result = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size)
+        guard result == size else { return nil }
+        return ProcessStartTime(sec: info.pbi_start_tvsec, usec: info.pbi_start_tvusec)
+    }
+
+    private static func isProcessPresent(_ pid: pid_t) -> Bool {
+        if kill(pid, 0) == 0 { return true }
+        return errno == EPERM
     }
 
     public static func run(_ invocation: Invocation) async throws -> Output {
@@ -383,12 +473,6 @@ public enum ShellProcessRunner {
                 }
 
                 try process.run()
-
-                // Move the child into its own process group so a watchdog kill can signal the whole tree
-                // (the script plus any grandchildren it spawned) rather than only the direct child. The
-                // child's pid becomes the group id; a failed setpgid is tolerated — the group signal just
-                // no-ops below.
-                setpgid(process.processIdentifier, process.processIdentifier)
                 processBox.set(process)
 
                 if processBox.isCancelled {
