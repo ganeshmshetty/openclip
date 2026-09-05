@@ -342,6 +342,8 @@ public enum ShellProcessRunner {
             kill(-pid, SIGTERM)
         }
         for snapshot in descendants {
+            guard isProcessPresent(snapshot.pid),
+                  processStartTime(pid: snapshot.pid) == snapshot.startTime else { continue }
             kill(snapshot.pid, SIGTERM)
         }
 

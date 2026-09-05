@@ -259,8 +259,10 @@ areas; stale debt notes are worse than none.
   suite indefinitely (observed mid-suite in `ScriptActionTests.testScriptExecution`). The runner now
   uses a GCD timer watchdog + GCD `readabilityHandler` reads + synchronous stdin close. This claim
   covers only the pipe reads: `process.waitUntilExit()` still blocks its detached thread until the
-  child exits — bounded at `Constants.scriptTimeout`, when the watchdog kills the child, the process
-  group when the child is the leader, and remaining descendants, and the wait returns.
+  child exits — bounded at `Constants.scriptTimeout`. At timeout the watchdog starts descendant
+  cleanup (the child, the process group when the child is the leader, and remaining descendants).
+  `waitUntilExit()` waits only for the direct child; descendant SIGKILL is scheduled asynchronously
+  and may finish after the wait returns.
 
 ## Selection Retrieval
 
