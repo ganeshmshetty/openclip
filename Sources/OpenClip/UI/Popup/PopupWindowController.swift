@@ -37,6 +37,10 @@ public class PopupWindowController {
     /// Frame of the main bar prior to entering search mode, so exitSearch() can restore exact placement.
     private var preSearchFrame: NSRect?
 
+    /// True when the current session was opened directly into search mode (e.g. via keyboard shortcut),
+    /// so exitSearch() (Esc) dismisses the palette completely rather than falling back to the bar.
+    public private(set) var openedDirectlyInSearch: Bool = false
+
     private var hoveredAction: (any Action)?
 
     private var isMenuTracking = false
@@ -160,11 +164,11 @@ public class PopupWindowController {
         }
     }
 
-    public func show(for context: SelectionContext, pasteAvailable: Bool? = nil) {
-        show(for: context, pasteAvailable: pasteAvailable, preservingSessionID: nil, streamingTask: nil)
+    public func show(for context: SelectionContext, pasteAvailable: Bool? = nil, initialMode: PopupMode = .actions) {
+        show(for: context, pasteAvailable: pasteAvailable, preservingSessionID: nil, streamingTask: nil, initialMode: initialMode)
     }
 
-    func show(for context: SelectionContext, pasteAvailable: Bool?, preservingSessionID: UUID?, streamingTask: Task<Void, Never>?) {
+    func show(for context: SelectionContext, pasteAvailable: Bool?, preservingSessionID: UUID?, streamingTask: Task<Void, Never>?, initialMode: PopupMode = .actions) {
         let aiSession: UUID
         if let preservingSessionID {
             aiSession = preservingSessionID
@@ -201,6 +205,7 @@ public class PopupWindowController {
         panel.pinBottomEdgeOnResize = false
         panel.horizontalAnchor = .none
         preSearchFrame = nil
+        openedDirectlyInSearch = (initialMode == .search)
 
         let rawAlignment = settingsStore.get(SettingKey.popupAlignment)
         let alignment = PopupBarAlignment(rawValue: rawAlignment) ?? .left
@@ -208,13 +213,23 @@ public class PopupWindowController {
         let verticalPosition = PopupVerticalPosition(rawValue: rawVertical) ?? .auto
 
         // Pre-compute card direction from real screen position
-        let screen = PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
+        let screen: NSScreen? = {
+            if initialMode == .search {
+                return NSScreen.main ?? PopupPositioner.screen(containing: context.cursorPosition)
+            }
+            return PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
+        }()
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
-        let tempFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
+        let tempFrame: CGRect
+        if initialMode == .search {
+            tempFrame = PopupPositioner.centerInScreen(popupSize: CGSize(width: PopupMetrics.searchPanelWidth, height: 50), screenBounds: screenBounds)
+        } else {
+            tempFrame = PopupPositioner.calculateFrame(
+                for: context, popupSize: CGSize(width: 320, height: 50), in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
+        }
         cardAbove = tempFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
 
-        modeStore.mode = .actions
+        modeStore.mode = initialMode
         modeStore.searchResultsAbove = cardAbove
         modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: tempFrame, releasePoint: context.cursorPosition)
         // Probed before selection retrieval by the trigger sites and resolved before this frame,
@@ -298,13 +313,18 @@ public class PopupWindowController {
         let size = sanitizedPopupSize(panel.contentView?.fittingSize)
 
         // Compute card direction from real screen position using the actual rendered panel size.
-        let calculatedFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: size, in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
+        let calculatedFrame: CGRect
+        if initialMode == .search {
+            calculatedFrame = PopupPositioner.centerInScreen(popupSize: size, screenBounds: screenBounds)
+            panel.setFrame(calculatedFrame, display: true)
+        } else {
+            calculatedFrame = PopupPositioner.calculateFrame(
+                for: context, popupSize: size, in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
+            positionPanel(panel, size: size, for: context, alignment: alignment, verticalPosition: verticalPosition)
+        }
         cardAbove = calculatedFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
         modeStore.searchResultsAbove = cardAbove
         modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: calculatedFrame, releasePoint: context.cursorPosition)
-
-        positionPanel(panel, size: size, for: context, alignment: alignment, verticalPosition: verticalPosition)
         lastPopupFrame = panel.frame
         // Placement is fixed; any subsequent content-driven width change (search palette,
         // pagination) must re-center rather than drift off the cursor.
@@ -315,19 +335,28 @@ public class PopupWindowController {
         panel.orderFront(nil)
         
         setupMonitors()
+
+        if initialMode == .search {
+            enterKeyMode()
+            Task { @MainActor in
+                await Task.yield()
+                self.focusSearchField()
+            }
+        }
     }
 
     public var isVisible: Bool { (panel?.isVisible == true) || (currentContext != nil) }
 
     /// Starts a session without creating AppKit window monitors or ordering windows on screen. Internal for tests.
-    func startTestSession(for context: SelectionContext, pasteAvailable: Bool? = nil) {
+    func startTestSession(for context: SelectionContext, pasteAvailable: Bool? = nil, initialMode: PopupMode = .actions) {
         isMenuTracking = false
         currentContext = context
         captureFrontmostAppIfNeeded()
         let actionContext = ActionContext(selection: context, modifiers: [])
         currentActionContext = actionContext
-        modeStore.mode = .actions
+        modeStore.mode = initialMode
         modeStore.canPaste = pasteAvailable
+        openedDirectlyInSearch = (initialMode == .search)
     }
 
     /// Hotkey-driven toggle: dismisses the popup if already visible.
@@ -375,6 +404,9 @@ public class PopupWindowController {
     /// stays active throughout.
     public func enterSearch(with scope: SearchScope? = nil, buttonLocalFrame: CGRect? = nil) {
         guard let panel, panel.isVisible else { return }
+        if preSearchFrame == nil {
+            preSearchFrame = panel.frame
+        }
         subBarController.hide()
         modeStore.isSubBarActive = false
         modeStore.activeSubGroupID = nil
@@ -388,17 +420,20 @@ public class PopupWindowController {
         panel.horizontalAnchor = .center
 
         if let buttonLocalFrame {
-            preSearchFrame = panel.frame
-            let buttonScreenMidX = panel.frame.minX + buttonLocalFrame.midX
-            let searchPanelWidth: CGFloat = 280 + 2 * PopupMetrics.popupShadowInset
+            let barFrame = preSearchFrame ?? panel.frame
+            preSearchFrame = barFrame
+            let buttonScreenMidX = barFrame.minX + buttonLocalFrame.midX
+            let searchPanelWidth = PopupMetrics.searchPanelWidth
             let screen = panel.screen ?? NSScreen.main
             let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
-            let padding = PopupMetrics.popupPadding
-            let minMidX = screenBounds.minX + padding + searchPanelWidth / 2
-            let maxMidX = max(minMidX, screenBounds.maxX - padding - searchPanelWidth / 2)
-            let clampedMidX = max(minMidX, min(buttonScreenMidX, maxMidX))
+            let clampedMidX = PopupPositioner.searchPaletteMidX(
+                buttonScreenMidX: buttonScreenMidX,
+                searchWidth: searchPanelWidth,
+                barMaxX: barFrame.maxX,
+                screenBounds: screenBounds
+            )
 
-            panel.setFrame(CGRect(x: clampedMidX - panel.frame.width / 2, y: panel.frame.origin.y, width: panel.frame.width, height: panel.frame.height), display: false)
+            panel.setFrame(CGRect(x: clampedMidX - searchPanelWidth / 2, y: panel.frame.origin.y, width: searchPanelWidth, height: panel.frame.height), display: false)
         }
 
         enterKeyMode()
@@ -439,11 +474,16 @@ public class PopupWindowController {
     }
 
     /// Leave search mode back to the actions bar: restore the never-key invariant and hand
-    /// keyboard focus back to the source app. Never hides the popup. The bottom-edge pin is kept
+    /// keyboard focus back to the source app. Never hides the popup unless the session was opened
+    /// directly in search mode (e.g. via keyboard shortcut). The bottom-edge pin is kept
     /// active through the shrink so the bar returns to the field's spot (results-above case);
     /// it is cleared by hide() and the next show(for:).
     public func exitSearch() {
         guard modeStore.mode == .search else { return }
+        if openedDirectlyInSearch {
+            hide()
+            return
+        }
         modeStore.scope = nil
         modeStore.mode = .actions
         // Return to the bar keeps the field-anchoring rule active for hover-preview/banner growth
@@ -451,7 +491,7 @@ public class PopupWindowController {
         // leaving the search-mode value behind. Cleared by show()/hide() before placement.
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
         if let preSearchFrame, let panel {
-            panel.setFrame(CGRect(x: preSearchFrame.midX - panel.frame.width / 2, y: panel.frame.origin.y, width: panel.frame.width, height: panel.frame.height), display: false)
+            panel.setFrame(CGRect(x: preSearchFrame.origin.x, y: panel.frame.origin.y, width: preSearchFrame.width, height: panel.frame.height), display: false)
         }
         preSearchFrame = nil
         exitKeyMode() // reactivates previousFrontmostApp but keeps it for the session
@@ -633,6 +673,7 @@ public class PopupWindowController {
         panel?.pinBottomEdgeOnResize = false
         panel?.horizontalAnchor = .none
         preSearchFrame = nil
+        openedDirectlyInSearch = false
         panel?.ignoresMouseEvents = false // clear any hover-driven click-through from the last session
         exitKeyMode() // allowsKey=false + reactivate previousFrontmostApp
         previousFrontmostApp = nil // hide() is the only thing that ends the key-mode session

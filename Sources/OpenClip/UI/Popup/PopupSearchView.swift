@@ -135,7 +135,7 @@ public struct PopupSearchView: View {
                 resultsList
             }
         }
-        .frame(width: 280)
+        .frame(width: PopupMetrics.searchPanelContentWidth)
         .clipShape(RoundedRectangle(cornerRadius: PopupMetrics.searchCornerRadius, style: .continuous))
         .onPreferenceChange(SearchHoverFramePreferenceKey.self) { frames in
             MainActor.assumeIsolated {

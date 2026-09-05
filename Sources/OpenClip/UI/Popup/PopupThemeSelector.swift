@@ -158,7 +158,7 @@ struct PopupThemeSelector: View {
 
     private var alignmentRow: some View {
         HStack(spacing: 12) {
-            rowTitle(icon: "text.alignleft", title: "Bar Alignment")
+            rowTitle(icon: "text.alignleft", title: "Horizontal Position")
             Spacer()
             iconTiles(
                 options: alignmentOptions,
@@ -218,7 +218,7 @@ struct PopupThemeSelector: View {
         HStack(spacing: 12) {
             rowTitle(
                 icon: "arrow.left.and.right",
-                title: "Bar Width"
+                title: "Popup Width"
             )
             Spacer()
             HStack(spacing: 8) {
@@ -230,7 +230,7 @@ struct PopupThemeSelector: View {
                     in: 1...5,
                     step: 1
                 )
-                .accessibilityLabel("Bar Width")
+                .accessibilityLabel("Popup Width")
                 .accessibilityValue("\(barWidthLevel)")
                 .frame(width: 120)
                 Text("\(barWidthLevel)")

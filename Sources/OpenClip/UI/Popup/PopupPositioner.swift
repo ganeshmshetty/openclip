@@ -79,6 +79,30 @@ public struct PopupPositioner: Sendable {
         alignedX(releaseX: releaseX, width: width, screenBounds: screenBounds, alignment: .center)
     }
 
+    /// Returns a frame of `popupSize` centered horizontally and vertically within `screenBounds`.
+    public static func centerInScreen(popupSize: CGSize, screenBounds: CGRect) -> CGRect {
+        let x = screenBounds.midX - popupSize.width / 2
+        let y = screenBounds.midY - popupSize.height / 2
+        return CGRect(x: x, y: y, width: popupSize.width, height: popupSize.height)
+    }
+
+    /// Horizontal midX for a search palette of `searchWidth` initiated from a button click at `buttonScreenMidX`
+    /// within a bar whose right edge is `barMaxX`. The palette aligns with the button's center point
+    /// when possible, but is capped so its right edge does not exceed `barMaxX`, and clamped to `screenBounds`.
+    public static func searchPaletteMidX(
+        buttonScreenMidX: CGFloat,
+        searchWidth: CGFloat = PopupMetrics.searchPanelWidth,
+        barMaxX: CGFloat,
+        screenBounds: CGRect
+    ) -> CGFloat {
+        let padding = PopupMetrics.popupPadding
+        let minMidX = screenBounds.minX + padding + searchWidth / 2
+        let maxMidX = max(minMidX, screenBounds.maxX - padding - searchWidth / 2)
+        let barMaxMidX = barMaxX - searchWidth / 2
+        let targetMidX = min(buttonScreenMidX, barMaxMidX)
+        return max(minMidX, min(targetMidX, maxMidX))
+    }
+
     /// Place the popup near the mouse-release point.
     ///
     /// Vertical rule:

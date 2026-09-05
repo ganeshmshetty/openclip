@@ -183,5 +183,69 @@ final class PopupPositionerTests: XCTestCase {
         XCTAssertEqual(frame.origin.y, 36)
         XCTAssertTrue(PopupPositioner.isPlacedAbove(frame: frame, releasePoint: release))
     }
+
+    func testCenterInScreen() {
+        let screenBounds = CGRect(x: 100, y: 50, width: 800, height: 600)
+        let popupSize = CGSize(width: 300, height: 200)
+        let centered = PopupPositioner.centerInScreen(popupSize: popupSize, screenBounds: screenBounds)
+
+        XCTAssertEqual(centered.origin.x, 100 + (800 - 300) / 2)
+        XCTAssertEqual(centered.origin.y, 50 + (600 - 200) / 2)
+        XCTAssertEqual(centered.width, 300)
+        XCTAssertEqual(centered.height, 200)
+    }
+
+    func testSearchPaletteMidXAlignsWithButtonCenterWhenWithinBarEdge() {
+        let screenBounds = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        let barMaxX: CGFloat = 700
+        let searchWidth: CGFloat = 312
+        let buttonScreenMidX: CGFloat = 400
+
+        let midX = PopupPositioner.searchPaletteMidX(
+            buttonScreenMidX: buttonScreenMidX,
+            searchWidth: searchWidth,
+            barMaxX: barMaxX,
+            screenBounds: screenBounds
+        )
+
+        // MidX aligns exactly with button center (400) because 400 + 156 = 556 <= 700
+        XCTAssertEqual(midX, buttonScreenMidX)
+        XCTAssertLessThanOrEqual(midX + searchWidth / 2, barMaxX)
+    }
+
+    func testSearchPaletteMidXCappedByBarRightEdge() {
+        let screenBounds = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        let barMaxX: CGFloat = 700
+        let searchWidth: CGFloat = 312
+        // Clicked search button near the far right of the bar
+        let buttonScreenMidX: CGFloat = 685
+
+        let midX = PopupPositioner.searchPaletteMidX(
+            buttonScreenMidX: buttonScreenMidX,
+            searchWidth: searchWidth,
+            barMaxX: barMaxX,
+            screenBounds: screenBounds
+        )
+
+        // Must be capped so palette right edge (midX + searchWidth / 2) does not exceed barMaxX
+        XCTAssertEqual(midX, barMaxX - searchWidth / 2)
+        XCTAssertEqual(midX + searchWidth / 2, barMaxX)
+    }
+
+    func testSearchPaletteMidXClampedByScreenEdges() {
+        let screenBounds = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        let padding = PopupMetrics.popupPadding
+        let searchWidth: CGFloat = 312
+
+        // When barMaxX is very small (near left screen edge)
+        let leftMidX = PopupPositioner.searchPaletteMidX(
+            buttonScreenMidX: 50,
+            searchWidth: searchWidth,
+            barMaxX: 100,
+            screenBounds: screenBounds
+        )
+        // Screen padding takes precedence so it never renders off-screen
+        XCTAssertEqual(leftMidX, screenBounds.minX + padding + searchWidth / 2)
+    }
 }
 

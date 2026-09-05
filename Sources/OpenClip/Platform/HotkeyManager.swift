@@ -37,10 +37,14 @@ public final class HotkeyManager {
     public func setup(popupController: PopupWindowController) {
         KeyboardShortcuts.onKeyUp(for: .togglePopup) { [weak popupController] in
             Task { @MainActor in
-                // Popup already visible: the hotkey dismisses the popup (toggle off)
-                // instead of re-running text retrieval and re-showing.
+                // Popup already visible: if in search mode, the hotkey dismisses the popup (toggle off);
+                // if in actions bar mode, the hotkey transitions directly into search mode.
                 if let popupController, popupController.isVisible {
-                    popupController.toggleMode()
+                    if popupController.modeStore.mode == .search {
+                        popupController.toggleMode()
+                    } else {
+                        popupController.enterSearch()
+                    }
                     return
                 }
 
@@ -106,7 +110,7 @@ public final class HotkeyManager {
                 )
                 
                 let canPaste = await probeTask?.value
-                popupController?.show(for: context, pasteAvailable: canPaste)
+                popupController?.show(for: context, pasteAvailable: canPaste, initialMode: .search)
             }
         }
     }

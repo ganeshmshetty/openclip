@@ -43,7 +43,9 @@ public enum PopupMetrics {
     /// Vertical threshold (pt) from the bottom of the screen bounds below which the card renders
     /// above the action bar instead of below (numerically equals `popupDismissalDistance`).
     public static let cardAboveThreshold: CGFloat = 280.0
-    /// Action-search palette sizing: visible result rows and result row height.
+    /// Action-search palette sizing: content width, total panel width, visible result rows and result row height.
+    public static let searchPanelContentWidth: CGFloat = 280.0
+    public static var searchPanelWidth: CGFloat { searchPanelContentWidth + 2 * popupShadowInset }
     public static let searchMaxRows: Int = 5
     public static let searchResultRowHeight: CGFloat = 32
     /// Fraction of an extra result row shown beyond `searchMaxRows` so the next action peeks,

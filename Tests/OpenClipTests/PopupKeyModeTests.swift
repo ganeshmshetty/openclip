@@ -123,4 +123,96 @@ final class PopupKeyModeTests: XCTestCase {
         controller.hide()
         XCTAssertFalse(controller.modeStore.isSubBarActive, "hide() must reset isSubBarActive")
     }
+
+    func testDirectSearchSessionDismissesOnExitSearch() {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
+        controller.startTestSession(
+            for: SelectionContext(
+                text: "hello world",
+                sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+                cursorPosition: CGPoint(x: 400, y: 400),
+                timestamp: Date(),
+                appPolicy: .default
+            ),
+            initialMode: .search
+        )
+
+        XCTAssertTrue(controller.openedDirectlyInSearch, "Direct search start must set openedDirectlyInSearch")
+        XCTAssertEqual(controller.modeStore.mode, .search)
+        XCTAssertTrue(controller.isVisible)
+
+        controller.exitSearch()
+        XCTAssertFalse(controller.isVisible, "exitSearch on a direct search session must dismiss completely")
+        XCTAssertFalse(controller.openedDirectlyInSearch, "hide() must clear openedDirectlyInSearch")
+    }
+
+    func testBarSessionCollapsesBackToBarOnExitSearch() {
+        let controller = makeController()
+        defer { controller.hide() }
+
+        let panel = PopupPanel()
+        panel.orderFront(nil)
+        controller.panel = panel
+
+        XCTAssertFalse(controller.openedDirectlyInSearch, "Bar start must have openedDirectlyInSearch == false")
+        XCTAssertEqual(controller.modeStore.mode, .actions)
+
+        controller.enterSearch()
+        XCTAssertEqual(controller.modeStore.mode, .search)
+
+        controller.exitSearch()
+        XCTAssertEqual(controller.modeStore.mode, .actions, "exitSearch on a bar session must collapse back to .actions")
+        XCTAssertTrue(controller.isVisible, "exitSearch on a bar session must keep the popup visible")
+    }
+
+    func testDirectSearchSessionCentersOnScreen() {
+        let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard))
+        defer { controller.hide() }
+
+        let context = SelectionContext(
+            text: "test selection",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: CGPoint(x: 50, y: 50),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+
+        controller.show(for: context, initialMode: .search)
+
+        guard let panel = controller.panel else {
+            XCTFail("Panel must be created on show")
+            return
+        }
+
+        let screen = NSScreen.main ?? PopupPositioner.screen(containing: context.cursorPosition)
+        let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+        let expectedX = screenBounds.midX - panel.frame.width / 2
+        let expectedY = screenBounds.midY - panel.frame.height / 2
+
+        XCTAssertEqual(panel.frame.origin.x, expectedX, accuracy: 1.0, "Direct search must be horizontally centered on screen")
+        XCTAssertEqual(panel.frame.origin.y, expectedY, accuracy: 1.0, "Direct search must be vertically centered on screen")
+    }
+
+    func testEnterSearchWithButtonLocalFrameDoesNotExceedBarMaxX() {
+        let controller = makeController()
+        defer { controller.hide() }
+
+        let panel = PopupPanel()
+        panel.orderFront(nil)
+        // Initial bar frame: x: 300, y: 300, width: 350, height: 50 -> maxX is 650
+        panel.setFrame(NSRect(x: 300, y: 300, width: 350, height: 50), display: false)
+        controller.panel = panel
+
+        // Simulate clicking search button at far right: local x = 310, width = 34 -> midX = 327
+        let buttonFrame = CGRect(x: 310, y: 8, width: 34, height: 34)
+        controller.enterSearch(buttonLocalFrame: buttonFrame)
+
+        let searchPanelWidth = PopupMetrics.searchPanelWidth
+        let barMaxX: CGFloat = 650
+
+        XCTAssertLessThanOrEqual(panel.frame.maxX, barMaxX + 0.1, "Search palette frame must not exceed right popup bar edge")
+        XCTAssertLessThanOrEqual(panel.frame.midX + searchPanelWidth / 2, barMaxX + 0.1, "Search palette center + halfWidth must stay within barMaxX")
+    }
 }
