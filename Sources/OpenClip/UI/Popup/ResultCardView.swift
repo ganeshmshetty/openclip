@@ -92,19 +92,31 @@ public struct ResultCardView: View {
 
     private func cardChrome<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: PopupMetrics.popupCornerRadius, style: .continuous)
-        let borderColor: Color = colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
+        let classicBorderColor: Color = colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
         return content()
             .background(
-                effectiveTheme == "glass"
-                    ? AnyShapeStyle(.ultraThinMaterial)
-                    : AnyShapeStyle(
-                        Color(red: colorScheme == .dark ? 0.20 : 0.91,
-                              green: colorScheme == .dark ? 0.20 : 0.91,
-                              blue: colorScheme == .dark ? 0.22 : 0.93)
-                    )
+                Group {
+                    if effectiveTheme == "glass" {
+                        LayeredGlassBackground(cornerRadius: PopupMetrics.popupCornerRadius, colorScheme: colorScheme)
+                    } else {
+                        shape.fill(
+                            Color(red: colorScheme == .dark ? 0.20 : 0.91,
+                                  green: colorScheme == .dark ? 0.20 : 0.91,
+                                  blue: colorScheme == .dark ? 0.22 : 0.93)
+                        )
+                    }
+                }
             )
             .clipShape(shape)
-            .overlay(shape.stroke(borderColor, lineWidth: 1.0))
+            .overlay(
+                Group {
+                    if effectiveTheme == "glass" {
+                        LayeredGlassBorder(cornerRadius: PopupMetrics.popupCornerRadius, colorScheme: colorScheme)
+                    } else {
+                        shape.stroke(classicBorderColor, lineWidth: 1.0)
+                    }
+                }
+            )
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.32 : 0.16), radius: 6, x: 0, y: 3)
     }
 

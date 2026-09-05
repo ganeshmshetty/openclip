@@ -38,9 +38,6 @@ struct ToastView: View {
         PopupThemeModel.effectiveScheme(appearance: themeColor, systemIsDark: colorScheme == .dark)
     }
 
-    private var glassBorderColor: Color {
-        effectiveColorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.12)
-    }
 
     private var opaqueBackground: Color {
         effectiveTheme == "dark" ? Color(red: 0.20, green: 0.20, blue: 0.22) : Color(red: 0.91, green: 0.91, blue: 0.93)
@@ -84,17 +81,28 @@ struct ToastView: View {
 
         Group {
             if isGlass {
+                let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 content
                     .background(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill((isInteractive && isHovered) ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.ultraThinMaterial))
+                        Group {
+                            if isInteractive && isHovered {
+                                shape.fill(Color.accentColor)
+                            } else {
+                                LayeredGlassBackground(cornerRadius: cornerRadius, colorScheme: effectiveColorScheme)
+                            }
+                        }
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .clipShape(shape)
                     .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke((isInteractive && isHovered) ? Color.accentColor : glassBorderColor, lineWidth: 1.0)
+                        Group {
+                            if isInteractive && isHovered {
+                                shape.stroke(Color.accentColor, lineWidth: 1.0)
+                            } else {
+                                LayeredGlassBorder(cornerRadius: cornerRadius, colorScheme: effectiveColorScheme)
+                            }
+                        }
                     )
-                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 1)
+                    .shadow(color: Color.black.opacity(effectiveColorScheme == .dark ? 0.25 : 0.15), radius: 4, x: 0, y: 1)
             } else {
                 content
                     .background((isInteractive && isHovered) ? Color.accentColor : opaqueBackground)

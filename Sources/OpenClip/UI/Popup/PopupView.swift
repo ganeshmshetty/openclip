@@ -379,18 +379,8 @@ public struct PopupView: View {
     private var mainBarStyled: some View {
         let styledBar = Group {
             if effectiveTheme == "glass" {
-                let glassBorderColor: Color = effectiveColorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.20)
                 barStack
-                    .background(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(glassBorderColor, lineWidth: 1.0)
-                    )
-                    .shadow(color: Color.black.opacity(0.28), radius: 6, x: 0, y: 3)
+                    .layeredGlassSurface(cornerRadius: cornerRadius, colorScheme: effectiveColorScheme)
             } else {
                 barStack
                     .background(opaqueBackground)
