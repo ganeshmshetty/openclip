@@ -262,7 +262,11 @@ areas; stale debt notes are worse than none.
   child exits — bounded at `Constants.scriptTimeout`. At timeout the watchdog starts descendant
   cleanup (the child, the process group when the child is the leader, and remaining descendants).
   `waitUntilExit()` waits only for the direct child; descendant SIGKILL is scheduled asynchronously
-  and may finish after the wait returns.
+  and may finish after the wait returns. Descendants come from a `proc_listchildpids` walk of the
+  child's own subtree (not a scan of the whole process table), snapshotted with start times before
+  `terminate()`. Two limits remain: a probe that reports 0 children is still read once, because a
+  spurious 0 would silently drop a descendant; and a grandchild that reparented to launchd before
+  the snapshot is unreachable by any pid walk.
 
 ## Selection Retrieval
 
