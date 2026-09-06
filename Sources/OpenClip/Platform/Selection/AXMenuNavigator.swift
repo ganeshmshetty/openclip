@@ -6,6 +6,7 @@
 // Command-key equivalent (⌘C/⌘V), or by localized titles.
 import ApplicationServices
 import Foundation
+import Core
 
 public struct AXMenuNavigator {
     /// The system menu commands OpenClip needs to locate and, for copy, press.
@@ -39,6 +40,8 @@ public struct AXMenuNavigator {
     }
 
     /// Finds the requested menu item in `app`'s menu bar, optionally requiring it to be enabled.
+    /// Sets a messaging timeout on `app` before the menu-bar read. Child elements do not inherit
+    /// the timeout.
     ///
     /// - Parameters:
     ///   - command: The menu command to locate.
@@ -51,8 +54,9 @@ public struct AXMenuNavigator {
         in app: AXUIElement?,
         requireEnabled: Bool = false
     ) -> AXUIElement? {
-        guard let app,
-              let menuBar = attribute(app, kAXMenuBarAttribute).flatMap(axElement),
+        guard let app else { return nil }
+        AXUIElementSetMessagingTimeout(app, Float(Constants.axReadTimeout))
+        guard let menuBar = attribute(app, kAXMenuBarAttribute).flatMap(axElement),
               let topLevelMenus = children(menuBar) else { return nil }
 
         // The Edit menu is standardly the 4th top-level menu (index 3). Search it first, then search remaining menus.
@@ -72,9 +76,11 @@ public struct AXMenuNavigator {
     }
 
     /// Presses the requested menu item if it can be found and is enabled.
+    /// Sets a messaging timeout on the menu item before AXPress.
     @discardableResult
     public static func press(_ command: MenuCommand, in app: AXUIElement?) -> Bool {
         guard let item = findMenuItem(command, in: app, requireEnabled: true) else { return false }
+        AXUIElementSetMessagingTimeout(item, Float(Constants.axReadTimeout))
         AXUIElementPerformAction(item, kAXPressAction as CFString)
         return true
     }

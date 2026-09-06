@@ -225,11 +225,14 @@ areas; stale debt notes are worse than none.
 
 - **Residual non-interruptible paths (documented).** Two spots remain that a hostile
   or hung target can make block a background thread:
-  (1) `SelectionRetrievalCoordinator.pressEditCopyMenu` fires an AXPress on the dedicated
-  `com.openclip.ax-inspect` queue that the `pasteboardCopyTimeout` poll does not kill — the press
-  is uncancellable and may pin a queue worker thread against a hung target until the AX call
-  returns (never bounded by the copy timeout). The queue is concurrent, so a stuck press no longer
-  head-of-line-blocks later retrieval requests (see below);
+  (1) `SelectionRetrievalCoordinator.pressEditCopyMenu` starts an AXPress on the dedicated
+  `com.openclip.ax-inspect` queue. The `pasteboardCopyTimeout` poll does not stop that press.
+  A blocked target can occupy one queue worker until AX returns or
+  `AXUIElementSetMessagingTimeout` (`Constants.axReadTimeout`) ends the call.
+  The `inspectGate` permit is not held for that duration.
+  `pressCopyMenuWithWatchdog` releases the permit at the first of {press returned, `axReadTimeout`},
+  same OnceResume race as inspect. The queue is concurrent, so a blocked press does not delay
+  later retrieval requests (see below);
   (2) an async-mode
   JS script with a top-level *synchronous* infinite loop blocks inside `evaluateScript`, which the
   watchdog pump loop never reaches (the sync-evaluation gate covers only `isAsync == false`).
@@ -245,7 +248,7 @@ areas; stale debt notes are worse than none.
   process-wide for seconds. Reads now go through a counting gate (`Constants.axMaxConcurrentInspects`,
   currently 4): concurrent reads proceed in parallel, the permit frees when the caller's watchdog
   settles (deadline or completion), and only genuinely saturated bursts skip. Menu-copy presses
-  share the same gate for serialization.
+  share the same gate. The permit is released at `axReadTimeout`, same as inspect.
 - **The `ax-inspect` queue is concurrent, not head-of-line blocking.** All blocking AX work in the
   coordinator (the inspect snapshot and the Edit ▸ Copy AXPress) shares one concurrent
   `com.openclip.ax-inspect` queue: a hung AX call occupies one worker thread but later inspect

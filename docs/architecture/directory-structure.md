@@ -180,7 +180,7 @@ Sources/
     │   │   ├── AXWebAreaStrategy.swift       # WebKit marker-range read (settle-retry lives in the coordinator)
     │   │   ├── BrowserScriptStrategy.swift   # AppleScript-bridge page-selection read (Safari/Chromium/Firefox/Arc) + URL
     │   │   ├── CursorClassifier.swift        # Cursor image → CursorClass
-    │   │   └── SelectionRetrievalCoordinator.swift # Gate + mode routing + inspect watchdog + AX Edit ▸ Copy press
+    │   │   └── SelectionRetrievalCoordinator.swift # Gate + mode routing + inspect watchdog + deadline-capped Edit ▸ Copy press
     │   └── UnifiedIconProvider.swift         # Unified icon loader and cache
     ├── Resources/
     │   └── Localizable.xcstrings             # App string catalog (en source + zh-Hans). Regenerate with scripts/generate_localizable.py

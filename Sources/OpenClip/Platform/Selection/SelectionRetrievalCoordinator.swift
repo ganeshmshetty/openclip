@@ -15,18 +15,16 @@ public struct SelectionRetrievalCoordinator: Sendable {
     public typealias BrowserReader = @Sendable (String) async -> BrowserScriptStrategy.BrowserResult?
     public typealias CopyTrigger = PasteboardCopyEngine.CopyTrigger
     public typealias CopyCapture = @Sendable (CopyTrigger) async -> TextResult?
+    public typealias MenuPress = @Sendable (AXUIElement?) -> Void
 
     /// Dedicated concurrent queue for blocking AX work (the inspect snapshot and the Edit ▸ Copy
     /// AXPress). Concurrent so a blocked accessibility call cannot prevent later inspectWithWatchdog
-    /// and pressEditCopyMenu work from starting. AX lookups must never run on the cooperative thread
+    /// and pressCopyMenuWithWatchdog work from starting. AX lookups must never run on the cooperative thread
     /// pool: a hung call would pin one of those threads. Mirrors `PasteAvailabilityProbe.axProbeQueue`.
     private static let axInspectQueue = DispatchQueue(label: "com.openclip.ax-inspect", qos: .userInitiated, attributes: .concurrent)
 
-    /// Bounds how many selection reads may be actively awaited at once (`Constants.axMaxConcurrentInspects`).
-    /// Unlike the single fail-fast slot it replaces, overlapping gestures — quick re-selection,
-    /// double-click, hotkey+monitor races — each get their own read, and a permit frees when the
-    /// caller's watchdog deadline settles its continuation, NOT when a hung underlying AX call
-    /// eventually returns. One slow app therefore cannot make every later popup miss.
+    /// Limits concurrent AX inspects and Edit ▸ Copy presses to `Constants.axMaxConcurrentInspects`.
+    /// A permit is released at the deadline, not when a blocked AX call returns.
     private actor InspectConcurrencyGate {
         private var inFlight = 0
         func tryAcquire(limit: Int) -> Bool {
@@ -43,19 +41,23 @@ public struct SelectionRetrievalCoordinator: Sendable {
     private let inspect: TargetProvider
     private let browserRead: BrowserReader
     private let copyCapture: CopyCapture
+    private let menuPress: MenuPress
 
-    /// The strategies are injectable so unit tests can exercise the gate and mode routing with
-    /// fixture targets instead of the live accessibility tree (production defaults run live AX).
+    /// The strategies and the Edit ▸ Copy press are injectable so unit tests can exercise the gate
+    /// and mode routing with fixture targets instead of the live accessibility tree (production
+    /// defaults run live AX).
     public init(
         inspect: @escaping TargetProvider = { AXElementInspector.inspect() },
         browserRead: @escaping BrowserReader = { bundleIdentifier in
             await BrowserScriptStrategy.read(bundleIdentifier: bundleIdentifier)
         },
-        copyCapture: @escaping CopyCapture = Self.defaultCopyCapture
+        copyCapture: @escaping CopyCapture = Self.defaultCopyCapture,
+        menuPress: @escaping MenuPress = Self.pressEditCopyMenu
     ) {
         self.inspect = inspect
         self.browserRead = browserRead
         self.copyCapture = copyCapture
+        self.menuPress = menuPress
     }
 
     /// The production copy capture: archive the pasteboard, run the copy trigger, poll for the
@@ -272,15 +274,10 @@ public struct SelectionRetrievalCoordinator: Sendable {
             let trigger: CopyTrigger
             switch strategy {
             case .menuCopy:
+                let press = menuPress
                 trigger = {
                     Task.detached {
-                        // Serialize menu presses through the shared gate; a press skipped under
-                        // saturation just lets the pasteboard capture time out to nil.
-                        guard await Self.inspectGate.tryAcquire(limit: Constants.axMaxConcurrentInspects) else { return }
-                        Self.axInspectQueue.async {
-                            Self.pressEditCopyMenu(app: target.focusedApp)
-                            Task.detached { await Self.inspectGate.release() }
-                        }
+                        await Self.pressCopyMenuWithWatchdog(app: target.focusedApp, press: press)
                     }
                 }
             case .keyboardCopy:
@@ -367,7 +364,37 @@ public struct SelectionRetrievalCoordinator: Sendable {
 
     /// AXPress the Edit ▸ Copy menu item of `app`'s menu bar via the robust menu navigator.
     /// Best-effort: a failed lookup performs no press and the pasteboard capture times out.
-    private static func pressEditCopyMenu(app: AXUIElement?) {
+    @usableFromInline
+    static func pressEditCopyMenu(app: AXUIElement?) {
         AXMenuNavigator.press(.copy, in: app)
+    }
+
+    /// Starts the Edit ▸ Copy press on `axInspectQueue`.
+    /// The first of the press or `axReadTimeout` releases `inspectGate`.
+    private static func pressCopyMenuWithWatchdog(
+        app: AXUIElement?,
+        press: @escaping MenuPress
+    ) async {
+        guard await inspectGate.tryAcquire(limit: Constants.axMaxConcurrentInspects) else { return }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let resume = OnceResume<Void>()
+            let timeout = TaskBox()
+
+            timeout.set(Task {
+                try? await Task.sleep(nanoseconds: UInt64(Constants.axReadTimeout * 1_000_000_000))
+                if resume.resume(continuation, with: ()) {
+                    Task.detached { await inspectGate.release() }
+                    Log.selection.debug("coordinator: Edit ▸ Copy press exceeded \(Constants.axReadTimeout)s deadline; releasing inspect gate")
+                }
+            })
+
+            axInspectQueue.async {
+                press(app)
+                if resume.resume(continuation, with: ()) {
+                    timeout.cancel()
+                    Task.detached { await inspectGate.release() }
+                }
+            }
+        }
     }
 }

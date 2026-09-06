@@ -91,14 +91,11 @@ public enum Constants {
     /// accumulate in the temp directory between launches.
     public static let icsCleanupDelay: TimeInterval = 20
 
-    /// Hard deadline (seconds) for the direct accessibility text-read path. AXUIElement attribute
-    /// reads can block indefinitely when the frontmost app is unresponsive; the retrieval chain
-    /// races the read against this deadline (mirroring the pasteboard poll deadlines) so the popup
-    /// never hangs on selection retrieval.
+    /// Maximum time in seconds for one AX inspect or one Edit ▸ Copy press.
+    /// A blocked AX call must not hold an inspect-gate permit after this time.
     public static let axReadTimeout: TimeInterval = 0.5
-    /// How many selection reads may be concurrently awaited (inspect watchdog budget). Overlapping
-    /// gestures each get their own read; permits free at the read's deadline, never held by a
-    /// still-blocked AX worker past it.
+    /// Maximum number of AX inspects and Edit ▸ Copy presses that can run at the same time.
+    /// A permit is released at the deadline, not when a blocked AX call returns.
     public static let axMaxConcurrentInspects: Int = 4
 
     /// Hard deadline (seconds) for the Paste-availability probe's AX menu-bar walk. Mirrors
