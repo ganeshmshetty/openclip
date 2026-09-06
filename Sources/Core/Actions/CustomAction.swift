@@ -20,17 +20,27 @@ public struct CustomAction: ConfigurableAction, Codable, Sendable, Equatable {
     public let id: String
     public let title: String
     public let iconName: String
+    /// The icon parsed from a manifest, when it is not an SF Symbol. `iconName` can only carry a
+    /// symbol name, so a packaged file icon (`icon.svg`, `icon.png`) would otherwise be flattened
+    /// to its filename and rendered as a missing symbol. Not persisted: actions created in the UI
+    /// only ever carry symbols, and manifest-backed actions are rebuilt from the manifest on load.
+    public var resolvedIcon: ActionIcon?
     public let type: CustomActionType
     public let chrome: ActionChrome
     public let rules: ExtensionActionRules?
-    
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, iconName, type, chrome, rules
+    }
+
     public init(
         id: String,
         title: String,
         iconName: String,
         type: CustomActionType,
         chrome: ActionChrome = ActionChrome(badge: .custom, rowStyle: .standard, popupBehavior: .perform, source: .custom),
-        rules: ExtensionActionRules? = nil
+        rules: ExtensionActionRules? = nil,
+        resolvedIcon: ActionIcon? = nil
     ) {
         self.id = id
         self.title = title
@@ -38,10 +48,11 @@ public struct CustomAction: ConfigurableAction, Codable, Sendable, Equatable {
         self.type = type
         self.chrome = chrome
         self.rules = rules
+        self.resolvedIcon = resolvedIcon
     }
     
     public var icon: ActionIcon {
-        return .symbol(iconName)
+        return resolvedIcon ?? .symbol(iconName)
     }
 
     public var preferenceIconName: String {

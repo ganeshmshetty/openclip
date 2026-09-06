@@ -491,4 +491,68 @@ final class DefaultActionFactoryTests: XCTestCase {
 
         try? FileManager.default.removeItem(at: tempDir)
     }
+    /// An inline `shell` action becomes a `CustomAction`, which carries only an SF Symbol name.
+    /// A packaged file icon must survive that trip: flattening `.local` to its filename produced
+    /// `.symbol("icon.svg")`, a symbol that does not exist, so the action rendered with no icon.
+    func testInlineShellActionKeepsPackagedFileIcon() async {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let iconURL = tempDir.appendingPathComponent("icon.svg")
+        try? "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path d=\"M2 2h20v20H2z\"/></svg>"
+            .write(to: iconURL, atomically: true, encoding: .utf8)
+
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(
+            title: "Shell With File Icon",
+            icon: "icon.svg",
+            type: "shell",
+            scriptCode: "echo $OPENCLIP_TEXT"
+        )
+        let manifest = ExtensionMetadata(identifier: "com.test.shellicon", name: "Shell Icon Test", actions: [actionMeta], options: nil)
+
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertTrue(action is CustomAction)
+        XCTAssertEqual(action?.icon, .local(tempDir.appendingPathComponent("icon.svg")))
+    }
+
+    /// The same path must still resolve SF Symbol icons as symbols.
+    func testInlineShellActionKeepsSymbolIcon() async {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(
+            title: "Shell With Symbol Icon",
+            icon: "leaf.fill",
+            type: "shell",
+            scriptCode: "echo $OPENCLIP_TEXT"
+        )
+        let manifest = ExtensionMetadata(identifier: "com.test.shellsymbol", name: "Shell Symbol Test", actions: [actionMeta], options: nil)
+
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertEqual(action?.icon, .symbol("leaf.fill"))
+    }
+
+    /// Text snippets take the same `CustomAction` path and lost file icons the same way.
+    func testTextSnippetActionKeepsPackagedFileIcon() async {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        try? "png".write(to: tempDir.appendingPathComponent("icon.png"), atomically: true, encoding: .utf8)
+
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(
+            title: "Snippet With File Icon",
+            icon: "icon.png",
+            type: "textsnippet",
+            scriptCode: "> {text}"
+        )
+        let manifest = ExtensionMetadata(identifier: "com.test.snippeticon", name: "Snippet Icon Test", actions: [actionMeta], options: nil)
+
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertEqual(action?.icon, .local(tempDir.appendingPathComponent("icon.png")))
+    }
+
 }

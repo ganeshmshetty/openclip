@@ -326,7 +326,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 iconName: iconSymbolName(icon),
                 type: .textSnippet(template: scriptCode),
                 chrome: extensionChrome,
-                rules: rules
+                rules: rules,
+                resolvedIcon: icon
             )
         }
         
@@ -362,7 +363,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                     iconName: iconSymbolName(icon),
                     type: .shellScript(script: scriptCode, replaceSelection: true),
                     chrome: extensionChrome,
-                    rules: rules
+                    rules: rules,
+                    resolvedIcon: icon
                 )
             default:
                 break
