@@ -56,9 +56,24 @@ struct ToastView: View {
         }
     }
 
+    /// Formats a raw feedback message for presentation: flattens multiline text into single-line
+    /// and truncates with an ellipsis if it exceeds `limit`.
+    static func formatMessage(_ message: String, limit: Int = PopupMetrics.toastMaxCharacterLength) -> String {
+        let singleLine = message
+            .replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard singleLine.count > limit else { return singleLine }
+        guard limit > 1 else { return String(singleLine.prefix(limit)) }
+        return String(singleLine.prefix(limit - 1)) + "…"
+    }
+
     var body: some View {
         let isInteractive = feedback.isLoading && onCancel != nil
-        let displayedMessage = (isInteractive && isHovered) ? String(localized: "Cancel Task") : feedback.message
+        let formattedMessage = Self.formatMessage(feedback.message)
+        let displayedMessage = (isInteractive && isHovered) ? String(localized: "Cancel Task") : formattedMessage
         let activeForeground: Color = (isInteractive && isHovered) ? .white : textColor
 
         let content = HStack(spacing: 6 * scale) {

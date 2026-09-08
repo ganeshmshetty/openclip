@@ -221,4 +221,44 @@ final class ToastPanelControllerTests: XCTestCase {
         XCTAssertFalse(controller.rootFeedback.isLoading, "hostingView must be reset to an idle, non-loading view to stop display link animation")
         XCTAssertEqual(controller.rootFeedback.message, "")
     }
+
+    @MainActor
+    func testToastMessageFormattingCapsAtFortyCharacters() {
+        let longMessage = "This is an extraordinarily long toast message that should definitely be truncated to forty characters"
+        let formatted = ToastView.formatMessage(longMessage)
+        XCTAssertEqual(formatted.count, PopupMetrics.toastMaxCharacterLength)
+        XCTAssertTrue(formatted.hasSuffix("…"))
+        XCTAssertEqual(formatted, String(longMessage.prefix(PopupMetrics.toastMaxCharacterLength - 1)) + "…")
+
+        let exactMessage = String(repeating: "a", count: 40)
+        XCTAssertEqual(ToastView.formatMessage(exactMessage), exactMessage)
+
+        let shortMessage = "Short message"
+        XCTAssertEqual(ToastView.formatMessage(shortMessage), shortMessage)
+
+        let multilineMessage = "Line 1\nLine 2\r\nLine 3"
+        XCTAssertEqual(ToastView.formatMessage(multilineMessage), "Line 1 Line 2 Line 3")
+    }
+
+    @MainActor
+    func testLongToastMessageLimitsPanelWidth() {
+        let controller = ToastPanelController()
+        let shortMessage = "Short"
+        controller.show(StatusFeedback(message: shortMessage, style: .info))
+        let shortWidth = controller.panelFrame.width
+        controller.hide()
+
+        let longMessage = String(repeating: "W", count: 200)
+        controller.show(StatusFeedback(message: longMessage, style: .info))
+        let longWidth = controller.panelFrame.width
+        controller.hide()
+
+        let cappedMessage = String(repeating: "W", count: PopupMetrics.toastMaxCharacterLength - 1) + "…"
+        controller.show(StatusFeedback(message: cappedMessage, style: .info))
+        let cappedWidth = controller.panelFrame.width
+        controller.hide()
+
+        XCTAssertEqual(longWidth, cappedWidth, accuracy: 1.0, "long message should produce the exact same panel width as the 40-character truncated message")
+        XCTAssertGreaterThan(longWidth, shortWidth)
+    }
 }

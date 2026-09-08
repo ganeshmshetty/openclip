@@ -21,6 +21,8 @@ public enum PopupMetrics {
     public static let searchRowCornerRadius: CGFloat = 8.0
     /// Corner radius for floating toast bubbles.
     public static let toastCornerRadius: CGFloat = 14.0
+    /// Maximum character length displayed in floating toast bubbles before truncating with an ellipsis.
+    public static let toastMaxCharacterLength: Int = 40
     /// Gap between a toast bubble and the popup edge it attaches to.
     public static let toastAnchorGap: CGFloat = 8.0
     /// Transparent ring (pt) around the toast bubble inside the panel frame: the controller centers
