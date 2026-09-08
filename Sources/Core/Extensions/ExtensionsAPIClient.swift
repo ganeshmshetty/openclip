@@ -30,8 +30,17 @@ public final class ExtensionsAPIClient: Sendable {
         return components?.url
     }
 
-    public func fetchExtensions(query: String = "", page: Int = 1, limit: Int = Constants.storePageLimit) async throws -> ExtensionsPageResponse {
-        if let cached = await cache?.response(baseURL: baseURL.absoluteString, query: query, page: page, limit: limit) {
+    public func invalidateCache() async {
+        await cache?.removeAll()
+        URLCache.shared.removeAllCachedResponses()
+    }
+
+    public func fetchExtensions(query: String, page: Int, limit: Int) async throws -> ExtensionsPageResponse {
+        try await fetchExtensions(query: query, page: page, limit: limit, ignoreCache: false)
+    }
+
+    public func fetchExtensions(query: String = "", page: Int = 1, limit: Int = Constants.storePageLimit, ignoreCache: Bool = false) async throws -> ExtensionsPageResponse {
+        if !ignoreCache, let cached = await cache?.response(baseURL: baseURL.absoluteString, query: query, page: page, limit: limit) {
             return cached
         }
 
@@ -39,7 +48,12 @@ public final class ExtensionsAPIClient: Sendable {
             throw NSError(domain: "ExtensionsAPIClient", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL components"])
         }
 
-        let (data, response) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url)
+        if ignoreCache {
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw NSError(domain: "ExtensionsAPIClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned non-200 status"])
         }
@@ -53,6 +67,16 @@ public final class ExtensionsAPIClient: Sendable {
 /// Page source for store UI; lets tests stub latency/ordering without touching the network.
 public protocol ExtensionStoreFetching: Sendable {
     func fetchExtensions(query: String, page: Int, limit: Int) async throws -> ExtensionsPageResponse
+    func fetchExtensions(query: String, page: Int, limit: Int, ignoreCache: Bool) async throws -> ExtensionsPageResponse
+    func invalidateCache() async
+}
+
+extension ExtensionStoreFetching {
+    public func fetchExtensions(query: String, page: Int, limit: Int, ignoreCache: Bool) async throws -> ExtensionsPageResponse {
+        try await fetchExtensions(query: query, page: page, limit: limit)
+    }
+
+    public func invalidateCache() async {}
 }
 
 extension ExtensionsAPIClient: ExtensionStoreFetching {}

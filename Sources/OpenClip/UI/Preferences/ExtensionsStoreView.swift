@@ -259,13 +259,13 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         }
     }
 
-    public func fetchNextPage(isReset: Bool = false) async {
+    public func fetchNextPage(isReset: Bool = false, ignoreCache: Bool = false) async {
         let gen = generation
         guard !isLoading || isReset, currentPage <= totalPages else { return }
         isLoading = true
 
         do {
-            let response = try await api.fetchExtensions(query: searchQuery, page: currentPage, limit: pageLimit)
+            let response = try await api.fetchExtensions(query: searchQuery, page: currentPage, limit: pageLimit, ignoreCache: ignoreCache)
             // Superseded mid-flight (newer search/reset owns the result set): touch nothing,
             // especially not `isLoading`, which now belongs to the winning generation.
             guard gen == generation else { return }
@@ -295,7 +295,7 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         }
     }
 
-    public func resetAndFetch(limit: Int = Constants.storePageLimit, keepPrevious: Bool = false) async {
+    public func resetAndFetch(limit: Int = Constants.storePageLimit, keepPrevious: Bool = false, ignoreCache: Bool = false) async {
         // Bump first: any in-flight request from the previous generation is dead on arrival
         // and can neither append rows nor hold the loading flag against this fetch.
         generation += 1
@@ -306,7 +306,13 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             extensions = []
         }
         isLoading = true
-        await fetchNextPage(isReset: true)
+        await fetchNextPage(isReset: true, ignoreCache: ignoreCache)
+    }
+
+    /// Explicit manual refresh that clears cached store responses and reloads the fresh catalog from the network.
+    public func refreshCatalog() async {
+        await api.invalidateCache()
+        await resetAndFetch(limit: max(pageLimit, 100), keepPrevious: false, ignoreCache: true)
     }
 }
 

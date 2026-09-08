@@ -144,7 +144,7 @@ struct ExtensionCardView: View {
                     Text(item.description)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
             }
 

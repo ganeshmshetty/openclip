@@ -38,4 +38,17 @@ final class ExtensionsAPITests: XCTestCase {
         XCTAssertTrue(url?.absoluteString.contains("q=search") == true)
         XCTAssertTrue(url?.absoluteString.contains("page=2") == true)
     }
+
+    func testInvalidateCacheClearsCachedResponses() async {
+        let cache = ExtensionStoreCache(ttl: 60)
+        let client = ExtensionsAPIClient(baseURL: URL(string: "https://openclip.app/api/v1/extensions")!, cache: cache)
+        let sample = ExtensionsPageResponse(extensions: [], page: 1, totalPages: 1, totalCount: 0)
+        await cache.store(sample, baseURL: "https://openclip.app/api/v1/extensions", query: "", page: 1, limit: 12)
+        let cachedBefore = await cache.response(baseURL: "https://openclip.app/api/v1/extensions", query: "", page: 1, limit: 12)
+        XCTAssertNotNil(cachedBefore)
+
+        await client.invalidateCache()
+        let cachedAfter = await cache.response(baseURL: "https://openclip.app/api/v1/extensions", query: "", page: 1, limit: 12)
+        XCTAssertNil(cachedAfter)
+    }
 }
