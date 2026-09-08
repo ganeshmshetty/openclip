@@ -46,11 +46,18 @@ echo "==> Building OpenClip v$VERSION (Release)..."
 mkdir -p "$BUILD_DIR"
 rm -rf "${BUILD_DIR:?}"/*
 
+# Without an explicit destination xcodebuild resolves the scheme's default one — "My Mac" —
+# and narrows the build to that Mac's architecture, so on an Apple Silicon runner it emits an
+# arm64-only app however ARCHS is configured. 'generic/platform=macOS' plus the explicit ARCHS
+# is what keeps the release universal; scripts/package_app.sh builds the same way.
 xcodebuild \
     -project "$PROJECT_DIR/OpenClip.xcodeproj" \
     -scheme OpenClip \
     -configuration Release \
     -derivedDataPath "$DERIVED_DATA" \
+    -destination 'generic/platform=macOS' \
+    ARCHS='arm64 x86_64' \
+    ONLY_ACTIVE_ARCH=NO \
     CODE_SIGN_IDENTITY="-" \
     CODE_SIGN_STYLE=Manual \
     DEVELOPMENT_TEAM="" \
@@ -65,6 +72,8 @@ fi
 echo "==> Ad-hoc signing (required for Apple Silicon)..."
 codesign --force --deep -s - "$APP_PATH"
 
+"$SCRIPT_DIR/verify_universal.sh" "$APP_PATH" "build product"
+
 echo "==> Packaging OpenClip-v$VERSION.zip..."
 ZIP_NAME="OpenClip-v$VERSION.zip"
 cd "$BUILD_DIR"
@@ -72,6 +81,16 @@ cd "$BUILD_DIR"
 rm -f "$ZIP_NAME" "$BUILD_DIR/appcast.xml"
 rm -rf ~/Library/Caches/Sparkle_generate_appcast
 ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_NAME"
+
+# Check the archive itself, not just the bundle it was cut from, and do it before the appcast
+# is signed so a bad build can never be handed to Sparkle. The scratch directory lives outside
+# BUILD_DIR because generate_appcast scans BUILD_DIR for release archives.
+VERIFY_DIR="$PROJECT_DIR/build/.verify"
+rm -rf "$VERIFY_DIR"
+mkdir -p "$VERIFY_DIR"
+ditto -x -k "$BUILD_DIR/$ZIP_NAME" "$VERIFY_DIR"
+"$SCRIPT_DIR/verify_universal.sh" "$VERIFY_DIR/OpenClip.app" "$ZIP_NAME"
+rm -rf "$VERIFY_DIR"
 
 echo "==> Generating appcast.xml with Ed25519 signature..."
 
@@ -163,6 +182,17 @@ fi
 echo "==> Packaging OpenClip-v$VERSION.dmg..."
 DMG_NAME="OpenClip-v$VERSION.dmg"
 "$SCRIPT_DIR/make_dmg.sh" "$APP_PATH" "$BUILD_DIR/$DMG_NAME"
+
+# The .dmg is the download the website points at, so it gets the same check as the .zip.
+MOUNT_POINT="$(mktemp -d)"
+hdiutil attach "$BUILD_DIR/$DMG_NAME" -mountpoint "$MOUNT_POINT" -nobrowse -readonly -quiet
+if ! "$SCRIPT_DIR/verify_universal.sh" "$MOUNT_POINT/OpenClip.app" "$DMG_NAME"; then
+    hdiutil detach "$MOUNT_POINT" -quiet || true
+    rmdir "$MOUNT_POINT" 2>/dev/null || true
+    exit 1
+fi
+hdiutil detach "$MOUNT_POINT" -quiet
+rmdir "$MOUNT_POINT" 2>/dev/null || true
 
 echo ""
 echo "==> Done! Release artifacts created:"
