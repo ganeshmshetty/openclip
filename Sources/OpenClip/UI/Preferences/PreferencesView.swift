@@ -160,28 +160,54 @@ public struct PreferencesView: View {
                         .menuStyle(.button)
                         .help(String(localized: "Add Action or Group"))
                     } else if selectedTab == .store {
-                        HStack(spacing: 6) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.secondary)
-                                .font(.system(size: 12))
-                            TextField(String(localized: "Search extensions..."), text: $storeViewModel.searchQuery)
-                                .textFieldStyle(.plain)
-                                .font(.system(size: 12))
-                                .onChange(of: storeViewModel.searchQuery) { _, _ in
-                                    storeViewModel.queryDidChange()
+                        HStack(spacing: 8) {
+                            Button {
+                                Task {
+                                    await storeViewModel.refreshCatalog()
                                 }
-                            if storeViewModel.isLoading && !storeViewModel.extensions.isEmpty {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .scaleEffect(0.65)
-                                    .frame(width: 14, height: 14)
+                            } label: {
+                                if storeViewModel.isLoading {
+                                    ProgressView()
+                                        .controlSize(.mini)
+                                        .frame(width: 24, height: 24)
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                        .frame(width: 24, height: 24)
+                                }
                             }
+                            .buttonStyle(.plain)
+                            .background(Color.primary.opacity(0.06))
+                            .cornerRadius(6)
+                            .contentShape(Rectangle())
+                            .disabled(storeViewModel.isLoading)
+                            .help(String(localized: "Refresh Catalog"))
+                            .accessibilityLabel(String(localized: "Refresh Catalog"))
+
+                            HStack(spacing: 6) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 12))
+                                TextField(String(localized: "Search extensions..."), text: $storeViewModel.searchQuery)
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 12))
+                                    .onChange(of: storeViewModel.searchQuery) { _, _ in
+                                        storeViewModel.queryDidChange()
+                                    }
+                                if storeViewModel.isLoading && !storeViewModel.extensions.isEmpty {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .scaleEffect(0.65)
+                                        .frame(width: 14, height: 14)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.primary.opacity(0.06))
+                            .cornerRadius(6)
+                            .frame(width: 200)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.primary.opacity(0.06))
-                        .cornerRadius(6)
-                        .frame(width: 200)
                     }
                 }
                 .frame(maxWidth: selectedTab == .store ? .infinity : Self.detailContentMaxWidth)

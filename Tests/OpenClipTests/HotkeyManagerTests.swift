@@ -13,7 +13,10 @@ import KeyboardShortcuts
 final class HotkeyManagerTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
-        await MainActor.run { TestIsolation.reset() }
+        await MainActor.run {
+            TestIsolation.reset()
+            HotkeyManager.shared.selectionMonitor = nil
+        }
     }
 
     /// "Appear Automatically" off means the popup stops following selections — the shortcut is an
@@ -100,6 +103,180 @@ final class HotkeyManagerTests: XCTestCase {
         controller.runBoundAction(action, with: context)
         await fulfillment(of: [performedExpectation], timeout: 2.0)
     }
+
+    func testCollectTriggerReusesMonitoredSelection() async throws {
+        let manager = HotkeyManager.shared
+        let monitor = MockSelectionMonitor()
+        let app = AppIdentity(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")
+        let selection = SelectionContext(
+            text: "monitored text",
+            sourceApp: app,
+            cursorPosition: CGPoint(x: 50, y: 50),
+            selectionBounds: CGRect(x: 10, y: 10, width: 100, height: 20),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        monitor.latestSelection = (context: selection, canPaste: true)
+        manager.selectionMonitor = monitor
+
+        let frontmost = MockFrontmostApp(bundleID: "com.apple.TextEdit")
+        let trigger = await manager.collectTrigger(frontmostApp: frontmost)
+
+        let result = try XCTUnwrap(trigger)
+        XCTAssertEqual(result.context.text, "monitored text")
+        XCTAssertEqual(result.canPaste, true)
+        XCTAssertEqual(result.context.selectionBounds, CGRect(x: 10, y: 10, width: 100, height: 20))
+    }
+
+    func testCollectTriggerIgnoresMismatchedMonitoredSelection() async throws {
+        let manager = HotkeyManager.shared
+        let monitor = MockSelectionMonitor()
+        let app = AppIdentity(bundleIdentifier: "com.apple.Safari", localizedName: "Safari")
+        let selection = SelectionContext(
+            text: "safari text",
+            sourceApp: app,
+            cursorPosition: .zero,
+            selectionBounds: nil,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        monitor.latestSelection = (context: selection, canPaste: false)
+        manager.selectionMonitor = monitor
+
+        // App filter would reject if com.openclip, but TextEdit is ordinary
+        let frontmost = MockFrontmostApp(bundleID: "com.apple.TextEdit")
+        // Mismatched bundle ID means currentSelection returns nil, so the mismatched monitored selection is ignored
+        let trigger = await manager.collectTrigger(frontmostApp: frontmost)
+        XCTAssertNotEqual(trigger?.context.text, "safari text")
+    }
+
+    func testResolveSynchronousTriggerReusesMonitoredSelection() {
+        let manager = HotkeyManager.shared
+        let monitor = MockSelectionMonitor()
+        let app = AppIdentity(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")
+        let selection = SelectionContext(
+            text: "monitored sync text",
+            sourceApp: app,
+            cursorPosition: CGPoint(x: 50, y: 50),
+            selectionBounds: CGRect(x: 10, y: 10, width: 100, height: 20),
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        monitor.latestSelection = (context: selection, canPaste: true)
+        manager.selectionMonitor = monitor
+
+        let frontmost = MockFrontmostApp(bundleID: "com.apple.TextEdit")
+        let trigger = manager.resolveSynchronousTrigger(frontmostApp: frontmost)
+
+        let result = try? XCTUnwrap(trigger)
+        XCTAssertEqual(result?.context.text, "monitored sync text")
+        XCTAssertEqual(result?.canPaste, true)
+    }
+
+    func testResolveSynchronousTriggerFallsBackToClipboardWhenNoMonitoredSelection() {
+        let manager = HotkeyManager.shared
+        let monitor = MockSelectionMonitor()
+        manager.selectionMonitor = monitor
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString("fallback clipboard text", forType: .string)
+
+        let frontmost = MockFrontmostApp(bundleID: "com.apple.TextEdit")
+        let trigger = manager.resolveSynchronousTrigger(frontmostApp: frontmost)
+
+        let result = try? XCTUnwrap(trigger)
+        XCTAssertEqual(result?.context.text, "fallback clipboard text")
+        XCTAssertEqual(result?.context.isClipboardFallback, true)
+    }
+
+    func testResolveSynchronousTriggerFallsBackToEmptyContextWhenClipboardEmpty() {
+        let manager = HotkeyManager.shared
+        let monitor = MockSelectionMonitor()
+        manager.selectionMonitor = monitor
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+
+        let frontmost = MockFrontmostApp(bundleID: "com.apple.TextEdit")
+        let trigger = manager.resolveSynchronousTrigger(frontmostApp: frontmost)
+
+        let result = try? XCTUnwrap(trigger)
+        XCTAssertEqual(result?.context.text, "")
+        XCTAssertEqual(result?.context.isClipboardFallback, false)
+    }
+
+    func testHandleTogglePopupTransitionsOpenBarToSearch() {
+        let controller = PopupWindowController()
+        let manager = HotkeyManager.shared
+        manager.setup(popupController: controller)
+
+        let app = AppIdentity(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")
+        let selection = SelectionContext(
+            text: "active selection",
+            sourceApp: app,
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        let panel = PopupPanel()
+        panel.orderFront(nil)
+        controller.panel = panel
+        controller.startTestSession(for: selection, initialMode: .actions)
+        XCTAssertEqual(controller.modeStore.mode, .actions)
+
+        manager.handleTogglePopup()
+        XCTAssertEqual(controller.modeStore.mode, .search)
+    }
+
+    func testHandleTogglePopupTogglesOffWhenAlreadyInSearch() {
+        let controller = PopupWindowController()
+        let manager = HotkeyManager.shared
+        manager.setup(popupController: controller)
+
+        let app = AppIdentity(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")
+        let selection = SelectionContext(
+            text: "active selection",
+            sourceApp: app,
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        let panel = PopupPanel()
+        panel.orderFront(nil)
+        controller.panel = panel
+        controller.startTestSession(for: selection, initialMode: .search)
+        XCTAssertEqual(controller.modeStore.mode, .search)
+
+        manager.handleTogglePopup()
+        XCTAssertFalse(controller.isVisible)
+    }
+}
+
+@MainActor
+private final class MockSelectionMonitor: SelectionMonitoring {
+    var onSelection: ((SelectionContext, Bool?) -> Void)?
+    var latestSelection: (context: SelectionContext, canPaste: Bool?)?
+    var clearSelectionCalled = false
+
+    init() {}
+
+    func currentSelection(for bundleID: String?) async -> (context: SelectionContext, canPaste: Bool?)? {
+        guard let latest = latestSelection,
+              let target = bundleID,
+              latest.context.sourceApp.bundleIdentifier == target else {
+            return nil
+        }
+        return latest
+    }
+
+    func clearSelection() {
+        clearSelectionCalled = true
+        latestSelection = nil
+    }
+
+    func start() {}
+    func stop() {}
 }
 
 private struct BoundTestAction: Action {

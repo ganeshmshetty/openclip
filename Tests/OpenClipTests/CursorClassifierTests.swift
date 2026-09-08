@@ -19,6 +19,17 @@ final class CursorClassifierTests: XCTestCase {
         XCTAssertEqual(CursorClassifier.classify(beam), .beam)
     }
 
+    func testWideSerifBeamShapeClassifiesBeam() {
+        // Real macOS Retina/scaled I-beam: horizontal caps span ~60% of height (e.g. 22px cap on 37px height).
+        let beam = makeCursorImage(width: 24, height: 38) { x, y in
+            if y < 4 || y >= 34 {
+                return x >= 1 && x <= 22  // cap width 22 (22/38 = 0.579)
+            }
+            return x >= 10 && x <= 13    // stem width 4
+        }
+        XCTAssertEqual(CursorClassifier.classify(beam), .beam)
+    }
+
     func testArrowShapeClassifiesArrow() {
         // Diagonal wedge: pointy at the top (the hot spot), widening toward the bottom tail.
         let arrow = makeCursorImage(width: 16, height: 16) { x, y in

@@ -70,7 +70,8 @@ public final class ToastPanelController {
         if isInteractive {
             let scale = PopupMetrics.scaleMultiplier(for: DefaultSettingsStore.shared.get(SettingKey.popupScale))
             let font = NSFont.systemFont(ofSize: 11 * scale, weight: .regular)
-            let normalTextWidth = (feedback.message as NSString).size(withAttributes: [.font: font]).width
+            let formattedMessage = ToastView.formatMessage(feedback.message)
+            let normalTextWidth = (formattedMessage as NSString).size(withAttributes: [.font: font]).width
             let cancelText = String(localized: "Cancel Task")
             let cancelTextWidth = (cancelText as NSString).size(withAttributes: [.font: font]).width
 

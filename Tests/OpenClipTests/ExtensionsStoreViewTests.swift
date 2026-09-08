@@ -375,6 +375,29 @@ final class ExtensionsStoreViewTests: XCTestCase {
         XCTAssertEqual(viewModel.newSectionItems.map(\.id), ["com.custom.new-1", "com.custom.new-2"])
     }
 
+    @MainActor
+    func testRefreshCatalogInvalidatesCacheAndReloads() async throws {
+        let api = RefreshTrackingStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+
+        await viewModel.resetAndFetch(limit: 50)
+        XCTAssertEqual(viewModel.extensions.count, 1)
+        let invalidateCount1 = await api.getInvalidateCount()
+        let fetchCount1 = await api.getFetchCount()
+        XCTAssertEqual(invalidateCount1, 0)
+        XCTAssertEqual(fetchCount1, 1)
+
+        await viewModel.refreshCatalog()
+        let invalidateCount2 = await api.getInvalidateCount()
+        let fetchCount2 = await api.getFetchCount()
+        let lastIgnoreCache = await api.getLastIgnoreCache()
+        XCTAssertEqual(invalidateCount2, 1)
+        XCTAssertEqual(fetchCount2, 2)
+        XCTAssertEqual(lastIgnoreCache, true)
+        XCTAssertEqual(viewModel.currentPage, 2)
+        XCTAssertFalse(viewModel.isLoading)
+    }
+
     // MARK: - Helpers
 
     @MainActor
@@ -446,5 +469,30 @@ private actor RecordingStoreAPI: ExtensionStoreFetching {
         let item = ExtensionItem(id: "\(query)-row", name: query, description: "", author: "", icon: "",
                                  downloadCount: 0, downloadURL: "")
         return ExtensionsPageResponse(extensions: [item], page: page, totalPages: 1, totalCount: 1)
+    }
+}
+
+private actor RefreshTrackingStoreAPI: ExtensionStoreFetching {
+    var fetchCount = 0
+    var invalidateCount = 0
+    var lastIgnoreCache: Bool?
+
+    func getFetchCount() -> Int { fetchCount }
+    func getInvalidateCount() -> Int { invalidateCount }
+    func getLastIgnoreCache() -> Bool? { lastIgnoreCache }
+
+    func fetchExtensions(query: String, page: Int, limit: Int) async throws -> ExtensionsPageResponse {
+        fetchCount += 1
+        let item = ExtensionItem(id: "ext-\(fetchCount)", name: "Extension \(fetchCount)", description: "", author: "", icon: "", downloadCount: 0, downloadURL: "")
+        return ExtensionsPageResponse(extensions: [item], page: page, totalPages: 1, totalCount: 1)
+    }
+
+    func fetchExtensions(query: String, page: Int, limit: Int, ignoreCache: Bool) async throws -> ExtensionsPageResponse {
+        lastIgnoreCache = ignoreCache
+        return try await fetchExtensions(query: query, page: page, limit: limit)
+    }
+
+    func invalidateCache() async {
+        invalidateCount += 1
     }
 }

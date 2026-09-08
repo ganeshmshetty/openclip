@@ -74,8 +74,14 @@ public struct CursorClassifier {
         let maxRowWidth = activeRows.max() ?? 0
         guard maxRowWidth > 0 else { return .unknown }
 
-        // I-beam: tall, thin vertical silhouette
-        if aspect >= 1.4, Double(maxRowWidth) <= 0.45 * Double(bboxHeight) {
+        let mid = activeRows.count / 2
+        let stemRows = Array(activeRows[(activeRows.count / 4)...(3 * activeRows.count / 4)])
+        let avgStemWidth = Double(stemRows.reduce(0, +)) / Double(stemRows.count)
+
+        // I-beam: tall, thin vertical silhouette with a narrow central stem and horizontal serifs at top/bottom.
+        if aspect >= 1.4,
+           Double(maxRowWidth) <= 0.65 * Double(bboxHeight),
+           avgStemWidth <= 0.5 * Double(maxRowWidth) {
             return .beam
         }
 

@@ -469,6 +469,41 @@ final class MacSelectionMonitorTests: XCTestCase {
     }
 
     @MainActor
+    func testHoldWithUnknownCursorFallsBackToClipboardInEditableFieldWhenPasteAllowed() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 150, y: 150)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+        monitor.currentCursorProvider = { .unknown }
+        monitor.preparePasteProbe = { _, _ in
+            Task { true }
+        }
+
+        let gate = DispatchSemaphore(value: 0)
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            gate.wait()
+            return Self.fixtureTarget(role: "AXTextField", selectedText: nil)
+        }, copyCapture: { _ in nil })
+
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        pasteboard.declareTypes([.string], owner: nil)
+        pasteboard.setString("fallback from editable field", forType: .string)
+        monitor.fallbackPasteboard = pasteboard
+
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+
+        monitor.handleMouseDown(at: point)
+        try await waitUntil { monitor.triggeredByHold }
+        gate.signal()
+        try await waitUntil { delivered != nil }
+
+        XCTAssertEqual(delivered?.text, "fallback from editable field")
+        XCTAssertTrue(delivered?.isClipboardFallback == true)
+    }
+
+
+    @MainActor
     func testHoldWithBeamCursorDoesNotFallBackToClipboardWhenPasteDenied() async throws {
         let monitor = makeHoldMonitor()
         let point = CGPoint(x: 150, y: 150)
@@ -593,5 +628,217 @@ final class MacSelectionMonitorTests: XCTestCase {
         suppressedBundle = nil
         XCTAssertFalse(monitor.shouldSuppress(for: "com.apple.Safari"))
     }
+
+    // MARK: - Monitored Selection Caching & Freshness
+
+    func testLatestSelectionPopulatedOnDelivery() async throws {
+        let monitor = MacSelectionMonitor()
+        monitor.isExcludedBundle = { _ in false }
+        monitor.policyResolver = { _ in AppPolicyContext.default }
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "cached text")
+        }, copyCapture: { _ in nil })
+
+        let app = MockTestApp(bundleID: "com.apple.TextEdit")
+        let startPoint = CGPoint(x: 100, y: 100)
+        let endPoint = CGPoint(x: 200, y: 100) // Drag > 9 px²
+
+        monitor.handleMouseDown(at: startPoint)
+        monitor.handleMouseUp(app: app, cursor: endPoint, clickCount: 1)
+
+        try await waitUntil { monitor.latestSelection != nil }
+
+        let cached = try XCTUnwrap(monitor.latestSelection)
+        XCTAssertEqual(cached.context.text, "cached text")
+        XCTAssertEqual(cached.context.sourceApp.bundleIdentifier, "com.apple.TextEdit")
+    }
+
+    func testCurrentSelectionReturnsCachedForMatchingBundleAndNilForMismatch() async throws {
+        let monitor = MacSelectionMonitor()
+        let app = AppIdentity(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")
+        let context = SelectionContext(
+            text: "monitored text",
+            sourceApp: app,
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        // Manually set delivered selection by triggering delivery
+        monitor.isExcludedBundle = { _ in false }
+        monitor.policyResolver = { _ in AppPolicyContext.default }
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "monitored text")
+        }, copyCapture: { _ in nil })
+
+        let testApp = MockTestApp(bundleID: "com.apple.TextEdit")
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        monitor.handleMouseUp(app: testApp, cursor: CGPoint(x: 150, y: 100), clickCount: 1)
+
+        try await waitUntil { monitor.latestSelection != nil }
+
+        // Matching bundle ID: returned
+        let match = await monitor.currentSelection(for: "com.apple.TextEdit")
+        XCTAssertNotNil(match)
+        XCTAssertEqual(match?.context.text, "monitored text")
+
+        // Mismatched bundle ID: nil
+        let mismatch = await monitor.currentSelection(for: "com.apple.Safari")
+        XCTAssertNil(mismatch)
+    }
+
+    func testCurrentSelectionExpiresAfterMaxAge() async throws {
+        let monitor = MacSelectionMonitor()
+        let app = AppIdentity(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")
+        let staleContext = SelectionContext(
+            text: "stale text",
+            sourceApp: app,
+            cursorPosition: .zero,
+            timestamp: Date().addingTimeInterval(-Constants.selectionMaxAge - 5),
+            appPolicy: .default
+        )
+
+        // Controllable clock seam
+        final class SimulatedClock: @unchecked Sendable {
+            var now: Date
+            init(now: Date = Date()) { self.now = now }
+        }
+        let clock = SimulatedClock()
+        monitor.now = { clock.now }
+        monitor.isExcludedBundle = { _ in false }
+        monitor.policyResolver = { _ in AppPolicyContext.default }
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "fresh text")
+        }, copyCapture: { _ in nil })
+
+        let testApp = MockTestApp(bundleID: "com.apple.TextEdit")
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        monitor.handleMouseUp(app: testApp, cursor: CGPoint(x: 150, y: 100), clickCount: 1)
+        try await waitUntil { monitor.latestSelection != nil }
+
+        // Before expiration: synchronousSelection returns the cached selection
+        let initial = monitor.synchronousSelection(for: "com.apple.TextEdit")
+        XCTAssertNotNil(initial)
+        XCTAssertEqual(initial?.context.text, "fresh text")
+
+        // Advance simulated time past Constants.selectionMaxAge
+        clock.now.addTimeInterval(Constants.selectionMaxAge + 1)
+
+        // After expiration: synchronousSelection returns nil and clears the cache
+        let expired = monitor.synchronousSelection(for: "com.apple.TextEdit")
+        XCTAssertNil(expired, "synchronousSelection must return nil for expired selection")
+        XCTAssertNil(monitor.latestSelection, "synchronousSelection must clear latestSelection on expiration")
+
+        // currentSelection also returns nil
+        let asyncExpired = await monitor.currentSelection(for: "com.apple.TextEdit")
+        XCTAssertNil(asyncExpired, "currentSelection must also return nil for expired selection")
+    }
+
+    func testPlainClickClearsLatestSelection() async throws {
+        let monitor = MacSelectionMonitor()
+        monitor.isExcludedBundle = { _ in false }
+        monitor.policyResolver = { _ in AppPolicyContext.default }
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "selected text")
+        }, copyCapture: { _ in nil })
+
+        let app = MockTestApp(bundleID: "com.apple.TextEdit")
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        monitor.handleMouseUp(app: app, cursor: CGPoint(x: 150, y: 100), clickCount: 1)
+        try await waitUntil { monitor.latestSelection != nil }
+
+        // Plain click (no drag)
+        monitor.handleMouseDown(at: CGPoint(x: 200, y: 200))
+        monitor.handleMouseUp(app: app, cursor: CGPoint(x: 200, y: 200), clickCount: 1)
+
+        XCTAssertNil(monitor.latestSelection, "Plain click must clear latestSelection")
+    }
+
+    func testIsSelectionClearingKeyIdentifiesCaretMovementAndTyping() {
+        // Navigation keys clear selection
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x7B, flags: [])) // Left arrow
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x7C, flags: [])) // Right arrow
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x7D, flags: [])) // Down arrow
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x7E, flags: [])) // Up arrow
+
+        // Plain typing keys clear selection
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x00, flags: [])) // 'a'
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x00, flags: [.shift])) // 'A'
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x0E, flags: [.option])) // ⌥E (dead key / accent)
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x28, flags: [.option, .shift])) // ⌥⇧K ()
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x33, flags: [])) // Delete / Backspace
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x35, flags: [])) // Escape
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x24, flags: [])) // Return
+        XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x30, flags: [])) // Tab
+
+        // Selection triggers (Shift + Arrow) should NOT be classified as selection clearing
+        XCTAssertFalse(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x7B, flags: [.shift]))
+        XCTAssertFalse(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x7C, flags: [.shift]))
+
+        // Command and Control shortcuts NEVER clear selection
+        XCTAssertFalse(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x08, flags: [.command])) // ⌘C
+        XCTAssertFalse(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x08, flags: [.command, .option])) // ⌥⌘C
+        XCTAssertFalse(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x00, flags: [.command])) // ⌘A
+        XCTAssertFalse(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x09, flags: [.control])) // ⌃V
+    }
+
+    func testSelectionClearingKeyCancelsPendingDebounceTaskAndClearsCache() async throws {
+        let monitor = MacSelectionMonitor()
+        let task: Task<Void, Never> = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            return
+        }
+        monitor.debounceTask = task
+        let app = AppIdentity(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")
+        let selection = SelectionContext(
+            text: "existing text",
+            sourceApp: app,
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        monitor.latestSelection = (context: selection, canPaste: true)
+
+        // User types a character (e.g. keyCode 0x00 'a')
+        monitor.handleKeyDown(keyCode: 0x00, flags: [])
+
+        XCTAssertTrue(task.isCancelled, "In-flight debounceTask must be cancelled on selection clearing key")
+        XCTAssertNil(monitor.debounceTask, "debounceTask reference must be nil")
+        XCTAssertNil(monitor.latestSelection, "latestSelection must be cleared")
+    }
+
+    func testHotkeyOnlyPolicySavesSelectionWithoutTriggeringOnSelection() async throws {
+        let monitor = MacSelectionMonitor()
+        monitor.isExcludedBundle = { _ in false }
+        monitor.policyResolver = { _ in AppPolicyContext(hotkeyOnly: true) }
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "hotkey only selection")
+        }, copyCapture: { _ in nil })
+
+        var onSelectionFired = false
+        monitor.onSelection = { _, _ in
+            onSelectionFired = true
+        }
+
+        let app = MockTestApp(bundleID: "com.apple.TextEdit")
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        monitor.handleMouseUp(app: app, cursor: CGPoint(x: 200, y: 100), clickCount: 1)
+
+        try await waitUntil { monitor.latestSelection != nil }
+
+        XCTAssertFalse(onSelectionFired, "onSelection must not fire when policy is hotkeyOnly")
+        let cached = try XCTUnwrap(monitor.latestSelection)
+        XCTAssertEqual(cached.context.text, "hotkey only selection")
+    }
+}
+
+private final class MockTestApp: NSRunningApplication {
+    private let bundleID: String?
+
+    init(bundleID: String?) {
+        self.bundleID = bundleID
+        super.init()
+    }
+
+    override var bundleIdentifier: String? { bundleID }
 }
 

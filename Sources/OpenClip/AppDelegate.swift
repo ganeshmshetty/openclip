@@ -78,30 +78,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let controller = PopupWindowController()
         popupController = controller
         
-        // Setup global shortcut hotkey manager
-        HotkeyManager.shared.setup(popupController: controller)
-
-        Task {
-            let optionStore = SecretActionOptionStore()
-            ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
-            ExtensionManager.shared.optionWriter = optionStore
-            ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
-            await ActionCoordinator.shared.loadInitialState(
-                dictionaryLookup: DictionaryLookupFactory.systemLookup
-            )
-            ActionCoordinator.shared.register(action: OpenURLAction())
-            ActionCoordinator.shared.register(action: RevealInFinderAction())
-            ActionCoordinator.shared.register(action: CompletionAction())
-            // Register each AI preset as an individual action (palette + Preferences → Actions).
-            aiActionSync = AIActionSync.shared
-
-            // Watch ~/.openclip/extensions and reload on changes so extensions installed or
-            // edited outside the app (store installs, install_extension.sh, manifest edits)
-            // appear without relaunching. Started after loadInitialState so the
-            // onRegister/onUnregister registry wiring is already in place.
-            startExtensionWatcher()
-        }
-        
         // Setup selection monitor
         let macMonitor = MacSelectionMonitor()
         macMonitor.onSelection = { [weak self] context, canPaste in
@@ -124,6 +100,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             return bundleID == source
         }
         selectionMonitor = macMonitor
+
+        // Setup global shortcut hotkey manager
+        HotkeyManager.shared.setup(popupController: controller, selectionMonitor: macMonitor)
+
+        Task {
+            let optionStore = SecretActionOptionStore()
+            ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
+            ExtensionManager.shared.optionWriter = optionStore
+            ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
+            await ActionCoordinator.shared.loadInitialState(
+                dictionaryLookup: DictionaryLookupFactory.systemLookup
+            )
+            ActionCoordinator.shared.register(action: OpenURLAction())
+            ActionCoordinator.shared.register(action: RevealInFinderAction())
+            ActionCoordinator.shared.register(action: CompletionAction())
+            // Register each AI preset as an individual action (palette + Preferences → Actions).
+            aiActionSync = AIActionSync.shared
+
+            // Watch ~/.openclip/extensions and reload on changes so extensions installed or
+            // edited outside the app (store installs, install_extension.sh, manifest edits)
+            // appear without relaunching. Started after loadInitialState so the
+            // onRegister/onUnregister registry wiring is already in place.
+            startExtensionWatcher()
+        }
+        
         guard NSClassFromString("XCTestCase") == nil else { return }
 
         let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
@@ -153,9 +154,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             if !isGranted {
                 showPermissionRecovery(isUpdate: true)
             } else {
-                if isAppEnabled {
-                    selectionMonitor?.start()
-                }
+                selectionMonitor?.start()
                 showPostOnboardingCoachMark()
             }
         case .permissionRecovery:
@@ -165,7 +164,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 DefaultSettingsStore.shared.set(.lastRunVersion, value: currentVersion)
                 DefaultSettingsStore.shared.set(.lastRunBuild, value: currentBuild)
             }
-            if isGranted && isAppEnabled {
+            if isGranted {
                 selectionMonitor?.start()
             }
             showPostOnboardingCoachMark()
@@ -189,19 +188,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             forName: .openClipEnabledStateChanged,
             object: nil,
             queue: .main
-        ) { [weak self] notification in
-            let explicitState = notification.object as? Bool
-            Task { @MainActor in
-                let enabled = explicitState ?? DefaultSettingsStore.shared.get(.isAppEnabled)
-                if enabled {
-                    let granted = PermissionManager.shared.isAccessibilityGranted
-                    if granted {
-                        self?.selectionMonitor?.start()
-                    }
-                } else {
-                    self?.selectionMonitor?.stop()
-                }
-            }
+        ) { _ in
+            // "Appear Automatically" is evaluated inside onSelection to decide whether
+            // to show the popup bar automatically. The selection monitor remains running
+            // so explicit hotkeys (⌥⌘C) have immediate access to the selection.
         }
 
         NotificationCenter.default.addObserver(
@@ -211,10 +201,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         ) { [weak self] notification in
             let granted = (notification.object as? Bool) ?? PermissionManager.shared.isAccessibilityGranted
             Task { @MainActor in
-                let enabled = DefaultSettingsStore.shared.get(.isAppEnabled)
-                if granted && enabled {
+                if granted {
                     self?.selectionMonitor?.start()
-                } else if !granted {
+                } else {
                     self?.selectionMonitor?.stop()
                 }
             }
@@ -229,7 +218,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         popupController?.isOnboardingVisible = true
         onboardingWindowController = OnboardingWindowController { [weak self] in
             self?.popupController?.isOnboardingVisible = false
-            if DefaultSettingsStore.shared.get(.isAppEnabled) {
+            if PermissionManager.shared.isAccessibilityGranted {
                 self?.selectionMonitor?.start()
             }
             self?.showPostOnboardingCoachMark()
@@ -246,7 +235,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 let currentBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
                 DefaultSettingsStore.shared.set(.lastRunVersion, value: currentVersion)
                 DefaultSettingsStore.shared.set(.lastRunBuild, value: currentBuild)
-                if DefaultSettingsStore.shared.get(.isAppEnabled) {
+                if PermissionManager.shared.isAccessibilityGranted {
                     self?.selectionMonitor?.start()
                 }
                 self?.showPostOnboardingCoachMark()

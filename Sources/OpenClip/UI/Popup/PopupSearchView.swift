@@ -95,6 +95,19 @@ public struct PopupSearchView: View {
         CGFloat(max(0, PopupMetrics.searchMaxRows - 1)) * 2.0 + 56.0
     }
 
+    private static var prewarmedIndexCache: (catalogIDs: [String], usageRecency: [String: Int], index: [ActionSearchIndex])?
+
+    public static func prewarmIndex(catalog: [any Action]) {
+        let recency = ActionUsageStore.shared.recency
+        let index = buildIndex(
+            catalog: catalog,
+            scope: nil,
+            usageRecency: recency,
+            presenter: ActionCustomizationManager.shared
+        )
+        prewarmedIndexCache = (catalog.map(\.id), recency, index)
+    }
+
     public init(
         catalog: [any Action],
         context: ActionContext,
@@ -126,9 +139,17 @@ public struct PopupSearchView: View {
         self.onRunLoadingAction = onRunLoadingAction
         self.onClickIntent = onClickIntent
         // Index once at entry: the palette is recreated on every search entry (mode + scope
-        // transition together), so the current catalog/scope are captured here. The initial query
-        // is empty, so the ranked results are just the full index in order.
-        let initialIndex = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency, presenter: presenter)
+        // transition together), so the current catalog/scope are captured here. If a prewarmed
+        // index matches the current catalog and recency, reuse it for instant appearance; otherwise build fresh.
+        let initialIndex: [ActionSearchIndex]
+        if scope == nil,
+           let prewarmed = Self.prewarmedIndexCache,
+           prewarmed.catalogIDs == catalog.map(\.id),
+           prewarmed.usageRecency == usageRecency {
+            initialIndex = prewarmed.index
+        } else {
+            initialIndex = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency, presenter: presenter)
+        }
         _searchIndex = State(initialValue: initialIndex)
         _results = State(initialValue: initialIndex)
     }
@@ -341,10 +362,12 @@ public struct PopupSearchView: View {
         }
     }
 
-    private var selectionAccentColor: Color {
-        colorScheme == .dark
-            ? Color(red: 0.25, green: 0.56, blue: 0.96)
-            : Color(red: 0.22, green: 0.54, blue: 0.96)
+    private var selectionHighlightFill: Color {
+        Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08)
+    }
+
+    private var selectionHighlightBorder: Color {
+        Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05)
     }
 
     @ViewBuilder
@@ -365,29 +388,41 @@ public struct PopupSearchView: View {
                     .frame(width: 18, alignment: .center)
                     .foregroundColor(
                         isSelected
-                            ? .white
+                            ? .primary
                             : PopupThemeModel.restForeground(for: effectiveTheme)
                     )
 
                 Text(item.title)
-                    .font(.system(size: 13, weight: isSelected ? .medium : .regular))
+                    .font(.system(size: 13, weight: .regular))
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .foregroundColor(isSelected ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
+                    .foregroundColor(
+                        isSelected
+                            ? .primary
+                            : PopupThemeModel.restForeground(for: effectiveTheme)
+                    )
 
                 Spacer(minLength: 8)
 
                 if let badge = badgeText(for: item.action) {
                     Text(badge)
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(isSelected ? .white.opacity(0.8) : PopupThemeModel.restSecondary(for: effectiveTheme))
+                        .foregroundColor(
+                            isSelected
+                                ? PopupThemeModel.restForeground(for: effectiveTheme)
+                                : PopupThemeModel.restSecondary(for: effectiveTheme)
+                        )
                 }
 
                 if let shortcut = Self.shortcutHint(forRow: index) {
                     Text(shortcut)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .monospacedDigit()
-                        .foregroundColor(isSelected ? .white.opacity(0.85) : PopupThemeModel.restSecondary(for: effectiveTheme))
+                        .foregroundColor(
+                            isSelected
+                                ? PopupThemeModel.restForeground(for: effectiveTheme)
+                                : PopupThemeModel.restSecondary(for: effectiveTheme)
+                        )
                         .accessibilityLabel("Command \(index + 1)")
                 }
             }
@@ -397,8 +432,10 @@ public struct PopupSearchView: View {
                 Group {
                     if isSelected {
                         rowShape
-                            .fill(selectionAccentColor)
-                            .shadow(color: selectionAccentColor.opacity(colorScheme == .dark ? 0.30 : 0.20), radius: 4, x: 0, y: 1.5)
+                            .fill(selectionHighlightFill)
+                            .overlay(
+                                rowShape.stroke(selectionHighlightBorder, lineWidth: 0.5)
+                            )
                     } else if isHovered {
                         rowShape
                             .fill(Color.primary.opacity(0.06))

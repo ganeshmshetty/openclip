@@ -187,7 +187,7 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
   store. `PopupView` branches on `modeStore.mode` in `unifiedHStack` and renders
   `PopupSearchView` — the field + result list rendered as **one surface** with the bar, results
   above or below the field by `searchResultsAbove`.
-- **Catalog & matching**: the palette lists what the user can actually run — anything switched off
+- **Catalog, matching & prewarming**: the palette lists what the user can actually run — anything switched off
   in settings is absent, matching the bar: per-action (`disabledActionIDs`), whole-package
   (`disabledPackages`), a disabled group (its members go with it, since the palette lists members
   rather than the row), and an AI preset whose toggle in AI → Actions is off (or with AI disabled
@@ -197,6 +197,10 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
   ranks by case-insensitive substring (prefix > contains > keyword). Up to `PopupMetrics.searchMaxRows`
   rows render (`searchMaxRows = 5`, `searchResultRowHeight = 32`, height capped by
   `PopupMetrics.popupMaxHeight`).
+  To ensure instant palette presentation on hotkey (⌥⌘C), `PopupSearchView.prewarmIndex(catalog:)`
+  builds and caches the search index during passive selection monitoring. The cache tracks both
+  `catalogIDs` and `usageRecency`; if both match upon opening an unscoped palette, the prewarmed
+  index is reused directly without re-indexing.
 - **Row icons are strictly `[icon | text]`**: a `.text` icon falls back to
   `ConfigurableAction.preferenceIconName`; Iconify-format symbols (`prefix:name`) render via
   `AnyIconView`, matching the bar (`PopupSearchView.swift:214,230`).

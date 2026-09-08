@@ -20,6 +20,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     private var monitor: Any?
     private var keyDownMonitor: Any?
     internal var debounceTask: Task<Void, Never>?
+    public internal(set) var latestSelection: (context: SelectionContext, canPaste: Bool?)?
     private var mouseDownMonitor: Any?
     private var mouseDragMonitor: Any?
     internal var mouseHoldTask: Task<Void, Never>?
@@ -34,6 +35,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// Whether the primary button is physically down (fire-time stationarity input); production
     /// reads AppKit live, tests force it true.
     internal var primaryButtonPressed: @MainActor () -> Bool = { NSEvent.pressedMouseButtons & 1 != 0 }
+    internal var now: @MainActor () -> Date = { Date() }
     internal var retriever = SelectionRetrievalCoordinator()
     internal var fallbackPasteboard: NSPasteboard = .general
     /// Exclusion predicate over the target app's bundle ID (tests bypass the self-exclusion
@@ -127,18 +129,52 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         // retrieval path as a mouse drag, so keyboard-only selections surface the popup too.
         keyDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
             MainActor.assumeIsolated {
-                guard Self.isSelectionTrigger(keyCode: event.keyCode, flags: event.modifierFlags) else { return }
-                let isSelectAll = Self.isSelectAllKey(keyCode: event.keyCode, flags: event.modifierFlags)
-                self?.handleSelectionTrigger(isSelectAll: isSelectAll)
+                self?.handleKeyDown(keyCode: event.keyCode, flags: event.modifierFlags)
             }
         }
     }
+
+    internal func handleKeyDown(keyCode: UInt16, flags: NSEvent.ModifierFlags) {
+        if Self.isSelectionTrigger(keyCode: keyCode, flags: flags) {
+            let isSelectAll = Self.isSelectAllKey(keyCode: keyCode, flags: flags)
+            handleSelectionTrigger(isSelectAll: isSelectAll)
+        } else if Self.isSelectionClearingKey(keyCode: keyCode, flags: flags) {
+            debounceTask?.cancel()
+            debounceTask = nil
+            clearSelection()
+        }
+    }
     
+    public func clearSelection() {
+        latestSelection = nil
+    }
+
+    public func currentSelection(for bundleID: String?) async -> (context: SelectionContext, canPaste: Bool?)? {
+        if let debounceTask {
+            _ = await debounceTask.value
+        }
+        return synchronousSelection(for: bundleID)
+    }
+
+    public func synchronousSelection(for bundleID: String?) -> (context: SelectionContext, canPaste: Bool?)? {
+        guard let latest = latestSelection,
+              let targetBundle = bundleID,
+              latest.context.sourceApp.bundleIdentifier == targetBundle else {
+            return nil
+        }
+        guard now().timeIntervalSince(latest.context.timestamp) <= Constants.selectionMaxAge else {
+            latestSelection = nil
+            return nil
+        }
+        return latest
+    }
+
     internal func stop() {
         debounceTask?.cancel()
         debounceTask = nil
         mouseHoldTask?.cancel()
         mouseHoldTask = nil
+        clearSelection()
         if let monitor = monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
@@ -194,6 +230,38 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         flags
             .intersection(.deviceIndependentFlagsMask)
             .subtracting([.capsLock, .function, .numericPad, .help])
+    }
+
+    /// True when a key event clears an existing text selection (navigation or editing keys without Command/Control).
+    internal static func isSelectionClearingKey(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
+        // Selection triggers (⌘A, ⌘L, ⇧+arrows/jumps) extend or select text rather than clearing it
+        if isSelectionTrigger(keyCode: keyCode, flags: flags) {
+            return false
+        }
+        let gestureFlags = normalizedGestureFlags(flags)
+        // Command or Control modified keystrokes are shortcuts (e.g. ⌥⌘C, ⌘C, ⌘V, ⌘S), not typing/caret navigation
+        if gestureFlags.contains(.command) || gestureFlags.contains(.control) {
+            return false
+        }
+        // Arrow/navigation keys without Shift move the caret and clear selection
+        if extendKeyCodes.contains(keyCode) {
+            return true
+        }
+        // Escape, Delete, Backspace, Return, Space, Tab
+        let editingKeyCodes: Set<UInt16> = [
+            0x35, // Escape
+            0x33, // Delete / Backspace
+            0x75, // Forward Delete
+            0x24, // Return
+            0x4C, // Enter
+            0x31, // Space
+            0x30  // Tab
+        ]
+        if editingKeyCodes.contains(keyCode) {
+            return true
+        }
+        // Typing keys (plain, Shift, Option, or Shift+Option for special characters/accents)
+        return gestureFlags.isSubset(of: [.shift, .option])
     }
     
     // MARK: - Event handling
@@ -260,11 +328,13 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             var isClipboardFallback = false
 
             let cursor = self.currentCursorProvider()
-            if let result = await retriever.retrieve(
+            let (result, isEditable) = await retriever.retrieveDetails(
                 for: appIdentity,
                 policy: policy,
-                cursor: cursor
-            ) {
+                cursor: cursor,
+                allowCopyFallback: false
+            )
+            if let result {
                 retrievedText = result.text
                 selectionBounds = result.bounds
                 selectionHTML = result.html
@@ -273,13 +343,17 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
             let canPaste = await probeTask?.value
 
-            // If no text was actively selected, only inherit clipboard content in an editable text context (I-beam cursor and paste allowed)
+            // If no text was actively selected, only inherit clipboard content in an editable text context (AX text control or I-beam cursor and paste allowed)
             if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                if cursor == .beam && canPaste != false,
+                let isEditableContext = isEditable || cursor == .beam
+                if isEditableContext && canPaste != false,
                    let clipboard = fallbackPasteboard.string(forType: .string),
                    !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Log.selection.debug("monitor: hold falling back to clipboard for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public)")
                     retrievedText = clipboard
                     isClipboardFallback = true
+                } else {
+                    Log.selection.debug("monitor: hold clipboard fallback skipped for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public); isEditable=\(isEditable), cursor=\(cursor.rawValue, privacy: .public), canPaste=\(String(describing: canPaste))")
                 }
             }
 
@@ -302,6 +376,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             guard !Task.isCancelled else { return }
             guard !self.shouldSuppress(for: appIdentity.bundleIdentifier) else { return }
             delivered = true
+            latestSelection = (context, canPaste)
             self.onSelection?(context, canPaste)
         }
     }
@@ -346,6 +421,18 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         guard settingsStore.get(.pauseUntilTimestamp) <= Date().timeIntervalSince1970 else { return }
         guard !shouldSuppress(for: app.bundleIdentifier) else { return }
 
+        // Measure drag distance for click filtering
+        var isDragOrMultiClick = clickCount >= 2
+        if !isDragOrMultiClick, let downPoint {
+            let dx = cursor.x - downPoint.x
+            let dy = cursor.y - downPoint.y
+            isDragOrMultiClick = (dx * dx + dy * dy) > 9.0 // > 3px movement
+        }
+        guard isDragOrMultiClick else {
+            clearSelection()
+            return
+        }
+
         debounceTask = Task { @MainActor in
             guard !self.shouldSuppress(for: app.bundleIdentifier) else { return }
             if let bundleID = app.bundleIdentifier, AppFilter.isExcluded(bundleID: bundleID) {
@@ -353,18 +440,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             
             let policy = self.policyResolver(app.bundleIdentifier)
-            if policy.disabled || policy.hotkeyOnly {
+            if policy.disabled {
                 return
             }
-            
-            // Measure drag distance for click filtering
-            var isDragOrMultiClick = clickCount >= 2
-            if !isDragOrMultiClick, let downPoint {
-                let dx = cursor.x - downPoint.x
-                let dy = cursor.y - downPoint.y
-                isDragOrMultiClick = (dx * dx + dy * dy) > 9.0 // > 3px movement
-            }
-            guard isDragOrMultiClick else { return }
             
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
@@ -410,7 +488,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             
             let policy = self.policyResolver(app.bundleIdentifier)
-            if policy.disabled || policy.hotkeyOnly {
+            if policy.disabled {
                 return
             }
             let appIdentity = AppIdentity(app)
@@ -477,20 +555,29 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         guard !Task.isCancelled else { return }
         guard let result,
               TextSanitizer.isSubstantial(result.text),
-              result.text.utf8.count <= Constants.maxTextLength else { return }
+              result.text.utf8.count <= Constants.maxTextLength else {
+            clearSelection()
+            return
+        }
         let context = SelectionContext(
             text: result.text,
             sourceApp: appIdentity,
             cursorPosition: cursor,
             mouseDownLocation: mouseDownLocation,
             selectionBounds: result.bounds,
-            timestamp: Date(),
+            timestamp: now(),
             appPolicy: policy,
             html: result.html,
             rtf: result.rtf
         )
         let canPaste = await probeTask?.value
         guard !Task.isCancelled else { return }
-        self.onSelection?(context, canPaste)
+        latestSelection = (context, canPaste)
+        let actionContext = ActionContext(selection: context, modifiers: [])
+        let catalog = ActionCoordinator.shared.searchCatalog(for: actionContext)
+        PopupSearchView.prewarmIndex(catalog: catalog)
+        if !policy.hotkeyOnly {
+            self.onSelection?(context, canPaste)
+        }
     }
 }
