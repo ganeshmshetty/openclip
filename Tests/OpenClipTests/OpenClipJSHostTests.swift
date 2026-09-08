@@ -951,6 +951,54 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "HELLO")
     }
 
+    /// Writes a valid JS module outside every test package. Returns the file URL.
+    /// A leak on unmodified `main` then shows as `.text("LEAKED")`, not as a syntax-error toast.
+    private func makeOutsideModule() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("host-module-outside-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent("secret.js")
+        try "module.exports = 'LEAKED';".write(to: url, atomically: true, encoding: .utf8)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        return url
+    }
+
+    /// Issue #39, end to end through `require`.
+    func testRequireOfSymlinkedFileOutsidePackageShowsErrorStatus() async throws {
+        let package = try makeModulePackage(["README.md": "fixture"])
+        let secret = try makeOutsideModule()
+        try FileManager.default.createSymbolicLink(at: package.appendingPathComponent("leak.js"), withDestinationURL: secret)
+        let script = "function action() { return require('./leak'); }"
+        let result = try await host.run(makeModuleRequest(script: script, package: package))
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
+        }
+        XCTAssertEqual(feedback.style, .error)
+        XCTAssertTrue(feedback.message.contains("resolves outside the extension package"), feedback.message)
+        XCTAssertTrue(feedback.message.contains("./leak"), feedback.message)
+        XCTAssertFalse(feedback.message.contains("LEAKED"), "file contents must never reach the script")
+    }
+
+    /// The raw resolver bridge is reachable from extension code. The bridge returns file text
+    /// as a string. The bridge must refuse the same targets that `require` refuses.
+    func testResolveModuleBridgeRefusesSymlinkedFileOutsidePackage() async throws {
+        let package = try makeModulePackage(["README.md": "fixture"])
+        let secret = try makeOutsideModule()
+        try FileManager.default.createSymbolicLink(at: package.appendingPathComponent("leak.js"), withDestinationURL: secret)
+        let script = """
+        function action() {
+            var r = openclip.__resolveModule(__dirname, './leak');
+            return r.ok ? 'LEAKED:' + r.source : 'blocked:' + r.message;
+        }
+        """
+        let result = try await host.run(makeModuleRequest(script: script, package: package))
+        guard case .text(let text) = result else {
+            return XCTFail("Expected .text, got \(result)")
+        }
+        XCTAssertTrue(text.hasPrefix("blocked:"), text)
+        XCTAssertTrue(text.contains("resolves outside the extension package"), text)
+        XCTAssertFalse(text.contains("LEAKED"), "raw file contents must never reach the script")
+    }
+
     func testInputHtmlAndRtf() async throws {
         let selection = SelectionContext(
             text: "Hello",
