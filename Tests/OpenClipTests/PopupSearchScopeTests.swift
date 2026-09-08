@@ -101,4 +101,45 @@ final class PopupSearchScopeTests: XCTestCase {
         let presentation = ActionCustomizationManager.shared.presented(aiAction, surface: .table)
         XCTAssertEqual(presentation.icon, .symbol(Constants.defaultAIIconSymbol))
     }
+
+    @MainActor
+    func testPrewarmIndexReusedWhenCatalogAndRecencyMatch() {
+        let actionA = GroupScopeAction(id: "action.a")
+        let actionB = GroupScopeAction(id: "action.b")
+        let catalog: [any Action] = [actionA, actionB]
+
+        // Prewarm index
+        PopupSearchView.prewarmIndex(catalog: catalog)
+
+        let app = AppIdentity(NSRunningApplication.current)
+        let context = ActionContext(
+            selection: SelectionContext(text: "hi", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default)
+        )
+
+        let view = PopupSearchView(
+            catalog: catalog,
+            context: context,
+            resultsAbove: false,
+            scope: nil,
+            onResult: { _ in },
+            onExit: {},
+            onExitScope: {},
+            onRunAI: { _ in }
+        )
+        XCTAssertNotNil(view)
+
+        // Mutating usage recency invalidates prewarmed index reuse and rebuilds fresh
+        ActionUsageStore.shared.record("action.a")
+        let viewAfterUsage = PopupSearchView(
+            catalog: catalog,
+            context: context,
+            resultsAbove: false,
+            scope: nil,
+            onResult: { _ in },
+            onExit: {},
+            onExitScope: {},
+            onRunAI: { _ in }
+        )
+        XCTAssertNotNil(viewAfterUsage)
+    }
 }

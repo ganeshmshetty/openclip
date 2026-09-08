@@ -95,6 +95,19 @@ public struct PopupSearchView: View {
         CGFloat(max(0, PopupMetrics.searchMaxRows - 1)) * 2.0 + 56.0
     }
 
+    private static var prewarmedIndexCache: (catalogIDs: [String], usageRecency: [String: Int], index: [ActionSearchIndex])?
+
+    public static func prewarmIndex(catalog: [any Action]) {
+        let recency = ActionUsageStore.shared.recency
+        let index = buildIndex(
+            catalog: catalog,
+            scope: nil,
+            usageRecency: recency,
+            presenter: ActionCustomizationManager.shared
+        )
+        prewarmedIndexCache = (catalog.map(\.id), recency, index)
+    }
+
     public init(
         catalog: [any Action],
         context: ActionContext,
@@ -126,9 +139,17 @@ public struct PopupSearchView: View {
         self.onRunLoadingAction = onRunLoadingAction
         self.onClickIntent = onClickIntent
         // Index once at entry: the palette is recreated on every search entry (mode + scope
-        // transition together), so the current catalog/scope are captured here. The initial query
-        // is empty, so the ranked results are just the full index in order.
-        let initialIndex = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency, presenter: presenter)
+        // transition together), so the current catalog/scope are captured here. If a prewarmed
+        // index matches the current catalog and recency, reuse it for instant appearance; otherwise build fresh.
+        let initialIndex: [ActionSearchIndex]
+        if scope == nil,
+           let prewarmed = Self.prewarmedIndexCache,
+           prewarmed.catalogIDs == catalog.map(\.id),
+           prewarmed.usageRecency == usageRecency {
+            initialIndex = prewarmed.index
+        } else {
+            initialIndex = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency, presenter: presenter)
+        }
         _searchIndex = State(initialValue: initialIndex)
         _results = State(initialValue: initialIndex)
     }

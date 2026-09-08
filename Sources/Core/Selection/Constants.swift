@@ -127,6 +127,9 @@ public enum Constants {
     /// Throttle interval (seconds) for keyboard selection gestures (Cmd+A, Shift+arrow) to prevent rapid repeated retrievals while holding keys.
     public static let keyboardSelectionDebounceInterval: TimeInterval = 0.15
 
+    /// Maximum age (seconds) for a monitored selection before it is treated as stale.
+    public static let selectionMaxAge: TimeInterval = 30.0
+
     /// Default duration (seconds) of holding the mouse button down to trigger the popup.
     public static let defaultMouseHoldDuration: TimeInterval = 0.3
 
