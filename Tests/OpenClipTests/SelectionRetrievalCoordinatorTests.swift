@@ -218,6 +218,48 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
         XCTAssertEqual(result?.text, "copy fallback")
     }
 
+    private actor CopyCallTracker {
+        var copyInvoked = false
+        func recordCopy() { copyInvoked = true }
+    }
+
+    func testAllowCopyFallbackFalseSkipsCopyCapture() async {
+        let tracker = CopyCallTracker()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            copyCapture: { _ in
+                await tracker.recordCopy()
+                return TextResult(text: "should not be called")
+            }
+        )
+        let policy = AppPolicyContext(retrievalMode: .axWebArea)
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.openai.codex"),
+            policy: policy,
+            cursor: .unknown,
+            allowCopyFallback: false
+        )
+        XCTAssertNil(result)
+        let invoked = await tracker.copyInvoked
+        XCTAssertFalse(invoked, "copyCapture must not be invoked when allowCopyFallback is false")
+    }
+
+    func testRetrieveDetailsIdentifiesEditableTextControl() async {
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil, role: "AXTextField") },
+            copyCapture: { _ in nil }
+        )
+        let outcome = await coordinator.retrieveDetails(
+            for: AppIdentity(bundleIdentifier: "com.openai.codex"),
+            policy: AppPolicyContext.default,
+            cursor: CursorClass.unknown,
+            allowCopyFallback: false
+        )
+        XCTAssertNil(outcome.result)
+        XCTAssertTrue(outcome.isEditable, "AXTextField must be identified as editable context")
+    }
+
+
     // MARK: - Copy modes
 
     func testMenuCopyProceedsWithoutConfirmedSelection() async {

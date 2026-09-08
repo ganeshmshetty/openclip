@@ -260,11 +260,13 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             var isClipboardFallback = false
 
             let cursor = self.currentCursorProvider()
-            if let result = await retriever.retrieve(
+            let (result, isEditable) = await retriever.retrieveDetails(
                 for: appIdentity,
                 policy: policy,
-                cursor: cursor
-            ) {
+                cursor: cursor,
+                allowCopyFallback: false
+            )
+            if let result {
                 retrievedText = result.text
                 selectionBounds = result.bounds
                 selectionHTML = result.html
@@ -273,13 +275,17 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
             let canPaste = await probeTask?.value
 
-            // If no text was actively selected, only inherit clipboard content in an editable text context (I-beam cursor and paste allowed)
+            // If no text was actively selected, only inherit clipboard content in an editable text context (AX text control or I-beam cursor and paste allowed)
             if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                if cursor == .beam && canPaste != false,
+                let isEditableContext = isEditable || cursor == .beam
+                if isEditableContext && canPaste != false,
                    let clipboard = fallbackPasteboard.string(forType: .string),
                    !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Log.selection.debug("monitor: hold falling back to clipboard for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public)")
                     retrievedText = clipboard
                     isClipboardFallback = true
+                } else {
+                    Log.selection.debug("monitor: hold clipboard fallback skipped for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public); isEditable=\(isEditable), cursor=\(cursor.rawValue, privacy: .public), canPaste=\(String(describing: canPaste))")
                 }
             }
 

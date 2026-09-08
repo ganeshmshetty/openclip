@@ -67,18 +67,23 @@ public struct SelectionRetrievalCoordinator: Sendable {
     /// which is `@MainActor`) captured by the caller; `.unknown` (unrecognized cursor) never blocks.
     /// `isSelectAll` marks a whole-container select gesture (⌘A, and ⌘L for the address bar / line):
     /// retrieval is then skipped when the focus is a row/list container, so row selections in
-    /// Finder/Mail/table views never fire a real copy.
-    public func retrieve(
+    /// Reads the current selection and context details for `app` under `policy`.
+    /// `allowCopyFallback`: When false (e.g. during a mouse-hold gesture), copy-based strategies
+    /// (`keyboardCopy` / `menuCopy`) are skipped so blind ⌘C keystrokes are never fired on an unselected field.
+    public func retrieveDetails(
         for app: AppIdentity,
         policy: AppPolicyContext,
         cursor: CursorClass,
-        isSelectAll: Bool = false
-    ) async -> TextResult? {
+        isSelectAll: Bool = false,
+        allowCopyFallback: Bool = true
+    ) async -> (result: TextResult?, isEditable: Bool) {
         let target = await inspectWithWatchdog()
         guard let target else {
             Log.selection.debug("coordinator: AX inspect timed out for \(app.bundleIdentifier ?? "unknown", privacy: .public); no selection")
-            return nil
+            return (nil, false)
         }
+
+        let isEditable = Self.isEditableContext(target)
 
         // Gate 1: skip UI roles that can never hold a text selection.
         // Elements in web areas or containing web content frequently use role="button" or <button>
@@ -87,7 +92,7 @@ public struct SelectionRetrievalCoordinator: Sendable {
         if let role = target.role, policy.gate.skipRoles.contains(role) {
             if !(isWeb && role == "AXButton") {
                 Log.selection.debug("coordinator: skipping \(app.bundleIdentifier ?? "unknown", privacy: .public); role \(role, privacy: .private) is gated")
-                return nil
+                return (nil, isEditable)
             }
         }
 
@@ -95,26 +100,60 @@ public struct SelectionRetrievalCoordinator: Sendable {
         // reason to block (the classifier may simply not recognize the cursor image).
         if cursor != .unknown, !policy.gate.allowedCursors.contains(cursor) {
             Log.selection.debug("coordinator: skipping \(app.bundleIdentifier ?? "unknown", privacy: .public); cursor \(cursor.rawValue, privacy: .public) not allowed")
-            return nil
+            return (nil, isEditable)
         }
 
         // A whole-container select gesture (⌘A, ⌘L) landing on a *row* selection — Finder, Mail,
         // table views — must never produce text: AX reads would surface the row labels, and a copy
-        // trigger would fire a real copy on rows, not text. The guard names those containers
-        // explicitly rather than demanding a known text role: apps that expose no usable AX text
-        // element at all (editors and terminals drawing their own text — Zed, Ghostty, Electron
-        // hosts) are precisely the ones that depend on the copy strategies, and a whitelist made
-        // ⌘A the one gesture that never worked there while a drag or ⇧+arrow in the same element
-        // succeeded. Unknown is allowed; only a recognized row container is refused. Guarded
-        // before the cascade so every strategy, not just copy modes, honors it.
+        // trigger would fire a real copy on rows, not text.
         if isSelectAll, Self.isRowSelectionContext(target) {
             Log.selection.debug("coordinator: select-all on a row-selection element; skipping retrieval")
-            return nil
+            return (nil, isEditable)
         }
 
         Log.selection.debug("coordinator: gate passed for \(app.bundleIdentifier ?? "unknown", privacy: .public); retrieving via \(policy.retrievalMode.rawValue, privacy: .public)")
 
-        return Self.nonBlank(await read(for: app, target: target, policy: policy))
+        let readResult = Self.nonBlank(await read(for: app, target: target, policy: policy, allowCopyFallback: allowCopyFallback))
+        return (readResult, isEditable)
+    }
+
+    /// Determines whether an inspected AX element is an editable text control.
+    public static func isEditableContext(_ target: AXElementInspector.Target) -> Bool {
+        let editableRoles: Set<String> = [
+            "AXTextField",
+            "AXTextArea",
+            "AXComboBox",
+            "AXSearchField"
+        ]
+        if let role = target.role, editableRoles.contains(role) {
+            return true
+        }
+        if target.selectedTextRange != nil {
+            return true
+        }
+        return false
+    }
+
+    /// Reads the current selection for `app` under `policy`, or `nil` when the gate rejects the
+    /// context or no strategy produced text. `cursor` is the system cursor class (`CursorClassifier.current`,
+    /// which is `@MainActor`) captured by the caller; `.unknown` (unrecognized cursor) never blocks.
+    /// `isSelectAll` marks a whole-container select gesture (⌘A, and ⌘L for the address bar / line):
+    /// retrieval is then skipped when the focus is a row/list container, so row selections in
+    /// Finder/Mail/table views never fire a real copy.
+    public func retrieve(
+        for app: AppIdentity,
+        policy: AppPolicyContext,
+        cursor: CursorClass,
+        isSelectAll: Bool = false,
+        allowCopyFallback: Bool = true
+    ) async -> TextResult? {
+        await retrieveDetails(
+            for: app,
+            policy: policy,
+            cursor: cursor,
+            isSelectAll: isSelectAll,
+            allowCopyFallback: allowCopyFallback
+        ).result
     }
 
     /// Resolves an ordered cascade of strategies from the inspected target and the app, then returns
@@ -124,10 +163,14 @@ public struct SelectionRetrievalCoordinator: Sendable {
     private func read(
         for app: AppIdentity,
         target: AXElementInspector.Target,
-        policy: AppPolicyContext
+        policy: AppPolicyContext,
+        allowCopyFallback: Bool = true
     ) async -> TextResult? {
         let bundleID = app.bundleIdentifier ?? "unknown"
-        let strategies = strategyCascade(for: policy, target: target, bundleIdentifier: app.bundleIdentifier)
+        var strategies = strategyCascade(for: policy, target: target, bundleIdentifier: app.bundleIdentifier)
+        if !allowCopyFallback {
+            strategies.removeAll { $0 == .keyboardCopy || $0 == .menuCopy }
+        }
 
         for (index, strategy) in strategies.enumerated() {
             if index > 0 {
@@ -140,7 +183,7 @@ public struct SelectionRetrievalCoordinator: Sendable {
                 } else {
                     Log.selection.debug("coordinator: primary \(strategy.rawValue, privacy: .public) succeeded for \(bundleID, privacy: .public)")
                 }
-                return await enrichRichContent(result, strategy: strategy, app: app, target: target)
+                return await enrichRichContent(result, strategy: strategy, app: app, target: target, allowCopyFallback: allowCopyFallback)
             }
         }
         Log.selection.debug("coordinator: all strategies exhausted for \(bundleID, privacy: .public); no selection")
@@ -157,8 +200,10 @@ public struct SelectionRetrievalCoordinator: Sendable {
         _ result: TextResult,
         strategy: RetrievalStrategy,
         app: AppIdentity,
-        target: AXElementInspector.Target
+        target: AXElementInspector.Target,
+        allowCopyFallback: Bool = true
     ) async -> TextResult {
+        guard allowCopyFallback else { return result }
         guard result.html == nil && result.rtf == nil else { return result }
         guard strategy != .keyboardCopy && strategy != .menuCopy else { return result }
         let bundleIsBrowser = Self.isScriptableBrowser(app.bundleIdentifier)

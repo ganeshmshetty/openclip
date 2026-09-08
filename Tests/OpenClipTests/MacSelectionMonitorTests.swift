@@ -469,6 +469,41 @@ final class MacSelectionMonitorTests: XCTestCase {
     }
 
     @MainActor
+    func testHoldWithUnknownCursorFallsBackToClipboardInEditableFieldWhenPasteAllowed() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 150, y: 150)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+        monitor.currentCursorProvider = { .unknown }
+        monitor.preparePasteProbe = { _, _ in
+            Task { true }
+        }
+
+        let gate = DispatchSemaphore(value: 0)
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            gate.wait()
+            return Self.fixtureTarget(role: "AXTextField", selectedText: nil)
+        }, copyCapture: { _ in nil })
+
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        pasteboard.declareTypes([.string], owner: nil)
+        pasteboard.setString("fallback from editable field", forType: .string)
+        monitor.fallbackPasteboard = pasteboard
+
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+
+        monitor.handleMouseDown(at: point)
+        try await waitUntil { monitor.triggeredByHold }
+        gate.signal()
+        try await waitUntil { delivered != nil }
+
+        XCTAssertEqual(delivered?.text, "fallback from editable field")
+        XCTAssertTrue(delivered?.isClipboardFallback == true)
+    }
+
+
+    @MainActor
     func testHoldWithBeamCursorDoesNotFallBackToClipboardWhenPasteDenied() async throws {
         let monitor = makeHoldMonitor()
         let point = CGPoint(x: 150, y: 150)
