@@ -56,12 +56,13 @@ in-package symlink and its target are one module and its `__dirname` is the targ
 
 ### 1c. Containment
 
-A script's filesystem reach is **the extension package directory only**. The host resolves
-symlinks on the file it is about to read — the exact match, the `.js` fallback, and the `index.js`
-fallback alike — then enforces the package boundary (`OpenClipModuleLoader` +
-`Constants.isPathSafe`). A `require` that resolves outside the package — a `../` escape or a symlink
-pointing out — throws, and the run surfaces as `.toast(.error)` with "resolves outside the
-extension package". Absolute-path specifiers are rejected outright.
+Module resolution is scoped to **the extension package directory**. The host resolves
+symlinks on the file candidate — the exact match, the `.js` fallback, and the `index.js`
+fallback alike — and enforces a canonical path-component boundary (`OpenClipModuleLoader` +
+`Constants.isPathSafe`) on the opened file descriptor. A `require` that resolves outside the
+package directory — such as a `../` escape or a symlink pointing out — throws, and the run
+surfaces as `.toast(.error)` with "resolves outside the extension package". Absolute-path specifiers
+are rejected outright.
 
 ### 1d. Rejected specifiers
 

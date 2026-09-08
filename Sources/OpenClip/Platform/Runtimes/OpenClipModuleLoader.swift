@@ -5,6 +5,7 @@
 // inside a package directory at run time: pure Swift resolution + containment + file IO (no
 // JSContext involvement). The JS host owns wrapping/caching; this type owns the filesystem rules.
 import Foundation
+import Darwin
 import Core
 
 public enum ModuleResolutionError: Error, Equatable, Sendable {
@@ -93,18 +94,38 @@ public enum OpenClipModuleLoader {
             var isDir: ObjCBool = false
             return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
         }
-        /// Reads `url` as the module source. Re-checks containment on the symlink-resolved path.
-        /// The `.js` and `index.js` fallbacks can add a symlink after the early check. A
-        /// directory symlink can also hide until `isFile` follows it. `url` passed `isFile`.
-        /// Resolution here is a true realpath. All branches below use this function (issue #39).
+        /// Reads `url` as the module source. Containment is verified against the real path of the
+        /// opened file descriptor via `fcntl(F_GETPATH)`, binding verification directly to the open
+        /// file to eliminate time-of-check to time-of-use (TOCTOU) symlink substitution races (issue #39).
         func resolved(_ url: URL, tried: [String]) throws -> ResolvedModule {
-            let target = url.resolvingSymlinksInPath().standardizedFileURL
+            let fd = open(url.path, O_RDONLY | O_CLOEXEC)
+            guard fd >= 0 else {
+                throw ModuleResolutionError.notFound(specifier, tried + [url.path])
+            }
+            defer { close(fd) }
+
+            var resolvedBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+            guard fcntl(fd, F_GETPATH, &resolvedBuffer) != -1 else {
+                throw ModuleResolutionError.notFound(specifier, tried + [url.path])
+            }
+            let resolvedPath = String(cString: resolvedBuffer)
+            let target = URL(fileURLWithPath: resolvedPath).standardizedFileURL
+
             guard Constants.isPathSafe(destinationURL: target, baseDirectory: canonicalRoot) else {
                 throw ModuleResolutionError.outsidePackage(specifier)
             }
-            guard let source = try? String(contentsOf: target, encoding: .utf8) else {
+
+            let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
+            let data: Data
+            do {
+                data = try handle.readToEnd() ?? Data()
+            } catch {
                 throw ModuleResolutionError.notFound(specifier, tried + [url.path])
             }
+            guard let source = String(data: data, encoding: .utf8) else {
+                throw ModuleResolutionError.notFound(specifier, tried + [url.path])
+            }
+
             return ResolvedModule(
                 url: target,
                 source: source,
