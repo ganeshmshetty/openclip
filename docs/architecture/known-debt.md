@@ -92,8 +92,14 @@ areas; stale debt notes are worse than none.
 - **JS file scripts run in module mode (CommonJS).** A `javascript` action with `"script"` gets
   `require`/`module`/`exports`/`__dirname` and can split across local files; resolution is Node-style
   and contained to the package directory (`OpenClipModuleLoader` + `Constants.isPathSafe`), with
-  `../`/symlink escapes, absolute paths, and bare/Node-builtin specifiers rejected. Inline
-  `scriptCode` actions have no modules (byte-identical legacy behavior).
+  `../`/symlink escapes, absolute paths, and bare/Node-builtin specifiers rejected. Containment is
+  checked on the final symlink-resolved candidate, including the appended `.js` / `index.js`
+  (issue #39). Folder installs are **not** scanned for symlinks at install time — only `.zip`
+  entries are (`validateZipEntries`) — and `ExtensionPackageHashResolver` skips out-of-package
+  symlink targets from the trust hash, so the loader is the last line of defense for file reads.
+  Containment verification is bound directly to the open file descriptor via `fcntl(F_GETPATH)`
+  before reading, preventing check-then-read races. Inline `scriptCode` actions have no modules
+  (byte-identical legacy behavior).
 - **Third-party libraries live on the author side, not the host.** npm deps are bundled by the
   author with esbuild (`--platform=browser --target=es2020`) into `dist/main.js`; the host loader is
   **`.js`-only**, so TypeScript works only through the bundle path (`--with-npm` scaffold). Node

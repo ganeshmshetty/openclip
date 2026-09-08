@@ -5,6 +5,7 @@
 // inside a package directory at run time: pure Swift resolution + containment + file IO (no
 // JSContext involvement). The JS host owns wrapping/caching; this type owns the filesystem rules.
 import Foundation
+import Darwin
 import Core
 
 public enum ModuleResolutionError: Error, Equatable, Sendable {
@@ -57,9 +58,11 @@ public struct ResolvedModule: Equatable, Sendable {
 }
 
 public enum OpenClipModuleLoader {
-    /// Resolves `require(specifier)` from `requiringDirectory` within `packageRoot`, or throws a
-    /// `ModuleResolutionError`. Node-style resolution: exact file → `<candidate>.js` →
-    /// `<candidate>/index.js`.
+    /// Resolves `require(specifier)` from `requiringDirectory` in `packageRoot`. Throws a
+    /// `ModuleResolutionError` if resolution fails. Resolution follows Node rules: exact file, then
+    /// `<candidate>.js`, then `<candidate>/index.js`. The loader checks containment on the final
+    /// file after symlink resolution. The returned `url` and `directoryURL` are real paths
+    /// (Node default, without `--preserve-symlinks`).
     public static func load(
         specifier: String,
         requiringDirectory: URL,
@@ -91,14 +94,42 @@ public enum OpenClipModuleLoader {
             var isDir: ObjCBool = false
             return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
         }
+        /// Reads `url` as the module source. Containment is verified against the real path of the
+        /// opened file descriptor via `fcntl(F_GETPATH)`, binding verification directly to the open
+        /// file to eliminate time-of-check to time-of-use (TOCTOU) symlink substitution races (issue #39).
         func resolved(_ url: URL, tried: [String]) throws -> ResolvedModule {
-            guard let source = try? String(contentsOf: url, encoding: .utf8) else {
+            let fd = open(url.path, O_RDONLY | O_CLOEXEC)
+            guard fd >= 0 else {
                 throw ModuleResolutionError.notFound(specifier, tried + [url.path])
             }
+            defer { close(fd) }
+
+            var resolvedBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+            guard fcntl(fd, F_GETPATH, &resolvedBuffer) != -1 else {
+                throw ModuleResolutionError.notFound(specifier, tried + [url.path])
+            }
+            let resolvedPath = String(cString: resolvedBuffer)
+            let target = URL(fileURLWithPath: resolvedPath).standardizedFileURL
+
+            guard Constants.isPathSafe(destinationURL: target, baseDirectory: canonicalRoot) else {
+                throw ModuleResolutionError.outsidePackage(specifier)
+            }
+
+            let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
+            let data: Data
+            do {
+                data = try handle.readToEnd() ?? Data()
+            } catch {
+                throw ModuleResolutionError.notFound(specifier, tried + [url.path])
+            }
+            guard let source = String(data: data, encoding: .utf8) else {
+                throw ModuleResolutionError.notFound(specifier, tried + [url.path])
+            }
+
             return ResolvedModule(
-                url: url,
+                url: target,
                 source: source,
-                directoryURL: url.deletingLastPathComponent()
+                directoryURL: target.deletingLastPathComponent()
             )
         }
 

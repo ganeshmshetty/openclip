@@ -22,8 +22,9 @@ final class OpenClipModuleLoaderTests: XCTestCase {
         try write("module.exports = 'hi';", to: "lib/helper.js", in: root)
         let module = try OpenClipModuleLoader.load(specifier: "./lib/helper.js", requiringDirectory: root, packageRoot: root)
         XCTAssertEqual(module.source, "module.exports = 'hi';")
-        // Loader normalizes via resolvingSymlinksInPath (like isPathSafe), which rewrites
-        // /var -> /private/var on macOS, so compare path suffixes, not URL equality.
+        // The loader uses resolvingSymlinksInPath (same as isPathSafe). That call rewrites the
+        // /private prefix of temp paths. The rewrite direction changes with Foundation version.
+        // Compare path suffixes. Do not compare URL equality.
         XCTAssertTrue(module.directoryURL.path.hasSuffix("/package/lib"))
     }
 
@@ -102,6 +103,88 @@ final class OpenClipModuleLoaderTests: XCTestCase {
             XCTFail("Expected outsidePackage")
         } catch let error as ModuleResolutionError {
             XCTAssertEqual(error, .outsidePackage("./leak.js"))
+        }
+    }
+
+    // MARK: - Containment after the `.js` / `index.js` fallbacks (issue #39)
+
+    /// `leak` does not exist. The pre-check passes. `leak.js` is a symlink out of the package.
+    func testRejectsSymlinkEscapeViaAppendedExtension() throws {
+        let (root, outside) = try makeScratch()
+        try write("module.exports = 'LEAKED';", to: "secret.js", in: outside)
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("leak.js"),
+            withDestinationURL: outside.appendingPathComponent("secret.js")
+        )
+        do {
+            let module = try OpenClipModuleLoader.load(specifier: "./leak", requiringDirectory: root, packageRoot: root)
+            XCTFail("Expected outsidePackage, but loaded \(module.url.path) with source \(module.source)")
+        } catch let error as ModuleResolutionError {
+            XCTAssertEqual(error, .outsidePackage("./leak"))
+        }
+    }
+
+    /// `dir` is a real directory in the package. The pre-check passes. `dir/index.js` points out.
+    func testRejectsSymlinkEscapeViaDirectoryIndex() throws {
+        let (root, outside) = try makeScratch()
+        try write("module.exports = 'LEAKED';", to: "secret.js", in: outside)
+        let dir = root.appendingPathComponent("dir")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: dir.appendingPathComponent("index.js"),
+            withDestinationURL: outside.appendingPathComponent("secret.js")
+        )
+        do {
+            let module = try OpenClipModuleLoader.load(specifier: "./dir", requiringDirectory: root, packageRoot: root)
+            XCTFail("Expected outsidePackage, but loaded \(module.url.path) with source \(module.source)")
+        } catch let error as ModuleResolutionError {
+            XCTAssertEqual(error, .outsidePackage("./dir"))
+        }
+    }
+
+    /// In-package symlinks stay valid. The module reports the real path (Node default).
+    /// The per-run cache and `__dirname` then see one canonical file.
+    func testResolvesInPackageSymlinkAndReturnsRealPath() throws {
+        let (root, _) = try makeScratch()
+        try write("module.exports = 'real';", to: "lib/real.js", in: root)
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("alias.js"),
+            withDestinationURL: root.appendingPathComponent("lib/real.js")
+        )
+        let module = try OpenClipModuleLoader.load(specifier: "./alias", requiringDirectory: root, packageRoot: root)
+        XCTAssertEqual(module.source, "module.exports = 'real';")
+        XCTAssertTrue(module.url.path.hasSuffix("/package/lib/real.js"), module.url.path)
+        XCTAssertTrue(module.directoryURL.path.hasSuffix("/package/lib"), module.directoryURL.path)
+        let direct = try OpenClipModuleLoader.load(specifier: "./lib/real.js", requiringDirectory: root, packageRoot: root)
+        XCTAssertEqual(module.url, direct.url)
+    }
+
+    /// An in-package directory symlink stays valid. Resolution uses the real directory.
+    func testResolvesThroughInPackageSymlinkedDirectory() throws {
+        let (root, _) = try makeScratch()
+        try write("module.exports = 'x';", to: "real/x.js", in: root)
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("lib"),
+            withDestinationURL: root.appendingPathComponent("real")
+        )
+        let module = try OpenClipModuleLoader.load(specifier: "./lib/x", requiringDirectory: root, packageRoot: root)
+        XCTAssertEqual(module.source, "module.exports = 'x';")
+        XCTAssertTrue(module.directoryURL.path.hasSuffix("/package/real"), module.directoryURL.path)
+    }
+
+    /// A dangling link is not found. `fileExists` follows the link and finds no file.
+    func testDanglingSymlinkIsNotFound() throws {
+        let (root, outside) = try makeScratch()
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("leak.js"),
+            withDestinationURL: outside.appendingPathComponent("missing.js")
+        )
+        do {
+            _ = try OpenClipModuleLoader.load(specifier: "./leak", requiringDirectory: root, packageRoot: root)
+            XCTFail("Expected notFound")
+        } catch let error as ModuleResolutionError {
+            guard case .notFound(_, let tried) = error else { return XCTFail("Expected notFound, got \(error)") }
+            XCTAssertTrue(tried.contains { $0.hasSuffix("package/leak.js") })
         }
     }
 
