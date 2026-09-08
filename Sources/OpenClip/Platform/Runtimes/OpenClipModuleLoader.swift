@@ -57,9 +57,11 @@ public struct ResolvedModule: Equatable, Sendable {
 }
 
 public enum OpenClipModuleLoader {
-    /// Resolves `require(specifier)` from `requiringDirectory` within `packageRoot`, or throws a
-    /// `ModuleResolutionError`. Node-style resolution: exact file → `<candidate>.js` →
-    /// `<candidate>/index.js`.
+    /// Resolves `require(specifier)` from `requiringDirectory` in `packageRoot`. Throws a
+    /// `ModuleResolutionError` if resolution fails. Resolution follows Node rules: exact file, then
+    /// `<candidate>.js`, then `<candidate>/index.js`. The loader checks containment on the final
+    /// file after symlink resolution. The returned `url` and `directoryURL` are real paths
+    /// (Node default, without `--preserve-symlinks`).
     public static func load(
         specifier: String,
         requiringDirectory: URL,
@@ -91,14 +93,22 @@ public enum OpenClipModuleLoader {
             var isDir: ObjCBool = false
             return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
         }
+        /// Reads `url` as the module source. Re-checks containment on the symlink-resolved path.
+        /// The `.js` and `index.js` fallbacks can add a symlink after the early check. A
+        /// directory symlink can also hide until `isFile` follows it. `url` passed `isFile`.
+        /// Resolution here is a true realpath. All branches below use this function (issue #39).
         func resolved(_ url: URL, tried: [String]) throws -> ResolvedModule {
-            guard let source = try? String(contentsOf: url, encoding: .utf8) else {
+            let target = url.resolvingSymlinksInPath().standardizedFileURL
+            guard Constants.isPathSafe(destinationURL: target, baseDirectory: canonicalRoot) else {
+                throw ModuleResolutionError.outsidePackage(specifier)
+            }
+            guard let source = try? String(contentsOf: target, encoding: .utf8) else {
                 throw ModuleResolutionError.notFound(specifier, tried + [url.path])
             }
             return ResolvedModule(
-                url: url,
+                url: target,
                 source: source,
-                directoryURL: url.deletingLastPathComponent()
+                directoryURL: target.deletingLastPathComponent()
             )
         }
 

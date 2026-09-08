@@ -50,6 +50,9 @@ reported to their maintainers, though a private heads-up here is appreciated.
   pollute the clipboard while monitoring.
 - **Secure extension installs.** Remote extension downloads require HTTPS and are
   validated against Zip-Slip traversal before install.
+- **Contained JS modules.** `require()` in JS extension packages only reads files inside the
+  package directory; the boundary is enforced on the symlink-resolved file, so `../` escapes and
+  symlinks pointing out of the package are rejected.
 - **Isolated file-backed secrets.** AI provider API keys and secret options are stored securely
   in `~/.openclip/secrets.json` with POSIX 0600 permissions via `SecretStore`, never written to
   plain preferences or UserDefaults.
