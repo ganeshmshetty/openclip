@@ -60,5 +60,10 @@ reported to their maintainers, though a private heads-up here is appreciated.
   indefinitely.
 - **Hardened runtime.** The app target builds with `ENABLE_HARDENED_RUNTIME`
   enabled (see `project.yml`).
+- **Verifiable release builds.** Release `.zip` and `.dmg` artifacts carry a
+  Sigstore build-provenance attestation binding them to the tag and workflow run
+  that produced them, so any download can be checked against its origin:
+  `gh attestation verify OpenClip-v<version>.dmg --repo ganeshmshetty/openclip`.
+  Sparkle auto-updates are separately signed with an Ed25519 key.
 - **Private-by-default logging.** Text, clipboard, and extension data stay
   default-private in logs; only ids and URLs are logged publicly.

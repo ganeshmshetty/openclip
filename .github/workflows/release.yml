@@ -8,6 +8,10 @@ on:
 
 permissions:
   contents: write
+  # Sigstore signs the provenance keylessly: id-token mints the OIDC token that
+  # identifies this workflow to Fulcio, attestations stores the resulting bundle.
+  id-token: write
+  attestations: write
 
 jobs:
   package-and-release:
@@ -52,6 +56,18 @@ jobs:
           SHA256=$(shasum -a 256 "$ZIP_FILE" | awk '{print $1}')
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "Built OpenClip v$VERSION with SHA256: $SHA256"
+
+      # The Sparkle appcast is signed, so the auto-update path is already covered.
+      # This covers the other one: a .zip or .dmg downloaded straight off the
+      # Releases page can be traced back to the tag and workflow run that built it.
+      #   gh attestation verify OpenClip-v<version>.dmg --repo ganeshmshetty/openclip \
+      #     --signer-workflow ganeshmshetty/openclip/.github/workflows/release.yml
+      - name: Attest Build Provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            build/release/*.zip
+            build/release/*.dmg
 
       - name: Extract Release Notes from CHANGELOG
         run: |
