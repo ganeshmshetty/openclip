@@ -22,6 +22,10 @@ fi
 echo "Signing app bundle and embedded frameworks ad-hoc..."
 codesign --force --deep --sign - "$BUILT_APP"
 
+# CI runs this script on every push, so this is where an arm64-only regression gets caught
+# before it can reach a tag.
+"$PROJECT_DIR/scripts/verify_universal.sh" "$BUILT_APP" "OpenClip.app"
+
 mkdir -p "$PROJECT_DIR/build"
 OUTPUT_ZIP="$PROJECT_DIR/build/OpenClip.zip"
 OUTPUT_DMG="$PROJECT_DIR/build/OpenClip.dmg"

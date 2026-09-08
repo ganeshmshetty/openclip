@@ -6,6 +6,9 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 
 ## Unreleased
 
+### Fixes & Stability
+- **Intel Mac Support Restored**: Released builds are universal again. Every release since the CI runner moved to Apple Silicon shipped an arm64-only app, so Intel Macs refused to launch it with "not supported on this type of Mac" — the `.zip` and the `.dmg` now both carry arm64 and x86_64 slices, and the release fails rather than publishing if either one does not.
+
 ### Improvements
 - **Redesigned DMG Installer**: The disk image now opens as a proper install window — a branded background, "Install OpenClip" headline, the app icon and an `/Applications` drop link laid out either side of an arrow, and the app icon as the volume icon. The background is rendered from `assets/dmg/background.html` at 1× and 2× into a multi-representation TIFF, so it stays sharp on Retina displays and can be edited as HTML/CSS instead of a binary image. See [docs/dmg.md](docs/dmg.md).
 
