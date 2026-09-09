@@ -7,6 +7,7 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 ## Unreleased
 
 ### Fixes & Stability
+- **Per-Command Extension Settings**: Commands inside a multi-command extension now show the settings cog in Preferences › Actions whenever that command declares options, so per-command settings (an endpoint, a project ID, an API key) can be configured without leaving the list. Saving that editor for a command no longer rewrites its parent group's manifest entry.
 - **Intel Mac Support Restored**: Released builds are universal again. Every release since the CI runner moved to Apple Silicon shipped an arm64-only app, so Intel Macs refused to launch it with "not supported on this type of Mac" — the `.zip` and the `.dmg` now both carry arm64 and x86_64 slices, and the release fails rather than publishing if either one does not.
 
 ### Improvements

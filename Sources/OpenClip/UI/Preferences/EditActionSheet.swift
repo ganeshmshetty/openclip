@@ -350,6 +350,16 @@ public struct EditActionSheet: View {
         ExtensionManifestStore.locateManifest(for: action, in: directory)
     }
 
+    /// True when the located manifest entry is `actionID` itself. The locator resolves a nested
+    /// sub-action to its parent group's top-level index, so for a group member this is false and
+    /// the sheet must not write the entry — doing so would stamp the member's title and icon onto
+    /// the whole group. Pure, unit-tested.
+    static func locatedEntryBacks(actionID: String, in state: LocatedManifest) -> Bool {
+        guard state.manifest.actions.indices.contains(state.targetIndex) else { return false }
+        let meta = state.manifest.actions[state.targetIndex]
+        return ExtensionManager.uniformActionID(metadata: meta, manifest: state.manifest, index: state.targetIndex) == actionID
+    }
+
     // MARK: - State loading
 
     private func loadInitialState() {
@@ -606,6 +616,11 @@ public struct EditActionSheet: View {
             showingSaveAlert = true
             return false
         }
+
+        // A sub-action of an extension group resolves to the group's manifest entry. Its
+        // appearance override was persisted above and its option values save as they are edited,
+        // so there is nothing left to write — and writing here would rename the parent group.
+        guard Self.locatedEntryBacks(actionID: action.id, in: state) else { return true }
 
         let meta = state.manifest.actions[state.targetIndex]
         let finalTitle = customTitle.trimmingCharacters(in: .whitespacesAndNewlines)

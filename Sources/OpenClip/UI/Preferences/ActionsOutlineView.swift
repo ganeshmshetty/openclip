@@ -85,6 +85,21 @@ final class OutlineNode: NSObject {
         }
     }
 
+    /// Trailing controls for this row's `ActionRowView`. An extension sub-action is removed with
+    /// its package, so it never gets the delete control; it gets the settings cog only when the
+    /// command declares options (a multi-command extension configures each command on its own
+    /// row — the group's cog opens the group editor, which has no option fields).
+    var rowControls: ActionRowControls {
+        switch kind {
+        case .extensionSubAction(let action, _):
+            return action.actionOptions.isEmpty ? [] : .settings
+        case .packageHeader:
+            return []
+        case .customGroup, .extensionGroup, .standaloneAction, .groupMember:
+            return .all
+        }
+    }
+
     override var hash: Int { id.hashValue }
     override func isEqual(_ object: Any?) -> Bool {
         guard let other = object as? OutlineNode else { return false }
@@ -115,7 +130,12 @@ final class OutlineNode: NSObject {
             sig += "gm:\(parentGroupID):\(p.title):\(String(describing: p.icon))"
         case .extensionSubAction(let action, let parentGroupID):
             let p = customization.presented(action, surface: .table)
-            sig += "es:\(parentGroupID):\(p.title):\(String(describing: p.icon))"
+            // Option schema is part of the identity so a hot-reloaded manifest that adds, drops,
+            // or modifies options re-renders the row's settings cog even when title and icon are unchanged.
+            let optionsSig = action.actionOptions.map { opt in
+                "\(opt.identifier):\(opt.type.rawValue):\(opt.label):\(opt.defaultValue ?? ""):\(opt.options?.joined(separator: "|") ?? "")"
+            }.joined(separator: ",")
+            sig += "es:\(parentGroupID):\(p.title):\(String(describing: p.icon)):\(optionsSig)"
         }
         if !children.isEmpty {
             sig += "[" + children.map(\.signature).joined(separator: ";") + "]"
@@ -552,17 +572,13 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
              .standaloneAction(let action), .groupMember(let action, _),
              .extensionSubAction(let action, _):
             let presentation = parent.customizationManager.presented(action, surface: .table)
-            let showsControls: Bool = {
-                if case .extensionSubAction = node.kind { return false }
-                return true
-            }()
 
             cellView.setContent(
                 ActionRowView(
                     action: action,
                     presentationModel: presentation,
                     isEnabled: enabledBinding(for: action),
-                    showsControls: showsControls
+                    controls: node.rowControls
                 )
             )
         }
