@@ -6,7 +6,11 @@
 // below the field depending on popup position; up to 3 rows visible, scrollable beyond that.
 // Rows are chosen with the arrows + Return, the mouse, or ⌘1…⌘9 — the first nine rows carry a
 // shortcut (shown on the row) that runs them outright. The keys live on the focused field, so
-// they exist only while the palette is open.
+// they exist only while the palette is open. The palette's right edge, bottom edge and corner grip
+// are resize handles (`PopupResizeHandles`); the size they settle on is remembered and, passed
+// back in as `maxSize`, caps the palette on the next entry: a couple of results still get a short
+// palette, a long list grows up to the maximum and scrolls beyond it. Once the user has dragged a
+// handle (`isUserSized`), the palette keeps the dragged size verbatim until it closes.
 import SwiftUI
 import AppKit
 import Core
@@ -41,6 +45,17 @@ public struct PopupSearchView: View {
     /// Returns the click intent captured at mouse-down for the current click, so the palette's
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
+    /// The most room the palette may take — the user's remembered or in-progress resize. The
+    /// palette renders at what its results need up to this; `nil` caps at the default column
+    /// (`searchPanelContentWidth` wide, `searchMaxRows` rows tall).
+    public let maxSize: CGSize?
+    /// True once the user has dragged a resize handle of this palette: it then renders at
+    /// `maxSize` verbatim — the size they set, whatever the results need — instead of the
+    /// content-fitted size.
+    public let isUserSized: Bool
+    /// Reports a drag of one of the resize handles so the owner can resize the panel and remember
+    /// the size. `.began` is reported exactly once per drag.
+    public let onResize: @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void
 
     @State private var query = ""
     @State private var selectedIndex = 0
@@ -88,11 +103,71 @@ public struct PopupSearchView: View {
     /// every one of those reads. Recomputed exactly once per query change (and per scope rebuild).
     @State private var results: [ActionSearchIndex] = []
 
-    /// Height of the search palette card: fits PopupMetrics.searchMaxRows with spacing,
-    /// plus insets for the floating search bar so results scroll behind it cleanly.
+    /// Height of the search palette card: what the current results need (field inset, rows,
+    /// spacing, bottom padding), never shorter than `searchPaletteMinHeight` and never taller than
+    /// the maximum — the remembered size, or `defaultHeight` (`searchMaxRows` rows) — beyond which
+    /// the list scrolls. Once user-sized it is exactly the dragged size.
     private var cardHeight: CGFloat {
+        if isUserSized, let maxSize { return maxSize.height }
+        return Self.bounded(naturalHeight, min: PopupMetrics.searchPaletteMinHeight, max: maxSize?.height ?? Self.defaultHeight)
+    }
+
+    /// Width of the search palette card. The default column is the floor — a list has a design
+    /// width, and rows only widen it when a title needs the room — capped by the maximum (the
+    /// remembered width, or the default column). Once user-sized it is exactly the dragged size.
+    private var cardWidth: CGFloat {
+        if isUserSized, let maxSize { return maxSize.width }
+        let needed = max(PopupMetrics.searchPanelContentWidth, naturalRowWidth)
+        return Self.bounded(needed, min: PopupMetrics.searchPaletteMinWidth, max: maxSize?.width ?? PopupMetrics.searchPanelContentWidth)
+    }
+
+    /// The field's floating inset the rows scroll behind.
+    private static let fieldInset: CGFloat = 56.0
+    private static let rowSpacing: CGFloat = 2.0
+    private static let listBottomPadding: CGFloat = 8.0
+
+    /// What the list needs to show every current result without scrolling.
+    private var naturalHeight: CGFloat {
+        Self.height(forRows: results.count)
+    }
+
+    static func height(forRows rows: Int) -> CGFloat {
+        fieldInset + CGFloat(rows) * PopupMetrics.searchResultRowHeight
+            + CGFloat(max(0, rows - 1)) * rowSpacing + listBottomPadding
+    }
+
+    /// The palette's default maximum height: `searchMaxRows` rows behind the field. Internal for tests.
+    static var defaultHeight: CGFloat {
         CGFloat(PopupMetrics.searchMaxRows) * PopupMetrics.searchResultRowHeight +
-        CGFloat(max(0, PopupMetrics.searchMaxRows - 1)) * 2.0 + 56.0
+        CGFloat(max(0, PopupMetrics.searchMaxRows - 1)) * rowSpacing + fieldInset
+    }
+
+    /// The widest row among the current results — icon column, title, spacer and shortcut hint
+    /// with their paddings. Measured once per result set, never per body evaluation.
+    @State private var naturalRowWidth: CGFloat = 0
+
+    private static let titleFont = NSFont.systemFont(ofSize: 13, weight: .regular)
+    private static let shortcutFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+
+    static func naturalRowWidth(for results: [ActionSearchIndex]) -> CGFloat {
+        // Row chrome: list padding 8+8, row padding 10+10, icon column 18, icon→title spacing 10,
+        // the spacer's minimum 8, and title→shortcut spacing 10 when the row carries a shortcut.
+        let shortcutWidth = ceil(("⌘9" as NSString).size(withAttributes: [.font: shortcutFont]).width)
+        var widest: CGFloat = 0
+        for (index, item) in results.enumerated() {
+            let title = ceil((item.title as NSString).size(withAttributes: [.font: titleFont]).width)
+            var width = 16 + 20 + 18 + 10 + title + 8
+            if shortcutHint(forRow: index) != nil {
+                width += 10 + shortcutWidth
+            }
+            widest = max(widest, width)
+        }
+        // A point of slack so SwiftUI's own layout never truncates the measured title.
+        return widest + 1
+    }
+
+    private static func bounded(_ value: CGFloat, min minimum: CGFloat, max maximum: CGFloat) -> CGFloat {
+        min(max(value, minimum), max(maximum, minimum))
     }
 
     private static var prewarmedIndexCache: (catalogIDs: [String], usageRecency: [String: Int], index: [ActionSearchIndex])?
@@ -115,6 +190,9 @@ public struct PopupSearchView: View {
         presenter: any ActionPresenting = ActionCustomizationManager.shared,
         scope: SearchScope? = nil,
         usageRecency: [String: Int] = [:],
+        maxSize: CGSize? = nil,
+        isUserSized: Bool = false,
+        onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in },
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onExit: @escaping @MainActor () -> Void,
         onExitScope: @escaping @MainActor () -> Void = {},
@@ -130,6 +208,9 @@ public struct PopupSearchView: View {
         self.presenter = presenter
         self.scope = scope
         self.usageRecency = usageRecency
+        self.maxSize = maxSize
+        self.isUserSized = isUserSized
+        self.onResize = onResize
         self.onResult = onResult
         self.onExit = onExit
         self.onExitScope = onExitScope
@@ -152,6 +233,7 @@ public struct PopupSearchView: View {
         }
         _searchIndex = State(initialValue: initialIndex)
         _results = State(initialValue: initialIndex)
+        _naturalRowWidth = State(initialValue: Self.naturalRowWidth(for: initialIndex))
     }
 
     public var body: some View {
@@ -165,8 +247,14 @@ public struct PopupSearchView: View {
                 .padding(.horizontal, 10)
                 .padding(.top, 8)
                 .frame(maxWidth: .infinity, alignment: .top)
+
+            PopupResizeHandles(
+                tint: PopupThemeModel.restForeground(for: effectiveTheme),
+                accessibilityLabel: String(localized: "Resize search palette"),
+                onResize: onResize
+            )
         }
-        .frame(width: PopupMetrics.searchPanelContentWidth, height: cardHeight)
+        .frame(width: cardWidth, height: cardHeight)
         .background(CommandDigitCatcher { row in runRow(at: row - 1) })
         .popupCardChrome(cornerRadius: PopupMetrics.searchCornerRadius, effectiveTheme: effectiveTheme, colorScheme: colorScheme)
         .onPreferenceChange(SearchHoverFramePreferenceKey.self) { frames in
@@ -180,6 +268,7 @@ public struct PopupSearchView: View {
         }
         .onChange(of: query) { _, newValue in
             results = ActionSearch.search(newValue, in: searchIndex)
+            naturalRowWidth = Self.naturalRowWidth(for: results)
             selectedIndex = 0
         }
         .onChange(of: scope?.parent.id) { _, _ in
@@ -571,6 +660,7 @@ public struct PopupSearchView: View {
         let index = Self.buildIndex(catalog: catalog, scope: scope, usageRecency: usageRecency, presenter: presenter)
         searchIndex = index
         results = ActionSearch.search(query, in: index)
+        naturalRowWidth = Self.naturalRowWidth(for: results)
         selectedIndex = 0
     }
 

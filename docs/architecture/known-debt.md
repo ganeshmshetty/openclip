@@ -125,9 +125,11 @@ areas; stale debt notes are worse than none.
   `onPreferenceChange`/`onContentSizeChange` never fires for this and `sizingOptions` has no effect.
   The only reliable hook is `PopupPanel.setFrame` (`PopupPanel.swift:42`): when
   `pinBottomEdgeOnResize` is set it keeps the bottom edge fixed so results-above-the-field growth
-  never shoves the popup. The pin stays active through the search→bar collapse (Esc no longer jumps
-  the popup) and is cleared by `show(for:)` (`PopupWindowController.swift:69`) and `hide()`
-  (`:464`) before intentional placement.
+  never shoves the popup. For the search palette the pin is one-shot
+  (`releasesBottomPinAfterGrowth`): it covers the entry growth only, so the palette's height can
+  follow the result count without sliding the field; `exitSearch()` re-arms it for the search→bar
+  collapse after restoring the bar's bottom edge (Esc no longer jumps the popup). Both flags are
+  cleared by `show(for:)` and `hide()` before intentional placement.
 - **Search and content modes are the two key exceptions to the never-key rule.** `PopupPanel.allowsKey`
   enables `canBecomeKey`/`canBecomeMain` in both modes (`PopupPanel.swift:19`), routed through the
   same `enterKeyMode()`/`exitKeyMode()` primitives (`PopupWindowController.swift:196,206`). A
@@ -161,9 +163,15 @@ areas; stale debt notes are worse than none.
 - **Popup sizing constants live in the App target.** `PopupMetrics`
   (`Sources/OpenClip/UI/Popup/PopupMetrics.swift`) holds the UI-only values — `searchMaxRows`
   (5), `searchResultRowHeight` (32), `searchPeekRowFraction` (0.5), `popupMaxHeight` (300, the
-  shared height cap for the popup panel), the AI card bounds (`aiCardMinWidth` 220 /
-  `aiCardIdealWidth` 300 / `aiCardMaxWidth` 360 / `aiCardBodyHeight` 160), plus
-  placement/dismissal distances. `Core/Selection/Constants.swift` keeps only
+  shared height cap for the popup panel — lifted per-session via `PopupPanel.heightCap` while the
+  result card shows, since a user-resized card may be taller), the AI card bounds
+  (`aiCardMinWidth` 220 / `aiCardIdealWidth` 320 / `aiCardMaxWidth` 360 / `aiCardMinHeight` 200 /
+  `aiCardMaxHeight` 280 — the max bounds only cap the content-driven default; the card's and the
+  palette's resize handles go up to the screen, see `PopupResizeGeometry`, with the palette's own
+  floor `searchPaletteMinWidth` 240 / `searchPaletteMinHeight` 128), plus placement/dismissal
+  distances. The remembered card and palette sizes are the popup preferences declared in the App
+  target (`SettingKey+ResultCard.swift`, `SettingKey+SearchPalette.swift`, next to
+  `SettingKey+MenuBar.swift`) because they are pure presentation. `Core/Selection/Constants.swift` keeps only
   domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 
 ## Unused / Latent

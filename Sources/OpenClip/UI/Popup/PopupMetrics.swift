@@ -57,10 +57,20 @@ public enum PopupMetrics {
     /// Fraction of an extra result row shown beyond `searchMaxRows` so the next action peeks,
     /// hinting that the list scrolls.
     public static let searchPeekRowFraction: CGFloat = 0.0
+    /// Smallest size the palette's resize handles allow: the field plus two rows. A remembered
+    /// size (`SettingKey.searchPaletteWidth` / `searchPaletteHeight`) replaces the default column
+    /// and row count above; see `PopupResizeGeometry`.
+    public static let searchPaletteMinWidth: CGFloat = 240
+    public static let searchPaletteMinHeight: CGFloat = 128
     /// Shared height cap for the popup panel (search palette field + result rows and content cards).
+    /// Lifted per session via `PopupPanel.heightCap` while a resizable surface shows.
     public static let popupMaxHeight: CGFloat = 312
-    /// Native AI result card sizing: width clamped to the shared popup column and a max body
-    /// height so a long response scrolls instead of growing the panel without bound.
+    /// Native result card sizing. The content-driven default is `aiCardIdealWidth` wide and
+    /// between `aiCardMinHeight` and `aiCardMaxHeight` tall, so a long response scrolls instead of
+    /// growing the panel without bound. The card's right/bottom resize handles can take it past
+    /// the maximums (up to the screen, see `PopupResizeGeometry`) but never below the
+    /// minimums; a resized size is remembered (`SettingKey.resultCardWidth` / `resultCardHeight`)
+    /// and replaces the content-driven default on the next card.
     public static let aiCardMinWidth: CGFloat = 220
     public static let aiCardIdealWidth: CGFloat = 320
     public static let aiCardMaxWidth: CGFloat = 360

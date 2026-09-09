@@ -26,6 +26,23 @@ public final class PopupModeStore: ObservableObject {
     /// The native result card currently shown (only meaningful while `mode == .content`). Any
     /// action whose resolved outcome is text renders here, not just AI presets.
     @Published public var resultCard: ResultCardPayload? = nil
+    /// The most room the result card may take — the user's remembered size, restored from
+    /// preferences (`SettingKey.resultCardWidth` / `resultCardHeight`) when content mode is
+    /// entered and updated live while a resize handle is dragged. The card renders at what its
+    /// text needs up to this; `nil` means the default maximum. Cleared whenever the card leaves
+    /// the screen, so every entry re-reads the preference.
+    @Published public var resultCardSize: CGSize? = nil
+    /// The most room the search palette may take — the user's remembered size, restored from
+    /// preferences (`SettingKey.searchPaletteWidth` / `searchPaletteHeight`) when search mode is
+    /// entered and updated live while a resize handle is dragged. The palette renders at what its
+    /// results need up to this; `nil` means the default column. Cleared whenever the palette
+    /// closes, so every entry re-reads the preference.
+    @Published public var searchPaletteSize: CGSize? = nil
+    /// True once the user has dragged a resize handle of the surface on screen. From then on the
+    /// surface keeps the dragged size verbatim — any size they want, whatever its content does —
+    /// for the rest of its session. Cleared when the surface closes, so the next one opens
+    /// content-fitted up to the remembered maximum.
+    @Published public var isSurfaceUserSized: Bool = false
     /// Whether the target app can Paste, probed (AX) when the popup shows. `false` hides the
     /// card's Paste button and the bar/search Paste + Cut actions; `nil` (unknown/probing) and
     /// `true` keep them visible.
