@@ -9465,6 +9465,34 @@
         }
       }
     },
+    "Resize search palette": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调整搜索面板大小"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "調整搜尋面板大小"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redimensionner la palette de recherche"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索パレットのサイズを変更"
+          }
+        }
+      }
+    },
     "Resolve": {
       "localizations": {
         "zh-Hans": {

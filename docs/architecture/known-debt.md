@@ -164,10 +164,12 @@ areas; stale debt notes are worse than none.
   shared height cap for the popup panel — lifted per-session via `PopupPanel.heightCap` while the
   result card shows, since a user-resized card may be taller), the AI card bounds
   (`aiCardMinWidth` 220 / `aiCardIdealWidth` 320 / `aiCardMaxWidth` 360 / `aiCardMinHeight` 200 /
-  `aiCardMaxHeight` 280 — the max bounds only cap the content-driven default; the card's resize
-  handles go up to the screen, see `ResultCardResizeGeometry`), plus placement/dismissal distances.
-  The remembered card size is the one popup preference declared in the App target
-  (`SettingKey+ResultCard.swift`, next to `SettingKey+MenuBar.swift`) because it is pure presentation. `Core/Selection/Constants.swift` keeps only
+  `aiCardMaxHeight` 280 — the max bounds only cap the content-driven default; the card's and the
+  palette's resize handles go up to the screen, see `PopupResizeGeometry`, with the palette's own
+  floor `searchPaletteMinWidth` 240 / `searchPaletteMinHeight` 128), plus placement/dismissal
+  distances. The remembered card and palette sizes are the popup preferences declared in the App
+  target (`SettingKey+ResultCard.swift`, `SettingKey+SearchPalette.swift`, next to
+  `SettingKey+MenuBar.swift`) because they are pure presentation. `Core/Selection/Constants.swift` keeps only
   domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 
 ## Unused / Latent

@@ -10,7 +10,7 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 - **Intel Mac Support Restored**: Released builds are universal again. Every release since the CI runner moved to Apple Silicon shipped an arm64-only app, so Intel Macs refused to launch it with "not supported on this type of Mac" — the `.zip` and the `.dmg` now both carry arm64 and x86_64 slices, and the release fails rather than publishing if either one does not.
 
 ### Improvements
-- **Resizable Result Card**: The result card that shows an action's output (and the red/green diff) can now be resized by dragging its right edge, bottom edge or the grip in its bottom-right corner, so long responses get more room. The size you settle on is remembered and every later card opens at that size (fitted to the screen it appears on).
+- **Resizable Result Card and Search Palette**: The result card that shows an action's output (and the red/green diff) and the action-search palette can now be resized by dragging their right edge, bottom edge or the grip in their bottom-right corner, so long responses and long action lists get more room. Each remembers the size you settle on and opens at it next time (fitted to the screen it appears on).
 - **Redesigned DMG Installer**: The disk image now opens as a proper install window — a branded background, "Install OpenClip" headline, the app icon and an `/Applications` drop link laid out either side of an arrow, and the app icon as the volume icon. The background is rendered from `assets/dmg/background.html` at 1× and 2× into a multi-representation TIFF, so it stays sharp on Retina displays and can be edited as HTML/CSS instead of a binary image. See [docs/dmg.md](docs/dmg.md).
 
 ### Fixes & Stability

@@ -23,9 +23,10 @@ public class PopupPanel: NSPanel {
     /// panel's bottom edge fixed and grows upward so the field never shifts.
     public var pinBottomEdgeOnResize: Bool = false
     /// Height cap `setFrame` applies to every frame request. `PopupMetrics.popupMaxHeight` for the
-    /// bar and the search palette; the controller raises it to the screen height while the result
-    /// card shows, because a card the user resized (or one restored at its remembered size) may
-    /// legitimately be taller than the shared cap. Reset by `show(for:)`, `exitContent()`, `hide()`.
+    /// bar; the controller raises it to the screen height while the result card or the search
+    /// palette shows, because a surface the user resized (or one restored at its remembered size)
+    /// may legitimately be taller than the shared cap. Reset by `show(for:)`, `exitSearch()`,
+    /// `exitContent()` and `hide()`.
     public var heightCap: CGFloat = PopupMetrics.popupMaxHeight
     public enum HorizontalAnchor: Sendable {
         case none

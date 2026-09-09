@@ -221,7 +221,6 @@ public class PopupWindowController {
         // must not correct the new frame). enterSearch() re-enables pinning for growth.
         panel.pinBottomEdgeOnResize = false
         panel.horizontalAnchor = .none
-        panel.heightCap = PopupMetrics.popupMaxHeight
         modeStore.resultCardSize = nil
         preSearchFrame = nil
         openedDirectlyInSearch = (initialMode == .search)
@@ -237,7 +236,12 @@ public class PopupWindowController {
         // it used to land in the middle of the main screen, ignoring both.
         let screen = PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
-        let probeWidth = initialMode == .search ? PopupMetrics.searchPanelWidth : 320
+        // A palette opened directly by the hotkey renders at its remembered size from the first
+        // frame (enterSearch() is not on this path), so restore it before the view is built; a
+        // remembered palette may also be taller than the shared bar/palette cap.
+        modeStore.searchPaletteSize = initialMode == .search ? rememberedSize(for: .palette, in: screenBounds) : nil
+        panel.heightCap = initialMode == .search ? screenBounds.height : PopupMetrics.popupMaxHeight
+        let probeWidth = initialMode == .search ? currentSearchPanelWidth : 320
         let tempFrame = PopupPositioner.calculateFrame(
             for: context,
             popupSize: CGSize(width: probeWidth, height: 50),
@@ -275,7 +279,7 @@ public class PopupWindowController {
             onExitContent: { [weak self] in self?.exitContent() },
             onDismissContent: { [weak self] in self?.hide() },
             onCardDrag: { [weak self] phase in self?.handleCardDrag(phase) },
-            onCardResize: { [weak self] edge, phase in self?.handleCardResize(edge, phase: phase) },
+            onResize: { [weak self] edge, phase in self?.handleResize(edge, phase: phase) },
             onCardEffect: { [weak self] result in
                 self?.performCardEffect(result)
             },
@@ -364,6 +368,7 @@ public class PopupWindowController {
                 await Task.yield()
                 self.focusSearchField()
             }
+            scheduleKeepPanelOnScreen()
         }
     }
 
@@ -435,6 +440,12 @@ public class PopupWindowController {
         if modeStore.mode != .search || scope != nil {
             modeStore.scope = scope
         }
+        if modeStore.mode != .search {
+            // Fresh entry (not a scope hop): the palette opens at its remembered size, which may
+            // be taller than the shared bar/palette cap.
+            modeStore.searchPaletteSize = rememberedSize(for: .palette, in: screenBounds(for: panel))
+            panel.heightCap = screenBounds(for: panel).height
+        }
         modeStore.mode = .search
         PaletteRowShortcuts.setActive(true)
         // Content-driven growth keeps the panel's bottom edge fixed (results render above the field,
@@ -446,7 +457,7 @@ public class PopupWindowController {
             let barFrame = preSearchFrame ?? panel.frame
             preSearchFrame = barFrame
             let buttonScreenMidX = barFrame.minX + buttonLocalFrame.midX
-            let searchPanelWidth = PopupMetrics.searchPanelWidth
+            let searchPanelWidth = currentSearchPanelWidth
             let screen = panel.screen ?? NSScreen.main
             let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
             let clampedMidX = PopupPositioner.searchPaletteMidX(
@@ -468,6 +479,22 @@ public class PopupWindowController {
             await Task.yield()
             self.focusSearchField()
         }
+        scheduleKeepPanelOnScreen()
+    }
+
+    /// The panel width for the palette: its remembered width when there is one, else the default
+    /// column, plus the shadow ring on both sides.
+    private var currentSearchPanelWidth: CGFloat {
+        (modeStore.searchPaletteSize?.width ?? PopupMetrics.searchPanelContentWidth) + 2 * PopupMetrics.popupShadowInset
+    }
+
+    /// The hosting view grows the panel to the palette on its own, after the current run-loop turn
+    /// (and sometimes a display pass later); a remembered palette can be tall enough for that
+    /// growth to run off a screen edge, so nudge it back once the growth has landed. Same two
+    /// retries as `showResultCard`.
+    private func scheduleKeepPanelOnScreen() {
+        DispatchQueue.main.async { [weak self] in self?.keepPanelOnScreen() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in self?.keepPanelOnScreen() }
     }
 
     /// Opens the palette scoped to a bar row's sub-actions. The parent action supplies its children
@@ -521,6 +548,11 @@ public class PopupWindowController {
             panel.horizontalAnchor = .center
         }
         preSearchFrame = nil
+        // After the frame restore above, so a resized (tall) palette is not clamped mid-collapse;
+        // the bar's own shrink requests a height well under the cap.
+        modeStore.searchPaletteSize = nil
+        resizeAnchor = nil
+        panel?.heightCap = PopupMetrics.popupMaxHeight
         exitKeyMode() // reactivates previousFrontmostApp but keeps it for the session
     }
 
@@ -573,7 +605,7 @@ public class PopupWindowController {
             // A remembered (or later resized) card may be far taller than the bar/palette cap:
             // let the panel grow as tall as the screen; the card's own clamps keep it on-screen.
             if let panel { panel.heightCap = screenBounds(for: panel).height }
-            modeStore.resultCardSize = rememberedCardSize()
+            modeStore.resultCardSize = rememberedSize(for: .card)
             modeStore.mode = .content
             enterKeyMode()
         }
@@ -608,10 +640,11 @@ public class PopupWindowController {
         keepPanelOnScreen()
     }
 
-    /// Moves the panel the minimum distance needed to sit inside its screen (by `popupPadding`).
-    /// Only automatic placement is corrected: a card the user dragged stays where they put it.
+    /// Moves the panel the minimum distance needed to sit inside its screen (by `popupPadding`)
+    /// while a resizable surface shows. Only automatic placement is corrected: a card the user
+    /// dragged stays where they put it.
     private func keepPanelOnScreen() {
-        guard let panel, panel.isVisible, modeStore.mode == .content, !hasUserMovedCard else { return }
+        guard let panel, panel.isVisible, resizableSurface != nil, !hasUserMovedCard else { return }
         let bounds = screenBounds(for: panel).insetBy(dx: PopupMetrics.popupPadding, dy: PopupMetrics.popupPadding)
         var origin = panel.frame.origin
         origin.x = max(min(origin.x, bounds.maxX - panel.frame.width), bounds.minX)
@@ -621,14 +654,69 @@ public class PopupWindowController {
         }
     }
 
-    /// The size the user last resized the card to, fitted to the current screen; nil until the
-    /// card has been resized once, so the card sizes itself from its content.
-    private func rememberedCardSize() -> CGSize? {
-        let width = settingsStore.get(SettingKey.resultCardWidth)
-        let height = settingsStore.get(SettingKey.resultCardHeight)
+    // MARK: - Resizable Surfaces
+
+    /// The popup surfaces with resize handles. Each has its own floor and remembers its own size
+    /// under its own keys; the geometry, the panel handling and the persistence flow are shared.
+    private enum ResizableSurface {
+        case card
+        case palette
+
+        var minSize: CGSize {
+            switch self {
+            case .card:
+                return CGSize(width: PopupMetrics.aiCardMinWidth, height: PopupMetrics.aiCardMinHeight)
+            case .palette:
+                return CGSize(width: PopupMetrics.searchPaletteMinWidth, height: PopupMetrics.searchPaletteMinHeight)
+            }
+        }
+
+        var widthKey: SettingKey<Double> {
+            switch self {
+            case .card: return SettingKey.resultCardWidth
+            case .palette: return SettingKey.searchPaletteWidth
+            }
+        }
+
+        var heightKey: SettingKey<Double> {
+            switch self {
+            case .card: return SettingKey.resultCardHeight
+            case .palette: return SettingKey.searchPaletteHeight
+            }
+        }
+    }
+
+    /// The resizable surface currently on screen, if the popup is showing one.
+    private var resizableSurface: ResizableSurface? {
+        switch modeStore.mode {
+        case .content: return .card
+        case .search: return .palette
+        case .actions: return nil
+        }
+    }
+
+    private func liveSize(for surface: ResizableSurface) -> CGSize? {
+        switch surface {
+        case .card: return modeStore.resultCardSize
+        case .palette: return modeStore.searchPaletteSize
+        }
+    }
+
+    private func setLiveSize(_ size: CGSize?, for surface: ResizableSurface) {
+        switch surface {
+        case .card: modeStore.resultCardSize = size
+        case .palette: modeStore.searchPaletteSize = size
+        }
+    }
+
+    /// The size the user last resized `surface` to, fitted to `screenBounds` (the panel's screen
+    /// when nil); nil until the surface has been resized once, so it keeps its default sizing.
+    private func rememberedSize(for surface: ResizableSurface, in screenBounds: CGRect? = nil) -> CGSize? {
+        let width = settingsStore.get(surface.widthKey)
+        let height = settingsStore.get(surface.heightKey)
         guard width.isFinite, height.isFinite, width > 0, height > 0 else { return nil }
-        let bounds = panel.map { screenBounds(for: $0) } ?? Self.fallbackScreenBounds
-        return ResultCardResizeGeometry.fit(CGSize(width: width, height: height), in: bounds)
+        let bounds = screenBounds ?? panel.map { self.screenBounds(for: $0) } ?? Self.fallbackScreenBounds
+        return PopupResizeGeometry.fit(CGSize(width: width, height: height), minSize: surface.minSize, in: bounds)
     }
 
     private static let fallbackScreenBounds = NSRect(x: 0, y: 0, width: 800, height: 600)
@@ -664,21 +752,22 @@ public class PopupWindowController {
         }
     }
 
-    // MARK: - Card Resize
+    // MARK: - Resize
 
-    /// Where the cursor was, and how big the card was, when the current resize began. Nil while
-    /// no resize is in flight; `resizePanel` reads it to keep content-driven size reports anchored
-    /// at the card's top-left corner for the duration.
-    private var cardResizeAnchor: (mouse: CGPoint, cardSize: CGSize)?
+    /// Where the cursor was, how big the surface was, and which surface it was when the current
+    /// resize began. Nil while no resize is in flight; `resizePanel` reads it to keep
+    /// content-driven size reports anchored at the surface's top-left corner for the duration.
+    private var resizeAnchor: (mouse: CGPoint, size: CGSize, surface: ResizableSurface)?
 
-    /// Resizes the card as one of its handles is dragged. Mirrors `handleCardDrag`: the new size
-    /// comes from the *absolute* cursor position against the anchor taken at `.began` (the dragged
-    /// edge moves out from under the pointer, so the gesture's own translation would fight it),
-    /// the card's top-left corner stays fixed, and the size is clamped to the card minimum and to
-    /// the screen. `.ended` remembers the size for the next card. `mouseLocation` is injectable so
-    /// the geometry is testable without a real cursor. Internal for tests.
-    func handleCardResize(_ edge: ResultCardResizeEdge, phase: ResultCardDragPhase, mouseLocation: CGPoint? = nil) {
-        guard let panel, modeStore.mode == .content else { return }
+    /// Resizes the surface on screen (result card or search palette) as one of its handles is
+    /// dragged. Mirrors `handleCardDrag`: the new size comes from the *absolute* cursor position
+    /// against the anchor taken at `.began` (the dragged edge moves out from under the pointer, so
+    /// the gesture's own translation would fight it), the surface's top-left corner stays fixed,
+    /// and the size is clamped to the surface minimum and to the screen. `.ended` remembers the
+    /// size under the surface's keys. `mouseLocation` is injectable so the geometry is testable
+    /// without a real cursor. Internal for tests.
+    func handleResize(_ edge: PopupResizeEdge, phase: ResultCardDragPhase, mouseLocation: CGPoint? = nil) {
+        guard let panel, let surface = resizableSurface else { return }
         let mouse = mouseLocation ?? NSEvent.mouseLocation
         switch phase {
         case .began:
@@ -686,40 +775,41 @@ public class PopupWindowController {
             // re-centering nor bottom-pinning fighting the top-left-anchored frames set below.
             panel.prepareForUserDrag()
             panel.pinBottomEdgeOnResize = false
-            cardResizeAnchor = (mouse: mouse, cardSize: modeStore.resultCardSize ?? currentCardSize(in: panel))
+            resizeAnchor = (mouse: mouse, size: liveSize(for: surface) ?? currentSurfaceSize(in: panel), surface: surface)
         case .changed:
-            guard let anchor = cardResizeAnchor else { return }
-            let proposed = ResultCardResizeGeometry.size(
-                from: anchor.cardSize, edge: edge, anchorMouse: anchor.mouse, mouse: mouse)
-            let size = ResultCardResizeGeometry.clamp(
+            guard let anchor = resizeAnchor, anchor.surface == surface else { return }
+            let proposed = PopupResizeGeometry.size(
+                from: anchor.size, edge: edge, anchorMouse: anchor.mouse, mouse: mouse)
+            let size = PopupResizeGeometry.clamp(
                 proposed,
+                minSize: surface.minSize,
                 panelTopLeft: CGPoint(x: panel.frame.minX, y: panel.frame.maxY),
                 screenBounds: screenBounds(for: panel))
-            applyCardSize(size, to: panel)
+            applySize(size, for: surface, to: panel)
         case .ended:
-            guard cardResizeAnchor != nil else { return }
-            cardResizeAnchor = nil
+            guard let anchor = resizeAnchor, anchor.surface == surface else { return }
+            resizeAnchor = nil
             panel.endUserDrag()
-            if let size = modeStore.resultCardSize {
-                settingsStore.set(SettingKey.resultCardWidth, value: Double(size.width))
-                settingsStore.set(SettingKey.resultCardHeight, value: Double(size.height))
+            if let size = liveSize(for: surface) {
+                settingsStore.set(surface.widthKey, value: Double(size.width))
+                settingsStore.set(surface.heightKey, value: Double(size.height))
             }
         }
     }
 
-    /// The card's on-screen size derived from the panel frame (the panel is the card plus the
-    /// transparent shadow ring on every side). The card's content-driven size is never reported
-    /// to the controller, so this is how the first resize of a session learns where it starts.
-    private func currentCardSize(in panel: PopupPanel) -> CGSize {
+    /// The surface's on-screen size derived from the panel frame (the panel is the surface plus
+    /// the transparent shadow ring on every side). A surface's default size is never reported to
+    /// the controller, so this is how the first resize of a session learns where it starts.
+    private func currentSurfaceSize(in panel: PopupPanel) -> CGSize {
         let ring = 2 * PopupMetrics.popupShadowInset
         return CGSize(width: panel.frame.width - ring, height: panel.frame.height - ring)
     }
 
-    /// Applies a card size: the card reads it from the store, and the panel is set to the card plus
-    /// its shadow ring with the top-left corner fixed (the handles sit on the right/bottom edges).
-    /// The hosting view's own top-anchored auto-resize then lands on this same frame.
-    private func applyCardSize(_ size: CGSize, to panel: PopupPanel) {
-        modeStore.resultCardSize = size
+    /// Applies a size: the surface reads it from the store, and the panel is set to the surface
+    /// plus its shadow ring with the top-left corner fixed (the handles sit on the right/bottom
+    /// edges). The hosting view's own top-anchored auto-resize then lands on this same frame.
+    private func applySize(_ size: CGSize, for surface: ResizableSurface, to panel: PopupPanel) {
+        setLiveSize(size, for: surface)
         let ring = 2 * PopupMetrics.popupShadowInset
         let panelSize = CGSize(width: size.width + ring, height: size.height + ring)
         panel.setFrame(CGRect(x: panel.frame.minX, y: panel.frame.maxY - panelSize.height,
@@ -731,7 +821,7 @@ public class PopupWindowController {
         guard modeStore.mode == .content else { return }
         modeStore.resultCard = nil
         modeStore.resultCardSize = nil
-        cardResizeAnchor = nil
+        resizeAnchor = nil
         hasUserMovedCard = false
         modeStore.mode = .actions
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
@@ -772,8 +862,8 @@ public class PopupWindowController {
         let size = sanitizedPopupSize(proposedSize)
         let current = panel.frame.size
         if abs(current.width - size.width) < 1, abs(current.height - size.height) < 1 { return }
-        if cardResizeAnchor != nil {
-            // A resize handle is being dragged: the card's top-left corner is the fixed point.
+        if resizeAnchor != nil {
+            // A resize handle is being dragged: the surface's top-left corner is the fixed point.
             panel.setFrame(CGRect(x: panel.frame.minX, y: panel.frame.maxY - size.height,
                                   width: size.width, height: size.height), display: true)
         } else if modeStore.searchResultsAbove {
@@ -826,6 +916,7 @@ public class PopupWindowController {
         currentActions = nil
         modeStore.resultCard = nil
         modeStore.resultCardSize = nil
+        modeStore.searchPaletteSize = nil
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
         // runs and any later snapshot read the last intent; force-copy must never persist). The
@@ -847,7 +938,7 @@ public class PopupWindowController {
         panel?.heightCap = PopupMetrics.popupMaxHeight
         panel?.endUserDrag()
         cardDragAnchor = nil
-        cardResizeAnchor = nil
+        resizeAnchor = nil
         hasUserMovedCard = false
         preSearchFrame = nil
         openedDirectlyInSearch = false

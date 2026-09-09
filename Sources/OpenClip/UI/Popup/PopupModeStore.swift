@@ -31,6 +31,11 @@ public final class PopupModeStore: ObservableObject {
     /// is dragged. `nil` lets the card size itself from its content. Cleared whenever the card
     /// leaves the screen, so every entry re-reads the preference.
     @Published public var resultCardSize: CGSize? = nil
+    /// The search palette's user-chosen size: restored from preferences
+    /// (`SettingKey.searchPaletteWidth` / `searchPaletteHeight`) when search mode is entered and
+    /// updated live while a resize handle is dragged. `nil` keeps the palette's default column.
+    /// Cleared whenever the palette closes, so every entry re-reads the preference.
+    @Published public var searchPaletteSize: CGSize? = nil
     /// Whether the target app can Paste, probed (AX) when the popup shows. `false` hides the
     /// card's Paste button and the bar/search Paste + Cut actions; `nil` (unknown/probing) and
     /// `true` keep them visible.

@@ -6,7 +6,9 @@
 // below the field depending on popup position; up to 3 rows visible, scrollable beyond that.
 // Rows are chosen with the arrows + Return, the mouse, or ⌘1…⌘9 — the first nine rows carry a
 // shortcut (shown on the row) that runs them outright. The keys live on the focused field, so
-// they exist only while the palette is open.
+// they exist only while the palette is open. The palette's right edge, bottom edge and corner grip
+// are resize handles (`PopupResizeHandles`); the size they settle on is remembered and, passed
+// back in as `preferredSize`, replaces the default column on the next palette.
 import SwiftUI
 import AppKit
 import Core
@@ -41,6 +43,12 @@ public struct PopupSearchView: View {
     /// Returns the click intent captured at mouse-down for the current click, so the palette's
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
+    /// The size to render at — the user's remembered or in-progress resize. `nil` keeps the
+    /// default column (`searchPanelContentWidth` wide, `searchMaxRows` rows tall).
+    public let preferredSize: CGSize?
+    /// Reports a drag of one of the resize handles so the owner can resize the panel and remember
+    /// the size. `.began` is reported exactly once per drag.
+    public let onResize: @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void
 
     @State private var query = ""
     @State private var selectedIndex = 0
@@ -88,9 +96,20 @@ public struct PopupSearchView: View {
     /// every one of those reads. Recomputed exactly once per query change (and per scope rebuild).
     @State private var results: [ActionSearchIndex] = []
 
-    /// Height of the search palette card: fits PopupMetrics.searchMaxRows with spacing,
-    /// plus insets for the floating search bar so results scroll behind it cleanly.
+    /// Height of the search palette card: the remembered/in-progress size when there is one,
+    /// else it fits PopupMetrics.searchMaxRows with spacing, plus insets for the floating search
+    /// bar so results scroll behind it cleanly. Fixed for the session either way — the result
+    /// count never changes it.
     private var cardHeight: CGFloat {
+        preferredSize?.height ?? Self.defaultHeight
+    }
+
+    private var cardWidth: CGFloat {
+        preferredSize?.width ?? PopupMetrics.searchPanelContentWidth
+    }
+
+    /// The palette's content-driven default height. Internal for tests.
+    static var defaultHeight: CGFloat {
         CGFloat(PopupMetrics.searchMaxRows) * PopupMetrics.searchResultRowHeight +
         CGFloat(max(0, PopupMetrics.searchMaxRows - 1)) * 2.0 + 56.0
     }
@@ -115,6 +134,8 @@ public struct PopupSearchView: View {
         presenter: any ActionPresenting = ActionCustomizationManager.shared,
         scope: SearchScope? = nil,
         usageRecency: [String: Int] = [:],
+        preferredSize: CGSize? = nil,
+        onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in },
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onExit: @escaping @MainActor () -> Void,
         onExitScope: @escaping @MainActor () -> Void = {},
@@ -130,6 +151,8 @@ public struct PopupSearchView: View {
         self.presenter = presenter
         self.scope = scope
         self.usageRecency = usageRecency
+        self.preferredSize = preferredSize
+        self.onResize = onResize
         self.onResult = onResult
         self.onExit = onExit
         self.onExitScope = onExitScope
@@ -165,8 +188,14 @@ public struct PopupSearchView: View {
                 .padding(.horizontal, 10)
                 .padding(.top, 8)
                 .frame(maxWidth: .infinity, alignment: .top)
+
+            PopupResizeHandles(
+                tint: PopupThemeModel.restForeground(for: effectiveTheme),
+                accessibilityLabel: String(localized: "Resize search palette"),
+                onResize: onResize
+            )
         }
-        .frame(width: PopupMetrics.searchPanelContentWidth, height: cardHeight)
+        .frame(width: cardWidth, height: cardHeight)
         .background(CommandDigitCatcher { row in runRow(at: row - 1) })
         .popupCardChrome(cornerRadius: PopupMetrics.searchCornerRadius, effectiveTheme: effectiveTheme, colorScheme: colorScheme)
         .onPreferenceChange(SearchHoverFramePreferenceKey.self) { frames in
