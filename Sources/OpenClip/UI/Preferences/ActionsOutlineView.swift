@@ -130,9 +130,12 @@ final class OutlineNode: NSObject {
             sig += "gm:\(parentGroupID):\(p.title):\(String(describing: p.icon))"
         case .extensionSubAction(let action, let parentGroupID):
             let p = customization.presented(action, surface: .table)
-            // Option count is part of the identity so a hot-reloaded manifest that adds or drops
-            // options re-renders the row's settings cog even when title and icon are unchanged.
-            sig += "es:\(parentGroupID):\(p.title):\(String(describing: p.icon)):\(action.actionOptions.count)"
+            // Option schema is part of the identity so a hot-reloaded manifest that adds, drops,
+            // or modifies options re-renders the row's settings cog even when title and icon are unchanged.
+            let optionsSig = action.actionOptions.map { opt in
+                "\(opt.identifier):\(opt.type.rawValue):\(opt.label):\(opt.defaultValue ?? ""):\(opt.options?.joined(separator: "|") ?? "")"
+            }.joined(separator: ",")
+            sig += "es:\(parentGroupID):\(p.title):\(String(describing: p.icon)):\(optionsSig)"
         }
         if !children.isEmpty {
             sig += "[" + children.map(\.signature).joined(separator: ";") + "]"

@@ -55,6 +55,21 @@ final class ActionRowControlsTests: XCTestCase {
         XCTAssertNotEqual(before.signature, after.signature)
     }
 
+    func testSubActionOptionIdentifierChangesChangeTheNodeSignature() {
+        // A hot-reloaded manifest that replaces options with a different schema of the same count
+        // must re-render the row so stale option fields are not retained.
+        let customization = ActionCustomizationManager(settingsStore: MemorySettingsStore())
+        let first = OptionedAction(id: "\(groupID).execute", packageID: packageID, options: [endpointOption()])
+        let second = OptionedAction(
+            id: "\(groupID).execute",
+            packageID: packageID,
+            options: [ExtensionOption(identifier: "apiKey", label: "API Key", type: .secret)]
+        )
+        let node1 = OutlineNode(id: first.id, kind: .extensionSubAction(action: first, parentGroupID: groupID), customization: customization)
+        let node2 = OutlineNode(id: second.id, kind: .extensionSubAction(action: second, parentGroupID: groupID), customization: customization)
+        XCTAssertNotEqual(node1.signature, node2.signature)
+    }
+
     // MARK: - Other rows
 
     func testTopLevelRowsKeepBothControls() {
