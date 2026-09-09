@@ -97,6 +97,11 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         syncGroupMemberOrder()
     }
 
+    public func setExtensionGroupMemberOrder(groupID: String, memberIDs: [String]) {
+        registry.setExtensionGroupMemberOrder(groupID: groupID, memberIDs: memberIDs)
+        self.actions = registry.actions
+    }
+
     private func syncGroupMemberOrder() {
         guard !actionGroupDefs.isEmpty else { return }
         let currentOrder = registry.actions.map(\.id)

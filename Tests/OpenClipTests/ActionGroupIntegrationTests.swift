@@ -416,6 +416,60 @@ final class ActionGroupIntegrationTests: XCTestCase {
         let updatedSignature = coord.rootNodes.first?.signature
         XCTAssertNotEqual(initialSignature, updatedSignature, "Coordinator must automatically sync when customizationManager changes")
     }
+
+    func testSetExtensionGroupMemberOrderPersistsAndReordersInCoordinator() {
+        let groupID = "com.pkg.extgroup"
+        let groupAction = GroupAction(
+            id: groupID,
+            title: "Ext Group",
+            icon: .symbol("folder"),
+            chrome: ActionChrome(rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .extensionPkg(packageID: "com.pkg"))
+        )
+        let s1 = DummyAction(id: "\(groupID).s1", title: "Sub 1")
+        let s2 = DummyAction(id: "\(groupID).s2", title: "Sub 2")
+        let s3 = DummyAction(id: "\(groupID).s3", title: "Sub 3")
+
+        coordinator.register(action: groupAction)
+        coordinator.register(action: s1)
+        coordinator.register(action: s2)
+        coordinator.register(action: s3)
+
+        XCTAssertEqual(coordinator.memberActionIDs(for: groupID), ["\(groupID).s1", "\(groupID).s2", "\(groupID).s3"])
+
+        // Reorder via coordinator
+        coordinator.setExtensionGroupMemberOrder(groupID: groupID, memberIDs: ["\(groupID).s3", "\(groupID).s1", "\(groupID).s2"])
+
+        XCTAssertEqual(coordinator.memberActionIDs(for: groupID), ["\(groupID).s3", "\(groupID).s1", "\(groupID).s2"])
+        XCTAssertEqual(coordinator.actions.map(\.id), [groupID, "\(groupID).s3", "\(groupID).s1", "\(groupID).s2"])
+        XCTAssertEqual(settingsStore.get(.extensionGroupMemberOrder)[groupID], ["\(groupID).s3", "\(groupID).s1", "\(groupID).s2"])
+    }
+
+    func testMoveExtensionGroupAtomicallyPreservesSubactionsAndOrder() {
+        let groupID = "com.pkg.extgroup"
+        let groupAction = GroupAction(
+            id: groupID,
+            title: "Ext Group",
+            icon: .symbol("folder"),
+            chrome: ActionChrome(rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .extensionPkg(packageID: "com.pkg"))
+        )
+        let s1 = DummyAction(id: "\(groupID).s1", title: "Sub 1")
+        let s2 = DummyAction(id: "\(groupID).s2", title: "Sub 2")
+        let other = DummyAction(id: "com.pkg.other", title: "Other")
+
+        coordinator.register(action: groupAction)
+        coordinator.register(action: s1)
+        coordinator.register(action: s2)
+        coordinator.register(action: other)
+
+        settingsStore.set(.actionOrder, value: [groupID, "com.pkg.other"])
+        XCTAssertEqual(coordinator.actions.map(\.id), [groupID, "\(groupID).s1", "\(groupID).s2", "com.pkg.other"])
+
+        // Move the group to after "com.pkg.other"
+        coordinator.moveActions(from: IndexSet(integer: 0), to: 4)
+
+        XCTAssertEqual(coordinator.actions.map(\.id), ["com.pkg.other", groupID, "\(groupID).s1", "\(groupID).s2"])
+        XCTAssertEqual(settingsStore.get(.actionOrder), ["com.pkg.other", groupID])
+    }
 }
 
 private struct DummyAction: Action, Sendable {

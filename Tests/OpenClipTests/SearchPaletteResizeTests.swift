@@ -10,6 +10,26 @@ import Core
 @MainActor
 final class SearchPaletteResizeTests: XCTestCase {
 
+    override func setUp() async throws {
+        try await super.setUp()
+        await MainActor.run {
+            for window in NSApp.windows where window is PopupPanel {
+                window.orderOut(nil)
+            }
+            TestIsolation.reset()
+        }
+    }
+
+    override func tearDown() async throws {
+        await MainActor.run {
+            for window in NSApp.windows where window is PopupPanel {
+                window.orderOut(nil)
+            }
+            TestIsolation.reset()
+        }
+        try await super.tearDown()
+    }
+
     private let ring = 2 * PopupMetrics.popupShadowInset
     private let paletteMin = CGSize(width: PopupMetrics.searchPaletteMinWidth, height: PopupMetrics.searchPaletteMinHeight)
     private let defaultWidth = PopupMetrics.searchPanelContentWidth

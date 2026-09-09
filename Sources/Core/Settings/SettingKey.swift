@@ -55,6 +55,10 @@ public extension SettingKey where Value == [String: Int] {
     static var actionUsageRecency: SettingKey<[String: Int]> { SettingKey<[String: Int]>("actionUsageRecency", defaultValue: [:]) }
 }
 
+public extension SettingKey where Value == [String: [String]] {
+    static var extensionGroupMemberOrder: SettingKey<[String: [String]]> { SettingKey<[String: [String]]>("extensionGroupMemberOrder", defaultValue: [:]) }
+}
+
 public extension SettingKey where Value == [String: String] {
     /// packageID -> "seen" | "trusted" | "revoked"
     static var extensionTrust: SettingKey<[String: String]> { SettingKey<[String: String]>("extension.trust", defaultValue: [:]) }

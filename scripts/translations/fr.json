@@ -452,5 +452,8 @@
   "Failed to download favicon: %@": "Échec du téléchargement du favicon : %@",
   "The resolved file is not a valid image.": "Le fichier résolu n'est pas une image valide.",
   "Source image file was not found.": "Le fichier image source est introuvable.",
-  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "Format de fichier non pris en charge. Veuillez choisir un fichier PNG, SVG, JPG ou ICNS."
+  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "Format de fichier non pris en charge. Veuillez choisir un fichier PNG, SVG, JPG ou ICNS.",
+  "Customize Icon": "Personnaliser l’icône",
+  "Move Up": "Monter",
+  "Move Down": "Descendre"
 }

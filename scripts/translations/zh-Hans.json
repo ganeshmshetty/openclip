@@ -452,5 +452,8 @@
   "Failed to download favicon: %@": "无法下载网站图标：%@",
   "The resolved file is not a valid image.": "解析的文件不是有效图片。",
   "Source image file was not found.": "未找到源图片文件。",
-  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "不支持的文件格式。请选择 PNG、SVG、JPG 或 ICNS 文件。"
+  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "不支持的文件格式。请选择 PNG、SVG、JPG 或 ICNS 文件。",
+  "Customize Icon": "自定义图标",
+  "Move Up": "上移",
+  "Move Down": "下移"
 }

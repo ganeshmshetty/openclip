@@ -452,5 +452,8 @@
   "Failed to download favicon: %@": "ファビコンのダウンロードに失敗しました: %@",
   "The resolved file is not a valid image.": "解決されたファイルは有効な画像ではありません。",
   "Source image file was not found.": "ソース画像ファイルが見つかりませんでした。",
-  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "サポートされていないファイル形式です。PNG、SVG、JPG、または ICNS ファイルを選択してください。"
+  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "サポートされていないファイル形式です。PNG、SVG、JPG、または ICNS ファイルを選択してください。",
+  "Customize Icon": "アイコンをカスタマイズ",
+  "Move Up": "上に移動",
+  "Move Down": "下に移動"
 }

@@ -452,5 +452,8 @@
   "Failed to download favicon: %@": "無法下載網站圖示：%@",
   "The resolved file is not a valid image.": "解析的檔案不是有效圖片。",
   "Source image file was not found.": "未找到來源圖片檔案。",
-  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "不支援的檔案格式。請選擇 PNG、SVG、JPG 或 ICNS 檔案。"
+  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "不支援的檔案格式。請選擇 PNG、SVG、JPG 或 ICNS 檔案。",
+  "Customize Icon": "自訂圖示",
+  "Move Up": "上移",
+  "Move Down": "下移"
 }

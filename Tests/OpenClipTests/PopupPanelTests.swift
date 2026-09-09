@@ -13,6 +13,8 @@ final class PopupPanelTests: XCTestCase {
                 window.orderOut(nil)
             }
             TestIsolation.reset()
+            DefaultSettingsStore.shared.set(SettingKey.searchPaletteWidth, value: 0)
+            DefaultSettingsStore.shared.set(SettingKey.searchPaletteHeight, value: 0)
             ActionRegistry.shared.register(builtIns: BuiltinRegistry.makeCoreBuiltins())
         }
     }
@@ -23,6 +25,8 @@ final class PopupPanelTests: XCTestCase {
                 window.orderOut(nil)
             }
             TestIsolation.reset()
+            DefaultSettingsStore.shared.set(SettingKey.searchPaletteWidth, value: 0)
+            DefaultSettingsStore.shared.set(SettingKey.searchPaletteHeight, value: 0)
         }
         try await super.tearDown()
     }

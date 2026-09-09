@@ -91,8 +91,8 @@ final class OutlineNode: NSObject {
     /// row — the group's cog opens the group editor, which has no option fields).
     var rowControls: ActionRowControls {
         switch kind {
-        case .extensionSubAction(let action, _):
-            return action.actionOptions.isEmpty ? [] : .settings
+        case .extensionSubAction:
+            return .settings
         case .packageHeader:
             return []
         case .customGroup, .extensionGroup, .standaloneAction, .groupMember:
@@ -744,8 +744,18 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 destinationActionIndex = parent.coordinator.actions.count
             }
 
-            if let sourceActionIndex = parent.coordinator.actions.firstIndex(where: { $0.id == draggedID }) {
-                parent.coordinator.moveActions(from: IndexSet(integer: sourceActionIndex), to: destinationActionIndex)
+            // Move all actions belonging to the dragged root node (header + members/subactions)
+            let movingIDs = [draggedID] + parent.coordinator.memberActionIDs(for: draggedID)
+
+            var sourceIndices = IndexSet()
+            for id in movingIDs {
+                if let idx = parent.coordinator.actions.firstIndex(where: { $0.id == id }) {
+                    sourceIndices.insert(idx)
+                }
+            }
+
+            if !sourceIndices.isEmpty {
+                parent.coordinator.moveActions(from: sourceIndices, to: destinationActionIndex)
             }
             rebuildTree()
             outlineView.reloadData()

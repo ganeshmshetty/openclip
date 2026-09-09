@@ -31,9 +31,11 @@ final class ActionRowControlsTests: XCTestCase {
         XCTAssertFalse(controls.contains(.delete), "A command is removed with its package, never on its own")
     }
 
-    func testSubActionWithoutOptionsShowsNoControls() {
+    func testSubActionWithoutOptionsShowsSettingsButNotDelete() {
         let action = OptionedAction(id: "\(groupID).plain", packageID: packageID, options: [])
-        XCTAssertTrue(subActionNode(action).rowControls.isEmpty)
+        let controls = subActionNode(action).rowControls
+        XCTAssertTrue(controls.contains(.settings), "A command without options still needs settings for custom title/icon")
+        XCTAssertFalse(controls.contains(.delete), "A command is removed with its package, never on its own")
     }
 
     func testDecoratedSubActionForwardsOptionsToControls() {

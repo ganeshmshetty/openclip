@@ -433,6 +433,65 @@ final class ActionRegistryTests: XCTestCase {
         XCTAssertEqual(store.get(.actionOrder), ["builtin.search", "builtin.cut", "builtin.copy"])
     }
 
+    @MainActor
+    func testExtensionGroupSubActionsFollowGroupAndPersistedOrderStaysFreeOfSubActions() {
+        let store = MemorySettingsStore()
+        store.set(.actionOrder, value: ["com.pkg.group", "com.pkg.other"])
+        let registry = ActionRegistry(settingsStore: store)
+        let group = GroupAction(
+            id: "com.pkg.group",
+            title: "Group",
+            icon: .symbol("folder"),
+            chrome: ActionChrome(rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .extensionPkg(packageID: "com.pkg"))
+        )
+        let sub1 = MockAction(id: "com.pkg.group.sub1", shouldBeEnabled: true, chrome: ActionChrome(source: .extensionPkg(packageID: "com.pkg")))
+        let sub2 = MockAction(id: "com.pkg.group.sub2", shouldBeEnabled: true, chrome: ActionChrome(source: .extensionPkg(packageID: "com.pkg")))
+        let other = MockAction(id: "com.pkg.other", shouldBeEnabled: true, chrome: ActionChrome(source: .builtin))
+
+        registry.register(action: group)
+        registry.register(action: sub1)
+        registry.register(action: sub2)
+        registry.register(action: other)
+
+        XCTAssertEqual(registry.actions.map(\.id), ["com.pkg.group", "com.pkg.group.sub1", "com.pkg.group.sub2", "com.pkg.other"])
+
+        // Move group after other: in actions, group is index 0. Moving group to after other (index 4)
+        registry.moveActions(from: IndexSet(integer: 0), to: 4)
+
+        // Group and its subactions move together after other
+        XCTAssertEqual(registry.actions.map(\.id), ["com.pkg.other", "com.pkg.group", "com.pkg.group.sub1", "com.pkg.group.sub2"])
+        // Persisted actionOrder must NOT contain sub1 or sub2!
+        XCTAssertEqual(store.get(.actionOrder), ["com.pkg.other", "com.pkg.group"])
+    }
+
+    @MainActor
+    func testExtensionGroupSubActionsRespectCustomMemberOrder() {
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+        let group = GroupAction(
+            id: "com.pkg.group",
+            title: "Group",
+            icon: .symbol("folder"),
+            chrome: ActionChrome(rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .extensionPkg(packageID: "com.pkg"))
+        )
+        let sub1 = MockAction(id: "com.pkg.group.sub1", shouldBeEnabled: true, chrome: ActionChrome(source: .extensionPkg(packageID: "com.pkg")))
+        let sub2 = MockAction(id: "com.pkg.group.sub2", shouldBeEnabled: true, chrome: ActionChrome(source: .extensionPkg(packageID: "com.pkg")))
+        let sub3 = MockAction(id: "com.pkg.group.sub3", shouldBeEnabled: true, chrome: ActionChrome(source: .extensionPkg(packageID: "com.pkg")))
+
+        registry.register(action: group)
+        registry.register(action: sub1)
+        registry.register(action: sub2)
+        registry.register(action: sub3)
+
+        XCTAssertEqual(registry.actions.map(\.id), ["com.pkg.group", "com.pkg.group.sub1", "com.pkg.group.sub2", "com.pkg.group.sub3"])
+
+        // Reorder subactions: 3, 1, 2
+        registry.setExtensionGroupMemberOrder(groupID: "com.pkg.group", memberIDs: ["com.pkg.group.sub3", "com.pkg.group.sub1", "com.pkg.group.sub2"])
+
+        XCTAssertEqual(registry.actions.map(\.id), ["com.pkg.group", "com.pkg.group.sub3", "com.pkg.group.sub1", "com.pkg.group.sub2"])
+        XCTAssertEqual(group.subActions(in: registry.actions).map(\.id), ["com.pkg.group.sub3", "com.pkg.group.sub1", "com.pkg.group.sub2"])
+    }
+
     /// The contract `AIActionSync` leans on when the user reorders presets: `register(action:)`
     /// replaces an id *in place*, so a reorder has to unregister and re-register to move the
     /// entries — and when it does, the catalog follows the new order immediately.

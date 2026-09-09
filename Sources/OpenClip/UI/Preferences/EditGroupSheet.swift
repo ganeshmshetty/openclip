@@ -17,6 +17,7 @@ public struct EditGroupSheet: View {
     @State private var title: String = ""
     @State private var iconName: String = "folder"
     @State private var memberIDs: [String] = []
+    @State private var memberIconOverrides: [String: String] = [:]
     @State private var showingIconPicker = false
 
     public init(groupID: String) {
@@ -84,70 +85,35 @@ public struct EditGroupSheet: View {
 
             VStack(spacing: 6) {
                 ForEach(memberIDs, id: \.self) { actionID in
-                    let resolvedAction = coordinator.actions.first(where: { $0.id == actionID })
-                    let presentation = resolvedAction.map { ActionCustomizationManager.shared.presented($0, surface: .table) }
-                    HStack(spacing: 8) {
-                        if let presentation {
-                            ZStack {
-                                ActionIconView(icon: presentation.icon, size: 14)
+                    let index = memberIDs.firstIndex(of: actionID) ?? 0
+                    GroupMemberRowView(
+                        actionID: actionID,
+                        customIconSymbol: Binding(
+                            get: { memberIconOverrides[actionID] ?? "" },
+                            set: { memberIconOverrides[actionID] = $0 }
+                        ),
+                        isCustomGroup: isCustomGroup,
+                        canMoveUp: index > 0,
+                        canMoveDown: index < memberIDs.count - 1,
+                        onMoveUp: {
+                            guard let idx = memberIDs.firstIndex(of: actionID), idx > 0 else { return }
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                memberIDs.swapAt(idx, idx - 1)
                             }
-                            .frame(width: 18, height: 18, alignment: .center)
-
-                            Text(presentation.title)
-                                .font(.system(size: 12))
-                        } else {
-                            Color.clear
-                                .frame(width: 18, height: 18)
-
-                            Text(actionID)
-                                .font(.system(size: 12))
+                        },
+                        onMoveDown: {
+                            guard let idx = memberIDs.firstIndex(of: actionID), idx < memberIDs.count - 1 else { return }
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                memberIDs.swapAt(idx, idx + 1)
+                            }
+                        },
+                        onRemove: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                memberIDs.removeAll { $0 == actionID }
+                                memberIconOverrides.removeValue(forKey: actionID)
+                            }
                         }
-                        Spacer()
-                        if isCustomGroup {
-                            if let index = memberIDs.firstIndex(of: actionID) {
-                                HStack(spacing: 4) {
-                                    Button {
-                                        guard index > 0 else { return }
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            memberIDs.swapAt(index, index - 1)
-                                        }
-                                    } label: {
-                                        Image(systemName: "chevron.up")
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundColor(index > 0 ? .secondary : .secondary.opacity(0.25))
-                                    }
-                                    .buttonStyle(.plain)
-                                    .disabled(index == 0)
-
-                                    Button {
-                                        guard index < memberIDs.count - 1 else { return }
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            memberIDs.swapAt(index, index + 1)
-                                        }
-                                    } label: {
-                                        Image(systemName: "chevron.down")
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundColor(index < memberIDs.count - 1 ? .secondary : .secondary.opacity(0.25))
-                                    }
-                                    .buttonStyle(.plain)
-                                    .disabled(index >= memberIDs.count - 1)
-                                }
-                                .padding(.trailing, 4)
-                            }
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    memberIDs.removeAll { $0 == actionID }
-                                }
-                            } label: {
-                                Image(systemName: "minus.circle")
-                                    .foregroundColor(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.03)))
+                    )
                 }
             }
 
@@ -185,6 +151,22 @@ public struct EditGroupSheet: View {
                             symbol: effectiveIcon,
                             text: nil
                         )
+                        coordinator.setExtensionGroupMemberOrder(
+                            groupID: groupID,
+                            memberIDs: memberIDs
+                        )
+                    }
+                    for (id, symbol) in memberIconOverrides {
+                        let existing = ActionCustomizationManager.shared.override(for: id)
+                        let existingSymbol = existing?.customIconSymbol ?? ""
+                        if existingSymbol != symbol {
+                            ActionCustomizationManager.shared.setOverride(
+                                for: id,
+                                title: existing?.customTitle,
+                                symbol: symbol.isEmpty ? nil : symbol,
+                                text: existing?.customIconText
+                            )
+                        }
                     }
                     close()
                 }
@@ -212,6 +194,120 @@ public struct EditGroupSheet: View {
                 }
                 memberIDs = coordinator.memberActionIDs(for: groupID)
             }
+            var initialIcons: [String: String] = [:]
+            for id in memberIDs {
+                initialIcons[id] = ActionCustomizationManager.shared.override(for: id)?.customIconSymbol ?? ""
+            }
+            memberIconOverrides = initialIcons
         }
     }
 }
+
+@MainActor
+private struct GroupMemberRowView: View {
+    let actionID: String
+    @Binding var customIconSymbol: String
+    let isCustomGroup: Bool
+    let canMoveUp: Bool
+    let canMoveDown: Bool
+    let onMoveUp: () -> Void
+    let onMoveDown: () -> Void
+    let onRemove: () -> Void
+
+    @ObservedObject private var coordinator = ActionCoordinator.shared
+    @ObservedObject private var customizationManager = ActionCustomizationManager.shared
+    @State private var showingIconPicker = false
+
+    private var resolvedAction: (any Action)? {
+        coordinator.actions.first(where: { $0.id == actionID })
+    }
+
+    private var presentation: ActionPresentationModel? {
+        guard let resolvedAction else { return nil }
+        let base = customizationManager.presented(resolvedAction, surface: .table)
+        if !customIconSymbol.isEmpty {
+            return ActionPresentationModel(
+                title: base.title,
+                icon: .symbol(customIconSymbol)
+            )
+        } else if customizationManager.override(for: actionID)?.customIconSymbol != nil {
+            return ActionPresentationModel(
+                title: base.title,
+                icon: resolvedAction.icon
+            )
+        }
+        return base
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button {
+                showingIconPicker.toggle()
+            } label: {
+                ZStack {
+                    if let presentation {
+                        ActionIconView(icon: presentation.icon, size: 14)
+                    } else {
+                        Color.clear
+                    }
+                }
+                .frame(width: 22, height: 22, alignment: .center)
+                .background(RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.06)))
+            }
+            .buttonStyle(.plain)
+            .help(String(localized: "Customize Icon"))
+            .accessibilityLabel(String(localized: "Customize Icon"))
+            .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
+                IconPickerPopover(selectedIcon: $customIconSymbol)
+            }
+
+            Text(presentation?.title ?? actionID)
+                .font(.system(size: 12))
+
+            Spacer()
+
+            if canMoveUp || canMoveDown {
+                HStack(spacing: 4) {
+                    Button {
+                        onMoveUp()
+                    } label: {
+                        Image(systemName: "chevron.up")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(canMoveUp ? .secondary : .secondary.opacity(0.25))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canMoveUp)
+                    .help(String(localized: "Move Up"))
+                    .accessibilityLabel(String(localized: "Move Up"))
+
+                    Button {
+                        onMoveDown()
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(canMoveDown ? .secondary : .secondary.opacity(0.25))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canMoveDown)
+                    .help(String(localized: "Move Down"))
+                    .accessibilityLabel(String(localized: "Move Down"))
+                }
+                .padding(.trailing, 4)
+            }
+
+            if isCustomGroup {
+                Button {
+                    onRemove()
+                } label: {
+                    Image(systemName: "minus.circle")
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.03)))
+    }
+}
+

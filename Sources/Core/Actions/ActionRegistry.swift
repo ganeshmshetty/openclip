@@ -42,18 +42,20 @@ public final class ActionRegistry: ObservableObject, Sendable {
     }
     
     /// Maps each sub-action to the row that provides it (`SubActionProviding`: the AI Tools
-    /// launcher, group rows), so `sortActions` can place children with their parent. A child the
-    /// user has ordered explicitly is left alone — an `action.order` entry always outranks
-    /// inheritance — and the first provider claiming a child wins, so membership stays
+    /// launcher, group rows), so `sortActions` can place children with their parent. For non-group
+    /// providers (such as AI Tools), a child the user has ordered explicitly is left alone — an
+    /// `action.order` entry outranks inheritance. For `GroupAction`, members always stay attached
+    /// to their parent group. The first provider claiming a child wins, so membership stays
     /// single-valued. One level only: a child never re-parents through another child.
     private func subActionParents(explicitlyOrderedIDs: [String: Int]) -> [String: String] {
         let resolver = SubActionResolver()
         var parents: [String: String] = [:]
         for parent in registeredActions where parent is any SubActionProviding {
             for child in resolver.subActions(of: parent, in: registeredActions) {
-                guard child.id != parent.id,
-                      explicitlyOrderedIDs[child.id] == nil,
-                      parents[child.id] == nil else { continue }
+                guard child.id != parent.id, parents[child.id] == nil else { continue }
+                if !(parent is GroupAction), explicitlyOrderedIDs[child.id] != nil {
+                    continue
+                }
                 parents[child.id] = parent.id
             }
         }
@@ -75,6 +77,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         // first" in Preferences still left every AI command last in the palette.
         let parentIDByChildID = subActionParents(explicitlyOrderedIDs: orderIndexMap)
         let actionsByID = Dictionary(registeredActions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let extensionMemberOrder = settingsStore.get(.extensionGroupMemberOrder)
 
         // Tier classification:
         // Tier 0: Explicitly ordered by user in `action.order` (sorted by rank in orderIndexMap)
@@ -96,15 +99,22 @@ public final class ActionRegistry: ObservableObject, Sendable {
             registeredActions.enumerated().map { ($1.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        let ranked: [(action: any Action, tier: Int, rank: Int, slot: Int, subRank: Int, stableOffset: Int)] = registeredActions.enumerated().map { offset, action in
+        let ranked: [(action: any Action, tier: Int, rank: Int, slot: Int, subRank: Int, subOrder: Int, stableOffset: Int)] = registeredActions.enumerated().map { offset, action in
             if let parentID = parentIDByChildID[action.id],
                let parent = actionsByID[parentID],
                let parentSlot = offsetByID[parentID] {
                 let inherited = placement(of: parent)
-                return (action, inherited.tier, inherited.rank, parentSlot, 1, offset)
+                let customSubOrder: Int
+                if let groupOrder = extensionMemberOrder[parentID],
+                   let memberIdx = groupOrder.firstIndex(of: action.id) {
+                    customSubOrder = memberIdx
+                } else {
+                    customSubOrder = Int.max
+                }
+                return (action, inherited.tier, inherited.rank, parentSlot, 1, customSubOrder, offset)
             }
             let own = placement(of: action)
-            return (action, own.tier, own.rank, offset, 0, offset)
+            return (action, own.tier, own.rank, offset, 0, 0, offset)
         }
 
         let sortedBase = ranked
@@ -113,6 +123,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
                 if lhs.rank != rhs.rank { return lhs.rank < rhs.rank }
                 if lhs.slot != rhs.slot { return lhs.slot < rhs.slot }
                 if lhs.subRank != rhs.subRank { return lhs.subRank < rhs.subRank }
+                if lhs.subOrder != rhs.subOrder { return lhs.subOrder < rhs.subOrder }
                 return lhs.stableOffset < rhs.stableOffset
             }
             .map(\.action)
@@ -190,8 +201,15 @@ public final class ActionRegistry: ObservableObject, Sendable {
         
         newActions.insert(contentsOf: movingActions, at: dest)
 
+        let resolver = SubActionResolver()
+        let subActionIDs: Set<String> = Set(
+            registeredActions
+                .filter { $0 is any SubActionProviding }
+                .flatMap { resolver.subActions(of: $0, in: registeredActions).map(\.id) }
+        )
+
         let newOrder = newActions
-            .filter { !ActionIdentity.isAIPreset($0) && !($0 is CustomGroupAction) }
+            .filter { !ActionIdentity.isAIPreset($0) && !($0 is CustomGroupAction) && !subActionIDs.contains($0.id) }
             .map { $0.id }
         settingsStore.set(.actionOrder, value: newOrder)
 
@@ -219,7 +237,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     public func pruneActionOrder() {
         let currentOrder = settingsStore.get(.actionOrder)
         guard !currentOrder.isEmpty else { return }
-        let activeIDs = Set(registeredActions.map { $0.id })
+        let activeIDs = Set(registeredActions.map { $0.id }).union(groupDefs.map { $0.id })
         let prunedOrder = currentOrder.filter { activeIDs.contains($0) }
         if prunedOrder != currentOrder {
             settingsStore.set(.actionOrder, value: prunedOrder)
@@ -232,6 +250,13 @@ public final class ActionRegistry: ObservableObject, Sendable {
 
     public func setGroupDefs(_ defs: [ActionGroupDef]) {
         self.groupDefs = defs
+        sortActions()
+    }
+
+    public func setExtensionGroupMemberOrder(groupID: String, memberIDs: [String]) {
+        var currentMap = settingsStore.get(.extensionGroupMemberOrder)
+        currentMap[groupID] = memberIDs
+        settingsStore.set(.extensionGroupMemberOrder, value: currentMap)
         sortActions()
     }
 
