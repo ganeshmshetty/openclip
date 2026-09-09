@@ -1138,7 +1138,8 @@ public class PopupWindowController {
         // delivers a queued didActivateApplication for the destination app. If the popup just
         // opened (< 300 ms ago) this is almost certainly a leftover transition notification —
         // not an intentional user focus switch — so suppress the dismissal.
-        if sessionShowTime > 0, (ProcessInfo.processInfo.systemUptime - sessionShowTime) < 0.3 { return }
+        if sessionShowTime > 0,
+           (ProcessInfo.processInfo.systemUptime - sessionShowTime) < PopupMetrics.focusSwitchGracePeriod { return }
         if !isRightClickInProgress {
             hide()
         }

@@ -6,6 +6,7 @@
 // `Sources/Core/` stays free of UI vocabulary. The popup panel and every view that sizes the
 // popup reads from here.
 import CoreGraphics
+import Foundation
 
 public enum PopupMetrics {
     /// Standard width and height of an action button in the popup bar and sub-bar (normalized baseline at 1.0 scale).
@@ -74,6 +75,10 @@ public enum PopupMetrics {
     /// "Copied"-style feedback). Loading toasts have no timer — they live until the action's
     /// result lands.
     public static let toastDurationNanoseconds: UInt64 = 1_200_000_000
+    /// How long after a session starts an app-activation notification does not dismiss the popup.
+    /// macOS can deliver a queued activation for the destination app just after the popup opens —
+    /// common when a clipboard manager dismisses itself. A later activation is a real focus switch.
+    public static let focusSwitchGracePeriod: TimeInterval = 0.3
 
     /// Converts a 1...5 discrete scale level to a visual scaling multiplier.
     /// Level 3 is the normal default (1.0).
