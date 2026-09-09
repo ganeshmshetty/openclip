@@ -145,7 +145,11 @@ that replaced the former interactive canvas.
   (restored on exit) and `fitPanelToContent()` nudges an automatically placed panel back on-screen
   after each fit. Resizing does not pin the card (`hasUserMovedCard` stays false) but, like a
   move, it drops the horizontal re-centering anchor. `ResultCardResizeTests` covers the geometry,
-  the persistence round-trip and that the grip's gesture is actually delivered.
+  the persistence round-trip and that the grip's gesture is actually delivered. Every
+  text-returning action shares this surface: an extension's result, delivered inline
+  (`handleEffect`) or through the loading re-show (`settleLoadingResult` → `show(for:)` →
+  `showResultCard`), opens in the same card at the same remembered maximum —
+  `ExtensionResultCardResizeTests` drives both paths with an extension-package action.
 - **Draggable**: the header between the chevron and the diff/close actions carries a SwiftUI
   `DragGesture` that reports `ResultCardDragPhase` (`began`/`changed`/`ended`) to
   `PopupWindowController.handleCardDrag`, which moves the panel. AppKit dragging is **not**
