@@ -38,10 +38,10 @@ jobs:
       - name: Download Sparkle CLI Tools
         run: |
           mkdir -p /tmp/sparkle scripts/bin
-          SPARKLE_SHA256="50612a06038abc931f16011d7903b8326a362c1074dabccb718404ce8e585f0b"
-          curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz" -o /tmp/Sparkle-2.6.4.tar.xz
-          echo "$SPARKLE_SHA256  /tmp/Sparkle-2.6.4.tar.xz" | shasum -a 256 -c -
-          tar xJ -f /tmp/Sparkle-2.6.4.tar.xz -C /tmp/sparkle
+          SPARKLE_SHA256="52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192"
+          curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/2.9.6/Sparkle-2.9.6.tar.xz" -o /tmp/Sparkle-2.9.6.tar.xz
+          echo "$SPARKLE_SHA256  /tmp/Sparkle-2.9.6.tar.xz" | shasum -a 256 -c -
+          tar xJ -f /tmp/Sparkle-2.9.6.tar.xz -C /tmp/sparkle
           cp -R /tmp/sparkle/bin/. scripts/bin/
 
       - name: Build & Package Release (.zip, .dmg, & appcast.xml)

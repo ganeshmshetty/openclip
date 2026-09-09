@@ -80,7 +80,7 @@ struct AboutTab: View {
                         if let notes = updateManager.availableUpdateReleaseNotes, !notes.isEmpty {
                             DisclosureGroup(String(localized: "Release Notes")) {
                                 ScrollView {
-                                    Text(notes)
+                                    Text(LocalizedStringKey(notes))
                                         .font(.system(size: 11))
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .textSelection(.enabled)

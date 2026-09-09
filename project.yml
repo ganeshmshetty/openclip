@@ -44,8 +44,8 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        MARKETING_VERSION: "1.4.0"
-        CURRENT_PROJECT_VERSION: "9"
+        MARKETING_VERSION: "1.5.0"
+        CURRENT_PROJECT_VERSION: "10"
         INFOPLIST_KEY_CFBundleShortVersionString: $(MARKETING_VERSION)
         INFOPLIST_KEY_CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

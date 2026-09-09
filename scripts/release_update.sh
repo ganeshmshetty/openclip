@@ -179,6 +179,12 @@ if ! grep -q 'sparkle:edSignature=' "$BUILD_DIR/appcast.xml"; then
     exit 1
 fi
 
+# Ensure release notes (<description>) are embedded in appcast.xml
+if ! grep -q '<description' "$BUILD_DIR/appcast.xml"; then
+    echo "error: appcast.xml does not contain an embedded <description> release notes tag." >&2
+    exit 1
+fi
+
 echo "==> Packaging OpenClip-v$VERSION.dmg..."
 DMG_NAME="OpenClip-v$VERSION.dmg"
 "$SCRIPT_DIR/make_dmg.sh" "$APP_PATH" "$BUILD_DIR/$DMG_NAME"

@@ -4,25 +4,41 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 
 ---
 
-## Unreleased
+## v1.5.0 - 2026-09-10
+
+### Highlights
+- **Resizable Result Cards & Search Palette**: Action output cards, AI streaming responses, and the action search palette can now be resized by dragging edges or corner handles, remembering your preferred maximum size without blowing up short responses ([#78](https://github.com/ganeshmshetty/openclip/pull/78)).
+- **Per-Action Global Hotkeys & Search Aliases**: Trigger favorite actions instantly with dedicated global keyboard shortcuts, or assign custom search aliases for rapid invocation in the palette.
+- **Extension Group & Sub-Action Reordering**: Fully customize your action workflow by reordering extension groups and individual member actions via drag-and-drop in Preferences, complete with custom member icon overrides ([#68](https://github.com/ganeshmshetty/openclip/issues/68)).
+- **Universal Binaries (Apple Silicon & Intel Macs)**: Universal binary distribution restored with multi-stage verification across release archives and DMGs, ensuring OpenClip runs natively on both Intel and Apple Silicon Macs ([#72](https://github.com/ganeshmshetty/openclip/pull/72)).
+- **In-App Updater Release Notes Delivery**: Fixed an issue where update changelogs failed to appear during updates by upgrading the release pipeline to Sparkle 2.9, providing native markdown release notes directly in the update window.
+- **Redesigned DMG Installer**: Beautiful new branded installer window with Retina-sharp HTML-rendered backgrounds, guided drop indicators, and scroll-free layout built via `dmgbuild` ([#67](https://github.com/ganeshmshetty/openclip/pull/67)).
+
+### Features & Improvements
+- **Resizable Result Card and Search Palette**: The result card that shows an action's output (including before/after diffs and AI responses) and the action-search palette can now be resized by dragging their right edge, bottom edge, or the bottom-right corner grip. Resized dimensions are remembered as an intelligent maximum constraint: short answers stay compact, while longer text expands up to your preferred dimensions ([#78](https://github.com/ganeshmshetty/openclip/pull/78) by [@Meldiron](https://github.com/Meldiron)).
+- **Per-Action Global Hotkeys and Search Aliases**: Assign direct system-wide keyboard shortcuts and custom keyword aliases to any individual action, allowing you to trigger actions anywhere without opening the floating menu.
+- **Extension Group & Member Reordering**: Multi-action extension groups and member actions can now be rearranged via drag-and-drop within Preferences › Actions. Sub-action ordering is persisted cleanly in `extensionGroupMemberOrder`, and individual member actions can be customized with custom icons in the group editor sheet ([#68](https://github.com/ganeshmshetty/openclip/issues/68)).
+- **Custom Icon Importing**: Import custom icon assets (SF Symbols, custom SVG/PNG images) to personalize action buttons and extension groups in Preferences.
+- **Per-Command Extension Settings**: Commands inside a multi-command extension now display the settings cog in Preferences › Actions whenever options are declared, enabling inline configuration of API keys, endpoints, and parameters ([#79](https://github.com/ganeshmshetty/openclip/pull/79) by [@Meldiron](https://github.com/Meldiron)).
+- **Redesigned DMG Installer**: The disk image now opens with a styled installation window aligned with `getopenclip.app` design tokens, featuring a Retina 1×/2× TIFF background, branded icon placements, and clean zero-scroll geometry ([#67](https://github.com/ganeshmshetty/openclip/pull/67) by [@Meldiron](https://github.com/Meldiron)).
+- **Synchronous Palette Resolution & Prewarming**: Hotkey invocation now resolves the search palette synchronously while prewarming selection context in the background, eliminating trigger latency.
+- **Extension Store Catalog Refresh**: Added a dedicated Refresh button to Preferences › Store header to bypass cached catalog entries and fetch updates immediately, paired with single-line description formatting.
+- **Visual Palette & Toast Polish**: Styled search palette with neutral selection highlights and capped floating toast notifications to 40 characters for compact readability.
 
 ### Fixes & Stability
-- **Per-Command Extension Settings**: Commands inside a multi-command extension now show the settings cog in Preferences › Actions whenever that command declares options, so per-command settings (an endpoint, a project ID, an API key) can be configured without leaving the list. Saving that editor for a command no longer rewrites its parent group's manifest entry.
-- **Intel Mac Support Restored**: Released builds are universal again. Every release since the CI runner moved to Apple Silicon shipped an arm64-only app, so Intel Macs refused to launch it with "not supported on this type of Mac" — the `.zip` and the `.dmg` now both carry arm64 and x86_64 slices, and the release fails rather than publishing if either one does not.
+- **In-App Updater Release Notes Delivery**: Resolved an issue where release changelogs were omitted during updates due to an outdated Sparkle packaging CLI in the release workflow. The pipeline now bundles Sparkle 2.9.6 with native markdown release note embedding and automated appcast validation.
+- **Universal Binaries & Intel Mac Compatibility**: Restored universal binary builds (`arm64` + `x86_64`) across release zips and DMGs, reinforced with strict multi-stage `verify_universal.sh` validation checks ([#72](https://github.com/ganeshmshetty/openclip/pull/72) by [@Meldiron](https://github.com/Meldiron)).
+- **Script Output Buffer Draining**: Fixed potential output truncation in shell, script-file, AppleScript, and Shortcut actions by capturing pending pipe streams prior to reading accumulator buffers ([#76](https://github.com/ganeshmshetty/openclip/pull/76) by [@md786-dotcom](https://github.com/md786-dotcom)).
+- **JavaScript Fetch Lifetime & Cancellation**: Network responses arriving after an asynchronous JS extension has completed, timed out, or cancelled are now cleanly discarded instead of leaking into recycled contexts ([#40](https://github.com/ganeshmshetty/openclip/issues/40), [#76](https://github.com/ganeshmshetty/openclip/pull/76) by [@md786-dotcom](https://github.com/md786-dotcom)).
+- **Extension Module Containment Hardening**: Hardened `require()` path resolution against symlink traversal attacks by verifying package boundaries on resolved files and open descriptors ([#39](https://github.com/ganeshmshetty/openclip/issues/39), [#70](https://github.com/ganeshmshetty/openclip/pull/70) by [@md786-dotcom](https://github.com/md786-dotcom)).
+- **Focus Race & Empty Selection Feedback**: Fixed an app activation focus race during quick application switching and added clear auto-dismissing toast feedback when triggered with no text selected and an empty clipboard ([#74](https://github.com/ganeshmshetty/openclip/issues/74), [#75](https://github.com/ganeshmshetty/openclip/issues/75)).
+- **Hold Gestures & Wide I-Beam Detection**: Refined mouse-hold copy triggers to prevent unintended clipboard overwrites and broadened I-beam cursor detection thresholds for wide-serif text fields ([#69](https://github.com/ganeshmshetty/openclip/issues/69)).
+- **Cryptographic Build Provenance**: Released archives and DMGs are now attested keylessly via Sigstore and GitHub Actions for verifiable build provenance ([#73](https://github.com/ganeshmshetty/openclip/pull/73) by [@Meldiron](https://github.com/Meldiron)).
 
-### Improvements
-- **Resizable Result Card and Search Palette**: The result card that shows an action's output (and the red/green diff) and the action-search palette can now be resized by dragging their right edge, bottom edge or the grip in their bottom-right corner, so long responses and long action lists get more room. The same card serves AI answers and extension results, so both get the handles. Each remembers the size you settle on as a **maximum**: a short answer or a couple of matching actions still get a small card or palette, and the surface only grows up to your size when its content would otherwise scroll. While you resize, and until that card or palette closes, it keeps exactly the size you dragged. The palette also no longer reserves six rows for two results.
-- **Redesigned DMG Installer**: The disk image now opens as a proper install window — a branded background, "Install OpenClip" headline, the app icon and an `/Applications` drop link laid out either side of an arrow, and the app icon as the volume icon. The background is rendered from `assets/dmg/background.html` at 1× and 2× into a multi-representation TIFF, so it stays sharp on Retina displays and can be edited as HTML/CSS instead of a binary image. See [docs/dmg.md](docs/dmg.md).
-
-### Fixes & Stability
-- **JavaScript Fetch Lifetime**: A network response that arrives after an async JS action has
-  finished, timed out, or been cancelled is now discarded instead of being delivered into the
-  finished action's JavaScript context ([#40](https://github.com/ganeshmshetty/openclip/issues/40)).
-- **Script Output No Longer Truncated**: Shell, script-file, AppleScript and Shortcut actions could
-  return truncated or empty output when a script produced a lot of output or backgrounded a worker
-  that inherited the pipe. The runner now captures the pending pipe output before it reads its
-  buffers, so an action no longer loses text that the script had already written.
-- **Extension Module Containment**: `require()` in JS extension packages now re-checks the package boundary on the final symlink-resolved file, so a symlinked `<name>.js` or `index.js` can no longer read files outside the package ([#39](https://github.com/ganeshmshetty/openclip/issues/39)).
+### Contributors
+- **Matej Bačo ([@Meldiron](https://github.com/Meldiron))** — Resizable result cards and search palette ([#78](https://github.com/ganeshmshetty/openclip/pull/78)), per-command extension configuration cogs ([#79](https://github.com/ganeshmshetty/openclip/pull/79)), redesigned DMG installer ([#67](https://github.com/ganeshmshetty/openclip/pull/67)), universal binary restoration for Intel Macs ([#72](https://github.com/ganeshmshetty/openclip/pull/72)), and build provenance attestation ([#73](https://github.com/ganeshmshetty/openclip/pull/73)).
+- **Md ([@md786-dotcom](https://github.com/md786-dotcom))** — Script pipe output buffer draining and asynchronous fetch lifetime lifecycle safety ([#76](https://github.com/ganeshmshetty/openclip/pull/76), [#40](https://github.com/ganeshmshetty/openclip/issues/40)), extension module containment security against symlink escapes ([#39](https://github.com/ganeshmshetty/openclip/issues/39), [#70](https://github.com/ganeshmshetty/openclip/pull/70)).
+- **Ganesh M ([@ganeshmshetty](https://github.com/ganeshmshetty))** — Per-action global hotkeys and search aliases, extension group and member reordering ([#68](https://github.com/ganeshmshetty/openclip/issues/68)), custom icon importing, synchronous palette prewarming, empty selection toast feedback ([#74](https://github.com/ganeshmshetty/openclip/issues/74), [#75](https://github.com/ganeshmshetty/openclip/issues/75)), store catalog refresh, selection detection improvements ([#69](https://github.com/ganeshmshetty/openclip/issues/69)), and in-app updater release notes delivery fix.
 
 ---
 
