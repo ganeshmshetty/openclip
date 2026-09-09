@@ -20,6 +20,60 @@ public extension ActionIcon {
         case .local, .url, .text: return nil
         }
     }
+
+    /// Resolves an icon identifier string into a typed ActionIcon.
+    /// - Handles "custom:<filename>" -> .local(Constants.customIconsDirectory.appendingPathComponent(filename))
+    /// - Handles absolute paths ("/...") and "file://..." -> .local(url)
+    /// - Handles image extensions with directoryURL -> .local(...)
+    /// - Handles "http://..." / "https://..." -> .url(url)
+    /// - Handles "symbol(...)" or bare strings -> .symbol(...)
+    static func resolve(from iconStr: String?, relativeTo directoryURL: URL? = nil) -> ActionIcon {
+        guard let iconStr = iconStr?.trimmingCharacters(in: .whitespacesAndNewlines), !iconStr.isEmpty else {
+            return .symbol(Constants.defaultIconSymbol)
+        }
+        if iconStr.hasPrefix(Constants.symbolPrefix) && iconStr.hasSuffix(Constants.symbolSuffix) {
+            let symbolName = String(iconStr.dropFirst(Constants.symbolPrefix.count).dropLast(Constants.symbolSuffix.count))
+            return .symbol(symbolName)
+        }
+        if iconStr.hasPrefix(Constants.customIconPrefix) {
+            let rawFilename = String(iconStr.dropFirst(Constants.customIconPrefix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+            let safeName = (rawFilename as NSString).lastPathComponent
+            if !safeName.isEmpty && safeName != "." && safeName != ".." && !rawFilename.contains("/") {
+                let dest = Constants.customIconsDirectory.appendingPathComponent(safeName)
+                if Constants.isPathSafe(destinationURL: dest, baseDirectory: Constants.customIconsDirectory) {
+                    return .local(dest)
+                }
+            }
+            return .symbol(Constants.defaultIconSymbol)
+        }
+        if iconStr.hasPrefix("/") {
+            return .local(URL(fileURLWithPath: iconStr))
+        }
+        if iconStr.hasPrefix("file://"), let url = URL(string: iconStr) {
+            return .local(url)
+        }
+        if (iconStr.hasPrefix("http://") || iconStr.hasPrefix("https://")), let url = URL(string: iconStr) {
+            return .url(url)
+        }
+        let lower = iconStr.lowercased()
+        if Constants.imageExtensions.contains(where: { lower.hasSuffix($0) }) {
+            if let directoryURL {
+                let candidate = directoryURL.appendingPathComponent(iconStr)
+                if Constants.isPathSafe(destinationURL: candidate, baseDirectory: directoryURL) {
+                    return .local(candidate)
+                }
+            } else {
+                let safeName = (iconStr as NSString).lastPathComponent
+                if !safeName.isEmpty && safeName != "." && safeName != ".." && !iconStr.contains("/") {
+                    let dest = Constants.customIconsDirectory.appendingPathComponent(safeName)
+                    if Constants.isPathSafe(destinationURL: dest, baseDirectory: Constants.customIconsDirectory) {
+                        return .local(dest)
+                    }
+                }
+            }
+        }
+        return .symbol(iconStr)
+    }
 }
 
 public protocol Action: Sendable {

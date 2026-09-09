@@ -1,11 +1,14 @@
 // IconPickerView.swift
 // OpenClip
 //
-// Renders an icon selection view supporting SF Symbols and open-source vector icon libraries.
+// Renders an icon selection view supporting SF Symbols, open-source vector icon libraries,
+// and user-provided custom icons (Finder uploads and website favicons).
 import SwiftUI
 import Core
 import SDWebImage
 import SDWebImageSVGCoder
+import UniformTypeIdentifiers
+import AppKit
 
 // MARK: - IconPickerView
 
@@ -14,11 +17,17 @@ public struct IconPickerView: View {
     var onSelect: (() -> Void)? = nil
 
     @StateObject private var provider = UnifiedIconProvider.shared
+    @StateObject private var customIconManager = CustomIconManager.shared
     @State private var iconTab: IconTab = .native
     @State private var searchText = ""
     @State private var submittedQuery = ""          // updated on Enter for Open Source icons
 
-    enum IconTab { case native, openSource }
+    // Custom Tab State
+    @State private var urlInput = ""
+    @State private var isResolvingFavicon = false
+    @State private var faviconErrorMessage: String? = nil
+
+    enum IconTab { case native, openSource, custom }
 
     public init(selectedSymbol: Binding<String>, selectedText: Binding<String> = .constant(""), mode: Binding<Int> = .constant(0), onSelect: (() -> Void)? = nil) {
         self._selectedSymbol = selectedSymbol
@@ -27,10 +36,11 @@ public struct IconPickerView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Segmented tab control (Native Icons | Open Source)
+            // Segmented tab control (Native Icons | Open Source | Custom)
             Picker("", selection: $iconTab) {
                 Text("Native Icons").tag(IconTab.native)
                 Text("Open Source").tag(IconTab.openSource)
+                Text("Custom").tag(IconTab.custom)
             }
             .pickerStyle(.segmented)
             .padding(.bottom, 2)
@@ -38,10 +48,13 @@ public struct IconPickerView: View {
             Divider()
 
             // Active Tab Content
-            if iconTab == .native {
+            switch iconTab {
+            case .native:
                 nativeIconsTab
-            } else {
+            case .openSource:
                 openSourceTab
+            case .custom:
+                customTab
             }
 
             // Preview footer for selected icon
@@ -57,6 +70,15 @@ public struct IconPickerView: View {
                     Spacer()
                 }
                 .padding(.top, 2)
+            }
+        }
+        .onAppear {
+            if selectedSymbol.hasPrefix(Constants.customIconPrefix) || selectedSymbol.hasPrefix("/") || selectedSymbol.hasPrefix("file:") {
+                iconTab = .custom
+            } else if selectedSymbol.contains(":") {
+                iconTab = .openSource
+            } else {
+                iconTab = .native
             }
         }
     }
@@ -187,6 +209,184 @@ public struct IconPickerView: View {
             }
         }
     }
+
+    // MARK: - Custom Tab (Finder Upload + Favicon Resolver + Saved Icons Grid)
+
+    @ViewBuilder
+    private var customTab: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Favicon from URL
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Favicon from URL")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+
+                HStack(spacing: 6) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "globe")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                        TextField("Website URL (e.g. github.com)", text: $urlInput)
+                            .textFieldStyle(.plain)
+                            .font(.caption)
+                            .onSubmit {
+                                resolveFavicon()
+                            }
+                        if !urlInput.isEmpty {
+                            Button {
+                                urlInput = ""
+                                faviconErrorMessage = nil
+                            } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(5)
+                    .background(Color.primary.opacity(0.04))
+                    .cornerRadius(5)
+
+                    Button("Resolve") {
+                        resolveFavicon()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(urlInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isResolvingFavicon)
+
+                    if isResolvingFavicon {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+
+                if let error = faviconErrorMessage {
+                    Text(error)
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                        .lineLimit(1)
+                }
+            }
+
+            // Upload from Finder
+            HStack(spacing: 8) {
+                Button {
+                    chooseFileFromFinder()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.doc")
+                        Text("Upload from Finder…")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Text("PNG, SVG, JPG, ICNS")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Divider()
+
+            // Saved Custom Icons Grid
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Saved Icons")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    if !customIconManager.customIcons.isEmpty {
+                        Text("\(customIconManager.customIcons.count)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                if customIconManager.customIcons.isEmpty {
+                    VStack(spacing: 4) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 20))
+                            .foregroundColor(.secondary.opacity(0.6))
+                        Text("No custom icons yet")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Upload an image or enter a URL above")
+                            .font(.caption2)
+                            .foregroundColor(.secondary.opacity(0.8))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: 110)
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 8), spacing: 4) {
+                            ForEach(customIconManager.customIcons, id: \.self) { iconId in
+                                Button {
+                                    selectedSymbol = iconId
+                                    onSelect?()
+                                } label: {
+                                    IconCellView(iconId: iconId, isSelected: selectedSymbol == iconId)
+                                }
+                                .buttonStyle(.plain)
+                                .help(iconId)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        customIconManager.deleteCustomIcon(named: iconId)
+                                        if selectedSymbol == iconId {
+                                            selectedSymbol = ""
+                                        }
+                                    } label: {
+                                        Label("Delete Icon", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                        .padding(2)
+                    }
+                    .frame(maxHeight: 110)
+                }
+            }
+        }
+    }
+
+    private func chooseFileFromFinder() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canCreateDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.png, .jpeg, .svg, .icns]
+
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                let savedId = try customIconManager.importIcon(from: url)
+                self.selectedSymbol = savedId
+                self.faviconErrorMessage = nil
+                self.onSelect?()
+            } catch {
+                self.faviconErrorMessage = error.localizedDescription
+                Log.icons.error("Failed to import custom icon: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func resolveFavicon() {
+        let trimmed = urlInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        faviconErrorMessage = nil
+        isResolvingFavicon = true
+
+        Task {
+            do {
+                let savedId = try await customIconManager.resolveFavicon(from: trimmed)
+                self.selectedSymbol = savedId
+                self.isResolvingFavicon = false
+                self.onSelect?()
+            } catch {
+                self.isResolvingFavicon = false
+                self.faviconErrorMessage = error.localizedDescription
+            }
+        }
+    }
 }
 
 // MARK: - Icon Cell View
@@ -217,13 +417,7 @@ public struct AnyIconView: View {
     }
 
     public var body: some View {
-        if iconId.contains(":") {
-            IconifySVGView(iconId: iconId)
-        } else {
-            Image(systemName: iconId.isEmpty ? "star" : iconId)
-                .resizable()
-                .scaledToFit()
-        }
+        ActionIconView(icon: ActionIcon.resolve(from: iconId), size: 16)
     }
 }
 

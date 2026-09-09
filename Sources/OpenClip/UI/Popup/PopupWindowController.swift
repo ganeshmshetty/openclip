@@ -48,7 +48,7 @@ public class PopupWindowController {
     /// `workspaceDidActivateApp` to suppress the race where macOS delivers a queued
     /// app-activation notification for the destination app within ~300 ms of the popup
     /// opening — common after a clipboard manager dismisses itself.
-    private var sessionShowTime: TimeInterval = 0
+    var sessionShowTime: TimeInterval = 0
 
     private var hoveredAction: (any Action)?
 

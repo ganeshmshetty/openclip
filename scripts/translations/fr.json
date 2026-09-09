@@ -434,5 +434,20 @@
   "Close the result card": "Fermer la carte de résultat",
   "Close (⎋)": "Fermer (⎋)",
   "Close result card": "Fermer la carte de résultat",
-  "Dismiss the error (⎋)": "Fermer l'erreur (⎋)"
+  "Dismiss the error (⎋)": "Fermer l'erreur (⎋)",
+  "Favicon from URL": "Favicon depuis une URL",
+  "Website URL (e.g. github.com)": "URL du site (ex. github.com)",
+  "Resolve": "Résoudre",
+  "Upload from Finder…": "Importer depuis le Finder…",
+  "PNG, SVG, JPG, ICNS": "PNG, SVG, JPG, ICNS",
+  "Saved Icons": "Icônes enregistrées",
+  "No custom icons yet": "Aucune icône personnalisée pour le moment",
+  "Upload an image or enter a URL above": "Importez une image ou saisissez une URL ci-dessus",
+  "Delete Icon": "Supprimer l’icône",
+  "Custom icon “%@” — click to change": "Icône personnalisée « %@ » — cliquer pour modifier",
+  "Please enter a valid website URL or domain.": "Veuillez saisir une URL ou un domaine valide.",
+  "Failed to download favicon: %@": "Échec du téléchargement du favicon : %@",
+  "The resolved file is not a valid image.": "Le fichier résolu n'est pas une image valide.",
+  "Source image file was not found.": "Le fichier image source est introuvable.",
+  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "Format de fichier non pris en charge. Veuillez choisir un fichier PNG, SVG, JPG ou ICNS."
 }

@@ -38,6 +38,8 @@ public enum Constants {
     
     // Extension System Constants
     public static let extensionsDirectory: URL = URL(fileURLWithPath: ("~/.openclip/extensions" as NSString).expandingTildeInPath)
+    public static let customIconsDirectory: URL = URL(fileURLWithPath: ("~/.openclip/custom_icons" as NSString).expandingTildeInPath)
+    public static let customIconPrefix: String = "custom:"
     public static let manifestFileName: String = "openclip.json"
     public static let legacyManifestFileName: String = "manifest.json"
     public static let storePageLimit: Int = 12

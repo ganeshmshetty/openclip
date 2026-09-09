@@ -15,7 +15,7 @@ public struct CustomGroupAction: ConfigurableAction, SubActionProviding, Sendabl
     public init(id: String, title: String, iconName: String, memberActionIDs: [String]) {
         self.id = id
         self.title = title
-        self.icon = .symbol(iconName)
+        self.icon = ActionIcon.resolve(from: iconName)
         self.chrome = ActionChrome(
             badge: .none,
             rowStyle: .actionGroup,

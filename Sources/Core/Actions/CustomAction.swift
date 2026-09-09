@@ -97,7 +97,7 @@ public struct CustomAction: ConfigurableAction, Codable, Sendable, Equatable {
     }
     
     public var icon: ActionIcon {
-        return .symbol(iconName)
+        ActionIcon.resolve(from: iconName)
     }
 
     public var preferenceIconName: String {

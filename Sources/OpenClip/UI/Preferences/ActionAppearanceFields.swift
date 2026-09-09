@@ -67,7 +67,7 @@ struct ActionAppearanceFields: View {
         if iconSymbol == initialIconSymbol, let base = baseIcon {
             return base
         }
-        return .symbol(iconSymbol)
+        return ActionIcon.resolve(from: iconSymbol)
     }
 
     /// Hero icon content sized appropriately for the 48x48 hero button.
@@ -95,6 +95,9 @@ struct ActionAppearanceFields: View {
         case .url:
             return String(localized: "Remote image — click to replace with an icon")
         case .local(let url):
+            if url.path.hasPrefix(Constants.customIconsDirectory.path) {
+                return String(localized: "Custom icon “\(url.lastPathComponent)” — click to change")
+            }
             return String(localized: "Package image “\(url.lastPathComponent)” — click to replace with an icon")
         }
     }

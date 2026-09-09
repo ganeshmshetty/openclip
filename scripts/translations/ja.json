@@ -434,5 +434,20 @@
   "Close the result card": "結果カードを閉じる",
   "Close (⎋)": "閉じる (⎋)",
   "Close result card": "結果カードを閉じる",
-  "Dismiss the error (⎋)": "エラーを閉じる (⎋)"
+  "Dismiss the error (⎋)": "エラーを閉じる (⎋)",
+  "Favicon from URL": "URL からファビコンを取得",
+  "Website URL (e.g. github.com)": "WebサイトのURL（例: github.com）",
+  "Resolve": "取得",
+  "Upload from Finder…": "Finder からアップロード…",
+  "PNG, SVG, JPG, ICNS": "PNG、SVG、JPG、ICNS",
+  "Saved Icons": "保存済みアイコン",
+  "No custom icons yet": "カスタムアイコンはまだありません",
+  "Upload an image or enter a URL above": "画像をアップロードするか上記にURLを入力してください",
+  "Delete Icon": "アイコンを削除",
+  "Custom icon “%@” — click to change": "カスタムアイコン “%@” — クリックして変更",
+  "Please enter a valid website URL or domain.": "有効なWebサイトのURLまたはドメインを入力してください。",
+  "Failed to download favicon: %@": "ファビコンのダウンロードに失敗しました: %@",
+  "The resolved file is not a valid image.": "解決されたファイルは有効な画像ではありません。",
+  "Source image file was not found.": "ソース画像ファイルが見つかりませんでした。",
+  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "サポートされていないファイル形式です。PNG、SVG、JPG、または ICNS ファイルを選択してください。"
 }

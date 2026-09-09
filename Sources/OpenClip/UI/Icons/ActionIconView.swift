@@ -146,8 +146,15 @@ public struct ActionIconView: View {
     }
 
     public var body: some View {
+        let effectiveIcon: ActionIcon = {
+            if case .symbol(let name) = icon, name.hasPrefix(Constants.customIconPrefix) {
+                return ActionIcon.resolve(from: name)
+            }
+            return icon
+        }()
+
         ZStack(alignment: .center) {
-            switch icon {
+            switch effectiveIcon {
             case .symbol(let name):
                 if name.contains(":") {
                     // Iconify SVGs usually have internal padding in their viewBox; scale up so optical weight matches SF Symbols.
@@ -197,7 +204,7 @@ public struct ActionIconView: View {
                 if let nsImage = LocalIconCache.shared.image(for: url) {
                     Image(nsImage: nsImage)
                         .resizable()
-                        .renderingMode(.template)
+                        .renderingMode(nsImage.isTemplate ? .template : .original)
                         .aspectRatio(contentMode: .fit)
                         .frame(maxWidth: targetDimension * 1.18, maxHeight: targetDimension * 1.18)
                 } else {

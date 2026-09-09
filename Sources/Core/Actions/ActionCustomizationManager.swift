@@ -108,7 +108,7 @@ public final class ActionCustomizationManager: ObservableObject, ActionPresentin
             return .text(text)
         }
         if let symbol = ov?.customIconSymbol, !symbol.isEmpty {
-            return .symbol(symbol)
+            return ActionIcon.resolve(from: symbol)
         }
         return action.icon
     }
@@ -116,7 +116,7 @@ public final class ActionCustomizationManager: ObservableObject, ActionPresentin
     public func tableIcon(for action: any Action) -> ActionIcon {
         let ov = override(for: action.id)
         if let symbol = ov?.customIconSymbol, !symbol.isEmpty {
-            return .symbol(symbol)
+            return ActionIcon.resolve(from: symbol)
         }
         if ActionIdentity.isAIPreset(action) {
             return .symbol(Constants.defaultAIIconSymbol)

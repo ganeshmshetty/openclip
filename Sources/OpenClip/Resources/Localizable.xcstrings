@@ -3389,6 +3389,34 @@
         }
       }
     },
+    "Custom icon “%@” — click to change": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义图标 “%@” — 点击更改"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自訂圖示 “%@” — 點擊更改"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Icône personnalisée « %@ » — cliquer pour modifier"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムアイコン “%@” — クリックして変更"
+          }
+        }
+      }
+    },
     "Custom...": {
       "localizations": {
         "zh-Hans": {
@@ -3637,6 +3665,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "グループを削除"
+          }
+        }
+      }
+    },
+    "Delete Icon": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除图标"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刪除圖示"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer l’icône"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイコンを削除"
           }
         }
       }
@@ -4509,6 +4565,34 @@
         }
       }
     },
+    "Failed to download favicon: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法下载网站图标：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法下載網站圖示：%@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec du téléchargement du favicon : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファビコンのダウンロードに失敗しました: %@"
+          }
+        }
+      }
+    },
     "Failed to save the action manifest: %@": {
       "localizations": {
         "zh-Hans": {
@@ -4533,6 +4617,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アクションマニフェストの保存に失敗しました: %@"
+          }
+        }
+      }
+    },
+    "Favicon from URL": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来自 URL 的网站图标"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "來自 URL 的網站圖示"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favicon depuis une URL"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL からファビコンを取得"
           }
         }
       }
@@ -6665,6 +6777,34 @@
         }
       }
     },
+    "No custom icons yet": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无自定义图标"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚無自訂圖示"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune icône personnalisée pour le moment"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムアイコンはまだありません"
+          }
+        }
+      }
+    },
     "No existing file path found in selection.": {
       "localizations": {
         "zh-Hans": {
@@ -7701,6 +7841,34 @@
         }
       }
     },
+    "PNG, SVG, JPG, ICNS": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PNG、SVG、JPG、ICNS"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PNG、SVG、JPG、ICNS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PNG, SVG, JPG, ICNS"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PNG、SVG、JPG、ICNS"
+          }
+        }
+      }
+    },
     "Package image “%@” — click to replace with an icon": {
       "localizations": {
         "zh-Hans": {
@@ -8033,6 +8201,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Perplexity AI"
+          }
+        }
+      }
+    },
+    "Please enter a valid website URL or domain.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的网站 URL 或域名。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請輸入有效的網站 URL 或網域名稱。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veuillez saisir une URL ou un domaine valide."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効なWebサイトのURLまたはドメインを入力してください。"
           }
         }
       }
@@ -9213,6 +9409,34 @@
         }
       }
     },
+    "Resolve": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解析"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解析"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résoudre"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得"
+          }
+        }
+      }
+    },
     "Restart to Apply Update": {
       "localizations": {
         "zh-Hans": {
@@ -9545,6 +9769,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "変更を保存"
+          }
+        }
+      }
+    },
+    "Saved Icons": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存的图标"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已儲存的圖示"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Icônes enregistrées"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存済みアイコン"
           }
         }
       }
@@ -10389,6 +10641,34 @@
         }
       }
     },
+    "Source image file was not found.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到源图片文件。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到來源圖片檔案。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le fichier image source est introuvable."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ソース画像ファイルが見つかりませんでした。"
+          }
+        }
+      }
+    },
     "Speak": {
       "localizations": {
         "zh-Hans": {
@@ -10749,6 +11029,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "AIプロバイダから空の応答、または読み取れない応答が返されました。"
+          }
+        }
+      }
+    },
+    "The resolved file is not a valid image.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解析的文件不是有效图片。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解析的檔案不是有效圖片。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le fichier résolu n'est pas une image valide."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解決されたファイルは有効な画像ではありません。"
           }
         }
       }
@@ -11313,6 +11621,34 @@
         }
       }
     },
+    "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不支持的文件格式。请选择 PNG、SVG、JPG 或 ICNS 文件。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不支援的檔案格式。請選擇 PNG、SVG、JPG 或 ICNS 檔案。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format de fichier non pris en charge. Veuillez choisir un fichier PNG, SVG, JPG ou ICNS."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サポートされていないファイル形式です。PNG、SVG、JPG、または ICNS ファイルを選択してください。"
+          }
+        }
+      }
+    },
     "Up to Date": {
       "localizations": {
         "zh-Hans": {
@@ -11593,6 +11929,62 @@
         }
       }
     },
+    "Upload an image or enter a URL above": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上传图片或在上方输入 URL"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上傳圖片或在上方輸入 URL"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importez une image ou saisissez une URL ci-dessus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画像をアップロードするか上記にURLを入力してください"
+          }
+        }
+      }
+    },
+    "Upload from Finder…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从访达上传…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從 Finder 上傳…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importer depuis le Finder…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finder からアップロード…"
+          }
+        }
+      }
+    },
     "Use **$OPENCLIP_TEXT** for the selected text.": {
       "localizations": {
         "zh-Hans": {
@@ -11841,6 +12233,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Webサイト"
+          }
+        }
+      }
+    },
+    "Website URL (e.g. github.com)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网站 URL（例如 github.com）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "網站 URL（例如 github.com）"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL du site (ex. github.com)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WebサイトのURL（例: github.com）"
           }
         }
       }

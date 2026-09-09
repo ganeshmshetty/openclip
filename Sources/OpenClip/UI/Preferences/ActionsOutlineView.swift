@@ -9,6 +9,7 @@ import AppKit
 import SwiftUI
 import Core
 import UniformTypeIdentifiers
+import Combine
 
 private let actionPasteboardType = NSPasteboard.PasteboardType("com.openclip.action-id")
 
@@ -27,12 +28,28 @@ final class OutlineNode: NSObject {
 
     let id: String
     let kind: Kind
-    var children: [OutlineNode]
+    let children: [OutlineNode]
+    let signature: String
 
-    init(id: String, kind: Kind, children: [OutlineNode] = []) {
+    init(
+        id: String,
+        kind: Kind,
+        children: [OutlineNode] = [],
+        customization: ActionCustomizationManager
+    ) {
         self.id = id
         self.kind = kind
         self.children = children
+        self.signature = Self.computeSignature(id: id, kind: kind, children: children, using: customization)
+        super.init()
+    }
+
+    /// Convenience initializer for tests or synthetic nodes where a custom signature is provided directly.
+    init(id: String, kind: Kind, children: [OutlineNode] = [], signature: String = "") {
+        self.id = id
+        self.kind = kind
+        self.children = children
+        self.signature = signature.isEmpty ? id : signature
         super.init()
     }
 
@@ -74,7 +91,12 @@ final class OutlineNode: NSObject {
         return id == other.id
     }
 
-    func signature(using customization: ActionCustomizationManager) -> String {
+    private static func computeSignature(
+        id: String,
+        kind: Kind,
+        children: [OutlineNode],
+        using customization: ActionCustomizationManager
+    ) -> String {
         var sig = id + ":"
         switch kind {
         case .customGroup(let def, let action):
@@ -96,19 +118,23 @@ final class OutlineNode: NSObject {
             sig += "es:\(parentGroupID):\(p.title):\(String(describing: p.icon))"
         }
         if !children.isEmpty {
-            sig += "[" + children.map { $0.signature(using: customization) }.joined(separator: ";") + "]"
+            sig += "[" + children.map(\.signature).joined(separator: ";") + "]"
         }
         return sig
     }
 
-    static func treesEqual(_ a: [OutlineNode], _ b: [OutlineNode], using customization: ActionCustomizationManager) -> Bool {
+    static func treesEqual(_ a: [OutlineNode], _ b: [OutlineNode]) -> Bool {
         guard a.count == b.count else { return false }
         for i in 0..<a.count {
-            if a[i].signature(using: customization) != b[i].signature(using: customization) {
+            if a[i].signature != b[i].signature {
                 return false
             }
         }
         return true
+    }
+
+    static func treesEqual(_ a: [OutlineNode], _ b: [OutlineNode], using customization: ActionCustomizationManager) -> Bool {
+        treesEqual(a, b)
     }
 }
 
@@ -272,15 +298,46 @@ struct ActionsOutlineView: NSViewRepresentable {
 
 @MainActor
 final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
-    var parent: ActionsOutlineView
+    var parent: ActionsOutlineView {
+        didSet {
+            setupSubscriptions()
+        }
+    }
     weak var outlineView: ActionsOutlineTableView?
     private(set) var rootNodes: [OutlineNode] = []
     private var expandedNodeIDs: Set<String> = []
     private var isSyncingSelection = false
+    private var cancellables = Set<AnyCancellable>()
 
     init(_ parent: ActionsOutlineView) {
         self.parent = parent
         super.init()
+        setupSubscriptions()
+    }
+
+    private func setupSubscriptions() {
+        cancellables.removeAll()
+
+        parent.customizationManager.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncWithParent()
+            }
+            .store(in: &cancellables)
+
+        parent.coordinator.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncWithParent()
+            }
+            .store(in: &cancellables)
+
+        CustomIconManager.shared.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncWithParent()
+            }
+            .store(in: &cancellables)
     }
 
     @discardableResult
@@ -313,9 +370,18 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 seenCustomGroups.insert(def.id)
                 let memberNodes: [OutlineNode] = def.memberActionIDs.compactMap { memberID in
                     guard let memberAction = actions.first(where: { $0.id == memberID }) else { return nil }
-                    return OutlineNode(id: memberID, kind: .groupMember(action: memberAction, parentGroupID: def.id))
+                    return OutlineNode(
+                        id: memberID,
+                        kind: .groupMember(action: memberAction, parentGroupID: def.id),
+                        customization: parent.customizationManager
+                    )
                 }
-                newRoots.append(OutlineNode(id: def.id, kind: .customGroup(def, action), children: memberNodes))
+                newRoots.append(OutlineNode(
+                    id: def.id,
+                    kind: .customGroup(def, action),
+                    children: memberNodes,
+                    customization: parent.customizationManager
+                ))
                 continue
             }
 
@@ -328,9 +394,18 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             if action.chrome.popupBehavior == .showSubActions {
                 let subActionNodes: [OutlineNode] = actions.compactMap { sub in
                     guard sub.id != action.id && sub.id.hasPrefix(action.id + ".") else { return nil }
-                    return OutlineNode(id: sub.id, kind: .extensionSubAction(action: sub, parentGroupID: action.id))
+                    return OutlineNode(
+                        id: sub.id,
+                        kind: .extensionSubAction(action: sub, parentGroupID: action.id),
+                        customization: parent.customizationManager
+                    )
                 }
-                newRoots.append(OutlineNode(id: action.id, kind: .extensionGroup(action), children: subActionNodes))
+                newRoots.append(OutlineNode(
+                    id: action.id,
+                    kind: .extensionGroup(action),
+                    children: subActionNodes,
+                    customization: parent.customizationManager
+                ))
                 continue
             }
 
@@ -353,27 +428,41 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                     let gatedReason = (action as? GatedExtensionAction)?.reason
                     newRoots.append(OutlineNode(
                         id: "pkg.\(pkgID)",
-                        kind: .packageHeader(packageID: pkgID, title: title, gatedReason: gatedReason)
+                        kind: .packageHeader(packageID: pkgID, title: title, gatedReason: gatedReason),
+                        customization: parent.customizationManager
                     ))
                 }
             }
 
             // Standalone action
-            newRoots.append(OutlineNode(id: action.id, kind: .standaloneAction(action)))
+            newRoots.append(OutlineNode(
+                id: action.id,
+                kind: .standaloneAction(action),
+                customization: parent.customizationManager
+            ))
         }
 
         // Catch custom groups not yet matched in actions
         for def in groupDefs where !seenCustomGroups.contains(def.id) {
             let memberNodes: [OutlineNode] = def.memberActionIDs.compactMap { memberID in
                 guard let memberAction = actions.first(where: { $0.id == memberID }) else { return nil }
-                return OutlineNode(id: memberID, kind: .groupMember(action: memberAction, parentGroupID: def.id))
+                return OutlineNode(
+                    id: memberID,
+                    kind: .groupMember(action: memberAction, parentGroupID: def.id),
+                    customization: parent.customizationManager
+                )
             }
             if let dummyAction = actions.first(where: { $0.id == def.id }) {
-                newRoots.append(OutlineNode(id: def.id, kind: .customGroup(def, dummyAction), children: memberNodes))
+                newRoots.append(OutlineNode(
+                    id: def.id,
+                    kind: .customGroup(def, dummyAction),
+                    children: memberNodes,
+                    customization: parent.customizationManager
+                ))
             }
         }
 
-        let changed = !OutlineNode.treesEqual(newRoots, self.rootNodes, using: parent.customizationManager)
+        let changed = !OutlineNode.treesEqual(newRoots, self.rootNodes)
         if changed {
             self.rootNodes = newRoots
         }

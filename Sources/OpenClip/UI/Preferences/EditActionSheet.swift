@@ -420,6 +420,9 @@ public struct EditActionSheet: View {
         if case .symbol(let sym) = icon {
             iconSymbol = sym
             baseIconState = nil
+        } else if case .local(let url) = icon, url.path.hasPrefix(Constants.customIconsDirectory.path) {
+            iconSymbol = "\(Constants.customIconPrefix)\(url.lastPathComponent)"
+            baseIconState = nil
         } else {
             iconSymbol = ""
             baseIconState = icon

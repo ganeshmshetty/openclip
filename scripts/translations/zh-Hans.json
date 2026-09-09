@@ -434,5 +434,20 @@
   "Close the result card": "关闭结果卡片",
   "Close (⎋)": "关闭 (⎋)",
   "Close result card": "关闭结果卡片",
-  "Dismiss the error (⎋)": "关闭错误提示 (⎋)"
+  "Dismiss the error (⎋)": "关闭错误提示 (⎋)",
+  "Favicon from URL": "来自 URL 的网站图标",
+  "Website URL (e.g. github.com)": "网站 URL（例如 github.com）",
+  "Resolve": "解析",
+  "Upload from Finder…": "从访达上传…",
+  "PNG, SVG, JPG, ICNS": "PNG、SVG、JPG、ICNS",
+  "Saved Icons": "已保存的图标",
+  "No custom icons yet": "暂无自定义图标",
+  "Upload an image or enter a URL above": "上传图片或在上方输入 URL",
+  "Delete Icon": "删除图标",
+  "Custom icon “%@” — click to change": "自定义图标 “%@” — 点击更改",
+  "Please enter a valid website URL or domain.": "请输入有效的网站 URL 或域名。",
+  "Failed to download favicon: %@": "无法下载网站图标：%@",
+  "The resolved file is not a valid image.": "解析的文件不是有效图片。",
+  "Source image file was not found.": "未找到源图片文件。",
+  "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "不支持的文件格式。请选择 PNG、SVG、JPG 或 ICNS 文件。"
 }

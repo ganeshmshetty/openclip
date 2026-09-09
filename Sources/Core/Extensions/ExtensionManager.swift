@@ -558,18 +558,7 @@ public final class ExtensionManager: Sendable {
     }
     
     nonisolated public static func parseIcon(_ iconStr: String?, directoryURL: URL) -> ActionIcon {
-        guard let iconStr = iconStr, !iconStr.isEmpty else {
-            return .symbol(Constants.defaultIconSymbol)
-        }
-        if iconStr.hasPrefix(Constants.symbolPrefix) && iconStr.hasSuffix(Constants.symbolSuffix) {
-            let symbolName = String(iconStr.dropFirst(Constants.symbolPrefix.count).dropLast(Constants.symbolSuffix.count))
-            return .symbol(symbolName)
-        }
-        let lower = iconStr.lowercased()
-        if Constants.imageExtensions.contains(where: { lower.hasSuffix($0) }) {
-            return .local(directoryURL.appendingPathComponent(iconStr))
-        }
-        return .symbol(iconStr)
+        ActionIcon.resolve(from: iconStr, relativeTo: directoryURL)
     }
 
     /// Uniform action ID rule: an explicit `metadata.id` wins (a bare slug without a dot is prefixed with

@@ -337,6 +337,85 @@ final class ActionGroupIntegrationTests: XCTestCase {
             }
         }
     }
+
+    func testOutlineViewRebuildsAndReloadsOnIconCustomizationChange() {
+        let customizationManager = ActionCustomizationManager(settingsStore: settingsStore)
+        let parentView = ActionsOutlineView(
+            coordinator: coordinator,
+            customizationManager: customizationManager,
+            selectedRowIDs: .constant([]),
+            disabledActionIDs: .constant([]),
+            disabledPackages: .constant([]),
+            onEditGroup: { _ in },
+            onCreateGroupFromSelection: { }
+        )
+        let outlineView = ActionsOutlineTableView(frame: NSRect(x: 0, y: 0, width: 400, height: 400))
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("ActionColumn"))
+        outlineView.addTableColumn(column)
+        outlineView.outlineTableColumn = column
+
+        let coord = ActionsOutlineCoordinator(parentView)
+        coord.outlineView = outlineView
+
+        let action = DummyAction(id: "custom.action.icon", title: "Custom Action Icon")
+        coordinator.register(action: action)
+
+        // 1. Initial build creates the tree
+        let firstBuildChanged = coord.rebuildTree()
+        XCTAssertTrue(firstBuildChanged)
+        XCTAssertEqual(coord.rootNodes.count, 1)
+
+        // 2. Rebuilding without changes returns false
+        let secondBuildChanged = coord.rebuildTree()
+        XCTAssertFalse(secondBuildChanged)
+
+        // 3. Modifying icon customization in ActionCustomizationManager
+        customizationManager.setOverride(for: action.id, title: nil, symbol: "sparkles", text: nil)
+
+        // 4. Rebuilding tree must detect the changed signature
+        let changedAfterIconUpdate = coord.rebuildTree()
+        XCTAssertTrue(changedAfterIconUpdate, "rebuildTree must detect when an action icon/override changes")
+
+        // 5. Modifying title customization must also detect change
+        customizationManager.setOverride(for: action.id, title: "New Title", symbol: "sparkles", text: nil)
+        let changedAfterTitleUpdate = coord.rebuildTree()
+        XCTAssertTrue(changedAfterTitleUpdate, "rebuildTree must detect when an action title/override changes")
+    }
+
+    func testOutlineViewAutoSyncsOnCustomizationPublisher() {
+        let customizationManager = ActionCustomizationManager(settingsStore: settingsStore)
+        let parentView = ActionsOutlineView(
+            coordinator: coordinator,
+            customizationManager: customizationManager,
+            selectedRowIDs: .constant([]),
+            disabledActionIDs: .constant([]),
+            disabledPackages: .constant([]),
+            onEditGroup: { _ in },
+            onCreateGroupFromSelection: { }
+        )
+        let outlineView = ActionsOutlineTableView(frame: NSRect(x: 0, y: 0, width: 400, height: 400))
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("ActionColumn"))
+        outlineView.addTableColumn(column)
+        outlineView.outlineTableColumn = column
+
+        let coord = ActionsOutlineCoordinator(parentView)
+        coord.outlineView = outlineView
+
+        let action = DummyAction(id: "custom.action.auto", title: "Auto Action")
+        coordinator.register(action: action)
+        coord.syncWithParent()
+
+        let initialSignature = coord.rootNodes.first?.signature
+
+        // Update customization; Combine listener will invoke syncWithParent on main runloop
+        customizationManager.setOverride(for: action.id, title: nil, symbol: "bolt.fill", text: nil)
+
+        // Drain main runloop to let Combine sink fire
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+
+        let updatedSignature = coord.rootNodes.first?.signature
+        XCTAssertNotEqual(initialSignature, updatedSignature, "Coordinator must automatically sync when customizationManager changes")
+    }
 }
 
 private struct DummyAction: Action, Sendable {

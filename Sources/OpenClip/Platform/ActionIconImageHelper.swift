@@ -11,6 +11,10 @@ public enum ActionIconImageHelper {
         let targetSize = NSSize(width: 14, height: 14)
         switch icon {
         case .symbol(let name):
+            let resolved = ActionIcon.resolve(from: name)
+            if case .local = resolved {
+                return menuImage(for: resolved)
+            }
             let symbolName = name.isEmpty ? "star" : name
             if symbolName.contains(":") {
                 let img = NSImage(systemSymbolName: "puzzlepiece.extension", accessibilityDescription: nil)
@@ -27,7 +31,6 @@ public enum ActionIconImageHelper {
             if let img = LocalIconCache.shared.image(for: url) {
                 let copy = img.copy() as? NSImage ?? img
                 copy.size = targetSize
-                copy.isTemplate = true
                 return copy
             }
             let img = NSImage(systemSymbolName: "puzzlepiece.extension", accessibilityDescription: nil)

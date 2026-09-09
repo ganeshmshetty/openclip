@@ -31,6 +31,7 @@ final class PopupPanelTests: XCTestCase {
         // Sentinel: the shared height cap stays 312. Lives here (app target) because popup sizing
         // constants are UI concerns — see PopupMetrics.
         XCTAssertEqual(PopupMetrics.popupMaxHeight, 312)
+        XCTAssertEqual(PopupMetrics.popupCornerRadius, 12.0)
     }
 
     func testToastDurationConstant() {
@@ -1129,6 +1130,7 @@ final class PopupPanelTests: XCTestCase {
         let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.midY))
         defer { controller.hide() }
         XCTAssertTrue(controller.isVisible)
+        controller.sessionShowTime = ProcessInfo.processInfo.systemUptime - 1.0
 
         let switchedApp = MockPopupFrontmostApp(bundleID: "com.apple.Notes")
         let notif = Notification(
