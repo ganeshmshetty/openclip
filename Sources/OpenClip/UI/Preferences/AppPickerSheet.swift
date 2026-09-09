@@ -109,11 +109,11 @@ public struct AppPickerSheet: View {
                 .padding(16)
                 .frame(height: 320)
             } else {
-                HStack {
-                    Image(systemName: "magnifyingglass").foregroundColor(.secondary)
-                    TextField("Search applications...", text: $searchText)
-                        .textFieldStyle(.plain)
-                }
+                NativeSearchField(
+                    text: $searchText,
+                    placeholder: String(localized: "Search applications...")
+                )
+                .frame(height: 24)
                 .padding(10)
                 
                 Divider()

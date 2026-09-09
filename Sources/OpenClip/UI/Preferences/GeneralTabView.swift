@@ -3,6 +3,10 @@
 //
 // The General preferences tab: app enable and menu bar toggles, trigger hotkey,
 // start-at-login, and system-permission status. Split out of PreferencesView.swift.
+//
+// Rows are stock grouped-`Form` controls: the system draws the card, the row
+// metrics and the label/control split, so the tab tracks System Settings across
+// appearance and accent changes without any local styling.
 import SwiftUI
 import Core
 import KeyboardShortcuts
@@ -29,216 +33,121 @@ struct GeneralTab: View {
     
     var body: some View {
         Form {
-            Section(header: Text("General Controls")) {
-                // Row 1: Appear Automatically
-                HStack {
-                    HStack(spacing: 12) {
-                        Image(systemName: "cursorarrow")
-                            .font(.system(size: 16))
-                            .foregroundColor(isAppEnabled ? .accentColor : .secondary)
-                            .frame(width: 22, alignment: .center)
-                        
-                        Text("Appear Automatically")
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
-                    Spacer()
-                    Toggle("", isOn: $isAppEnabled)
-                        .labelsHidden()
-                        .accessibilityLabel("Appear Automatically")
-                        .onChange(of: isAppEnabled) { _, newValue in
-                            DefaultSettingsStore.shared.set(.isAppEnabled, value: newValue)
-                            NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
-                        }
-                        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenClipEnabledStateChanged"))) { notification in
-                            isAppEnabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
-                        }
+            Section {
+                Toggle(isOn: $isAppEnabled) {
+                    SettingsRowLabel(
+                        title: "Appear Automatically",
+                        subtitle: "Show the popup as soon as text is selected.",
+                        systemImage: "cursorarrow"
+                    )
                 }
-                .padding(.vertical, 4)
-                
-                // Row 2: Menu Bar Icon
-                HStack {
-                    HStack(spacing: 12) {
-                        Image(systemName: "menubar.rectangle")
-                            .font(.system(size: 16))
-                            .foregroundColor(showMenuBarIcon ? .accentColor : .secondary)
-                            .frame(width: 22, alignment: .center)
-
-                        Text("Show Menu Bar Icon")
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
-                    Spacer()
-                    Toggle("", isOn: $showMenuBarIcon)
-                        .labelsHidden()
-                        .accessibilityLabel("Show Menu Bar Icon")
-                        .onChange(of: showMenuBarIcon) { _, newValue in
-                            DefaultSettingsStore.shared.set(.showMenuBarIcon, value: newValue)
-                            NotificationCenter.default.post(
-                                name: .openClipMenuBarVisibilityChanged,
-                                object: newValue
-                            )
-                        }
+                .onChange(of: isAppEnabled) { _, newValue in
+                    DefaultSettingsStore.shared.set(.isAppEnabled, value: newValue)
+                    NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
                 }
-                .padding(.vertical, 4)
+                .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenClipEnabledStateChanged"))) { notification in
+                    isAppEnabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
+                }
 
-                // Row 3: Trigger Shortcut
-                HStack {
-                    HStack(spacing: 12) {
-                        Image(systemName: "keyboard")
-                            .font(.system(size: 16))
-                            .foregroundColor(.accentColor)
-                            .frame(width: 22, alignment: .center)
-                        
-                        Text("Trigger Popup Shortcut")
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
-                    Spacer()
+                Toggle(isOn: $isMouseHoldEnabled) {
+                    SettingsRowLabel(
+                        title: "Hold Mouse to Trigger",
+                        subtitle: "Keep the button down after selecting to summon the popup.",
+                        systemImage: "hand.tap"
+                    )
+                }
+                .onChange(of: isMouseHoldEnabled) { _, newValue in
+                    DefaultSettingsStore.shared.set(.isMouseHoldEnabled, value: newValue)
+                }
+
+                LabeledContent {
                     KeyboardShortcuts.Recorder(for: .togglePopup)
+                } label: {
+                    SettingsRowLabel(title: "Trigger Popup Shortcut", systemImage: "keyboard")
                 }
-                .padding(.vertical, 4)
 
-                // Row 4: Hold Mouse to Trigger
-                HStack {
-                    HStack(spacing: 12) {
-                        Image(systemName: "hand.tap")
-                            .font(.system(size: 16))
-                            .foregroundColor(isMouseHoldEnabled ? .accentColor : .secondary)
-                            .frame(width: 22, alignment: .center)
-                        
-                        Text("Hold Mouse to Trigger")
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
-                    Spacer()
-                    Toggle("", isOn: $isMouseHoldEnabled)
-                        .labelsHidden()
-                        .accessibilityLabel("Hold Mouse to Trigger")
-                        .onChange(of: isMouseHoldEnabled) { _, newValue in
-                            DefaultSettingsStore.shared.set(.isMouseHoldEnabled, value: newValue)
-                        }
+                Toggle(isOn: $showMenuBarIcon) {
+                    SettingsRowLabel(title: "Show Menu Bar Icon", systemImage: "menubar.rectangle")
                 }
-                .padding(.vertical, 4)
-                
-                // Row 5: Start at Login
-                HStack {
-                    HStack(spacing: 12) {
-                        Image(systemName: "arrow.clockwise.circle")
-                            .font(.system(size: 16))
-                            .foregroundColor(.accentColor)
-                            .frame(width: 22, alignment: .center)
-                        
-                        Text("Start at Login")
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
-                    Spacer()
-                    Toggle("", isOn: $launchManager.isEnabled)
-                        .labelsHidden()
-                        .accessibilityLabel("Start at Login")
+                .onChange(of: showMenuBarIcon) { _, newValue in
+                    DefaultSettingsStore.shared.set(.showMenuBarIcon, value: newValue)
+                    NotificationCenter.default.post(
+                        name: .openClipMenuBarVisibilityChanged,
+                        object: newValue
+                    )
                 }
-                .padding(.vertical, 4)
+
+                Toggle(isOn: $launchManager.isEnabled) {
+                    SettingsRowLabel(title: "Start at Login", systemImage: "arrow.clockwise.circle")
+                }
             }
 
-            Section(header: Text("Action Results")) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Primary click")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("Left click")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+            Section("Action Results") {
+                Picker(selection: $primaryBehavior) {
+                    ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
+                        Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
                     }
-                    Spacer()
-                    Picker("Primary click", selection: $primaryBehavior) {
-                        ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
-                            Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 220)
-                    .onChange(of: primaryBehavior) { _, newValue in
-                        DefaultSettingsStore.shared.set(.primaryClickBehavior, value: newValue)
-                    }
+                } label: {
+                    SettingsRowLabel(
+                        title: "Primary click",
+                        subtitle: "Left click",
+                        systemImage: "cursorarrow.click"
+                    )
                 }
-                .padding(.vertical, 4)
+                .pickerStyle(.segmented)
+                .onChange(of: primaryBehavior) { _, newValue in
+                    DefaultSettingsStore.shared.set(.primaryClickBehavior, value: newValue)
+                }
 
-                HStack {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Secondary click")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("Right click or ⇧-click")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                Picker(selection: $secondaryBehavior) {
+                    ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
+                        Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
                     }
-                    Spacer()
-                    Picker("Secondary click", selection: $secondaryBehavior) {
-                        ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
-                            Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 220)
-                    .onChange(of: secondaryBehavior) { _, newValue in
-                        DefaultSettingsStore.shared.set(.secondaryClickBehavior, value: newValue)
-                    }
+                } label: {
+                    SettingsRowLabel(
+                        title: "Secondary click",
+                        subtitle: "Right click or ⇧-click",
+                        systemImage: "cursorarrow.click.2"
+                    )
                 }
-                .padding(.vertical, 4)
+                .pickerStyle(.segmented)
+                .onChange(of: secondaryBehavior) { _, newValue in
+                    DefaultSettingsStore.shared.set(.secondaryClickBehavior, value: newValue)
+                }
             }
 
-            Section(header: Text("System Permissions")) {
-                // Row 4: Accessibility Access
-                HStack {
-                    HStack(spacing: 12) {
-                        Image(systemName: "lock.shield")
-                            .font(.system(size: 16))
-                            .foregroundColor(permissionManager.isAccessibilityGranted ? .green : .orange)
-                            .frame(width: 22, alignment: .center)
-                        
-                        Text("Accessibility Access")
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
-                    
-                    Spacer()
-                    
+            Section("System Permissions") {
+                LabeledContent {
                     HStack(spacing: 10) {
-                        HStack(spacing: 5) {
-                            Image(systemName: permissionManager.isAccessibilityGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                .font(.caption)
-                            Text(permissionManager.isAccessibilityGranted ? String(localized: "Granted") : String(localized: "Access Required"))
-                                .font(.caption)
-                                .fontWeight(.semibold)
+                        Label {
+                            Text(permissionManager.isAccessibilityGranted
+                                 ? String(localized: "Granted")
+                                 : String(localized: "Access Required"))
+                        } icon: {
+                            Image(systemName: permissionManager.isAccessibilityGranted
+                                  ? "checkmark.circle.fill"
+                                  : "exclamationmark.triangle.fill")
                         }
-                        .foregroundColor(permissionManager.isAccessibilityGranted ? .green : .orange)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill((permissionManager.isAccessibilityGranted ? Color.green : Color.orange).opacity(0.15))
-                        )
-                        
+                        .font(.callout)
+                        .foregroundStyle(permissionManager.isAccessibilityGranted ? Color.green : Color.orange)
+
                         Button("Open Settings") {
                             // Only proactively reset stale TCC when permission is missing.
                             // Resetting while already granted would revoke the active entry.
                             let shouldReset = !permissionManager.isAccessibilityGranted
                             permissionManager.requestAccessibilityPermission(proactivelyResetStaleTCC: shouldReset)
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
                     }
+                } label: {
+                    SettingsRowLabel(
+                        title: "Accessibility Access",
+                        subtitle: "Required to read the selected text.",
+                        systemImage: "lock.shield"
+                    )
                 }
-                .padding(.vertical, 4)
             }
         }
         .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .padding(.horizontal, 12)
         .onAppear { permissionManager.startMonitoring() }
         .onDisappear { permissionManager.stopMonitoring() }
     }

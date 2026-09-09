@@ -329,11 +329,11 @@ public struct ExtensionStoreView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            filterPillsRow
+            filterBar
             storeContent
         }
         .padding(.horizontal, 12)
-        .padding(.top, 4)
+        .padding(.top, 10)
         .padding(.bottom, 0)
         .task {
             if viewModel.extensions.isEmpty {
@@ -342,45 +342,46 @@ public struct ExtensionStoreView: View {
         }
     }
 
-    private var filterPillsRow: some View {
-        HStack(spacing: 8) {
-            ForEach(StoreFilter.allCases) { filter in
-                let isSelected = viewModel.selectedFilter == filter && !isSearching
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        if isSearching {
-                            viewModel.searchQuery = ""
-                        }
-                        viewModel.selectedFilter = filter
-                    }
-                } label: {
-                    HStack(spacing: 4.5) {
-                        if filter == .popular {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 9.5, weight: .semibold))
-                        } else if filter == .new {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.system(size: 9.5, weight: .semibold))
-                        }
-                        Text(filter.title)
-                            .font(.system(size: 11.5, weight: isSelected ? .semibold : .medium))
-                    }
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 4.5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
-                    )
-                    .foregroundColor(isSelected ? .white : .secondary)
-                    .contentShape(Rectangle())
+    /// A stock segmented control: the catalog filter is a plain three-way choice,
+    /// and the system control already handles focus, keyboard and appearance.
+    private var filterPicker: some View {
+        Picker("Filter", selection: Binding(
+            get: { viewModel.selectedFilter },
+            set: { newValue in
+                if isSearching {
+                    viewModel.searchQuery = ""
                 }
-                .buttonStyle(.plain)
+                viewModel.selectedFilter = newValue
             }
-            Spacer()
+        )) {
+            ForEach(StoreFilter.allCases) { filter in
+                Text(filter.title).tag(filter)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(maxWidth: 300, alignment: .leading)
+        .disabled(isSearching)
+    }
+
+    /// The search field lives in the content, not the toolbar: a `.searchable`
+    /// that only exists on this tab makes the window's toolbar appear and
+    /// disappear as tabs change, and the title bar re-measures every time.
+    private var filterBar: some View {
+        HStack(spacing: 12) {
+            filterPicker
+            Spacer(minLength: 12)
+            NativeSearchField(
+                text: $viewModel.searchQuery,
+                placeholder: String(localized: "Search extensions")
+            )
+            .frame(width: 200, height: 24)
+            .onChange(of: viewModel.searchQuery) { _, _ in
+                viewModel.queryDidChange()
+            }
         }
         .padding(.horizontal, 14)
-        .padding(.bottom, 8)
-        .opacity(isSearching ? 0.4 : 1.0)
+        .padding(.bottom, 10)
     }
 
     private var storeContent: some View {

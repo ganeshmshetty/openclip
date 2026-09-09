@@ -607,12 +607,42 @@ class StatusBarController: NSObject, NSMenuDelegate {
             return
         }
         let controller = NSHostingController(rootView: PreferencesView(initialTab: tab))
+        // The window owns its size, not the SwiftUI content. With the default
+        // sizing options the hosting controller republishes the current pane's
+        // fitting size as the window's preferred content size, so every tab
+        // switch resized the window around whatever pane had just appeared —
+        // panes that fill (Actions, Store, App Rules) held it open while the
+        // shorter ones (General, Appearance, About) collapsed it.
+        controller.sizingOptions = []
         let window = NSWindow(contentViewController: controller)
         window.title = String(localized: "OpenClip Preferences")
-        window.setContentSize(NSSize(width: 760, height: 620))
+        window.setContentSize(NSSize(width: 820, height: 640))
+        window.contentMinSize = NSSize(width: 780, height: 520)
+        // Full-height sidebar, the way every stock sidebar app (System Settings,
+        // Mail, Finder) is put together: `fullSizeContentView` hands the content
+        // view the whole window, and a transparent title bar lets the sidebar's
+        // material run up behind the traffic lights instead of the sidebar
+        // starting below an opaque strip. AppKit gives the sidebar split item
+        // full-height layout on its own once the style mask asks for it
+        // (NSSplitViewItem.allowsFullHeightLayout defaults to true), and it insets
+        // the sidebar's own content below the traffic lights — nothing here has to
+        // reserve that space by hand.
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
+        // A toolbar has to exist for every pane, not just the ones with buttons in
+        // it. AppKit only gives the sidebar its full-height layout in a window that
+        // has a toolbar, so on the panes that published no toolbar items the
+        // sidebar dropped back to a floating inset panel and left the traffic
+        // lights stranded above it. This empty toolbar is the floor; SwiftUI
+        // replaces it with its own on the panes that do have items.
+        let toolbar = NSToolbar(identifier: "OpenClipPreferencesToolbar")
+        toolbar.showsBaselineSeparator = false
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
+        // Left at .automatic on purpose: it defers to NSSplitViewItem, which draws
+        // the title bar separator over the detail pane only, so the sidebar keeps
+        // one unbroken surface from the traffic lights down.
+        window.titlebarSeparatorStyle = .automatic
         // Closing the window must not deallocate it while `preferencesWindow`
         // still points at it — the reuse check above reads the window back
         // after a close, and the default (release on close) makes that a read

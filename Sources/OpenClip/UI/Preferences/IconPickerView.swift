@@ -101,20 +101,12 @@ public struct IconPickerView: View {
             }()
 
             VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Image(systemName: "magnifyingglass").foregroundColor(.secondary).font(.caption)
-                    TextField("Search SF Symbols…", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .font(.caption)
-                    if !searchText.isEmpty {
-                        Button { searchText = "" } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
-                        }.buttonStyle(.plain)
-                    }
-                }
-                .padding(5)
-                .background(Color.primary.opacity(0.04))
-                .cornerRadius(5)
+                NativeSearchField(
+                    text: $searchText,
+                    placeholder: String(localized: "Search SF Symbols…"),
+                    controlSize: .small
+                )
+                .frame(height: 20)
 
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 8), spacing: 4) {
@@ -142,26 +134,20 @@ public struct IconPickerView: View {
     private var openSourceTab: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Search field - fires Iconify query only when Enter is pressed
-            HStack {
-                Image(systemName: "magnifyingglass").foregroundColor(.secondary).font(.caption)
-                TextField("Search Iconify (press Enter)…", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.caption)
-                    .onSubmit {
-                        submittedQuery = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-                        provider.search(query: submittedQuery)
-                    }
+            HStack(spacing: 6) {
+                NativeSearchField(
+                    text: $searchText,
+                    placeholder: String(localized: "Search Iconify (press Enter)…"),
+                    controlSize: .small
+                ) { query in
+                    submittedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                    provider.search(query: submittedQuery)
+                }
+                .frame(height: 20)
                 if provider.isSearching {
                     ProgressView().controlSize(.mini)
-                } else if !searchText.isEmpty {
-                    Button { searchText = ""; submittedQuery = "" } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
-                    }.buttonStyle(.plain)
                 }
             }
-            .padding(5)
-            .background(Color.primary.opacity(0.04))
-            .cornerRadius(5)
 
             if submittedQuery.isEmpty {
                 VStack(spacing: 6) {

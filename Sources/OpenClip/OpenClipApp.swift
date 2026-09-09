@@ -15,8 +15,10 @@ struct OpenClipApp: App {
         // correctly. The Dock icon is suppressed by calling
         // NSApp.setActivationPolicy(.accessory) in AppDelegate.applicationDidFinishLaunching,
         // which is the Apple-documented approach for agent apps that need a settings window.
-        // hiddenTitleBar makes the glass sidebar extend to the top of the window so the
-        // traffic lights sit directly on the Liquid Glass surface instead of an opaque strip.
+        // hiddenTitleBar is the SwiftUI spelling of fullSizeContentView plus a
+        // transparent title bar, which is what lets the sidebar run full height with
+        // the traffic lights sitting on it (see StatusBarController.showPreferences,
+        // which configures the same thing on the window it opens).
         Settings {
             PreferencesView()
         }

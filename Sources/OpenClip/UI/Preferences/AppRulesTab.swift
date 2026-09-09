@@ -14,57 +14,44 @@ public struct AppRulesTab: View {
     public init() {}
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Application Rules")
-                        .font(.headline)
-                    Text("Configure per-app trigger and paste behavior.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                
-                Button(action: {
-                    showingAppPicker = true
-                }) {
-                    Label("Add Application", systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-            
-            Form {
-                Section {
-                    if ruleEngine.userRules.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "app.badge.checkmark")
-                                .font(.system(size: 32))
-                                .foregroundColor(.secondary)
-                            Text("No App Rules Configured")
-                                .font(.headline)
-                            Text("OpenClip works in all applications by default. Click 'Add Application' to configure per-app rules or exclusions.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 30)
-                    } else {
-                        ForEach(ruleEngine.userRules) { rule in
-                            AppRuleRowView(rule: rule) { updatedRule in
-                                RuleEngine.shared.addOrUpdateRule(updatedRule)
-                            } onDelete: {
-                                RuleEngine.shared.removeRule(id: rule.id)
-                            }
+        Form {
+            Section {
+                if ruleEngine.userRules.isEmpty {
+                    ContentUnavailableView {
+                        Label("No App Rules Configured", systemImage: "app.badge.checkmark")
+                    } description: {
+                        Text("OpenClip works in all applications by default. Add an application to configure per-app rules or exclusions.")
+                    } actions: {
+                        Button("Add Application") { showingAppPicker = true }
+                    }
+                    .padding(.vertical, 12)
+                } else {
+                    ForEach(ruleEngine.userRules) { rule in
+                        AppRuleRowView(rule: rule) { updatedRule in
+                            RuleEngine.shared.addOrUpdateRule(updatedRule)
+                        } onDelete: {
+                            RuleEngine.shared.removeRule(id: rule.id)
                         }
                     }
                 }
+            } header: {
+                Text("Application Rules")
+            } footer: {
+                Text("Configure per-app trigger and paste behavior.")
+                    .foregroundStyle(.secondary)
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
         }
-        .padding(12)
+        .formStyle(.grouped)
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    showingAppPicker = true
+                } label: {
+                    Label("Add Application", systemImage: "plus")
+                }
+                .help("Add Application")
+            }
+        }
         .sheet(isPresented: $showingAppPicker) {
             AppPickerSheet { bundleID in
                 let newRule = AppRule(bundleIdentifiers: [bundleID])
