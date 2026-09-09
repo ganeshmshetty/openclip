@@ -261,11 +261,11 @@ final class ResultCardModalTests: XCTestCase {
     /// The card keeps a constant width and resizes height based on text content.
     func testShortResultStillFitsCloseCopyAndPaste() {
         let shortSize = fittingSize(ResultCardPayload(text: "Hi.", isError: false, title: "Proofread"))
-        XCTAssertEqual(shortSize.width, PopupMetrics.aiCardIdealWidth, accuracy: 1.0, "card width stays constant at ideal width")
+        XCTAssertEqual(shortSize.width, PopupMetrics.aiCardMinWidth, accuracy: 1.0, "a short result takes only the minimum width")
 
         let longText = String(repeating: "This is a longer line of text designed to test dynamic height scaling. ", count: 6)
         let longSize = fittingSize(ResultCardPayload(text: longText, isError: false, title: "Proofread"))
-        XCTAssertEqual(longSize.width, PopupMetrics.aiCardIdealWidth, accuracy: 1.0, "long result width stays constant at ideal width")
+        XCTAssertEqual(longSize.width, PopupMetrics.aiCardIdealWidth, accuracy: 1.0, "a long result fills the default maximum width")
         XCTAssertGreaterThan(longSize.height, shortSize.height, "longer content scales card height")
     }
 
@@ -279,7 +279,7 @@ final class ResultCardModalTests: XCTestCase {
     /// Paste button and styles Copy as the primary action.
     func testResultCardWhenPasteIsUnavailable() {
         let size = fittingSize(ResultCardPayload(text: "Hi.", isError: false, title: "Proofread"), canPaste: false)
-        XCTAssertEqual(size.width, PopupMetrics.aiCardIdealWidth, accuracy: 1.0)
+        XCTAssertEqual(size.width, PopupMetrics.aiCardMinWidth, accuracy: 1.0)
         XCTAssertGreaterThan(size.height, 0)
     }
 

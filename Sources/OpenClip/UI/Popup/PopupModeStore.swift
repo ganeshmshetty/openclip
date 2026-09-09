@@ -26,16 +26,22 @@ public final class PopupModeStore: ObservableObject {
     /// The native result card currently shown (only meaningful while `mode == .content`). Any
     /// action whose resolved outcome is text renders here, not just AI presets.
     @Published public var resultCard: ResultCardPayload? = nil
-    /// The result card's user-chosen size: restored from preferences (`SettingKey.resultCardWidth`
-    /// / `resultCardHeight`) when content mode is entered and updated live while a resize handle
-    /// is dragged. `nil` lets the card size itself from its content. Cleared whenever the card
-    /// leaves the screen, so every entry re-reads the preference.
+    /// The most room the result card may take — the user's remembered size, restored from
+    /// preferences (`SettingKey.resultCardWidth` / `resultCardHeight`) when content mode is
+    /// entered and updated live while a resize handle is dragged. The card renders at what its
+    /// text needs up to this; `nil` means the default maximum. Cleared whenever the card leaves
+    /// the screen, so every entry re-reads the preference.
     @Published public var resultCardSize: CGSize? = nil
-    /// The search palette's user-chosen size: restored from preferences
-    /// (`SettingKey.searchPaletteWidth` / `searchPaletteHeight`) when search mode is entered and
-    /// updated live while a resize handle is dragged. `nil` keeps the palette's default column.
-    /// Cleared whenever the palette closes, so every entry re-reads the preference.
+    /// The most room the search palette may take — the user's remembered size, restored from
+    /// preferences (`SettingKey.searchPaletteWidth` / `searchPaletteHeight`) when search mode is
+    /// entered and updated live while a resize handle is dragged. The palette renders at what its
+    /// results need up to this; `nil` means the default column. Cleared whenever the palette
+    /// closes, so every entry re-reads the preference.
     @Published public var searchPaletteSize: CGSize? = nil
+    /// True from a resize handle's `.began` to its `.ended`. While set, the surface being resized
+    /// renders at the dragged size verbatim, so the user sees the maximum they are setting; on
+    /// release it settles to what its content needs within that maximum.
+    @Published public var isResizingSurface: Bool = false
     /// Whether the target app can Paste, probed (AX) when the popup shows. `false` hides the
     /// card's Paste button and the bar/search Paste + Cut actions; `nil` (unknown/probing) and
     /// `true` keep them visible.

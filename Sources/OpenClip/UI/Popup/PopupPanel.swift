@@ -22,6 +22,12 @@ public class PopupPanel: NSPanel {
     /// When true (search mode with results above the field), content-driven growth keeps the
     /// panel's bottom edge fixed and grows upward so the field never shifts.
     public var pinBottomEdgeOnResize: Bool = false
+    /// One-shot companion to `pinBottomEdgeOnResize`: when set, the pin releases itself after the
+    /// first frame change that grows the panel — the palette's entry growth from the bar. Later
+    /// content-driven changes (the palette shrinking as a query narrows the results) then keep the
+    /// top edge, where the search field is, fixed instead of sliding the field around. Cleared by
+    /// `show(for:)`, `exitSearch()` and `hide()`.
+    public var releasesBottomPinAfterGrowth: Bool = false
     /// Height cap `setFrame` applies to every frame request. `PopupMetrics.popupMaxHeight` for the
     /// bar; the controller raises it to the screen height while the result card or the search
     /// palette shows, because a surface the user resized (or one restored at its remembered size)
@@ -197,6 +203,10 @@ public class PopupPanel: NSPanel {
         if sizeChangedOrClamped {
             if pinBottomEdgeOnResize {
                 clamped.origin.y = frame.origin.y
+                if releasesBottomPinAfterGrowth, clamped.height > frame.height {
+                    pinBottomEdgeOnResize = false
+                    releasesBottomPinAfterGrowth = false
+                }
             } else {
                 clamped.origin.y = frame.maxY - clamped.height
             }

@@ -163,21 +163,97 @@ final class SearchPaletteResizeTests: XCTestCase {
         RunLoop.current.run(until: Date().addingTimeInterval(0.3))
 
         XCTAssertEqual(controller.modeStore.searchPaletteSize, CGSize(width: 480, height: 360))
-        XCTAssertEqual(panel.frame.width, 480 + ring, accuracy: 1.0, "placed at the remembered width, not the default column")
-        XCTAssertEqual(panel.frame.height, 360 + ring, accuracy: 1.0, "taller than the shared cap, so the cap was lifted")
+        XCTAssertGreaterThanOrEqual(panel.frame.width, defaultWidth + ring - 1, "never narrower than the default column")
+        XCTAssertLessThanOrEqual(panel.frame.width, 480 + ring + 1, "and never wider than the remembered maximum")
+        XCTAssertLessThanOrEqual(panel.frame.height, 360 + ring + 1, "never taller than the remembered maximum")
+        XCTAssertGreaterThan(panel.heightCap, PopupMetrics.popupMaxHeight, "the shared cap is lifted for it")
+        XCTAssertFalse(panel.pinBottomEdgeOnResize, "a directly opened palette keeps its field (top edge) fixed for later changes")
         let bounds = screen.visibleFrame
         XCTAssertTrue(bounds.insetBy(dx: -1, dy: -1).contains(panel.frame), "a remembered palette must stay on screen: \(panel.frame) vs \(bounds)")
     }
 
+    // MARK: - Anchoring
+
+    /// The palette's entry growth keeps the bottom edge when the popup sits low on screen, but that
+    /// pin is one-shot: once the palette is up, a shrinking result list keeps the field (top edge)
+    /// fixed, and leaving search still returns the bar to its original spot.
+    func testShrinkingPaletteKeepsTheFieldFixedAndTheBarReturnsHome() throws {
+        let controller = makeController()
+        defer { controller.hide() }
+        let panel = try XCTUnwrap(controller.panel)
+        let barFrame = NSRect(x: 100, y: 400, width: 332, height: 61)
+        panel.setFrame(barFrame, display: false)
+        controller.modeStore.searchResultsAbove = true
+
+        controller.enterSearch()
+        XCTAssertTrue(panel.pinBottomEdgeOnResize)
+        XCTAssertTrue(panel.releasesBottomPinAfterGrowth)
+
+        // The hosting view grows the panel to the palette: bottom edge fixed, then the pin lets go.
+        panel.setFrame(NSRect(x: 100, y: 400, width: 332, height: 290), display: false)
+        XCTAssertEqual(panel.frame.minY, barFrame.minY, accuracy: 0.5, "entry growth extends upward from the bar")
+        XCTAssertFalse(panel.pinBottomEdgeOnResize, "the pin is spent after the entry growth")
+        let fieldTop = panel.frame.maxY
+
+        // A query narrows the list: the palette shrinks from the bottom and the field stays put.
+        panel.setFrame(NSRect(x: 100, y: 400, width: 332, height: 200), display: false)
+        XCTAssertEqual(panel.frame.maxY, fieldTop, accuracy: 0.5, "the field must not slide when results shrink")
+        XCTAssertEqual(panel.frame.minY, fieldTop - 200, accuracy: 0.5)
+
+        controller.exitSearch()
+        XCTAssertEqual(panel.frame.minY, barFrame.minY, accuracy: 0.5, "the bar's bottom edge is put back before the collapse pins it")
+        XCTAssertTrue(panel.pinBottomEdgeOnResize, "the collapse keeps that bottom edge")
+        XCTAssertFalse(panel.releasesBottomPinAfterGrowth)
+    }
+
+    func testBottomPinReleasesItselfAfterTheFirstGrowthOnly() {
+        let panel = PopupPanel()
+        panel.setFrame(NSRect(x: 100, y: 100, width: 300, height: 60), display: false)
+        panel.horizontalAnchor = .center
+        panel.pinBottomEdgeOnResize = true
+        panel.releasesBottomPinAfterGrowth = true
+
+        panel.setFrame(NSRect(x: 100, y: 100, width: 300, height: 260), display: false)
+        XCTAssertEqual(panel.frame.minY, 100, accuracy: 0.5)
+        XCTAssertFalse(panel.pinBottomEdgeOnResize)
+        XCTAssertFalse(panel.releasesBottomPinAfterGrowth)
+
+        panel.setFrame(NSRect(x: 100, y: 100, width: 300, height: 160), display: false)
+        XCTAssertEqual(panel.frame.maxY, 360, accuracy: 0.5, "later changes keep the top edge")
+
+        // Without the one-shot flag the pin persists across changes (the result card's behavior).
+        let pinned = PopupPanel()
+        pinned.setFrame(NSRect(x: 100, y: 100, width: 300, height: 60), display: false)
+        pinned.horizontalAnchor = .center
+        pinned.pinBottomEdgeOnResize = true
+        pinned.setFrame(NSRect(x: 100, y: 100, width: 300, height: 260), display: false)
+        pinned.setFrame(NSRect(x: 100, y: 100, width: 300, height: 160), display: false)
+        XCTAssertTrue(pinned.pinBottomEdgeOnResize)
+        XCTAssertEqual(pinned.frame.minY, 100, accuracy: 0.5)
+    }
+
     // MARK: - View
 
-    private func makePalette(preferredSize: CGSize? = nil,
+    private struct StubAction: Action {
+        let id: String
+        let title: String
+        var icon: ActionIcon { .symbol("star") }
+        func isEnabled(for context: ActionContext) -> Bool { true }
+        func perform(_ context: ActionContext) async throws -> ActionResult { .none }
+    }
+
+    private func stubs(_ count: Int, title: (Int) -> String = { "Action \($0)" }) -> [any Action] {
+        (0..<count).map { StubAction(id: "stub.\($0)", title: title($0)) }
+    }
+
+    private func makePalette(catalog: [any Action] = [], maxSize: CGSize? = nil, isResizing: Bool = false,
                              onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in }) -> some View {
         let context = ActionContext(selection: makeContext())
         return PopupSearchView(
-            catalog: [],
+            catalog: catalog,
             context: context,
-            preferredSize: preferredSize,
+            maxSize: maxSize,
+            isResizing: isResizing,
             onResize: onResize,
             onResult: { _ in },
             onExit: {}
@@ -185,16 +261,38 @@ final class SearchPaletteResizeTests: XCTestCase {
         .environment(\.colorScheme, .dark)
     }
 
-    func testPreferredSizeOverridesThePaletteDefaultSize() {
-        let host = NSHostingView(rootView: AnyView(makePalette()))
+    private func fittingSize(catalog: [any Action], maxSize: CGSize? = nil, isResizing: Bool = false) -> CGSize {
+        let host = NSHostingView(rootView: AnyView(makePalette(catalog: catalog, maxSize: maxSize, isResizing: isResizing)))
         host.layoutSubtreeIfNeeded()
-        XCTAssertEqual(host.fittingSize.width, defaultWidth, accuracy: 1.0)
-        XCTAssertEqual(host.fittingSize.height, defaultHeight, accuracy: 1.0)
+        return host.fittingSize
+    }
 
-        let resized = NSHostingView(rootView: AnyView(makePalette(preferredSize: CGSize(width: 480, height: 360))))
-        resized.layoutSubtreeIfNeeded()
-        XCTAssertEqual(resized.fittingSize.width, 480, accuracy: 1.0)
-        XCTAssertEqual(resized.fittingSize.height, 360, accuracy: 1.0)
+    /// The remembered size is a ceiling, not a floor: two results take two rows, a long list stops
+    /// at the maximum and scrolls, and mid-drag the palette is exactly the dragged size.
+    func testRememberedSizeIsAMaximumForThePalette() {
+        let maximum = CGSize(width: 480, height: 360)
+        let two = fittingSize(catalog: stubs(2), maxSize: maximum)
+        XCTAssertEqual(two.height, PopupSearchView.height(forRows: 2), accuracy: 1.0, "two results take two rows, not the maximum")
+        XCTAssertEqual(two.width, defaultWidth, accuracy: 1.0, "short titles keep the default column")
+
+        let twenty = fittingSize(catalog: stubs(20), maxSize: maximum)
+        XCTAssertEqual(twenty.height, 360, accuracy: 1.0, "a long list stops at the maximum and scrolls")
+
+        let dragging = fittingSize(catalog: stubs(2), maxSize: maximum, isResizing: true)
+        XCTAssertEqual(dragging.width, 480, accuracy: 1.0, "mid-drag the palette shows the size being set")
+        XCTAssertEqual(dragging.height, 360, accuracy: 1.0)
+
+        XCTAssertEqual(fittingSize(catalog: stubs(20)).height, defaultHeight, accuracy: 1.0, "without a remembered size the default column is the maximum")
+        XCTAssertEqual(fittingSize(catalog: stubs(2)).height, PopupSearchView.height(forRows: 2), accuracy: 1.0)
+        XCTAssertEqual(fittingSize(catalog: []).height, PopupMetrics.searchPaletteMinHeight, accuracy: 1.0, "the empty state keeps the minimum")
+    }
+
+    func testLongTitlesWidenThePaletteOnlyUpToTheMaximum() {
+        let long = stubs(3) { "Translate the selection into Simplified Chinese and explain the idioms \($0)" }
+        let widened = fittingSize(catalog: long, maxSize: CGSize(width: 480, height: 360))
+        XCTAssertGreaterThan(widened.width, defaultWidth, "a long title gets the room it needs")
+        XCTAssertLessThanOrEqual(widened.width, 480.5, "but never more than the maximum")
+        XCTAssertEqual(fittingSize(catalog: long).width, defaultWidth, accuracy: 1.0, "the default column is the maximum without a remembered size")
     }
 
     /// The corner grip must actually receive the drag through SwiftUI's gesture system, with the

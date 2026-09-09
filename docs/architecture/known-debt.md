@@ -125,9 +125,11 @@ areas; stale debt notes are worse than none.
   `onPreferenceChange`/`onContentSizeChange` never fires for this and `sizingOptions` has no effect.
   The only reliable hook is `PopupPanel.setFrame` (`PopupPanel.swift:42`): when
   `pinBottomEdgeOnResize` is set it keeps the bottom edge fixed so results-above-the-field growth
-  never shoves the popup. The pin stays active through the search→bar collapse (Esc no longer jumps
-  the popup) and is cleared by `show(for:)` (`PopupWindowController.swift:69`) and `hide()`
-  (`:464`) before intentional placement.
+  never shoves the popup. For the search palette the pin is one-shot
+  (`releasesBottomPinAfterGrowth`): it covers the entry growth only, so the palette's height can
+  follow the result count without sliding the field; `exitSearch()` re-arms it for the search→bar
+  collapse after restoring the bar's bottom edge (Esc no longer jumps the popup). Both flags are
+  cleared by `show(for:)` and `hide()` before intentional placement.
 - **Search and content modes are the two key exceptions to the never-key rule.** `PopupPanel.allowsKey`
   enables `canBecomeKey`/`canBecomeMain` in both modes (`PopupPanel.swift:19`), routed through the
   same `enterKeyMode()`/`exitKeyMode()` primitives (`PopupWindowController.swift:196,206`). A

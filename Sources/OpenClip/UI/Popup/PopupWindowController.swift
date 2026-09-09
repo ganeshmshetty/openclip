@@ -220,8 +220,10 @@ public class PopupWindowController {
         // A fresh show is an intentional placement: never re-anchor it (stale search-mode pinning
         // must not correct the new frame). enterSearch() re-enables pinning for growth.
         panel.pinBottomEdgeOnResize = false
+        panel.releasesBottomPinAfterGrowth = false
         panel.horizontalAnchor = .none
         modeStore.resultCardSize = nil
+        modeStore.isResizingSurface = false
         preSearchFrame = nil
         openedDirectlyInSearch = (initialMode == .search)
 
@@ -356,8 +358,10 @@ public class PopupWindowController {
         // pagination) must re-center rather than drift off the cursor.
         panel.horizontalAnchor = .center
         // Content-driven growth keeps the panel's bottom edge fixed when the popup sits low on
-        // screen — same anchor rule as search/content mode.
-        panel.pinBottomEdgeOnResize = cardAbove
+        // screen — same anchor rule as search/content mode. A palette opened directly is already
+        // placed at its size; its later changes (the list shrinking as a query narrows) must keep
+        // the field at the top fixed, so it is not pinned.
+        panel.pinBottomEdgeOnResize = initialMode == .search ? false : cardAbove
         panel.orderFront(nil)
         
         setupMonitors()
@@ -441,16 +445,20 @@ public class PopupWindowController {
             modeStore.scope = scope
         }
         if modeStore.mode != .search {
-            // Fresh entry (not a scope hop): the palette opens at its remembered size, which may
-            // be taller than the shared bar/palette cap.
+            // Fresh entry (not a scope hop): the palette may open as tall as its remembered
+            // maximum, which can exceed the shared bar/palette cap.
             modeStore.searchPaletteSize = rememberedSize(for: .palette, in: screenBounds(for: panel))
             panel.heightCap = screenBounds(for: panel).height
+            // The entry growth keeps the panel's bottom edge fixed when the popup sits low on screen
+            // (the palette must extend upward to stay on it); see PopupPanel.setFrame. That pin is
+            // one-shot: once the palette is up, its height follows the result count, and the field
+            // at its top must stay put — later changes anchor the top edge. A scope hop is not a
+            // fresh entry and leaves the anchoring alone.
+            panel.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+            panel.releasesBottomPinAfterGrowth = modeStore.searchResultsAbove
         }
         modeStore.mode = .search
         PaletteRowShortcuts.setActive(true)
-        // Content-driven growth keeps the panel's bottom edge fixed (results render above the field,
-        // so growth must extend upward); see PopupPanel.setFrame.
-        panel.pinBottomEdgeOnResize = modeStore.searchResultsAbove
 
         if let buttonLocalFrame {
             panel.horizontalAnchor = .none
@@ -542,9 +550,15 @@ public class PopupWindowController {
         // (strip renders above the bar when the popup sits low), so set it explicitly rather than
         // leaving the search-mode value behind. Cleared by show()/hide() before placement.
         panel?.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+        panel?.releasesBottomPinAfterGrowth = false
         if let preSearchFrame, let panel {
             panel.horizontalAnchor = .none
-            panel.setFrame(CGRect(x: preSearchFrame.origin.x, y: panel.frame.origin.y, width: preSearchFrame.width, height: panel.frame.height), display: false)
+            // The collapse keeps the bottom edge (results above) or the top edge (results below).
+            // The top never moves during a session, but a palette whose height followed the result
+            // count moved its bottom edge — put it back on the bar's original bottom first, so the
+            // bar lands exactly where it was.
+            let restoredY = modeStore.searchResultsAbove ? preSearchFrame.minY : panel.frame.minY
+            panel.setFrame(CGRect(x: preSearchFrame.origin.x, y: restoredY, width: preSearchFrame.width, height: panel.frame.height), display: false)
             panel.horizontalAnchor = .center
         }
         preSearchFrame = nil
@@ -613,26 +627,26 @@ public class PopupWindowController {
         // Tell the hosting view its intrinsic content size has changed so AppKit
         // re-measures on the next display cycle (the mode change schedules a SwiftUI
         // re-evaluation, but NSHostingView won't re-measure without this nudge).
-        fitPanelToCard()
+        fitPanelToContent()
         // Retry after the current AppKit display cycle completes — DispatchQueue.main.async
         // fires after the run-loop turn, unlike Task.yield() which only yields in the
         // cooperative pool without guaranteeing a display pass.
         DispatchQueue.main.async { [weak self] in
-            self?.fitPanelToCard()
+            self?.fitPanelToContent()
         }
         // Safety-net retry for the first content-mode entry where SwiftUI swaps
         // the entire view tree (bar → ResultCardView) and needs an extra
         // layout pass to settle.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             guard let self, self.modeStore.mode == .content else { return }
-            self.fitPanelToCard()
+            self.fitPanelToContent()
         }
     }
 
-    /// Re-measures the hosting view and grows/shrinks the panel to the card, then nudges the panel
-    /// back inside the screen: a card opening at a remembered size can be far taller than the bar
-    /// it replaces, so the anchored growth may otherwise run off the top or bottom screen edge.
-    private func fitPanelToCard() {
+    /// Re-measures the hosting view and grows/shrinks the panel to its content, then nudges the
+    /// panel back inside the screen: a card opening at a remembered size can be far taller than
+    /// the bar it replaces, so the anchored growth may otherwise run off a screen edge.
+    private func fitPanelToContent() {
         guard let contentView = panel?.contentView else { return }
         contentView.invalidateIntrinsicContentSize()
         contentView.layoutSubtreeIfNeeded()
@@ -775,7 +789,12 @@ public class PopupWindowController {
             // re-centering nor bottom-pinning fighting the top-left-anchored frames set below.
             panel.prepareForUserDrag()
             panel.pinBottomEdgeOnResize = false
-            resizeAnchor = (mouse: mouse, size: liveSize(for: surface) ?? currentSurfaceSize(in: panel), surface: surface)
+            panel.releasesBottomPinAfterGrowth = false
+            // The drag starts from the size on screen — smaller than the remembered maximum when
+            // the content did not need all of it — so the handle stays under the pointer. While it
+            // lasts, the surface renders the dragged size verbatim.
+            modeStore.isResizingSurface = true
+            resizeAnchor = (mouse: mouse, size: currentSurfaceSize(in: panel), surface: surface)
         case .changed:
             guard let anchor = resizeAnchor, anchor.surface == surface else { return }
             let proposed = PopupResizeGeometry.size(
@@ -790,10 +809,14 @@ public class PopupWindowController {
             guard let anchor = resizeAnchor, anchor.surface == surface else { return }
             resizeAnchor = nil
             panel.endUserDrag()
+            modeStore.isResizingSurface = false
             if let size = liveSize(for: surface) {
                 settingsStore.set(surface.widthKey, value: Double(size.width))
                 settingsStore.set(surface.heightKey, value: Double(size.height))
             }
+            // The dragged size is the new maximum; the surface now settles to what its content
+            // needs within it, and the panel follows (top-left anchored: the pin is off).
+            fitPanelToContent()
         }
     }
 
@@ -852,11 +875,11 @@ public class PopupWindowController {
 
     // MARK: - Panel Resize
 
-    /// Resize the bar/search panel, keeping the field's edge fixed so entering search mode never
-    /// jumps the popup. With results below the field the field is at the palette top (anchor the top
-    /// edge, grow down); with results above the field the field is at the palette bottom (anchor the
-    /// bottom edge, grow up). Horizontal re-centering and screen/height clamping are handled by
-    /// `PopupPanel.setFrame`, which is the single funnel the hosting view's auto-resize also uses.
+    /// Resize the panel to its content, anchored the same way `PopupPanel.setFrame` anchors the
+    /// hosting view's own resizes: a resize drag in flight keeps the surface's top-left corner;
+    /// otherwise the panel's live bottom-edge pin decides (pinned when the popup sits low on screen,
+    /// so growth extends upward; else the top edge stays). Horizontal re-centering and screen/height
+    /// clamping are handled by `PopupPanel.setFrame`, the single funnel both paths go through.
     private func resizePanel(to proposedSize: CGSize) {
         guard let panel, panel.isVisible else { return }
         let size = sanitizedPopupSize(proposedSize)
@@ -866,12 +889,12 @@ public class PopupWindowController {
             // A resize handle is being dragged: the surface's top-left corner is the fixed point.
             panel.setFrame(CGRect(x: panel.frame.minX, y: panel.frame.maxY - size.height,
                                   width: size.width, height: size.height), display: true)
-        } else if modeStore.searchResultsAbove {
-            // Field at the palette bottom: keep the bottom edge fixed, grow upward.
+        } else if panel.pinBottomEdgeOnResize {
+            // Bottom edge pinned (popup low on screen): keep it fixed, grow upward.
             panel.setFrame(CGRect(x: panel.frame.minX, y: panel.frame.minY,
                                   width: size.width, height: size.height), display: true)
         } else {
-            // Field at the palette top: keep the top edge fixed, grow downward.
+            // Keep the top edge fixed, grow downward.
             let newOriginY = panel.frame.maxY - size.height
             panel.setFrame(CGRect(x: panel.frame.minX, y: newOriginY,
                                   width: size.width, height: size.height), display: true)
@@ -917,6 +940,7 @@ public class PopupWindowController {
         modeStore.resultCard = nil
         modeStore.resultCardSize = nil
         modeStore.searchPaletteSize = nil
+        modeStore.isResizingSurface = false
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
         // runs and any later snapshot read the last intent; force-copy must never persist). The
@@ -934,6 +958,7 @@ public class PopupWindowController {
         modeStore.activeSubGroupID = nil
         modeStore.scope = nil
         panel?.pinBottomEdgeOnResize = false
+        panel?.releasesBottomPinAfterGrowth = false
         panel?.horizontalAnchor = .none
         panel?.heightCap = PopupMetrics.popupMaxHeight
         panel?.endUserDrag()

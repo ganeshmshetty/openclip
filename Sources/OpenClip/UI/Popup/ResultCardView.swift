@@ -16,8 +16,9 @@
 // DragGesture reported to PopupWindowController.handleCardDrag) so it can be moved out of the way
 // of the text underneath. Its right edge, bottom edge and bottom-right grip are resize handles
 // (`PopupResizeHandles`, reported the same way to PopupWindowController.handleResize); the size
-// they settle on is remembered and, passed back in as `preferredSize`, replaces the
-// content-driven size next time.
+// they settle on is remembered and, passed back in as `maxSize`, caps the content-driven size
+// next time: a short answer still gets a small card, a long one grows up to the maximum and
+// scrolls beyond it.
 import SwiftUI
 import AppKit
 import Core
@@ -53,9 +54,13 @@ public struct ResultCardView: View {
     public let onCopy: @MainActor () -> Void
     /// Reports a drag of the header handle so the owner can move the panel.
     public let onDrag: @MainActor (ResultCardDragPhase) -> Void
-    /// The size to render at — the user's remembered or in-progress resize. `nil` sizes the card
-    /// from its content (`aiCardIdealWidth` wide, height between the min and max card height).
-    public let preferredSize: CGSize?
+    /// The most room the card may take — the user's remembered or in-progress resize. The card
+    /// renders at what its text needs, floored at `aiCardMinWidth` × `aiCardMinHeight` and capped
+    /// here; `nil` caps at the defaults (`aiCardIdealWidth` × `aiCardMaxHeight`).
+    public let maxSize: CGSize?
+    /// True while a resize handle is being dragged: the card then renders at `maxSize` verbatim so
+    /// the user sees the size they are setting, instead of the content-fitted size.
+    public let isResizing: Bool
     /// Reports a drag of one of the resize handles so the owner can resize the panel and remember
     /// the size. Phases mirror `onDrag`; `.began` is reported exactly once per drag.
     public let onResize: @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void
@@ -82,7 +87,8 @@ public struct ResultCardView: View {
     public init(
         payload: ResultCardPayload,
         canPaste: Bool? = nil,
-        preferredSize: CGSize? = nil,
+        maxSize: CGSize? = nil,
+        isResizing: Bool = false,
         onExit: @escaping @MainActor () -> Void,
         onDismiss: (@MainActor () -> Void)? = nil,
         onPaste: @escaping @MainActor () -> Void,
@@ -92,7 +98,8 @@ public struct ResultCardView: View {
     ) {
         self.payload = payload
         self.canPaste = canPaste
-        self.preferredSize = preferredSize
+        self.maxSize = maxSize
+        self.isResizing = isResizing
         self.onExit = onExit
         self.onDismiss = onDismiss ?? onExit
         self.onPaste = onPaste
@@ -422,8 +429,40 @@ public struct ResultCardView: View {
         return payload.text
     }
 
+    private static let horizontalTextInset: CGFloat = 16.0
+    private static let bodyFont = NSFont.systemFont(ofSize: 13.5, weight: .regular)
+    private static let bodyParagraphStyle: NSParagraphStyle = {
+        let style = NSMutableParagraphStyle()
+        style.lineSpacing = 3.5
+        return style
+    }()
+
+    private var maxCardWidth: CGFloat { maxSize?.width ?? PopupMetrics.aiCardIdealWidth }
+    private var maxCardHeight: CGFloat { maxSize?.height ?? PopupMetrics.aiCardMaxHeight }
+
+    /// The width the body would take unwrapped — its longest line plus the text insets — so a
+    /// short answer gets a narrow card and a long one fills the maximum.
+    private var naturalTextWidth: CGFloat {
+        let textToMeasure = measuredText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !textToMeasure.isEmpty else { return 0 }
+        let rect = (textToMeasure as NSString).boundingRect(
+            with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
+        )
+        // A point of slack so SwiftUI's own line breaking never wraps the measured line.
+        return ceil(rect.width) + 2 * Self.horizontalTextInset + 1
+    }
+
+    /// The card is as wide as its text needs, never narrower than the minimum and never wider
+    /// than the maximum; mid-resize it is exactly the dragged size.
     private var dynamicCardWidth: CGFloat {
-        preferredSize?.width ?? PopupMetrics.aiCardIdealWidth
+        if isResizing, let maxSize { return maxSize.width }
+        return Self.bounded(naturalTextWidth, min: PopupMetrics.aiCardMinWidth, max: maxCardWidth)
+    }
+
+    private static func bounded(_ value: CGFloat, min minimum: CGFloat, max maximum: CGFloat) -> CGFloat {
+        min(max(value, minimum), max(maximum, minimum))
     }
 
     private static let headerHeight: CGFloat = 32.0
@@ -432,27 +471,24 @@ public struct ResultCardView: View {
     private static let topInset: CGFloat = headerTopPadding + headerHeight + gapAfterHeader
     private static let bottomInset: CGFloat = 42.0
 
+    /// The height the body needs when wrapped at the card's actual width.
     private var naturalContentHeight: CGFloat {
         let textToMeasure = measuredText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToMeasure.isEmpty else { return PopupMetrics.aiCardMinHeight }
-        let availableWidth = PopupMetrics.aiCardIdealWidth - 32
-        let font = NSFont.systemFont(ofSize: 13.5, weight: .regular)
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = 3.5
+        let availableWidth = dynamicCardWidth - 2 * Self.horizontalTextInset
         let rect = (textToMeasure as NSString).boundingRect(
             with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [
-                .font: font,
-                .paragraphStyle: paragraphStyle
-            ]
+            attributes: [.font: Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
         )
         return ceil(rect.height) + Self.topInset + Self.bottomInset
     }
 
+    /// The card is as tall as its text needs, never shorter than the minimum and never taller
+    /// than the maximum (beyond which the body scrolls); mid-resize it is exactly the dragged size.
     private var dynamicCardHeight: CGFloat {
-        if let preferredSize { return preferredSize.height }
-        return min(max(naturalContentHeight, PopupMetrics.aiCardMinHeight), PopupMetrics.aiCardMaxHeight)
+        if isResizing, let maxSize { return maxSize.height }
+        return Self.bounded(naturalContentHeight, min: PopupMetrics.aiCardMinHeight, max: maxCardHeight)
     }
 
     // MARK: - Body
@@ -465,7 +501,7 @@ public struct ResultCardView: View {
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .textSelection(.enabled)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, Self.horizontalTextInset)
                 .padding(.top, Self.topInset)
                 .padding(.bottom, Self.bottomInset)
         }

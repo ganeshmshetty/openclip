@@ -130,14 +130,19 @@ that replaced the former interactive canvas.
   the new size from the **absolute** cursor position against the anchor taken at `began`
   (`PopupResizeGeometry.size`), clamps it to `aiCardMinWidth`/`aiCardMinHeight` and to the screen
   (`PopupResizeGeometry.clamp`, the panel's top-left corner is the fixed point), publishes it as
-  `modeStore.resultCardSize` (the card renders it as `preferredSize`, overriding the
-  content-driven size) and sets the panel frame to card + shadow ring with the top-left fixed. On
+  `modeStore.resultCardSize` and sets the panel frame to card + shadow ring with the top-left
+  fixed. The size is a **maximum**, not a fixed size: the card renders at what its text needs —
+  as wide as its longest unwrapped line, as tall as that wrapped text — floored at
+  `aiCardMinWidth` × `aiCardMinHeight` and capped by `maxSize` (the remembered size, or
+  `aiCardIdealWidth` × `aiCardMaxHeight` by default), scrolling beyond it. While a handle is
+  dragged (`modeStore.isResizingSurface`) the card renders the dragged size verbatim so the user
+  sees the maximum they are setting; on `ended` it settles and `fitPanelToContent()` follows. On
   `ended` the size is written to `SettingKey.resultCardWidth`/`resultCardHeight`
   (`Sources/OpenClip/Settings/SettingKey+ResultCard.swift`); every entry into content mode
   (`showResultCard`) reads it back, fitted to the current screen (`PopupResizeGeometry.fit`), and
   clears it again on `exitContent()`/`hide()`. Because a remembered card can be taller than the
   shared `popupMaxHeight`, content mode raises `PopupPanel.heightCap` to the screen height
-  (restored on exit) and `fitPanelToCard()` nudges an automatically placed panel back on-screen
+  (restored on exit) and `fitPanelToContent()` nudges an automatically placed panel back on-screen
   after each fit. Resizing does not pin the card (`hasUserMovedCard` stays false) but, like a
   move, it drops the horizontal re-centering anchor. `ResultCardResizeTests` covers the geometry,
   the persistence round-trip and that the grip's gesture is actually delivered.
@@ -239,15 +244,23 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
   (`searchPaletteMinWidth` 240 / `searchPaletteMinHeight` 128) and its own keys
   (`SettingKey.searchPaletteWidth`/`searchPaletteHeight`,
   `Sources/OpenClip/Settings/SettingKey+SearchPalette.swift`). The live size is
-  `modeStore.searchPaletteSize`, rendered by `PopupSearchView` as `preferredSize` in place of the
-  default `searchPanelContentWidth` × `defaultHeight` column; a remembered palette is a fixed size
-  (the result count never changes it, exactly like the default). It is restored on both entry
-  paths — `enterSearch()` (fresh entry only, not a scope hop; the palette is then placed with its
+  `modeStore.searchPaletteSize`, rendered by `PopupSearchView` as `maxSize` — a **maximum**: the
+  palette is as tall as its current results need (`PopupSearchView.height(forRows:)`, floored at
+  `searchPaletteMinHeight`) and as wide as the default column or its widest row
+  (`naturalRowWidth(for:)`, measured once per result set), each capped by the remembered size, or
+  by the default `searchPanelContentWidth` × `defaultHeight` column when nothing is remembered.
+  Mid-drag it renders the dragged size verbatim (`modeStore.isResizingSurface`). Because the
+  height now follows the result count, the entry growth's bottom-edge pin is **one-shot**
+  (`PopupPanel.releasesBottomPinAfterGrowth`, armed by `enterSearch()` on a fresh entry only):
+  later changes keep the field at the palette top fixed, a directly opened palette is never
+  pinned, and `exitSearch()` puts the bottom edge back on the bar's original spot
+  (`preSearchFrame.minY`) before the collapse pins it. The size is restored on both entry paths —
+  `enterSearch()` (fresh entry only, not a scope hop; the palette is then placed with its
   remembered width) and `show(for:initialMode: .search)` (before the view is built, so the first
-  frame is already the right size) — both of which also raise `PopupPanel.heightCap` to the screen
-  height and schedule `keepPanelOnScreen()` after the hosting view's growth; `exitSearch()` clears
-  the live size and restores the cap *after* its own frame restore, so a tall palette is not
-  clamped mid-collapse. `SearchPaletteResizeTests` pins this.
+  frame is already right) — both of which also raise `PopupPanel.heightCap` to the screen height
+  and schedule `keepPanelOnScreen()` after the hosting view's growth; `exitSearch()` clears the
+  live size and restores the cap *after* its own frame restore, so a tall palette is not clamped
+  mid-collapse. `SearchPaletteResizeTests` pins all of this.
 - **Placement is the same for both entry points.** A palette opened directly by the hotkey
   (`show(for:initialMode:.search)`) goes through `PopupPositioner.calculateFrame` /
   `positionPanel` exactly like the bar the mouse opens: anchored on the selection, honoring the
@@ -301,9 +314,13 @@ The `NSHostingView` auto-resizes the panel **top-anchored** when its SwiftUI con
 2. **`PopupPanel.setFrame`** (`PopupPanel.swift:42`) intercepts *every* resize the hosting view
    performs on its own and, when `pinBottomEdgeOnResize` is set, pins the bottom edge before the
    frame displays — so the auto-resize for results-above growth doesn't shove the popup off the
-   cursor. The pin is set when entering search or content mode (when `searchResultsAbove`) and **stays
-   active through the search→bar collapse**, so the bar returns to the field's spot (Esc no longer
-   jumps the popup); `show(for:)` and `hide()` clear it before intentional placement.
+   cursor. The pin is set when entering search or content mode (when `searchResultsAbove`). For
+   search it is armed together with `releasesBottomPinAfterGrowth`, so it spends itself on the
+   entry growth: the palette's height then follows the result count, and those later changes keep
+   the top edge (the field) fixed. `exitSearch()` re-arms the plain pin **for the search→bar
+   collapse** after putting the bottom edge back on the bar's original spot, so the bar returns
+   there (Esc no longer jumps the popup); `show(for:)` and `hide()` clear both before intentional
+   placement.
 3. **Horizontal re-centering** lives with the y-pin in `PopupPanel.setFrame`, not the controller:
    while `recenterXOnResize` is set (armed by `show(for:)` right after placement, cleared before a
    fresh placement), a width change keeps the panel centered on its current `midX` instead of the

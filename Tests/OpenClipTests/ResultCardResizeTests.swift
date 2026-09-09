@@ -238,18 +238,47 @@ final class ResultCardResizeTests: XCTestCase {
 
     // MARK: - View
 
-    /// A remembered size wins over the content-driven measurement in both dimensions.
-    func testPreferredSizeOverridesTheContentDrivenSize() {
+    private func fittingSize(_ payload: ResultCardPayload, maxSize: CGSize? = nil, isResizing: Bool = false) -> CGSize {
         let card = ResultCardView(
-            payload: ResultCardPayload(text: "Hi.", isError: false, title: "Proofread"),
-            canPaste: true,
-            preferredSize: CGSize(width: 500, height: 420),
+            payload: payload, canPaste: true, maxSize: maxSize, isResizing: isResizing,
             onExit: {}, onPaste: {}, onCopy: {}
         ).environment(\.colorScheme, .dark)
         let host = NSHostingView(rootView: AnyView(card))
         host.layoutSubtreeIfNeeded()
-        XCTAssertEqual(host.fittingSize.width, 500, accuracy: 1.0)
-        XCTAssertEqual(host.fittingSize.height, 420, accuracy: 1.0)
+        return host.fittingSize
+    }
+
+    /// The remembered size is a ceiling, not a floor: a short answer keeps a small card, a long one
+    /// fills the maximum and scrolls beyond it, and mid-drag the card is exactly the dragged size.
+    func testRememberedSizeIsAMaximumNotAMinimum() {
+        let short = ResultCardPayload(text: "Hi.", isError: false, title: "Proofread")
+        let long = ResultCardPayload(text: String(repeating: "A fairly long sentence that keeps on going. ", count: 40), isError: false, title: "Proofread")
+        let maximum = CGSize(width: 500, height: 420)
+
+        let shortSize = fittingSize(short, maxSize: maximum)
+        XCTAssertEqual(shortSize.width, PopupMetrics.aiCardMinWidth, accuracy: 1.0, "a short answer does not stretch to the maximum")
+        XCTAssertEqual(shortSize.height, PopupMetrics.aiCardMinHeight, accuracy: 1.0)
+
+        let longSize = fittingSize(long, maxSize: maximum)
+        XCTAssertEqual(longSize.width, 500, accuracy: 1.0, "a long answer fills the maximum width")
+        XCTAssertEqual(longSize.height, 420, accuracy: 1.0, "and stops at the maximum height, where the body scrolls")
+
+        let dragging = fittingSize(short, maxSize: maximum, isResizing: true)
+        XCTAssertEqual(dragging.width, 500, accuracy: 1.0, "mid-drag the card shows the size being set")
+        XCTAssertEqual(dragging.height, 420, accuracy: 1.0)
+
+        let defaultLong = fittingSize(long)
+        XCTAssertEqual(defaultLong.width, PopupMetrics.aiCardIdealWidth, accuracy: 1.0, "without a remembered size the defaults are the maximum")
+        XCTAssertEqual(defaultLong.height, PopupMetrics.aiCardMaxHeight, accuracy: 1.0)
+    }
+
+    /// A medium answer sits between the floor and the maximum: exactly what its text needs.
+    func testCardGrowsWithItsTextUpToTheMaximum() {
+        let medium = ResultCardPayload(text: "A sentence that is somewhat longer than the minimum width allows for.", isError: false, title: "Proofread")
+        let size = fittingSize(medium, maxSize: CGSize(width: 600, height: 500))
+        XCTAssertGreaterThan(size.width, PopupMetrics.aiCardMinWidth)
+        XCTAssertLessThan(size.width, 600)
+        XCTAssertEqual(size.height, PopupMetrics.aiCardMinHeight, accuracy: 1.0, "one line never needs more than the minimum height")
     }
 
     /// The corner grip must actually receive the drag through SwiftUI's gesture system (the same
