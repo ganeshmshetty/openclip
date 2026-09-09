@@ -75,23 +75,35 @@ struct ActionsTab: View {
 
 // MARK: - Action Row View
 
+/// The trailing controls an Actions-tab row exposes besides its enable toggle. Rows opt out per
+/// control rather than all-or-nothing: an extension sub-action is removed with its package, so it
+/// never gets the delete control, but it still needs the settings cog when the command declares
+/// options (`OutlineNode.rowControls` makes that call).
+struct ActionRowControls: OptionSet, Sendable {
+    let rawValue: Int
+
+    static let delete = ActionRowControls(rawValue: 1 << 0)
+    static let settings = ActionRowControls(rawValue: 1 << 1)
+    static let all: ActionRowControls = [.delete, .settings]
+}
+
 @MainActor
 struct ActionRowView: View {
     let action: any Action
     let presentationModel: ActionPresentationModel
     let isEnabled: Binding<Bool>
-    let showsControls: Bool
+    let controls: ActionRowControls
 
     init(
         action: any Action,
         presentationModel: ActionPresentationModel,
         isEnabled: Binding<Bool>,
-        showsControls: Bool = true
+        controls: ActionRowControls = .all
     ) {
         self.action = action
         self.presentationModel = presentationModel
         self.isEnabled = isEnabled
-        self.showsControls = showsControls
+        self.controls = controls
     }
 
     private var isAI: Bool {
@@ -146,7 +158,7 @@ struct ActionRowView: View {
             HStack(alignment: .center, spacing: 8) {
                 // Delete: only for custom actions, extension packages, or custom groups (builtins cannot be uninstalled)
                 let canDelete: Bool = {
-                    if !showsControls { return false }
+                    if !controls.contains(.delete) { return false }
                     if action.chrome.rowStyle == .actionGroup { return true }
                     switch action.chrome.source {
                     case .custom, .extensionPkg: return true
@@ -203,7 +215,7 @@ struct ActionRowView: View {
                 }
 
                 // Settings
-                if showsControls {
+                if controls.contains(.settings) {
                     Button(action: {
                         openConfigPopover()
                     }) {
