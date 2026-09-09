@@ -18,6 +18,10 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 - **JavaScript Fetch Lifetime**: A network response that arrives after an async JS action has
   finished, timed out, or been cancelled is now discarded instead of being delivered into the
   finished action's JavaScript context ([#40](https://github.com/ganeshmshetty/openclip/issues/40)).
+- **Script Output No Longer Truncated**: Shell, script-file, AppleScript and Shortcut actions could
+  return truncated or empty output when a script produced a lot of output or backgrounded a worker
+  that inherited the pipe. The runner now drains both pipes before it reads them, so an action no
+  longer silently loses the text it was supposed to paste.
 - **Extension Module Containment**: `require()` in JS extension packages now re-checks the package boundary on the final symlink-resolved file, so a symlinked `<name>.js` or `index.js` can no longer read files outside the package ([#39](https://github.com/ganeshmshetty/openclip/issues/39)).
 
 ---

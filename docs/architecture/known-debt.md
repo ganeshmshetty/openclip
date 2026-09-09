@@ -62,7 +62,10 @@ areas; stale debt notes are worse than none.
   `NSAppleScript` in-process anymore. Since the hang fix, the watchdog is a **GCD timer** (immune
   to Swift-concurrency-pool starvation) and pipe output is read via GCD `readabilityHandler` (never
   a blocking `readToEnd()`, so a stuck child can't permanently consume a cooperative thread), with
-  stdin seeded and closed synchronously so a script reading stdin always sees EOF.
+  stdin seeded and closed synchronously so a script reading stdin always sees EOF. Both pipe
+  accumulators are drained **before** their buffers are read: `waitUntilExit()` returns when the
+  direct child exits, so the readability handler can still be behind (or never have run), and the
+  bounded drain is what guarantees the output is complete.
 - **Delivery is resolved by `ActionResultDelivery`, not per-runtime translation.** Runtimes
   (`OpenClipJSHost.run`, `ShellResultMapper`, kind actions) return only raw results; implicitly
   returned text (JS string return, AppleScript output, shell stdout, text snippets) is emitted as
