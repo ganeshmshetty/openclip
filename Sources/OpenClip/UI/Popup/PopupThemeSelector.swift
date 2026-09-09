@@ -112,49 +112,41 @@ struct PopupThemeSelector: View {
     var body: some View {
         Form {
             Section {
-                Picker(selection: themeSelection) {
-                    ForEach(themeOptions) { option in
-                        Text(LocalizedStringKey(option.label)).tag(option.value)
-                    }
-                } label: {
-                    SettingsRowLabel(title: "Popup Theme", systemImage: "paintbrush.fill")
+                SettingsRow(title: "Popup Theme", systemImage: "paintbrush.fill") {
+                    segmentedPicker(
+                        selection: themeSelection,
+                        options: themeOptions,
+                        label: "Popup Theme",
+                        width: 150
+                    )
                 }
-                .pickerStyle(.segmented)
 
-                Picker(selection: $themeColor) {
-                    ForEach(appearanceOptions) { option in
-                        Image(systemName: option.icon)
-                            .help(LocalizedStringKey(option.label))
-                            .accessibilityLabel(LocalizedStringKey(option.label))
-                            .tag(option.value)
-                    }
-                } label: {
-                    SettingsRowLabel(title: "Color Mode", systemImage: "circle.lefthalf.filled")
+                SettingsRow(title: "Color Mode", systemImage: "circle.lefthalf.filled") {
+                    iconPicker(
+                        selection: $themeColor,
+                        options: appearanceOptions,
+                        label: "Color Mode"
+                    )
                 }
-                .pickerStyle(.segmented)
 
-                Picker(selection: $popupAlignment) {
-                    ForEach(alignmentOptions) { option in
-                        Image(systemName: option.icon)
-                            .help(LocalizedStringKey(option.label))
-                            .accessibilityLabel(LocalizedStringKey(option.label))
-                            .tag(option.value)
-                    }
-                } label: {
-                    SettingsRowLabel(title: "Horizontal Position", systemImage: "text.alignleft")
+                SettingsRow(title: "Horizontal Position", systemImage: "text.alignleft") {
+                    iconPicker(
+                        selection: $popupAlignment,
+                        options: alignmentOptions,
+                        label: "Horizontal Position"
+                    )
                 }
-                .pickerStyle(.segmented)
 
-                Picker(selection: $popupVerticalPosition) {
-                    ForEach(verticalPositionOptions) { option in
-                        Text(LocalizedStringKey(option.label)).tag(option.value)
-                    }
-                } label: {
-                    SettingsRowLabel(title: "Vertical Position", systemImage: "arrow.up.and.down")
+                SettingsRow(title: "Vertical Position", systemImage: "arrow.up.and.down") {
+                    segmentedPicker(
+                        selection: $popupVerticalPosition,
+                        options: verticalPositionOptions,
+                        label: "Vertical Position",
+                        width: 200
+                    )
                 }
-                .pickerStyle(.segmented)
 
-                LabeledContent {
+                SettingsRow(title: "Popup Scale", systemImage: "arrow.up.left.and.arrow.down.right") {
                     stepSlider(
                         value: Binding(
                             get: { popupScale },
@@ -162,14 +154,9 @@ struct PopupThemeSelector: View {
                         ),
                         accessibilityLabel: "Popup Scale"
                     )
-                } label: {
-                    SettingsRowLabel(
-                        title: "Popup Scale",
-                        systemImage: "arrow.up.left.and.arrow.down.right"
-                    )
                 }
 
-                LabeledContent {
+                SettingsRow(title: "Popup Width", systemImage: "arrow.left.and.right") {
                     stepSlider(
                         value: Binding(
                             get: { barWidthLevel },
@@ -177,8 +164,6 @@ struct PopupThemeSelector: View {
                         ),
                         accessibilityLabel: "Popup Width"
                     )
-                } label: {
-                    SettingsRowLabel(title: "Popup Width", systemImage: "arrow.left.and.right")
                 }
             } footer: {
                 HStack {
@@ -192,6 +177,42 @@ struct PopupThemeSelector: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func segmentedPicker(
+        selection: Binding<String>,
+        options: [AppearanceOption],
+        label: LocalizedStringKey,
+        width: CGFloat
+    ) -> some View {
+        Picker("", selection: selection) {
+            ForEach(options) { option in
+                Text(LocalizedStringKey(option.label)).tag(option.value)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .frame(width: width)
+        .accessibilityLabel(label)
+    }
+
+    private func iconPicker(
+        selection: Binding<String>,
+        options: [AppearanceOption],
+        label: LocalizedStringKey
+    ) -> some View {
+        Picker("", selection: selection) {
+            ForEach(options) { option in
+                Image(systemName: option.icon)
+                    .help(LocalizedStringKey(option.label))
+                    .accessibilityLabel(LocalizedStringKey(option.label))
+                    .tag(option.value)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .frame(width: 120)
+        .accessibilityLabel(label)
     }
 
     /// Both size rows are the same 1-5 slider with its value parked at the end.

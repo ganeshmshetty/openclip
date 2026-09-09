@@ -16,6 +16,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
     private let notificationCenter: NotificationCenter
     private var statusItem: NSStatusItem?
     private var preferencesWindow: NSWindow?
+    private var preferencesToolbarController: PreferencesToolbarController?
     private var rootMenu: NSMenu?
     internal var resumeItem: NSMenuItem?
     internal var toggleEnabledItem: NSMenuItem?
@@ -606,18 +607,37 @@ class StatusBarController: NSObject, NSMenuDelegate {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let controller = NSHostingController(rootView: PreferencesView(initialTab: tab))
+        let toolbarModel = PreferencesToolbarModel()
+        toolbarModel.tab = tab
+        let toolbarController = PreferencesToolbarController(model: toolbarModel)
+        preferencesToolbarController = toolbarController
+        let controller = NSHostingController(
+            rootView: PreferencesView(initialTab: tab, toolbarModel: toolbarModel)
+        )
         // The window owns its size, not the SwiftUI content. With the default
         // sizing options the hosting controller republishes the current pane's
         // fitting size as the window's preferred content size, so every tab
         // switch resized the window around whatever pane had just appeared —
         // panes that fill (Actions, Store, App Rules) held it open while the
         // shorter ones (General, Appearance, About) collapsed it.
-        controller.sizingOptions = []
+        // .minSize only: SwiftUI publishes the content's minimum as the window's
+        // contentMinSize, which is the one number the window can't work out on
+        // its own once NavigationSplitView starts collapsing the sidebar. It
+        // deliberately does not include .preferredContentSize — that is what used
+        // to resize the window around whichever pane had just appeared.
+        controller.sizingOptions = [.minSize]
         let window = NSWindow(contentViewController: controller)
-        window.title = String(localized: "OpenClip Preferences")
+        // Title tracks the selected pane; the toolbar controller keeps it current.
+        window.title = tab.windowTitle
         window.setContentSize(NSSize(width: 820, height: 640))
-        window.contentMinSize = NSSize(width: 780, height: 520)
+        // Both, not just contentMinSize: the hosting view publishes no minimum of
+        // its own (sizingOptions is empty), and a window dragged narrower than the
+        // sidebar plus the detail column leaves the split view with no solution.
+        let minimumContent = NSSize(width: 760, height: 480)
+        window.contentMinSize = minimumContent
+        window.minSize = window.frameRect(
+            forContentRect: NSRect(origin: .zero, size: minimumContent)
+        ).size
         // Full-height sidebar, the way every stock sidebar app (System Settings,
         // Mail, Finder) is put together: `fullSizeContentView` hands the content
         // view the whole window, and a transparent title bar lets the sidebar's
@@ -629,15 +649,12 @@ class StatusBarController: NSObject, NSMenuDelegate {
         // reserve that space by hand.
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
-        // A toolbar has to exist for every pane, not just the ones with buttons in
-        // it. AppKit only gives the sidebar its full-height layout in a window that
-        // has a toolbar, so on the panes that published no toolbar items the
-        // sidebar dropped back to a floating inset panel and left the traffic
-        // lights stranded above it. This empty toolbar is the floor; SwiftUI
-        // replaces it with its own on the panes that do have items.
-        let toolbar = NSToolbar(identifier: "OpenClipPreferencesToolbar")
-        toolbar.showsBaselineSeparator = false
-        window.toolbar = toolbar
+        // The toolbar is built once, in AppKit, and lives for the window's whole
+        // life (see PreferencesToolbar.swift). A toolbar that comes and goes makes
+        // the title bar re-measure, and that is what kept dropping the traffic
+        // lights out of the full-height sidebar when the pane changed.
+        window.toolbar = toolbarController.makeToolbar()
+        toolbarController.window = window
         window.toolbarStyle = .unified
         // Left at .automatic on purpose: it defers to NSSplitViewItem, which draws
         // the title bar separator over the detail pane only, so the sidebar keeps

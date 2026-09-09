@@ -32,6 +32,13 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
         }
     }
 
+    /// The window's title for this pane. The window is titled after whatever is
+    /// on screen, the way every stock settings window is — "OpenClip Preferences"
+    /// on all six panes said nothing about where you were.
+    public var windowTitle: String {
+        String(localized: String.LocalizationValue(rawValue))
+    }
+
     /// Sidebar symbol tint, matching System Settings' coloured glyph tiles.
     public var tint: Color {
         switch self {
@@ -57,11 +64,20 @@ public struct PreferencesView: View {
     @State private var activeSheet: PreferencesSheet?
     @State private var showingAddActionSheet = false
     @State private var showingCreateGroupSheet = false
+    @State private var showingAppPicker = false
     @StateObject private var storeViewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
+    /// Owned by the window (StatusBarController) so the AppKit toolbar and these
+    /// panes talk to the same object; the fallback instance is only for the
+    /// SwiftUI `Settings` scene, which has no toolbar of its own.
+    @ObservedObject private var toolbarModel: PreferencesToolbarModel
 
-    public init(initialTab: PreferenceTab = .general) {
+    public init(
+        initialTab: PreferenceTab = .general,
+        toolbarModel: PreferencesToolbarModel = PreferencesToolbarModel()
+    ) {
         _selectedTab = State(initialValue: initialTab)
+        _toolbarModel = ObservedObject(wrappedValue: toolbarModel)
     }
 
     public var body: some View {
@@ -70,23 +86,54 @@ public struct PreferencesView: View {
         } detail: {
             detail
         }
-        .navigationSplitViewStyle(.balanced)
+        .minimumWindowContentSize(width: 760, height: 480)
+        // Left at the system default: `.balanced` lets the detail column push
+        // into the sidebar's width, which is the case that runs out of room
+        // first when the window is dragged narrow.
+        .navigationSplitViewStyle(.automatic)
         // No frame here on purpose: the window owns its size (see
         // StatusBarController.showPreferences). Wrapping the split view in a
         // frame makes SwiftUI lay it out as ordinary content inside the window
         // rather than as the window's own split view.
         .onAppear {
+            toolbarModel.tab = selectedTab
             loadDisabledState()
             Task {
                 await storeViewModel.resetAndFetch(limit: 100)
             }
         }
         .onChange(of: selectedTab) { _, newTab in
+            toolbarModel.tab = newTab
             if newTab == .store && storeViewModel.extensions.isEmpty {
                 Task {
                     await storeViewModel.resetAndFetch(limit: 100)
                 }
             }
+        }
+        // Toolbar <-> panes. The toolbar owns the store's filter and search box,
+        // so those travel through the model in both directions.
+        .onReceive(toolbarModel.actions) { action in
+            switch action {
+            case .newGroup: showingCreateGroupSheet = true
+            case .addCustomAction: showingAddActionSheet = true
+            case .installExtension: presentInstallExtensionPanel()
+            case .addApplication: showingAppPicker = true
+            case .refresh: Task { await storeViewModel.refreshCatalog() }
+            }
+        }
+        .onChange(of: toolbarModel.storeFilter) { _, filter in
+            storeViewModel.selectedFilter = filter
+        }
+        .onChange(of: toolbarModel.searchQuery) { _, query in
+            guard storeViewModel.searchQuery != query else { return }
+            storeViewModel.searchQuery = query
+            storeViewModel.queryDidChange()
+        }
+        .onChange(of: storeViewModel.searchQuery) { _, query in
+            toolbarModel.searchQuery = query
+        }
+        .onChange(of: storeViewModel.isLoading) { _, isLoading in
+            toolbarModel.isRefreshing = isLoading
         }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledState() }
         .onChange(of: disabledPackages) { _, _ in saveDisabledState() }
@@ -98,6 +145,11 @@ public struct PreferencesView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openClipSelectPreferencesTab)) { notification in
             if let tab = notification.object as? PreferenceTab {
                 selectedTab = tab
+            }
+        }
+        .sheet(isPresented: $showingAppPicker) {
+            AppPickerSheet { bundleID in
+                RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: [bundleID]))
             }
         }
         .sheet(item: $activeSheet) { route in
@@ -136,7 +188,7 @@ public struct PreferencesView: View {
             .accessibilityLabel(tab.localizedTitle)
         }
         .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(min: 190, ideal: 205, max: 260)
+        .navigationSplitViewColumnWidth(min: 190, ideal: 205, max: 240)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             sidebarFooter
         }
@@ -176,9 +228,11 @@ public struct PreferencesView: View {
 
     private var detail: some View {
         detailContent
+            // The detail column's floor, which is what stops the window shrinking:
+            // the split view happily collapses the sidebar, so the minimum the
+            // window inherits is whatever the content insists on.
+            .frame(minWidth: 540, minHeight: 460)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationTitle(Text(selectedTab.localizedTitle))
-            .toolbar { toolbarContent }
     }
 
     @ViewBuilder
@@ -200,76 +254,11 @@ public struct PreferencesView: View {
         case .store:
             ExtensionStoreView(viewModel: storeViewModel)
         case .appRules:
-            AppRulesTab()
+            AppRulesTab(showingAppPicker: $showingAppPicker)
         case .about:
             // AboutTab caps its own column width and already fills the pane.
             AboutTab()
         }
-    }
-
-    /// One toolbar item, always. Publishing items only on some tabs let SwiftUI
-    /// tear the window's toolbar down on the tabs that had none, and a window
-    /// that gains and loses its toolbar re-measures its title bar each time —
-    /// which is what pushed the traffic lights out of the sidebar on the way in
-    /// and out of General, Appearance and About. The item stays put and only its
-    /// contents change.
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            switch selectedTab {
-            case .actions:
-                addMenu
-            case .store:
-                refreshButton
-            default:
-                // A zero-size placeholder: the item has to exist for the toolbar
-                // to, but there is nothing to act on from these tabs.
-                Color.clear.frame(width: 0, height: 0)
-            }
-        }
-    }
-
-    private var addMenu: some View {
-        Menu {
-            Button {
-                showingCreateGroupSheet = true
-            } label: {
-                Label(String(localized: "New Group"), systemImage: "folder.badge.plus")
-            }
-
-            Button {
-                showingAddActionSheet = true
-            } label: {
-                Label(String(localized: "Add Custom Action"), systemImage: "plus.circle")
-            }
-
-            Button {
-                presentInstallExtensionPanel()
-            } label: {
-                Label(String(localized: "Install Extension…"), systemImage: "square.and.arrow.down")
-            }
-        } label: {
-            Label(String(localized: "Add"), systemImage: "plus")
-        }
-        .help(String(localized: "Add Action or Group"))
-    }
-
-    private var refreshButton: some View {
-        Button {
-            Task {
-                await storeViewModel.refreshCatalog()
-            }
-        } label: {
-            if storeViewModel.isLoading {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                Label(String(localized: "Refresh Catalog"), systemImage: "arrow.clockwise")
-            }
-        }
-        .disabled(storeViewModel.isLoading)
-        .help(String(localized: "Refresh Catalog"))
-        .accessibilityLabel(String(localized: "Refresh Catalog"))
     }
 
     private func loadDisabledState() {

@@ -160,11 +160,18 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         return extensions.filter { !showcased.contains($0.id.lowercased()) }
     }
 
+    /// The storefront below the featured showcase: everything else, in catalog
+    /// order. New and updated items used to get a showcase of their own, which
+    /// meant three stacked lists competing for the first look; they are part of
+    /// the catalog now.
+    public var catalogSectionItems: [ExtensionItem] {
+        let featured = Set(featuredSectionItems.map { $0.id.lowercased() })
+        return extensions.filter { !featured.contains($0.id.lowercased()) }
+    }
+
     /// ID of the last item rendered across the sectioned storefront, used to trigger pagination.
     public var lastRenderedSectionedItemID: String? {
-        remainingAllSectionItems.last?.id
-            ?? newSectionItems.last?.id
-            ?? featuredSectionItems.last?.id
+        catalogSectionItems.last?.id ?? featuredSectionItems.last?.id
     }
 
     /// True when the given item is the final rendered item in the sectioned storefront.
@@ -328,60 +335,17 @@ public struct ExtensionStoreView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            filterBar
-            storeContent
-        }
+        // The filter and the search field live in the window toolbar (see
+        // PreferencesView.toolbarContent), so the pane is just the list.
+        storeContent
         .padding(.horizontal, 12)
-        .padding(.top, 10)
+        .padding(.top, 4)
         .padding(.bottom, 0)
         .task {
             if viewModel.extensions.isEmpty {
                 await viewModel.resetAndFetch(limit: 100)
             }
         }
-    }
-
-    /// A stock segmented control: the catalog filter is a plain three-way choice,
-    /// and the system control already handles focus, keyboard and appearance.
-    private var filterPicker: some View {
-        Picker("Filter", selection: Binding(
-            get: { viewModel.selectedFilter },
-            set: { newValue in
-                if isSearching {
-                    viewModel.searchQuery = ""
-                }
-                viewModel.selectedFilter = newValue
-            }
-        )) {
-            ForEach(StoreFilter.allCases) { filter in
-                Text(filter.title).tag(filter)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(maxWidth: 300, alignment: .leading)
-        .disabled(isSearching)
-    }
-
-    /// The search field lives in the content, not the toolbar: a `.searchable`
-    /// that only exists on this tab makes the window's toolbar appear and
-    /// disappear as tabs change, and the title bar re-measures every time.
-    private var filterBar: some View {
-        HStack(spacing: 12) {
-            filterPicker
-            Spacer(minLength: 12)
-            NativeSearchField(
-                text: $viewModel.searchQuery,
-                placeholder: String(localized: "Search extensions")
-            )
-            .frame(width: 200, height: 24)
-            .onChange(of: viewModel.searchQuery) { _, _ in
-                viewModel.queryDidChange()
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.bottom, 10)
     }
 
     private var storeContent: some View {
@@ -408,87 +372,66 @@ public struct ExtensionStoreView: View {
         }
     }
 
-    private func sectionHeader(title: String, icon: String, count: Int? = nil) -> some View {
+    private func sectionHeader(_ title: String, count: Int? = nil) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.accentColor)
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
+                .font(.headline)
             if let count {
-                Text("(\(count))")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary.opacity(0.7))
+                Text("\(count)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             Spacer()
         }
         .padding(.horizontal, 14)
-        .padding(.top, 14)
-        .padding(.bottom, 4)
+        .padding(.top, 16)
+        .padding(.bottom, 6)
     }
 
     private var sectionedAllStoreContent: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                // Section 1: Featured
                 if !viewModel.featuredSectionItems.isEmpty {
-                    sectionHeader(title: String(localized: "Featured"), icon: "rosette")
+                    sectionHeader(String(localized: "Featured"))
                     ForEach(Array(viewModel.featuredSectionItems.enumerated()), id: \.element.id) { index, ext in
                         if index > 0 {
-                            Divider()
-                                .padding(.leading, 60)
-                                .padding(.trailing, 14)
+                            rowDivider
                         }
-                        ExtensionCardView(item: ext)
-                            .onAppear {
-                                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
-                                    Task { await viewModel.fetchNextPage() }
-                                }
-                            }
+                        storeRow(ext)
                     }
                 }
 
-                // Section 2: New & Updated
-                if !viewModel.newSectionItems.isEmpty {
-                    sectionHeader(title: String(localized: "New & Updated"), icon: "clock.arrow.circlepath")
-                    ForEach(Array(viewModel.newSectionItems.enumerated()), id: \.element.id) { index, ext in
+                if !viewModel.catalogSectionItems.isEmpty {
+                    sectionHeader(
+                        String(localized: "All Extensions"),
+                        count: viewModel.catalogSectionItems.count
+                    )
+                    ForEach(Array(viewModel.catalogSectionItems.enumerated()), id: \.element.id) { index, ext in
                         if index > 0 {
-                            Divider()
-                                .padding(.leading, 60)
-                                .padding(.trailing, 14)
+                            rowDivider
                         }
-                        ExtensionCardView(item: ext)
-                            .onAppear {
-                                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
-                                    Task { await viewModel.fetchNextPage() }
-                                }
-                            }
-                    }
-                }
-
-                // Section 3: All Extensions
-                if !viewModel.remainingAllSectionItems.isEmpty {
-                    sectionHeader(title: String(localized: "All Extensions"), icon: "square.grid.2x2", count: viewModel.remainingAllSectionItems.count)
-                    ForEach(Array(viewModel.remainingAllSectionItems.enumerated()), id: \.element.id) { index, ext in
-                        if index > 0 {
-                            Divider()
-                                .padding(.leading, 60)
-                                .padding(.trailing, 14)
-                        }
-                        ExtensionCardView(item: ext)
-                            .onAppear {
-                                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
-                                    Task { await viewModel.fetchNextPage() }
-                                }
-                            }
+                        storeRow(ext)
                     }
                 }
             }
         }
         .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
+    }
+
+    private var rowDivider: some View {
+        Divider()
+            .padding(.leading, 60)
+            .padding(.trailing, 14)
+    }
+
+    private func storeRow(_ ext: ExtensionItem) -> some View {
+        ExtensionCardView(item: ext)
+            .onAppear {
+                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
+                    Task { await viewModel.fetchNextPage() }
+                }
+            }
     }
 
     private var flatStoreContent: some View {

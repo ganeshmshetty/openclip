@@ -9,9 +9,15 @@ import Core
 @MainActor
 public struct AppRulesTab: View {
     @ObservedObject private var ruleEngine = RuleEngine.shared
-    @State private var showingAppPicker = false
-    
-    public init() {}
+    /// Owned by PreferencesView: the Add button lives in the window toolbar
+    /// alongside every other tab's, so this pane doesn't declare a toolbar of
+    /// its own — a second toolbar group renders as its own floating glass
+    /// capsule next to the first one.
+    @Binding private var showingAppPicker: Bool
+
+    public init(showingAppPicker: Binding<Bool>) {
+        _showingAppPicker = showingAppPicker
+    }
     
     public var body: some View {
         Form {
@@ -42,22 +48,6 @@ public struct AppRulesTab: View {
             }
         }
         .formStyle(.grouped)
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    showingAppPicker = true
-                } label: {
-                    Label("Add Application", systemImage: "plus")
-                }
-                .help("Add Application")
-            }
-        }
-        .sheet(isPresented: $showingAppPicker) {
-            AppPickerSheet { bundleID in
-                let newRule = AppRule(bundleIdentifiers: [bundleID])
-                RuleEngine.shared.addOrUpdateRule(newRule)
-            }
-        }
     }
 }
 
@@ -84,7 +74,7 @@ private struct AppRuleRowView: View {
     }
     
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
             // App Icon
             if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
@@ -99,20 +89,18 @@ private struct AppRuleRowView: View {
             }
             
             // App Title & Bundle ID
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
                    let bundle = Bundle(url: appURL),
                    let appName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String {
                     Text(appName)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(isDisabled ? .secondary : .primary)
+                        .foregroundStyle(isDisabled ? .secondary : .primary)
                     Text(bundleID)
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 } else {
                     Text(bundleID)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(isDisabled ? .secondary : .primary)
+                        .foregroundStyle(isDisabled ? .secondary : .primary)
                 }
             }
             
@@ -136,7 +124,6 @@ private struct AppRuleRowView: View {
             ))
             .labelsHidden()
             .toggleStyle(.switch)
-            .controlSize(.mini)
             .accessibilityLabel(isDisabled ? String(localized: "Enable in this app") : String(localized: "Disable in this app"))
             
             // Three-Dots (...) Actions Menu
@@ -186,8 +173,7 @@ private struct AppRuleRowView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 15))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
@@ -195,6 +181,6 @@ private struct AppRuleRowView: View {
             .help("More Actions")
             .accessibilityLabel("More Actions")
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
     }
 }

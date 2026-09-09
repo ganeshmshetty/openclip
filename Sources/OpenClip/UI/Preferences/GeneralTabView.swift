@@ -33,14 +33,16 @@ struct GeneralTab: View {
     
     var body: some View {
         Form {
-            Section {
-                Toggle(isOn: $isAppEnabled) {
-                    SettingsRowLabel(
-                        title: "Appear Automatically",
-                        subtitle: "Show the popup as soon as text is selected.",
-                        systemImage: "cursorarrow"
-                    )
-                }
+            // Everything that decides how the popup is summoned sits together,
+            // shortcut included — it used to be stranded between switches that
+            // had nothing to do with triggering.
+            Section("Triggers") {
+                SettingsToggleRow(
+                    title: "Appear Automatically",
+                    subtitle: "Show the popup as soon as text is selected.",
+                    systemImage: "cursorarrow",
+                    isOn: $isAppEnabled
+                )
                 .onChange(of: isAppEnabled) { _, newValue in
                     DefaultSettingsStore.shared.set(.isAppEnabled, value: newValue)
                     NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
@@ -49,26 +51,55 @@ struct GeneralTab: View {
                     isAppEnabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
                 }
 
-                Toggle(isOn: $isMouseHoldEnabled) {
-                    SettingsRowLabel(
-                        title: "Hold Mouse to Trigger",
-                        subtitle: "Keep the button down after selecting to summon the popup.",
-                        systemImage: "hand.tap"
-                    )
-                }
+                SettingsToggleRow(
+                    title: "Hold Mouse to Trigger",
+                    subtitle: "Keep the button down after selecting to summon the popup.",
+                    systemImage: "hand.tap",
+                    isOn: $isMouseHoldEnabled
+                )
                 .onChange(of: isMouseHoldEnabled) { _, newValue in
                     DefaultSettingsStore.shared.set(.isMouseHoldEnabled, value: newValue)
                 }
 
-                LabeledContent {
+                SettingsRow(
+                    title: "Keyboard Shortcut",
+                    subtitle: "Summon the popup for whatever is selected.",
+                    systemImage: "keyboard"
+                ) {
                     KeyboardShortcuts.Recorder(for: .togglePopup)
-                } label: {
-                    SettingsRowLabel(title: "Trigger Popup Shortcut", systemImage: "keyboard")
+                }
+            }
+
+            Section("Action Results") {
+                SettingsRow(
+                    title: "Primary click",
+                    subtitle: "Left click",
+                    systemImage: "cursorarrow.click"
+                ) {
+                    resultPicker(selection: $primaryBehavior, label: "Primary click")
+                        .onChange(of: primaryBehavior) { _, newValue in
+                            DefaultSettingsStore.shared.set(.primaryClickBehavior, value: newValue)
+                        }
                 }
 
-                Toggle(isOn: $showMenuBarIcon) {
-                    SettingsRowLabel(title: "Show Menu Bar Icon", systemImage: "menubar.rectangle")
+                SettingsRow(
+                    title: "Secondary click",
+                    subtitle: "Right click or ⇧-click",
+                    systemImage: "cursorarrow.click.2"
+                ) {
+                    resultPicker(selection: $secondaryBehavior, label: "Secondary click")
+                        .onChange(of: secondaryBehavior) { _, newValue in
+                            DefaultSettingsStore.shared.set(.secondaryClickBehavior, value: newValue)
+                        }
                 }
+            }
+
+            Section("App") {
+                SettingsToggleRow(
+                    title: "Show Menu Bar Icon",
+                    systemImage: "menubar.rectangle",
+                    isOn: $showMenuBarIcon
+                )
                 .onChange(of: showMenuBarIcon) { _, newValue in
                     DefaultSettingsStore.shared.set(.showMenuBarIcon, value: newValue)
                     NotificationCenter.default.post(
@@ -77,47 +108,19 @@ struct GeneralTab: View {
                     )
                 }
 
-                Toggle(isOn: $launchManager.isEnabled) {
-                    SettingsRowLabel(title: "Start at Login", systemImage: "arrow.clockwise.circle")
-                }
+                SettingsToggleRow(
+                    title: "Start at Login",
+                    systemImage: "arrow.clockwise.circle",
+                    isOn: $launchManager.isEnabled
+                )
             }
 
-            Section("Action Results") {
-                Picker(selection: $primaryBehavior) {
-                    ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
-                        Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
-                    }
-                } label: {
-                    SettingsRowLabel(
-                        title: "Primary click",
-                        subtitle: "Left click",
-                        systemImage: "cursorarrow.click"
-                    )
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: primaryBehavior) { _, newValue in
-                    DefaultSettingsStore.shared.set(.primaryClickBehavior, value: newValue)
-                }
-
-                Picker(selection: $secondaryBehavior) {
-                    ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
-                        Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
-                    }
-                } label: {
-                    SettingsRowLabel(
-                        title: "Secondary click",
-                        subtitle: "Right click or ⇧-click",
-                        systemImage: "cursorarrow.click.2"
-                    )
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: secondaryBehavior) { _, newValue in
-                    DefaultSettingsStore.shared.set(.secondaryClickBehavior, value: newValue)
-                }
-            }
-
-            Section("System Permissions") {
-                LabeledContent {
+            Section("Permissions") {
+                SettingsRow(
+                    title: "Accessibility Access",
+                    subtitle: "Required to read the selected text.",
+                    systemImage: "lock.shield"
+                ) {
                     HStack(spacing: 10) {
                         Label {
                             Text(permissionManager.isAccessibilityGranted
@@ -138,17 +141,25 @@ struct GeneralTab: View {
                             permissionManager.requestAccessibilityPermission(proactivelyResetStaleTCC: shouldReset)
                         }
                     }
-                } label: {
-                    SettingsRowLabel(
-                        title: "Accessibility Access",
-                        subtitle: "Required to read the selected text.",
-                        systemImage: "lock.shield"
-                    )
                 }
             }
         }
         .formStyle(.grouped)
         .onAppear { permissionManager.startMonitoring() }
         .onDisappear { permissionManager.stopMonitoring() }
+    }
+
+    /// Both click rows offer the same three outcomes, at a width that fits the
+    /// longest of them without stretching across the row.
+    private func resultPicker(selection: Binding<String>, label: LocalizedStringKey) -> some View {
+        Picker("", selection: selection) {
+            ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
+                Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .frame(width: 230)
+        .accessibilityLabel(label)
     }
 }
