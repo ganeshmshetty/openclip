@@ -774,6 +774,52 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(marks.values.filter { $0 == "A" }.count, 0)
     }
 
+    /// When an evaluation finishes normally via `finish()`, in-flight requests that complete
+    /// successfully (200 OK) must also be discarded and never invoke resolve/callbacks.
+    func testStaleSuccessfulFetchCompletionDoesNotReenterFinishedContext() {
+        XCTAssertTrue(Thread.isMainThread)
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("ok".utf8))
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let marks = LockedArray<String>()
+
+        let contextA = JSContext()!
+        contextA.evaluateScript("var openclip = {};")
+        let markA: @convention(block) () -> Void = { marks.append("A") }
+        contextA.setObject(markA, forKeyedSubscript: "__mark" as NSString)
+        let boxA = FetchTaskBox()
+        JSNativeFetch.installNativeFetch(in: contextA, session: session, fetchTasks: boxA)
+        contextA.evaluateScript("openclip.__nativeFetch('https://example.com/a', {}, function(){ __mark(); }, function(){ __mark(); });")
+        boxA.finish()
+
+        let contextB = JSContext()!
+        contextB.evaluateScript("var openclip = {};")
+        let markB: @convention(block) () -> Void = { marks.append("B") }
+        contextB.setObject(markB, forKeyedSubscript: "__mark" as NSString)
+        let boxB = FetchTaskBox()
+        JSNativeFetch.installNativeFetch(in: contextB, session: session, fetchTasks: boxB)
+        contextB.evaluateScript("openclip.__nativeFetch('https://example.com/b', {}, function(){ __mark(); }, function(){ __mark(); });")
+
+        let deadline = Date().addingTimeInterval(2)
+        while !marks.values.contains("B") {
+            if Date() > deadline {
+                XCTFail("B's fetch completion did not run within 2 s")
+                return
+            }
+            CFRunLoopRunInMode(.defaultMode, 0.01, false)
+        }
+        for _ in 0..<20 {
+            CFRunLoopRunInMode(.defaultMode, 0.01, false)
+        }
+        XCTAssertEqual(marks.values.filter { $0 == "A" }.count, 0)
+    }
+
     /// A fetch completion must settle while the evaluation is live. If the mock, the polyfill, or
     /// the pump path breaks, this test fails first so the stale-completion test cannot pass vacuously.
     func testFetchCompletionSettlesWhileEvaluationIsLive() {

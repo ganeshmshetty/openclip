@@ -155,12 +155,14 @@ final class FetchTaskBox: @unchecked Sendable {
 
     func add(_ task: URLSessionDataTask) {
         lock.lock()
-        defer { lock.unlock() }
-        if ended {
-            task.cancel()
-            return
+        let shouldCancel = ended
+        if !shouldCancel {
+            tasks.append(task)
         }
-        tasks.append(task)
+        lock.unlock()
+        if shouldCancel {
+            task.cancel()
+        }
     }
 
     /// Removes the tracked task with the given stable `taskIdentifier`.
