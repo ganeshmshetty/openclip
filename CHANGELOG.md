@@ -13,6 +13,10 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 - **Redesigned DMG Installer**: The disk image now opens as a proper install window — a branded background, "Install OpenClip" headline, the app icon and an `/Applications` drop link laid out either side of an arrow, and the app icon as the volume icon. The background is rendered from `assets/dmg/background.html` at 1× and 2× into a multi-representation TIFF, so it stays sharp on Retina displays and can be edited as HTML/CSS instead of a binary image. See [docs/dmg.md](docs/dmg.md).
 
 ### Fixes & Stability
+- **Script Output No Longer Truncated**: Shell, script-file, AppleScript and Shortcut actions could
+  return truncated or empty output when a script produced a lot of output or backgrounded a worker
+  that inherited the pipe. The runner now drains both pipes before it reads them, so an action no
+  longer silently loses the text it was supposed to paste.
 - **Extension Module Containment**: `require()` in JS extension packages now re-checks the package boundary on the final symlink-resolved file, so a symlinked `<name>.js` or `index.js` can no longer read files outside the package ([#39](https://github.com/ganeshmshetty/openclip/issues/39)).
 
 ---
