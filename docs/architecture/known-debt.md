@@ -64,8 +64,10 @@ areas; stale debt notes are worse than none.
   a blocking `readToEnd()`, so a stuck child can't permanently consume a cooperative thread), with
   stdin seeded and closed synchronously so a script reading stdin always sees EOF. Both pipe
   accumulators are drained **before** their buffers are read: `waitUntilExit()` returns when the
-  direct child exits, so the readability handler can still be behind (or never have run), and the
-  bounded drain is what guarantees the output is complete.
+  direct child exits, so the readability handler can still be behind, or not have run at all. The
+  drain is bounded — it waits `grace` (2 s) for EOF, reads what is pending, then closes the handle —
+  so it captures output that reached the pipe before that deadline. A descendant that writes after
+  the close still loses its output.
 - **Delivery is resolved by `ActionResultDelivery`, not per-runtime translation.** Runtimes
   (`OpenClipJSHost.run`, `ShellResultMapper`, kind actions) return only raw results; implicitly
   returned text (JS string return, AppleScript output, shell stdout, text snippets) is emitted as

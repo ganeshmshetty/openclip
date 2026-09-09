@@ -20,8 +20,8 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
   finished action's JavaScript context ([#40](https://github.com/ganeshmshetty/openclip/issues/40)).
 - **Script Output No Longer Truncated**: Shell, script-file, AppleScript and Shortcut actions could
   return truncated or empty output when a script produced a lot of output or backgrounded a worker
-  that inherited the pipe. The runner now drains both pipes before it reads them, so an action no
-  longer silently loses the text it was supposed to paste.
+  that inherited the pipe. The runner now captures the pending pipe output before it reads its
+  buffers, so an action no longer loses text that the script had already written.
 - **Extension Module Containment**: `require()` in JS extension packages now re-checks the package boundary on the final symlink-resolved file, so a symlinked `<name>.js` or `index.js` can no longer read files outside the package ([#39](https://github.com/ganeshmshetty/openclip/issues/39)).
 
 ---
