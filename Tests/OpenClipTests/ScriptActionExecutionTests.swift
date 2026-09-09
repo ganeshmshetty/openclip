@@ -342,6 +342,35 @@ final class ScriptActionExecutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempScript)
     }
 
+    /// Output that reaches the pipe after the direct child exits must still be captured.
+    /// `waitUntilExit()` returns as soon as the parent exits, so the pipe drain — not the async
+    /// readability handler — is the only thing that can collect this line. Reading the accumulated
+    /// buffer before that drain loses output, which is what this pins.
+    func testScriptActionOutputWrittenAfterParentExitIsCaptured() async throws {
+        let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("late_write_\(UUID().uuidString).sh")
+        let scriptContent = """
+        #!/bin/bash
+        (sleep 0.5; echo "GrandchildLate") &
+        echo "ParentDone"
+        exit 0
+        """
+        try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
+
+        let output = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+            executableURL: tempScript,
+            arguments: [],
+            environment: [:],
+            stdinText: nil,
+            timeout: 5.0
+        ))
+
+        let lines = output.stdout.split(separator: "\n").map(String.init)
+        XCTAssertEqual(lines, ["ParentDone", "GrandchildLate"])
+
+        try? FileManager.default.removeItem(at: tempScript)
+    }
+
     /// When a script spawns a background grandchild process that inherits the pipe fds,
     /// finish must not hang indefinitely waiting for EOF on the pipe.
     func testScriptActionGrandchildHoldingPipeDoesNotHang() async throws {

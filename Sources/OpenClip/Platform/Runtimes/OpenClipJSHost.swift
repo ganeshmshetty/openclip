@@ -208,6 +208,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         return try await withTaskCancellationHandler {
             try await Task.detached {
                 defer { gate.leave() }
+                // End the evaluation on this thread before the thread returns to the pool.
+                defer { fetchTasks.finish() }
                 return try OpenClipJSHost.execute(
                     request,
                     session: session,

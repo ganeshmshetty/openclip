@@ -516,6 +516,13 @@ public enum ShellProcessRunner {
                                   userInfo: [NSLocalizedDescriptionKey: "Script timed out after \(Int(budget)) seconds"])
                 }
 
+                // Drain both pipes before the buffers are read. `waitUntilExit()` returns when the
+                // direct child exits, and the readability handlers can still hold unread output — or
+                // not have run at all. The `defer` above only fires after the return value is built,
+                // so reading the buffers first can truncate or lose the script's output entirely.
+                outReader.finish()
+                errReader.finish()
+
                 let outData = outReader.data
                 let errData = errReader.data
 

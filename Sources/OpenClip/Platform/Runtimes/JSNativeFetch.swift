@@ -52,10 +52,16 @@ enum JSNativeFetch {
                 // Remove by the task's stable identifier (captured via the box) rather than reading a
                 // mutable `task` reference across threads.
                 fetchTasks.remove(taskID.value)
+                // The evaluation is complete. Do not do work for it.
+                // A cancelled task also calls this handler, with an error.
+                guard !fetchTasks.isEnded else { return }
                 let body = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 let errorMessage = error.map { "Fetch failed: \($0.localizedDescription)" }
                 CFRunLoopPerformBlock(runLoopBox.runLoop, CFRunLoopMode.defaultMode.rawValue) {
+                    // The evaluation can end after the block goes into the queue.
+                    // A later evaluation on this thread can run the block. Do not call the JavaScript VM.
+                    guard !fetchTasks.isEnded else { return }
                     if let errorMessage {
                         if let err = JSNativeFetch.jsError(errorMessage, in: contextBox.context) {
                             rejectBox.value.call(withArguments: [err])

@@ -1125,6 +1125,9 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertEqual(PopupMetrics.dismissalDistance(for: ultrawideFrame), 280.0)
     }
 
+    /// A real focus switch dismisses the popup. The activation is posted after
+    /// `PopupMetrics.focusSwitchGracePeriod` elapses, because an activation inside that window is
+    /// treated as a queued leftover notification instead (covered by the next test).
     func testWorkspaceApplicationSwitchDismissesPopup() throws {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.midY))
@@ -1132,14 +1135,31 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertTrue(controller.isVisible)
         controller.sessionShowTime = ProcessInfo.processInfo.systemUptime - 1.0
 
-        let switchedApp = MockPopupFrontmostApp(bundleID: "com.apple.Notes")
-        let notif = Notification(
+        pump(PopupMetrics.focusSwitchGracePeriod + 0.05)
+        XCTAssertTrue(controller.isVisible, "the popup must survive the grace window on its own")
+
+        NSWorkspace.shared.notificationCenter.post(appActivationNotification(bundleID: "com.apple.Notes"))
+        XCTAssertFalse(controller.isVisible, "Popup must dismiss on Cmd+Tab / workspace app activation")
+    }
+
+    /// An activation delivered inside the grace window is a leftover from the popup opening — the
+    /// race a clipboard manager creates when it dismisses itself — so the popup stays up.
+    func testWorkspaceApplicationSwitchInsideGraceWindowKeepsPopup() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
+        let controller = try shownPanel(for: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.midY))
+        defer { controller.hide() }
+        XCTAssertTrue(controller.isVisible)
+
+        NSWorkspace.shared.notificationCenter.post(appActivationNotification(bundleID: "com.apple.Notes"))
+        XCTAssertTrue(controller.isVisible, "an activation inside the grace window must not dismiss the popup")
+    }
+
+    private func appActivationNotification(bundleID: String) -> Notification {
+        Notification(
             name: NSWorkspace.didActivateApplicationNotification,
             object: nil,
-            userInfo: [NSWorkspace.applicationUserInfoKey: switchedApp]
+            userInfo: [NSWorkspace.applicationUserInfoKey: MockPopupFrontmostApp(bundleID: bundleID)]
         )
-        NSWorkspace.shared.notificationCenter.post(notif)
-        XCTAssertFalse(controller.isVisible, "Popup must dismiss on Cmd+Tab / workspace app activation")
     }
 
     func testWorkspaceSpaceSwitchDismissesPopup() throws {
