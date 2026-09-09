@@ -9,7 +9,8 @@
 // they exist only while the palette is open. The palette's right edge, bottom edge and corner grip
 // are resize handles (`PopupResizeHandles`); the size they settle on is remembered and, passed
 // back in as `maxSize`, caps the palette on the next entry: a couple of results still get a short
-// palette, a long list grows up to the maximum and scrolls beyond it.
+// palette, a long list grows up to the maximum and scrolls beyond it. Once the user has dragged a
+// handle (`isUserSized`), the palette keeps the dragged size verbatim until it closes.
 import SwiftUI
 import AppKit
 import Core
@@ -48,9 +49,10 @@ public struct PopupSearchView: View {
     /// palette renders at what its results need up to this; `nil` caps at the default column
     /// (`searchPanelContentWidth` wide, `searchMaxRows` rows tall).
     public let maxSize: CGSize?
-    /// True while a resize handle is being dragged: the palette then renders at `maxSize` verbatim
-    /// so the user sees the size they are setting, instead of the content-fitted size.
-    public let isResizing: Bool
+    /// True once the user has dragged a resize handle of this palette: it then renders at
+    /// `maxSize` verbatim — the size they set, whatever the results need — instead of the
+    /// content-fitted size.
+    public let isUserSized: Bool
     /// Reports a drag of one of the resize handles so the owner can resize the panel and remember
     /// the size. `.began` is reported exactly once per drag.
     public let onResize: @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void
@@ -104,17 +106,17 @@ public struct PopupSearchView: View {
     /// Height of the search palette card: what the current results need (field inset, rows,
     /// spacing, bottom padding), never shorter than `searchPaletteMinHeight` and never taller than
     /// the maximum — the remembered size, or `defaultHeight` (`searchMaxRows` rows) — beyond which
-    /// the list scrolls. Mid-resize it is exactly the dragged size.
+    /// the list scrolls. Once user-sized it is exactly the dragged size.
     private var cardHeight: CGFloat {
-        if isResizing, let maxSize { return maxSize.height }
+        if isUserSized, let maxSize { return maxSize.height }
         return Self.bounded(naturalHeight, min: PopupMetrics.searchPaletteMinHeight, max: maxSize?.height ?? Self.defaultHeight)
     }
 
     /// Width of the search palette card. The default column is the floor — a list has a design
     /// width, and rows only widen it when a title needs the room — capped by the maximum (the
-    /// remembered width, or the default column). Mid-resize it is exactly the dragged size.
+    /// remembered width, or the default column). Once user-sized it is exactly the dragged size.
     private var cardWidth: CGFloat {
-        if isResizing, let maxSize { return maxSize.width }
+        if isUserSized, let maxSize { return maxSize.width }
         let needed = max(PopupMetrics.searchPanelContentWidth, naturalRowWidth)
         return Self.bounded(needed, min: PopupMetrics.searchPaletteMinWidth, max: maxSize?.width ?? PopupMetrics.searchPanelContentWidth)
     }
@@ -189,7 +191,7 @@ public struct PopupSearchView: View {
         scope: SearchScope? = nil,
         usageRecency: [String: Int] = [:],
         maxSize: CGSize? = nil,
-        isResizing: Bool = false,
+        isUserSized: Bool = false,
         onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in },
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onExit: @escaping @MainActor () -> Void,
@@ -207,7 +209,7 @@ public struct PopupSearchView: View {
         self.scope = scope
         self.usageRecency = usageRecency
         self.maxSize = maxSize
-        self.isResizing = isResizing
+        self.isUserSized = isUserSized
         self.onResize = onResize
         self.onResult = onResult
         self.onExit = onExit

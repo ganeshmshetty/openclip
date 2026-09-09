@@ -223,7 +223,7 @@ public class PopupWindowController {
         panel.releasesBottomPinAfterGrowth = false
         panel.horizontalAnchor = .none
         modeStore.resultCardSize = nil
-        modeStore.isResizingSurface = false
+        modeStore.isSurfaceUserSized = false
         preSearchFrame = nil
         openedDirectlyInSearch = (initialMode == .search)
 
@@ -448,6 +448,7 @@ public class PopupWindowController {
             // Fresh entry (not a scope hop): the palette may open as tall as its remembered
             // maximum, which can exceed the shared bar/palette cap.
             modeStore.searchPaletteSize = rememberedSize(for: .palette, in: screenBounds(for: panel))
+            modeStore.isSurfaceUserSized = false
             panel.heightCap = screenBounds(for: panel).height
             // The entry growth keeps the panel's bottom edge fixed when the popup sits low on screen
             // (the palette must extend upward to stay on it); see PopupPanel.setFrame. That pin is
@@ -565,6 +566,7 @@ public class PopupWindowController {
         // After the frame restore above, so a resized (tall) palette is not clamped mid-collapse;
         // the bar's own shrink requests a height well under the cap.
         modeStore.searchPaletteSize = nil
+        modeStore.isSurfaceUserSized = false
         resizeAnchor = nil
         panel?.heightCap = PopupMetrics.popupMaxHeight
         exitKeyMode() // reactivates previousFrontmostApp but keeps it for the session
@@ -620,6 +622,7 @@ public class PopupWindowController {
             // let the panel grow as tall as the screen; the card's own clamps keep it on-screen.
             if let panel { panel.heightCap = screenBounds(for: panel).height }
             modeStore.resultCardSize = rememberedSize(for: .card)
+            modeStore.isSurfaceUserSized = false
             modeStore.mode = .content
             enterKeyMode()
         }
@@ -791,9 +794,9 @@ public class PopupWindowController {
             panel.pinBottomEdgeOnResize = false
             panel.releasesBottomPinAfterGrowth = false
             // The drag starts from the size on screen — smaller than the remembered maximum when
-            // the content did not need all of it — so the handle stays under the pointer. While it
-            // lasts, the surface renders the dragged size verbatim.
-            modeStore.isResizingSurface = true
+            // the content did not need all of it — so the handle stays under the pointer. From
+            // here on the surface renders the dragged size verbatim, for the rest of its session.
+            modeStore.isSurfaceUserSized = true
             resizeAnchor = (mouse: mouse, size: currentSurfaceSize(in: panel), surface: surface)
         case .changed:
             guard let anchor = resizeAnchor, anchor.surface == surface else { return }
@@ -809,14 +812,12 @@ public class PopupWindowController {
             guard let anchor = resizeAnchor, anchor.surface == surface else { return }
             resizeAnchor = nil
             panel.endUserDrag()
-            modeStore.isResizingSurface = false
+            // The dragged size is what the surface keeps until it closes (`isSurfaceUserSized`
+            // stays set), and the maximum the next one opens with.
             if let size = liveSize(for: surface) {
                 settingsStore.set(surface.widthKey, value: Double(size.width))
                 settingsStore.set(surface.heightKey, value: Double(size.height))
             }
-            // The dragged size is the new maximum; the surface now settles to what its content
-            // needs within it, and the panel follows (top-left anchored: the pin is off).
-            fitPanelToContent()
         }
     }
 
@@ -844,6 +845,7 @@ public class PopupWindowController {
         guard modeStore.mode == .content else { return }
         modeStore.resultCard = nil
         modeStore.resultCardSize = nil
+        modeStore.isSurfaceUserSized = false
         resizeAnchor = nil
         hasUserMovedCard = false
         modeStore.mode = .actions
@@ -940,7 +942,7 @@ public class PopupWindowController {
         modeStore.resultCard = nil
         modeStore.resultCardSize = nil
         modeStore.searchPaletteSize = nil
-        modeStore.isResizingSurface = false
+        modeStore.isSurfaceUserSized = false
         modeStore.canPaste = nil
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
         // runs and any later snapshot read the last intent; force-copy must never persist). The

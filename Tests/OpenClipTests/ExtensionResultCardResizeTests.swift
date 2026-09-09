@@ -110,6 +110,9 @@ final class ExtensionResultCardResizeTests: XCTestCase {
         controller.handleResize(.bottomRight, phase: .ended, mouseLocation: target)
         XCTAssertEqual(store.get(SettingKey.resultCardWidth), remembered.width - 100, accuracy: 1.0)
         XCTAssertEqual(store.get(SettingKey.resultCardHeight), remembered.height - 100, accuracy: 1.0)
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(panel.frame.width, remembered.width - 100 + ring, accuracy: 1.0, "the card keeps the dragged size after release")
+        XCTAssertEqual(panel.frame.height, remembered.height - 100 + ring, accuracy: 1.0)
     }
 
     /// A short extension result keeps a small card even with a large remembered maximum.

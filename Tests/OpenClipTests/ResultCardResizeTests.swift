@@ -73,6 +73,8 @@ final class ResultCardResizeTests: XCTestCase {
 
         controller.handleResize(.bottomRight, phase: .ended, mouseLocation: CGPoint(x: 510, y: 380))
         XCTAssertFalse(panel.isUserDragging)
+        XCTAssertTrue(controller.modeStore.isSurfaceUserSized, "after the drag the card keeps the dragged size, not the content-fitted one")
+        XCTAssertEqual(panel.frame.width, 320 + 60 + ring, accuracy: 0.5, "the panel stays at the dragged size after release")
         // A stale anchor must not resize the card after the drag ended.
         controller.handleResize(.bottomRight, phase: .changed, mouseLocation: CGPoint(x: 900, y: 100))
         XCTAssertEqual(controller.modeStore.resultCardSize?.width ?? 0, 320 + 60, accuracy: 0.5)
@@ -204,14 +206,17 @@ final class ResultCardResizeTests: XCTestCase {
         controller.handleResize(.bottomRight, phase: .changed, mouseLocation: CGPoint(x: 490, y: 380))
         controller.handleResize(.bottomRight, phase: .ended, mouseLocation: CGPoint(x: 490, y: 380))
 
+        XCTAssertTrue(controller.modeStore.isSurfaceUserSized)
         controller.exitContent()
         XCTAssertNil(controller.modeStore.resultCardSize)
+        XCTAssertFalse(controller.modeStore.isSurfaceUserSized, "closing the card forgets that it was user-sized")
         XCTAssertEqual(panel.heightCap, PopupMetrics.popupMaxHeight, "the bar gets its cap back")
         XCTAssertEqual(settings.get(SettingKey.resultCardWidth), 360, accuracy: 0.5)
 
         showCard(controller)
         XCTAssertEqual(controller.modeStore.resultCardSize, CGSize(width: 360, height: 310),
-                       "the next card opens at the size the last one was left at")
+                       "the next card opens with the size the last one was left at as its maximum")
+        XCTAssertFalse(controller.modeStore.isSurfaceUserSized, "and content-fitted, not forced to it")
     }
 
     func testResizingDoesNotPinTheCardLikeADragDoes() {
@@ -238,9 +243,9 @@ final class ResultCardResizeTests: XCTestCase {
 
     // MARK: - View
 
-    private func fittingSize(_ payload: ResultCardPayload, maxSize: CGSize? = nil, isResizing: Bool = false) -> CGSize {
+    private func fittingSize(_ payload: ResultCardPayload, maxSize: CGSize? = nil, isUserSized: Bool = false) -> CGSize {
         let card = ResultCardView(
-            payload: payload, canPaste: true, maxSize: maxSize, isResizing: isResizing,
+            payload: payload, canPaste: true, maxSize: maxSize, isUserSized: isUserSized,
             onExit: {}, onPaste: {}, onCopy: {}
         ).environment(\.colorScheme, .dark)
         let host = NSHostingView(rootView: AnyView(card))
@@ -263,9 +268,9 @@ final class ResultCardResizeTests: XCTestCase {
         XCTAssertEqual(longSize.width, 500, accuracy: 1.0, "a long answer fills the maximum width")
         XCTAssertEqual(longSize.height, 420, accuracy: 1.0, "and stops at the maximum height, where the body scrolls")
 
-        let dragging = fittingSize(short, maxSize: maximum, isResizing: true)
-        XCTAssertEqual(dragging.width, 500, accuracy: 1.0, "mid-drag the card shows the size being set")
-        XCTAssertEqual(dragging.height, 420, accuracy: 1.0)
+        let userSized = fittingSize(short, maxSize: maximum, isUserSized: true)
+        XCTAssertEqual(userSized.width, 500, accuracy: 1.0, "a card the user resized keeps that size, whatever its text needs")
+        XCTAssertEqual(userSized.height, 420, accuracy: 1.0)
 
         let defaultLong = fittingSize(long)
         XCTAssertEqual(defaultLong.width, PopupMetrics.aiCardIdealWidth, accuracy: 1.0, "without a remembered size the defaults are the maximum")

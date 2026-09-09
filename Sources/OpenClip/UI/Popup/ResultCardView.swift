@@ -17,8 +17,9 @@
 // of the text underneath. Its right edge, bottom edge and bottom-right grip are resize handles
 // (`PopupResizeHandles`, reported the same way to PopupWindowController.handleResize); the size
 // they settle on is remembered and, passed back in as `maxSize`, caps the content-driven size
-// next time: a short answer still gets a small card, a long one grows up to the maximum and
-// scrolls beyond it.
+// when the next card opens: a short answer still gets a small card, a long one grows up to the
+// maximum and scrolls beyond it. Once the user has dragged a handle (`isUserSized`), the card
+// keeps the dragged size verbatim until it closes.
 import SwiftUI
 import AppKit
 import Core
@@ -58,9 +59,9 @@ public struct ResultCardView: View {
     /// renders at what its text needs, floored at `aiCardMinWidth` × `aiCardMinHeight` and capped
     /// here; `nil` caps at the defaults (`aiCardIdealWidth` × `aiCardMaxHeight`).
     public let maxSize: CGSize?
-    /// True while a resize handle is being dragged: the card then renders at `maxSize` verbatim so
-    /// the user sees the size they are setting, instead of the content-fitted size.
-    public let isResizing: Bool
+    /// True once the user has dragged a resize handle of this card: it then renders at `maxSize`
+    /// verbatim — the size they set, whatever the text needs — instead of the content-fitted size.
+    public let isUserSized: Bool
     /// Reports a drag of one of the resize handles so the owner can resize the panel and remember
     /// the size. Phases mirror `onDrag`; `.began` is reported exactly once per drag.
     public let onResize: @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void
@@ -88,7 +89,7 @@ public struct ResultCardView: View {
         payload: ResultCardPayload,
         canPaste: Bool? = nil,
         maxSize: CGSize? = nil,
-        isResizing: Bool = false,
+        isUserSized: Bool = false,
         onExit: @escaping @MainActor () -> Void,
         onDismiss: (@MainActor () -> Void)? = nil,
         onPaste: @escaping @MainActor () -> Void,
@@ -99,7 +100,7 @@ public struct ResultCardView: View {
         self.payload = payload
         self.canPaste = canPaste
         self.maxSize = maxSize
-        self.isResizing = isResizing
+        self.isUserSized = isUserSized
         self.onExit = onExit
         self.onDismiss = onDismiss ?? onExit
         self.onPaste = onPaste
@@ -455,9 +456,9 @@ public struct ResultCardView: View {
     }
 
     /// The card is as wide as its text needs, never narrower than the minimum and never wider
-    /// than the maximum; mid-resize it is exactly the dragged size.
+    /// than the maximum; once user-sized it is exactly the dragged size.
     private var dynamicCardWidth: CGFloat {
-        if isResizing, let maxSize { return maxSize.width }
+        if isUserSized, let maxSize { return maxSize.width }
         return Self.bounded(naturalTextWidth, min: PopupMetrics.aiCardMinWidth, max: maxCardWidth)
     }
 
@@ -485,9 +486,9 @@ public struct ResultCardView: View {
     }
 
     /// The card is as tall as its text needs, never shorter than the minimum and never taller
-    /// than the maximum (beyond which the body scrolls); mid-resize it is exactly the dragged size.
+    /// than the maximum (beyond which the body scrolls); once user-sized it is exactly the dragged size.
     private var dynamicCardHeight: CGFloat {
-        if isResizing, let maxSize { return maxSize.height }
+        if isUserSized, let maxSize { return maxSize.height }
         return Self.bounded(naturalContentHeight, min: PopupMetrics.aiCardMinHeight, max: maxCardHeight)
     }
 

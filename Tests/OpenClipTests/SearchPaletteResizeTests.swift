@@ -76,6 +76,14 @@ final class SearchPaletteResizeTests: XCTestCase {
 
         controller.handleResize(.bottomRight, phase: .ended, mouseLocation: CGPoint(x: 470, y: 380))
         XCTAssertFalse(panel.isUserDragging)
+        XCTAssertTrue(controller.modeStore.isSurfaceUserSized, "after the drag the palette keeps the dragged size")
+        XCTAssertEqual(panel.frame.size.width, size.width + ring, accuracy: 0.5, "the panel stays at the dragged size after release")
+
+        controller.exitSearch()
+        XCTAssertFalse(controller.modeStore.isSurfaceUserSized, "closing the palette forgets that it was user-sized")
+        controller.enterSearch()
+        XCTAssertEqual(controller.modeStore.searchPaletteSize, size, "the next palette opens with that size as its maximum")
+        XCTAssertFalse(controller.modeStore.isSurfaceUserSized, "and content-fitted, not forced to it")
     }
 
     func testResizeNeverShrinksBelowTheMinimumPalette() throws {
@@ -246,14 +254,14 @@ final class SearchPaletteResizeTests: XCTestCase {
         (0..<count).map { StubAction(id: "stub.\($0)", title: title($0)) }
     }
 
-    private func makePalette(catalog: [any Action] = [], maxSize: CGSize? = nil, isResizing: Bool = false,
+    private func makePalette(catalog: [any Action] = [], maxSize: CGSize? = nil, isUserSized: Bool = false,
                              onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in }) -> some View {
         let context = ActionContext(selection: makeContext())
         return PopupSearchView(
             catalog: catalog,
             context: context,
             maxSize: maxSize,
-            isResizing: isResizing,
+            isUserSized: isUserSized,
             onResize: onResize,
             onResult: { _ in },
             onExit: {}
@@ -261,8 +269,8 @@ final class SearchPaletteResizeTests: XCTestCase {
         .environment(\.colorScheme, .dark)
     }
 
-    private func fittingSize(catalog: [any Action], maxSize: CGSize? = nil, isResizing: Bool = false) -> CGSize {
-        let host = NSHostingView(rootView: AnyView(makePalette(catalog: catalog, maxSize: maxSize, isResizing: isResizing)))
+    private func fittingSize(catalog: [any Action], maxSize: CGSize? = nil, isUserSized: Bool = false) -> CGSize {
+        let host = NSHostingView(rootView: AnyView(makePalette(catalog: catalog, maxSize: maxSize, isUserSized: isUserSized)))
         host.layoutSubtreeIfNeeded()
         return host.fittingSize
     }
@@ -278,9 +286,9 @@ final class SearchPaletteResizeTests: XCTestCase {
         let twenty = fittingSize(catalog: stubs(20), maxSize: maximum)
         XCTAssertEqual(twenty.height, 360, accuracy: 1.0, "a long list stops at the maximum and scrolls")
 
-        let dragging = fittingSize(catalog: stubs(2), maxSize: maximum, isResizing: true)
-        XCTAssertEqual(dragging.width, 480, accuracy: 1.0, "mid-drag the palette shows the size being set")
-        XCTAssertEqual(dragging.height, 360, accuracy: 1.0)
+        let userSized = fittingSize(catalog: stubs(2), maxSize: maximum, isUserSized: true)
+        XCTAssertEqual(userSized.width, 480, accuracy: 1.0, "a palette the user resized keeps that size, whatever its results need")
+        XCTAssertEqual(userSized.height, 360, accuracy: 1.0)
 
         XCTAssertEqual(fittingSize(catalog: stubs(20)).height, defaultHeight, accuracy: 1.0, "without a remembered size the default column is the maximum")
         XCTAssertEqual(fittingSize(catalog: stubs(2)).height, PopupSearchView.height(forRows: 2), accuracy: 1.0)

@@ -134,9 +134,10 @@ that replaced the former interactive canvas.
   fixed. The size is a **maximum**, not a fixed size: the card renders at what its text needs —
   as wide as its longest unwrapped line, as tall as that wrapped text — floored at
   `aiCardMinWidth` × `aiCardMinHeight` and capped by `maxSize` (the remembered size, or
-  `aiCardIdealWidth` × `aiCardMaxHeight` by default), scrolling beyond it. While a handle is
-  dragged (`modeStore.isResizingSurface`) the card renders the dragged size verbatim so the user
-  sees the maximum they are setting; on `ended` it settles and `fitPanelToContent()` follows. On
+  `aiCardIdealWidth` × `aiCardMaxHeight` by default), scrolling beyond it. That fit happens
+  only when the card opens: once the user drags a handle (`modeStore.isSurfaceUserSized`, set at
+  `began` and kept until the surface closes) the card renders the dragged size verbatim — any
+  size they want, whatever the text does — with no settle on release. On
   `ended` the size is written to `SettingKey.resultCardWidth`/`resultCardHeight`
   (`Sources/OpenClip/Settings/SettingKey+ResultCard.swift`); every entry into content mode
   (`showResultCard`) reads it back, fitted to the current screen (`PopupResizeGeometry.fit`), and
@@ -253,7 +254,8 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
   `searchPaletteMinHeight`) and as wide as the default column or its widest row
   (`naturalRowWidth(for:)`, measured once per result set), each capped by the remembered size, or
   by the default `searchPanelContentWidth` × `defaultHeight` column when nothing is remembered.
-  Mid-drag it renders the dragged size verbatim (`modeStore.isResizingSurface`). Because the
+  That fit happens only on entry: once the user drags a handle (`modeStore.isSurfaceUserSized`)
+  the palette keeps the dragged size verbatim until it closes. Because the
   height now follows the result count, the entry growth's bottom-edge pin is **one-shot**
   (`PopupPanel.releasesBottomPinAfterGrowth`, armed by `enterSearch()` on a fresh entry only):
   later changes keep the field at the palette top fixed, a directly opened palette is never

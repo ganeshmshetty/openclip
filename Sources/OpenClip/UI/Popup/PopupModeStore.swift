@@ -38,10 +38,11 @@ public final class PopupModeStore: ObservableObject {
     /// results need up to this; `nil` means the default column. Cleared whenever the palette
     /// closes, so every entry re-reads the preference.
     @Published public var searchPaletteSize: CGSize? = nil
-    /// True from a resize handle's `.began` to its `.ended`. While set, the surface being resized
-    /// renders at the dragged size verbatim, so the user sees the maximum they are setting; on
-    /// release it settles to what its content needs within that maximum.
-    @Published public var isResizingSurface: Bool = false
+    /// True once the user has dragged a resize handle of the surface on screen. From then on the
+    /// surface keeps the dragged size verbatim — any size they want, whatever its content does —
+    /// for the rest of its session. Cleared when the surface closes, so the next one opens
+    /// content-fitted up to the remembered maximum.
+    @Published public var isSurfaceUserSized: Bool = false
     /// Whether the target app can Paste, probed (AX) when the popup shows. `false` hides the
     /// card's Paste button and the bar/search Paste + Cut actions; `nil` (unknown/probing) and
     /// `true` keep them visible.
