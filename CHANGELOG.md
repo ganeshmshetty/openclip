@@ -15,6 +15,9 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 - **Redesigned DMG Installer**: The disk image now opens as a proper install window — a branded background, "Install OpenClip" headline, the app icon and an `/Applications` drop link laid out either side of an arrow, and the app icon as the volume icon. The background is rendered from `assets/dmg/background.html` at 1× and 2× into a multi-representation TIFF, so it stays sharp on Retina displays and can be edited as HTML/CSS instead of a binary image. See [docs/dmg.md](docs/dmg.md).
 
 ### Fixes & Stability
+- **JavaScript Fetch Lifetime**: A network response that arrives after an async JS action has
+  finished, timed out, or been cancelled is now discarded instead of being delivered into the
+  finished action's JavaScript context ([#40](https://github.com/ganeshmshetty/openclip/issues/40)).
 - **Extension Module Containment**: `require()` in JS extension packages now re-checks the package boundary on the final symlink-resolved file, so a symlinked `<name>.js` or `index.js` can no longer read files outside the package ([#39](https://github.com/ganeshmshetty/openclip/issues/39)).
 
 ---

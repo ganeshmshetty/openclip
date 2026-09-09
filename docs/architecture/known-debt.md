@@ -73,6 +73,15 @@ areas; stale debt notes are worse than none.
   availability. The old `after` translator (the pre-refactor `after` orchestration step and its
   adapter) is **fully removed**. Async JS runs are guarded by the
   `TimeoutFlag` watchdog (60 s, same pattern as `ShellProcessRunner`) and cooperative Swift task cancellation.
+  A fetch response that arrives after the evaluation ends is discarded (`FetchTaskBox.isEnded`);
+  the host does not call the JavaScript VM for it (issue #40). Residual: retain cycles in
+  `JSNativeFetch` (`nativeFetchBlock` → `contextBox`/`context`; `jsonBlock` → `JSContextBox`) and
+  `PromiseState` (`JSValue?` → `JSValue.context`) keep the finished `JSContext` alive — this is
+  **line-cited analysis, not empirically probed**. `PolicySession` does not invalidate its
+  `URLSession`. A guarded `CFRunLoopPerformBlock` can still sit on the shared run loop and hold
+  those references. Do not break a cycle unless the final release of `JSValue`/`JSContext` is
+  guaranteed to land on the JS thread; otherwise an off-thread release becomes a memory-safety
+  hazard.
 - **Custom Action Groups use canonical IDs with dynamic materialization and strict $\ge 2$ member invariant.**
   User-defined action groups are defined via `ActionGroupDef` (`Sources/Core/Actions/ActionGroupDef.swift`),
   stored as JSON in `SettingKey.actionGroups`. Rather than rewriting action identifiers with virtual ID

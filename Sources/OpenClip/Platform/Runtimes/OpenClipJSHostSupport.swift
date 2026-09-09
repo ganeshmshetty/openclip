@@ -137,19 +137,26 @@ final class TaskIdentifierBox: @unchecked Sendable {
     }
 }
 
-/// Thread-safe container to track active URLSessionDataTasks so they can be cancelled on watchdog timeout.
+/// Thread-safe container that tracks in-flight URLSessionDataTasks and latches the end of the evaluation.
 /// `cancelAll()` is terminal: once cancellation starts, any task added afterwards is cancelled
 /// immediately rather than being appended (so a task racing in during `cancelAll()` cannot escape
 /// cancellation).
 final class FetchTaskBox: @unchecked Sendable {
     private let lock = NSLock()
     private var tasks: [URLSessionDataTask] = []
-    private var cancelled = false
+    private var ended = false
+
+    /// True after the evaluation ends. The fetch bridge reads this before it calls the JavaScript VM.
+    var isEnded: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return ended
+    }
 
     func add(_ task: URLSessionDataTask) {
         lock.lock()
         defer { lock.unlock() }
-        if cancelled {
+        if ended {
             task.cancel()
             return
         }
@@ -163,9 +170,16 @@ final class FetchTaskBox: @unchecked Sendable {
         tasks.removeAll(where: { $0.taskIdentifier == identifier })
     }
 
+    /// Marks the end of the evaluation. In-flight tasks continue, and their results are discarded.
+    func finish() {
+        lock.lock()
+        defer { lock.unlock() }
+        ended = true
+    }
+
     func cancelAll() {
         lock.lock()
-        cancelled = true
+        ended = true
         let currentTasks = tasks
         tasks.removeAll()
         lock.unlock()
