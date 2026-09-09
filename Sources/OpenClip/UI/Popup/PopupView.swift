@@ -40,6 +40,9 @@ public struct PopupView: View {
     public let onDismissContent: @MainActor () -> Void
     /// Called as the result card's header handle is dragged, so the controller can move the panel.
     public let onCardDrag: (@MainActor (ResultCardDragPhase) -> Void)?
+    /// Called as one of the result card's resize handles is dragged, so the controller can resize
+    /// the card (and the panel around it) and remember the size for the next card.
+    public let onCardResize: (@MainActor (ResultCardResizeEdge, ResultCardDragPhase) -> Void)?
     /// The AI result card's Paste/Copy buttons — explicit user requests routed through the
     /// controller's keep-open card-effect door (bypasses the paste-vs-copy re-decision).
     public let onCardEffect: @MainActor (ActionResult) -> Void
@@ -158,6 +161,7 @@ public struct PopupView: View {
         onExitContent: @escaping @MainActor () -> Void = {},
         onDismissContent: (@MainActor () -> Void)? = nil,
         onCardDrag: (@MainActor (ResultCardDragPhase) -> Void)? = nil,
+        onCardResize: (@MainActor (ResultCardResizeEdge, ResultCardDragPhase) -> Void)? = nil,
         onCardEffect: @escaping @MainActor (ActionResult) -> Void = { _ in },
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
@@ -192,6 +196,7 @@ public struct PopupView: View {
         self.onExitContent = onExitContent
         self.onDismissContent = onDismissContent ?? onExitContent
         self.onCardDrag = onCardDrag
+        self.onCardResize = onCardResize
         self.onCardEffect = onCardEffect
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
@@ -367,11 +372,13 @@ public struct PopupView: View {
             ResultCardView(
                 payload: payload,
                 canPaste: modeStore.canPaste,
+                preferredSize: modeStore.resultCardSize,
                 onExit: { onExitContent() },
                 onDismiss: { onDismissContent() },
                 onPaste: { onCardEffect(.paste(payload.text)) },
                 onCopy: { onCardEffect(.copy(payload.text)) },
-                onDrag: { phase in onCardDrag?(phase) }
+                onDrag: { phase in onCardDrag?(phase) },
+                onResize: { edge, phase in onCardResize?(edge, phase) }
             )
             .environment(\.colorScheme, effectiveColorScheme)
             .environment(\.popupEffectiveTheme, effectiveTheme)

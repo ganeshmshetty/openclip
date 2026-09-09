@@ -3893,6 +3893,34 @@
         }
       }
     },
+    "Drag to resize": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动以调整大小"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖曳以調整大小"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faire glisser pour redimensionner"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドラッグしてサイズ変更"
+          }
+        }
+      }
+    },
     "DuckDuckGo": {
       "localizations": {
         "zh-Hans": {
@@ -9405,6 +9433,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "デフォルトに戻す"
+          }
+        }
+      }
+    },
+    "Resize result card": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调整结果卡片大小"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "調整結果卡片大小"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redimensionner la carte de résultat"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結果カードのサイズを変更"
           }
         }
       }

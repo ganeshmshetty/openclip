@@ -94,9 +94,9 @@ that replaced the former interactive canvas.
   `PopupView.onDismissContent` → `hide()`.
 - **Card surface**: the card renders a scrollable body plus a compact Copy/Paste footer (or a Dismiss button when
   `isError`; Paste also hidden while `modeStore.canPaste == false`), sized by `PopupMetrics`
-  (`aiCardMinWidth 220` / `aiCardIdealWidth 300` /
-  `aiCardMaxWidth 360` / `aiCardBodyHeight 120`), measured against whichever body is showing
-  (the diff is longer than the plain result). The close action lives in the header (`✕`), keeping the footer
+  (`aiCardMinWidth 220` / `aiCardIdealWidth 320` /
+  `aiCardMinHeight 200` / `aiCardMaxHeight 280`), measured against whichever body is showing
+  (the diff is longer than the plain result) — unless a remembered size applies (see *Resizable*). The close action lives in the header (`✕`), keeping the footer
   clean and compact without requiring artificial width floors. Content mode is **key exactly like search**:
   the panel becomes key through the same `enterKeyMode()` primitive, and the card owns all keys
   via SwiftUI `.onKeyPress` — Esc closes the card outright (`hide()`, *not* a collapse back to the
@@ -122,6 +122,24 @@ that replaced the former interactive canvas.
   the card's source app (`popup.sourceAppBundleID`), so selecting words in the source document to edit by hand
   cannot pop the action bar over the card being referenced. All other applications remain completely unsuppressed.
   Switching to another application or space dismisses the card and resets pinning.
+- **Resizable, and the size is remembered**: the card's right edge, bottom edge and bottom-right
+  grip are SwiftUI `DragGesture` handles (same reason as *Draggable* below — the borderless panel
+  has no AppKit resize edges) that report `(ResultCardResizeEdge, ResultCardDragPhase)` to
+  `PopupWindowController.handleCardResize`. The controller computes the new card size from the
+  **absolute** cursor position against the anchor taken at `began` (`ResultCardResizeGeometry.size`),
+  clamps it to `aiCardMinWidth`/`aiCardMinHeight` and to the screen (`ResultCardResizeGeometry.clamp`,
+  the panel's top-left corner is the fixed point), publishes it as `modeStore.resultCardSize` (the
+  card renders it as `preferredSize`, overriding the content-driven size) and sets the panel frame
+  to card + shadow ring with the top-left fixed. On `ended` the size is written to
+  `SettingKey.resultCardWidth`/`resultCardHeight` (`Sources/OpenClip/Settings/SettingKey+ResultCard.swift`);
+  every entry into content mode (`showResultCard`) reads it back, fitted to the current screen
+  (`ResultCardResizeGeometry.fit`), and clears it again on `exitContent()`/`hide()`. Because a
+  remembered card can be taller than the shared `popupMaxHeight`, content mode raises
+  `PopupPanel.heightCap` to the screen height (restored on exit) and `fitPanelToCard()` nudges an
+  automatically placed panel back on-screen after each fit. Resizing does not pin the card
+  (`hasUserMovedCard` stays false) but, like a move, it drops the horizontal re-centering anchor.
+  `ResultCardResizeTests` covers the geometry, the persistence round-trip and that the grip's
+  gesture is actually delivered.
 - **Draggable**: the header between the chevron and the diff/close actions carries a SwiftUI
   `DragGesture` that reports `ResultCardDragPhase` (`began`/`changed`/`ended`) to
   `PopupWindowController.handleCardDrag`, which moves the panel. AppKit dragging is **not**

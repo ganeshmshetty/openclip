@@ -14,7 +14,9 @@
 // The card is modal-ish by design: it stays up until Copy, Paste or Esc (see
 // PopupWindowController.handleEvent), and its header doubles as a drag handle (a SwiftUI
 // DragGesture reported to PopupWindowController.handleCardDrag) so it can be moved out of the way
-// of the text underneath.
+// of the text underneath. Its right edge, bottom edge and bottom-right grip are resize handles
+// (reported the same way to PopupWindowController.handleCardResize); the size they settle on is
+// remembered and, passed back in as `preferredSize`, replaces the content-driven size next time.
 import SwiftUI
 import AppKit
 import Core
@@ -37,6 +39,17 @@ public enum ResultCardDragPhase: Sendable {
     case ended
 }
 
+/// The handle a resize drag started on. The card's top-left corner stays fixed (the header is the
+/// move handle), so only the right edge, the bottom edge and the corner joining them resize.
+public enum ResultCardResizeEdge: Sendable, Equatable {
+    case right
+    case bottom
+    case bottomRight
+
+    public var resizesWidth: Bool { self != .bottom }
+    public var resizesHeight: Bool { self != .right }
+}
+
 // MARK: - Result Card
 
 public struct ResultCardView: View {
@@ -50,6 +63,12 @@ public struct ResultCardView: View {
     public let onCopy: @MainActor () -> Void
     /// Reports a drag of the header handle so the owner can move the panel.
     public let onDrag: @MainActor (ResultCardDragPhase) -> Void
+    /// The size to render at — the user's remembered or in-progress resize. `nil` sizes the card
+    /// from its content (`aiCardIdealWidth` wide, height between the min and max card height).
+    public let preferredSize: CGSize?
+    /// Reports a drag of one of the resize handles so the owner can resize the panel and remember
+    /// the size. Phases mirror `onDrag`; `.began` is reported exactly once per drag.
+    public let onResize: @MainActor (ResultCardResizeEdge, ResultCardDragPhase) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.popupEffectiveTheme) private var effectiveTheme
@@ -69,23 +88,31 @@ public struct ResultCardView: View {
     /// True between the drag gesture crossing its threshold and its end, so `.began` is reported
     /// exactly once per drag.
     @State private var isDraggingCard = false
+    /// The resize handle under the pointer, driving the cursor and the grip's emphasis.
+    @State private var hoveredResizeEdge: ResultCardResizeEdge?
+    /// The resize handle being dragged, from the gesture crossing its threshold to its end.
+    @State private var activeResizeEdge: ResultCardResizeEdge?
 
     public init(
         payload: ResultCardPayload,
         canPaste: Bool? = nil,
+        preferredSize: CGSize? = nil,
         onExit: @escaping @MainActor () -> Void,
         onDismiss: (@MainActor () -> Void)? = nil,
         onPaste: @escaping @MainActor () -> Void,
         onCopy: @escaping @MainActor () -> Void,
-        onDrag: @escaping @MainActor (ResultCardDragPhase) -> Void = { _ in }
+        onDrag: @escaping @MainActor (ResultCardDragPhase) -> Void = { _ in },
+        onResize: @escaping @MainActor (ResultCardResizeEdge, ResultCardDragPhase) -> Void = { _, _ in }
     ) {
         self.payload = payload
         self.canPaste = canPaste
+        self.preferredSize = preferredSize
         self.onExit = onExit
         self.onDismiss = onDismiss ?? onExit
         self.onPaste = onPaste
         self.onCopy = onCopy
         self.onDrag = onDrag
+        self.onResize = onResize
     }
 
     public var body: some View {
@@ -104,6 +131,8 @@ public struct ResultCardView: View {
 
                 footer
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+
+                resizeHandles
             }
         }
         .frame(width: dynamicCardWidth, height: dynamicCardHeight)
@@ -404,7 +433,7 @@ public struct ResultCardView: View {
     }
 
     private var dynamicCardWidth: CGFloat {
-        PopupMetrics.aiCardIdealWidth
+        preferredSize?.width ?? PopupMetrics.aiCardIdealWidth
     }
 
     private static let headerHeight: CGFloat = 32.0
@@ -432,7 +461,124 @@ public struct ResultCardView: View {
     }
 
     private var dynamicCardHeight: CGFloat {
-        min(max(naturalContentHeight, PopupMetrics.aiCardMinHeight), PopupMetrics.aiCardMaxHeight)
+        if let preferredSize { return preferredSize.height }
+        return min(max(naturalContentHeight, PopupMetrics.aiCardMinHeight), PopupMetrics.aiCardMaxHeight)
+    }
+
+    // MARK: - Resize Handles
+
+    private static let resizeEdgeThickness: CGFloat = 5.0
+    private static let resizeGripHitSize: CGFloat = 16.0
+    private static let resizeGripGlyphSize: CGFloat = 9.0
+    private static let resizeGripInset: CGFloat = 5.0
+
+    /// Invisible strips along the right and bottom edges plus a visible grip in the bottom-right
+    /// corner. Like the header drag these are SwiftUI gestures: the borderless panel has no AppKit
+    /// resize edges, and an AppKit handle would never see the `mouseDown` (see
+    /// `ResultCardDragPhase`). The strips are thin so they stay clear of the footer buttons and
+    /// leave most of the body's overlay scrollbar grabbable; the grip is drawn last so it wins
+    /// where it overlaps the strips.
+    private var resizeHandles: some View {
+        ZStack(alignment: .bottomTrailing) {
+            resizeStrip(.right)
+                .frame(width: Self.resizeEdgeThickness)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            resizeStrip(.bottom)
+                .frame(height: Self.resizeEdgeThickness)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            resizeGrip
+        }
+    }
+
+    private func resizeStrip(_ edge: ResultCardResizeEdge) -> some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .onHover { setResizeHover(edge, $0) }
+            .gesture(resizeGesture(edge))
+    }
+
+    private var resizeGrip: some View {
+        resizeGripGlyph
+            .padding([.bottom, .trailing], Self.resizeGripInset)
+            .frame(width: Self.resizeGripHitSize, height: Self.resizeGripHitSize, alignment: .bottomTrailing)
+            .contentShape(Rectangle())
+            .onHover { setResizeHover(.bottomRight, $0) }
+            .gesture(resizeGesture(.bottomRight))
+            .help(String(localized: "Drag to resize"))
+            .accessibilityLabel(String(localized: "Resize result card"))
+    }
+
+    /// Three diagonal strokes hugging the corner, longest outermost — the classic grip.
+    private var resizeGripGlyph: some View {
+        let size = Self.resizeGripGlyphSize
+        let isEmphasized = hoveredResizeEdge == .bottomRight || activeResizeEdge == .bottomRight
+        return Path { path in
+            for offset in stride(from: size / 3, through: size, by: size / 3) {
+                path.move(to: CGPoint(x: size, y: size - offset))
+                path.addLine(to: CGPoint(x: size - offset, y: size))
+            }
+        }
+        .stroke(
+            PopupThemeModel.restForeground(for: effectiveTheme).opacity(isEmphasized ? 0.75 : 0.35),
+            style: StrokeStyle(lineWidth: 1, lineCap: .round)
+        )
+        .frame(width: size, height: size)
+    }
+
+    /// A tiny threshold so a plain click on a handle is not a resize; `.began` is reported once,
+    /// on the first update past it.
+    private func resizeGesture(_ edge: ResultCardResizeEdge) -> some Gesture {
+        DragGesture(minimumDistance: 1)
+            .onChanged { _ in
+                if activeResizeEdge == nil {
+                    activeResizeEdge = edge
+                    updateResizeCursor()
+                    onResize(edge, .began)
+                }
+                onResize(edge, .changed)
+            }
+            .onEnded { _ in
+                guard activeResizeEdge == edge else { return }
+                activeResizeEdge = nil
+                onResize(edge, .ended)
+                updateResizeCursor()
+            }
+    }
+
+    private func setResizeHover(_ edge: ResultCardResizeEdge, _ hovering: Bool) {
+        if hovering {
+            hoveredResizeEdge = edge
+        } else if hoveredResizeEdge == edge {
+            hoveredResizeEdge = nil
+        }
+        updateResizeCursor()
+    }
+
+    /// The cursor follows the hovered handle and stays for the whole drag, even when a fast pull
+    /// carries the pointer off the thin strip. `PopupPanel.ContentView` forces the arrow whenever
+    /// the pointer enters the panel, so the card sets the cursor itself rather than relying on
+    /// cursor rects.
+    private func updateResizeCursor() {
+        if let edge = activeResizeEdge ?? hoveredResizeEdge {
+            Self.cursor(for: edge).set()
+        } else {
+            NSCursor.arrow.set()
+        }
+    }
+
+    private static func cursor(for edge: ResultCardResizeEdge) -> NSCursor {
+        switch edge {
+        case .right:
+            return .resizeLeftRight
+        case .bottom:
+            return .resizeUpDown
+        case .bottomRight:
+            if #available(macOS 15, *) {
+                return .frameResize(position: .bottomRight, directions: .all)
+            }
+            // No public diagonal resize cursor before macOS 15; the grip glyph carries the hint.
+            return .arrow
+        }
     }
 
     // MARK: - Body

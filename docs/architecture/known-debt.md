@@ -161,9 +161,13 @@ areas; stale debt notes are worse than none.
 - **Popup sizing constants live in the App target.** `PopupMetrics`
   (`Sources/OpenClip/UI/Popup/PopupMetrics.swift`) holds the UI-only values — `searchMaxRows`
   (5), `searchResultRowHeight` (32), `searchPeekRowFraction` (0.5), `popupMaxHeight` (300, the
-  shared height cap for the popup panel), the AI card bounds (`aiCardMinWidth` 220 /
-  `aiCardIdealWidth` 300 / `aiCardMaxWidth` 360 / `aiCardBodyHeight` 160), plus
-  placement/dismissal distances. `Core/Selection/Constants.swift` keeps only
+  shared height cap for the popup panel — lifted per-session via `PopupPanel.heightCap` while the
+  result card shows, since a user-resized card may be taller), the AI card bounds
+  (`aiCardMinWidth` 220 / `aiCardIdealWidth` 320 / `aiCardMaxWidth` 360 / `aiCardMinHeight` 200 /
+  `aiCardMaxHeight` 280 — the max bounds only cap the content-driven default; the card's resize
+  handles go up to the screen, see `ResultCardResizeGeometry`), plus placement/dismissal distances.
+  The remembered card size is the one popup preference declared in the App target
+  (`SettingKey+ResultCard.swift`, next to `SettingKey+MenuBar.swift`) because it is pure presentation. `Core/Selection/Constants.swift` keeps only
   domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 
 ## Unused / Latent

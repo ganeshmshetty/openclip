@@ -430,6 +430,8 @@
   "Show the plain result (⌘D)": "顯示純文字結果 (⌘D)",
   "Toggle change highlighting": "切換變更標示",
   "Drag to move": "拖曳以移動",
+  "Drag to resize": "拖曳以調整大小",
+  "Resize result card": "調整結果卡片大小",
   "Close the card (⎋)": "關閉卡片 (⎋)",
   "Close the result card": "關閉結果卡片",
   "Close (⎋)": "關閉 (⎋)",

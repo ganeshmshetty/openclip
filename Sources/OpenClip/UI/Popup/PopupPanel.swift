@@ -22,6 +22,11 @@ public class PopupPanel: NSPanel {
     /// When true (search mode with results above the field), content-driven growth keeps the
     /// panel's bottom edge fixed and grows upward so the field never shifts.
     public var pinBottomEdgeOnResize: Bool = false
+    /// Height cap `setFrame` applies to every frame request. `PopupMetrics.popupMaxHeight` for the
+    /// bar and the search palette; the controller raises it to the screen height while the result
+    /// card shows, because a card the user resized (or one restored at its remembered size) may
+    /// legitimately be taller than the shared cap. Reset by `show(for:)`, `exitContent()`, `hide()`.
+    public var heightCap: CGFloat = PopupMetrics.popupMaxHeight
     public enum HorizontalAnchor: Sendable {
         case none
         case center
@@ -142,13 +147,13 @@ public class PopupPanel: NSPanel {
     /// first placement (zero-sized frame) pass through untouched.
     override public func setFrame(_ frameRect: NSRect, display flag: Bool) {
         var clamped = frameRect
-        let heightWasClamped = clamped.size.height > PopupMetrics.popupMaxHeight
+        let heightWasClamped = clamped.size.height > heightCap
         let activeScreenFrame = screen?.visibleFrame ?? NSScreen.main?.visibleFrame
         if let screenFrame = activeScreenFrame {
             let maxWidth = max(0, screenFrame.width - PopupMetrics.popupPadding * 2)
             clamped.size.width = min(clamped.size.width, maxWidth)
         }
-        clamped.size.height = min(clamped.size.height, PopupMetrics.popupMaxHeight)
+        clamped.size.height = min(clamped.size.height, heightCap)
 
         // If height clamping altered the requested height, adjust origin.y to preserve the requested frame's top edge (maxY)
         if clamped.height != frameRect.height, !pinBottomEdgeOnResize {
