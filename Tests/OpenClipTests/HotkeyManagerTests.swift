@@ -206,6 +206,55 @@ final class HotkeyManagerTests: XCTestCase {
         XCTAssertEqual(result?.context.isClipboardFallback, false)
     }
 
+    /// Issue #74: When a clipboard manager (Paste, Raycast, Maccy) dismisses itself, macOS may
+    /// report `frontmostApp` as `nil` during the transition. The trigger should still fire using
+    /// clipboard text rather than silently dropping the hotkey.
+    func testResolveSynchronousTriggerFallsBackToClipboardWhenFrontmostAppIsNil() {
+        let manager = HotkeyManager.shared
+        let monitor = MockSelectionMonitor()
+        manager.selectionMonitor = monitor
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString("clipboard from Paste app", forType: .string)
+
+        let trigger = manager.resolveSynchronousTrigger(frontmostApp: nil)
+
+        let result = try? XCTUnwrap(trigger)
+        XCTAssertEqual(result?.context.text, "clipboard from Paste app")
+        XCTAssertEqual(result?.context.isClipboardFallback, true)
+        // No identifiable app → sourceApp has nil bundle ID
+        XCTAssertNil(result?.context.sourceApp.bundleIdentifier)
+    }
+
+    func testResolveSynchronousTriggerFallsBackToEmptyWhenFrontmostAppNilAndClipboardEmpty() {
+        let manager = HotkeyManager.shared
+        let monitor = MockSelectionMonitor()
+        manager.selectionMonitor = monitor
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+
+        let trigger = manager.resolveSynchronousTrigger(frontmostApp: nil)
+
+        let result = try? XCTUnwrap(trigger)
+        XCTAssertEqual(result?.context.text, "")
+        XCTAssertEqual(result?.context.isClipboardFallback, false)
+    }
+
+    func testResolveSynchronousTriggerRespectsGlobalPauseEvenWithNilFrontmostApp() {
+        let manager = HotkeyManager.shared
+        let store = MemorySettingsStore()
+        store.set(.pauseUntilTimestamp, value: Date().timeIntervalSince1970 + 1800)
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString("should not appear", forType: .string)
+
+        let trigger = manager.resolveSynchronousTrigger(frontmostApp: nil, settingsStore: store)
+        XCTAssertNil(trigger)
+    }
+
     func testHandleTogglePopupTransitionsOpenBarToSearch() {
         let controller = PopupWindowController()
         let manager = HotkeyManager.shared
@@ -250,6 +299,48 @@ final class HotkeyManagerTests: XCTestCase {
 
         manager.handleTogglePopup()
         XCTAssertFalse(controller.isVisible)
+    }
+
+    /// Issue #75: When invoking the toggle hotkey with no text selected and an empty clipboard,
+    /// OpenClip should present an auto-dismissing toast ("No text selected or on clipboard")
+    /// instead of opening an empty search palette ("No matching actions").
+    func testHandleTogglePopupShowsToastWhenNoTextAndNoStandaloneActions() {
+        let controller = PopupWindowController()
+        let manager = HotkeyManager.shared
+        manager.setup(popupController: controller)
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+
+        manager.handleTogglePopup()
+
+        XCTAssertFalse(controller.isVisible, "Search palette should not appear")
+        XCTAssertTrue(controller.toastController.isShowing, "Toast feedback should appear")
+        XCTAssertEqual(controller.toastController.currentFeedback?.message, String(localized: "No text selected or on clipboard"))
+        XCTAssertEqual(controller.toastController.currentFeedback?.symbolName, "doc.on.clipboard")
+        controller.toastController.hide()
+    }
+
+    /// Issue #75: When genuine standalone actions (e.g. extensions with `requiresSelection: false`)
+    /// are available, the search palette should still open so the user can invoke them.
+    func testHandleTogglePopupOpensPaletteWhenStandaloneActionExists() {
+        let controller = PopupWindowController()
+        let manager = HotkeyManager.shared
+        manager.setup(popupController: controller)
+
+        let standalone = BoundTestAction(id: "test.standalone") {}
+        ActionCoordinator.shared.register(action: standalone)
+        defer {
+            ActionCoordinator.shared.unregister(actionID: "test.standalone")
+        }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+
+        manager.handleTogglePopup()
+
+        XCTAssertTrue(controller.isVisible, "Search palette should open when standalone actions are available")
+        controller.hide()
     }
 }
 

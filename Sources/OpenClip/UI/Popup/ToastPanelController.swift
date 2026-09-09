@@ -147,7 +147,7 @@ public final class ToastPanelController {
             centerOnScreen(size: size, inset: inset)
             return
         }
-        let screen = NSScreen.screens.first { $0.frame.intersects(anchor) } ?? NSScreen.main
+        let screen = NSScreen.screens.first { $0.frame.contains(anchor.origin) || $0.frame.intersects(anchor) } ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         var origin = CGPoint(x: anchor.midX - size.width / 2,
                              y: anchor.midY - size.height / 2)

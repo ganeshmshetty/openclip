@@ -86,23 +86,74 @@ public final class HotkeyManager {
         }
 
         guard let trigger = self.resolveSynchronousTrigger() else { return }
+
+        // When both the monitored selection and clipboard are empty, check whether there are any
+        // standalone actions (e.g. extensions declaring `requiresSelection: false`) available to run.
+        // If not, avoid showing an empty search palette ("No matching actions" dead end); instead,
+        // surface a lightweight floating toast anchored at the mouse cursor.
+        if trigger.context.text.isEmpty {
+            let actionContext = ActionContext(selection: trigger.context, modifiers: [])
+            let catalog = ActionCoordinator.shared.searchCatalog(for: actionContext)
+            let hasStandaloneActions = catalog.contains { $0.id != "builtin.paste" }
+            if !hasStandaloneActions {
+                popupController?.showToast(
+                    StatusFeedback(
+                        message: String(localized: "No text selected or on clipboard"),
+                        style: .info,
+                        symbolName: "doc.on.clipboard"
+                    ),
+                    at: NSEvent.mouseLocation
+                )
+                return
+            }
+        }
+
         self.popupController?.show(for: trigger.context, pasteAvailable: trigger.canPaste, initialMode: .search)
     }
 
     /// Synchronous retrieve path for ⌥⌘C: checks gating, reuses monitored selection,
     /// falls back to clipboard (paste fallback), or falls back to an empty context so the search
     /// palette opens with zero delay.
+    ///
+    /// When `frontmostApp` is `nil` (common during clipboard-manager handoffs) the method skips
+    /// the per-app gating and monitored-selection paths, falling straight through to clipboard /
+    /// empty-context. The global pause check still applies.
     internal func resolveSynchronousTrigger(
-        frontmostApp: NSRunningApplication? = NSWorkspace.shared.frontmostApplication
+        frontmostApp: NSRunningApplication? = NSWorkspace.shared.frontmostApplication,
+        settingsStore: SettingsStore = DefaultSettingsStore.shared
     ) -> (context: SelectionContext, canPaste: Bool?)? {
-        guard Self.triggerAllowed(frontmost: frontmostApp),
-              let frontApp = frontmostApp else { return nil }
+        // Global pause applies regardless of which app is frontmost.
+        if settingsStore.get(.pauseUntilTimestamp) > Date().timeIntervalSince1970 {
+            return nil
+        }
 
-        let appIdentity = AppIdentity(frontApp)
-        let policy = RuleEngine.shared.resolvePolicies(for: frontApp.bundleIdentifier ?? "")
+        // When an identifiable frontmost app exists, apply per-app gating.
+        // When it is nil (e.g. during a clipboard-manager → destination app transition)
+        // skip the per-app checks and fall through to the clipboard / empty-context path.
+        let appIdentity: AppIdentity
+        let policy: AppPolicyContext
+        let canUseMonitoredSelection: Bool
 
-        // 1. Fast path: reuse active monitored selection if fresh
-        if let monitored = selectionMonitor?.synchronousSelection(for: frontApp.bundleIdentifier) {
+        if let frontApp = frontmostApp,
+           let bundleID = frontApp.bundleIdentifier {
+            if AppFilter.isExcluded(bundleID: bundleID) { return nil }
+            let resolved = RuleEngine.shared.resolvePolicies(for: bundleID)
+            if resolved.disabled { return nil }
+            appIdentity = AppIdentity(frontApp)
+            policy = resolved
+            canUseMonitoredSelection = true
+        } else {
+            // No identifiable app — use a neutral identity. Per-app exclusion and disabled
+            // rules cannot apply without a bundle ID, so we only honour the global pause
+            // (checked above).
+            appIdentity = AppIdentity(bundleIdentifier: nil, localizedName: nil)
+            policy = .default
+            canUseMonitoredSelection = false
+        }
+
+        // 1. Fast path: reuse active monitored selection if fresh (requires a known app)
+        if canUseMonitoredSelection,
+           let monitored = selectionMonitor?.synchronousSelection(for: frontmostApp?.bundleIdentifier) {
             let text = monitored.context.text
             if TextSanitizer.isSubstantial(text),
                text.utf8.count <= Constants.maxTextLength {

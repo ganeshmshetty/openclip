@@ -243,6 +243,7 @@
   "Formal Tone": "正式語氣",
   "AI Tools": "AI 工具",
   "No text selected to process.": "未選取可處理的文字。",
+  "No text selected or on clipboard": "未選取文字且剪貼簿為空",
   "API key required. Configure it in Preferences → AI.": "需要 API 金鑰。請在「偏好設定」→「AI」中進行設定。",
   "Invalid URL: %@": "無效的 URL：%@",
   "The AI provider returned an empty or unreadable response.": "AI 提供者傳回了空白或無法讀取的回應。",

@@ -243,6 +243,7 @@
   "Formal Tone": "Ton formel",
   "AI Tools": "Outils d’IA",
   "No text selected to process.": "Aucun texte sélectionné à traiter.",
+  "No text selected or on clipboard": "Aucun texte sélectionné ni dans le presse-papiers",
   "API key required. Configure it in Preferences → AI.": "Clé d’API requise. Configurez-la dans Préférences → IA.",
   "Invalid URL: %@": "URL non valide : %@",
   "The AI provider returned an empty or unreadable response.": "Le fournisseur d’IA a renvoyé une réponse vide ou illisible.",

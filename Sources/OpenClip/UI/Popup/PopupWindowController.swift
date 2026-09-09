@@ -44,6 +44,12 @@ public class PopupWindowController {
     /// so exitSearch() (Esc) dismisses the palette completely rather than falling back to the bar.
     public private(set) var openedDirectlyInSearch: Bool = false
 
+    /// Monotonic timestamp recorded when a session starts (`show(for:)`). Used by
+    /// `workspaceDidActivateApp` to suppress the race where macOS delivers a queued
+    /// app-activation notification for the destination app within ~300 ms of the popup
+    /// opening — common after a clipboard manager dismisses itself.
+    private var sessionShowTime: TimeInterval = 0
+
     private var hoveredAction: (any Action)?
 
     private var isMenuTracking = false
@@ -197,6 +203,7 @@ public class PopupWindowController {
 
         isMenuTracking = false
         currentContext = context
+        sessionShowTime = ProcessInfo.processInfo.systemUptime
 
         // The source app is frontmost when the popup shows; capture it once for the whole session.
         // Skip the capture while OpenClip itself is frontmost (e.g. a preference window, or a mid-
@@ -741,6 +748,7 @@ public class PopupWindowController {
         hasUserMovedCard = false
         preSearchFrame = nil
         openedDirectlyInSearch = false
+        sessionShowTime = 0
         panel?.ignoresMouseEvents = false // clear any hover-driven click-through from the last session
         exitKeyMode() // allowsKey=false + reactivate previousFrontmostApp
         previousFrontmostApp = nil // hide() is the only thing that ends the key-mode session
@@ -1124,6 +1132,13 @@ public class PopupWindowController {
            app.bundleIdentifier == sourceBundleID {
             return
         }
+        // Modal result cards survive focus changes (parity with appDidDeactivate).
+        if cardIsModal { return }
+        // Grace period: when a clipboard manager (Paste, Raycast, Maccy) dismisses itself, macOS
+        // delivers a queued didActivateApplication for the destination app. If the popup just
+        // opened (< 300 ms ago) this is almost certainly a leftover transition notification —
+        // not an intentional user focus switch — so suppress the dismissal.
+        if sessionShowTime > 0, (ProcessInfo.processInfo.systemUptime - sessionShowTime) < 0.3 { return }
         if !isRightClickInProgress {
             hide()
         }
@@ -1785,11 +1800,24 @@ public class PopupWindowController {
         }
     }
 
+    /// Surfaces a StatusFeedback as the floating toast (the single status renderer). When `point`
+    /// is provided, the toast centers over that point (e.g. mouse cursor); otherwise it attaches
+    /// to the popup panel's live (or last) frame.
+    public func showToast(_ feedback: StatusFeedback, at point: CGPoint? = nil) {
+        let anchor: NSRect?
+        if let point {
+            anchor = NSRect(origin: point, size: CGSize(width: 1, height: 1))
+        } else {
+            anchor = panel?.frame ?? lastPopupFrame
+        }
+        toastController.show(feedback, anchorFrame: anchor)
+    }
+
     /// Surfaces a StatusFeedback as the floating toast (the single status renderer). The toast
     /// is independent of the popup, so it shows whether the popup stays up or has already hidden;
     /// it always attaches to the popup's live (or last) frame — never the pointer.
     private func presentToast(_ feedback: StatusFeedback) {
-        toastController.show(feedback, anchorFrame: panel?.frame ?? lastPopupFrame)
+        showToast(feedback)
     }
 
     /// Decision 8 config-open path: the popup has already hidden (`.openConfiguration` dismisses it);

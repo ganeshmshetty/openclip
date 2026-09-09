@@ -6805,6 +6805,34 @@
         }
       }
     },
+    "No text selected or on clipboard": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未选中文本且剪贴板为空"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未選取文字且剪貼簿為空"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun texte sélectionné ni dans le presse-papiers"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "テキストが選択されておらず、クリップボードも空です"
+          }
+        }
+      }
+    },
     "No text selected to process.": {
       "localizations": {
         "zh-Hans": {

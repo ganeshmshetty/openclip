@@ -243,6 +243,7 @@
   "Formal Tone": "フォーマルなトーン",
   "AI Tools": "AIツール",
   "No text selected to process.": "処理するテキストが選択されていません。",
+  "No text selected or on clipboard": "テキストが選択されておらず、クリップボードも空です",
   "API key required. Configure it in Preferences → AI.": "APIキーが必要です。環境設定 → AI で設定してください。",
   "Invalid URL: %@": "無効なURL: %@",
   "The AI provider returned an empty or unreadable response.": "AIプロバイダから空の応答、または読み取れない応答が返されました。",
