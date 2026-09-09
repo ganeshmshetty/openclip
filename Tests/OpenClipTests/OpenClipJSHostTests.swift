@@ -1,4 +1,5 @@
 import XCTest
+import JavaScriptCore
 @testable import Core
 @testable import OpenClip
 
@@ -717,6 +718,94 @@ final class OpenClipJSHostTests: XCTestCase {
         for task in all {
             XCTAssertNotEqual(task.state, .suspended, "every added task must be cancelled, got \(task.state)")
         }
+    }
+
+    // MARK: - Fetch lifetime
+
+    /// A fetch completion from a finished evaluation must not call into that JavaScript VM.
+    ///
+    /// Two contexts share one thread. Context A starts a fetch and then ends.
+    /// Context B starts a later fetch. When B's completion runs, A's completion has also arrived.
+    /// A must not mark.
+    ///
+    /// The test ends A with `cancelAll()`, not `finish()`. `cancelAll()` exists on unmodified main
+    /// and sets the same latch after the fix, so the test fails on main and compiles after the change.
+    func testStaleFetchCompletionDoesNotReenterFinishedContext() {
+        XCTAssertTrue(Thread.isMainThread)
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("ok".utf8))
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let marks = LockedArray<String>()
+
+        let contextA = JSContext()!
+        contextA.evaluateScript("var openclip = {};")
+        let markA: @convention(block) () -> Void = { marks.append("A") }
+        contextA.setObject(markA, forKeyedSubscript: "__mark" as NSString)
+        let boxA = FetchTaskBox()
+        JSNativeFetch.installNativeFetch(in: contextA, session: session, fetchTasks: boxA)
+        contextA.evaluateScript("openclip.__nativeFetch('https://example.com/a', {}, function(){ __mark(); }, function(){ __mark(); });")
+        boxA.cancelAll()
+
+        let contextB = JSContext()!
+        contextB.evaluateScript("var openclip = {};")
+        let markB: @convention(block) () -> Void = { marks.append("B") }
+        contextB.setObject(markB, forKeyedSubscript: "__mark" as NSString)
+        let boxB = FetchTaskBox()
+        JSNativeFetch.installNativeFetch(in: contextB, session: session, fetchTasks: boxB)
+        contextB.evaluateScript("openclip.__nativeFetch('https://example.com/b', {}, function(){ __mark(); }, function(){ __mark(); });")
+
+        let deadline = Date().addingTimeInterval(2)
+        while !marks.values.contains("B") {
+            if Date() > deadline {
+                XCTFail("B's fetch completion did not run within 2 s")
+                return
+            }
+            CFRunLoopRunInMode(.defaultMode, 0.01, false)
+        }
+        for _ in 0..<20 {
+            CFRunLoopRunInMode(.defaultMode, 0.01, false)
+        }
+        XCTAssertEqual(marks.values.filter { $0 == "A" }.count, 0)
+    }
+
+    /// A fetch completion must settle while the evaluation is live. If the mock, the polyfill, or
+    /// the pump path breaks, this test fails first so the stale-completion test cannot pass vacuously.
+    func testFetchCompletionSettlesWhileEvaluationIsLive() {
+        XCTAssertTrue(Thread.isMainThread)
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("ok".utf8))
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let marks = LockedArray<String>()
+
+        let context = JSContext()!
+        context.evaluateScript("var openclip = {};")
+        let mark: @convention(block) () -> Void = { marks.append("live") }
+        context.setObject(mark, forKeyedSubscript: "__mark" as NSString)
+        let box = FetchTaskBox()
+        JSNativeFetch.installNativeFetch(in: context, session: session, fetchTasks: box)
+        context.evaluateScript("openclip.__nativeFetch('https://example.com/live', {}, function(){ __mark(); }, function(){ __mark(); });")
+
+        let deadline = Date().addingTimeInterval(2)
+        while !marks.values.contains("live") {
+            if Date() > deadline {
+                XCTFail("live fetch completion did not run within 2 s")
+                return
+            }
+            CFRunLoopRunInMode(.defaultMode, 0.01, false)
+        }
+        XCTAssertEqual(marks.values.filter { $0 == "live" }.count, 1)
     }
 
     // MARK: - Watchdog
