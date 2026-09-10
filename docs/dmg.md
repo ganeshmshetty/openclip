@@ -133,9 +133,17 @@ inside a 660 × 400 window — so they scroll vertically for anyone with the tab
   that trick and keeping those plates aligned with `ICON_Y` by hand.
 - The volume icon is generated from `assets/app-icon.png` via `sips` + `iconutil`, so the
   mounted volume shows the app's icon in the Finder sidebar and on the desktop.
-- The window is intentionally free of a toolbar, status bar, path bar and sidebar, and the
-  app's `.app` extension is hidden, so the window reads as a single instruction rather than
-  a folder.
+- The window is intentionally free of a toolbar, status bar, path bar and sidebar, so it reads
+  as a single instruction rather than a folder.
+- The app's `.app` extension is **not** hidden, even though dmgbuild offers `hide_extensions`
+  for it. That setting works by writing Finder's hidden-extension bit into a
+  `com.apple.FinderInfo` extended attribute on the app bundle inside the image, and `codesign`
+  treats that attribute as "resource fork, Finder information, or similar detritus not allowed":
+  `codesign --verify --strict` then fails on the copy a user drags out of the DMG, while the same
+  bundle verifies cleanly from the `.zip`. `scripts/release_update.sh` verifies the app inside the
+  mounted image for exactly this reason. Finder hides `.app` extensions by default anyway, so the
+  only people affected are those who turned "Show all filename extensions" on — who asked to see
+  it.
 
 ## Verifying a change
 

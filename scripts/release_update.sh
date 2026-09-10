@@ -138,6 +138,10 @@ rm -rf "$VERIFY_DIR"
 mkdir -p "$VERIFY_DIR"
 ditto -x -k "$BUILD_DIR/$ZIP_NAME" "$VERIFY_DIR"
 "$SCRIPT_DIR/verify_universal.sh" "$VERIFY_DIR/OpenClip.app" "$ZIP_NAME"
+# The strongest check available: the app as it comes out of the archive people download, rather
+# than the bundle the archive was cut from. It proves the notarization ticket survived the
+# round trip through ditto, so Gatekeeper accepts the unpacked app with no network access.
+"$SCRIPT_DIR/verify_signing.sh" "$VERIFY_DIR/OpenClip.app" --require "$REQUIRE"
 rm -rf "$VERIFY_DIR"
 
 echo "==> Generating appcast.xml with Ed25519 signature..."
@@ -243,13 +247,17 @@ fi
 # The .dmg is the download the website points at, so it gets the same check as the .zip.
 MOUNT_POINT="$(mktemp -d)"
 hdiutil attach "$BUILD_DIR/$DMG_NAME" -mountpoint "$MOUNT_POINT" -nobrowse -readonly -quiet
-if ! "$SCRIPT_DIR/verify_universal.sh" "$MOUNT_POINT/OpenClip.app" "$DMG_NAME"; then
-    hdiutil detach "$MOUNT_POINT" -quiet || true
-    rmdir "$MOUNT_POINT" 2>/dev/null || true
+DMG_CHECKS_OK=1
+# Both checks run against the app as it sits inside the image, because that is what someone who
+# downloads from the website drags to /Applications. dmgbuild copies the bundle rather than
+# ditto'ing it, so this is where a lost symlink or a dropped notarization ticket would surface.
+"$SCRIPT_DIR/verify_universal.sh" "$MOUNT_POINT/OpenClip.app" "$DMG_NAME" || DMG_CHECKS_OK=0
+"$SCRIPT_DIR/verify_signing.sh" "$MOUNT_POINT/OpenClip.app" --require "$REQUIRE" || DMG_CHECKS_OK=0
+hdiutil detach "$MOUNT_POINT" -quiet || true
+rmdir "$MOUNT_POINT" 2>/dev/null || true
+if [ "$DMG_CHECKS_OK" -ne 1 ]; then
     exit 1
 fi
-hdiutil detach "$MOUNT_POINT" -quiet
-rmdir "$MOUNT_POINT" 2>/dev/null || true
 
 echo ""
 echo "==> Done! Release artifacts created:"

@@ -295,8 +295,12 @@ if [ "$FAILURES" -ne 0 ]; then
     exit 1
 fi
 
-if [ "$IS_ADHOC" -eq 1 ]; then
-    echo "==> $LABEL is a valid ad-hoc build (hardened, correct entitlements) — not distributable."
+# The hardened runtime and entitlements are properties of the app; a disk image only carries a
+# signature, so its summary must not claim more than was checked.
+if [ "$IS_ADHOC" -eq 1 ] && [ "$IS_APP" -eq 1 ]; then
+    echo "==> $LABEL is a valid ad-hoc build (hardened, entitlements as declared) — not distributable."
+elif [ "$IS_ADHOC" -eq 1 ]; then
+    echo "==> $LABEL is ad-hoc signed — not distributable."
 else
     echo "==> $LABEL passed all --require $REQUIRE checks."
 fi

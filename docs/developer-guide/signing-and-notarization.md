@@ -231,6 +231,7 @@ gh attestation verify OpenClip-v1.4.0.dmg --repo ganeshmshetty/openclip \
 | `no secure timestamp` | Signed while offline. The timestamp needs Apple's timestamp server. |
 | Notary status `Invalid` | The script prints Apple's log; it names the offending binary and reason. |
 | `rejected ... source=Unnotarized Developer ID` | Signed correctly but not notarized yet. |
+| `resource fork, Finder information, or similar detritus not allowed` | An extended attribute on the bundle. `com.apple.FinderInfo` is the usual culprit; dmgbuild's `hide_extensions` writes one, which is why `make_dmg.sh` does not use it. Clear with `xattr -cr`. |
 | `The staple and validate action failed! Error 65` | No ticket for that exact build. Re-notarize; a ticket is tied to the cdhash. |
 
 ## Continuous integration
