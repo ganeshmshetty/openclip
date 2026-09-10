@@ -773,9 +773,15 @@ public struct PopupView: View {
                 } label: {
                     labelView
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(action.displayTitle(using: presenter))
-                .popupHoverTarget(.action(index))
+                    .buttonStyle(.plain)
+                    .accessibilityLabel({
+                        let title = action.displayTitle(using: presenter)
+                        if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+                            return "\(title): \(resolved)"
+                        }
+                        return title
+                    }())
+                    .popupHoverTarget(.action(index))
                 .onHover { isHovering in
                     useLocalHoverFallback(for: .action(index), isHovering: isHovering)
                     if isHovering {
