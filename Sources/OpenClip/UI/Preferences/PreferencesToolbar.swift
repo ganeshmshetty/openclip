@@ -9,10 +9,10 @@
 // of the full-height sidebar on the way between tabs. Here the toolbar is
 // created once with a fixed set of items and only their contents change, so the
 // title bar's geometry is the same on every pane. It also gets the store a real
-// NSSearchToolbarItem, which is the system search field a SwiftUI toolbar item
-// could not give it.
+// AppKit search field, which is what a SwiftUI toolbar item could not give it.
 import AppKit
 import Combine
+import Core
 
 public enum PreferencesToolbarAction: Sendable {
     case newGroup
@@ -39,21 +39,34 @@ public final class PreferencesToolbarModel: ObservableObject {
 @MainActor
 public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private enum ItemID {
-        /// Filter and search share one item. As two, the toolbar was free to
-        /// decide only one of them fit and push the other into the overflow
-        /// menu; as one view they are measured, shown and hidden together.
-        static let storeControls = NSToolbarItem.Identifier("openclip.preferences.storeControls")
+        /// The pane's name as a toolbar item rather than the window's own title:
+        /// a unified toolbar reserves a title area of its own choosing, which
+        /// left a wide gap between "Store" and the first control.
+        static let title = NSToolbarItem.Identifier("openclip.preferences.title")
+        static let filter = NSToolbarItem.Identifier("openclip.preferences.filter")
+        static let search = NSToolbarItem.Identifier("openclip.preferences.search")
         static let action = NSToolbarItem.Identifier("openclip.preferences.action")
     }
 
     private let model: PreferencesToolbarModel
     private var cancellables: Set<AnyCancellable> = []
-    /// Set by whoever opens the window, so the title can follow the pane.
+    /// Set by whoever opens the window. The pane name is drawn by the title item
+    /// below, not by the window: `titleVisibility = .hidden` is ignored by a
+    /// unified toolbar on macOS 26, so a window with a title ended up showing the
+    /// pane's name twice.
     public weak var window: NSWindow? {
-        didSet { window?.title = model.tab.windowTitle }
+        didSet {
+            // Once the content view has a split view the toolbar can be told
+            // where the sidebar ends.
+            installSidebarTrackingSeparator(retriesLeft: 20)
+        }
     }
 
-    private weak var storeControlsItem: NSToolbarItem?
+    private weak var trackingSplitView: NSSplitView?
+
+    private weak var titleLabel: NSTextField?
+    private weak var filterItem: NSToolbarItem?
+    private weak var searchItem: NSToolbarItem?
     private weak var actionItem: NSToolbarItem?
     private weak var filterControl: NSSegmentedControl?
     private weak var searchField: NSSearchField?
@@ -99,8 +112,10 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     // MARK: - Item contents per tab
 
     private func sync(tab: PreferenceTab) {
-        window?.title = tab.windowTitle
-        setHidden(storeControlsItem, tab != .store)
+        titleLabel?.stringValue = tab.windowTitle
+        let showsStoreControls = (tab == .store)
+        setHidden(filterItem, !showsStoreControls)
+        setHidden(searchItem, !showsStoreControls)
 
         switch tab {
         case .actions:
@@ -188,11 +203,49 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         // space between them. Centring the filter with a leading flexible space
         // spent the width twice and pushed the search field into the overflow
         // menu at the window's minimum size.
-        [ItemID.storeControls, .flexibleSpace, ItemID.action]
+        // Pane name, filter beside it, then everything else pinned right: the
+        // pane's button, with the search field last against the window edge.
+        [ItemID.title, ItemID.filter, .flexibleSpace, ItemID.action, ItemID.search]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        toolbarDefaultItemIdentifiers(toolbar)
+        [.sidebarTrackingSeparator] + toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    /// Without this the toolbar has no idea where the sidebar ends, so it lines
+    /// its items up against the right edge instead of the content area's left
+    /// one. The separator tracks the split view's first divider, which is what
+    /// gives the leading items something to start from.
+    private func installSidebarTrackingSeparator(retriesLeft: Int) {
+        guard let toolbar = window?.toolbar,
+              !toolbar.items.contains(where: { $0.itemIdentifier == .sidebarTrackingSeparator }) else { return }
+        // SwiftUI builds NavigationSplitView's NSSplitView on its first layout
+        // pass, which is later than the window gaining a toolbar. One shot at
+        // this found nothing and left the toolbar with no leading anchor, so
+        // every item ended up packed against the right edge; keep looking for a
+        // few run loop turns instead.
+        guard let contentView = window?.contentView,
+              let splitView = Self.firstSplitView(in: contentView),
+              splitView.arrangedSubviews.count > 1 else {
+            guard retriesLeft > 0 else {
+                Log.chrome.error("Preferences toolbar found no split view to track; items will right-align")
+                return
+            }
+            DispatchQueue.main.async { [weak self] in
+                self?.installSidebarTrackingSeparator(retriesLeft: retriesLeft - 1)
+            }
+            return
+        }
+        trackingSplitView = splitView
+        toolbar.insertItem(withItemIdentifier: .sidebarTrackingSeparator, at: 0)
+    }
+
+    private static func firstSplitView(in view: NSView) -> NSSplitView? {
+        if let splitView = view as? NSSplitView { return splitView }
+        for subview in view.subviews {
+            if let found = firstSplitView(in: subview) { return found }
+        }
+        return nil
     }
 
     public func toolbar(
@@ -201,7 +254,33 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         willBeInsertedIntoToolbar flag: Bool
     ) -> NSToolbarItem? {
         switch itemIdentifier {
-        case ItemID.storeControls:
+        case .sidebarTrackingSeparator:
+            guard let splitView = trackingSplitView else { return nil }
+            return NSTrackingSeparatorToolbarItem(
+                identifier: itemIdentifier,
+                splitView: splitView,
+                dividerIndex: 0
+            )
+
+        case ItemID.title:
+            let label = NSTextField(labelWithString: model.tab.windowTitle)
+            label.font = .systemFont(ofSize: 15, weight: .bold)
+            label.textColor = .labelColor
+            label.lineBreakMode = .byTruncatingTail
+
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.view = label
+            item.label = ""
+            item.visibilityPriority = .high
+            // Navigational, like a back button: it is what pins the item to the
+            // leading edge of the content area. Without it the toolbar re-lays
+            // itself out on the first pane change and packs every item against
+            // the window's right edge, flexible space and all.
+            item.isNavigational = true
+            titleLabel = label
+            return item
+
+        case ItemID.filter:
             let control = NSSegmentedControl(
                 labels: StoreFilter.allCases.map(\.title),
                 trackingMode: .selectOne,
@@ -209,31 +288,46 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
                 action: #selector(filterChanged(_:))
             )
             control.segmentStyle = .automatic
-            control.segmentDistribution = .fillEqually
-            for index in 0..<control.segmentCount {
-                control.setWidth(66, forSegment: index)
-            }
+            // Each segment as wide as its own label, sized into a real frame: an
+            // equal-width control spends more room than the labels need, and the
+            // toolbar answers a set of items too wide for the window by dropping
+            // the trailing ones into the overflow menu. Constraints are no good
+            // here either — a constrained view has no size for the toolbar to
+            // measure.
+            control.segmentDistribution = .fit
+            control.sizeToFit()
             control.selectedSegment = StoreFilter.allCases.firstIndex(of: model.storeFilter) ?? 0
 
-            let field = NSSearchField()
-            field.delegate = self
-            field.placeholderString = String(localized: "Search extensions")
-            field.stringValue = model.searchQuery
-            field.translatesAutoresizingMaskIntoConstraints = false
-            field.widthAnchor.constraint(equalToConstant: 170).isActive = true
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.view = control
+            item.label = String(localized: "Filter")
+            item.visibilityPriority = .high
+            // Leading edge, beside the pane name — see the title item above.
+            item.isNavigational = true
+            filterControl = control
+            filterItem = item
+            setHidden(item, model.tab != .store)
+            return item
 
-            let stack = NSStackView(views: [control, field])
-            stack.orientation = .horizontal
-            stack.alignment = .centerY
-            stack.spacing = 10
+        case ItemID.search:
+            // A plain item around an NSSearchField rather than NSSearchToolbarItem:
+            // the system item collapses to a magnifying glass at this window's
+            // width and, on the click that expands it again, takes enough room to
+            // push the filter into the overflow menu — so the field opened in the
+            // middle of the toolbar with the segments gone. A field that is always
+            // its full width never moves.
+            let field = NSSearchField(frame: NSRect(x: 0, y: 0, width: 160, height: 28))
+            field.delegate = self
+            field.bezelStyle = .roundedBezel
+            field.placeholderString = String(localized: "Search")
+            field.stringValue = model.searchQuery
 
             let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            item.view = stack
-            item.label = String(localized: "Extensions")
+            item.view = field
+            item.label = String(localized: "Search")
             item.visibilityPriority = .high
-            filterControl = control
             searchField = field
-            storeControlsItem = item
+            searchItem = item
             setHidden(item, model.tab != .store)
             return item
 

@@ -627,8 +627,9 @@ class StatusBarController: NSObject, NSMenuDelegate {
         // to resize the window around whichever pane had just appeared.
         controller.sizingOptions = [.minSize]
         let window = NSWindow(contentViewController: controller)
-        // Title tracks the selected pane; the toolbar controller keeps it current.
-        window.title = tab.windowTitle
+        // Empty on purpose: the pane's name is a toolbar item, and a window title
+        // would be drawn beside it (see PreferencesToolbar).
+        window.title = ""
         window.setContentSize(NSSize(width: 820, height: 640))
         // Both, not just contentMinSize: the hosting view publishes no minimum of
         // its own (sizingOptions is empty), and a window dragged narrower than the
@@ -640,15 +641,20 @@ class StatusBarController: NSObject, NSMenuDelegate {
         ).size
         // Full-height sidebar, the way every stock sidebar app (System Settings,
         // Mail, Finder) is put together: `fullSizeContentView` hands the content
-        // view the whole window, and a transparent title bar lets the sidebar's
-        // material run up behind the traffic lights instead of the sidebar
-        // starting below an opaque strip. AppKit gives the sidebar split item
-        // full-height layout on its own once the style mask asks for it
+        // view the whole window. AppKit gives the sidebar split item full-height
+        // layout on its own once the style mask asks for it
         // (NSSplitViewItem.allowsFullHeightLayout defaults to true), and it insets
         // the sidebar's own content below the traffic lights — nothing here has to
         // reserve that space by hand.
+        //
+        // `titlebarAppearsTransparent` is deliberately left alone: it drops the
+        // title bar's backdrop across the whole window, and then anything the
+        // detail pane scrolls runs straight through the toolbar. The Store hid
+        // that behind the glass of its own toolbar items; App Rules, with only a
+        // pane name and one button up there, showed its rows sliding through the
+        // gaps. Off, the sidebar still runs full height — the split view item,
+        // not the flag, is what keeps that half of the title bar clear.
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
         // The toolbar is built once, in AppKit, and lives for the window's whole
         // life (see PreferencesToolbar.swift). A toolbar that comes and goes makes
         // the title bar re-measure, and that is what kept dropping the traffic
@@ -656,6 +662,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         window.toolbar = toolbarController.makeToolbar()
         toolbarController.window = window
         window.toolbarStyle = .unified
+        window.titleVisibility = .hidden
         // Left at .automatic on purpose: it defers to NSSplitViewItem, which draws
         // the title bar separator over the detail pane only, so the sidebar keeps
         // one unbroken surface from the traffic lights down.

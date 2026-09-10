@@ -254,6 +254,24 @@ final class ActionsOutlineTableView: NSOutlineView {
     }
 }
 
+// MARK: - Scroll View
+
+/// Keeps the list's rows clear of the title bar while the scroll view itself runs
+/// underneath it. The pane hands this view the whole detail column, title bar
+/// included, so scrolled rows fade out beneath the toolbar the way every Form-based
+/// pane's do; AppKit only insets scroll views the window owns directly, so the
+/// overlap is measured and applied here.
+@MainActor
+final class ActionsScrollView: NSScrollView {
+    override func layout() {
+        super.layout()
+        guard let window else { return }
+        let overlap = max(0, convert(bounds, to: nil).maxY - window.contentLayoutRect.maxY)
+        guard abs(contentInsets.top - overlap) > 0.5 else { return }
+        contentInsets = NSEdgeInsets(top: overlap, left: 0, bottom: 0, right: 0)
+    }
+}
+
 // MARK: - SwiftUI Representable
 
 @MainActor
@@ -271,11 +289,14 @@ struct ActionsOutlineView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
+        let scrollView = ActionsScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = false
+        // The inset is measured against the title bar in `layout()`; the automatic
+        // one only fires for a scroll view the window itself owns.
+        scrollView.automaticallyAdjustsContentInsets = false
 
         let outlineView = ActionsOutlineTableView()
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("ActionColumn"))

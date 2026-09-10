@@ -337,10 +337,11 @@ public struct ExtensionStoreView: View {
     public var body: some View {
         // The filter and the search field live in the window toolbar (see
         // PreferencesView.toolbarContent), so the pane is just the list.
+        // No padding around `storeContent`: the list has to reach the pane's top
+        // edge for the system to fade it out under the toolbar the way the
+        // Form-based panes are. The 12pt gutter lives on the scrolling content
+        // inside instead.
         storeContent
-        .padding(.horizontal, 12)
-        .padding(.top, 4)
-        .padding(.bottom, 0)
         .task {
             if viewModel.extensions.isEmpty {
                 await viewModel.resetAndFetch(limit: 100)
@@ -414,6 +415,7 @@ public struct ExtensionStoreView: View {
                     }
                 }
             }
+            .padding(.horizontal, 12)
         }
         .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
@@ -451,6 +453,7 @@ public struct ExtensionStoreView: View {
                         }
                 }
             }
+            .padding(.horizontal, 12)
         }
         .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
@@ -468,6 +471,7 @@ public struct ExtensionStoreView: View {
                     ExtensionCardSkeletonRow()
                 }
             }
+            .padding(.horizontal, 12)
         }
     }
 }
