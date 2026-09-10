@@ -9,68 +9,45 @@ import Core
 @MainActor
 public struct AppRulesTab: View {
     @ObservedObject private var ruleEngine = RuleEngine.shared
-    @State private var showingAppPicker = false
-    
-    public init() {}
+    /// Owned by PreferencesView: the Add button lives in the window toolbar
+    /// alongside every other tab's, so this pane doesn't declare a toolbar of
+    /// its own — a second toolbar group renders as its own floating glass
+    /// capsule next to the first one.
+    @Binding private var showingAppPicker: Bool
+
+    public init(showingAppPicker: Binding<Bool>) {
+        _showingAppPicker = showingAppPicker
+    }
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Application Rules")
-                        .font(.headline)
-                    Text("Configure per-app trigger and paste behavior.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                
-                Button(action: {
-                    showingAppPicker = true
-                }) {
-                    Label("Add Application", systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-            
-            Form {
-                Section {
-                    if ruleEngine.userRules.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "app.badge.checkmark")
-                                .font(.system(size: 32))
-                                .foregroundColor(.secondary)
-                            Text("No App Rules Configured")
-                                .font(.headline)
-                            Text("OpenClip works in all applications by default. Click 'Add Application' to configure per-app rules or exclusions.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 30)
-                    } else {
-                        ForEach(ruleEngine.userRules) { rule in
-                            AppRuleRowView(rule: rule) { updatedRule in
-                                RuleEngine.shared.addOrUpdateRule(updatedRule)
-                            } onDelete: {
-                                RuleEngine.shared.removeRule(id: rule.id)
-                            }
+        Form {
+            Section {
+                if ruleEngine.userRules.isEmpty {
+                    ContentUnavailableView {
+                        Label("No App Rules Configured", systemImage: "app.badge.checkmark")
+                    } description: {
+                        Text("OpenClip works in all applications by default. Add an application to configure per-app rules or exclusions.")
+                    } actions: {
+                        Button("Add Application") { showingAppPicker = true }
+                    }
+                    .padding(.vertical, 12)
+                } else {
+                    ForEach(ruleEngine.userRules) { rule in
+                        AppRuleRowView(rule: rule) { updatedRule in
+                            RuleEngine.shared.addOrUpdateRule(updatedRule)
+                        } onDelete: {
+                            RuleEngine.shared.removeRule(id: rule.id)
                         }
                     }
                 }
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-        }
-        .padding(12)
-        .sheet(isPresented: $showingAppPicker) {
-            AppPickerSheet { bundleID in
-                let newRule = AppRule(bundleIdentifiers: [bundleID])
-                RuleEngine.shared.addOrUpdateRule(newRule)
+            } header: {
+                Text("Application Rules")
+            } footer: {
+                Text("Configure per-app trigger and paste behavior.")
+                    .foregroundStyle(.secondary)
             }
         }
+        .formStyle(.grouped)
     }
 }
 
@@ -97,7 +74,7 @@ private struct AppRuleRowView: View {
     }
     
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
             // App Icon
             if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
@@ -112,20 +89,18 @@ private struct AppRuleRowView: View {
             }
             
             // App Title & Bundle ID
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
                    let bundle = Bundle(url: appURL),
                    let appName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String {
                     Text(appName)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(isDisabled ? .secondary : .primary)
+                        .foregroundStyle(isDisabled ? .secondary : .primary)
                     Text(bundleID)
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 } else {
                     Text(bundleID)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(isDisabled ? .secondary : .primary)
+                        .foregroundStyle(isDisabled ? .secondary : .primary)
                 }
             }
             
@@ -149,7 +124,6 @@ private struct AppRuleRowView: View {
             ))
             .labelsHidden()
             .toggleStyle(.switch)
-            .controlSize(.mini)
             .accessibilityLabel(isDisabled ? String(localized: "Enable in this app") : String(localized: "Disable in this app"))
             
             // Three-Dots (...) Actions Menu
@@ -199,8 +173,7 @@ private struct AppRuleRowView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 15))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
@@ -208,6 +181,6 @@ private struct AppRuleRowView: View {
             .help("More Actions")
             .accessibilityLabel("More Actions")
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
     }
 }

@@ -49,6 +49,10 @@ struct ActionsTab: View {
                 showingCreateGroupSheet = true
             }
         )
+        // Runs the list up into the title bar so its rows fade out under the
+        // toolbar like the Form-based panes do. `ActionsScrollView` puts the rows
+        // themselves back below it.
+        .ignoresSafeArea(.container, edges: .top)
         .sheet(isPresented: $showingAddActionSheet) {
             AddCustomActionSheet()
         }

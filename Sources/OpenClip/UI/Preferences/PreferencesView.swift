@@ -2,6 +2,9 @@
 // OpenClip
 //
 // Renders the primary multi-tab preferences window interface for OpenClip.
+// The chrome is deliberately stock AppKit/SwiftUI — a sidebar `List` and a
+// system toolbar — so the window inherits System Settings' look, vibrancy and
+// dark-mode behaviour instead of re-implementing them.
 import SwiftUI
 import Core
 import KeyboardShortcuts
@@ -28,13 +31,32 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
         case .about: return "info.circle.fill"
         }
     }
+
+    /// The window's title for this pane. The window is titled after whatever is
+    /// on screen, the way every stock settings window is — "OpenClip Preferences"
+    /// on all six panes said nothing about where you were.
+    public var windowTitle: String {
+        String(localized: String.LocalizationValue(rawValue))
+    }
+
+    /// Sidebar symbol tint, matching System Settings' coloured glyph tiles.
+    public var tint: Color {
+        switch self {
+        case .general: return .gray
+        case .appearance: return .pink
+        case .actions: return .orange
+        case .store: return .blue
+        case .appRules: return .indigo
+        case .about: return .teal
+        }
+    }
 }
 
 @MainActor
 public struct PreferencesView: View {
     /// Shared max content width for the detail area. Keeps Actions/Appearance
     /// compact and aligned with the window rather than stretching infinitely.
-    private static let detailContentMaxWidth: CGFloat = 480
+    private static let detailContentMaxWidth: CGFloat = 520
 
     @State private var disabledActionIDs: Set<String> = []
     @State private var disabledPackages: Set<String> = []
@@ -42,224 +64,81 @@ public struct PreferencesView: View {
     @State private var activeSheet: PreferencesSheet?
     @State private var showingAddActionSheet = false
     @State private var showingCreateGroupSheet = false
+    @State private var showingAppPicker = false
     @StateObject private var storeViewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
+    /// Owned by the window (StatusBarController) so the AppKit toolbar and these
+    /// panes talk to the same object; the fallback instance is only for the
+    /// SwiftUI `Settings` scene, which has no toolbar of its own.
+    @ObservedObject private var toolbarModel: PreferencesToolbarModel
 
-    public init(initialTab: PreferenceTab = .general) {
+    public init(
+        initialTab: PreferenceTab = .general,
+        toolbarModel: PreferencesToolbarModel = PreferencesToolbarModel()
+    ) {
         _selectedTab = State(initialValue: initialTab)
+        _toolbarModel = ObservedObject(wrappedValue: toolbarModel)
     }
 
     public var body: some View {
-        HStack(spacing: 0) {
-            // Seamless Sidebar
-            VStack(alignment: .leading, spacing: 4) {
-                // Top spacing so the window traffic lights (close/minimize/expand)
-                // float seamlessly over the sidebar without covering the first tab item.
-                Spacer()
-                    .frame(height: 36)
-                
-                ForEach(PreferenceTab.allCases, id: \.self) { tab in
-                    Button(action: {
-                        selectedTab = tab
-                    }) {
-                        HStack(spacing: 10) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 13, weight: .medium))
-                                .frame(width: 18)
-                            Text(tab.localizedTitle)
-                                .font(.system(size: 13, weight: .medium))
-                            Spacer()
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .foregroundColor(selectedTab == tab ? .white : .primary)
-                        .background(
-                            selectedTab == tab ?
-                            Color.accentColor : Color.clear
-                        )
-                        .cornerRadius(8)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(tab.localizedTitle)
-                    .accessibilityAddTraits(selectedTab == tab ? [.isSelected] : [])
-                }
-                
-                Spacer()
-                
-                // Bottom footer icons (Help and GitHub - NO TEXT)
-                HStack(spacing: 14) {
-                    Button(action: {
-                        if let url = URL(string: "https://www.getopenclip.app/docs") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.system(size: 15))
-                            .foregroundColor(.primary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Documentation")
-                    .accessibilityLabel("Documentation")
-                    
-                    Button(action: {
-                        if let url = URL(string: "https://github.com/ganeshmshetty/openclip") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }) {
-                        Image(systemName: "chevron.left.forwardslash.chevron.right")
-                            .font(.system(size: 15))
-                            .foregroundColor(.primary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("GitHub Repository")
-                    .accessibilityLabel("GitHub Repository")
-                    
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 16)
-            }
-            .padding(.horizontal, 10)
-            .frame(width: 200)
-            .background(Color.primary.opacity(0.02))
-            
-            Divider()
-                .opacity(0.3)
-            
-            // Detail Area
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .center) {
-                    Text(selectedTab.localizedTitle)
-                        .font(.system(size: 20, weight: .bold))
-                    
-                    Spacer()
-
-                    if selectedTab == .actions {
-                        Menu {
-                            Button {
-                                showingCreateGroupSheet = true
-                            } label: {
-                                Label(String(localized: "New Group"), systemImage: "folder.badge.plus")
-                            }
-
-                            Button {
-                                showingAddActionSheet = true
-                            } label: {
-                                Label(String(localized: "Add Custom Action"), systemImage: "plus.circle")
-                            }
-
-                            Button {
-                                presentInstallExtensionPanel()
-                            } label: {
-                                Label(String(localized: "Install Extension…"), systemImage: "square.and.arrow.down")
-                            }
-                        } label: {
-                            Label(String(localized: "Add"), systemImage: "plus")
-                        }
-                        .menuStyle(.button)
-                        .help(String(localized: "Add Action or Group"))
-                    } else if selectedTab == .store {
-                        HStack(spacing: 8) {
-                            Button {
-                                Task {
-                                    await storeViewModel.refreshCatalog()
-                                }
-                            } label: {
-                                if storeViewModel.isLoading {
-                                    ProgressView()
-                                        .controlSize(.mini)
-                                        .frame(width: 24, height: 24)
-                                } else {
-                                    Image(systemName: "arrow.clockwise")
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(.secondary)
-                                        .frame(width: 24, height: 24)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .background(Color.primary.opacity(0.06))
-                            .cornerRadius(6)
-                            .contentShape(Rectangle())
-                            .disabled(storeViewModel.isLoading)
-                            .help(String(localized: "Refresh Catalog"))
-                            .accessibilityLabel(String(localized: "Refresh Catalog"))
-
-                            HStack(spacing: 6) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundColor(.secondary)
-                                    .font(.system(size: 12))
-                                TextField(String(localized: "Search extensions..."), text: $storeViewModel.searchQuery)
-                                    .textFieldStyle(.plain)
-                                    .font(.system(size: 12))
-                                    .onChange(of: storeViewModel.searchQuery) { _, _ in
-                                        storeViewModel.queryDidChange()
-                                    }
-                                if storeViewModel.isLoading && !storeViewModel.extensions.isEmpty {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                        .scaleEffect(0.65)
-                                        .frame(width: 14, height: 14)
-                                }
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.primary.opacity(0.06))
-                            .cornerRadius(6)
-                            .frame(width: 200)
-                        }
-                    }
-                }
-                .frame(maxWidth: selectedTab == .store ? .infinity : Self.detailContentMaxWidth)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 36)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 16)
-                
-                Group {
-                    switch selectedTab {
-                    case .general: 
-                        GeneralTab()
-                    case .appearance: 
-                        AppearanceTab()
-                    case .actions:
-                        ActionsTab(
-                            disabledActionIDs: $disabledActionIDs,
-                            disabledPackages: $disabledPackages,
-                            showingAddActionSheet: $showingAddActionSheet,
-                            showingCreateGroupSheet: $showingCreateGroupSheet
-                        )
-                    case .store:
-                        ExtensionStoreView(viewModel: storeViewModel)
-                    case .appRules: 
-                        AppRulesTab()
-                    case .about: 
-                        AboutTab()
-                    }
-                }
-                .frame(maxWidth: selectedTab == .store ? .infinity : Self.detailContentMaxWidth)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, selectedTab == .store ? 20 : 16)
-                // General, Appearance, Actions, and Store run edge-to-edge to the window bottom; other tabs keep breathing room.
-                .padding(.bottom, (selectedTab == .general || selectedTab == .appearance || selectedTab == .actions || selectedTab == .store) ? 0 : 16)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        NavigationSplitView {
+            sidebar
+        } detail: {
+            detail
         }
-        .ignoresSafeArea(.all, edges: .top)
-        .background(Color(NSColor.windowBackgroundColor))
-        .frame(minWidth: 760, idealWidth: 760, minHeight: 520, idealHeight: 620)
+        .minimumWindowContentSize(width: 760, height: 480)
+        // Left at the system default: `.balanced` lets the detail column push
+        // into the sidebar's width, which is the case that runs out of room
+        // first when the window is dragged narrow.
+        .navigationSplitViewStyle(.automatic)
+        // No frame here on purpose: the window owns its size (see
+        // StatusBarController.showPreferences). Wrapping the split view in a
+        // frame makes SwiftUI lay it out as ordinary content inside the window
+        // rather than as the window's own split view.
         .onAppear {
+            toolbarModel.tab = selectedTab
             loadDisabledState()
             Task {
                 await storeViewModel.resetAndFetch(limit: 100)
             }
         }
         .onChange(of: selectedTab) { _, newTab in
+            toolbarModel.tab = newTab
             if newTab == .store && storeViewModel.extensions.isEmpty {
                 Task {
                     await storeViewModel.resetAndFetch(limit: 100)
                 }
             }
+        }
+        // Toolbar <-> panes. The toolbar owns the store's filter and search box,
+        // so those travel through the model in both directions.
+        .onReceive(toolbarModel.actions) { action in
+            switch action {
+            case .newGroup: showingCreateGroupSheet = true
+            case .addCustomAction: showingAddActionSheet = true
+            case .installExtension: presentInstallExtensionPanel()
+            case .addApplication: showingAppPicker = true
+            case .refresh: Task { await storeViewModel.refreshCatalog() }
+            }
+        }
+        .onChange(of: toolbarModel.storeFilter) { _, filter in
+            guard storeViewModel.selectedFilter != filter else { return }
+            storeViewModel.selectedFilter = filter
+        }
+        .onChange(of: storeViewModel.selectedFilter) { _, filter in
+            guard toolbarModel.storeFilter != filter else { return }
+            toolbarModel.storeFilter = filter
+        }
+        .onChange(of: toolbarModel.searchQuery) { _, query in
+            guard storeViewModel.searchQuery != query else { return }
+            storeViewModel.searchQuery = query
+            storeViewModel.queryDidChange()
+        }
+        .onChange(of: storeViewModel.searchQuery) { _, query in
+            toolbarModel.searchQuery = query
+        }
+        .onChange(of: storeViewModel.isLoading) { _, isLoading in
+            toolbarModel.isRefreshing = isLoading
         }
         .onChange(of: disabledActionIDs) { _, _ in saveDisabledState() }
         .onChange(of: disabledPackages) { _, _ in saveDisabledState() }
@@ -273,6 +152,11 @@ public struct PreferencesView: View {
                 selectedTab = tab
             }
         }
+        .sheet(isPresented: $showingAppPicker) {
+            AppPickerSheet { bundleID in
+                RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: [bundleID]))
+            }
+        }
         .sheet(item: $activeSheet) { route in
             switch route {
             case .configure(let action, let request):
@@ -284,7 +168,104 @@ public struct PreferencesView: View {
             }
         }
     }
-    
+
+    // MARK: - Sidebar
+
+    /// `List` selection is optional by contract; the tab itself never is, so a
+    /// nil write (Escape, clicking empty space) keeps the current tab.
+    private var sidebarSelection: Binding<PreferenceTab?> {
+        Binding(
+            get: { selectedTab },
+            set: { newValue in
+                if let newValue { selectedTab = newValue }
+            }
+        )
+    }
+
+    private var sidebar: some View {
+        List(PreferenceTab.allCases, id: \.self, selection: sidebarSelection) { tab in
+            Label {
+                Text(tab.localizedTitle)
+            } icon: {
+                Image(systemName: tab.icon)
+                    .foregroundStyle(tab.tint)
+            }
+            .accessibilityLabel(tab.localizedTitle)
+        }
+        .listStyle(.sidebar)
+        .navigationSplitViewColumnWidth(min: 190, ideal: 205, max: 240)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            sidebarFooter
+        }
+    }
+
+    private var sidebarFooter: some View {
+        HStack(spacing: 14) {
+            Button {
+                if let url = URL(string: "https://www.getopenclip.app/docs") {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                Image(systemName: "questionmark.circle")
+            }
+            .help("Documentation")
+            .accessibilityLabel("Documentation")
+
+            Button {
+                if let url = URL(string: "https://github.com/ganeshmshetty/openclip") {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+            }
+            .help("GitHub Repository")
+            .accessibilityLabel("GitHub Repository")
+
+            Spacer()
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    // MARK: - Detail
+
+    private var detail: some View {
+        detailContent
+            // The detail column's floor, which is what stops the window shrinking:
+            // the split view happily collapses the sidebar, so the minimum the
+            // window inherits is whatever the content insists on.
+            .frame(minWidth: 540, minHeight: 460)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        switch selectedTab {
+        case .general:
+            GeneralTab()
+        case .appearance:
+            AppearanceTab()
+        case .actions:
+            ActionsTab(
+                disabledActionIDs: $disabledActionIDs,
+                disabledPackages: $disabledPackages,
+                showingAddActionSheet: $showingAddActionSheet,
+                showingCreateGroupSheet: $showingCreateGroupSheet
+            )
+            .frame(maxWidth: Self.detailContentMaxWidth)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .store:
+            ExtensionStoreView(viewModel: storeViewModel)
+        case .appRules:
+            AppRulesTab(showingAppPicker: $showingAppPicker)
+        case .about:
+            // AboutTab caps its own column width and already fills the pane.
+            AboutTab()
+        }
+    }
+
     private func loadDisabledState() {
         disabledActionIDs = DefaultSettingsStore.shared.get(.disabledActionIDs)
         disabledPackages = DefaultSettingsStore.shared.get(.disabledPackages)

@@ -68,6 +68,20 @@ struct ExtensionCardView: View {
         ExtensionsStoreViewModel.isNew(item) && (item.version == nil || item.version == "1.0.0")
     }
 
+    /// Byline and download count on one quiet line under the description.
+    private var metadataLine: String {
+        var parts: [String] = []
+        if !item.author.isEmpty {
+            parts.append(item.author)
+        }
+        if item.downloadCount == 1 {
+            parts.append(String(localized: "\(formattedDownloadCount(item.downloadCount)) download"))
+        } else if item.downloadCount > 1 {
+            parts.append(String(localized: "\(formattedDownloadCount(item.downloadCount)) downloads"))
+        }
+        return parts.joined(separator: " · ")
+    }
+
     private func formattedDownloadCount(_ count: Int) -> String {
         if count >= 1_000_000 {
             let millions = Double(count) / 1_000_000.0
@@ -101,49 +115,44 @@ struct ExtensionCardView: View {
             .background(Color.primary.opacity(0.06))
             .cornerRadius(7)
 
-            // Center Title & Description (clean 2-line layout without metadata clutter)
+            // Three levels, three weights: the name is what you scan, the
+            // description is what you read, and the byline and download count
+            // are only there once something has caught your eye. They used to be
+            // the same grey as the description, and the byline sat on the name's
+            // line, so all three competed at once.
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(item.name)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .font(.body.weight(.semibold))
                         .lineLimit(1)
-
-                    if isFeatured {
-                        Image(systemName: "rosette")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.accentColor)
-                            .help(String(localized: "Featured"))
-                            .accessibilityLabel(String(localized: "Featured"))
-                    }
 
                     if isBrandNew {
                         Text(String(localized: "New"))
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(.accentColor)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tint)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
                             .background(Color.accentColor.opacity(0.12))
                             .clipShape(Capsule())
                     }
-
-                    if !item.author.isEmpty {
-                        Text("by @\(item.author)")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
                 }
 
                 if let err = installError {
                     Text("⚠︎ \(err)")
-                        .font(.caption2)
-                        .foregroundColor(.red)
+                        .font(.callout)
+                        .foregroundStyle(.red)
                         .lineLimit(1)
                 } else {
                     Text(item.description)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                if !metadataLine.isEmpty {
+                    Text(metadataLine)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
             }
@@ -152,17 +161,6 @@ struct ExtensionCardView: View {
 
             // Right Action Buttons
             HStack(spacing: 8) {
-                if item.downloadCount > 0 {
-                    HStack(spacing: 2) {
-                        Image(systemName: "arrow.down")
-                            .font(.system(size: 8.5, weight: .medium))
-                        Text(formattedDownloadCount(item.downloadCount))
-                            .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                    }
-                    .foregroundColor(.secondary.opacity(0.8))
-                    .padding(.trailing, 2)
-                }
-
                 if isInstalled {
                     if updateManager.updatablePackageIDs.contains(item.id) {
                         Button(action: {

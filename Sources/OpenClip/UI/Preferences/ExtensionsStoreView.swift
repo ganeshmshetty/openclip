@@ -160,11 +160,18 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         return extensions.filter { !showcased.contains($0.id.lowercased()) }
     }
 
+    /// The storefront below the featured showcase: everything else, in catalog
+    /// order. New and updated items used to get a showcase of their own, which
+    /// meant three stacked lists competing for the first look; they are part of
+    /// the catalog now.
+    public var catalogSectionItems: [ExtensionItem] {
+        let featured = Set(featuredSectionItems.map { $0.id.lowercased() })
+        return extensions.filter { !featured.contains($0.id.lowercased()) }
+    }
+
     /// ID of the last item rendered across the sectioned storefront, used to trigger pagination.
     public var lastRenderedSectionedItemID: String? {
-        remainingAllSectionItems.last?.id
-            ?? newSectionItems.last?.id
-            ?? featuredSectionItems.last?.id
+        catalogSectionItems.last?.id ?? featuredSectionItems.last?.id
     }
 
     /// True when the given item is the final rendered item in the sectioned storefront.
@@ -328,59 +335,18 @@ public struct ExtensionStoreView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            filterPillsRow
-            storeContent
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 4)
-        .padding(.bottom, 0)
+        // The filter and the search field live in the window toolbar (see
+        // PreferencesView.toolbarContent), so the pane is just the list.
+        // No padding around `storeContent`: the list has to reach the pane's top
+        // edge for the system to fade it out under the toolbar the way the
+        // Form-based panes are. The 12pt gutter lives on the scrolling content
+        // inside instead.
+        storeContent
         .task {
             if viewModel.extensions.isEmpty {
                 await viewModel.resetAndFetch(limit: 100)
             }
         }
-    }
-
-    private var filterPillsRow: some View {
-        HStack(spacing: 8) {
-            ForEach(StoreFilter.allCases) { filter in
-                let isSelected = viewModel.selectedFilter == filter && !isSearching
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        if isSearching {
-                            viewModel.searchQuery = ""
-                        }
-                        viewModel.selectedFilter = filter
-                    }
-                } label: {
-                    HStack(spacing: 4.5) {
-                        if filter == .popular {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 9.5, weight: .semibold))
-                        } else if filter == .new {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.system(size: 9.5, weight: .semibold))
-                        }
-                        Text(filter.title)
-                            .font(.system(size: 11.5, weight: isSelected ? .semibold : .medium))
-                    }
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 4.5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
-                    )
-                    .foregroundColor(isSelected ? .white : .secondary)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.bottom, 8)
-        .opacity(isSearching ? 0.4 : 1.0)
     }
 
     private var storeContent: some View {
@@ -407,87 +373,67 @@ public struct ExtensionStoreView: View {
         }
     }
 
-    private func sectionHeader(title: String, icon: String, count: Int? = nil) -> some View {
+    private func sectionHeader(_ title: String, count: Int? = nil) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.accentColor)
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
+                .font(.headline)
             if let count {
-                Text("(\(count))")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary.opacity(0.7))
+                Text("\(count)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             Spacer()
         }
         .padding(.horizontal, 14)
-        .padding(.top, 14)
-        .padding(.bottom, 4)
+        .padding(.top, 16)
+        .padding(.bottom, 6)
     }
 
     private var sectionedAllStoreContent: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                // Section 1: Featured
                 if !viewModel.featuredSectionItems.isEmpty {
-                    sectionHeader(title: String(localized: "Featured"), icon: "rosette")
+                    sectionHeader(String(localized: "Featured"))
                     ForEach(Array(viewModel.featuredSectionItems.enumerated()), id: \.element.id) { index, ext in
                         if index > 0 {
-                            Divider()
-                                .padding(.leading, 60)
-                                .padding(.trailing, 14)
+                            rowDivider
                         }
-                        ExtensionCardView(item: ext)
-                            .onAppear {
-                                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
-                                    Task { await viewModel.fetchNextPage() }
-                                }
-                            }
+                        storeRow(ext)
                     }
                 }
 
-                // Section 2: New & Updated
-                if !viewModel.newSectionItems.isEmpty {
-                    sectionHeader(title: String(localized: "New & Updated"), icon: "clock.arrow.circlepath")
-                    ForEach(Array(viewModel.newSectionItems.enumerated()), id: \.element.id) { index, ext in
+                if !viewModel.catalogSectionItems.isEmpty {
+                    sectionHeader(
+                        String(localized: "All Extensions"),
+                        count: viewModel.catalogSectionItems.count
+                    )
+                    ForEach(Array(viewModel.catalogSectionItems.enumerated()), id: \.element.id) { index, ext in
                         if index > 0 {
-                            Divider()
-                                .padding(.leading, 60)
-                                .padding(.trailing, 14)
+                            rowDivider
                         }
-                        ExtensionCardView(item: ext)
-                            .onAppear {
-                                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
-                                    Task { await viewModel.fetchNextPage() }
-                                }
-                            }
-                    }
-                }
-
-                // Section 3: All Extensions
-                if !viewModel.remainingAllSectionItems.isEmpty {
-                    sectionHeader(title: String(localized: "All Extensions"), icon: "square.grid.2x2", count: viewModel.remainingAllSectionItems.count)
-                    ForEach(Array(viewModel.remainingAllSectionItems.enumerated()), id: \.element.id) { index, ext in
-                        if index > 0 {
-                            Divider()
-                                .padding(.leading, 60)
-                                .padding(.trailing, 14)
-                        }
-                        ExtensionCardView(item: ext)
-                            .onAppear {
-                                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
-                                    Task { await viewModel.fetchNextPage() }
-                                }
-                            }
+                        storeRow(ext)
                     }
                 }
             }
+            .padding(.horizontal, 12)
         }
         .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
+    }
+
+    private var rowDivider: some View {
+        Divider()
+            .padding(.leading, 60)
+            .padding(.trailing, 14)
+    }
+
+    private func storeRow(_ ext: ExtensionItem) -> some View {
+        ExtensionCardView(item: ext)
+            .onAppear {
+                if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
+                    Task { await viewModel.fetchNextPage() }
+                }
+            }
     }
 
     private var flatStoreContent: some View {
@@ -507,6 +453,7 @@ public struct ExtensionStoreView: View {
                         }
                 }
             }
+            .padding(.horizontal, 12)
         }
         .opacity(viewModel.isLoading && !viewModel.extensions.isEmpty ? 0.65 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: viewModel.isLoading)
@@ -524,6 +471,7 @@ public struct ExtensionStoreView: View {
                     ExtensionCardSkeletonRow()
                 }
             }
+            .padding(.horizontal, 12)
         }
     }
 }

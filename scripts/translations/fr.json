@@ -455,5 +455,7 @@
   "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "Format de fichier non pris en charge. Veuillez choisir un fichier PNG, SVG, JPG ou ICNS.",
   "Customize Icon": "Personnaliser l’icône",
   "Move Up": "Monter",
-  "Move Down": "Descendre"
+  "Move Down": "Descendre",
+  "%@ download": "%@ téléchargement",
+  "%@ downloads": "%@ téléchargements"
 }

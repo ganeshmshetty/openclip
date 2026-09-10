@@ -455,5 +455,7 @@
   "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "不支持的文件格式。请选择 PNG、SVG、JPG 或 ICNS 文件。",
   "Customize Icon": "自定义图标",
   "Move Up": "上移",
-  "Move Down": "下移"
+  "Move Down": "下移",
+  "%@ download": "%@ 次下载",
+  "%@ downloads": "%@ 次下载"
 }
