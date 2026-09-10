@@ -77,7 +77,10 @@ reported to their maintainers, though a private heads-up here is appreciated.
   Apple's notary service and stapled, so the app and the disk image both carry
   their ticket offline. The signature's designated requirement pins the bundle
   identifier and Team ID rather than a per-build hash, which is also what lets
-  the Accessibility grant survive an update.
+  the Accessibility grant survive an update. If the signing secrets are absent
+  from a release run, the workflow degrades to an ad-hoc build and says so with
+  a warning rather than failing; artifacts produced that way are not
+  distributable and are not published as releases.
 - **Verifiable release builds.** Release `.zip` and `.dmg` artifacts carry a
   Sigstore build-provenance attestation binding them to the tag and workflow run
   that produced them, so any download can be checked against its origin:

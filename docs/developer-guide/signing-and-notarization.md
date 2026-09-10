@@ -236,9 +236,48 @@ gh attestation verify OpenClip-v1.4.0.dmg --repo ganeshmshetty/openclip \
 
 ## Continuous integration
 
-CI is **not** wired up for signing yet — that is deliberately a separate change. `.github/workflows/ci.yml`
-builds ad-hoc, which is correct: pull requests from forks get no secrets. `.github/workflows/release.yml`
-still needs the certificate and notary credentials as repository secrets, a temporary keychain to
-import them into, and a cleanup step; until then it passes `OPENCLIP_ALLOW_UNSIGNED_RELEASE=1`,
-which downgrades the run to ad-hoc and skips notarization so the pipeline keeps working. Artifacts
-built that way must not be published as a real release.
+`.github/workflows/ci.yml` builds **ad-hoc on every push and pull request**, and that is the right
+choice rather than a limitation: pull requests from forks get no access to secrets, so a signing
+certificate there would only ever work for collaborator branches, and a check that silently does
+nothing for outside contributors is worse than one that behaves identically for everyone. An
+ad-hoc build still exercises the entire signing path — hardened runtime, real entitlements, and the
+inside-out pass over Sparkle's nested helpers — and a dedicated step verifies the app unpacked from
+the archive, so the hardening regression that shipped unnoticed for months cannot recur.
+
+`.github/workflows/release.yml` signs, notarizes, and staples when the secrets below are present.
+
+| Secret | Value |
+|---|---|
+| `MACOS_CERTIFICATE_P12` | The Developer ID Application certificate and private key, base64 encoded: `base64 -i Certificates.p12 \| pbcopy` |
+| `MACOS_CERTIFICATE_PASSWORD` | The password set when exporting that .p12 from Keychain Access |
+| `NOTARY_KEY_P8` | The full contents of `AuthKey_XXXXXXXXXX.p8`, including the BEGIN and END lines |
+| `NOTARY_KEY_ID` | The `XXXXXXXXXX` from that filename |
+| `NOTARY_ISSUER_ID` | The issuer UUID from App Store Connect, **Users and Access › Integrations › Team Keys** |
+
+`SPARKLE_ED_PRIVATE_KEY` and `TAP_GITHUB_TOKEN` are separate and already configured.
+
+There is deliberately **no secret for the Team ID or the certificate name**. The workflow imports
+the .p12 into a temporary keychain that holds exactly one Developer ID Application identity and
+then runs with `OPENCLIP_SIGN_IDENTITY=auto`, which resolves the identity from that keychain and
+fails loudly if it finds none or more than one. A Team ID stored separately is a value that can
+drift out of step with the certificate it is supposed to describe.
+
+### Behaviour when secrets are missing
+
+All five are required **together**. A certificate without notary credentials would sign
+successfully and then fail minutes later at the notarization step, so the workflow checks for the
+whole set up front. If any are absent — a fork, or secrets rotated away — the release still builds
+and publishes, ad-hoc signed, with a `::warning::` naming exactly which secrets were missing.
+
+This keeps tagging working under any configuration, but the degradation is real: **an ad-hoc
+release is refused by Gatekeeper on every Mac except the one that built it, and must not be
+published as a real release.** Check the run's warnings before announcing a version.
+
+### How the certificate is handled
+
+Plain `security` commands, no third-party action — the same reasoning that pins the Sparkle
+download by SHA-256 applies to anything that handles OpenClip's signing key. The keychain is
+created under `RUNNER_TEMP`, is never made the default keychain, is only prepended to the user
+search list, and is deleted by a step marked `if: always()` so a failed or cancelled run takes the
+private key with it. The .p8 is passed to `notarize_artifact.sh` as inline PEM text through the
+environment and never written into the workspace.
