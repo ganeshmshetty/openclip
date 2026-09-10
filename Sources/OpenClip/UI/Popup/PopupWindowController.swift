@@ -185,6 +185,7 @@ public class PopupWindowController {
     }
 
     func show(for context: SelectionContext, pasteAvailable: Bool?, preservingSessionID: UUID?, streamingTask: Task<Void, Never>?, initialMode: PopupMode = .actions) {
+        let evaluator = InlineResultEvaluator.shared
         let aiSession: UUID
         if let preservingSessionID {
             aiSession = preservingSessionID
@@ -197,6 +198,7 @@ public class PopupWindowController {
             activeStreamingTask = nil
             activeLoadingTask?.cancel()
             activeLoadingTask = nil
+            evaluator.cancelSession(aiSessionID)
             aiSession = UUID()
             aiSessionID = aiSession
         }
@@ -267,9 +269,13 @@ public class PopupWindowController {
         self.currentActions = activeActions
 
         modeStore.inlineResults.removeAll()
-        let inlineActions = activeActions.filter { $0.chrome.isInlineResult }
+        let catalog = ActionCoordinator.shared.searchCatalog(for: actionContext)
+        var combinedActions = activeActions
+        for item in catalog where !combinedActions.contains(where: { $0.id == item.id }) {
+            combinedActions.append(item)
+        }
+        let inlineActions = combinedActions.filter { $0.chrome.isInlineResult }
         let textHash = context.text.hashValue
-        let evaluator = InlineResultEvaluator.shared
 
         for action in inlineActions {
             if let prewarmed = evaluator.prewarmedResult(for: action.id, textHash: textHash) {
@@ -279,6 +285,7 @@ public class PopupWindowController {
             } else {
                 evaluator.startEvaluation(action: action, context: actionContext, sessionID: aiSession) { [weak self] result in
                     guard let self, let result, !result.isEmpty else { return }
+                    guard self.aiSessionID == aiSession else { return }
                     self.modeStore.inlineResults[action.id] = result
                 }
             }

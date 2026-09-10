@@ -139,6 +139,16 @@ public final class InlineResultEvaluator {
         runningTasks[sessionID]?[actionID]
     }
 
+    /// Returns an existing in-flight evaluation task across all sessions for click-race joining.
+    public func runningTask(for actionID: String) -> Task<String?, Never>? {
+        for tasks in runningTasks.values {
+            if let task = tasks[actionID] {
+                return task
+            }
+        }
+        return nil
+    }
+
     /// Cancels and removes all in-flight evaluation tasks for a popup session.
     public func cancelSession(_ sessionID: UUID) {
         if let sessionTasks = runningTasks.removeValue(forKey: sessionID) {

@@ -491,4 +491,31 @@ final class DefaultActionFactoryTests: XCTestCase {
 
         try? FileManager.default.removeItem(at: tempDir)
     }
+
+    func testFactoryPropagatesInlineFlagToActionChrome() async {
+        let factory = DefaultActionFactory()
+        let actionMeta = ExtensionActionMetadata(
+            title: "Inline Action",
+            icon: "symbol:function",
+            script: "inline.js",
+            inline: true
+        )
+        let manifest = ExtensionMetadata(
+            identifier: "com.test.inline",
+            name: "Inline Test",
+            actions: [actionMeta],
+            options: nil
+        )
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let jsFile = tempDir.appendingPathComponent("inline.js")
+        try? "console.log('hi');".write(to: jsFile, atomically: true, encoding: .utf8)
+
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: tempDir, index: 0)
+        XCTAssertNotNil(action)
+        XCTAssertTrue(action?.chrome.isInlineResult == true)
+
+        try? FileManager.default.removeItem(at: tempDir)
+    }
 }

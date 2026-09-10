@@ -823,9 +823,33 @@ public struct PopupView: View {
                         }
                         onWillPerformAction?(action)
                         onActionPerformed?(action.id)
-                        if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                            onResult(.text(resolved))
-                            return
+                        if action.chrome.isInlineResult {
+                            if let resolved = modeStore.inlineResults[action.id] {
+                                onResult(.text(resolved))
+                                return
+                            } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
+                                Task {
+                                    do {
+                                        if let text = await inFlight.value, !text.isEmpty {
+                                            onResult(.text(text))
+                                            return
+                                        }
+                                        let match = action.matchInfo(for: context)
+                                        let performContext = ActionContext(
+                                            selection: context.selection,
+                                            modifiers: context.modifiers,
+                                            isSecondaryClick: onClickIntent() == .secondary,
+                                            match: match
+                                        )
+                                        let result = try await action.perform(performContext)
+                                        onResult(result)
+                                    } catch {
+                                        Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
+                                        onResult(.toast(StatusFeedback(error: error)))
+                                    }
+                                }
+                                return
+                            }
                         }
                         Task {
                             do {
@@ -847,7 +871,13 @@ public struct PopupView: View {
                         labelView
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(action.displayTitle(using: presenter))
+                    .accessibilityLabel({
+                        let title = action.displayTitle(using: presenter)
+                        if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+                            return "\(title): \(resolved)"
+                        }
+                        return title
+                    }())
                     .popupHoverTarget(.action(index))
                     .onHover { isHovering in
                         useLocalHoverFallback(for: .action(index), isHovering: isHovering)

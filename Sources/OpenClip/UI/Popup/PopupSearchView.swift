@@ -640,9 +640,32 @@ public struct PopupSearchView: View {
         }
         onWillPerformAction?(action)
         onActionPerformed?(action.id)
-        if action.chrome.isInlineResult, let result = modeStore.inlineResults[action.id] {
-            onResult(.text(result))
-            return
+        if action.chrome.isInlineResult {
+            if let result = modeStore.inlineResults[action.id] {
+                onResult(.text(result))
+                return
+            } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
+                Task { @MainActor in
+                    do {
+                        if let text = await inFlight.value, !text.isEmpty {
+                            onResult(.text(text))
+                            return
+                        }
+                        let match = action.matchInfo(for: context)
+                        let performContext = ActionContext(
+                            selection: context.selection,
+                            modifiers: context.modifiers,
+                            isSecondaryClick: onClickIntent() == .secondary,
+                            match: match
+                        )
+                        let result = try await action.perform(performContext)
+                        onResult(result)
+                    } catch {
+                        onResult(.toast(StatusFeedback(error: error)))
+                    }
+                }
+                return
+            }
         }
         Task { @MainActor in
             do {
