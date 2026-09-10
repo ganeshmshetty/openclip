@@ -473,6 +473,7 @@ public struct PopupView: View {
             context: context,
             resultsAbove: false,
             presenter: presenter,
+            modeStore: modeStore,
             scope: modeStore.scope,
             usageRecency: ActionUsageStore.shared.recency,
             maxSize: modeStore.searchPaletteSize,
@@ -727,49 +728,44 @@ public struct PopupView: View {
         let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI
         let subBarAbove = modeStore.subBarAbove
 
-        let labelView = iconView(for: action.displayIcon(using: presenter))
-            .foregroundColor(foregroundColor)
-            .padding(.horizontal, {
-                if case .text = action.displayIcon(using: presenter) { return 6.0 * scale }
-                return 0.0
-            }())
-            .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
-            .background(backgroundColor)
-            .overlay(alignment: subBarAbove ? .top : .bottom) {
-                if isGroup {
-                    GroupIndicatorTriangle(pointingUp: subBarAbove)
-                        .fill(foregroundColor.opacity(0.65))
-                        .frame(width: 4.0 * scale, height: 2.5 * scale)
-                        .padding(subBarAbove ? .top : .bottom, 1.8 * scale)
-                }
+        let labelView = Group {
+            if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+                Text(resolved)
+                    .font(.system(size: 13 * scale, weight: .regular))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundColor(foregroundColor)
+                    .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
+                    .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
+                    .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
+                    .background(backgroundColor)
+                    .transition(.opacity)
+            } else {
+                iconView(for: action.displayIcon(using: presenter))
+                    .foregroundColor(foregroundColor)
+                    .padding(.horizontal, {
+                        if case .text = action.displayIcon(using: presenter) { return 6.0 * scale }
+                        return 0.0
+                    }())
+                    .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
+                    .background(backgroundColor)
+                    .overlay(alignment: subBarAbove ? .top : .bottom) {
+                        if isGroup {
+                            GroupIndicatorTriangle(pointingUp: subBarAbove)
+                                .fill(foregroundColor.opacity(0.65))
+                                .frame(width: 4.0 * scale, height: 2.5 * scale)
+                                .padding(subBarAbove ? .top : .bottom, 1.8 * scale)
+                        }
+                    }
+                    .transition(.opacity)
             }
-            .contentShape(Rectangle())
+        }
+        .contentShape(Rectangle())
 
-        switch action.gesturePolicy.singleClick {
-        case .openSubActions:
-            // Group rows open scoped search palette on click; sub-bar opens on hover dwell
-            Button {
-                onCancelSubBarDwell?()
-                let frame = hoverFrames[.action(index)]
-                onEnteredScopedSearch?(action, frame)
-            } label: {
-                labelView
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(action.displayTitle(using: presenter))
-            .popupHoverTarget(.action(index))
-            .onHover { isHovering in
-                useLocalHoverFallback(for: .action(index), isHovering: isHovering)
-                if isHovering {
-                    let frame = hoverFrames[.action(index)] ?? .zero
-                    onRequestSubBarDwell?(action, index, frame)
-                } else {
-                    onCancelSubBarDwell?()
-                }
-            }
-        case .perform:
-            if action.chrome.launchesAI {
-                // AI Tools launcher opens scoped search palette on click; sub-bar opens on hover dwell
+        Group {
+            switch action.gesturePolicy.singleClick {
+            case .openSubActions:
+                // Group rows open scoped search palette on click; sub-bar opens on hover dwell
                 Button {
                     onCancelSubBarDwell?()
                     let frame = hoverFrames[.action(index)]
@@ -789,43 +785,71 @@ public struct PopupView: View {
                         onCancelSubBarDwell?()
                     }
                 }
-            } else {
-                // Existing perform button unchanged
-                Button {
-                    onCancelSubBarDwell?()
-                    if action.chrome.showsLoading {
-                        onRunLoadingAction?(action)
-                        return
+            case .perform:
+                if action.chrome.launchesAI {
+                    // AI Tools launcher opens scoped search palette on click; sub-bar opens on hover dwell
+                    Button {
+                        onCancelSubBarDwell?()
+                        let frame = hoverFrames[.action(index)]
+                        onEnteredScopedSearch?(action, frame)
+                    } label: {
+                        labelView
                     }
-                    Task {
-                        do {
-                            onWillPerformAction?(action)
-                            onActionPerformed?(action.id)
-                            let match = action.matchInfo(for: context)
-                            let performContext = ActionContext(
-                                selection: context.selection,
-                                modifiers: context.modifiers,
-                                isSecondaryClick: onClickIntent() == .secondary,
-                                match: match
-                            )
-                            let result = try await action.perform(performContext)
-                            onResult(result)
-                        } catch {
-                            Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
-                            onResult(.toast(StatusFeedback(error: error)))
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(action.displayTitle(using: presenter))
+                    .popupHoverTarget(.action(index))
+                    .onHover { isHovering in
+                        useLocalHoverFallback(for: .action(index), isHovering: isHovering)
+                        if isHovering {
+                            let frame = hoverFrames[.action(index)] ?? .zero
+                            onRequestSubBarDwell?(action, index, frame)
+                        } else {
+                            onCancelSubBarDwell?()
                         }
                     }
-                } label: {
-                    labelView
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(action.displayTitle(using: presenter))
-                .popupHoverTarget(.action(index))
-                .onHover { isHovering in
-                    useLocalHoverFallback(for: .action(index), isHovering: isHovering)
+                } else {
+                    // Existing perform button unchanged
+                    Button {
+                        onCancelSubBarDwell?()
+                        if action.chrome.showsLoading {
+                            onRunLoadingAction?(action)
+                            return
+                        }
+                        onWillPerformAction?(action)
+                        onActionPerformed?(action.id)
+                        if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+                            onResult(.text(resolved))
+                            return
+                        }
+                        Task {
+                            do {
+                                let match = action.matchInfo(for: context)
+                                let performContext = ActionContext(
+                                    selection: context.selection,
+                                    modifiers: context.modifiers,
+                                    isSecondaryClick: onClickIntent() == .secondary,
+                                    match: match
+                                )
+                                let result = try await action.perform(performContext)
+                                onResult(result)
+                            } catch {
+                                Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
+                                onResult(.toast(StatusFeedback(error: error)))
+                            }
+                        }
+                    } label: {
+                        labelView
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(action.displayTitle(using: presenter))
+                    .popupHoverTarget(.action(index))
+                    .onHover { isHovering in
+                        useLocalHoverFallback(for: .action(index), isHovering: isHovering)
+                    }
                 }
             }
         }
+        .animation(.spring(response: PopupMetrics.inlineSpringResponse, dampingFraction: PopupMetrics.inlineSpringDamping), value: modeStore.inlineResults[action.id])
     }
 
     @ViewBuilder
