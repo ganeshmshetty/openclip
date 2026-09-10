@@ -170,7 +170,13 @@ struct DynamicOptionRowView: View {
         case "fantastical": return "Fantastical"
         case "apple": return String(localized: "Apple Calendar")
         case "google": return String(localized: "Google Calendar")
-        default: return choice.capitalized
+        default:
+            // Preserve author-specified casing (e.g. "UTC", "USD", "12h", "CET").
+            // Only title-case all-lowercase slugs (e.g. "english" -> "English").
+            if choice == choice.lowercased() {
+                return choice.capitalized
+            }
+            return choice
         }
     }
 }
