@@ -950,6 +950,7 @@ public class PopupWindowController {
         activeLoadingTask = nil
         activeLoadingID = nil
         InlineResultEvaluator.shared.cancelSession(aiSessionID)
+        InlineResultEvaluator.shared.clearPrewarmed()
         aiSessionID = UUID()
 
         if toastController.currentFeedback?.keepVisible == true || toastController.isLoading {

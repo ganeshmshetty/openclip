@@ -10,20 +10,6 @@
 import Foundation
 import Core
 
-private final class InlineOnceResume: @unchecked Sendable {
-    private let lock = NSLock()
-    private var didResume = false
-
-    func resume(_ continuation: CheckedContinuation<String?, Never>, with value: String?) -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !didResume else { return false }
-        didResume = true
-        continuation.resume(returning: value)
-        return true
-    }
-}
-
 @MainActor
 public final class InlineResultEvaluator {
     public static let shared = InlineResultEvaluator()
@@ -42,71 +28,55 @@ public final class InlineResultEvaluator {
         return nil
     }
 
+    @MainActor
+    private static func performAction(_ action: any Action, context: ActionContext) async -> String? {
+        do {
+            let result = try await action.perform(context)
+            switch result {
+            case .text(let text):
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
+            default:
+                return nil
+            }
+        } catch {
+            return nil
+        }
+    }
+
     /// Evaluates an inline action asynchronously with a hard execution timeout.
     /// If the action exceeds the timeout budget, the task is cancelled and nil is returned.
     public func evaluateAsync(
         action: any Action,
         context: ActionContext,
-        sessionID: UUID,
         timeout: TimeInterval = PopupMetrics.inlineEvaluationTimeout
     ) async -> String? {
         guard action.chrome.isInlineResult else { return nil }
 
-        let performTask = Task { @MainActor () -> String? in
-            do {
-                let result = try await action.perform(context)
-                switch result {
-                case .text(let text):
-                    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return trimmed.isEmpty ? nil : trimmed
-                default:
-                    return nil
-                }
-            } catch {
+        return await withTaskGroup(of: String?.self) { group in
+            group.addTask {
+                await Self.performAction(action, context: context)
+            }
+
+            group.addTask {
+                let nanos = UInt64(max(0.001, timeout) * 1_000_000_000)
+                try? await Task.sleep(nanoseconds: nanos)
                 return nil
             }
-        }
 
-        let timeoutNanoseconds = UInt64(max(0.001, timeout) * 1_000_000_000)
-        let timeoutTask = Task {
-            try? await Task.sleep(nanoseconds: timeoutNanoseconds)
-        }
-
-        let resumer = InlineOnceResume()
-
-        return await withTaskCancellationHandler {
-            await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
-                Task {
-                    let outcome = await performTask.value
-                    if resumer.resume(continuation, with: outcome) {
-                        timeoutTask.cancel()
-                    }
-                }
-                Task {
-                    _ = await timeoutTask.value
-                    if resumer.resume(continuation, with: nil) {
-                        performTask.cancel()
-                    }
-                }
-            }
-        } onCancel: {
-            performTask.cancel()
-            timeoutTask.cancel()
+            let first = await group.next()
+            group.cancelAll()
+            return first ?? nil
         }
     }
 
-    /// Tier 2: Populates the prewarm cache for inline actions during selection retrieval.
-    public func prewarm(actions: [any Action], context: ActionContext, sessionID: UUID = UUID()) {
+    /// Tier 2: Populates the prewarm cache for synchronous inline actions during selection retrieval.
+    public func prewarm(actions: [any Action], context: ActionContext) {
         let text = context.selection.text
         let hash = text.hashValue
         for action in actions where action.chrome.isInlineResult {
             if let syncResult = evaluateSynchronous(action: action, context: context) {
                 prewarmedResults[action.id] = (result: syncResult, textHash: hash)
-            } else {
-                startEvaluation(action: action, context: context, sessionID: sessionID) { [weak self] result in
-                    guard let self, let result, !result.isEmpty else { return }
-                    self.prewarmedResults[action.id] = (result: result, textHash: hash)
-                }
             }
         }
     }
@@ -144,7 +114,6 @@ public final class InlineResultEvaluator {
             let result = await self.evaluateAsync(
                 action: action,
                 context: context,
-                sessionID: sessionID,
                 timeout: timeout
             )
 

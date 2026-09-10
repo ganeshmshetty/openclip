@@ -35,7 +35,6 @@ final class InlineResultEvaluatorTests: XCTestCase {
 
     func testAsynchronousEvaluationAndTimeoutCancellation() async {
         let evaluator = InlineResultEvaluator()
-        let session = UUID()
         
         // Mock slow action that takes 800ms
         struct SlowInlineAction: Action {
@@ -53,13 +52,12 @@ final class InlineResultEvaluatorTests: XCTestCase {
         let slowAction = SlowInlineAction()
         let context = ActionContext(selection: SelectionContext(text: "input"))
         
-        let result = await evaluator.evaluateAsync(action: slowAction, context: context, sessionID: session, timeout: 0.1)
+        let result = await evaluator.evaluateAsync(action: slowAction, context: context, timeout: 0.1)
         XCTAssertNil(result, "Exceeding timeout budget must cancel and return nil")
     }
 
     func testAsynchronousEvaluationSuccess() async {
         let evaluator = InlineResultEvaluator()
-        let session = UUID()
 
         struct FastInlineAction: Action {
             let id = "test.fast"
@@ -75,7 +73,7 @@ final class InlineResultEvaluatorTests: XCTestCase {
         let fastAction = FastInlineAction()
         let context = ActionContext(selection: SelectionContext(text: "input"))
 
-        let result = await evaluator.evaluateAsync(action: fastAction, context: context, sessionID: session, timeout: 0.5)
+        let result = await evaluator.evaluateAsync(action: fastAction, context: context, timeout: 0.5)
         XCTAssertEqual(result, "Fast Result")
     }
 
@@ -115,5 +113,17 @@ final class InlineResultEvaluatorTests: XCTestCase {
 
         let mismatch = evaluator.prewarmedResult(for: calculate.id, textHash: "different".hashValue)
         XCTAssertNil(mismatch)
+    }
+
+    func testClearPrewarmedInvalidatesCache() {
+        let evaluator = InlineResultEvaluator()
+        let calculate = CalculateAction()
+        let context = ActionContext(selection: SelectionContext(text: "50 * 2"))
+
+        evaluator.prewarm(actions: [calculate], context: context)
+        XCTAssertEqual(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue), "100")
+
+        evaluator.clearPrewarmed()
+        XCTAssertNil(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue))
     }
 }
