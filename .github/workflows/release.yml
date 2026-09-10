@@ -48,6 +48,13 @@ jobs:
         id: build_package
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          # TODO: remove once Developer ID signing is wired into CI, which needs the certificate
+          # and notary credentials as repository secrets plus a temporary keychain to import them
+          # into. Until then this downgrades the run to an ad-hoc, un-notarized build so tagging
+          # keeps working; releases built this way are refused by Gatekeeper on every Mac but the
+          # runner. Signed releases are cut locally with ./scripts/release_update.sh — see
+          # docs/developer-guide/signing-and-notarization.md.
+          OPENCLIP_ALLOW_UNSIGNED_RELEASE: "1"
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"

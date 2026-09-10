@@ -6,6 +6,11 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 
 ## Unreleased
 
+### Security & Distribution
+- **Signed, Hardened & Notarized Builds**: OpenClip is now signed with an Apple Developer ID certificate, built with the hardened runtime genuinely enabled, and notarized and stapled by Apple — the app and the disk image both. macOS opens it without a Gatekeeper warning, and nothing has to strip a quarantine attribute to make it launch. Every previous release was ad-hoc signed: the packaging step finished with `codesign --deep`, which replaced Xcode's hardened signature with an unhardened ad-hoc one, so the app could not be notarized and Gatekeeper refused it on every Mac but the one that built it.
+- **Accessibility Permission Survives Updates**: An ad-hoc signature identifies an app by a hash that changes with every build, so macOS treated each update as a brand-new application and dropped the Accessibility grant. A Developer ID signature identifies it by bundle ID and team instead, so the permission now persists across updates. Upgrading to this version needs the Accessibility toggle re-granted one last time.
+- **Minimal Entitlements**: The hardened runtime is granted exactly one exception, for the Apple events that AppleScript actions send. JIT, library-validation, and dynamic-linker exceptions are all withheld, and the release scripts fail if a build's entitlements ever differ from the file that declares them. Building from source still needs no Apple Developer account: local builds are ad-hoc signed with the same hardening and entitlements.
+
 ### Fixes & Stability
 - **Per-Command Extension Settings**: Commands inside a multi-command extension now show the settings cog in Preferences › Actions whenever that command declares options, so per-command settings (an endpoint, a project ID, an API key) can be configured without leaving the list. Saving that editor for a command no longer rewrites its parent group's manifest entry.
 - **Intel Mac Support Restored**: Released builds are universal again. Every release since the CI runner moved to Apple Silicon shipped an arm64-only app, so Intel Macs refused to launch it with "not supported on this type of Mac" — the `.zip` and the `.dmg` now both carry arm64 and x86_64 slices, and the release fails rather than publishing if either one does not.

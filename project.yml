@@ -30,6 +30,8 @@ targets:
             CFBundleURLSchemes:
               - openclip
         LSUIElement: true
+        NSHumanReadableCopyright: "Copyright © 2026 Ganesh M and OpenClip Contributors. MIT licensed."
+        NSAppleEventsUsageDescription: "OpenClip needs to control other apps to run your AppleScript actions and to paste results back into the app you were using."
         SUFeedURL: https://github.com/ganeshmshetty/openclip/releases/latest/download/appcast.xml
         SUPublicEDKey: JbyKx5LUkYkM+ovsJ1NPDR2W+1ptfdsu6b51KBsKhWo=
         SUScheduledCheckInterval: 86400
@@ -49,6 +51,9 @@ targets:
         INFOPLIST_KEY_CFBundleShortVersionString: $(MARKETING_VERSION)
         INFOPLIST_KEY_CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: Sources/OpenClip/OpenClip.entitlements
+        # Ad-hoc is the default so a clone builds and runs with no Apple Developer account.
+        # scripts/sign_artifact.sh overrides the identity for signed/notarized builds.
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""

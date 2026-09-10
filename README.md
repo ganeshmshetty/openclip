@@ -163,9 +163,16 @@ xcodegen generate
 # Run the test suite
 ./scripts/test.sh
 
-# Build a Release app + build/OpenClip.zip
+# Build a Release app + build/OpenClip.zip + build/OpenClip.dmg
 ./scripts/package_app.sh
 ```
+
+> [!NOTE]
+> Local builds are signed **ad-hoc**, so no Apple Developer account, certificate, or network
+> access is needed to build or run OpenClip from source. They carry the same hardened runtime and
+> entitlements as a release, and Gatekeeper will refuse them on any other Mac. Producing a
+> distributable build is opt-in — see
+> [Code Signing, Hardened Runtime & Notarization](docs/developer-guide/signing-and-notarization.md).
 
 > [!NOTE]
 > The repo is split into a pure-domain **Core** framework and the **OpenClip** app target (AppKit +

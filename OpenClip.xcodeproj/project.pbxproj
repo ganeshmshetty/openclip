@@ -507,6 +507,7 @@
 		4B24E324403AA01B89814FF7 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		4BA6733CB7FD55544834DC9B /* PopupSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupSearchView.swift; sourceTree = "<group>"; };
 		4BB115DCDCB4749A1DDB8222 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
+		4C6012F951674D4CC529611B /* OpenClip.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenClip.entitlements; sourceTree = "<group>"; };
 		4C75D3BF228023DEA93C5D3D /* Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core.swift; sourceTree = "<group>"; };
 		4CAAD1C6555C630BEDB8C746 /* AXTextControlStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXTextControlStrategy.swift; sourceTree = "<group>"; };
 		4D47BAB3F6C14A0AB8D0B870 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
@@ -969,6 +970,7 @@
 				287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */,
 				2582277236A4342581920E66 /* Assets.xcassets */,
 				8B521F6AE4BA6FD8516E8A1B /* Info.plist */,
+				4C6012F951674D4CC529611B /* OpenClip.entitlements */,
 				871B6048B7968E61FCB53537 /* OpenClipApp.swift */,
 				0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */,
 				15E13C36EF68E62BC6FCD64A /* AI */,
@@ -1930,6 +1932,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/OpenClip/OpenClip.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -1959,6 +1962,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/OpenClip/OpenClip.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
