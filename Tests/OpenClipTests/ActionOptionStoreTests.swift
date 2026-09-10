@@ -95,4 +95,11 @@ final class ActionOptionStoreTests: XCTestCase {
         store.clearValue(actionID: "com.test.action", option: option)
         XCTAssertEqual(store.stringValue(actionID: "com.test.action", option: option), "DEFAULT: ")
     }
+
+    func testChoiceDisplayLabelPreservesDigitLeadingLowercaseValues() {
+        XCTAssertEqual(DynamicOptionRowView.choiceDisplayLabel("12h"), "12h")
+        XCTAssertEqual(DynamicOptionRowView.choiceDisplayLabel("24h"), "24h")
+        XCTAssertEqual(DynamicOptionRowView.choiceDisplayLabel("english"), "English")
+        XCTAssertEqual(DynamicOptionRowView.choiceDisplayLabel("UTC"), "UTC")
+    }
 }

@@ -27,6 +27,8 @@ public struct ManifestValidationIssue: Sendable, Equatable {
         case secondaryOnJavaScriptAction
         /// An action declares a script path that escapes the package directory or uses an absolute path.
         case unsafeScriptPath(String)
+        /// An action declares `inline: true` but is not a synchronous JavaScript action.
+        case invalidInlineAction
     }
 
     public let kind: Kind
@@ -53,6 +55,8 @@ extension ManifestValidationIssue: CustomStringConvertible {
             return "\(path): `secondary` is not supported on javascript actions; branch on `openclip.input.isSecondaryClick` in the script instead"
         case .unsafeScriptPath(let script):
             return "\(path): script path escapes extension directory \"\(script)\""
+        case .invalidInlineAction:
+            return "\(path): `inline: true` is only supported on synchronous javascript actions (kind \"js\"/\"javascript\" without \"async: true\")"
         }
     }
 }
@@ -114,6 +118,10 @@ public struct ManifestValidator: Sendable {
         self.capabilityGate = capabilityGate
     }
 
+    public static func validate(_ manifest: ExtensionMetadata) -> [ManifestValidationIssue] {
+        shared.validate(manifest)
+    }
+
     /// Validates `manifest`, returning every issue found (empty when it passes).
     public func validate(_ manifest: ExtensionMetadata) -> [ManifestValidationIssue] {
         var issues = capabilityGate.validate(manifest)
@@ -172,6 +180,14 @@ public struct ManifestValidator: Sendable {
         }
         if action.kind == .js && action.secondary != nil {
             issues.append(ManifestValidationIssue(kind: .secondaryOnJavaScriptAction, path: path))
+        }
+        if action.inline == true {
+            if action.kind != .js || action.isAsync == true {
+                issues.append(ManifestValidationIssue(
+                    kind: .invalidInlineAction,
+                    path: path
+                ))
+            }
         }
         if let options = action.options {
             issues.append(contentsOf: validateOptions(options, path: path))

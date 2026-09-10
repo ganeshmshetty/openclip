@@ -12,6 +12,20 @@ public enum PopupMetrics {
     /// Standard width and height of an action button in the popup bar and sub-bar (normalized baseline at 1.0 scale).
     public static let actionButtonWidth: CGFloat = 34.0
     public static let barButtonHeight: CGFloat = 29.0
+    /// Maximum baseline width (pt at 1.0 scale) for an inline result button in the bar.
+    public static let inlineResultMaxWidth: CGFloat = 150.0
+    /// Horizontal padding (pt at 1.0 scale) inside an expanded inline result button.
+    public static let inlineResultHorizontalPadding: CGFloat = 8.0
+    /// Cross-fade duration (seconds) between button rest icon/text and computed result.
+    public static let inlineCrossFadeDuration: Double = 0.18
+    /// Spring response duration for inline button expansion.
+    public static let inlineSpringResponse: Double = 0.24
+    /// Spring damping fraction for inline button expansion.
+    public static let inlineSpringDamping: Double = 0.82
+    /// Hard execution timeout for inline action evaluation.
+    public static let inlineEvaluationTimeout: TimeInterval = 0.5
+    /// Maximum width (pt at 1.0 scale) for the trailing inline accessory in the search palette.
+    public static let inlineSearchAccessoryMaxWidth: CGFloat = 120.0
     /// Corner radius for popup action bars and sub-bars (normalized baseline).
     public static let popupCornerRadius: CGFloat = 12.0
     /// Corner radius for modal result cards and the action-search palette.

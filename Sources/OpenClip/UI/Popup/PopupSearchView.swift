@@ -63,6 +63,10 @@ public struct PopupSearchView: View {
     /// Set by keyboard selection moves so `.onChange` auto-scrolls the list; hover-driven
     /// selection changes leave it false so hovering the edge of a row never shifts the list.
     @State private var scrollSelectionOnKeyboard = false
+    @State private var isCommandPressed: Bool = false
+    @State private var localFlagsMonitor: Any?
+    @State private var globalFlagsMonitor: Any?
+    @ObservedObject private var modeStore: PopupModeStore
 
     @Environment(\.popupEffectiveTheme) private var environmentEffectiveTheme
     @AppStorage(SettingKey.popupTheme.name) private var selectedTheme: String = SettingKey.popupTheme.defaultValue
@@ -188,6 +192,7 @@ public struct PopupSearchView: View {
         context: ActionContext,
         resultsAbove: Bool = false,
         presenter: any ActionPresenting = ActionCustomizationManager.shared,
+        modeStore: PopupModeStore = PopupModeStore(),
         scope: SearchScope? = nil,
         usageRecency: [String: Int] = [:],
         maxSize: CGSize? = nil,
@@ -206,6 +211,7 @@ public struct PopupSearchView: View {
         self.context = context
         self.resultsAbove = resultsAbove
         self.presenter = presenter
+        self._modeStore = ObservedObject(wrappedValue: modeStore)
         self.scope = scope
         self.usageRecency = usageRecency
         self.maxSize = maxSize
@@ -276,6 +282,24 @@ public struct PopupSearchView: View {
         }
         .onAppear {
             isFocused = true
+            isCommandPressed = NSEvent.modifierFlags.contains(.command)
+            localFlagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+                isCommandPressed = event.modifierFlags.contains(.command)
+                return event
+            }
+            globalFlagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { event in
+                isCommandPressed = event.modifierFlags.contains(.command)
+            }
+        }
+        .onDisappear {
+            if let local = localFlagsMonitor {
+                NSEvent.removeMonitor(local)
+                localFlagsMonitor = nil
+            }
+            if let global = globalFlagsMonitor {
+                NSEvent.removeMonitor(global)
+                globalFlagsMonitor = nil
+            }
         }
     }
 
@@ -503,7 +527,19 @@ public struct PopupSearchView: View {
                         )
                 }
 
-                if let shortcut = Self.shortcutHint(forRow: index) {
+                if item.action.chrome.isInlineResult, let result = modeStore.inlineResults[item.action.id], !isCommandPressed {
+                    Text(result)
+                        .font(.system(size: 11, weight: .regular))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: PopupMetrics.inlineSearchAccessoryMaxWidth, alignment: .trailing)
+                        .foregroundColor(
+                            isSelected
+                                ? PopupThemeModel.restForeground(for: effectiveTheme)
+                                : PopupThemeModel.restSecondary(for: effectiveTheme)
+                        )
+                        .transition(.opacity)
+                } else if let shortcut = Self.shortcutHint(forRow: index) {
                     Text(shortcut)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .monospacedDigit()
@@ -512,11 +548,13 @@ public struct PopupSearchView: View {
                                 ? PopupThemeModel.restForeground(for: effectiveTheme)
                                 : PopupThemeModel.restSecondary(for: effectiveTheme)
                         )
+                        .transition(.opacity)
                         .accessibilityLabel("Command \(index + 1)")
                 }
             }
             .padding(.horizontal, 10)
             .frame(height: PopupMetrics.searchResultRowHeight)
+            .animation(.easeInOut(duration: PopupMetrics.inlineCrossFadeDuration), value: isCommandPressed)
             .background(
                 Group {
                     if isSelected {
@@ -602,6 +640,33 @@ public struct PopupSearchView: View {
         }
         onWillPerformAction?(action)
         onActionPerformed?(action.id)
+        if action.chrome.isInlineResult {
+            if let result = modeStore.inlineResults[action.id] {
+                onResult(.text(result))
+                return
+            } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
+                Task { @MainActor in
+                    do {
+                        if let text = await inFlight.value, !text.isEmpty {
+                            onResult(.text(text))
+                            return
+                        }
+                        let match = action.matchInfo(for: context)
+                        let performContext = ActionContext(
+                            selection: context.selection,
+                            modifiers: context.modifiers,
+                            isSecondaryClick: onClickIntent() == .secondary,
+                            match: match
+                        )
+                        let result = try await action.perform(performContext)
+                        onResult(result)
+                    } catch {
+                        onResult(.toast(StatusFeedback(error: error)))
+                    }
+                }
+                return
+            }
+        }
         Task { @MainActor in
             do {
                 // Same match plumbing as the bar's perform path: thread the visibility match into

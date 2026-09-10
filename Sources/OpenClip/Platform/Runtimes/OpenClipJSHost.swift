@@ -16,9 +16,9 @@
 // get a `fetch(url, options)` polyfill bridged to URLSession (GET/POST with JSON bodies; responses
 // expose `{ status, ok, text(), json() }`) and a promise bridge: the wrapped entry point attaches
 // `.then`/catch handlers that settle a PromiseState, and the host pumps the thread's runloop until
-// the promise settles. A watchdog (TimeoutFlag pattern from ShellProcessRunner) invalidates the
-// context and throws after `Constants.scriptTimeout`. Synchronous extensions keep the exact legacy
-// wrapped-script shape and immediate-result behavior.
+// the promise settles. A JavaScriptCore VM execution limit interrupts synchronous JavaScript, while
+// a TimeoutFlag watchdog bounds idle promise waiting; both throw after `Constants.scriptTimeout`.
+// Synchronous extensions keep the exact legacy wrapped-script shape and immediate-result behavior.
 import Foundation
 import JavaScriptCore
 import Core
@@ -185,10 +185,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
     public func run(_ request: Request) async throws -> ActionResult {
         let session = self.session
 
-        // Synchronous evaluations (and the top-level synchronous parsing/execution phase of async
-        // scripts) cannot be interrupted once started (JSVirtualMachine.invalidate is gone in modern
-        // SDKs), so a CPU-bound sync script permanently parks a cooperative-pool thread. Cap in-flight
-        // sync evaluations and refuse new ones at the cap, logging at .error.
+        // Every run enters the gate because async scripts also have a top-level synchronous phase.
+        // JavaScriptCore's execution limit forcibly ends a CPU-bound phase, allowing the detached
+        // task's defer to release this slot after timeout.
         let gate = OpenClipJSHost.syncEvaluationGate
         guard gate.tryEnter() else {
             Log.js.error("Refusing JS evaluation for action \(request.actionID, privacy: .public): \(gate.inFlightCount) in-flight sync evaluations at cap")
@@ -252,18 +251,26 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let matchedText = request.context.match?.matchedText ?? text
         let captures = request.context.match?.captures ?? []
 
+        let timeoutSeconds = max(0.001, request.timeout ?? Constants.scriptTimeout)
+        let timeoutFlag = TimeoutFlag()
+
         guard let jsContext = JSContext() else {
             throw NSError(domain: Constants.actionErrorDomain,
                           code: Constants.actionErrorCode,
                           userInfo: [NSLocalizedDescriptionKey: "Could not create JavaScript context"])
         }
 
-        let timeoutSeconds = request.timeout ?? Constants.scriptTimeout
-        let timeoutFlag = TimeoutFlag()
-        // Watchdog: marks the timeout flag after the execution budget (matching ShellProcessRunner).
-        // The async pump loop below observes the flag and throws, interrupting a never-settling
-        // promise. (JSVirtualMachine.invalidate() — the old way to abort runaway scripts — was
-        // removed from modern SDKs, so the flag + pump-loop check is the interruption mechanism.)
+        // Install the VM limit before evaluating any script so runaway synchronous code is
+        // interrupted inside JavaScriptCore rather than observed only after evaluateScript returns.
+        let executionLimit = JSExecutionTimeLimit(
+            context: jsContext,
+            timeout: timeoutSeconds,
+            timeoutFlag: timeoutFlag
+        )
+        defer { executionLimit.clear() }
+
+        // The VM limit only runs while JavaScript is executing. This wall-clock watchdog separately
+        // bounds an async promise that is idle while the runloop waits for settlement.
         let watchdog = Task.detached {
             try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
             timeoutFlag.markTimedOut()
@@ -1006,4 +1013,3 @@ public final class OpenClipJSHost: @unchecked Sendable {
         syncEvaluationGate.capacity
     }
 }
-

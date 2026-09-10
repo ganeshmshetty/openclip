@@ -438,6 +438,46 @@ final class ManifestValidationTests: XCTestCase {
         XCTAssertEqual(issues, [])
     }
 
+    func testInlineActionValidation() {
+        // 1. Valid: synchronous JS action with inline: true
+        let validSyncJS = ExtensionActionMetadata(
+            id: "test.valid.sync",
+            title: "Word Count",
+            type: "javascript",
+            script: "main.js",
+            isAsync: false,
+            inline: true
+        )
+        let validManifest = ExtensionMetadata(identifier: "com.test.valid", actions: [validSyncJS])
+        let validIssues = ManifestValidator.validate(validManifest)
+        XCTAssertFalse(validIssues.contains { $0.kind == .invalidInlineAction })
+
+        // 2. Invalid: async JS action with inline: true
+        let invalidAsyncJS = ExtensionActionMetadata(
+            id: "test.invalid.async",
+            title: "Async Count",
+            type: "javascript",
+            script: "main.js",
+            isAsync: true,
+            inline: true
+        )
+        let asyncManifest = ExtensionMetadata(identifier: "com.test.async", actions: [invalidAsyncJS])
+        let asyncIssues = ManifestValidator.validate(asyncManifest)
+        XCTAssertTrue(asyncIssues.contains { $0.kind == .invalidInlineAction })
+
+        // 3. Invalid: shell action with inline: true
+        let invalidShell = ExtensionActionMetadata(
+            id: "test.invalid.shell",
+            title: "Shell Count",
+            type: "shell",
+            script: "run.sh",
+            inline: true
+        )
+        let shellManifest = ExtensionMetadata(identifier: "com.test.shell", actions: [invalidShell])
+        let shellIssues = ManifestValidator.validate(shellManifest)
+        XCTAssertTrue(shellIssues.contains { $0.kind == .invalidInlineAction })
+    }
+
     private func assertFingerprint(_ value: String, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertEqual(value.count, 64, "fingerprint must be 64 hex chars", file: file, line: line)
         XCTAssertTrue(value.allSatisfy { $0.isHexDigit }, "fingerprint must be hex", file: file, line: line)

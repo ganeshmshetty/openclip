@@ -9,8 +9,21 @@ public struct CalculateAction: ConfigurableAction {
     public var title: String { String(localized: "Calculate") }
     public let preferenceIconName = "equal.circle"
     public let icon = ActionIcon.symbol("equal.circle")
-    
+    public var chrome: ActionChrome { ActionChrome(isInlineResult: true) }
+
     public init() {}
+
+    public func evaluateSynchronously(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty && trimmed.count <= 200,
+              let sanitized = sanitize(trimmed),
+              containsMathIntent(sanitized),
+              let result = evaluateExpression(sanitized) else {
+            return nil
+        }
+        let formatted = formatResult(result)
+        return formatted.isEmpty ? nil : formatted
+    }
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {

@@ -54,6 +54,8 @@ public final class PopupModeStore: ObservableObject {
     @Published public var isSubBarActive: Bool = false
     /// The ID of the currently active group action whose sub-bar is visible.
     @Published public var activeSubGroupID: String? = nil
+    /// Computed inline results for actions with `chrome.isInlineResult == true`, keyed by action ID.
+    @Published public var inlineResults: [String: String] = [:]
 
     public init() {}
 }
