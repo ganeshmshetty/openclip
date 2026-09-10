@@ -20,12 +20,12 @@ public struct SelectionContext: Sendable {
     
     public init(
         text: String,
-        sourceApp: AppIdentity,
-        cursorPosition: CGPoint,
+        sourceApp: AppIdentity = AppIdentity(bundleIdentifier: "com.openclip.unknown", localizedName: "Unknown"),
+        cursorPosition: CGPoint = .zero,
         mouseDownLocation: CGPoint? = nil,
         selectionBounds: CGRect? = nil,
-        timestamp: Date,
-        appPolicy: AppPolicyContext,
+        timestamp: Date = Date(),
+        appPolicy: AppPolicyContext = .default,
         isClipboardFallback: Bool = false,
         html: String? = nil,
         rtf: String? = nil

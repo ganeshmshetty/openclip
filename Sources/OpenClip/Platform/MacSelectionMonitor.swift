@@ -377,6 +377,13 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             guard !self.shouldSuppress(for: appIdentity.bundleIdentifier) else { return }
             delivered = true
             latestSelection = (context, canPaste)
+            let actionContext = ActionContext(selection: context, modifiers: [])
+            let catalog = ActionCoordinator.shared.searchCatalog(for: actionContext)
+            PopupSearchView.prewarmIndex(catalog: catalog)
+            let inlineActions = catalog.filter { $0.chrome.isInlineResult }
+            if !inlineActions.isEmpty {
+                InlineResultEvaluator.shared.prewarm(actions: inlineActions, context: actionContext)
+            }
             self.onSelection?(context, canPaste)
         }
     }
@@ -576,6 +583,10 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         let actionContext = ActionContext(selection: context, modifiers: [])
         let catalog = ActionCoordinator.shared.searchCatalog(for: actionContext)
         PopupSearchView.prewarmIndex(catalog: catalog)
+        let inlineActions = catalog.filter { $0.chrome.isInlineResult }
+        if !inlineActions.isEmpty {
+            InlineResultEvaluator.shared.prewarm(actions: inlineActions, context: actionContext)
+        }
         if !policy.hotkeyOnly {
             self.onSelection?(context, canPaste)
         }

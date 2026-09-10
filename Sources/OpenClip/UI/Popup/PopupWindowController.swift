@@ -266,6 +266,24 @@ public class PopupWindowController {
             : availableActions
         self.currentActions = activeActions
 
+        modeStore.inlineResults.removeAll()
+        let inlineActions = activeActions.filter { $0.chrome.isInlineResult }
+        let textHash = context.text.hashValue
+        let evaluator = InlineResultEvaluator.shared
+
+        for action in inlineActions {
+            if let syncResult = evaluator.evaluateSynchronous(action: action, context: actionContext) {
+                modeStore.inlineResults[action.id] = syncResult
+            } else if let prewarmed = evaluator.prewarmedResult(for: action.id, textHash: textHash) {
+                modeStore.inlineResults[action.id] = prewarmed
+            } else {
+                evaluator.startEvaluation(action: action, context: actionContext, sessionID: aiSession) { [weak self] result in
+                    guard let self, let result, !result.isEmpty else { return }
+                    self.modeStore.inlineResults[action.id] = result
+                }
+            }
+        }
+
         let rootView = PopupView(
             actions: activeActions,
             allActions: activeActions,
@@ -931,6 +949,7 @@ public class PopupWindowController {
         activeLoadingTask?.cancel()
         activeLoadingTask = nil
         activeLoadingID = nil
+        InlineResultEvaluator.shared.cancelSession(aiSessionID)
         aiSessionID = UUID()
 
         if toastController.currentFeedback?.keepVisible == true || toastController.isLoading {
@@ -944,6 +963,7 @@ public class PopupWindowController {
         modeStore.searchPaletteSize = nil
         modeStore.isSurfaceUserSized = false
         modeStore.canPaste = nil
+        modeStore.inlineResults.removeAll()
         // A dismissed session must not leak its click intent into the next one (keyboard-driven
         // runs and any later snapshot read the last intent; force-copy must never persist). The
         // declared delivery is snapshotted per-perform, so a stale value must not leak either.
@@ -1893,7 +1913,19 @@ public class PopupWindowController {
         )
         Task { @MainActor in
             do {
-                let result = try await action.perform(performContext)
+                let result: ActionResult
+                if action.chrome.isInlineResult,
+                   let inFlightTask = InlineResultEvaluator.shared.runningTask(for: action.id, sessionID: self.aiSessionID) {
+                    if let text = await inFlightTask.value {
+                        result = .text(text)
+                    } else {
+                        result = try await action.perform(performContext)
+                    }
+                } else if action.chrome.isInlineResult, let cached = self.modeStore.inlineResults[action.id] {
+                    result = .text(cached)
+                } else {
+                    result = try await action.perform(performContext)
+                }
                 if self.shouldDismiss(result, delivery: delivery) {
                     self.hide()
                 }
