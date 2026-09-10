@@ -532,7 +532,7 @@ public struct PopupSearchView: View {
                         .font(.system(size: 11, weight: .regular))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .frame(maxWidth: PopupMetrics.inlineSearchAccessoryMaxWidth)
+                        .frame(maxWidth: PopupMetrics.inlineSearchAccessoryMaxWidth, alignment: .trailing)
                         .foregroundColor(
                             isSelected
                                 ? PopupThemeModel.restForeground(for: effectiveTheme)
