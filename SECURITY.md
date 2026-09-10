@@ -61,8 +61,26 @@ reported to their maintainers, though a private heads-up here is appreciated.
 - **Subprocess sandboxing.** Script actions run under a 30-second watchdog that
   terminates stuck processes (process-group kill) so scripts cannot run or hang
   indefinitely.
-- **Hardened runtime.** The app target builds with `ENABLE_HARDENED_RUNTIME`
-  enabled (see `project.yml`).
+- **Hardened runtime, verified on the artifact.** Release builds are signed with
+  `--options runtime` and a minimal entitlements file that grants one exception,
+  `com.apple.security.automation.apple-events`, needed by AppleScript actions.
+  JIT, library-validation, and `DYLD_*` exceptions are all deliberately withheld.
+  The build setting alone was not enough to trust: the packaging scripts used to
+  finish with `codesign --deep`, which silently replaced Xcode's hardened
+  signature with an ad-hoc one, so `scripts/verify_signing.sh` now reads the
+  finished bundle — every nested binary included — and fails the build if the
+  hardened runtime is missing or the signed entitlements differ from the
+  checked-in file. See
+  [docs/developer-guide/signing-and-notarization.md](docs/developer-guide/signing-and-notarization.md).
+- **Developer ID signing and notarization.** Releases are signed with a
+  Developer ID Application certificate and a secure timestamp, then submitted to
+  Apple's notary service and stapled, so the app and the disk image both carry
+  their ticket offline. The signature's designated requirement pins the bundle
+  identifier and Team ID rather than a per-build hash, which is also what lets
+  the Accessibility grant survive an update. If the signing secrets are absent
+  from a release run, the workflow degrades to an ad-hoc build and says so with
+  a warning rather than failing; artifacts produced that way are not
+  distributable and are not published as releases.
 - **Verifiable release builds.** Release `.zip` and `.dmg` artifacts carry a
   Sigstore build-provenance attestation binding them to the tag and workflow run
   that produced them, so any download can be checked against its origin:

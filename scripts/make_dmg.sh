@@ -39,6 +39,14 @@ ICON_Y=210
 APP_X=170
 DROP_X=490
 
+# dmgbuild's hide_extensions is deliberately not used. It sets Finder's "hidden extension" bit,
+# which is stored in a com.apple.FinderInfo extended attribute written onto the app bundle inside
+# the image — and codesign counts that attribute as "resource fork, Finder information, or similar
+# detritus not allowed", so `codesign --verify --strict` fails on the copy a user drags out of the
+# DMG even though the same bundle verifies cleanly everywhere else. Finder hides .app extensions
+# by default regardless, so the only people who saw a difference were those who had turned
+# "Show all filename extensions" on, i.e. who asked to see it.
+#
 # dmgbuild writes the .DS_Store directly through the ds_store/mac_alias modules rather than
 # driving Finder over AppleScript, so it needs no GUI session and only the items listed in
 # icon_locations get a saved position. Leaving the hidden files (.background.tiff,
@@ -102,7 +110,6 @@ icon_locations = {
     "$APP_NAME": ($APP_X, $ICON_Y),
     "Applications": ($DROP_X, $ICON_Y),
 }
-hide_extensions = ["$APP_NAME"]
 PYTHON
 
 echo "==> Packaging $(basename "$OUTPUT_DMG")..."

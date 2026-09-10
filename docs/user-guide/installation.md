@@ -20,6 +20,22 @@ The interface follows the macOS system language. English and Simplified Chinese 
 2. **Move to Applications**: Drag `OpenClip.app` into your `/Applications` folder.
 3. **Launch OpenClip**: Open `OpenClip.app` from Finder or Spotlight.
 
+Releases are signed with an Apple Developer ID certificate and notarized by Apple, so OpenClip
+opens normally. There is no need to right-click to open it, and no need to strip a quarantine
+attribute with `xattr`. If macOS says the app "cannot be opened because the developer cannot be
+verified", the download is not a release build — check where it came from.
+
+To confirm what you have before launching it:
+
+```bash
+spctl -a -vv -t exec /Applications/OpenClip.app
+# accepted
+# source=Notarized Developer ID
+
+xcrun stapler validate /Applications/OpenClip.app
+# The validate action worked!
+```
+
 ---
 
 ## Granting Accessibility Permissions

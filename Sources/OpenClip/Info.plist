@@ -39,9 +39,13 @@
 	<string>1</string>
 	<key>LSUIElement</key>
 	<true/>
-	<key>SUEnableAutomaticChecks</key>
-	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>OpenClip needs to control other apps to run your AppleScript actions and to paste results back into the app you were using.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 Ganesh M and OpenClip Contributors. MIT licensed.</string>
 	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
 	<string>https://github.com/ganeshmshetty/openclip/releases/latest/download/appcast.xml</string>

@@ -57,6 +57,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Extending OpenClip Overview](developer-guide/overview.md) — Extension architecture and custom action integration.
 - [Extension Package Format](developer-guide/package-format.md) — `.openclipext` bundle structure, `manifest.json` schema, and options definitions.
 - [Standalone Snippet Parsing](developer-guide/snippets.md) — Pure header parsing via `OpenClipSnippetParser`.
+- [Code Signing, Hardened Runtime & Notarization](developer-guide/signing-and-notarization.md) — Ad-hoc vs Developer ID builds, the entitlements OpenClip grants and refuses, the sign → notarize → staple pipeline, and the checks that gate a release.
 
 ### Action Execution Runtimes
 - [AppleScript Runtime](runtimes/applescript.md) — `AppleScriptAction` execution, variable injection, and output handling.

@@ -32,5 +32,22 @@ jobs:
       - name: Run Full Test Suite (0 skips)
         run: ./scripts/test.sh
 
-      - name: Build App (Release)
+      # Deliberately ad-hoc. Pull requests from forks get no access to secrets, so a signing
+      # certificate here would only work for branches pushed by collaborators — and a check that
+      # silently does nothing on fork PRs is worse than one that runs the same way for everyone.
+      # An ad-hoc build still exercises the whole signing path: hardened runtime, the real
+      # entitlements, and the inside-out pass over Sparkle's nested helpers.
+      - name: Build App (Release, ad-hoc signed)
         run: ./scripts/package_app.sh
+
+      # package_app.sh already gates this, but asserting it here too keeps the guarantee visible
+      # in the workflow and independent of that script's internals. Verifying the app unpacked
+      # from the archive rather than the build product also covers the archive itself. This is the
+      # regression that shipped for months unnoticed: project.yml asked for the hardened runtime,
+      # Xcode honoured it, and a `codesign --deep` at packaging time quietly stripped it back off.
+      - name: Verify Hardening & Entitlements
+        run: |
+          rm -rf /tmp/ci-verify
+          mkdir -p /tmp/ci-verify
+          ditto -x -k build/OpenClip.zip /tmp/ci-verify
+          ./scripts/verify_signing.sh /tmp/ci-verify/OpenClip.app --require any

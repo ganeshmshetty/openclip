@@ -15,7 +15,18 @@ git submodule update --init            # populate Extensions/ catalog submodule 
 ./scripts/package_app.sh               # Release build -> build/OpenClip.zip + build/OpenClip.dmg
 ./scripts/make_dmg.sh <app> <dmg>      # styled DMG only (see docs/dmg.md)
 ./scripts/clean.sh                     # wipe DerivedData/build caches
+./scripts/verify_signing.sh <artifact> # gate signature/hardening/notarization (--require any|developer-id|notarized)
+./scripts/sign_artifact.sh <artifact>  # inside-out re-sign of an .app, or sign a .dmg
+./scripts/notarize_artifact.sh <path>  # submit to Apple's notary service and staple the ticket
 ```
+
+**Signing is opt-in and defaults to ad-hoc**, so a clone builds with no Apple Developer account,
+certificate, or network. Never re-introduce `codesign --deep` — it re-signs outside-in and drops
+the hardened runtime and entitlements, which is how every release before this shipped unhardened.
+Adding an entitlement means editing `Sources/OpenClip/OpenClip.entitlements` (no XML comments in
+it; `codesign`'s parser rejects them), because `verify_signing.sh` fails on any difference between
+that file and the signed artifact. Full reference:
+[`docs/developer-guide/signing-and-notarization.md`](docs/developer-guide/signing-and-notarization.md).
 
 All Swift is Swift 6 with `SWIFT_STRICT_CONCURRENCY: complete`. Targets (see `project.yml`): **Core** (pure domain framework), **OpenClip** (app), **OpenClipTests**. SPM deps: KeyboardShortcuts, SDWebImageSwiftUI/SVGCoder.
 
