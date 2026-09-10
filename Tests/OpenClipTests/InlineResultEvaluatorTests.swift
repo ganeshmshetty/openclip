@@ -126,4 +126,42 @@ final class InlineResultEvaluatorTests: XCTestCase {
         evaluator.clearPrewarmed()
         XCTAssertNil(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue))
     }
+
+    func testTimeZoneConverterExtensionInlineEvaluation() async throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // OpenClipTests
+            .deletingLastPathComponent() // Tests
+            .deletingLastPathComponent() // repo root
+        let extDir = repoRoot.appendingPathComponent("Extensions/raw/TimeZoneConverter.openclipext")
+        let manifestURL = extDir.appendingPathComponent("openclip.json")
+
+        guard FileManager.default.fileExists(atPath: manifestURL.path) else {
+            XCTFail("TimeZoneConverter.openclipext not found at \(manifestURL.path)")
+            return
+        }
+
+        let data = try Data(contentsOf: manifestURL)
+        let manifest = try JSONDecoder().decode(ExtensionMetadata.self, from: data)
+        XCTAssertEqual(manifest.identifier, "com.openclip.timezone-converter")
+
+        let actionMeta = try XCTUnwrap(manifest.actions.first)
+        XCTAssertEqual(actionMeta.inline, true)
+
+        let factory = DefaultActionFactory()
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: extDir, index: 0)
+        XCTAssertNotNil(action)
+        XCTAssertTrue(action?.chrome.isInlineResult == true)
+
+        let evaluator = InlineResultEvaluator.shared
+        let context = ActionContext(selection: SelectionContext(text: "3:00 PM EST"))
+        let result = await evaluator.evaluateAsync(action: action!, context: context)
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.contains("UTC") == true)
+        XCTAssertTrue(result?.contains("7:00 PM") == true)
+
+        // Non-time selection returns nil
+        let nonTimeContext = ActionContext(selection: SelectionContext(text: "Hello World"))
+        let nonTimeResult = await evaluator.evaluateAsync(action: action!, context: nonTimeContext)
+        XCTAssertNil(nonTimeResult)
+    }
 }
