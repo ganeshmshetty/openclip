@@ -272,10 +272,10 @@ public class PopupWindowController {
         let evaluator = InlineResultEvaluator.shared
 
         for action in inlineActions {
-            if let syncResult = evaluator.evaluateSynchronous(action: action, context: actionContext) {
-                modeStore.inlineResults[action.id] = syncResult
-            } else if let prewarmed = evaluator.prewarmedResult(for: action.id, textHash: textHash) {
+            if let prewarmed = evaluator.prewarmedResult(for: action.id, textHash: textHash) {
                 modeStore.inlineResults[action.id] = prewarmed
+            } else if let syncResult = evaluator.evaluateSynchronous(action: action, context: actionContext) {
+                modeStore.inlineResults[action.id] = syncResult
             } else {
                 evaluator.startEvaluation(action: action, context: actionContext, sessionID: aiSession) { [weak self] result in
                     guard let self, let result, !result.isEmpty else { return }
