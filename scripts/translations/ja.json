@@ -455,5 +455,7 @@
   "Unsupported file format. Please choose a PNG, SVG, JPG, or ICNS file.": "サポートされていないファイル形式です。PNG、SVG、JPG、または ICNS ファイルを選択してください。",
   "Customize Icon": "アイコンをカスタマイズ",
   "Move Up": "上に移動",
-  "Move Down": "下に移動"
+  "Move Down": "下に移動",
+  "%@ download": "%@ ダウンロード",
+  "%@ downloads": "%@ ダウンロード"
 }

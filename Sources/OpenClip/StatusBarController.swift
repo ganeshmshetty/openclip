@@ -630,6 +630,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         // Empty on purpose: the pane's name is a toolbar item, and a window title
         // would be drawn beside it (see PreferencesToolbar).
         window.title = ""
+        window.setAccessibilityTitle(tab.windowTitle)
         window.setContentSize(NSSize(width: 820, height: 640))
         // Both, not just contentMinSize: the hosting view publishes no minimum of
         // its own (sizingOptions is empty), and a window dragged narrower than the

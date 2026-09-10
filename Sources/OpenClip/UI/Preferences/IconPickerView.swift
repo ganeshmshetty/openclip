@@ -140,8 +140,16 @@ public struct IconPickerView: View {
                     placeholder: String(localized: "Search Iconify (press Enter)…"),
                     controlSize: .small
                 ) { query in
-                    submittedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-                    provider.search(query: submittedQuery)
+                    let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                    submittedQuery = trimmed
+                    if !trimmed.isEmpty {
+                        provider.search(query: trimmed)
+                    }
+                }
+                .onChange(of: searchText) { _, newValue in
+                    if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        submittedQuery = ""
+                    }
                 }
                 .frame(height: 20)
                 if provider.isSearching {

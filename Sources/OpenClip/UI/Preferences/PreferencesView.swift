@@ -122,7 +122,12 @@ public struct PreferencesView: View {
             }
         }
         .onChange(of: toolbarModel.storeFilter) { _, filter in
+            guard storeViewModel.selectedFilter != filter else { return }
             storeViewModel.selectedFilter = filter
+        }
+        .onChange(of: storeViewModel.selectedFilter) { _, filter in
+            guard toolbarModel.storeFilter != filter else { return }
+            toolbarModel.storeFilter = filter
         }
         .onChange(of: toolbarModel.searchQuery) { _, query in
             guard storeViewModel.searchQuery != query else { return }

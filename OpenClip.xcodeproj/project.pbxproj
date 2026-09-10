@@ -330,8 +330,8 @@
 		E6C58D0747EA41DECA6FFFA2 /* ShortcutAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = C612A5C65039CA80623072E4 /* ShortcutAction.swift */; };
 		E6EB3B0A91D5B10B60A5734C /* SemanticVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A1B37766CE7914EED1A827 /* SemanticVersion.swift */; };
 		E6F19F69F4A7600DE3C664AA /* CustomIconManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5039B99D3EACB1E2BF272D2 /* CustomIconManagerTests.swift */; };
-		E7C069E73B09FDA02830A7CA /* PopupInlineUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB6113A88986EE1C7FF3FB7 /* PopupInlineUITests.swift */; };
 		E75472EBB90E82A98D3C787E /* SettingsRowLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE94C5DF6F55C48818CE55EC /* SettingsRowLabel.swift */; };
+		E7C069E73B09FDA02830A7CA /* PopupInlineUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB6113A88986EE1C7FF3FB7 /* PopupInlineUITests.swift */; };
 		E86C2D7468C5053D116BE999 /* ActionCustomizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7683646692AA6067DA5AA86D /* ActionCustomizationManager.swift */; };
 		E86F203A8AF88E30A78C7709 /* SettingKey+ResultCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79D64C96408A09CB4C053E1E /* SettingKey+ResultCard.swift */; };
 		E94E8E1A91416CA1E54B9BFD /* MultiActionExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8898F579917FE375DDEE7778 /* MultiActionExtensionTests.swift */; };

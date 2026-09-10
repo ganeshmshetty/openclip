@@ -59,6 +59,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             // Once the content view has a split view the toolbar can be told
             // where the sidebar ends.
             installSidebarTrackingSeparator(retriesLeft: 20)
+            window?.setAccessibilityTitle(model.tab.windowTitle)
         }
     }
 
@@ -113,6 +114,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
 
     private func sync(tab: PreferenceTab) {
         titleLabel?.stringValue = tab.windowTitle
+        window?.setAccessibilityTitle(tab.windowTitle)
         let showsStoreControls = (tab == .store)
         setHidden(filterItem, !showsStoreControls)
         setHidden(searchItem, !showsStoreControls)
@@ -145,7 +147,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         guard let button = actionButton else { return }
         button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tooltip)
         button.toolTip = tooltip
-        button.isEnabled = true
+        button.isEnabled = !(model.tab == .store && model.isRefreshing)
         setHidden(actionItem, false)
         actionItem?.toolTip = tooltip
     }

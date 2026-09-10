@@ -74,7 +74,9 @@ struct ExtensionCardView: View {
         if !item.author.isEmpty {
             parts.append(item.author)
         }
-        if item.downloadCount > 0 {
+        if item.downloadCount == 1 {
+            parts.append(String(localized: "\(formattedDownloadCount(item.downloadCount)) download"))
+        } else if item.downloadCount > 1 {
             parts.append(String(localized: "\(formattedDownloadCount(item.downloadCount)) downloads"))
         }
         return parts.joined(separator: " · ")
