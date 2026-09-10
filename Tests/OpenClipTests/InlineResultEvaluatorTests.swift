@@ -164,4 +164,44 @@ final class InlineResultEvaluatorTests: XCTestCase {
         let nonTimeResult = await evaluator.evaluateAsync(action: action!, context: nonTimeContext)
         XCTAssertNil(nonTimeResult)
     }
+
+    func testWordCountExtensionInlineEvaluation() async throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // OpenClipTests
+            .deletingLastPathComponent() // Tests
+            .deletingLastPathComponent() // repo root
+        let extDir = repoRoot.appendingPathComponent("Extensions/raw/WordCount.openclipext")
+        let manifestURL = extDir.appendingPathComponent("openclip.json")
+
+        guard FileManager.default.fileExists(atPath: manifestURL.path) else {
+            XCTFail("WordCount.openclipext not found at \(manifestURL.path)")
+            return
+        }
+
+        let data = try Data(contentsOf: manifestURL)
+        let manifest = try JSONDecoder().decode(ExtensionMetadata.self, from: data)
+        XCTAssertEqual(manifest.identifier, "com.openclip.wordcount")
+        XCTAssertEqual(manifest.minOpenClipVersion, "1.0.0")
+
+        let actionMeta = try XCTUnwrap(manifest.actions.first)
+        XCTAssertEqual(actionMeta.inline, true)
+
+        let factory = DefaultActionFactory()
+        let action = await factory.createAction(metadata: actionMeta, manifest: manifest, directoryURL: extDir, index: 0)
+        XCTAssertNotNil(action)
+        XCTAssertTrue(action?.chrome.isInlineResult == true)
+
+        let evaluator = InlineResultEvaluator.shared
+        let context = ActionContext(selection: SelectionContext(text: "The quick brown fox jumps"))
+        let result = await evaluator.evaluateAsync(action: action!, context: context)
+        XCTAssertEqual(result, "5 words")
+
+        let singleContext = ActionContext(selection: SelectionContext(text: "Hello"))
+        let singleResult = await evaluator.evaluateAsync(action: action!, context: singleContext)
+        XCTAssertEqual(singleResult, "1 word")
+
+        let emptyContext = ActionContext(selection: SelectionContext(text: "   "))
+        let emptyResult = await evaluator.evaluateAsync(action: action!, context: emptyContext)
+        XCTAssertNil(emptyResult)
+    }
 }
