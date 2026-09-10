@@ -8,9 +8,68 @@ import Foundation
 import JavaScriptCore
 import Core
 
-/// Bounds the number of concurrent synchronous JS evaluations. A stuck sync script holds its slot
-/// forever (it cannot be interrupted), so `tryEnter` refuses new evaluations once the cap is
-/// reached instead of leaking more cooperative-pool threads.
+private typealias OpenClipJSTerminationCallback = @convention(c) (
+    JSContextRef?,
+    UnsafeMutableRawPointer?
+) -> Bool
+
+// JavaScriptCore's Objective-C API no longer exposes JSVirtualMachine.invalidate(), but its C API
+// still exports the VM watchdog used by WebKit. Declare the two functions here because Apple ships
+// their declarations in JSContextRefPrivate.h rather than the public module interface.
+@_silgen_name("JSContextGroupSetExecutionTimeLimit")
+private func setJSContextGroupExecutionTimeLimit(
+    _ group: JSContextGroupRef,
+    _ limit: Double,
+    _ callback: OpenClipJSTerminationCallback?,
+    _ callbackData: UnsafeMutableRawPointer?
+)
+
+@_silgen_name("JSContextGroupClearExecutionTimeLimit")
+private func clearJSContextGroupExecutionTimeLimit(_ group: JSContextGroupRef)
+
+private func terminateTimedOutScript(
+    _: JSContextRef?,
+    _ callbackData: UnsafeMutableRawPointer?
+) -> Bool {
+    if let callbackData {
+        Unmanaged<TimeoutFlag>.fromOpaque(callbackData).takeUnretainedValue().markTimedOut()
+    }
+    return true
+}
+
+/// Owns JavaScriptCore's execution-time limit for one context. The runtime invokes the callback and
+/// terminates synchronous JavaScript even while `evaluateScript` is still on the stack.
+final class JSExecutionTimeLimit {
+    private let context: JSContext
+    private let group: JSContextGroupRef
+    private let timeoutFlag: TimeoutFlag
+    private var isCleared = false
+
+    init(context: JSContext, timeout: TimeInterval, timeoutFlag: TimeoutFlag) {
+        self.context = context
+        group = JSContextGetGroup(context.jsGlobalContextRef)
+        self.timeoutFlag = timeoutFlag
+        setJSContextGroupExecutionTimeLimit(
+            group,
+            timeout,
+            terminateTimedOutScript,
+            Unmanaged.passUnretained(self.timeoutFlag).toOpaque()
+        )
+    }
+
+    deinit {
+        clear()
+    }
+
+    func clear() {
+        guard !isCleared else { return }
+        isCleared = true
+        clearJSContextGroupExecutionTimeLimit(group)
+    }
+}
+
+/// Bounds the number of concurrent synchronous JS evaluations. The runtime execution limit makes
+/// each slot recoverable after timeout; the cap still protects against concurrent startup bursts.
 final class SyncEvaluationGate: @unchecked Sendable {
     private let lock = NSLock()
     let capacity: Int
@@ -190,5 +249,3 @@ final class FetchTaskBox: @unchecked Sendable {
         }
     }
 }
-
-

@@ -77,6 +77,61 @@ final class InlineResultEvaluatorTests: XCTestCase {
         XCTAssertEqual(result, "Fast Result")
     }
 
+    func testTextResultPreservesWhitespaceButWhitespaceOnlyIsEmpty() async {
+        struct TextInlineAction: Action {
+            let id: String
+            let title = "Text"
+            let icon = ActionIcon.symbol("text.alignleft")
+            let chrome = ActionChrome(isInlineResult: true)
+            let text: String
+            func isEnabled(for context: ActionContext) -> Bool { true }
+            func perform(_ context: ActionContext) async throws -> ActionResult { .text(text) }
+        }
+
+        let evaluator = InlineResultEvaluator()
+        let context = ActionContext(selection: SelectionContext(text: "input"))
+        let formatted = "  First line\n    Second line\n"
+
+        let result = await evaluator.evaluateAsync(
+            action: TextInlineAction(id: "test.formatted", text: formatted),
+            context: context
+        )
+        let emptyResult = await evaluator.evaluateAsync(
+            action: TextInlineAction(id: "test.whitespace", text: " \t\n"),
+            context: context
+        )
+
+        XCTAssertEqual(result, formatted)
+        XCTAssertNil(emptyResult)
+    }
+
+    func testNonTerminatingSynchronousJavaScriptTimesOutAndReleasesSlot() async {
+        let evaluator = InlineResultEvaluator()
+        let javaScriptAction = JavaScriptAction(
+            id: "test.infinite-inline",
+            title: "Infinite Inline",
+            scriptCode: "function action() { while (true) {} }",
+            chrome: ActionChrome(isInlineResult: true),
+            optionStore: SettingsActionOptionStore(store: MemorySettingsStore())
+        )
+        let action: any Action = MenuDecoratedAction(
+            base: DeliveryDecoratedAction(
+                base: KeywordDecoratedAction(base: javaScriptAction, keywords: ["infinite"]),
+                delivery: nil
+            )
+        )
+        let context = ActionContext(selection: SelectionContext(text: "input"))
+        let initialInFlightCount = OpenClipJSHost.syncEvaluationGate.inFlightCount
+        let startedAt = Date()
+
+        let result = await evaluator.evaluateAsync(action: action, context: context, timeout: 0.05)
+        let elapsed = Date().timeIntervalSince(startedAt)
+
+        XCTAssertNil(result)
+        XCTAssertLessThan(elapsed, 1.0, "synchronous JavaScript must be forcibly interrupted")
+        XCTAssertEqual(OpenClipJSHost.syncEvaluationGate.inFlightCount, initialInFlightCount)
+    }
+
     func testSessionCancellationAbortsPendingTasks() async {
         let evaluator = InlineResultEvaluator()
         let session = UUID()

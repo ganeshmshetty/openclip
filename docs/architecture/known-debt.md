@@ -76,8 +76,10 @@ areas; stale debt notes are worse than none.
   `secondaryClickBehavior`) plus the action's declared `Action.delivery` (snapshotted per perform),
   the click intent, and the unified paste
   availability. The old `after` translator (the pre-refactor `after` orchestration step and its
-  adapter) is **fully removed**. Async JS runs are guarded by the
-  `TimeoutFlag` watchdog (60 s, same pattern as `ShellProcessRunner`) and cooperative Swift task cancellation.
+  adapter) is **fully removed**. Synchronous JavaScript (including the top-level synchronous phase
+  of async actions) is bounded by JavaScriptCore's VM execution-time limit, so a timeout unwinds
+  `evaluateScript` and releases its sync-evaluation gate slot. Idle promise waiting is bounded by
+  the `TimeoutFlag` watchdog (60 s by default), and Swift task cancellation remains cooperative.
   A fetch response that arrives after the evaluation ends is discarded (`FetchTaskBox.isEnded`);
   the host does not call the JavaScript VM for it (issue #40). Residual: retain cycles in
   `JSNativeFetch` (`nativeFetchBlock` → `contextBox`/`context`; `jsonBlock` → `JSContextBox`) and
@@ -255,7 +257,7 @@ areas; stale debt notes are worse than none.
 
 ## Concurrency
 
-- **Residual non-interruptible paths (documented).** Three spots remain that a hostile
+- **Residual non-interruptible paths (documented).** Two spots remain that a hostile
   or hung target can make block a background thread:
   (1) `SelectionRetrievalCoordinator.pressEditCopyMenu` starts an AXPress on the dedicated
   `com.openclip.ax-inspect` queue. The `pasteboardCopyTimeout` poll does not stop that press.
@@ -265,10 +267,7 @@ areas; stale debt notes are worse than none.
   `pressCopyMenuWithWatchdog` releases the permit at the first of {press returned, `axReadTimeout`},
   same OnceResume race as inspect. The queue is concurrent, so a blocked press does not delay
   later retrieval requests (see below);
-  (2) an async-mode
-  JS script with a top-level *synchronous* infinite loop blocks inside `evaluateScript`, which the
-  watchdog pump loop never reaches (the sync-evaluation gate covers only `isAsync == false`);
-  (3) `PasteAvailabilityProbe.editPasteEnabled` walks the menu bar up to an aggregate deadline
+  (2) `PasteAvailabilityProbe.editPasteEnabled` walks the menu bar up to an aggregate deadline
   passed through `AXMenuNavigator.findMenuItem`. Each AX message also has a per-call limit of
   `axReadTimeout`. An abandoned walk stops at `pasteProbeTimeout` (or upon completing an in-flight message),
   so workers do not linger for minutes on the queue. The counting gate releases its permit at the deadline

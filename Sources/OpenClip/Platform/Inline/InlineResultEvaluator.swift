@@ -29,13 +29,38 @@ public final class InlineResultEvaluator {
     }
 
     @MainActor
-    private static func performAction(_ action: any Action, context: ActionContext) async -> String? {
+    private static func javaScriptAction(from action: any Action) -> JavaScriptAction? {
+        switch action {
+        case let javaScriptAction as JavaScriptAction:
+            return javaScriptAction
+        case let decorated as DeliveryDecoratedAction:
+            return javaScriptAction(from: decorated.base)
+        case let decorated as KeywordDecoratedAction:
+            return javaScriptAction(from: decorated.base)
+        case let decorated as MenuDecoratedAction:
+            return javaScriptAction(from: decorated.base)
+        default:
+            return nil
+        }
+    }
+
+    @MainActor
+    private static func performAction(
+        _ action: any Action,
+        context: ActionContext,
+        timeout: TimeInterval
+    ) async -> String? {
         do {
-            let result = try await action.perform(context)
+            let result: ActionResult
+            if let javaScriptAction = javaScriptAction(from: action) {
+                result = try await javaScriptAction.perform(context, timeout: timeout)
+            } else {
+                result = try await action.perform(context)
+            }
             switch result {
             case .text(let text):
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? nil : trimmed
+                return trimmed.isEmpty ? nil : text
             default:
                 return nil
             }
@@ -53,13 +78,14 @@ public final class InlineResultEvaluator {
     ) async -> String? {
         guard action.chrome.isInlineResult else { return nil }
 
+        let boundedTimeout = max(0.001, timeout)
         return await withTaskGroup(of: String?.self) { group in
             group.addTask {
-                await Self.performAction(action, context: context)
+                await Self.performAction(action, context: context, timeout: boundedTimeout)
             }
 
             group.addTask {
-                let nanos = UInt64(max(0.001, timeout) * 1_000_000_000)
+                let nanos = UInt64(boundedTimeout * 1_000_000_000)
                 try? await Task.sleep(nanoseconds: nanos)
                 return nil
             }

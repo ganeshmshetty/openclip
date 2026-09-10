@@ -91,6 +91,12 @@ public struct JavaScriptAction: ConfigurableAction {
     }
 
     public func perform(_ context: ActionContext) async throws -> ActionResult {
+        try await perform(context, timeout: nil)
+    }
+
+    /// Performs with an optional caller-supplied runtime deadline. Inline evaluation uses its
+    /// shorter UI budget so JavaScriptCore can interrupt synchronous scripts at the same deadline.
+    func perform(_ context: ActionContext, timeout: TimeInterval?) async throws -> ActionResult {
         // Phase 7: a declaratively-required option with no resolved value short-circuits to
         // configuration BEFORE any JS runs. Distinct from the runtime `openclip.requireConfiguration`
         // call (a script-time request); this is the manifest `requiredOptions` auto-check and must
@@ -117,6 +123,7 @@ public struct JavaScriptAction: ConfigurableAction {
             optionStore: optionStore,
             rules: rules ?? ExtensionActionRules(),
             isAsync: isAsync,
+            timeout: timeout,
             packageDirectory: packageDirectory,
             entryDirectory: entryDirectory,
             pasteboardContent: OpenClipJSHost.PasteboardContent.read()

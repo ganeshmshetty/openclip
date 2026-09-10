@@ -133,7 +133,7 @@ struct DynamicOptionRowView: View {
                 if let choices = option.options, !choices.isEmpty {
                     Picker("", selection: binding) {
                         ForEach(choices, id: \.self) { choice in
-                            Text(choiceDisplayLabel(choice)).tag(choice)
+                            Text(Self.choiceDisplayLabel(choice)).tag(choice)
                         }
                     }
                     .pickerStyle(.menu)
@@ -163,7 +163,7 @@ struct DynamicOptionRowView: View {
         .padding(.vertical, 8)
     }
 
-    private func choiceDisplayLabel(_ choice: String) -> String {
+    static func choiceDisplayLabel(_ choice: String) -> String {
         switch choice.lowercased() {
         case "native": return String(localized: "Native (Default .ics)")
         case "busycal": return "BusyCal"
@@ -172,8 +172,8 @@ struct DynamicOptionRowView: View {
         case "google": return String(localized: "Google Calendar")
         default:
             // Preserve author-specified casing (e.g. "UTC", "USD", "12h", "CET").
-            // Only title-case all-lowercase slugs (e.g. "english" -> "English").
-            if choice == choice.lowercased() {
+            // Only title-case letter-leading, all-lowercase slugs (e.g. "english" -> "English").
+            if choice.first?.isLetter == true, choice == choice.lowercased() {
                 return choice.capitalized
             }
             return choice
