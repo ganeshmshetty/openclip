@@ -47,10 +47,10 @@ final class PopupInlineUITests: XCTestCase {
         XCTAssertLessThanOrEqual(PopupMetrics.inlineResultMaxWidth, 160.0)
         XCTAssertGreaterThan(PopupMetrics.inlineResultMaxWidth, 100.0)
         XCTAssertEqual(PopupMetrics.inlineResultHorizontalPadding, 8.0)
-        XCTAssertEqual(PopupMetrics.inlineCrossFadeDuration, 0.18, accuracy: 0.01)
-        XCTAssertEqual(PopupMetrics.inlineSpringResponse, 0.24, accuracy: 0.01)
-        XCTAssertEqual(PopupMetrics.inlineSpringDamping, 0.82, accuracy: 0.01)
-        XCTAssertEqual(PopupMetrics.inlineEvaluationTimeout, 0.5, accuracy: 0.01)
+        XCTAssertEqual(PopupMetrics.inlineCrossFadeDuration, 0.22, accuracy: 0.01)
+        XCTAssertEqual(PopupMetrics.inlineSpringResponse, 0.22, accuracy: 0.01)
+        XCTAssertEqual(PopupMetrics.inlineSpringDamping, 0.72, accuracy: 0.01)
+        XCTAssertEqual(PopupMetrics.inlineEvaluationTimeout, 0.9, accuracy: 0.01)
         XCTAssertEqual(PopupMetrics.inlineSearchAccessoryMaxWidth, 120.0, accuracy: 0.01)
     }
 

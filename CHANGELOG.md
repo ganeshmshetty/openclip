@@ -1,6 +1,4 @@
-# Changelog
-
-All notable user-facing changes, feature additions, and improvements to OpenClip are documented here.
+# w
 
 ---
 

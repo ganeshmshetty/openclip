@@ -378,6 +378,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             delivered = true
             latestSelection = (context, canPaste)
             prewarmInlineActions(for: context)
+            await InlineResultEvaluator.shared.awaitPrewarmed(timeout: 0.025)
             self.onSelection?(context, canPaste)
         }
     }
@@ -571,10 +572,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             html: result.html,
             rtf: result.rtf
         )
+        prewarmInlineActions(for: context)
         let canPaste = await probeTask?.value
         guard !Task.isCancelled else { return }
         latestSelection = (context, canPaste)
-        prewarmInlineActions(for: context)
+        await InlineResultEvaluator.shared.awaitPrewarmed(timeout: 0.025)
         if !policy.hotkeyOnly {
             self.onSelection?(context, canPaste)
         }

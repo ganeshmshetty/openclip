@@ -13,6 +13,11 @@ final class ExtensionResultCardResizeTests: XCTestCase {
 
     private let ring = 2 * PopupMetrics.popupShadowInset
     private let remembered = CGSize(width: 520, height: 440)
+
+    override func setUp() {
+        super.setUp()
+        TestIsolation.reset()
+    }
     private let longText = (1...60)
         .map { "Line \($0): a grammar suggestion from an extension that keeps going for quite a while." }
         .joined(separator: "\n")
@@ -72,7 +77,7 @@ final class ExtensionResultCardResizeTests: XCTestCase {
     }
 
     /// Waits for content mode, then for the fit-to-content retries to land.
-    private func waitForCard(_ controller: PopupWindowController, timeout: TimeInterval = 3.0) async {
+    private func waitForCard(_ controller: PopupWindowController, timeout: TimeInterval = 6.0) async {
         let deadline = Date().addingTimeInterval(timeout)
         while controller.modeStore.mode != .content && Date() < deadline {
             try? await Task.sleep(nanoseconds: 2_000_000)

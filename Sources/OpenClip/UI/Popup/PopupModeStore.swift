@@ -49,6 +49,10 @@ public final class PopupModeStore: ObservableObject {
     @Published public var canPaste: Bool? = nil
     /// True while an asynchronous AI action is executing, used to suspend distance auto-dismiss.
     @Published public var isProcessingAI: Bool = false
+    /// True once the user has explicitly pinned the result card via the pin button. When `true`
+    /// the card behaves as modal (auto-dismiss suppressed), mirroring `hasUserMovedCard` in the
+    /// controller. Cleared by `hide()` and `exitContent()`.
+    @Published public var isCardPinned: Bool = false
     /// True while the horizontal group sub-bar is visible (transient or pinned). Read by
     /// `PopupWindowController` to intercept Escape before dismissing the full popup.
     @Published public var isSubBarActive: Bool = false

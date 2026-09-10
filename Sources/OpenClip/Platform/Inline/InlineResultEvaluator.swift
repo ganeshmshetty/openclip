@@ -15,9 +15,24 @@ public final class InlineResultEvaluator {
     public static let shared = InlineResultEvaluator()
 
     private var prewarmedResults: [String: (result: String, textHash: Int)] = [:]
+    private var prewarmedTasks: [String: (task: Task<String?, Never>, textHash: Int)] = [:]
+    private var memoizedResults: [Int: [String: String]] = [:]
+    private var memoizedKeys: [Int] = []
     private var runningTasks: [UUID: [String: Task<String?, Never>]] = [:]
 
     public init() {}
+
+    private func storeMemoized(textHash: Int, actionID: String, result: String) {
+        if memoizedResults[textHash] == nil {
+            memoizedKeys.append(textHash)
+            if memoizedKeys.count > 50 {
+                let oldest = memoizedKeys.removeFirst()
+                memoizedResults.removeValue(forKey: oldest)
+            }
+            memoizedResults[textHash] = [:]
+        }
+        memoizedResults[textHash]?[actionID] = result
+    }
 
     /// Tier 1: Evaluates synchronous built-in actions immediately without spawning tasks.
     public func evaluateSynchronous(action: any Action, context: ActionContext) -> String? {
@@ -96,28 +111,74 @@ public final class InlineResultEvaluator {
         }
     }
 
-    /// Tier 2: Populates the prewarm cache for synchronous inline actions during selection retrieval.
+    /// Tier 2: Populates the prewarm cache for synchronous and asynchronous inline actions during selection retrieval.
     public func prewarm(actions: [any Action], context: ActionContext) {
         let text = context.selection.text
         let hash = text.hashValue
         for action in actions where action.chrome.isInlineResult {
-            if let syncResult = evaluateSynchronous(action: action, context: context) {
+            if let memo = memoizedResults[hash]?[action.id] {
+                prewarmedResults[action.id] = (result: memo, textHash: hash)
+            } else if let syncResult = evaluateSynchronous(action: action, context: context) {
                 prewarmedResults[action.id] = (result: syncResult, textHash: hash)
+                storeMemoized(textHash: hash, actionID: action.id, result: syncResult)
+            } else {
+                if let existing = prewarmedTasks[action.id], existing.textHash == hash {
+                    continue
+                }
+                let task = Task { @MainActor [weak self] () -> String? in
+                    guard let self else { return nil }
+                    let result = await self.evaluateAsync(action: action, context: context)
+                    guard !Task.isCancelled else { return nil }
+                    if let result, !result.isEmpty {
+                        self.prewarmedResults[action.id] = (result: result, textHash: hash)
+                        self.storeMemoized(textHash: hash, actionID: action.id, result: result)
+                    }
+                    return result
+                }
+                prewarmedTasks[action.id] = (task: task, textHash: hash)
             }
+        }
+    }
+
+    /// Awaits pending prewarm evaluation tasks up to the given anticipation timeout budget.
+    public func awaitPrewarmed(timeout: TimeInterval = 0.025) async {
+        let activeTasks = prewarmedTasks.values.map(\.task)
+        guard !activeTasks.isEmpty else { return }
+        await withTaskGroup(of: Void.self) { group in
+            for task in activeTasks {
+                group.addTask {
+                    _ = await task.value
+                }
+            }
+            group.addTask {
+                let nanos = UInt64(max(0.001, timeout) * 1_000_000_000)
+                try? await Task.sleep(nanoseconds: nanos)
+            }
+            _ = await group.next()
+            group.cancelAll()
         }
     }
 
     /// Returns a prewarmed result if present and valid for the given selected text hash.
     public func prewarmedResult(for actionID: String, textHash: Int) -> String? {
-        guard let cached = prewarmedResults[actionID], cached.textHash == textHash else {
-            return nil
+        if let cached = prewarmedResults[actionID], cached.textHash == textHash {
+            return cached.result
         }
-        return cached.result
+        if let memo = memoizedResults[textHash]?[actionID] {
+            return memo
+        }
+        return nil
     }
 
-    /// Clears prewarmed cache entries.
+    /// Clears prewarmed cache entries and cancels in-flight prewarm tasks.
     public func clearPrewarmed() {
+        for entry in prewarmedTasks.values {
+            entry.task.cancel()
+        }
+        prewarmedTasks.removeAll()
         prewarmedResults.removeAll()
+        memoizedResults.removeAll()
+        memoizedKeys.removeAll()
     }
 
     /// Tier 3: Registers and starts background evaluation of an inline action for a popup session.
@@ -133,17 +194,33 @@ public final class InlineResultEvaluator {
             return
         }
 
+        let hash = context.selection.text.hashValue
+        if let cached = prewarmedResult(for: action.id, textHash: hash) {
+            onResult(cached)
+            return
+        }
+
+        let prewarmed = prewarmedTasks[action.id]
         let task = Task { @MainActor [weak self] () -> String? in
             guard let self else { return nil }
             guard !Task.isCancelled else { return nil }
 
-            let result = await self.evaluateAsync(
-                action: action,
-                context: context,
-                timeout: timeout
-            )
+            let result: String?
+            if let prewarmed, prewarmed.textHash == hash {
+                result = await prewarmed.task.value
+            } else {
+                result = await self.evaluateAsync(
+                    action: action,
+                    context: context,
+                    timeout: timeout
+                )
+            }
 
             guard !Task.isCancelled else { return nil }
+
+            if let result, !result.isEmpty {
+                self.storeMemoized(textHash: hash, actionID: action.id, result: result)
+            }
 
             self.runningTasks[sessionID]?.removeValue(forKey: action.id)
             if self.runningTasks[sessionID]?.isEmpty == true {

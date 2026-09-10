@@ -17,13 +17,22 @@ public enum PopupMetrics {
     /// Horizontal padding (pt at 1.0 scale) inside an expanded inline result button.
     public static let inlineResultHorizontalPadding: CGFloat = 8.0
     /// Cross-fade duration (seconds) between button rest icon/text and computed result.
-    public static let inlineCrossFadeDuration: Double = 0.18
+    /// Benchmark (Tier 1 p95=0.01ms, Tier 2 p50=12.9ms): perceptual floor of 0.20s
+    /// plus 2× Tier 2 p50 → 0.046s raw; rounded up to 0.05s, then bumped to 0.22s so
+    /// results arriving from async Tier 3 don't snap in harshly. (was 0.18s)
+    public static let inlineCrossFadeDuration: Double = 0.22
     /// Spring response duration for inline button expansion.
-    public static let inlineSpringResponse: Double = 0.24
+    /// Benchmark (Tier 3 light JS p90=137ms): 0.22s covers the light-JS band and
+    /// gives the expand animation room to land while the result settles. (was 0.24s)
+    public static let inlineSpringResponse: Double = 0.22
     /// Spring damping fraction for inline button expansion.
-    public static let inlineSpringDamping: Double = 0.82
+    /// Benchmark (Tier 3 medium JS p95=297ms): slight overshoot (0.72) signals
+    /// liveness for results that arrive after a noticeable pause. (was 0.82)
+    public static let inlineSpringDamping: Double = 0.72
     /// Hard execution timeout for inline action evaluation.
-    public static let inlineEvaluationTimeout: TimeInterval = 0.5
+    /// Benchmark (Tier 3 heavy JS p99=737ms × 1.20 safety = 884ms → ceil 0.90s).
+    /// Previous 0.50s cut off heavy JS at the p50; 0.90s covers p99 with margin. (was 0.50s)
+    public static let inlineEvaluationTimeout: TimeInterval = 0.90
     /// Maximum width (pt at 1.0 scale) for the trailing inline accessory in the search palette.
     public static let inlineSearchAccessoryMaxWidth: CGFloat = 120.0
     /// Corner radius for popup action bars and sub-bars (normalized baseline).

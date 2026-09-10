@@ -307,6 +307,7 @@ public class PopupWindowController {
             onDismissContent: { [weak self] in self?.hide() },
             onCardDrag: { [weak self] phase in self?.handleCardDrag(phase) },
             onResize: { [weak self] edge, phase in self?.handleResize(edge, phase: phase) },
+            onPinCard: { [weak self] in self?.pinCard() },
             onCardEffect: { [weak self] result in
                 self?.performCardEffect(result)
             },
@@ -791,7 +792,24 @@ public class PopupWindowController {
             cardDragAnchor = nil
             panel.endUserDrag()
             hasUserMovedCard = true
+            modeStore.isCardPinned = true
         }
+    }
+
+    /// Toggles the explicit pin state of the result card. Pinning makes the card modal — the same
+    /// `hasUserMovedCard` gate that dragging the card sets — so the card suppresses auto-dismiss
+    /// (outside-click, scroll, cursor distance, app switch). Unpinning reverses both flags unless
+    /// the user also dragged the card this session (drag always wins: `hasUserMovedCard` stays set).
+    func pinCard() {
+        let nowPinned = !modeStore.isCardPinned
+        modeStore.isCardPinned = nowPinned
+        // Pinning: make the card modal so it survives outside-clicks and app switches.
+        // Unpinning: restore non-modal behavior only when the card hasn't also been dragged,
+        // since a dragged card is already marked modal via the drag path and must stay so.
+        if nowPinned {
+            hasUserMovedCard = true
+        }
+        // (When unpinning, hasUserMovedCard stays true if it was set by a drag — no action needed.)
     }
 
     // MARK: - Resize
@@ -871,6 +889,7 @@ public class PopupWindowController {
         modeStore.resultCard = nil
         modeStore.resultCardSize = nil
         modeStore.isSurfaceUserSized = false
+        modeStore.isCardPinned = false
         resizeAnchor = nil
         hasUserMovedCard = false
         modeStore.mode = .actions
@@ -995,6 +1014,7 @@ public class PopupWindowController {
         cardDragAnchor = nil
         resizeAnchor = nil
         hasUserMovedCard = false
+        modeStore.isCardPinned = false
         preSearchFrame = nil
         openedDirectlyInSearch = false
         sessionShowTime = 0

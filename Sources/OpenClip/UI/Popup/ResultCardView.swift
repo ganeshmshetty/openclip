@@ -65,6 +65,11 @@ public struct ResultCardView: View {
     /// Reports a drag of one of the resize handles so the owner can resize the panel and remember
     /// the size. Phases mirror `onDrag`; `.began` is reported exactly once per drag.
     public let onResize: @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void
+    /// True when the card is explicitly pinned via the pin button — suppresses auto-dismiss so
+    /// the card stays visible until the user unpins, copies, pastes, or presses Esc.
+    public let isPinned: Bool
+    /// Called when the user taps the pin button; the owner toggles the pin state.
+    public let onPin: @MainActor () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.popupEffectiveTheme) private var effectiveTheme
@@ -75,8 +80,9 @@ public struct ResultCardView: View {
     @State private var isCopyHovered = false
     @State private var isPasteHovered = false
     @State private var isDismissHovered = false
+    @State private var isPinHovered = false
     /// The diff of `payload.original` → `payload.text`, recomputed only when the payload settles
-    /// (never per body evaluation, and never mid-stream on a half-written response).
+    /// (never per body evaluation, and never mid-stream on a half-written response).\
     @State private var diffSegments: [TextDiffSegment] = []
     @State private var showsDiff = false
     /// Set once the user works the toggle, so a later payload update can't override their choice.
@@ -90,23 +96,27 @@ public struct ResultCardView: View {
         canPaste: Bool? = nil,
         maxSize: CGSize? = nil,
         isUserSized: Bool = false,
+        isPinned: Bool = false,
         onExit: @escaping @MainActor () -> Void,
         onDismiss: (@MainActor () -> Void)? = nil,
         onPaste: @escaping @MainActor () -> Void,
         onCopy: @escaping @MainActor () -> Void,
         onDrag: @escaping @MainActor (ResultCardDragPhase) -> Void = { _ in },
-        onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in }
+        onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in },
+        onPin: @escaping @MainActor () -> Void = {}
     ) {
         self.payload = payload
         self.canPaste = canPaste
         self.maxSize = maxSize
         self.isUserSized = isUserSized
+        self.isPinned = isPinned
         self.onExit = onExit
         self.onDismiss = onDismiss ?? onExit
         self.onPaste = onPaste
         self.onCopy = onCopy
         self.onDrag = onDrag
         self.onResize = onResize
+        self.onPin = onPin
     }
 
     public var body: some View {
@@ -291,11 +301,15 @@ public struct ResultCardView: View {
             .gesture(headerDragGesture)
             .help("Drag to move")
 
-            if hasDiff {
-                diffToggle
-            }
+            HStack(spacing: 4) {
+                if hasDiff {
+                    diffToggle
+                }
 
-            closeButton
+                pinButton
+
+                closeButton
+            }
         }
         .padding(.horizontal, 8)
         .frame(height: Self.headerHeight)
@@ -417,6 +431,26 @@ public struct ResultCardView: View {
         .help(showsDiff ? String(localized: "Show the plain result (⌘D)") : String(localized: "Show what changed (⌘D)"))
         .accessibilityLabel(String(localized: "Toggle change highlighting"))
         .onHover { isDiffHovered = $0 }
+    }
+
+    private var pinButton: some View {
+        Button {
+            onPin()
+        } label: {
+            Image(systemName: isPinned ? "pin.fill" : "pin")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(isPinned ? .accentColor : PopupThemeModel.restForeground(for: effectiveTheme).opacity(isPinHovered ? 0.9 : 0.6))
+                .frame(width: 22, height: 22)
+                .background(
+                    isPinned ? Color.accentColor.opacity(0.14) : (isPinHovered ? Color.primary.opacity(0.08) : Color.clear),
+                    in: Circle()
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(isPinned ? String(localized: "Unpin — card will dismiss automatically") : String(localized: "Pin — keep card open when moved"))
+        .accessibilityLabel(isPinned ? String(localized: "Unpin result card") : String(localized: "Pin result card"))
+        .onHover { isPinHovered = $0 }
     }
 
     // MARK: - Dynamic Dimensions
