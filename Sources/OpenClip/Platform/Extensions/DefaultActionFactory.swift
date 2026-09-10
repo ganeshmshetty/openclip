@@ -269,7 +269,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             popupBehavior: .perform,
             source: .extensionPkg(packageID: manifest.identifier),
             showsLoading: metadata.loading ?? false,
-            loadingMessage: metadata.loadingMessage
+            loadingMessage: metadata.loadingMessage,
+            isInlineResult: metadata.inline == true
         )
 
         // Phase 8 runtime kinds: keyPress / shortcut / service. Checked before the generic url and

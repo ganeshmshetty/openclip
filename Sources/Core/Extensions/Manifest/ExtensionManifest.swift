@@ -43,6 +43,9 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     public let secondaryToast: ExtensionToastDeclaration?
     /// Search keywords for the action palette.
     public let keywords: [String]?
+    /// When true and the action is a synchronous JavaScript action, the action runs inline in the
+    /// popup bar, surfacing its return value as secondary preview text and mutating the selection on return.
+    public let inline: Bool?
 
     public var kind: ExtensionActionKind {
         ExtensionActionKind(rawType: type ?? "url")
@@ -71,6 +74,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         toast: ExtensionToastDeclaration? = nil,
         secondaryToast: ExtensionToastDeclaration? = nil,
         keywords: [String]? = nil,
+        inline: Bool? = nil,
         localizedTitle: LocalizedStringValue? = nil,
         localizedLoadingMessage: LocalizedStringValue? = nil
     ) {
@@ -98,6 +102,25 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.toast = toast
         self.secondaryToast = secondaryToast
         self.keywords = keywords
+        self.inline = inline
+    }
+
+    public init(
+        id: String? = nil,
+        title: String? = nil,
+        type: String?,
+        script: String? = nil,
+        isAsync: Bool? = nil,
+        inline: Bool? = nil
+    ) {
+        self.init(
+            id: id,
+            title: title,
+            script: script,
+            type: type,
+            isAsync: isAsync,
+            inline: inline
+        )
     }
 
     public init(from decoder: Decoder) throws {
@@ -147,6 +170,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         } else {
             self.keywords = nil
         }
+        self.inline = try container.decodeIfPresent(Bool.self, forKey: .inline)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -181,6 +205,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(toast, forKey: .toast)
         try container.encodeIfPresent(secondaryToast, forKey: .secondaryToast)
         try container.encodeIfPresent(keywords, forKey: .keywords)
+        try container.encodeIfPresent(inline, forKey: .inline)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -217,6 +242,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case secondaryToast = "secondaryToast"
         case secondaryToastDash = "secondary-toast"
         case keywords = "keywords"
+        case inline = "inline"
     }
 }
 
@@ -375,7 +401,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
     
     public init(
         identifier: String,
-        name: String,
+        name: String = "",
         actions: [ExtensionActionMetadata],
         options: [ExtensionOptionMetadata]? = nil,
         version: String? = nil,

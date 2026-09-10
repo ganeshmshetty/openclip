@@ -40,4 +40,27 @@ final class ActionChromeTests: XCTestCase {
         XCTAssertEqual(chrome.loadingMessage, "Connecting to Music…")
     }
 
+    func testActionChromeBackwardsCompatibleDecoding() throws {
+        // JSON missing "isInlineResult" must decode cleanly with isInlineResult == false
+        let legacyJSON = """
+        {
+            "badge": "none",
+            "rowStyle": "standard",
+            "popupBehavior": "perform",
+            "source": "builtin",
+            "requiresLiveSelection": false,
+            "launchesAI": false,
+            "showsLoading": false
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(ActionChrome.self, from: legacyJSON)
+        XCTAssertFalse(decoded.isInlineResult)
+
+        let inlineChrome = ActionChrome(isInlineResult: true)
+        let encoded = try JSONEncoder().encode(inlineChrome)
+        let reDecoded = try JSONDecoder().decode(ActionChrome.self, from: encoded)
+        XCTAssertTrue(reDecoded.isInlineResult)
+    }
 }
+

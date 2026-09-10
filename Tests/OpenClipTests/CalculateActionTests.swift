@@ -217,4 +217,12 @@ final class CalculateActionTests: XCTestCase {
         XCTAssertNil(MathEvaluator.evaluate(""))
         XCTAssertNil(MathEvaluator.evaluate("hello"))
     }
+
+    func testCalculateActionEvaluateSynchronously() {
+        let calculate = CalculateAction()
+        XCTAssertTrue(calculate.chrome.isInlineResult)
+        XCTAssertEqual(calculate.evaluateSynchronously("25 * 4"), "100")
+        XCTAssertEqual(calculate.evaluateSynchronously("not math"), nil)
+    }
 }
+
