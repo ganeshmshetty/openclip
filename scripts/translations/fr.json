@@ -462,5 +462,10 @@
   "Move Up": "Monter",
   "Move Down": "Descendre",
   "%@ download": "%@ téléchargement",
-  "%@ downloads": "%@ téléchargements"
+  "%@ downloads": "%@ téléchargements",
+  "Duplicate": "Dupliquer",
+  "Duplicate Action": "Dupliquer l’action",
+  "Duplicate Extension": "Dupliquer l’extension",
+  "Duplicate Failed": "Échec de la duplication",
+  "OpenClip could not duplicate extension: %@": "OpenClip n’a pas pu dupliquer l’extension : %@"
 }

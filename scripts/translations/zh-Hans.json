@@ -462,5 +462,10 @@
   "Move Up": "上移",
   "Move Down": "下移",
   "%@ download": "%@ 次下载",
-  "%@ downloads": "%@ 次下载"
+  "%@ downloads": "%@ 次下载",
+  "Duplicate": "复制",
+  "Duplicate Action": "复制操作",
+  "Duplicate Extension": "复制扩展",
+  "Duplicate Failed": "复制失败",
+  "OpenClip could not duplicate extension: %@": "OpenClip 无法复制扩展：%@"
 }

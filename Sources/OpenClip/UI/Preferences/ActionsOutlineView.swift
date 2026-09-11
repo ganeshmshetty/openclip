@@ -252,6 +252,21 @@ final class ActionsOutlineTableView: NSOutlineView {
         }
         return (delegate as? ActionsOutlineCoordinator)?.contextMenu(for: node)
     }
+
+    override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "d" {
+            let selectedRow = selectedRow
+            if selectedRow >= 0,
+               let node = item(atRow: selectedRow) as? OutlineNode,
+               let coordinator = delegate as? ActionsOutlineCoordinator {
+                if let action = node.action, ActionIdentity.canDuplicate(action) {
+                    coordinator.duplicateAction(id: action.id)
+                    return
+                }
+            }
+        }
+        super.keyDown(with: event)
+    }
 }
 
 // MARK: - Scroll View
@@ -815,12 +830,32 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             menu.addItem(ungroupItem)
 
         case .groupMember(let action, let parentGroupID):
+            if ActionIdentity.canDuplicate(action) {
+                let duplicateItem = NSMenuItem(title: String(localized: "Duplicate"), action: #selector(handleDuplicateActionMenuItem(_:)), keyEquivalent: "d")
+                duplicateItem.keyEquivalentModifierMask = [.command]
+                duplicateItem.target = self
+                duplicateItem.representedObject = action.id
+                menu.addItem(duplicateItem)
+
+                menu.addItem(NSMenuItem.separator())
+            }
+
             let removeItem = NSMenuItem(title: String(localized: "Remove from Group"), action: #selector(handleRemoveFromGroupMenuItem(_:)), keyEquivalent: "")
             removeItem.target = self
             removeItem.representedObject = (actionID: action.id, groupID: parentGroupID)
             menu.addItem(removeItem)
 
         case .standaloneAction(let action):
+            if ActionIdentity.canDuplicate(action) {
+                let duplicateItem = NSMenuItem(title: String(localized: "Duplicate"), action: #selector(handleDuplicateActionMenuItem(_:)), keyEquivalent: "d")
+                duplicateItem.keyEquivalentModifierMask = [.command]
+                duplicateItem.target = self
+                duplicateItem.representedObject = action.id
+                menu.addItem(duplicateItem)
+
+                menu.addItem(NSMenuItem.separator())
+            }
+
             if parent.coordinator.isEligibleForGrouping(actionID: action.id) {
                 if !parent.coordinator.actionGroupDefs.isEmpty {
                     let addToGroupItem = NSMenuItem(title: String(localized: "Add to Group"), action: nil, keyEquivalent: "")
@@ -842,11 +877,93 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 }
             }
 
-        case .extensionGroup, .extensionSubAction, .packageHeader:
+        case .extensionGroup(let action):
+            if ActionIdentity.canDuplicate(action) {
+                let duplicateItem = NSMenuItem(title: String(localized: "Duplicate Extension"), action: #selector(handleDuplicateActionMenuItem(_:)), keyEquivalent: "d")
+                duplicateItem.keyEquivalentModifierMask = [.command]
+                duplicateItem.target = self
+                duplicateItem.representedObject = action.id
+                menu.addItem(duplicateItem)
+            }
+
+        case .extensionSubAction(let action, _):
+            if ActionIdentity.canDuplicate(action) {
+                let duplicateItem = NSMenuItem(title: String(localized: "Duplicate Extension"), action: #selector(handleDuplicateActionMenuItem(_:)), keyEquivalent: "d")
+                duplicateItem.keyEquivalentModifierMask = [.command]
+                duplicateItem.target = self
+                duplicateItem.representedObject = action.id
+                menu.addItem(duplicateItem)
+            }
+
+        case .packageHeader:
             break
         }
 
         return menu
+    }
+
+    @objc private func handleDuplicateActionMenuItem(_ sender: NSMenuItem) {
+        if let actionID = sender.representedObject as? String {
+            duplicateAction(id: actionID)
+        }
+    }
+
+    func duplicateAction(id: String) {
+        Task { @MainActor in
+            guard let action = parent.coordinator.actions.first(where: { $0.id == id }) else { return }
+            let duplicatedID: String?
+            if action.chrome.source == .custom {
+                duplicatedID = parent.coordinator.duplicateCustomAction(actionID: id)?.id
+            } else if case .extensionPkg = action.chrome.source {
+                do {
+                    let newActionID = try await ExtensionManager.shared.duplicateExtension(actionID: id)
+                    parent.coordinator.insertActionOrderAfter(newID: newActionID, originalID: id)
+                    for def in parent.coordinator.actionGroupDefs {
+                        if let idx = def.memberActionIDs.firstIndex(of: id) {
+                            parent.coordinator.addToGroup(actionID: newActionID, groupID: def.id, atIndex: idx + 1)
+                            break
+                        }
+                    }
+                    duplicatedID = newActionID
+                } catch {
+                    Log.extensions.error("Failed to duplicate extension '\(id, privacy: .public)': \(error.localizedDescription)")
+                    let failure = NSAlert()
+                    failure.messageText = String(localized: "Duplicate Failed")
+                    failure.informativeText = String(localized: "OpenClip could not duplicate extension: \(error.localizedDescription)")
+                    failure.alertStyle = .warning
+                    failure.runModal()
+                    return
+                }
+            } else {
+                return
+            }
+
+            for def in parent.coordinator.actionGroupDefs {
+                if def.memberActionIDs.contains(id) {
+                    expandedNodeIDs.insert(def.id)
+                    break
+                }
+            }
+
+            rebuildTree()
+            outlineView?.reloadData()
+
+            if let duplicatedID {
+                selectAndScrollTo(actionID: duplicatedID)
+            }
+        }
+    }
+
+    private func selectAndScrollTo(actionID: String) {
+        guard let outlineView else { return }
+        for row in 0..<outlineView.numberOfRows {
+            if let node = outlineView.item(atRow: row) as? OutlineNode, node.id == actionID {
+                outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                outlineView.scrollRowToVisible(row)
+                parent.selectedRowIDs = [actionID]
+                break
+            }
+        }
     }
 
     @objc private func handleEditGroupMenuItem(_ sender: NSMenuItem) {
