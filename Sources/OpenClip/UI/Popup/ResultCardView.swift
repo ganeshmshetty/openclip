@@ -20,7 +20,8 @@
 // pass for the ask card (`payload.awaitsInstruction`), which opens with the selection as the body.
 // The card never leaves the screen for it: while the follow-up is in flight the previous answer
 // stays visible (dimmed until the first chunk, `payload.isRefining`), the field shows a spinner
-// and "Refining…", and Esc cancels the refinement (`onCancelFollowUp`) instead of closing.
+// and "Refining…" and keeps focus, and Esc cancels the refinement (`onCancelFollowUp`) instead
+// of closing.
 // (`PopupResizeHandles`, reported the same way to PopupWindowController.handleResize); the size
 // they settle on is remembered and, passed back in as `maxSize`, caps the content-driven size
 // when the next card opens: a short answer still gets a small card, a long one grows up to the
@@ -669,7 +670,9 @@ public struct ResultCardView: View {
             .font(.system(size: 12.5, weight: .regular))
             .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
             .focused($isFollowUpFocused)
-            .disabled(payload.isStreaming)
+            // Stays enabled while a refinement streams: a disabled field drops first responder,
+            // and with it the Esc that cancels. ⏎ is a no-op meanwhile (`followUpReturn`), so
+            // anything typed simply waits for the next follow-up.
             .onKeyPress(.escape) {
                 handleEscape()
                 return .handled

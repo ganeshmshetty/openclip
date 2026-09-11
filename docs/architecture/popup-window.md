@@ -169,7 +169,7 @@ that replaced the former interactive canvas.
   an error). ⏎ with text runs `PopupWindowController.runFollowUp` → `refineCard`, which refines
   the card **in place**: nothing hides and no loading toast shows — the previous answer stays on
   screen dimmed under the field's spinner (`ResultCardPayload.isRefining`, field placeholder
-  "Refining…", field disabled) until the first chunk, the new answer then streams into the same
+  "Refining…", the field keeps focus so Esc still reaches it) until the first chunk, the new answer then streams into the same
   card through `showResultCard`, and it settles titled after the instruction with `original` = the
   text the follow-up ran on (`followUpSource`), so the diff shows what changed. The card's exact size is frozen for the
   refinement (`freezeCardSizeForRefinement`: the panel minus the shadow ring becomes
