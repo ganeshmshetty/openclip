@@ -398,6 +398,59 @@ final class ExtensionsStoreViewTests: XCTestCase {
         XCTAssertFalse(viewModel.isLoading)
     }
 
+    @MainActor
+    func testNetworkErrorSurfacesOnFetchFailure() async throws {
+        struct FailingAPI: ExtensionStoreFetching {
+            func fetchExtensions(query: String, page: Int, limit: Int) async throws -> ExtensionsPageResponse {
+                throw NSError(domain: "Network", code: -1009, userInfo: [NSLocalizedDescriptionKey: "The Internet connection appears to be offline."])
+            }
+        }
+
+        let viewModel = ExtensionsStoreViewModel(api: FailingAPI())
+        await viewModel.resetAndFetch()
+
+        XCTAssertFalse(viewModel.isLoading)
+        XCTAssertTrue(viewModel.extensions.isEmpty)
+        XCTAssertEqual(viewModel.networkError, "The Internet connection appears to be offline.")
+    }
+
+    @MainActor
+    func testPopularFilterSortsByDownloadsWithoutPrepend() {
+        let api = RecordingStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+
+        let featuredItem = ExtensionItem(id: "com.openclip.quick-translate", name: "Quick Translate",
+                                         description: "", author: "openclip", icon: "", downloadCount: 50, downloadURL: "")
+        let topItem = ExtensionItem(id: "com.openclip.top-tool", name: "Top Tool",
+                                    description: "", author: "openclip", icon: "", downloadCount: 500, downloadURL: "")
+        let mediumItem = ExtensionItem(id: "com.openclip.medium-tool", name: "Medium Tool",
+                                       description: "", author: "openclip", icon: "", downloadCount: 150, downloadURL: "")
+
+        viewModel.extensions = [featuredItem, topItem, mediumItem]
+        viewModel.featuredItems = [featuredItem]
+        viewModel.selectedFilter = .popular
+
+        // Top item with 500 downloads must be first, not the featured item with 50 downloads
+        XCTAssertEqual(viewModel.displayedExtensions.map(\.id), [
+            "com.openclip.top-tool",
+            "com.openclip.medium-tool",
+            "com.openclip.quick-translate"
+        ])
+    }
+
+    @MainActor
+    func testIsFeaturedDynamicallyMatchesFeaturedItems() {
+        let api = RecordingStoreAPI()
+        let viewModel = ExtensionsStoreViewModel(api: api)
+
+        let ext1 = ExtensionItem(id: "com.custom.promo", name: "Promo", description: "", author: "", icon: "", downloadCount: 0, downloadURL: "")
+        let ext2 = ExtensionItem(id: "com.other.tool", name: "Tool", description: "", author: "", icon: "", downloadCount: 0, downloadURL: "")
+
+        viewModel.featuredItems = [ext1]
+        XCTAssertTrue(viewModel.isFeatured(ext1))
+        XCTAssertFalse(viewModel.isFeatured(ext2))
+    }
+
     // MARK: - Helpers
 
     @MainActor

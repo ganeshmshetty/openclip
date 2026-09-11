@@ -32,15 +32,14 @@ public final class ExtensionsStoreViewModel: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var currentPage: Int = 1
     @Published public var totalPages: Int = 1
+    @Published public var networkError: String? = nil
 
     /// Curated featured extensions in priority order (shared with onboarding).
     public static let curatedFeaturedIDs: [String] = [
-        "com.openclip.quick-translate",  // Quick Translate
-        "com.openclip.wordcount",       // Word & Character Count
-        "com.openclip.speakselection",  // Speak Selection
-        "com.openclip.obsidiancapture", // Obsidian Capture
-        "com.openclip.applereminders",  // Apple Reminders
-        "com.openclip.githubsearch",    // GitHub Search
+        "com.openclip.quick-translate",   // Quick Translate
+        "com.openclip.runcommand",        // Run in Terminal
+        "com.openclip.copy-as-markdown",  // Copy as Markdown
+        "com.openclip.shortenlink",       // Shorten Link
     ]
 
     /// High-quality built-in fallbacks for curated items ensuring the Featured showcase
@@ -52,43 +51,43 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             description: "Translate selected text instantly — result previewed in the popup or pasted in place.",
             author: "OpenClip Team",
             icon: "character.bubble",
-            downloadCount: 121,
+            downloadCount: 307,
             downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.quick-translate@1.0.0/QuickTranslate.openclipext.zip",
             version: "1.0.0",
             iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.quick-translate.svg"
         ),
         ExtensionItem(
-            id: "com.openclip.wordcount",
-            name: "Word & Character Count",
-            description: "Count the words and characters in the selected text.",
-            author: "OpenClip Team",
-            icon: "text.alignleft",
-            downloadCount: 84,
-            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.wordcount@1.0.2/WordCount.openclipext.zip",
-            version: "1.0.2",
-            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.wordcount.svg"
-        ),
-        ExtensionItem(
-            id: "com.openclip.speakselection",
-            name: "Speak Selection",
-            description: "Text-to-speech using system voice.",
+            id: "com.openclip.runcommand",
+            name: "Run in Terminal",
+            description: "Run selected text as a command in Terminal, iTerm, Warp, or Ghostty.",
             author: "OpenClip Team",
             icon: "icon.svg",
-            downloadCount: 74,
-            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.speakselection@1.0.1/SpeakSelection.openclipext.zip",
-            version: "1.0.1",
-            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.speakselection.svg"
-        ),
-        ExtensionItem(
-            id: "com.openclip.obsidiancapture",
-            name: "Obsidian Capture",
-            description: "Capture selected text to an Obsidian vault note.",
-            author: "OpenClip Team",
-            icon: "icon.svg",
-            downloadCount: 6,
-            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.obsidiancapture@1.0.0/ObsidianCapture.openclipext.zip",
+            downloadCount: 20,
+            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.runcommand@1.0.0/RunCommand.openclipext.zip",
             version: "1.0.0",
-            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.obsidiancapture.svg"
+            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.runcommand.svg"
+        ),
+        ExtensionItem(
+            id: "com.openclip.copy-as-markdown",
+            name: "Copy as Markdown",
+            description: "Convert rich text, web selections, and tables into clean Markdown.",
+            author: "OpenClip Team",
+            icon: "icon.svg",
+            downloadCount: 35,
+            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.copy-as-markdown@1.0.0/CopyAsMarkdown.openclipext.zip",
+            version: "1.0.0",
+            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.copy-as-markdown.svg"
+        ),
+        ExtensionItem(
+            id: "com.openclip.shortenlink",
+            name: "Shorten Link",
+            description: "Shorten the selected URL using TinyURL, is.gd, or v.gd.",
+            author: "OpenClip Team",
+            icon: "icon.svg",
+            downloadCount: 25,
+            downloadURL: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.openclip.shortenlink@1.0.0/ShortenLink.openclipext.zip",
+            version: "1.0.0",
+            iconURL: "https://cdn.jsdelivr.net/gh/ganeshmshetty/openclip-extensions@main/published/icons/com.openclip.shortenlink.svg"
         )
     ]
 
@@ -104,6 +103,13 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         "com.openclip.wikipedia",
         "com.openclip.applemusic",
     ]
+
+    public func isFeatured(_ item: ExtensionItem) -> Bool {
+        if !featuredItems.isEmpty {
+            return featuredItems.contains(where: { $0.id.caseInsensitiveCompare(item.id) == .orderedSame })
+        }
+        return Self.curatedFeaturedIDs.contains(where: { $0.caseInsensitiveCompare(item.id) == .orderedSame })
+    }
 
     public static func isFeatured(_ item: ExtensionItem) -> Bool {
         curatedFeaturedIDs.contains(where: { $0.caseInsensitiveCompare(item.id) == .orderedSame })
@@ -186,14 +192,14 @@ public final class ExtensionsStoreViewModel: ObservableObject {
 
     /// Full list when the "Popular" filter tab is selected.
     public var popularFilterItems: [ExtensionItem] {
-        let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
-        let curated = !featuredItems.isEmpty ? featuredItems : Self.curatedFeaturedIDs.compactMap { byID[$0.lowercased()] }
-        var chosen = Set(curated.map { $0.id.lowercased() })
-        let popular = extensions
-            .filter { !chosen.contains($0.id.lowercased()) && $0.downloadCount > 0 }
-            .sorted { $0.downloadCount > $1.downloadCount }
-        for item in popular { chosen.insert(item.id.lowercased()) }
-        return curated + popular
+        extensions
+            .filter { $0.downloadCount > 0 }
+            .sorted {
+                if $0.downloadCount != $1.downloadCount {
+                    return $0.downloadCount > $1.downloadCount
+                }
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
     }
 
     /// Full list when the "New" filter tab is selected.
@@ -276,6 +282,7 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             // Superseded mid-flight (newer search/reset owns the result set): touch nothing,
             // especially not `isLoading`, which now belongs to the winning generation.
             guard gen == generation else { return }
+            networkError = nil
             if let featured = response.featured, !featured.isEmpty {
                 featuredItems = featured
             }
@@ -291,11 +298,13 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             currentPage += 1
             isLoading = false
         } catch is CancellationError {
-            // Superseded or torn down; the winner manages its own state.
+            guard gen == generation else { return }
+            isLoading = false
         } catch {
             guard gen == generation else { return }
             Log.extensions.warning("Failed to fetch extension store page \(self.currentPage) for query '\(self.searchQuery)'")
             if isReset && extensions.isEmpty {
+                networkError = error.localizedDescription
                 extensions = []
             }
             isLoading = false
@@ -311,6 +320,7 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         totalPages = 1
         if !keepPrevious {
             extensions = []
+            networkError = nil
         }
         isLoading = true
         await fetchNextPage(isReset: true, ignoreCache: ignoreCache)
@@ -353,6 +363,8 @@ public struct ExtensionStoreView: View {
         VStack(spacing: 0) {
             if viewModel.extensions.isEmpty && viewModel.isLoading {
                 skeletonList
+            } else if viewModel.extensions.isEmpty && viewModel.networkError != nil {
+                offlineStateView
             } else if viewModel.displayedExtensions.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
@@ -371,6 +383,36 @@ public struct ExtensionStoreView: View {
                 flatStoreContent
             }
         }
+    }
+
+    private var offlineStateView: some View {
+        VStack(spacing: 14) {
+            Spacer()
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 40))
+                .foregroundColor(.secondary.opacity(0.8))
+            Text(String(localized: "Unable to Connect to Store"))
+                .font(.headline)
+                .foregroundColor(.primary)
+            Text(String(localized: "Check your internet connection or network settings. If you are behind a corporate proxy or firewall, access to the extension store may be blocked."))
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 380)
+            Button {
+                Task {
+                    await viewModel.refreshCatalog()
+                }
+            } label: {
+                Label(String(localized: "Try Again"), systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .padding(.top, 4)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 24)
     }
 
     private func sectionHeader(_ title: String, count: Int? = nil) -> some View {
@@ -428,7 +470,7 @@ public struct ExtensionStoreView: View {
     }
 
     private func storeRow(_ ext: ExtensionItem) -> some View {
-        ExtensionCardView(item: ext)
+        ExtensionCardView(item: ext, isFeatured: viewModel.isFeatured(ext))
             .onAppear {
                 if viewModel.shouldTriggerSectionedPagination(for: ext.id) {
                     Task { await viewModel.fetchNextPage() }
@@ -441,11 +483,9 @@ public struct ExtensionStoreView: View {
             LazyVStack(spacing: 0) {
                 ForEach(Array(viewModel.displayedExtensions.enumerated()), id: \.element.id) { index, ext in
                     if index > 0 {
-                        Divider()
-                            .padding(.leading, 60)
-                            .padding(.trailing, 14)
+                        rowDivider
                     }
-                    ExtensionCardView(item: ext)
+                    ExtensionCardView(item: ext, isFeatured: viewModel.isFeatured(ext))
                         .onAppear {
                             if viewModel.shouldTriggerFlatPagination(for: ext.id) {
                                 Task { await viewModel.fetchNextPage() }

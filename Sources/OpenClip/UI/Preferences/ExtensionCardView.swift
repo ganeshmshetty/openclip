@@ -8,6 +8,13 @@ import Core
 
 struct ExtensionCardView: View {
     let item: ExtensionItem
+    let isFeaturedExplicit: Bool?
+
+    init(item: ExtensionItem, isFeatured: Bool? = nil) {
+        self.item = item
+        self.isFeaturedExplicit = isFeatured
+    }
+
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var updateManager = ExtensionUpdateManager.shared
     @State private var isInstalling = false
@@ -61,11 +68,7 @@ struct ExtensionCardView: View {
     }
 
     private var isFeatured: Bool {
-        ExtensionsStoreViewModel.isFeatured(item)
-    }
-
-    private var isBrandNew: Bool {
-        ExtensionsStoreViewModel.isNew(item) && (item.version == nil || item.version == "1.0.0")
+        isFeaturedExplicit ?? ExtensionsStoreViewModel.isFeatured(item)
     }
 
     /// Byline and download count on one quiet line under the description.
@@ -126,14 +129,12 @@ struct ExtensionCardView: View {
                         .font(.body.weight(.semibold))
                         .lineLimit(1)
 
-                    if isBrandNew {
-                        Text(String(localized: "New"))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.tint)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(Color.accentColor.opacity(0.12))
-                            .clipShape(Capsule())
+                    if isFeatured {
+                        Image(systemName: "rosette")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.accentColor)
+                            .help(String(localized: "Featured"))
+                            .accessibilityLabel(String(localized: "Featured"))
                     }
                 }
 
@@ -165,8 +166,13 @@ struct ExtensionCardView: View {
                     if updateManager.updatablePackageIDs.contains(item.id) {
                         Button(action: {
                             isUpdating = true
+                            installError = nil
                             Task {
-                                try? await updateManager.update(packageID: item.id)
+                                do {
+                                    try await updateManager.update(packageID: item.id)
+                                } catch {
+                                    installError = error.localizedDescription
+                                }
                                 isUpdating = false
                                 NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
                             }
@@ -181,10 +187,12 @@ struct ExtensionCardView: View {
                     Button(isUninstalling ? String(localized: "Removing…") : String(localized: "Remove")) {
                         if let action = matchingInstalledAction {
                             isUninstalling = true
+                            installError = nil
                             Task {
                                 do {
                                     try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
                                 } catch {
+                                    installError = error.localizedDescription
                                     Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
                                 }
                                 isUninstalling = false

@@ -24,26 +24,50 @@ public struct RecommendedExtensionsView: View {
 
     private var recommended: [ExtensionItem] {
         if !viewModel.featuredItems.isEmpty {
-            return Array(viewModel.featuredItems.prefix(3))
+            return Array(viewModel.featuredItems.prefix(4))
         }
-        if viewModel.extensions.isEmpty {
-            return Array(Self.fallbackItems.prefix(3))
+        if !viewModel.extensions.isEmpty {
+            let byID = Dictionary(viewModel.extensions.map { ($0.id.lowercased(), $0) },
+                                  uniquingKeysWith: { first, _ in first })
+            let curated = Self.curatedRecommendedIDs.compactMap { byID[$0.lowercased()] }
+            var chosen = Set(curated.map { $0.id.lowercased() })
+            let rest = viewModel.extensions
+                .filter { chosen.insert($0.id.lowercased()).inserted }
+                .sorted { $0.downloadCount > $1.downloadCount }
+            return Array((curated + rest).prefix(4))
         }
-
-        let byID = Dictionary(viewModel.extensions.map { ($0.id.lowercased(), $0) },
-                              uniquingKeysWith: { first, _ in first })
-        let curated = Self.curatedRecommendedIDs.compactMap { byID[$0.lowercased()] }
-        var chosen = Set(curated.map { $0.id.lowercased() })
-        let rest = viewModel.extensions
-            .filter { chosen.insert($0.id.lowercased()).inserted }
-            .sorted { $0.downloadCount > $1.downloadCount }
-        return Array((curated + rest).prefix(3))
+        return []
     }
 
     public var body: some View {
-        VStack(spacing: 8) {
-            ForEach(recommended) { item in
-                RecommendedExtensionRow(item: item)
+        Group {
+            if viewModel.isLoading && recommended.isEmpty {
+                VStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                .frame(maxWidth: .infinity, minHeight: 100)
+            } else if recommended.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 24))
+                        .foregroundColor(.secondary)
+                    Text(String(localized: "No Internet Connection"))
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Text(String(localized: "Unable to load extension recommendations without an active network connection."))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, minHeight: 100)
+                .padding(.vertical, 12)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(recommended) { item in
+                        RecommendedExtensionRow(item: item)
+                    }
+                }
             }
         }
         .task {
