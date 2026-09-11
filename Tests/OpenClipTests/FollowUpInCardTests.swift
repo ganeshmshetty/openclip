@@ -157,6 +157,62 @@ final class FollowUpInCardTests: XCTestCase {
         XCTAssertNil(controller.modeStore.resultCard)
     }
 
+    /// The card is content-sized, so a refinement streaming in would re-measure it on every chunk
+    /// and make it jump. Its exact size is frozen for the whole refinement — and kept afterwards,
+    /// like a hand-resized card — so a longer or shorter answer scrolls instead of resizing.
+    func testTheCardKeepsItsExactSizeWhileARefinementStreams() async {
+        let controller = makeController()
+        defer { controller.hide() }
+        let ring = 2 * PopupMetrics.popupShadowInset
+        controller.panel?.setFrame(NSRect(x: 100, y: 100, width: 320 + ring, height: 260 + ring), display: false)
+        XCTAssertFalse(controller.modeStore.isSurfaceUserSized, "content-sized before the follow-up")
+        let provider = HeldProvider()
+        AIServiceManager.shared.providerOverride = provider
+        defer { AIServiceManager.shared.providerOverride = nil }
+
+        controller.runFollowUp("make it much longer and more detailed")
+        await fulfillment(of: [provider.started], timeout: 2)
+
+        XCTAssertTrue(controller.modeStore.isSurfaceUserSized, "the size is pinned the moment the refinement starts")
+        XCTAssertEqual(controller.modeStore.resultCardSize, CGSize(width: 320, height: 260))
+
+        provider.continuation?.yield(String(repeating: "A much longer answer that would otherwise widen and grow the card. ", count: 12))
+        await settle()
+        XCTAssertEqual(controller.modeStore.resultCardSize, CGSize(width: 320, height: 260), "chunks do not change it")
+        XCTAssertTrue(controller.modeStore.isSurfaceUserSized)
+
+        provider.continuation?.finish()
+        _ = await controller.activeStreamingTask?.value
+        XCTAssertEqual(controller.modeStore.resultCardSize, CGSize(width: 320, height: 260), "nor does settling")
+        XCTAssertTrue(controller.modeStore.isSurfaceUserSized)
+    }
+
+    /// A card the user already resized keeps that size; a panel too small to be a card (the
+    /// default test panel) is ignored rather than pinned to nonsense.
+    func testFreezingRespectsAUserResizeAndIgnoresATinyPanel() async {
+        let controller = makeController()
+        defer { controller.hide() }
+        let provider = HeldProvider()
+        AIServiceManager.shared.providerOverride = provider
+        defer { AIServiceManager.shared.providerOverride = nil }
+
+        controller.runFollowUp("shorter")
+        await fulfillment(of: [provider.started], timeout: 2)
+        XCTAssertFalse(controller.modeStore.isSurfaceUserSized, "the 200×50 test panel is not a card size")
+        provider.continuation?.finish()
+        _ = await controller.activeStreamingTask?.value
+
+        controller.modeStore.resultCardSize = CGSize(width: 400, height: 300)
+        controller.modeStore.isSurfaceUserSized = true
+        let second = HeldProvider()
+        AIServiceManager.shared.providerOverride = second
+        controller.runFollowUp("longer")
+        await fulfillment(of: [second.started], timeout: 2)
+        XCTAssertEqual(controller.modeStore.resultCardSize, CGSize(width: 400, height: 300), "a hand-resized card is left alone")
+        second.continuation?.finish()
+        _ = await controller.activeStreamingTask?.value
+    }
+
     func testEscapeMeaningDependsOnWhetherAFollowUpIsInFlight() {
         XCTAssertTrue(ResultCardView.escapeCancelsFollowUp(isStreaming: true, canCancel: true))
         XCTAssertFalse(ResultCardView.escapeCancelsFollowUp(isStreaming: false, canCancel: true), "a settled card dismisses")

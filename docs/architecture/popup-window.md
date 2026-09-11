@@ -171,7 +171,10 @@ that replaced the former interactive canvas.
   screen dimmed under the field's spinner (`ResultCardPayload.isRefining`, field placeholder
   "Refining…", field disabled) until the first chunk, the new answer then streams into the same
   card through `showResultCard`, and it settles titled after the instruction with `original` = the
-  text the follow-up ran on (`followUpSource`), so the diff shows what changed. `refiningPrevious`
+  text the follow-up ran on (`followUpSource`), so the diff shows what changed. The card's exact size is frozen for the
+  refinement (`freezeCardSizeForRefinement`: the panel minus the shadow ring becomes
+  `resultCardSize` with `isSurfaceUserSized`, the hand-resize path, so chunks never re-measure
+  the card; a user-resized card is left alone). `refiningPrevious`
   holds the card being refined: Esc (`cancelFollowUp`, via `onCancelFollowUp` —
   `ResultCardView.escapeCancelsFollowUp` decides Esc's meaning) and a failure put it back settled
   (an error shows as a toast, not an error card); leaving content mode (`exitContent`) drops the

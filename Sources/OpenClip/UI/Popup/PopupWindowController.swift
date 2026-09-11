@@ -1733,6 +1733,7 @@ public class PopupWindowController {
         refiningPrevious = previous
         followUpSource = sourceText
         modeStore.isProcessingAI = true
+        freezeCardSizeForRefinement()
         modeStore.resultCard = ResultCardPayload(
             text: sourceText,
             isError: false,
@@ -1796,6 +1797,26 @@ public class PopupWindowController {
             }
         }
         activeStreamingTask = task
+    }
+
+    /// Pins the card to the exact size it has right now for the rest of its life on screen. The
+    /// card is content-sized — as wide as its longest line, as tall as the wrapped text — so a
+    /// refinement streaming in would otherwise re-measure it on every chunk and make the card
+    /// jump around under the user's eyes. The frozen size takes the same path as a hand-resized
+    /// card (`isSurfaceUserSized` + `resultCardSize`): the body scrolls if the new answer needs
+    /// more room, the user can still drag the handles, and nothing is persisted. A card the user
+    /// already resized is left alone; a test panel too small to be a card is ignored.
+    private func freezeCardSizeForRefinement() {
+        guard !modeStore.isSurfaceUserSized, let panel else { return }
+        let frozen = Self.cardSize(forPanelSize: panel.frame.size)
+        guard frozen.width >= PopupMetrics.aiCardMinWidth, frozen.height >= PopupMetrics.aiCardMinHeight else { return }
+        modeStore.resultCardSize = frozen
+        modeStore.isSurfaceUserSized = true
+    }
+
+    /// The card's size inside a panel frame: the panel minus the transparent shadow ring.
+    static func cardSize(forPanelSize size: CGSize) -> CGSize {
+        CGSize(width: size.width - 2 * PopupMetrics.popupShadowInset, height: size.height - 2 * PopupMetrics.popupShadowInset)
     }
 
     /// Puts the answer the follow-up was refining back, settled, with the field focused again.
