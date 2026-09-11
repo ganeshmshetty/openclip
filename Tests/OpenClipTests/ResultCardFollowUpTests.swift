@@ -27,12 +27,12 @@ final class ResultCardFollowUpTests: XCTestCase {
 
     func testReturnDecisionTable() {
         typealias R = ResultCardView.FollowUpReturn
-        XCTAssertEqual(ResultCardView.followUpReturn(text: " make it  shorter ", awaitsInstruction: false, isStreaming: false, canPaste: true, shift: false), R.followUp("make it  shorter"), "the raw text goes up; the controller collapses it")
-        XCTAssertEqual(ResultCardView.followUpReturn(text: "shorter", awaitsInstruction: false, isStreaming: true, canPaste: true, shift: false), R.nothing, "wait for the answer to settle")
-        XCTAssertEqual(ResultCardView.followUpReturn(text: "", awaitsInstruction: false, isStreaming: false, canPaste: true, shift: false), R.paste, "empty ⏎ keeps the card's meaning")
-        XCTAssertEqual(ResultCardView.followUpReturn(text: "", awaitsInstruction: false, isStreaming: true, canPaste: true, shift: false), R.nothing, "no paste of a half-written refinement")
-        XCTAssertEqual(ResultCardView.followUpReturn(text: "", awaitsInstruction: false, isStreaming: false, canPaste: false, shift: false), R.copy)
-        XCTAssertEqual(ResultCardView.followUpReturn(text: "", awaitsInstruction: false, isStreaming: false, canPaste: true, shift: true), R.copy, "⇧⏎ copies")
+        XCTAssertEqual(ResultCardView.followUpReturn(text: " make it  shorter ", isStreaming: false, canPaste: true, shift: false), R.followUp("make it  shorter"), "the raw text goes up; the controller collapses it")
+        XCTAssertEqual(ResultCardView.followUpReturn(text: "shorter", isStreaming: true, canPaste: true, shift: false), R.nothing, "wait for the answer to settle")
+        XCTAssertEqual(ResultCardView.followUpReturn(text: "", isStreaming: false, canPaste: true, shift: false), R.paste, "empty ⏎ keeps the card's meaning")
+        XCTAssertEqual(ResultCardView.followUpReturn(text: "", isStreaming: true, canPaste: true, shift: false), R.nothing, "no paste of a half-written refinement")
+        XCTAssertEqual(ResultCardView.followUpReturn(text: "", isStreaming: false, canPaste: false, shift: false), R.copy)
+        XCTAssertEqual(ResultCardView.followUpReturn(text: "", isStreaming: false, canPaste: true, shift: true), R.copy, "⇧⏎ copies")
     }
 
     /// The field is only there when a host can run a follow-up and the card is not an error.

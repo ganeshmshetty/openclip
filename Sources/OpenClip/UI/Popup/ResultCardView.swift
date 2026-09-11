@@ -16,8 +16,7 @@
 // DragGesture reported to PopupWindowController.handleCardDrag) so it can be moved out of the way
 // of the text underneath. Its right edge, bottom edge and bottom-right grip are resize handles
 // A follow-up field sits above Copy/Paste: an instruction typed there (⏎) runs AI on the card's
-// current text and re-streams the card in place — a second pass over the answer, or the first
-// pass for the ask card (`payload.awaitsInstruction`), which opens with the selection as the body.
+// current text and re-streams the card in place — a second pass over the answer.
 // The card never leaves the screen for it: while the follow-up is in flight the previous answer
 // stays visible (dimmed until the first chunk, `payload.isRefining`), the field shows a spinner
 // and "Refining…" and keeps focus, and Esc cancels the refinement (`onCancelFollowUp`) instead
@@ -594,7 +593,7 @@ public struct ResultCardView: View {
             Text(diffAttributedText)
         } else {
             Text(payload.text)
-                .foregroundColor(payload.isError ? Color.red : ((payload.awaitsInstruction || payload.isRefining) ? Color.primary.opacity(0.55) : Color.primary))
+                .foregroundColor(payload.isError ? Color.red : (payload.isRefining ? Color.primary.opacity(0.55) : Color.primary))
         }
     }
 
@@ -632,9 +631,7 @@ public struct ResultCardView: View {
                 followUpField
                     .padding(.horizontal, 14)
             }
-            if !payload.awaitsInstruction {
-                footerButtons
-            }
+            footerButtons
         }
         .padding(.bottom, 10)
     }
@@ -659,11 +656,7 @@ public struct ResultCardView: View {
                     .foregroundColor(.accentColor)
             }
             TextField(
-                payload.isStreaming
-                    ? String(localized: "Refining…")
-                    : (payload.awaitsInstruction
-                        ? String(localized: "What should AI do with this text?")
-                        : String(localized: "Follow up…")),
+                payload.isStreaming ? String(localized: "Refining…") : String(localized: "Follow up…"),
                 text: $followUp
             )
             .textFieldStyle(.plain)
@@ -710,15 +703,13 @@ public struct ResultCardView: View {
     }
 
     /// Nothing typed: ⏎ keeps the card's meaning (paste; copy when paste is unavailable or with
-    /// ⇧) — unless the card is still waiting for its first instruction, when there is no result
-    /// to consume. Text typed: a follow-up, once the current answer has settled.
-    static func followUpReturn(text: String, awaitsInstruction: Bool, isStreaming: Bool, canPaste: Bool?, shift: Bool) -> FollowUpReturn {
+    /// ⇧). Text typed: a follow-up, once the current answer has settled.
+    static func followUpReturn(text: String, isStreaming: Bool, canPaste: Bool?, shift: Bool) -> FollowUpReturn {
         // While a refinement streams the card is busy: ⏎ neither pastes a half-written answer
         // nor queues another follow-up.
         if isStreaming { return .nothing }
         let instruction = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if instruction.isEmpty {
-            if awaitsInstruction { return .nothing }
             return (canPaste == false || shift) ? .copy : .paste
         }
         return .followUp(instruction)
@@ -727,7 +718,6 @@ public struct ResultCardView: View {
     private func handleFollowUpReturn(shift: Bool) {
         switch Self.followUpReturn(
             text: followUp,
-            awaitsInstruction: payload.awaitsInstruction,
             isStreaming: payload.isStreaming,
             canPaste: canPaste,
             shift: shift

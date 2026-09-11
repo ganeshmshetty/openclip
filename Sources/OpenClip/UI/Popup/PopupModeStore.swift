@@ -77,21 +77,17 @@ public struct ResultCardPayload: Sendable, Equatable {
     public let icon: ActionIcon?
     public let isStreaming: Bool
     public let original: String?
-    /// True for the ask card: `text` is the selection waiting for an instruction, not a result —
-    /// the card shows the instruction field without Copy/Paste until the first answer lands.
-    public let awaitsInstruction: Bool
     /// True while a follow-up is in flight and no chunk has arrived yet: `text` is still the
     /// previous answer, shown dimmed under the field's spinner so the card never goes blank.
     public let isRefining: Bool
 
-    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, awaitsInstruction: Bool = false, isRefining: Bool = false) {
+    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false) {
         self.text = text
         self.isError = isError
         self.title = title
         self.icon = icon
         self.isStreaming = isStreaming
         self.original = original
-        self.awaitsInstruction = awaitsInstruction
         self.isRefining = isRefining
     }
 }

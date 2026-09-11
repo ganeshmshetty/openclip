@@ -12853,34 +12853,6 @@
         }
       }
     },
-    "What should AI do with this text?": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "希望 AI 对这段文本做什么？"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "希望 AI 對這段文字做什麼？"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Que doit faire l’IA de ce texte ?"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "このテキストに対してAIに何をさせますか？"
-          }
-        }
-      }
-    },
     "Word Completion": {
       "localizations": {
         "zh-Hans": {
