@@ -270,18 +270,14 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
   the explicit paste door `handleActionResult(.paste)` under a "Replaced with AI result" toast —
   downgraded to a copy when the unified paste availability says no or the frontmost app is no
   longer the selection's, `frontmostBundleIDProvider`); **⏎, click and ⌘-digits show the result
-  card first** (`runAIPreset`, same streaming card as a preset, titled after the instruction). Save
-  stores the instruction as a custom `AIActionPreset` (`AIServiceManager.addCustomPreset`, or
-  reuses an existing one via `preset(matchingPrompt:)`) and runs it the same way. Every
-  instruction run this way is remembered by `AIPromptHistory` (`SettingKey.recentAIPrompts`, MRU,
-  capped at 8; a saved prompt leaves the list) and `PopupView.searchCatalog` appends one
-  `RecentPromptAction` per entry, so a recent is an ordinary row found by typing any part of it
-  and runs with the same ⏎/⇧⏎ meaning (resolved by type, never by id). The rules live in
-  `PaletteAIPrompt` (`rows(for:aiEnabled:results:)`, `instruction(from:)`, `toolTitle(for:)`,
-  `hint(canPaste:)`); the palette reports through `onRunAIPrompt(instruction, replace)` /
+  card first** (`runAIPreset`, same streaming card as a preset, dynamically titled with `<title>` generated
+  by the model). Save stores the instruction as a custom `AIActionPreset` (`AIServiceManager.addCustomPreset`,
+  or reuses an existing one via `preset(matchingPrompt:)`) with a clean action name (`<tool_name>`) and
+  runs it the same way. The rules live in `PaletteAIPrompt` (`rows(for:aiEnabled:results:)`, `instruction(from:)`,
+  `toolTitle(for:)`, `hint(canPaste:)`); the palette reports through `onRunAIPrompt(instruction, replace)` /
   `onSaveAIPrompt` → `PopupView` → `PopupWindowController.runAIPrompt` / `saveAndRunAIPrompt`.
   Presets keep their existing behaviour (the card). With AI off the plain "No matches" copy
-  stays. `PaletteAIPromptTests`, `AIPromptHistoryTests` and `PaletteAIReplaceTests` pin this.
+  stays. `PaletteAIPromptTests` and `PaletteAIReplaceTests` pin this.
 - **Escape** clears the query first, then exits to the actions bar. In a **scoped** sub-action
   palette, Escape instead drops the scope (`PopupSearchView.exitSearch()` → `onExitScope`) and
   closes back to the bar.

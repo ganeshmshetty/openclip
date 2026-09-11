@@ -23,8 +23,8 @@ final class PaletteAIPromptTests: XCTestCase {
     }
 
     func testRowsFollowWhatMatched() {
-        XCTAssertEqual(PaletteAIPrompt.rows(for: "slovak", aiEnabled: true, results: .onlyRecentPrompts), [.save],
-                       "a recent already runs the query, so only Save is offered under it")
+        XCTAssertEqual(PaletteAIPrompt.rows(for: "slovak", aiEnabled: true, results: .none), [.ask, .save],
+                       "when nothing matched, Ask and Save are offered")
         XCTAssertTrue(PaletteAIPrompt.rows(for: "copy", aiEnabled: true, results: .actions).isEmpty,
                       "real matches leave no room for AI rows")
     }
@@ -79,7 +79,7 @@ final class PaletteAIPromptTests: XCTestCase {
 
     func testRowTitlesQuoteTheQueryForAskOnly() {
         XCTAssertTrue(PaletteAIPrompt.rowTitle(.ask, query: "  rewrite  to slovak").contains("“rewrite to slovak”"))
-        XCTAssertFalse(PaletteAIPrompt.rowTitle(.save, query: "rewrite to slovak").contains("rewrite"))
+        XCTAssertEqual(PaletteAIPrompt.rowTitle(.save, query: "rewrite to slovak"), "Save and Ask AI")
     }
 
     // MARK: - Preset factory
@@ -122,8 +122,8 @@ final class PaletteAIPromptTests: XCTestCase {
 
     /// Hosts the palette in a key panel with a one-action catalog, types `query` into the
     /// field the way a user would (through the field editor), then presses `key`.
-    private func drivePalette(query: String, aiEnabled: Bool = true, recents: [String] = [], press key: (NSWindow) throws -> Void, recorder: Recorder) throws {
-        let catalog: [any Action] = [MockAction(id: "mock.copy", shouldBeEnabled: true)] + recents.map { RecentPromptAction(prompt: $0) }
+    private func drivePalette(query: String, aiEnabled: Bool = true, press key: (NSWindow) throws -> Void, recorder: Recorder) throws {
+        let catalog: [any Action] = [MockAction(id: "mock.copy", shouldBeEnabled: true)]
         let view = PopupSearchView(
             catalog: catalog,
             context: context(),
@@ -213,31 +213,6 @@ final class PaletteAIPromptTests: XCTestCase {
             panel.sendEvent(event)
         }, recorder: recorder)
         XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:replace"], "⇧⏎ pastes over the selection")
-    }
-
-    // MARK: - Recent prompts as rows
-
-    func testARecentPromptIsFoundByAFragmentAndRunsAsIs() throws {
-        let recorder = Recorder()
-        try drivePalette(query: "slovak", recents: ["rewrite to slovak"], press: { try commandDigit("1", keyCode: 18, in: $0) }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:card"], "the recent's own text runs, not the fragment")
-    }
-
-    func testOnlyRecentMatchesStillOfferSaveAsTheNextRow() throws {
-        let recorder = Recorder()
-        try drivePalette(query: "slovak", recents: ["rewrite to slovak"], press: { try commandDigit("2", keyCode: 19, in: $0) }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["save:slovak:card"], "row 2 is Save for the typed query")
-    }
-
-    func testRecentPromptRowsAreNeverRegisteredActions() {
-        let recent = RecentPromptAction(prompt: "rewrite to slovak")
-        XCTAssertEqual(recent.title, "rewrite to slovak")
-        XCTAssertFalse(ActionIdentity.isAIPreset(recent), "routed by type through onRunAIPrompt, not as a preset")
-        let empty = ActionContext(selection: SelectionContext(
-            text: "", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
-            cursorPosition: .zero, timestamp: Date(), appPolicy: .default
-        ))
-        XCTAssertFalse(recent.isEnabled(for: empty), "needs a selection to run on")
     }
 
     func testAMatchingQueryStillRunsTheActionNotAI() throws {

@@ -140,8 +140,6 @@ public struct PopupView: View {
     /// session-scoped cancellation that never waits for SwiftUI view teardown.
     private let registerStreamingTask: @MainActor (Task<Void, Never>?) -> Void
     @ObservedObject private var aiManager = AIServiceManager.shared
-    /// Recent free-form instructions, appended to the palette catalog as `RecentPromptAction` rows.
-    @ObservedObject private var promptHistory = AIPromptHistory.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
     @State private var isShowingCompletions: Bool = true
@@ -542,7 +540,7 @@ public struct PopupView: View {
                 } else {
                     // Preview/static fallback: no in-place delivery here, always the card.
                     onExitSearch()
-                    runAIPreset(prompt: instruction, title: PaletteAIPrompt.toolTitle(for: instruction))
+                    runAIPreset(prompt: PaletteAIPrompt.askAITaskPrompt(for: instruction), title: PaletteAIPrompt.toolTitle(for: instruction))
                 }
             },
             onSaveAIPrompt: { instruction, replace in
@@ -550,9 +548,16 @@ public struct PopupView: View {
                     onSaveAIPrompt(instruction, replace)
                 } else {
                     onExitSearch()
-                    let preset = aiManager.preset(matchingPrompt: instruction)
+                    var preset = aiManager.preset(matchingPrompt: instruction)
                         ?? aiManager.addCustomPreset(title: PaletteAIPrompt.toolTitle(for: instruction), prompt: instruction)
-                    runAIPreset(prompt: preset.prompt, title: preset.title)
+                    runAIPreset(
+                        prompt: PaletteAIPrompt.saveToolTaskPrompt(for: instruction),
+                        title: preset.title,
+                        onGeneratedTitle: { cleanTitle in
+                            preset.title = cleanTitle
+                            aiManager.updatePreset(preset)
+                        }
+                    )
                 }
             },
             onActionPerformed: onActionPerformed,
@@ -567,16 +572,13 @@ public struct PopupView: View {
     /// The search palette's catalog: the coordinator's search catalog minus Paste-requiring
     /// actions hidden by a confirmed cannot-paste probe.
     private var searchCatalog: [any Action] {
-        let catalog = ActionCoordinator.shared.searchCatalog(for: context)
+        ActionCoordinator.shared.searchCatalog(for: context)
             .filter { !hiddenForPasteAvailability($0) }
-        // Recent free-form instructions are rows too, found by typing any part of them.
-        guard aiManager.isAIEnabled, !context.selection.text.isEmpty else { return catalog }
-        return catalog + promptHistory.prompts.map { RecentPromptAction(prompt: $0) }
     }
 
     // MARK: - AI Helpers
 
-    private func runAIPreset(prompt: String, title: String) {
+    private func runAIPreset(prompt: String, title: String, onGeneratedTitle: ((String) -> Void)? = nil) {
         cancelAITask()
 
         let selectionText = context.selection.text
@@ -607,25 +609,34 @@ public struct PopupView: View {
 
                 var accumulated = ""
                 var hasYielded = false
+                var activeTitle = title
 
                 for try await chunk in provider.processStream(prompt: prompt, text: selectionText) {
                     guard !Task.isCancelled else { return }
                     accumulated += chunk
+                    if let generated = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !generated.isEmpty {
+                        activeTitle = generated
+                        onGeneratedTitle?(generated)
+                    }
                     let cleaned = AIRequestSupport.extractResultText(accumulated)
                     if !cleaned.isEmpty {
                         hasYielded = true
-                        onAIResult?(cleaned, false, title, true)
+                        onAIResult?(cleaned, false, activeTitle, true)
                     }
                 }
 
                 guard !Task.isCancelled else { return }
+                if let generated = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !generated.isEmpty {
+                    activeTitle = generated
+                    onGeneratedTitle?(generated)
+                }
                 let finalResponse = AIRequestSupport.extractResultText(accumulated)
                 if finalResponse.isEmpty {
                     if !hasYielded {
                         throw AIError.invalidResponse
                     }
                 } else {
-                    onAIResult?(finalResponse, false, title, false)
+                    onAIResult?(finalResponse, false, activeTitle, false)
                 }
             } catch is CancellationError {
                 // no-op

@@ -39,10 +39,10 @@ the full-quality version.
   nothing runs on ⌘1 in that state).
 - A matching query still lists actions (`friendly` → the saved preset), and presets keep their
   existing behaviour (the result card).
-- Keyboard paths — ⏎ card, ⇧⏎ replace, ⌘1/⌘2, recents by fragment — are driven through the real
-  palette in `PaletteAIPromptTests`; the controller's replace / copy / card outcomes and the
-  recents bookkeeping in `PaletteAIReplaceTests`; the card's ⏎ decision and the follow-up run in
-  `ResultCardFollowUpTests`; the history rules in `AIPromptHistoryTests`.
+- Keyboard paths — ⏎ card, ⇧⏎ replace, ⌘1/⌘2 — are driven through the real
+  palette in `PaletteAIPromptTests`; the controller's replace / copy / card outcomes in
+  `PaletteAIReplaceTests`; the card's ⏎ decision, sizing, typing collapse, and follow-up run in
+  `ResultCardFollowUpTests`.
 - Saving the same instruction twice reuses the existing tool (`preset(matchingPrompt:)`).
 - Light appearance is what the captures show; dark uses the same theme tokens.
 

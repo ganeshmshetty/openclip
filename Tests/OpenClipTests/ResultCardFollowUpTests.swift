@@ -35,6 +35,23 @@ final class ResultCardFollowUpTests: XCTestCase {
         XCTAssertEqual(ResultCardView.followUpReturn(text: "", isStreaming: false, canPaste: true, shift: true), R.copy, "⇧⏎ copies")
     }
 
+    func testCardWidthExpansionAndMaxLimit() {
+        // When follow-up is shown, minimum width expands to 340
+        XCTAssertEqual(ResultCardView.cardWidth(naturalTextWidth: 100, showsFollowUp: true, isUserSized: false, userWidth: nil), 340.0)
+        // When follow-up is not shown, minimum width is PopupMetrics.aiCardMinWidth (220)
+        XCTAssertEqual(ResultCardView.cardWidth(naturalTextWidth: 100, showsFollowUp: false, isUserSized: false, userWidth: nil), PopupMetrics.aiCardMinWidth)
+        // Wide text is capped at max limit (400 for follow-up)
+        XCTAssertEqual(ResultCardView.cardWidth(naturalTextWidth: 600, showsFollowUp: true, isUserSized: false, userWidth: nil), 400.0)
+        // User sized width is respected
+        XCTAssertEqual(ResultCardView.cardWidth(naturalTextWidth: 200, showsFollowUp: true, isUserSized: true, userWidth: 450), 450.0)
+    }
+
+    func testTypingCollapsesControls() {
+        XCTAssertFalse(ResultCardView.isTyping(text: ""))
+        XCTAssertFalse(ResultCardView.isTyping(text: "   \n\t "))
+        XCTAssertTrue(ResultCardView.isTyping(text: "make it shorter"))
+    }
+
     /// The field is only there when a host can run a follow-up and the card is not an error.
     func testCardHostsTheFieldOnlyWhenAFollowUpCanRun() throws {
         XCTAssertNotNil(try hostedField(ResultCardPayload(text: "A result", isError: false, title: "Rewrite"), followUp: true))

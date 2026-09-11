@@ -55,11 +55,10 @@ final class PaletteAIReplaceTests: XCTestCase {
         let panel = PopupPanel()
         panel.setFrame(NSRect(x: 100, y: 100, width: 200, height: 50), display: false)
         controller.panel = panel
-        controller.promptHistory = AIPromptHistory(store: store)
         return controller
     }
 
-    func testReturnPastesTheAnswerOverTheSelectionAndRemembersThePrompt() async {
+    func testReturnPastesTheAnswerOverTheSelection() async {
         let handler = RecordingHandler()
         let controller = makeController(handler: handler)
         let provider = FixedProvider(reply: "ahoj svet")
@@ -74,14 +73,13 @@ final class PaletteAIReplaceTests: XCTestCase {
         _ = await controller.activeStreamingTask?.value
 
         XCTAssertEqual(provider.lastText, "hello world")
-        XCTAssertEqual(provider.lastPrompt, "rewrite to slovak")
+        XCTAssertEqual(provider.lastPrompt, PaletteAIPrompt.askAITaskPrompt(for: "rewrite to slovak"))
         guard case .paste(let pasted)? = handler.results.last else {
             return XCTFail("the answer must be pasted over the selection, got \(handler.results)")
         }
         XCTAssertEqual(pasted, "ahoj svet")
         XCTAssertEqual(controller.modeStore.mode, .actions, "no card on the replace path")
         XCTAssertEqual(controller.toastController.currentFeedback?.message, "Replaced with AI result")
-        XCTAssertEqual(store.get(.recentAIPrompts), ["rewrite to slovak"])
     }
 
     func testReplaceCopiesWhenTheTargetCannotPasteOrTheAppChanged() async {
@@ -125,13 +123,12 @@ final class PaletteAIReplaceTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.mode, .content)
         XCTAssertEqual(controller.modeStore.resultCard?.text, "ahoj svet")
         XCTAssertEqual(controller.modeStore.resultCard?.title, "Rewrite to slovak")
-        XCTAssertEqual(store.get(.recentAIPrompts), ["rewrite to slovak"], "remembered either way")
     }
 
-    func testSavingAPromptTakesItOutOfTheRecents() async {
+    func testSavingAPromptCreatesCustomPreset() async {
         let handler = RecordingHandler()
         let controller = makeController(handler: handler)
-        let provider = FixedProvider(reply: "ahoj svet")
+        let provider = FixedProvider(reply: "<tool_name>Slovak Translator</tool_name><result>ahoj svet</result>")
         AIServiceManager.shared.providerOverride = provider
         defer { AIServiceManager.shared.providerOverride = nil }
         let presetsBefore = AIServiceManager.shared.presets
@@ -140,14 +137,29 @@ final class PaletteAIReplaceTests: XCTestCase {
         controller.startTestSession(for: selection(), pasteAvailable: true)
         defer { controller.hide() }
 
-        controller.runAIPrompt("rewrite to slovak", replace: false)
-        _ = await controller.activeStreamingTask?.value
-        XCTAssertEqual(store.get(.recentAIPrompts), ["rewrite to slovak"])
-
         controller.saveAndRunAIPrompt("rewrite to slovak", replace: true)
         _ = await controller.activeStreamingTask?.value
-        XCTAssertTrue(store.get(.recentAIPrompts).isEmpty, "a saved prompt is a preset now, not a recent")
-        XCTAssertNotNil(AIServiceManager.shared.preset(matchingPrompt: "rewrite to slovak"))
-        guard case .paste? = handler.results.last else { return XCTFail("Save with ⏎ still replaces in place") }
+        let preset = AIServiceManager.shared.preset(matchingPrompt: "rewrite to slovak")
+        XCTAssertNotNil(preset)
+        XCTAssertEqual(preset?.title, "Slovak Translator", "updates the preset title from <tool_name>")
+        guard case .paste(let pasted)? = handler.results.last else { return XCTFail("Save with ⏎ still replaces in place") }
+        XCTAssertEqual(pasted, "ahoj svet")
+    }
+
+    func testAskAIGeneratesTaskTitle() async {
+        let handler = RecordingHandler()
+        let controller = makeController(handler: handler)
+        let provider = FixedProvider(reply: "<title>Slovak Translation</title><result>ahoj svet</result>")
+        AIServiceManager.shared.providerOverride = provider
+        defer { AIServiceManager.shared.providerOverride = nil }
+        controller.startTestSession(for: selection("hello world"), pasteAvailable: true)
+        defer { controller.hide() }
+
+        controller.runAIPrompt("rewrite to slovak", replace: false)
+        _ = await controller.activeStreamingTask?.value
+
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        XCTAssertEqual(controller.modeStore.resultCard?.text, "ahoj svet")
+        XCTAssertEqual(controller.modeStore.resultCard?.title, "Slovak Translation", "uses AI-generated title instead of full prompt")
     }
 }

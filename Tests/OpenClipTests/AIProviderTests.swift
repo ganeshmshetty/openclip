@@ -147,6 +147,25 @@ final class AIProviderTests: XCTestCase {
 
         // Plain text without tags
         XCTAssertEqual(AIRequestSupport.extractResultText("Simple raw response"), "Simple raw response")
+
+        // Title and tool_name tags are stripped from result text
+        let withTitle = "<title>Fix Spelling</title><result>Fixed text.</result>"
+        XCTAssertEqual(AIRequestSupport.extractResultText(withTitle), "Fixed text.")
+        XCTAssertEqual(AIRequestSupport.extractTitleText(withTitle), "Fix Spelling")
+
+        let withToolName = "<tool_name>Spelling Fixer</tool_name><result>Fixed text.</result>"
+        XCTAssertEqual(AIRequestSupport.extractResultText(withToolName), "Fixed text.")
+        XCTAssertEqual(AIRequestSupport.extractToolNameText(withToolName), "Spelling Fixer")
+
+        // Incomplete/unclosed <title> suppresses output until result starts
+        XCTAssertEqual(AIRequestSupport.extractResultText("<title>In progress title..."), "")
+        XCTAssertEqual(AIRequestSupport.extractTitleText("<title>In progress title..."), nil)
+    }
+
+    func testTitleAndToolNameSanitization() {
+        XCTAssertEqual(AIRequestSupport.extractTitleText("<title>  \"Clean Title\"  </title>"), "Clean Title")
+        XCTAssertEqual(AIRequestSupport.extractToolNameText("<tool_name> “Smart Summarizer” </tool_name>"), "Smart Summarizer")
+        XCTAssertEqual(AIRequestSupport.extractTitleText("<title>«French Translator»</title>"), "French Translator")
     }
 
     func testCloudAPIEffectiveBaseURL() {

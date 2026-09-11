@@ -470,5 +470,8 @@
   "Follow-up instruction": "Instruction complémentaire",
   "Refining…": "Affinage…",
   "⏎ show result · ⇧⏎ replace selection": "⏎ afficher le résultat · ⇧⏎ remplacer la sélection",
-  "⏎ show result · ⇧⏎ copy result": "⏎ afficher le résultat · ⇧⏎ copier le résultat"
+  "⏎ show result · ⇧⏎ copy result": "⏎ afficher le résultat · ⇧⏎ copier le résultat",
+  "Show": "Afficher",
+  "Replace": "Remplacer",
+  "Save and Ask AI": "Enregistrer et demander à l’IA"
 }

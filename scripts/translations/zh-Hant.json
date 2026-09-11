@@ -470,5 +470,8 @@
   "Follow-up instruction": "追問指令",
   "Refining…": "正在調整…",
   "⏎ show result · ⇧⏎ replace selection": "⏎ 顯示結果 · ⇧⏎ 取代所選內容",
-  "⏎ show result · ⇧⏎ copy result": "⏎ 顯示結果 · ⇧⏎ 拷貝結果"
+  "⏎ show result · ⇧⏎ copy result": "⏎ 顯示結果 · ⇧⏎ 拷貝結果",
+  "Show": "顯示",
+  "Replace": "取代",
+  "Save and Ask AI": "儲存並詢問 AI"
 }

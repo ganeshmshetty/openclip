@@ -25,30 +25,35 @@ enum PaletteAIPrompt {
     enum Results {
         /// Nothing matched: offer both rows.
         case none
-        /// Only recent prompts matched: they already run the query, so offer just Save.
-        case onlyRecentPrompts
         /// Real actions matched: no AI rows.
         case actions
     }
 
-    /// The rows offered under the results for `query`: both when nothing matched, Save alone when
-    /// only recent prompts matched, none when actions matched — and none for a blank query or
-    /// with AI switched off (the plain "No matches" copy stays).
+    /// The rows offered under the results for `query`: both when nothing matched, none when
+    /// actions matched — and none for a blank query or with AI switched off (the plain "No matches" copy stays).
     static func rows(for query: String, aiEnabled: Bool, results: Results) -> [PaletteAIPromptRow] {
         guard aiEnabled, !instruction(from: query).isEmpty else { return [] }
         switch results {
         case .none: return PaletteAIPromptRow.allCases
-        case .onlyRecentPrompts: return [.save]
         case .actions: return []
         }
+    }
+
+    /// Short action title for primary execution (⏎).
+    static func primaryActionTitle() -> String {
+        String(localized: "Show")
+    }
+
+    /// Short action title for secondary execution (⇧⏎).
+    static func secondaryActionTitle(canPaste: Bool?) -> String {
+        canPaste == false ? String(localized: "Copy") : String(localized: "Replace")
     }
 
     /// The key hint under the AI rows: ⏎ shows the result card, ⇧⏎ replaces the selection
     /// (copies when the target can't paste).
     static func hint(canPaste: Bool?) -> String {
-        canPaste == false
-            ? String(localized: "⏎ show result · ⇧⏎ copy result")
-            : String(localized: "⏎ show result · ⇧⏎ replace selection")
+        let secondary = secondaryActionTitle(canPaste: canPaste).lowercased()
+        return "⏎ show · ⇧⏎ \(secondary)"
     }
 
     /// The instruction handed to the provider: the query with surrounding whitespace trimmed and
@@ -58,6 +63,30 @@ enum PaletteAIPrompt {
         query
             .split(whereSeparator: { $0.isWhitespace || $0.isNewline })
             .joined(separator: " ")
+    }
+
+    /// Prompt instruction wrapped with format requirements to generate a 2-4 word task title.
+    static func askAITaskPrompt(for query: String) -> String {
+        let task = instruction(from: query)
+        return """
+        \(task)
+
+        Format requirements:
+        1. Output a short 2-4 word title for this task inside <title>...</title> tags.
+        2. Output your transformed text inside <result>...</result> tags.
+        """
+    }
+
+    /// Prompt instruction wrapped with format requirements to generate a clean reusable tool name.
+    static func saveToolTaskPrompt(for query: String) -> String {
+        let task = instruction(from: query)
+        return """
+        \(task)
+
+        Format requirements:
+        1. Output a clean, concise 2-4 word action tool name for this reusable tool inside <tool_name>...</tool_name> tags (e.g. "Formal Email Rewriter", "Translate to Slovak").
+        2. Output your transformed text inside <result>...</result> tags.
+        """
     }
 
     /// A tool title for a prompt: the collapsed instruction with its first letter capitalised,
@@ -87,7 +116,7 @@ enum PaletteAIPrompt {
         case .ask:
             return String(localized: "Ask AI: “\(instruction(from: query))”")
         case .save:
-            return String(localized: "Save as AI tool")
+            return String(localized: "Save and Ask AI")
         }
     }
 

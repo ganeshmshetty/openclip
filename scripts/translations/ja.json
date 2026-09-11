@@ -470,5 +470,8 @@
   "Follow-up instruction": "追加の指示",
   "Refining…": "調整中…",
   "⏎ show result · ⇧⏎ replace selection": "⏎ 結果を表示 · ⇧⏎ 選択範囲を置換",
-  "⏎ show result · ⇧⏎ copy result": "⏎ 結果を表示 · ⇧⏎ 結果をコピー"
+  "⏎ show result · ⇧⏎ copy result": "⏎ 結果を表示 · ⇧⏎ 結果をコピー",
+  "Show": "表示",
+  "Replace": "置換",
+  "Save and Ask AI": "保存してAIに依頼"
 }

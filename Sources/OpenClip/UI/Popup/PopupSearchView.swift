@@ -150,18 +150,9 @@ public struct PopupSearchView: View {
         Self.height(forRows: rowCount) + (promptRows.isEmpty ? 0 : Self.hintHeight)
     }
 
-    /// The AI rows under the results for the current query: Ask + Save when nothing matched, Save
-    /// alone when only recent prompts matched (they already run the query), none otherwise.
+    /// The AI rows under the results for the current query: Ask + Save when nothing matched, none otherwise.
     private var promptRows: [PaletteAIPromptRow] {
-        let kind: PaletteAIPrompt.Results
-        if results.isEmpty {
-            kind = .none
-        } else if results.allSatisfy({ $0.action is RecentPromptAction }) {
-            kind = .onlyRecentPrompts
-        } else {
-            kind = .actions
-        }
-        return PaletteAIPrompt.rows(for: query, aiEnabled: isAIEnabled, results: kind)
+        PaletteAIPrompt.rows(for: query, aiEnabled: isAIEnabled, results: results.isEmpty ? .none : .actions)
     }
 
     /// The selectable rows on screen — the results followed by the AI rows. Every keyboard, hover
@@ -170,7 +161,7 @@ public struct PopupSearchView: View {
         results.count + promptRows.count
     }
 
-    private static let hintHeight: CGFloat = 22
+    private static let hintHeight: CGFloat = 28
 
     static func height(forRows rows: Int) -> CGFloat {
         fieldInset + CGFloat(rows) * PopupMetrics.searchResultRowHeight
@@ -701,14 +692,62 @@ public struct PopupSearchView: View {
         }
     }
 
-    /// The key hint under the AI rows.
+    /// The action badges hint under the AI rows (Raycast-style short-named buttons).
     private var promptHint: some View {
-        Text(PaletteAIPrompt.hint(canPaste: modeStore.canPaste))
-            .font(.system(size: 10.5, weight: .medium, design: .rounded))
-            .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme).opacity(0.8))
-            .frame(maxWidth: .infinity)
-            .frame(height: Self.hintHeight)
-            .accessibilityHidden(true)
+        HStack(spacing: 6) {
+            Spacer(minLength: 0)
+
+            hintBadge(
+                title: PaletteAIPrompt.secondaryActionTitle(canPaste: modeStore.canPaste),
+                shortcut: "⇧⏎",
+                isAccent: false
+            ) {
+                runSelected(replace: true)
+            }
+
+            hintBadge(
+                title: PaletteAIPrompt.primaryActionTitle(),
+                shortcut: "⏎",
+                isAccent: true
+            ) {
+                runSelected(replace: false)
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 4)
+        .frame(height: Self.hintHeight)
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func hintBadge(title: String, shortcut: String, isAccent: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Text(title)
+                    .font(.system(size: 11, weight: isAccent ? .semibold : .medium))
+                    .foregroundColor(isAccent ? .white : PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                Text(shortcut)
+                    .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                    .foregroundColor(isAccent ? .white.opacity(0.9) : PopupThemeModel.restSecondary(for: effectiveTheme))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1.5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                            .fill(isAccent ? Color.black.opacity(0.18) : (colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06)))
+                    )
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isAccent ? Color.accentColor : Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(isAccent ? Color.white.opacity(0.18) : (colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08)), lineWidth: 0.5)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private func moveSelection(by delta: Int) {
@@ -770,11 +809,6 @@ public struct PopupSearchView: View {
         }
         guard results.indices.contains(selectedIndex) else { return }
         let action = results[selectedIndex].action
-        // A recent instruction runs exactly like the Ask row, with its own text.
-        if let recent = action as? RecentPromptAction {
-            onRunAIPrompt(recent.prompt, replace)
-            return
-        }
         // AI preset actions render their result in the popup's AI card (same flow as the Sparkles
         // toolbar), so route them there instead of through `perform`.
         if ActionIdentity.isAIPreset(action) {

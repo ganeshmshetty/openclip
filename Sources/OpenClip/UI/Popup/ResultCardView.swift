@@ -145,6 +145,8 @@ public struct ResultCardView: View {
     private func handleEscape() {
         if Self.escapeCancelsFollowUp(isStreaming: payload.isStreaming, canCancel: onCancelFollowUp != nil) {
             onCancelFollowUp?()
+        } else if !followUp.isEmpty {
+            followUp = ""
         } else {
             onDismiss()
         }
@@ -513,8 +515,28 @@ public struct ResultCardView: View {
         return style
     }()
 
-    private var maxCardWidth: CGFloat { maxSize?.width ?? PopupMetrics.aiCardIdealWidth }
+    static let followUpCardMinWidth: CGFloat = 340.0
+    static let followUpCardMaxWidth: CGFloat = 400.0
+
+    private var minCardWidth: CGFloat {
+        showsFollowUp ? Self.followUpCardMinWidth : PopupMetrics.aiCardMinWidth
+    }
+
+    private var maxCardWidth: CGFloat {
+        if let userWidth = maxSize?.width {
+            return max(userWidth, minCardWidth)
+        }
+        return showsFollowUp ? Self.followUpCardMaxWidth : PopupMetrics.aiCardIdealWidth
+    }
     private var maxCardHeight: CGFloat { maxSize?.height ?? PopupMetrics.aiCardMaxHeight }
+
+    /// Sizing calculation for the card width.
+    static func cardWidth(naturalTextWidth: CGFloat, showsFollowUp: Bool, isUserSized: Bool, userWidth: CGFloat?) -> CGFloat {
+        let minWidth: CGFloat = showsFollowUp ? followUpCardMinWidth : PopupMetrics.aiCardMinWidth
+        let maxWidth: CGFloat = userWidth ?? (showsFollowUp ? followUpCardMaxWidth : PopupMetrics.aiCardIdealWidth)
+        if isUserSized, let userWidth { return max(userWidth, minWidth) }
+        return bounded(naturalTextWidth, min: minWidth, max: max(minWidth, maxWidth))
+    }
 
     /// The width the body would take unwrapped — its longest line plus the text insets — so a
     /// short answer gets a narrow card and a long one fills the maximum.
@@ -533,11 +555,15 @@ public struct ResultCardView: View {
     /// The card is as wide as its text needs, never narrower than the minimum and never wider
     /// than the maximum; once user-sized it is exactly the dragged size.
     private var dynamicCardWidth: CGFloat {
-        if isUserSized, let maxSize { return maxSize.width }
-        return Self.bounded(naturalTextWidth, min: PopupMetrics.aiCardMinWidth, max: maxCardWidth)
+        Self.cardWidth(
+            naturalTextWidth: naturalTextWidth,
+            showsFollowUp: showsFollowUp,
+            isUserSized: isUserSized,
+            userWidth: maxSize?.width
+        )
     }
 
-    private static func bounded(_ value: CGFloat, min minimum: CGFloat, max maximum: CGFloat) -> CGFloat {
+    static func bounded(_ value: CGFloat, min minimum: CGFloat, max maximum: CGFloat) -> CGFloat {
         min(max(value, minimum), max(maximum, minimum))
     }
 
@@ -545,11 +571,11 @@ public struct ResultCardView: View {
     private static let headerTopPadding: CGFloat = 14.0
     private static let gapAfterHeader: CGFloat = 14.0
     private static let topInset: CGFloat = headerTopPadding + headerHeight + gapAfterHeader
-    private static let baseBottomInset: CGFloat = 42.0
+    private static let baseBottomInset: CGFloat = 46.0
     private static let followUpFieldHeight: CGFloat = 30.0
-    /// Room under the body for the footer: the buttons, plus the follow-up field when shown.
+    /// Room under the body for the footer.
     private var bottomInset: CGFloat {
-        Self.baseBottomInset + (showsFollowUp ? Self.followUpFieldHeight + 8 : 0)
+        Self.baseBottomInset
     }
 
     /// The height the body needs when wrapped at the card's actual width.
@@ -627,19 +653,40 @@ public struct ResultCardView: View {
             .shadow(color: blackShadow, radius: 2, x: 0, y: 1)
     }
 
+    static func isTyping(text: String) -> Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var isTypingFollowUp: Bool {
+        Self.isTyping(text: followUp)
+    }
+
+    static let followUpMaxWidthCollapsed: CGFloat = 160.0
+    static let followUpMaxWidthExpanded: CGFloat = 280.0
+
+    private var followUpWidthCap: CGFloat {
+        isTypingFollowUp ? Self.followUpMaxWidthExpanded : Self.followUpMaxWidthCollapsed
+    }
+
     private var footer: some View {
-        VStack(spacing: 8) {
+        HStack(spacing: 8) {
             if showsFollowUp {
                 followUpField
-                    .padding(.horizontal, 14)
+                    .frame(maxWidth: followUpWidthCap, alignment: .leading)
             }
-            // While an answer streams there is nothing final to copy or paste: the buttons go
-            // away (their space stays, so the field does not jump) and come back on settle.
-            footerButtons
-                .opacity(showsResultButtons ? 1 : 0)
-                .allowsHitTesting(showsResultButtons)
-                .accessibilityHidden(!showsResultButtons)
+
+            Spacer(minLength: 0)
+
+            if !isTypingFollowUp {
+                footerButtons
+                    .opacity(showsResultButtons ? 1 : 0)
+                    .allowsHitTesting(showsResultButtons)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
+        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isTypingFollowUp)
+        .animation(.easeInOut(duration: 0.15), value: showsResultButtons)
+        .padding(.horizontal, 14)
         .padding(.bottom, 10)
     }
 
@@ -657,20 +704,22 @@ public struct ResultCardView: View {
     private var followUpField: some View {
         let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
         let strokeColor = colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.10)
-        let hasText = !followUp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return HStack(spacing: 7) {
+        return HStack(spacing: 6) {
             if payload.isStreaming {
-                // A follow-up in flight: the spinner lives where the sparkles were, so the wait
-                // reads as part of the card rather than a new session.
+                // A follow-up in flight: spinner on the left.
                 ProgressView()
                     .controlSize(.small)
                     .scaleEffect(0.6)
-                    .frame(width: 13, height: 13)
-            } else {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.accentColor)
+                    .frame(width: 14, height: 14)
+            } else if !isTypingFollowUp {
+                // Up-arrow on the left in idle state.
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.65))
+                    .frame(width: 14, height: 14)
+                    .transition(.scale.combined(with: .opacity))
             }
+
             TextField(
                 payload.isStreaming ? String(localized: "Refining…") : String(localized: "Follow up…"),
                 text: $followUp
@@ -692,13 +741,24 @@ public struct ResultCardView: View {
             .onSubmit {
                 handleFollowUpReturn(shift: NSEvent.modifierFlags.contains(.shift))
             }
-            if hasText {
-                Image(systemName: "return")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+
+            if isTypingFollowUp {
+                // Up-arrow submit button on the right when typing.
+                Button {
+                    handleFollowUpReturn(shift: NSEvent.modifierFlags.contains(.shift))
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "Send follow-up (⏎)"))
+                .accessibilityLabel(String(localized: "Send follow-up"))
+                .transition(.scale.combined(with: .opacity))
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, isTypingFollowUp ? 10 : 8)
+        .padding(.trailing, isTypingFollowUp ? 6 : 8)
         .frame(height: Self.followUpFieldHeight)
         .background(
             shape
@@ -706,6 +766,7 @@ public struct ResultCardView: View {
                 .overlay(shape.fill(Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.04)))
                 .overlay(shape.stroke(strokeColor, lineWidth: 0.5))
         )
+        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isTypingFollowUp)
         .accessibilityLabel(String(localized: "Follow-up instruction"))
     }
 
@@ -752,8 +813,6 @@ public struct ResultCardView: View {
 
     private var footerButtons: some View {
         HStack(spacing: 8) {
-            Spacer(minLength: 0)
-
             if !payload.isError {
                 resultButtons
             } else {
@@ -774,7 +833,6 @@ public struct ResultCardView: View {
                 .onHover { isDismissHovered = $0 }
             }
         }
-        .padding(.horizontal, 14)
     }
 
     @ViewBuilder

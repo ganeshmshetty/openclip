@@ -1582,56 +1582,61 @@ public class PopupWindowController {
         modeStore.subBarAbove = actuallyAbove
     }
 
-    /// The recent-prompt list the palette rows come from. Settable for tests.
-    var promptHistory: AIPromptHistory = .shared
-
     /// The frontmost app at the moment an in-place answer lands — pasting is only safe into the
     /// app the selection came from. Settable for tests.
     var frontmostBundleIDProvider: @MainActor () -> String? = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
 
-    /// Runs a palette instruction (the Ask AI row or a recent prompt) on the selection and
-    /// remembers it as a recent. `replace` pastes the answer over the selection (⏎); otherwise
+    /// Runs a palette instruction (the Ask AI row) on the selection. `replace` pastes the answer over the selection (⏎); otherwise
     /// the answer streams into the result card (⇧⏎), titled after the instruction.
     func runAIPrompt(_ instruction: String, replace: Bool) {
         let prompt = PaletteAIPrompt.instruction(from: instruction)
         guard !prompt.isEmpty else { return }
-        promptHistory.record(prompt)
+        let taskPrompt = PaletteAIPrompt.askAITaskPrompt(for: prompt)
         if replace {
             Log.ai.notice("Running a palette AI prompt, replacing the selection")
-            runAIPromptReplacing(prompt: prompt)
+            runAIPromptReplacing(prompt: taskPrompt)
         } else {
             Log.ai.notice("Running a palette AI prompt into the result card")
-            runAIPreset(prompt: prompt, title: PaletteAIPrompt.toolTitle(for: prompt))
+            runAIPreset(prompt: taskPrompt, title: PaletteAIPrompt.toolTitle(for: prompt))
         }
     }
 
     /// Saves a palette instruction as a custom AI tool, then runs it with the same ⏎/⇧⏎ meaning
     /// as `runAIPrompt`. The tool is a regular custom preset: searchable in the palette, listed
     /// in the AI sub-bar and in Preferences → AI → Actions where it can be renamed, re-prompted or
-    /// deleted. A prompt that is already saved reuses its tool rather than minting a duplicate,
-    /// and a saved prompt leaves the recents (it is a preset from now on). The saved tool is
-    /// recorded as used so it ranks first among equals the next time it is searched.
+    /// deleted. A prompt that is already saved reuses its tool rather than minting a duplicate.
+    /// The saved tool is recorded as used so it ranks first among equals the next time it is searched.
     func saveAndRunAIPrompt(_ instruction: String, replace: Bool) {
         let prompt = PaletteAIPrompt.instruction(from: instruction)
         guard !prompt.isEmpty else { return }
         let manager = AIServiceManager.shared
         let existing = manager.preset(matchingPrompt: prompt)
-        let preset = existing ?? manager.addCustomPreset(title: PaletteAIPrompt.toolTitle(for: prompt), prompt: prompt)
-        promptHistory.remove(prompt)
+        var preset = existing ?? manager.addCustomPreset(title: PaletteAIPrompt.toolTitle(for: prompt), prompt: prompt)
         usageStore.record(AIAction(presetID: preset.id, title: preset.title).id)
         if existing == nil {
             Log.ai.notice("Saved a palette prompt as AI tool \(preset.id, privacy: .public)")
         }
+
+        let taskPrompt = PaletteAIPrompt.saveToolTaskPrompt(for: prompt)
+        let onTitle: (String) -> Void = { cleanTitle in
+            let trimmed = cleanTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, trimmed != preset.title else { return }
+            preset.title = trimmed
+            manager.updatePreset(preset)
+        }
+
         if replace {
             runAIPromptReplacing(
-                prompt: manager.promptForPreset(preset),
-                loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Replacing…") : nil
+                prompt: taskPrompt,
+                loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Replacing…") : nil,
+                onGeneratedTitle: onTitle
             )
         } else {
             runAIPreset(
-                prompt: manager.promptForPreset(preset),
+                prompt: taskPrompt,
                 title: preset.title,
-                loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Generating…") : nil
+                loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Generating…") : nil,
+                onGeneratedTitle: onTitle
             )
         }
     }
@@ -1641,7 +1646,7 @@ public class PopupWindowController {
     /// the explicit paste door (`handleActionResult(.paste)`, no delivery re-decision) under a
     /// success toast. The answer is copied instead when the unified paste availability says the
     /// target can't paste, or when the frontmost app is no longer the selection's app.
-    func runAIPromptReplacing(prompt: String, loadingMessage: String? = nil) {
+    func runAIPromptReplacing(prompt: String, loadingMessage: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
         guard let context = currentActionContext else {
             Log.ai.error("Cannot replace with AI: currentActionContext is nil")
             return
@@ -1670,11 +1675,26 @@ public class PopupWindowController {
             }
             do {
                 let provider = AIServiceManager.shared.currentProvider
-                let answer = try await provider.process(prompt: prompt, text: selection.text)
+                var accumulated = ""
+                for try await chunk in provider.processStream(prompt: prompt, text: selection.text) {
+                    guard !Task.isCancelled, session == self.aiSessionID else {
+                        self.toastController.hide()
+                        return
+                    }
+                    accumulated += chunk
+                    if let generated = AIRequestSupport.extractToolNameText(accumulated) ?? AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
+                        onGeneratedTitle?(generated)
+                    }
+                }
                 guard !Task.isCancelled, session == self.aiSessionID else {
                     self.toastController.hide()
                     return
                 }
+                if let generated = AIRequestSupport.extractToolNameText(accumulated) ?? AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
+                    onGeneratedTitle?(generated)
+                }
+                let answer = AIRequestSupport.extractResultText(accumulated)
+                guard !answer.isEmpty else { throw AIError.invalidResponse }
                 if provider.type == .browser {
                     // The browser provider opened the query in a tab; there is nothing to paste.
                     self.toastController.hide()
@@ -1774,15 +1794,22 @@ public class PopupWindowController {
                     return
                 }
                 var accumulated = ""
+                var activeTitle = title
                 for try await chunk in provider.processStream(prompt: followUpTask, text: sourceText) {
                     guard stillRefining() else { return }
                     accumulated += chunk
+                    if let newTitle = AIRequestSupport.extractTitleText(accumulated), !newTitle.isEmpty {
+                        activeTitle = newTitle
+                    }
                     let cleaned = AIRequestSupport.extractResultText(accumulated)
                     if !cleaned.isEmpty {
-                        self.showResultCard(text: cleaned, isError: false, title: title, isStreaming: true, session: session)
+                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session)
                     }
                 }
                 guard stillRefining() else { return }
+                if let newTitle = AIRequestSupport.extractTitleText(accumulated), !newTitle.isEmpty {
+                    activeTitle = newTitle
+                }
                 let finalResponse = AIRequestSupport.extractResultText(accumulated)
                 if finalResponse.isEmpty {
                     self.restoreRefiningCard()
@@ -1790,7 +1817,7 @@ public class PopupWindowController {
                 } else {
                     self.refiningPrevious = nil
                     self.cardConversation = conversation.appending(instruction: prompt, result: finalResponse)
-                    self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
+                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session)
                 }
             } catch is CancellationError {
                 // cancelFollowUp / hide already put the card back or took it down.
@@ -1862,7 +1889,7 @@ public class PopupWindowController {
         return nil
     }
 
-    func runAIPreset(prompt: String, title: String, loadingMessage: String? = nil, inputText: String? = nil) {
+    func runAIPreset(prompt: String, title: String, loadingMessage: String? = nil, inputText: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
         guard let context = currentActionContext else {
             Log.ai.error("Cannot run AI preset: currentActionContext is nil")
             return
@@ -1892,6 +1919,7 @@ public class PopupWindowController {
             }
 
             var hasYielded = false
+            var activeTitle = title
 
             do {
                 let provider = AIServiceManager.shared.currentProvider
@@ -1914,6 +1942,10 @@ public class PopupWindowController {
                         return
                     }
                     accumulated += chunk
+                    if let newTitle = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !newTitle.isEmpty {
+                        activeTitle = newTitle
+                        onGeneratedTitle?(newTitle)
+                    }
                     let cleaned = AIRequestSupport.extractResultText(accumulated)
                     if !cleaned.isEmpty {
                         if !hasYielded {
@@ -1923,7 +1955,7 @@ public class PopupWindowController {
                             guard !Task.isCancelled, session == self.aiSessionID else { return }
                             self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
                         }
-                        self.showResultCard(text: cleaned, isError: false, title: title, isStreaming: true, session: session)
+                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session)
                     }
                 }
 
@@ -1932,13 +1964,17 @@ public class PopupWindowController {
                     return
                 }
                 self.toastController.hide()
+                if let newTitle = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !newTitle.isEmpty {
+                    activeTitle = newTitle
+                    onGeneratedTitle?(newTitle)
+                }
                 let finalResponse = AIRequestSupport.extractResultText(accumulated)
                 if finalResponse.isEmpty {
                     if !hasYielded {
                         let canPaste = targetCanPaste
                         guard !Task.isCancelled, session == self.aiSessionID else { return }
                         self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
-                        self.showResultCard(text: "No response generated", isError: true, title: title, isStreaming: false, session: session)
+                        self.showResultCard(text: "No response generated", isError: true, title: activeTitle, isStreaming: false, session: session)
                     }
                 } else {
                     if !hasYielded {
@@ -1951,7 +1987,7 @@ public class PopupWindowController {
                     if inputText == nil {
                         self.cardConversation = AIConversation(original: selectionText, steps: [.init(instruction: prompt, result: finalResponse)])
                     }
-                    self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
+                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session)
                 }
             } catch is CancellationError {
                 Log.ai.info("AI streaming cancelled")
