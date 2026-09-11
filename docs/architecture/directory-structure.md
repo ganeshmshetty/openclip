@@ -116,6 +116,7 @@ Sources/
     │   ├── AIServiceManager.swift            # cloudAPIKey is SecretStore-backed (@Published), other prefs via @AppStorage
     │   ├── AIToolsAction.swift               # AI Tools group launcher action
     │   ├── AIPromptHistory.swift             # Recent free-form AI instructions (MRU, capped) shown as palette rows
+    │   ├── AIConversation.swift              # A card session (selection + instructions + results) rendered as labelled context for follow-ups
     │   ├── RecentPromptAction.swift          # A recent instruction as a palette row (never registered; appended by PopupView)
     │   └── Providers/                        # Apple Intelligence, Cloud, Ollama, BrowserRedirect
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner

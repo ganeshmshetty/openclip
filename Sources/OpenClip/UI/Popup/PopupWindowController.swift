@@ -916,6 +916,7 @@ public class PopupWindowController {
             followUpSource = nil
             modeStore.isProcessingAI = false
         }
+        cardConversation = nil
         modeStore.resultCard = nil
         modeStore.resultCardSize = nil
         modeStore.isSurfaceUserSized = false
@@ -1010,6 +1011,7 @@ public class PopupWindowController {
         aiSessionID = UUID()
         followUpSource = nil
         refiningPrevious = nil
+        cardConversation = nil
 
         if toastController.currentFeedback?.keepVisible == true || toastController.isLoading {
             toastController.hide()
@@ -1720,6 +1722,11 @@ public class PopupWindowController {
     /// exactly while a follow-up is in flight.
     private var refiningPrevious: ResultCardPayload?
 
+    /// What the card has done in this session — the selection and each instruction with its
+    /// result — handed to follow-ups as labelled history. Seeded by the run that opened the card,
+    /// extended by every settled follow-up, cleared when the card goes away. Internal for tests.
+    private(set) var cardConversation: AIConversation?
+
     /// Runs a follow-up *inside* the card. Unlike a preset run, nothing hides and no loading
     /// toast shows: the card stays on screen with the previous answer dimmed under the field's
     /// spinner (`isRefining`) until the first chunk, then streams the new answer in place and
@@ -1730,6 +1737,10 @@ public class PopupWindowController {
         activeStreamingTask = nil
         let session = aiSessionID
         let sourceText = previous.text
+        // The history rides along as labelled context; the current instruction stays the task.
+        let conversation = cardConversation
+            ?? AIConversation(original: currentActionContext?.selection.text ?? sourceText, steps: [])
+        let followUpTask = conversation.followUpTask(current: prompt)
         refiningPrevious = previous
         followUpSource = sourceText
         modeStore.isProcessingAI = true
@@ -1762,13 +1773,13 @@ public class PopupWindowController {
             do {
                 let provider = AIServiceManager.shared.currentProvider
                 if provider.type == .browser {
-                    _ = try await provider.process(prompt: prompt, text: sourceText)
+                    _ = try await provider.process(prompt: followUpTask, text: sourceText)
                     guard stillRefining() else { return }
                     self.restoreRefiningCard()
                     return
                 }
                 var accumulated = ""
-                for try await chunk in provider.processStream(prompt: prompt, text: sourceText) {
+                for try await chunk in provider.processStream(prompt: followUpTask, text: sourceText) {
                     guard stillRefining() else { return }
                     accumulated += chunk
                     let cleaned = AIRequestSupport.extractResultText(accumulated)
@@ -1783,6 +1794,7 @@ public class PopupWindowController {
                     self.toastController.show(StatusFeedback(message: String(localized: "No response generated"), style: .error), anchorFrame: self.panel?.frame)
                 } else {
                     self.refiningPrevious = nil
+                    self.cardConversation = conversation.appending(instruction: prompt, result: finalResponse)
                     self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
                 }
             } catch is CancellationError {
@@ -1944,6 +1956,11 @@ public class PopupWindowController {
                         let canPaste = targetCanPaste
                         guard !Task.isCancelled, session == self.aiSessionID else { return }
                         self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
+                    }
+                    // A fresh run on the selection starts the card's session history; follow-ups
+                    // (refineCard) extend it.
+                    if inputText == nil {
+                        self.cardConversation = AIConversation(original: selectionText, steps: [.init(instruction: prompt, result: finalResponse)])
                     }
                     self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
                 }

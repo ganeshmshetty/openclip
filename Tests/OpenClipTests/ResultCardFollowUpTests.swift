@@ -102,7 +102,8 @@ final class ResultCardFollowUpTests: XCTestCase {
         _ = await controller.activeStreamingTask?.value
 
         XCTAssertEqual(provider.lastText, "A long first answer", "the follow-up runs on the card's text, not the selection")
-        XCTAssertEqual(provider.lastPrompt, "make it shorter")
+        XCTAssertTrue(provider.lastPrompt?.hasPrefix("CURRENT TASK") == true, "the instruction leads the composite task")
+        XCTAssertTrue(provider.lastPrompt?.contains("make it shorter") == true, "collapsed instruction")
         XCTAssertEqual(controller.modeStore.mode, .content)
         XCTAssertEqual(controller.modeStore.resultCard?.text, "Shorter answer")
         XCTAssertEqual(controller.modeStore.resultCard?.title, "Make it shorter")

@@ -174,7 +174,14 @@ that replaced the former interactive canvas.
   text the follow-up ran on (`followUpSource`), so the diff shows what changed. The card's exact size is frozen for the
   refinement (`freezeCardSizeForRefinement`: the panel minus the shadow ring becomes
   `resultCardSize` with `isSurfaceUserSized`, the hand-resize path, so chunks never re-measure
-  the card; a user-resized card is left alone). `refiningPrevious`
+  the card; a user-resized card is left alone). Follow-ups carry the session as **context**: `cardConversation`
+  (`AIConversation`, seeded by the run that opened the card — original selection + instruction +
+  result — and extended by every settled follow-up) renders `followUpTask(current:)`, which
+  states the current instruction first and then a labelled "HISTORY — context only" block
+  (already applied, not to be redone; original selection and earlier results quoted; the last
+  result identified as the `<text>` block), capped at 5 steps / 1500 characters per text for
+  small context windows. That composite is the provider's task; the `<text>` block stays the
+  card's current text. `refiningPrevious`
   holds the card being refined: Esc (`cancelFollowUp`, via `onCancelFollowUp` —
   `ResultCardView.escapeCancelsFollowUp` decides Esc's meaning) and a failure put it back settled
   (an error shows as a toast, not an error card); leaving content mode (`exitContent`) drops the

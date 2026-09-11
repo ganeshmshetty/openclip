@@ -102,8 +102,10 @@ configured above.
 
 Every AI result card has an instruction field above its Copy and Paste buttons. Type what to
 change — `shorter`, `more formal` — and press **⏎**: AI runs on the current answer and the card
-updates in place, showing what changed. Chain as many refinements as you like; Paste always
-pastes the latest answer over the selection. ⏎ on an empty field pastes as before.
+updates in place, showing what changed. Each follow-up also sees the session so far — the
+original selection and what you asked before — as context, so "keep the greeting" or "same tone
+as before" works. Chain as many refinements as you like; Paste always pastes the latest answer
+over the selection. ⏎ on an empty field pastes as before.
 
 ### AI Settings Channel
 AI settings are managed through `AIServiceManager` and isolated to ensure security and privacy.

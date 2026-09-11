@@ -77,7 +77,8 @@ final class FollowUpInCardTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.resultCard?.title, "Make it shorter", "the header already names the follow-up")
         XCTAssertTrue(controller.modeStore.isProcessingAI)
         XCTAssertEqual(provider.lastText, "A long first answer")
-        XCTAssertEqual(provider.lastPrompt, "make it shorter")
+        XCTAssertTrue(provider.lastPrompt?.hasPrefix("CURRENT TASK") == true, "the instruction leads the composite task; history follows")
+        XCTAssertTrue(provider.lastPrompt?.contains("\nmake it shorter\n") == true)
 
         provider.continuation?.yield("Shorter")
         await settle()
@@ -211,6 +212,72 @@ final class FollowUpInCardTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.resultCardSize, CGSize(width: 400, height: 300), "a hand-resized card is left alone")
         second.continuation?.finish()
         _ = await controller.activeStreamingTask?.value
+    }
+
+    /// The provider gets the current instruction plus the labelled session history — the
+    /// original selection and the earlier steps — and the card's conversation grows with every
+    /// settled follow-up.
+    func testFollowUpsCarryTheSessionHistoryAsContext() async {
+        let controller = makeController()
+        defer { controller.hide() }
+        XCTAssertNil(controller.cardConversation, "a card shown directly has no history yet")
+
+        let first = HeldProvider()
+        AIServiceManager.shared.providerOverride = first
+        defer { AIServiceManager.shared.providerOverride = nil }
+        controller.runFollowUp("make it sound friendly")
+        await fulfillment(of: [first.started], timeout: 2)
+        let firstPrompt = first.lastPrompt ?? ""
+        XCTAssertTrue(firstPrompt.hasPrefix("CURRENT TASK"), "the new task leads")
+        XCTAssertTrue(firstPrompt.contains("make it sound friendly"))
+        XCTAssertTrue(firstPrompt.contains("HISTORY — context only"))
+        XCTAssertTrue(firstPrompt.contains("the original selection"), "seeded from the selection when the card had no session yet")
+        XCTAssertTrue(firstPrompt.contains("No earlier steps"))
+        XCTAssertEqual(first.lastText, "A long first answer", "the <text> block is still the card's current text")
+        first.continuation?.yield("Friendly answer"); first.continuation?.finish()
+        _ = await controller.activeStreamingTask?.value
+        XCTAssertEqual(controller.cardConversation?.steps.map(\.instruction), ["make it sound friendly"])
+        XCTAssertEqual(controller.cardConversation?.steps.last?.result, "Friendly answer")
+
+        let second = HeldProvider()
+        AIServiceManager.shared.providerOverride = second
+        controller.runFollowUp("shorter")
+        await fulfillment(of: [second.started], timeout: 2)
+        let secondPrompt = second.lastPrompt ?? ""
+        XCTAssertTrue(secondPrompt.contains("Step 1 — the user asked: \"make it sound friendly\""), "the earlier instruction is in the history")
+        XCTAssertTrue(secondPrompt.contains("Result: the current text — it is the <text> block below."))
+        XCTAssertEqual(second.lastText, "Friendly answer")
+        second.continuation?.yield("Short"); second.continuation?.finish()
+        _ = await controller.activeStreamingTask?.value
+        XCTAssertEqual(controller.cardConversation?.steps.map(\.instruction), ["make it sound friendly", "shorter"])
+
+        controller.hide()
+        XCTAssertNil(controller.cardConversation, "the session ends with the card")
+    }
+
+    /// A card opened by a fresh run (a preset or the Ask AI ⏎ path) starts the history with that
+    /// run, so the first follow-up already knows what produced the text.
+    func testAFreshRunSeedsTheConversation() async {
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: pasteboard))
+        let panel = PopupPanel()
+        panel.setFrame(NSRect(x: 100, y: 100, width: 200, height: 50), display: false)
+        controller.panel = panel
+        controller.startTestSession(for: selection("teh text"))
+        defer { controller.hide() }
+        let provider = HeldProvider()
+        AIServiceManager.shared.providerOverride = provider
+        defer { AIServiceManager.shared.providerOverride = nil }
+
+        controller.runAIPreset(prompt: "Fix all spelling errors", title: "Proofread")
+        await fulfillment(of: [provider.started], timeout: 2)
+        XCTAssertFalse((provider.lastPrompt ?? "").contains("HISTORY"), "a first run carries no history")
+        provider.continuation?.yield("the text"); provider.continuation?.finish()
+        _ = await controller.activeStreamingTask?.value
+
+        XCTAssertEqual(controller.cardConversation?.original, "teh text")
+        XCTAssertEqual(controller.cardConversation?.steps.map(\.instruction), ["Fix all spelling errors"])
+        XCTAssertEqual(controller.cardConversation?.steps.first?.result, "the text")
     }
 
     func testEscapeMeaningDependsOnWhetherAFollowUpIsInFlight() {
