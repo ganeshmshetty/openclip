@@ -18,6 +18,9 @@
 // A follow-up field sits above Copy/Paste: an instruction typed there (⏎) runs AI on the card's
 // current text and re-streams the card in place — a second pass over the answer, or the first
 // pass for the ask card (`payload.awaitsInstruction`), which opens with the selection as the body.
+// The card never leaves the screen for it: while the follow-up is in flight the previous answer
+// stays visible (dimmed until the first chunk, `payload.isRefining`), the field shows a spinner
+// and "Refining…", and Esc cancels the refinement (`onCancelFollowUp`) instead of closing.
 // (`PopupResizeHandles`, reported the same way to PopupWindowController.handleResize); the size
 // they settle on is remembered and, passed back in as `maxSize`, caps the content-driven size
 // when the next card opens: a short answer still gets a small card, a long one grows up to the
@@ -76,6 +79,9 @@ public struct ResultCardView: View {
     /// Runs an instruction typed into the follow-up field on the card's current text (⏎). nil
     /// hides the field (a host without an AI flow).
     public let onFollowUp: (@MainActor (String) -> Void)?
+    /// Cancels a follow-up in flight (Esc while the card is refining), restoring the previous
+    /// answer. nil means Esc always dismisses.
+    public let onCancelFollowUp: (@MainActor () -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.popupEffectiveTheme) private var effectiveTheme
@@ -112,7 +118,8 @@ public struct ResultCardView: View {
         onDrag: @escaping @MainActor (ResultCardDragPhase) -> Void = { _ in },
         onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in },
         onPin: @escaping @MainActor () -> Void = {},
-        onFollowUp: (@MainActor (String) -> Void)? = nil
+        onFollowUp: (@MainActor (String) -> Void)? = nil,
+        onCancelFollowUp: (@MainActor () -> Void)? = nil
     ) {
         self.payload = payload
         self.canPaste = canPaste
@@ -127,6 +134,20 @@ public struct ResultCardView: View {
         self.onResize = onResize
         self.onPin = onPin
         self.onFollowUp = onFollowUp
+        self.onCancelFollowUp = onCancelFollowUp
+    }
+
+    /// Esc while a follow-up streams cancels it and keeps the card; otherwise it dismisses.
+    static func escapeCancelsFollowUp(isStreaming: Bool, canCancel: Bool) -> Bool {
+        isStreaming && canCancel
+    }
+
+    private func handleEscape() {
+        if Self.escapeCancelsFollowUp(isStreaming: payload.isStreaming, canCancel: onCancelFollowUp != nil) {
+            onCancelFollowUp?()
+        } else {
+            onDismiss()
+        }
     }
 
     /// The follow-up field shows whenever a host can run one and the card is not an error.
@@ -168,7 +189,7 @@ public struct ResultCardView: View {
             refreshDiff()
         }
         .onKeyPress(.escape) {
-            onDismiss()
+            handleEscape()
             return .handled
         }
         .onKeyPress(keys: ["d"], phases: .down) { press in
@@ -572,7 +593,7 @@ public struct ResultCardView: View {
             Text(diffAttributedText)
         } else {
             Text(payload.text)
-                .foregroundColor(payload.isError ? Color.red : (payload.awaitsInstruction ? Color.primary.opacity(0.62) : Color.primary))
+                .foregroundColor(payload.isError ? Color.red : ((payload.awaitsInstruction || payload.isRefining) ? Color.primary.opacity(0.55) : Color.primary))
         }
     }
 
@@ -624,13 +645,24 @@ public struct ResultCardView: View {
         let strokeColor = colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.10)
         let hasText = !followUp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return HStack(spacing: 7) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.accentColor)
+            if payload.isStreaming {
+                // A follow-up in flight: the spinner lives where the sparkles were, so the wait
+                // reads as part of the card rather than a new session.
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(0.6)
+                    .frame(width: 13, height: 13)
+            } else {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.accentColor)
+            }
             TextField(
-                payload.awaitsInstruction
-                    ? String(localized: "What should AI do with this text?")
-                    : String(localized: "Follow up…"),
+                payload.isStreaming
+                    ? String(localized: "Refining…")
+                    : (payload.awaitsInstruction
+                        ? String(localized: "What should AI do with this text?")
+                        : String(localized: "Follow up…")),
                 text: $followUp
             )
             .textFieldStyle(.plain)
@@ -639,7 +671,7 @@ public struct ResultCardView: View {
             .focused($isFollowUpFocused)
             .disabled(payload.isStreaming)
             .onKeyPress(.escape) {
-                onDismiss()
+                handleEscape()
                 return .handled
             }
             // ⏎ arrives as the field's submit (AppKit handles Return in an NSTextField before
@@ -678,12 +710,15 @@ public struct ResultCardView: View {
     /// ⇧) — unless the card is still waiting for its first instruction, when there is no result
     /// to consume. Text typed: a follow-up, once the current answer has settled.
     static func followUpReturn(text: String, awaitsInstruction: Bool, isStreaming: Bool, canPaste: Bool?, shift: Bool) -> FollowUpReturn {
+        // While a refinement streams the card is busy: ⏎ neither pastes a half-written answer
+        // nor queues another follow-up.
+        if isStreaming { return .nothing }
         let instruction = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if instruction.isEmpty {
             if awaitsInstruction { return .nothing }
             return (canPaste == false || shift) ? .copy : .paste
         }
-        return isStreaming ? .nothing : .followUp(instruction)
+        return .followUp(instruction)
     }
 
     private func handleFollowUpReturn(shift: Bool) {

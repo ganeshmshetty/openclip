@@ -77,6 +77,8 @@ public struct PopupView: View {
     /// Runs an instruction typed into the result card's follow-up field on the card's current
     /// text (the controller re-streams the card in place). nil hides the field.
     public let onFollowUp: (@MainActor (String) -> Void)?
+    /// Cancels a follow-up in flight (Esc while the card refines), keeping the previous answer.
+    public let onCancelFollowUp: (@MainActor () -> Void)?
     /// Returns the click intent captured at mouse-down for the current click, so the left-click
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
@@ -197,6 +199,7 @@ public struct PopupView: View {
         onRunAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
         onSaveAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
         onFollowUp: (@MainActor (String) -> Void)? = nil,
+        onCancelFollowUp: (@MainActor () -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary },
         onShowTooltip: (@MainActor (String, CGRect, String, Bool) -> Void)? = nil,
         onHideTooltip: (@MainActor () -> Void)? = nil
@@ -228,6 +231,7 @@ public struct PopupView: View {
         self.onRunAIPrompt = onRunAIPrompt
         self.onSaveAIPrompt = onSaveAIPrompt
         self.onFollowUp = onFollowUp
+        self.onCancelFollowUp = onCancelFollowUp
         self.onClickIntent = onClickIntent
         self.onShowTooltip = onShowTooltip
         self.onHideTooltip = onHideTooltip
@@ -405,7 +409,8 @@ public struct PopupView: View {
                 onDrag: { phase in onCardDrag?(phase) },
                 onResize: { edge, phase in onResize?(edge, phase) },
                 onPin: { onPinCard?() },
-                onFollowUp: onFollowUp.map { run in { instruction in run(instruction) } }
+                onFollowUp: onFollowUp.map { run in { instruction in run(instruction) } },
+                onCancelFollowUp: onCancelFollowUp
             )
             .environment(\.colorScheme, effectiveColorScheme)
             .environment(\.popupEffectiveTheme, effectiveTheme)
