@@ -7,6 +7,8 @@ driven by a small CGEvent script. AI responses are real.
 
 ## Videos
 
+Each recording also has a `.gif` twin (10 fps, 720 px) so it plays inline on GitHub; the `.mp4` is the full-quality version.
+
 | File | What it shows |
 | --- | --- |
 | `ask-and-refine.mp4` (36 s) | Select → **AI Tools** → **Ask…** (⌘1) → the ask card → type `make it sound friendly` → ⏎ → answer with the follow-up field → type `shorter` → ⏎ → refined answer with the diff against the previous answer → Esc. |
