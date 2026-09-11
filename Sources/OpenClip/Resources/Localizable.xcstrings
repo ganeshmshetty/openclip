@@ -309,6 +309,34 @@
         }
       }
     },
+    "AI is switched off in Preferences": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 已在“偏好设置”中关闭"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 已在「偏好設定」中關閉"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’IA est désactivée dans les Préférences"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "環境設定でAIがオフになっています"
+          }
+        }
+      }
+    },
     "AI request failed (HTTP %lld).": {
       "localizations": {
         "zh-Hans": {
@@ -1649,6 +1677,90 @@
           "stringUnit": {
             "state": "translated",
             "value": "アプリケーション"
+          }
+        }
+      }
+    },
+    "Ask AI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "询问 AI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "詢問 AI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demander à l’IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIに依頼"
+          }
+        }
+      }
+    },
+    "Ask AI to…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让 AI…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讓 AI…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demander à l’IA de…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIに依頼…"
+          }
+        }
+      }
+    },
+    "Ask AI: “%@”": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "询问 AI：“%@”"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "詢問 AI：「%@」"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demander à l’IA : « %@ »"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIに依頼: 「%@」"
           }
         }
       }
@@ -10025,6 +10137,34 @@
         }
       }
     },
+    "Saved as AI tool · Generating…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存为 AI 工具 · 正在生成…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已儲存為 AI 工具 · 正在產生…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistré comme outil d’IA · Génération…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIツールとして保存済み · 生成中…"
+          }
+        }
+      }
+    },
     "Search": {
       "localizations": {
         "zh-Hans": {
@@ -11733,6 +11873,34 @@
         }
       }
     },
+    "Type what AI should do with the selected text": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入希望 AI 对所选文本执行的操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輸入希望 AI 對所選文字執行的操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez ce que l’IA doit faire du texte sélectionné"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択したテキストに対してAIに何をさせるか入力してください"
+          }
+        }
+      }
+    },
     "URL Template": {
       "localizations": {
         "zh-Hans": {
@@ -12849,6 +13017,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "昨日"
+          }
+        }
+      }
+    },
+    "⏎ run · ⇧⏎ save as AI tool": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⏎ 运行 · ⇧⏎ 保存为 AI 工具"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⏎ 執行 · ⇧⏎ 儲存為 AI 工具"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⏎ exécuter · ⇧⏎ enregistrer comme outil d’IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⏎ 実行 · ⇧⏎ AIツールとして保存"
           }
         }
       }

@@ -457,5 +457,12 @@
   "Move Up": "Monter",
   "Move Down": "Descendre",
   "%@ download": "%@ téléchargement",
-  "%@ downloads": "%@ téléchargements"
+  "%@ downloads": "%@ téléchargements",
+  "Ask AI": "Demander à l’IA",
+  "Ask AI to…": "Demander à l’IA de…",
+  "Ask AI: “%@”": "Demander à l’IA : « %@ »",
+  "⏎ run · ⇧⏎ save as AI tool": "⏎ exécuter · ⇧⏎ enregistrer comme outil d’IA",
+  "Type what AI should do with the selected text": "Saisissez ce que l’IA doit faire du texte sélectionné",
+  "AI is switched off in Preferences": "L’IA est désactivée dans les Préférences",
+  "Saved as AI tool · Generating…": "Enregistré comme outil d’IA · Génération…"
 }

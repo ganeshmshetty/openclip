@@ -53,6 +53,7 @@ public enum ActionIdentity {
     public static func isEligibleForGrouping(_ action: any Action) -> Bool {
         !isAIPreset(action) &&
         !action.chrome.launchesAI &&
+        !action.chrome.composesPrompt &&
         action.id != "builtin.ai_tools" &&
         !isCompletionPseudoAction(action) &&
         action.id != "builtin.completion" &&
@@ -66,6 +67,7 @@ public enum ActionIdentity {
     /// are containers or non-palette rows.
     public static func isBindable(_ action: any Action) -> Bool {
         !action.chrome.launchesAI &&
+        !action.chrome.composesPrompt &&
         !isCompletionPseudoAction(action) &&
         action.chrome.popupBehavior != .showSubActions &&
         action.chrome.rowStyle != .actionGroup

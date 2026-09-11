@@ -2,6 +2,13 @@
 
 ---
 
+## Unreleased
+
+### Features & Improvements
+- **Ask AI button on the popup bar**: a new reorderable bar action turns the bar into a prompt composer — type what AI should do with the selection and press ⏎, pick one of your recent instructions (listed under the field, filtered as you type, ⌘1…⌘9), or press ⇧⏎ to keep an instruction as a permanent AI tool that then appears in the palette, the AI Tools bar and Preferences › AI › Actions.
+
+---
+
 ## v1.5.0 - 2026-09-10
 
 ### Highlights

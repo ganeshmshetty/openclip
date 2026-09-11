@@ -8,6 +8,7 @@
 // Reconciles the registered set whenever the preset list changes; the title snapshot on
 // `AIAction` is refreshed by re-registering on any content change, and a changed *order* is
 // re-registered from scratch so the catalog (palette, AI sub-bar) follows the user's ordering.
+// Also registers the Ask AI bar entry (`AskAIAction`), which opens the prompt composer.
 import Foundation
 import Core
 
@@ -34,6 +35,7 @@ public final class AIActionSync {
         }
         sync()
         coordinator.register(action: AIToolsAction())
+        coordinator.register(action: AskAIAction())
     }
 
     /// Reconciles the registered AI actions against the current preset list. Cheap when nothing

@@ -379,7 +379,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         let customGroupMemberToGroupID = customGroupMembership()
 
         return actions.filter { action in
-            if action.chrome.launchesAI || ActionIdentity.isCompletionPseudoAction(action) || action is GatedExtensionAction {
+            if action.chrome.launchesAI || action.chrome.composesPrompt || ActionIdentity.isCompletionPseudoAction(action) || action is GatedExtensionAction {
                 return false
             }
             if isDisabledInSettings(action, disabledIDs: disabledIDs, disabledPackages: disabledPackages) {

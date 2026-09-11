@@ -457,5 +457,12 @@
   "Move Up": "上に移動",
   "Move Down": "下に移動",
   "%@ download": "%@ ダウンロード",
-  "%@ downloads": "%@ ダウンロード"
+  "%@ downloads": "%@ ダウンロード",
+  "Ask AI": "AIに依頼",
+  "Ask AI to…": "AIに依頼…",
+  "Ask AI: “%@”": "AIに依頼: 「%@」",
+  "⏎ run · ⇧⏎ save as AI tool": "⏎ 実行 · ⇧⏎ AIツールとして保存",
+  "Type what AI should do with the selected text": "選択したテキストに対してAIに何をさせるか入力してください",
+  "AI is switched off in Preferences": "環境設定でAIがオフになっています",
+  "Saved as AI tool · Generating…": "AIツールとして保存済み · 生成中…"
 }

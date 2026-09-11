@@ -293,6 +293,23 @@ in `modeStore.scope`:
   reads **"Search within <parent.title>"**. Esc (`onExitScope`) drops the scope; the leading icon and
   placeholder come from `actionIcon(parent)/parent.displayTitle`.
 
+### Ask AI Composer
+
+The **Ask AI** bar entry (`AskAIAction`, `builtin.askAI`, chrome `composesPrompt`) is the third
+kind of scoped palette: the bar click goes through the same `enterScopedSearch(for:)` →
+`enterSearch(with: SearchScope(parent:children:))` path with no children, and `PopupView.searchCard`
+renders `PromptComposerView` (`Sources/OpenClip/UI/Popup/PromptComposerView.swift`) instead of
+`PopupSearchView` whenever the scope's parent composes prompts. The composer is one field ("Ask AI
+to…") over the user's recent instructions (`AIPromptHistory`, `SettingKey.recentAIPrompts`, MRU,
+capped at 8, filtered as they type; `PromptComposerModel.rows` is the pure rule). ⏎ / click /
+⌘1…⌘9 run a row through `onRunAIPrompt` → `PopupWindowController.runAIPrompt` (records the
+prompt, then `runAIPreset` with the instruction as the card title); ⇧⏎ saves the highlighted
+instruction as a custom preset and runs it (`saveAndRunAIPrompt`, toast "Saved as AI tool ·
+Generating…", the prompt leaves the recents). Key mode, field focus (`focusSearchField` finds
+the composer's field), placement and Esc are the palette's. `composesPrompt` actions are excluded
+from `searchCatalog`, grouping and hotkey binding — the entry is a surface, not a leaf.
+`PromptComposerTests` pins the rows, the history and the key paths.
+
 ### Key-Mode Exceptions
 
 Search and content (AI-card) modes both make the panel key — the only two exceptions to the
