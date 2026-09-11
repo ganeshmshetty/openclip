@@ -67,6 +67,18 @@ public struct PopupView: View {
     public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
     /// Called when an AI preset action is run: the controller closes the popup and runs via the loading toast flow.
     public let onRunAI: (@MainActor (String) -> Void)?
+    /// Runs a palette instruction (the "Ask AI" row or a recent prompt) on the selection:
+    /// `(instruction, replace)` — paste the answer over the selection, or show the result card.
+    /// nil falls back to the view's own card flow (preview/static hosts).
+    public let onRunAIPrompt: (@MainActor (String, Bool) -> Void)?
+    /// Saves the palette's typed query as a reusable AI tool and runs it (the "Save as AI tool"
+    /// row), same flag. nil falls back to the view's own flow.
+    public let onSaveAIPrompt: (@MainActor (String, Bool) -> Void)?
+    /// Runs an instruction typed into the result card's follow-up field on the card's current
+    /// text (the controller re-streams the card in place). nil hides the field.
+    public let onFollowUp: (@MainActor (String) -> Void)?
+    /// Cancels a follow-up in flight (Esc while the card refines), keeping the previous answer.
+    public let onCancelFollowUp: (@MainActor () -> Void)?
     /// Returns the click intent captured at mouse-down for the current click, so the left-click
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
@@ -182,6 +194,10 @@ public struct PopupView: View {
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
         onRunAI: (@MainActor (String) -> Void)? = nil,
+        onRunAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
+        onSaveAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
+        onFollowUp: (@MainActor (String) -> Void)? = nil,
+        onCancelFollowUp: (@MainActor () -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary },
         onShowTooltip: (@MainActor (String, CGRect, String, Bool) -> Void)? = nil,
         onHideTooltip: (@MainActor () -> Void)? = nil
@@ -210,6 +226,10 @@ public struct PopupView: View {
         self.onWillPerformAction = onWillPerformAction
         self.onRunLoadingAction = onRunLoadingAction
         self.onRunAI = onRunAI
+        self.onRunAIPrompt = onRunAIPrompt
+        self.onSaveAIPrompt = onSaveAIPrompt
+        self.onFollowUp = onFollowUp
+        self.onCancelFollowUp = onCancelFollowUp
         self.onClickIntent = onClickIntent
         self.onShowTooltip = onShowTooltip
         self.onHideTooltip = onHideTooltip
@@ -386,7 +406,9 @@ public struct PopupView: View {
                 onCopy: { onCardEffect(.copy(payload.text)) },
                 onDrag: { phase in onCardDrag?(phase) },
                 onResize: { edge, phase in onResize?(edge, phase) },
-                onPin: { onPinCard?() }
+                onPin: { onPinCard?() },
+                onFollowUp: onFollowUp.map { run in { instruction in run(instruction) } },
+                onCancelFollowUp: onCancelFollowUp
             )
             .environment(\.colorScheme, effectiveColorScheme)
             .environment(\.popupEffectiveTheme, effectiveTheme)
@@ -510,6 +532,34 @@ public struct PopupView: View {
                     runAIPreset(prompt: aiManager.promptForPreset(preset), title: preset.title)
                 }
             },
+            onRunAIPrompt: { instruction, replace in
+                if let onRunAIPrompt {
+                    // Same contract as onRunAI: the controller's flow snapshots the selection and
+                    // dismisses the popup itself, so the palette must not exit first.
+                    onRunAIPrompt(instruction, replace)
+                } else {
+                    // Preview/static fallback: no in-place delivery here, always the card.
+                    onExitSearch()
+                    runAIPreset(prompt: PaletteAIPrompt.askAITaskPrompt(for: instruction), title: PaletteAIPrompt.toolTitle(for: instruction))
+                }
+            },
+            onSaveAIPrompt: { instruction, replace in
+                if let onSaveAIPrompt {
+                    onSaveAIPrompt(instruction, replace)
+                } else {
+                    onExitSearch()
+                    var preset = aiManager.preset(matchingPrompt: instruction)
+                        ?? aiManager.addCustomPreset(title: PaletteAIPrompt.toolTitle(for: instruction), prompt: instruction)
+                    runAIPreset(
+                        prompt: PaletteAIPrompt.saveToolTaskPrompt(for: instruction),
+                        title: preset.title,
+                        onGeneratedTitle: { cleanTitle in
+                            preset.title = cleanTitle
+                            aiManager.updatePreset(preset)
+                        }
+                    )
+                }
+            },
             onActionPerformed: onActionPerformed,
             onWillPerformAction: onWillPerformAction,
             onRunLoadingAction: onRunLoadingAction,
@@ -528,7 +578,7 @@ public struct PopupView: View {
 
     // MARK: - AI Helpers
 
-    private func runAIPreset(prompt: String, title: String) {
+    private func runAIPreset(prompt: String, title: String, onGeneratedTitle: ((String) -> Void)? = nil) {
         cancelAITask()
 
         let selectionText = context.selection.text
@@ -559,25 +609,34 @@ public struct PopupView: View {
 
                 var accumulated = ""
                 var hasYielded = false
+                var activeTitle = title
 
                 for try await chunk in provider.processStream(prompt: prompt, text: selectionText) {
                     guard !Task.isCancelled else { return }
                     accumulated += chunk
+                    if let generated = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !generated.isEmpty {
+                        activeTitle = generated
+                        onGeneratedTitle?(generated)
+                    }
                     let cleaned = AIRequestSupport.extractResultText(accumulated)
                     if !cleaned.isEmpty {
                         hasYielded = true
-                        onAIResult?(cleaned, false, title, true)
+                        onAIResult?(cleaned, false, activeTitle, true)
                     }
                 }
 
                 guard !Task.isCancelled else { return }
+                if let generated = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !generated.isEmpty {
+                    activeTitle = generated
+                    onGeneratedTitle?(generated)
+                }
                 let finalResponse = AIRequestSupport.extractResultText(accumulated)
                 if finalResponse.isEmpty {
                     if !hasYielded {
                         throw AIError.invalidResponse
                     }
                 } else {
-                    onAIResult?(finalResponse, false, title, false)
+                    onAIResult?(finalResponse, false, activeTitle, false)
                 }
             } catch is CancellationError {
                 // no-op

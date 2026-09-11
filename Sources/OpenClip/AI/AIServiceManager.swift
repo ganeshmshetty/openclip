@@ -136,6 +136,48 @@ public final class AIServiceManager: ObservableObject {
         return list
     }
 
+    /// Builds a user-authored preset with a fresh `custom_` id — the same shape the "Add Custom AI
+    /// Action" sheet writes, so it is deletable in AI → Actions like any other custom preset.
+    /// Pure, so the id/title/prompt rules are testable without the `@AppStorage` singleton.
+    public static func makeCustomPreset(title: String, prompt: String) -> AIActionPreset {
+        AIActionPreset(
+            id: "custom_\(UUID().uuidString.prefix(8))",
+            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            prompt: prompt.trimmingCharacters(in: .whitespacesAndNewlines),
+            isEnabled: true
+        )
+    }
+
+    /// Appends a new custom preset and returns it. The preset list is the single source of truth
+    /// for every AI surface (palette, AI sub-bar, Preferences), so persisting it is the whole
+    /// registration — `AIActionSync` picks the change up through `aiActionPresetsDidChange`.
+    @discardableResult
+    public func addCustomPreset(title: String, prompt: String) -> AIActionPreset {
+        let preset = Self.makeCustomPreset(title: title, prompt: prompt)
+        updatePreset(preset)
+        return preset
+    }
+
+    /// The preset whose prompt is `prompt` (case- and whitespace-insensitive), if one exists — so
+    /// saving a prompt the user already saved reuses that tool instead of minting a duplicate.
+    public func preset(matchingPrompt prompt: String) -> AIActionPreset? {
+        Self.preset(in: presets, matchingPrompt: prompt)
+    }
+
+    /// Pure lookup behind `preset(matchingPrompt:)`.
+    public static func preset(in presets: [AIActionPreset], matchingPrompt prompt: String) -> AIActionPreset? {
+        let wanted = normalizedPrompt(prompt)
+        guard !wanted.isEmpty else { return nil }
+        return presets.first { normalizedPrompt($0.prompt) == wanted }
+    }
+
+    private static func normalizedPrompt(_ prompt: String) -> String {
+        prompt
+            .split(whereSeparator: { $0.isWhitespace || $0.isNewline })
+            .joined(separator: " ")
+            .lowercased()
+    }
+
     public func updatePreset(_ updated: AIActionPreset) {
         var current = presets
         if let idx = current.firstIndex(where: { $0.id == updated.id }) {

@@ -81,8 +81,12 @@ enum PopupThemeModel {
 
 // MARK: - Effective Theme Environment Key
 
+/// Empty by default — "not set" — so a view hosted outside `PopupView` (previews, tests) falls
+/// back to the shared `.primary`/`.secondary` tokens and stays readable under either color
+/// scheme. A "dark" default painted white text onto a light card whenever the host forced a
+/// light scheme without also setting this key. `PopupView` always sets it explicitly.
 struct PopupEffectiveThemeKey: EnvironmentKey {
-    static let defaultValue = "dark"
+    static let defaultValue = ""
 }
 
 public extension EnvironmentValues {

@@ -2,6 +2,14 @@
 
 ---
 
+## Unreleased
+
+### Features & Improvements
+- **Ask AI from the search palette**: a palette query that matches no action now offers **Ask AI: “…”** and **Save as AI tool** instead of the "No matches" dead end. ⏎ (or ⌘1/⌘2) shows the answer in the result card with a diff; ⇧⏎ **replaces the selection in place** the moment the answer lands (copied instead when the app can't paste). Ask AI generates a concise task title (`<title>`) instead of showing the full prompt. **Save as AI tool** generates a clean reusable action name (`<tool_name>`) and saves it as a custom AI action — searchable in the palette, in the AI Tools bar and editable under Preferences › AI › Actions.
+- **Refine AI answers in the result card**: the card features an inline follow-up field on the left of Copy and Paste. The card dynamically expands its width to fit both the field and the action buttons up to a maximum limit. When typing a follow-up, Copy and Paste smoothly collapse and the input field expands to the right with an up-arrow send button. ⏎ (or clicking the up arrow) runs AI on the current answer. The card stays put while it refines: the previous answer stays visible under a spinner in the field, the new answer streams into the same card and settles with a diff comparing the original selection with the latest answer, and Esc cancels refinement or clears input. Each follow-up carries session history as context so the model keeps intent, tone, and language consistent.
+
+---
+
 ## v1.5.0 - 2026-09-10
 
 ### Highlights

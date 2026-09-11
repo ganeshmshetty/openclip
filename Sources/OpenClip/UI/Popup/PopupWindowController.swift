@@ -360,6 +360,18 @@ public class PopupWindowController {
                 let prompt = AIServiceManager.shared.promptForPreset(preset)
                 self.runAIPreset(prompt: prompt, title: preset.title)
             },
+            onRunAIPrompt: { [weak self] instruction, replace in
+                self?.runAIPrompt(instruction, replace: replace)
+            },
+            onSaveAIPrompt: { [weak self] instruction, replace in
+                self?.saveAndRunAIPrompt(instruction, replace: replace)
+            },
+            onFollowUp: { [weak self] instruction in
+                self?.runFollowUp(instruction)
+            },
+            onCancelFollowUp: { [weak self] in
+                self?.cancelFollowUp()
+            },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary },
             onShowTooltip: { [weak self] text, localFrame, theme, isDark in
                 self?.presentTooltip(text: text, localFrame: localFrame, effectiveTheme: theme, isDark: isDark)
@@ -639,6 +651,14 @@ public class PopupWindowController {
             isStreaming: isStreaming,
             original: currentActionContext?.selection.text
         )
+        if !isStreaming {
+            // A settled card hands the keyboard to its instruction field so the next refinement
+            // is just typing.
+            Task { @MainActor in
+                await Task.yield()
+                self.focusCardField()
+            }
+        }
         if modeStore.mode != .content {
             hasUserMovedCard = false
             PaletteRowShortcuts.setActive(false)
@@ -886,6 +906,14 @@ public class PopupWindowController {
     /// Collapses the result card back to the actions bar. Never hides the popup.
     public func exitContent() {
         guard modeStore.mode == .content else { return }
+        if refiningPrevious != nil {
+            // Leaving the card drops a follow-up in flight; the stream must not re-open it.
+            activeStreamingTask?.cancel()
+            activeStreamingTask = nil
+            refiningPrevious = nil
+            modeStore.isProcessingAI = false
+        }
+        cardConversation = nil
         modeStore.resultCard = nil
         modeStore.resultCardSize = nil
         modeStore.isSurfaceUserSized = false
@@ -978,6 +1006,8 @@ public class PopupWindowController {
         InlineResultEvaluator.shared.cancelSession(aiSessionID)
         InlineResultEvaluator.shared.clearPrewarmed()
         aiSessionID = UUID()
+        refiningPrevious = nil
+        cardConversation = nil
 
         if toastController.currentFeedback?.keepVisible == true || toastController.isLoading {
             toastController.hide()
@@ -1552,7 +1582,314 @@ public class PopupWindowController {
         modeStore.subBarAbove = actuallyAbove
     }
 
-    func runAIPreset(prompt: String, title: String) {
+    /// The frontmost app at the moment an in-place answer lands — pasting is only safe into the
+    /// app the selection came from. Settable for tests.
+    var frontmostBundleIDProvider: @MainActor () -> String? = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+
+    /// Runs a palette instruction (the Ask AI row) on the selection. `replace` pastes the answer over the selection (⏎); otherwise
+    /// the answer streams into the result card (⇧⏎), titled after the instruction.
+    func runAIPrompt(_ instruction: String, replace: Bool) {
+        let prompt = PaletteAIPrompt.instruction(from: instruction)
+        guard !prompt.isEmpty else { return }
+        let taskPrompt = PaletteAIPrompt.askAITaskPrompt(for: prompt)
+        if replace {
+            Log.ai.notice("Running a palette AI prompt, replacing the selection")
+            runAIPromptReplacing(prompt: taskPrompt)
+        } else {
+            Log.ai.notice("Running a palette AI prompt into the result card")
+            runAIPreset(prompt: taskPrompt, title: PaletteAIPrompt.toolTitle(for: prompt))
+        }
+    }
+
+    /// Saves a palette instruction as a custom AI tool, then runs it with the same ⏎/⇧⏎ meaning
+    /// as `runAIPrompt`. The tool is a regular custom preset: searchable in the palette, listed
+    /// in the AI sub-bar and in Preferences → AI → Actions where it can be renamed, re-prompted or
+    /// deleted. A prompt that is already saved reuses its tool rather than minting a duplicate.
+    /// The saved tool is recorded as used so it ranks first among equals the next time it is searched.
+    func saveAndRunAIPrompt(_ instruction: String, replace: Bool) {
+        let prompt = PaletteAIPrompt.instruction(from: instruction)
+        guard !prompt.isEmpty else { return }
+        let manager = AIServiceManager.shared
+        let existing = manager.preset(matchingPrompt: prompt)
+        var preset = existing ?? manager.addCustomPreset(title: PaletteAIPrompt.toolTitle(for: prompt), prompt: prompt)
+        usageStore.record(AIAction(presetID: preset.id, title: preset.title).id)
+        if existing == nil {
+            Log.ai.notice("Saved a palette prompt as AI tool \(preset.id, privacy: .public)")
+        }
+
+        let taskPrompt = PaletteAIPrompt.saveToolTaskPrompt(for: prompt)
+        let onTitle: (String) -> Void = { cleanTitle in
+            let trimmed = cleanTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, trimmed != preset.title else { return }
+            preset.title = trimmed
+            manager.updatePreset(preset)
+        }
+
+        if replace {
+            runAIPromptReplacing(
+                prompt: taskPrompt,
+                loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Replacing…") : nil,
+                onGeneratedTitle: onTitle
+            )
+        } else {
+            runAIPreset(
+                prompt: taskPrompt,
+                title: preset.title,
+                loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Generating…") : nil,
+                onGeneratedTitle: onTitle
+            )
+        }
+    }
+
+    /// Runs `prompt` on the selection and pastes the answer over it — no card. The popup hides,
+    /// a cancellable "Replacing…" toast waits for the whole answer, and the answer goes through
+    /// the explicit paste door (`handleActionResult(.paste)`, no delivery re-decision) under a
+    /// success toast. The answer is copied instead when the unified paste availability says the
+    /// target can't paste, or when the frontmost app is no longer the selection's app.
+    func runAIPromptReplacing(prompt: String, loadingMessage: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
+        guard let context = currentActionContext else {
+            Log.ai.error("Cannot replace with AI: currentActionContext is nil")
+            return
+        }
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+
+        let selection = context.selection
+        let anchorFrame = panel?.frame ?? lastPopupFrame
+        let targetCanPaste = PasteAvailability.effective(policy: selection.appPolicy, probe: modeStore.canPaste)
+        let sourceBundleID = selection.sourceApp.bundleIdentifier
+
+        hide()
+        let session = aiSessionID
+        toastController.showLoading(message: loadingMessage ?? String(localized: "Replacing…"), anchorFrame: anchorFrame) { [weak self] in
+            self?.cancelActiveTasks()
+        }
+
+        let task = Task { @MainActor in
+            self.modeStore.isProcessingAI = true
+            defer {
+                if !Task.isCancelled {
+                    self.activeStreamingTask = nil
+                    self.modeStore.isProcessingAI = false
+                }
+            }
+            do {
+                let provider = AIServiceManager.shared.currentProvider
+                var accumulated = ""
+                for try await chunk in provider.processStream(prompt: prompt, text: selection.text) {
+                    guard !Task.isCancelled, session == self.aiSessionID else {
+                        self.toastController.hide()
+                        return
+                    }
+                    accumulated += chunk
+                    if let generated = AIRequestSupport.extractToolNameText(accumulated) ?? AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
+                        onGeneratedTitle?(generated)
+                    }
+                }
+                guard !Task.isCancelled, session == self.aiSessionID else {
+                    self.toastController.hide()
+                    return
+                }
+                if let generated = AIRequestSupport.extractToolNameText(accumulated) ?? AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
+                    onGeneratedTitle?(generated)
+                }
+                let answer = AIRequestSupport.extractResultText(accumulated)
+                guard !answer.isEmpty else { throw AIError.invalidResponse }
+                if provider.type == .browser {
+                    // The browser provider opened the query in a tab; there is nothing to paste.
+                    self.toastController.hide()
+                    return
+                }
+                let stillInSourceApp = sourceBundleID == nil || self.frontmostBundleIDProvider() == sourceBundleID
+                let pastes = targetCanPaste != false && stillInSourceApp
+                self.handleActionResult(pastes ? .paste(answer) : .copy(answer), delivery: nil, suppressDeliveryToast: true)
+                let message = pastes
+                    ? String(localized: "Replaced with AI result")
+                    : (stillInSourceApp ? String(localized: "Copied AI result") : String(localized: "Copied — the app changed"))
+                self.toastController.show(StatusFeedback(message: message, style: .success, symbolName: "sparkles"), anchorFrame: anchorFrame)
+            } catch is CancellationError {
+                self.toastController.hide()
+            } catch let error as AIError where error == .cancelled {
+                self.toastController.hide()
+            } catch {
+                guard !Task.isCancelled, session == self.aiSessionID else {
+                    self.toastController.hide()
+                    return
+                }
+                Log.ai.error("Replacing with AI failed: \(error.localizedDescription)")
+                self.toastController.show(StatusFeedback(error: error), anchorFrame: anchorFrame)
+            }
+        }
+        activeStreamingTask = task
+    }
+
+    /// Runs an instruction typed into the card's follow-up field on the card's current text: a
+    /// second pass over an answer ("shorter", "in Slovak"). The card re-streams in place, titled
+    /// after the instruction, and diffs against the text the instruction ran on.
+    func runFollowUp(_ instruction: String) {
+        guard let card = modeStore.resultCard, !card.isStreaming, !card.isError, currentActionContext != nil else { return }
+        let prompt = PaletteAIPrompt.instruction(from: instruction)
+        guard !prompt.isEmpty else { return }
+        Log.ai.notice("Running a follow-up instruction in the result card")
+        refineCard(card, prompt: prompt, title: PaletteAIPrompt.toolTitle(for: prompt))
+    }
+
+    /// The card a follow-up is refining, kept so a cancel or a failure puts it back. Non-nil
+    /// exactly while a follow-up is in flight.
+    private var refiningPrevious: ResultCardPayload?
+
+    /// What the card has done in this session — the selection and each instruction with its
+    /// result — handed to follow-ups as labelled history. Seeded by the run that opened the card,
+    /// extended by every settled follow-up, cleared when the card goes away. Internal for tests.
+    private(set) var cardConversation: AIConversation?
+
+    /// Runs a follow-up *inside* the card. Unlike a preset run, nothing hides and no loading
+    /// toast shows: the card stays on screen with the previous answer dimmed under the field's
+    /// spinner (`isRefining`) until the first chunk, then streams the new answer in place and
+    /// settles with the diff against the original selection. Esc cancels, a failure restores the
+    /// previous answer under an error toast, and leaving content mode drops the stream.
+    private func refineCard(_ previous: ResultCardPayload, prompt: String, title: String) {
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+        let session = aiSessionID
+        let sourceText = previous.text
+        // The history rides along as labelled context; the current instruction stays the task.
+        let conversation = cardConversation
+            ?? AIConversation(original: currentActionContext?.selection.text ?? sourceText, steps: [])
+        let followUpTask = conversation.followUpTask(current: prompt)
+        refiningPrevious = previous
+        modeStore.isProcessingAI = true
+        freezeCardSizeForRefinement()
+        modeStore.resultCard = ResultCardPayload(
+            text: sourceText,
+            isError: false,
+            title: title,
+            icon: nil,
+            isStreaming: true,
+            original: currentActionContext?.selection.text,
+            isRefining: true
+        )
+
+        let task = Task { @MainActor in
+            defer {
+                if !Task.isCancelled {
+                    self.activeStreamingTask = nil
+                    self.modeStore.isProcessingAI = false
+                }
+            }
+            // The card is the only place this run renders: once the user has left content mode
+            // (back chevron) or the session ended, every later chunk is dropped.
+            @MainActor func stillRefining() -> Bool {
+                if Task.isCancelled { return false }
+                if session != self.aiSessionID { return false }
+                if self.modeStore.mode != .content { return false }
+                return self.refiningPrevious != nil
+            }
+            do {
+                let provider = AIServiceManager.shared.currentProvider
+                if provider.type == .browser {
+                    _ = try await provider.process(prompt: followUpTask, text: sourceText)
+                    guard stillRefining() else { return }
+                    self.restoreRefiningCard()
+                    return
+                }
+                var accumulated = ""
+                var activeTitle = title
+                for try await chunk in provider.processStream(prompt: followUpTask, text: sourceText) {
+                    guard stillRefining() else { return }
+                    accumulated += chunk
+                    if let newTitle = AIRequestSupport.extractTitleText(accumulated), !newTitle.isEmpty {
+                        activeTitle = newTitle
+                    }
+                    let cleaned = AIRequestSupport.extractResultText(accumulated)
+                    if !cleaned.isEmpty {
+                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session)
+                    }
+                }
+                guard stillRefining() else { return }
+                if let newTitle = AIRequestSupport.extractTitleText(accumulated), !newTitle.isEmpty {
+                    activeTitle = newTitle
+                }
+                let finalResponse = AIRequestSupport.extractResultText(accumulated)
+                if finalResponse.isEmpty {
+                    self.restoreRefiningCard()
+                    self.toastController.show(StatusFeedback(message: String(localized: "No response generated"), style: .error), anchorFrame: self.panel?.frame)
+                } else {
+                    self.refiningPrevious = nil
+                    self.cardConversation = conversation.appending(instruction: prompt, result: finalResponse)
+                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session)
+                }
+            } catch is CancellationError {
+                // cancelFollowUp / hide already put the card back or took it down.
+            } catch let error as AIError where error == .cancelled {
+                // same
+            } catch {
+                guard stillRefining() else { return }
+                Log.ai.error("Follow-up failed in the result card: \(error.localizedDescription)")
+                self.restoreRefiningCard()
+                self.toastController.show(StatusFeedback(error: error), anchorFrame: self.panel?.frame)
+            }
+        }
+        activeStreamingTask = task
+    }
+
+    /// Pins the card to the exact size it has right now for the rest of its life on screen. The
+    /// card is content-sized — as wide as its longest line, as tall as the wrapped text — so a
+    /// refinement streaming in would otherwise re-measure it on every chunk and make the card
+    /// jump around under the user's eyes. The frozen size takes the same path as a hand-resized
+    /// card (`isSurfaceUserSized` + `resultCardSize`): the body scrolls if the new answer needs
+    /// more room, the user can still drag the handles, and nothing is persisted. A card the user
+    /// already resized is left alone; a test panel too small to be a card is ignored.
+    private func freezeCardSizeForRefinement() {
+        guard !modeStore.isSurfaceUserSized, let panel else { return }
+        let frozen = Self.cardSize(forPanelSize: panel.frame.size)
+        guard frozen.width >= PopupMetrics.aiCardMinWidth, frozen.height >= PopupMetrics.aiCardMinHeight else { return }
+        modeStore.resultCardSize = frozen
+        modeStore.isSurfaceUserSized = true
+    }
+
+    /// The card's size inside a panel frame: the panel minus the transparent shadow ring.
+    static func cardSize(forPanelSize size: CGSize) -> CGSize {
+        CGSize(width: size.width - 2 * PopupMetrics.popupShadowInset, height: size.height - 2 * PopupMetrics.popupShadowInset)
+    }
+
+    /// Puts the answer the follow-up was refining back, settled, with the field focused again.
+    private func restoreRefiningCard() {
+        guard let previous = refiningPrevious else { return }
+        refiningPrevious = nil
+        modeStore.isProcessingAI = false
+        showResultCard(text: previous.text, isError: previous.isError, title: previous.title, icon: previous.icon, isStreaming: false, session: aiSessionID)
+    }
+
+    /// Esc while a follow-up streams: stop it and keep the previous answer on screen.
+    func cancelFollowUp() {
+        guard refiningPrevious != nil else { return }
+        Log.ai.info("Follow-up cancelled in the result card")
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+        restoreRefiningCard()
+    }
+
+    /// Focuses the card's instruction field on the next run-loop turn (a `@FocusState` request
+    /// during the mode-change render is dropped on macOS, same as the search field). The card's
+    /// selectable body is an AppKit text view too; only the instruction field is editable.
+    private func focusCardField() {
+        guard let panel, panel.isVisible, modeStore.mode == .content else { return }
+        guard let field = Self.findEditableTextField(in: panel.contentView) else { return }
+        panel.makeFirstResponder(field)
+    }
+
+    /// The first editable text field in a view tree (the result card's follow-up field), or nil.
+    static func findEditableTextField(in view: NSView?) -> NSTextField? {
+        guard let view else { return nil }
+        if let field = view as? NSTextField, field.isEditable { return field }
+        for subview in view.subviews {
+            if let found = findEditableTextField(in: subview) { return found }
+        }
+        return nil
+    }
+
+    func runAIPreset(prompt: String, title: String, loadingMessage: String? = nil, inputText: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
         guard let context = currentActionContext else {
             Log.ai.error("Cannot run AI preset: currentActionContext is nil")
             return
@@ -1561,14 +1898,14 @@ public class PopupWindowController {
         activeStreamingTask = nil
 
         let selection = context.selection
-        let selectionText = selection.text
+        let selectionText = inputText ?? selection.text
         let anchorFrame = panel?.frame ?? lastPopupFrame
         let targetCanPaste = PasteAvailability.effective(policy: selection.appPolicy, probe: modeStore.canPaste)
 
         hide()
         let session = aiSessionID
 
-        toastController.showLoading(message: String(localized: "Generating…"), anchorFrame: anchorFrame) { [weak self] in
+        toastController.showLoading(message: loadingMessage ?? String(localized: "Generating…"), anchorFrame: anchorFrame) { [weak self] in
             self?.cancelActiveTasks()
         }
 
@@ -1582,6 +1919,7 @@ public class PopupWindowController {
             }
 
             var hasYielded = false
+            var activeTitle = title
 
             do {
                 let provider = AIServiceManager.shared.currentProvider
@@ -1604,6 +1942,10 @@ public class PopupWindowController {
                         return
                     }
                     accumulated += chunk
+                    if let newTitle = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !newTitle.isEmpty {
+                        activeTitle = newTitle
+                        onGeneratedTitle?(newTitle)
+                    }
                     let cleaned = AIRequestSupport.extractResultText(accumulated)
                     if !cleaned.isEmpty {
                         if !hasYielded {
@@ -1613,7 +1955,7 @@ public class PopupWindowController {
                             guard !Task.isCancelled, session == self.aiSessionID else { return }
                             self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
                         }
-                        self.showResultCard(text: cleaned, isError: false, title: title, isStreaming: true, session: session)
+                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session)
                     }
                 }
 
@@ -1622,13 +1964,17 @@ public class PopupWindowController {
                     return
                 }
                 self.toastController.hide()
+                if let newTitle = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !newTitle.isEmpty {
+                    activeTitle = newTitle
+                    onGeneratedTitle?(newTitle)
+                }
                 let finalResponse = AIRequestSupport.extractResultText(accumulated)
                 if finalResponse.isEmpty {
                     if !hasYielded {
                         let canPaste = targetCanPaste
                         guard !Task.isCancelled, session == self.aiSessionID else { return }
                         self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
-                        self.showResultCard(text: "No response generated", isError: true, title: title, isStreaming: false, session: session)
+                        self.showResultCard(text: "No response generated", isError: true, title: activeTitle, isStreaming: false, session: session)
                     }
                 } else {
                     if !hasYielded {
@@ -1636,7 +1982,12 @@ public class PopupWindowController {
                         guard !Task.isCancelled, session == self.aiSessionID else { return }
                         self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
                     }
-                    self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
+                    // A fresh run on the selection starts the card's session history; follow-ups
+                    // (refineCard) extend it.
+                    if inputText == nil {
+                        self.cardConversation = AIConversation(original: selectionText, steps: [.init(instruction: prompt, result: finalResponse)])
+                    }
+                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session)
                 }
             } catch is CancellationError {
                 Log.ai.info("AI streaming cancelled")

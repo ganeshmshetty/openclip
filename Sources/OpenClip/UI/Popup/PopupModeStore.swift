@@ -77,14 +77,18 @@ public struct ResultCardPayload: Sendable, Equatable {
     public let icon: ActionIcon?
     public let isStreaming: Bool
     public let original: String?
+    /// True while a follow-up is in flight and no chunk has arrived yet: `text` is still the
+    /// previous answer, shown dimmed under the field's spinner so the card never goes blank.
+    public let isRefining: Bool
 
-    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil) {
+    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false) {
         self.text = text
         self.isError = isError
         self.title = title
         self.icon = icon
         self.isStreaming = isStreaming
         self.original = original
+        self.isRefining = isRefining
     }
 }
 

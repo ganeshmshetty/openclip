@@ -164,6 +164,34 @@ that replaced the former interactive canvas.
   itself. `prepareForUserDrag` sets `horizontalAnchor = .none`, so a later width change (the diff
   toggle resizes the card) keeps the user's placement instead of re-centering, and raises
   `isUserDragging`, which stops `updatePopupHover` from toggling `ignoresMouseEvents` mid-drag.
+- **Follow-up field**: above Copy/Paste the card carries an instruction field
+  (`ResultCardView.followUpField`, shown whenever the host passes `onFollowUp` and the card is not
+  an error). ⏎ with text runs `PopupWindowController.runFollowUp` → `refineCard`, which refines
+  the card **in place**: nothing hides and no loading toast shows — the previous answer stays on
+  screen dimmed under the field's spinner (`ResultCardPayload.isRefining`, field placeholder
+  "Refining…", the field keeps focus so Esc still reaches it, Copy/Paste hidden — space kept — until the answer settles) until the first chunk, the new answer then streams into the same
+  card through `showResultCard`, and it settles titled after the instruction with `original` = the
+  **original selection** — always, however many follow-ups came before — so the diff shows the
+  net change from what the user selected to the latest answer. The card's exact size is frozen for the
+  refinement (`freezeCardSizeForRefinement`: the panel minus the shadow ring becomes
+  `resultCardSize` with `isSurfaceUserSized`, the hand-resize path, so chunks never re-measure
+  the card; a user-resized card is left alone). Follow-ups carry the session as **context**: `cardConversation`
+  (`AIConversation`, seeded by the run that opened the card — original selection + instruction +
+  result — and extended by every settled follow-up) renders `followUpTask(current:)`, which
+  states the current instruction first and then a labelled "HISTORY — context only" block
+  (already applied, not to be redone; original selection and earlier results quoted; the last
+  result identified as the `<text>` block), capped at 5 steps / 1500 characters per text for
+  small context windows. That composite is the provider's task; the `<text>` block stays the
+  card's current text. `refiningPrevious`
+  holds the card being refined: Esc (`cancelFollowUp`, via `onCancelFollowUp` —
+  `ResultCardView.escapeCancelsFollowUp` decides Esc's meaning) and a failure put it back settled
+  (an error shows as a toast, not an error card); leaving content mode (`exitContent`) drops the
+  stream so a late chunk can never re-open the card. `FollowUpInCardTests` pins it. ⏎ on an empty field keeps its old meaning
+  (paste / copy). AppKit handles Return in an `NSTextField` before SwiftUI's key-press path, and
+  the field's focus is set by the controller (`focusCardField`, editable-field lookup so the
+  selectable body is never focused) rather than through `FocusState`, so both the field's
+  `onSubmit` and the card-level ⏎ handler go through one decision (`followUpReturn`, unit-tested).
+  `ResultCardFollowUpTests` pins it.
 - **Footer**: Paste (right) and Copy (left of it) both route through
   `PopupView.onCardEffect` → `PopupWindowController.performCardEffect` — an explicit request that
   bypasses the paste-vs-copy re-decision. Both dismiss the popup and perform (Paste pastes over
@@ -233,6 +261,23 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
 - **Row icons are strictly `[icon | text]`**: a `.text` icon falls back to
   `ConfigurableAction.preferenceIconName`; Iconify-format symbols (`prefix:name`) render via
   `AnyIconView`, matching the bar (`PopupSearchView.swift:214,230`).
+- **AI rows in the palette**: a query that matches nothing is offered to AI instead of ending in
+  "No matches". While AI is on (`AIServiceManager.isAIEnabled`), `PopupSearchView` appends two rows
+  after the (empty) results — **Ask AI: “<query>”** and **Save as AI tool** — plus a key hint; when
+  the only matches are recent prompts it appends **Save** alone. **⇧⏎ and ⇧-click paste AI's answer
+  over the selection** (`PopupWindowController.runAIPromptReplacing`: the popup
+  hides, a cancellable "Replacing…" toast waits for `provider.process`, the answer goes through
+  the explicit paste door `handleActionResult(.paste)` under a "Replaced with AI result" toast —
+  downgraded to a copy when the unified paste availability says no or the frontmost app is no
+  longer the selection's, `frontmostBundleIDProvider`); **⏎, click and ⌘-digits show the result
+  card first** (`runAIPreset`, same streaming card as a preset, dynamically titled with `<title>` generated
+  by the model). Save stores the instruction as a custom `AIActionPreset` (`AIServiceManager.addCustomPreset`,
+  or reuses an existing one via `preset(matchingPrompt:)`) with a clean action name (`<tool_name>`) and
+  runs it the same way. The rules live in `PaletteAIPrompt` (`rows(for:aiEnabled:results:)`, `instruction(from:)`,
+  `toolTitle(for:)`, `hint(canPaste:)`); the palette reports through `onRunAIPrompt(instruction, replace)` /
+  `onSaveAIPrompt` → `PopupView` → `PopupWindowController.runAIPrompt` / `saveAndRunAIPrompt`.
+  Presets keep their existing behaviour (the card). With AI off the plain "No matches" copy
+  stays. `PaletteAIPromptTests` and `PaletteAIReplaceTests` pin this.
 - **Escape** clears the query first, then exits to the actions bar. In a **scoped** sub-action
   palette, Escape instead drops the scope (`PopupSearchView.exitSearch()` → `onExitScope`) and
   closes back to the bar.

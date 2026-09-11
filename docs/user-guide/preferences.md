@@ -78,5 +78,35 @@ Navigate to **Preferences > AI** to configure your provider:
 | **Cloud AI (OpenAI / Claude / Gemini / DeepSeek / Groq / OpenRouter / Custom)** | Cloud API language models | Valid API Key stored securely in `SecretStore` (`~/.openclip/secrets.json`) |
 | **Browser Redirect** | Opens AI query in browser | No API key required |
 
+### Ask AI from the search palette
+
+Anything you type into the action-search palette (⌥⌘C, or the ⌘ button on the popup bar) that
+matches no action is offered to AI instead of a "No matches" notice:
+
+- **Ask AI: “…”** runs your text as an instruction on the selected text — select a paragraph,
+  type `rewrite to slovak`. Press **⏎** (or ⌘1) to see the answer in the result card, with a
+  diff of what changed, then paste or copy it. Press **⇧⏎** and the answer **replaces the
+  selection** the moment it lands instead (a "Replacing…" toast shows meanwhile; if the app can't
+  paste, or you've switched apps, the answer is copied).
+- **Save as AI tool** (⌘2) keeps the instruction as a custom AI action and runs it the same way.
+  From then on it appears in the palette by name, in the AI Tools bar, and under
+  **Preferences › AI › Actions**, where you can rename it, edit its prompt, or delete it.
+- Your **recent instructions** are palette rows too: type any part of one (`slo` finds
+  `rewrite to slovak`) and run it with ⏎ or ⇧⏎ like the Ask AI row. Eight are kept; a saved
+  instruction leaves the list.
+
+The rows appear only while AI is switched on; the instruction is sent to whichever provider is
+configured above.
+
+### Refine an answer in the result card
+
+Every AI result card has an instruction field above its Copy and Paste buttons. Type what to
+change — `shorter`, `more formal` — and press **⏎**: AI runs on the current answer and the card
+updates in place. The diff always compares your original selection with the latest answer, so
+after five follow-ups you still see the net change. Each follow-up also sees the session so far — the
+original selection and what you asked before — as context, so "keep the greeting" or "same tone
+as before" works. Chain as many refinements as you like; Paste always pastes the latest answer
+over the selection. ⏎ on an empty field pastes as before.
+
 ### AI Settings Channel
 AI settings are managed through `AIServiceManager` and isolated to ensure security and privacy.
