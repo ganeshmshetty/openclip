@@ -299,8 +299,9 @@ A second global hot key, **Instant AI** (`KeyboardShortcuts.Name.instantAI`, def
 recorder under Preferences › General), opens the smallest AI surface there is: one field at the
 selection, no bar, no palette, no card. `HotkeyManager.handleInstantAI` reuses the on-screen
 session when the popup is up, otherwise resolves the selection synchronously like ⌥⌘C
-(`resolveSynchronousTrigger`) and requires substantial text (`instantPromptAllowed`; an empty
-selection gets a "Select some text first" toast). `PopupWindowController.showInstantPrompt`
+(`resolveSynchronousTrigger`) and requires a *live*, substantial selection (`instantPromptAllowed`;
+the clipboard fallback is refused — an answer must never be pasted over whatever the cursor sits
+in — and an empty selection gets a "Select some text first" toast). `PopupWindowController.showInstantPrompt`
 scopes search mode to `InstantAIAction` — an unregistered `composesPrompt` parent — and
 `PopupView.searchCard` renders `InstantPromptView` for such a scope, so key mode, field focus,
 placement and Esc (which hides, as for a directly opened palette) are the palette's. ⏎ runs

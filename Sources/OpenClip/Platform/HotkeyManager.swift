@@ -90,7 +90,9 @@ public final class HotkeyManager {
             return
         }
         guard let trigger = resolveSynchronousTrigger() else { return }
-        guard Self.instantPromptAllowed(text: trigger.context.text) else {
+        // Only a live selection can be replaced: the clipboard fallback the palette accepts would
+        // paste AI's answer over whatever the cursor happens to be in.
+        guard !trigger.context.isClipboardFallback, Self.instantPromptAllowed(text: trigger.context.text) else {
             popupController?.showToast(
                 StatusFeedback(message: String(localized: "Select some text first"), style: .info, symbolName: "text.cursor"),
                 at: NSEvent.mouseLocation

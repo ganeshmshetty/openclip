@@ -160,8 +160,10 @@ final class InstantAITests: XCTestCase {
         }
     }
 
+    private let store = MemorySettingsStore()
+
     private func makeController(handler: RecordingHandler) -> PopupWindowController {
-        let controller = PopupWindowController(resultHandler: handler)
+        let controller = PopupWindowController(resultHandler: handler, settingsStore: store)
         let panel = PopupPanel()
         panel.setFrame(NSRect(x: 100, y: 100, width: 200, height: 50), display: false)
         controller.panel = panel
@@ -200,7 +202,7 @@ final class InstantAITests: XCTestCase {
         XCTAssertEqual(pasted, "ahoj svet")
         XCTAssertEqual(controller.modeStore.mode, .actions, "no card on the replace path")
         XCTAssertEqual(controller.toastController.currentFeedback?.message, "Replaced with AI result")
-        XCTAssertEqual(DefaultSettingsStore.shared.get(.lastInstantAIPrompt), "rewrite to slovak")
+        XCTAssertEqual(store.get(.lastInstantAIPrompt), "rewrite to slovak")
     }
 
     func testReplaceFlowCopiesWhenTheTargetCannotPasteOrTheAppChanged() async {
