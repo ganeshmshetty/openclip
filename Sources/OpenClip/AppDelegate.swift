@@ -108,6 +108,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             let optionStore = SecretActionOptionStore()
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
+            ExtensionManager.shared.optionReader = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
@@ -289,6 +290,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             let optionStore = SecretActionOptionStore()
             ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore)
             ExtensionManager.shared.optionWriter = optionStore
+            ExtensionManager.shared.optionReader = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup

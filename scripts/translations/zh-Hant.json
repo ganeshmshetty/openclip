@@ -3,6 +3,11 @@
   "All": "全部",
   "All Extensions": "所有擴充功能",
   "Refresh Catalog": "重新整理目錄",
+  "Unable to Connect to Store": "無法連線至商店",
+  "Check your internet connection or network settings. If you are behind a corporate proxy or firewall, access to the extension store may be blocked.": "請檢查您的網際網路連線或網路設定。如果您位於公司代理伺服器或防火牆後面，對擴充功能商店的存取可能會被封鎖。",
+  "Try Again": "重試",
+  "No Internet Connection": "無網際網路連線",
+  "Unable to load extension recommendations without an active network connection.": "在沒有有效網路連線的情況下無法載入擴充功能推薦。",
   "Featured": "精選",
   "New": "最新",
   "New & Updated": "最新與更新",
@@ -473,5 +478,10 @@
   "⏎ show result · ⇧⏎ copy result": "⏎ 顯示結果 · ⇧⏎ 拷貝結果",
   "Show": "顯示",
   "Replace": "取代",
-  "Save and Ask AI": "儲存並詢問 AI"
+  "Save and Ask AI": "儲存並詢問 AI",
+  "Duplicate": "複製",
+  "Duplicate Action": "複製動作",
+  "Duplicate Extension": "複製擴充功能",
+  "Duplicate Failed": "複製失敗",
+  "OpenClip could not duplicate extension: %@": "OpenClip 無法複製擴充功能：%@"
 }

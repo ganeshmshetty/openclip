@@ -3,6 +3,11 @@
   "All": "すべて",
   "All Extensions": "すべての拡張機能",
   "Refresh Catalog": "カタログを更新",
+  "Unable to Connect to Store": "ストアに接続できません",
+  "Check your internet connection or network settings. If you are behind a corporate proxy or firewall, access to the extension store may be blocked.": "インターネット接続またはネットワーク設定を確認してください。企業のプロキシまたはファイアウォールをご利用の場合、拡張機能ストアへのアクセスがブロックされている可能性があります。",
+  "Try Again": "再試行",
+  "No Internet Connection": "インターネット接続がありません",
+  "Unable to load extension recommendations without an active network connection.": "アクティブなネットワーク接続がないと、拡張機能のおすすめを読み込めません。",
   "Featured": "おすすめ",
   "New": "新着",
   "New & Updated": "新着・アップデート",
@@ -473,5 +478,10 @@
   "⏎ show result · ⇧⏎ copy result": "⏎ 結果を表示 · ⇧⏎ 結果をコピー",
   "Show": "表示",
   "Replace": "置換",
-  "Save and Ask AI": "保存してAIに依頼"
+  "Save and Ask AI": "保存してAIに依頼",
+  "Duplicate": "複製",
+  "Duplicate Action": "アクションを複製",
+  "Duplicate Extension": "拡張機能を複製",
+  "Duplicate Failed": "複製に失敗しました",
+  "OpenClip could not duplicate extension: %@": "OpenClip は拡張機能を複製できませんでした: %@"
 }

@@ -62,7 +62,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         return parents
     }
 
-    private func sortActions() {
+    public func sortActions() {
         let order = settingsStore.get(.actionOrder)
         let orderIndexMap: [String: Int] = Dictionary(
             order.enumerated().map { ($1, $0) },

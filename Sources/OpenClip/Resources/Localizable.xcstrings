@@ -2437,6 +2437,34 @@
         }
       }
     },
+    "Check your internet connection or network settings. If you are behind a corporate proxy or firewall, access to the extension store may be blocked.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请检查您的互联网连接或网络设置。如果您使用企业代理或防火墙，对扩展商店的访问可能会被阻止。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請檢查您的網際網路連線或網路設定。如果您位於公司代理伺服器或防火牆後面，對擴充功能商店的存取可能會被封鎖。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifiez votre connexion Internet ou vos paramètres réseau. Si vous utilisez un proxy ou un pare-feu d'entreprise, l'accès à la boutique peut être bloqué."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インターネット接続またはネットワーク設定を確認してください。企業のプロキシまたはファイアウォールをご利用の場合、拡張機能ストアへのアクセスがブロックされている可能性があります。"
+          }
+        }
+      }
+    },
     "Checking for Updates…": {
       "localizations": {
         "zh-Hans": {
@@ -4113,6 +4141,118 @@
           "stringUnit": {
             "state": "translated",
             "value": "DuckDuckGo"
+          }
+        }
+      }
+    },
+    "Duplicate": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dupliquer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製"
+          }
+        }
+      }
+    },
+    "Duplicate Action": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製動作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dupliquer l’action"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションを複製"
+          }
+        }
+      }
+    },
+    "Duplicate Extension": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制扩展"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製擴充功能"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dupliquer l’extension"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拡張機能を複製"
+          }
+        }
+      }
+    },
+    "Duplicate Failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制失败"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製失敗"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la duplication"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製に失敗しました"
           }
         }
       }
@@ -7085,6 +7225,34 @@
         }
       }
     },
+    "No Internet Connection": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无互联网连接"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無網際網路連線"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune connexion Internet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インターネット接続がありません"
+          }
+        }
+      }
+    },
     "No custom icons yet": {
       "localizations": {
         "zh-Hans": {
@@ -7893,6 +8061,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenClipがアップデートされました"
+          }
+        }
+      }
+    },
+    "OpenClip could not duplicate extension: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 无法复制扩展：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 無法複製擴充功能：%@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip n’a pas pu dupliquer l’extension : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip は拡張機能を複製できませんでした: %@"
           }
         }
       }
@@ -12013,6 +12209,34 @@
         }
       }
     },
+    "Try Again": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重試"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再試行"
+          }
+        }
+      }
+    },
     "Try It": {
       "localizations": {
         "zh-Hans": {
@@ -12153,6 +12377,34 @@
         }
       }
     },
+    "Unable to Connect to Store": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接到商店"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法連線至商店"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion à la boutique impossible"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ストアに接続できません"
+          }
+        }
+      }
+    },
     "Unable to Save Changes": {
       "localizations": {
         "zh-Hans": {
@@ -12177,6 +12429,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "変更を保存できません"
+          }
+        }
+      }
+    },
+    "Unable to load extension recommendations without an active network connection.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在没有有效网络连接的情况下无法加载扩展推荐。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在沒有有效網路連線的情況下無法載入擴充功能推薦。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de charger les recommandations sans connexion réseau active."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクティブなネットワーク接続がないと、拡張機能のおすすめを読み込めません。"
           }
         }
       }

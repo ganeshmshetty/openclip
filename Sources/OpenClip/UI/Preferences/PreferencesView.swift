@@ -100,6 +100,7 @@ public struct PreferencesView: View {
             loadDisabledState()
             Task {
                 await storeViewModel.resetAndFetch(limit: 100)
+                await ExtensionUpdateManager.shared.checkForUpdates()
             }
         }
         .onChange(of: selectedTab) { _, newTab in

@@ -49,8 +49,11 @@ public final class ExtensionsAPIClient: Sendable {
         }
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = 15.0
         if ignoreCache {
             request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+            request.setValue("no-cache", forHTTPHeaderField: "Pragma")
         }
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -59,7 +62,11 @@ public final class ExtensionsAPIClient: Sendable {
         }
 
         let decoded = try JSONDecoder().decode(ExtensionsPageResponse.self, from: data)
-        await cache?.store(decoded, baseURL: baseURL.absoluteString, query: query, page: page, limit: limit)
+        // Never cache an empty result for a blank query — an empty catalog is either
+        // an outage or an uninitialized backend, and caching it blocks recovery for the TTL.
+        if !(query.trimmingCharacters(in: .whitespaces).isEmpty && decoded.extensions.isEmpty) {
+            await cache?.store(decoded, baseURL: baseURL.absoluteString, query: query, page: page, limit: limit)
+        }
         return decoded
     }
 }

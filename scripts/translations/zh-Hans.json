@@ -3,6 +3,11 @@
   "All": "全部",
   "All Extensions": "所有扩展",
   "Refresh Catalog": "刷新目录",
+  "Unable to Connect to Store": "无法连接到商店",
+  "Check your internet connection or network settings. If you are behind a corporate proxy or firewall, access to the extension store may be blocked.": "请检查您的互联网连接或网络设置。如果您使用企业代理或防火墙，对扩展商店的访问可能会被阻止。",
+  "Try Again": "重试",
+  "No Internet Connection": "无互联网连接",
+  "Unable to load extension recommendations without an active network connection.": "在没有有效网络连接的情况下无法加载扩展推荐。",
   "Featured": "精选",
   "New": "最新",
   "New & Updated": "最新与更新",
@@ -473,5 +478,10 @@
   "⏎ show result · ⇧⏎ copy result": "⏎ 显示结果 · ⇧⏎ 复制结果",
   "Show": "显示",
   "Replace": "替换",
-  "Save and Ask AI": "保存并询问 AI"
+  "Save and Ask AI": "保存并询问 AI",
+  "Duplicate": "复制",
+  "Duplicate Action": "复制操作",
+  "Duplicate Extension": "复制扩展",
+  "Duplicate Failed": "复制失败",
+  "OpenClip could not duplicate extension: %@": "OpenClip 无法复制扩展：%@"
 }

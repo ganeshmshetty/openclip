@@ -3,6 +3,11 @@
   "All": "Tout",
   "All Extensions": "Toutes les extensions",
   "Refresh Catalog": "Actualiser le catalogue",
+  "Unable to Connect to Store": "Connexion à la boutique impossible",
+  "Check your internet connection or network settings. If you are behind a corporate proxy or firewall, access to the extension store may be blocked.": "Vérifiez votre connexion Internet ou vos paramètres réseau. Si vous utilisez un proxy ou un pare-feu d'entreprise, l'accès à la boutique peut être bloqué.",
+  "Try Again": "Réessayer",
+  "No Internet Connection": "Aucune connexion Internet",
+  "Unable to load extension recommendations without an active network connection.": "Impossible de charger les recommandations sans connexion réseau active.",
   "Featured": "En vedette",
   "New": "Nouveautés",
   "New & Updated": "Nouveautés et mises à jour",
@@ -473,5 +478,10 @@
   "⏎ show result · ⇧⏎ copy result": "⏎ afficher le résultat · ⇧⏎ copier le résultat",
   "Show": "Afficher",
   "Replace": "Remplacer",
-  "Save and Ask AI": "Enregistrer et demander à l’IA"
+  "Save and Ask AI": "Enregistrer et demander à l’IA",
+  "Duplicate": "Dupliquer",
+  "Duplicate Action": "Dupliquer l’action",
+  "Duplicate Extension": "Dupliquer l’extension",
+  "Duplicate Failed": "Échec de la duplication",
+  "OpenClip could not duplicate extension: %@": "OpenClip n’a pas pu dupliquer l’extension : %@"
 }

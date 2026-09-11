@@ -183,6 +183,56 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         syncGroupMemberOrder()
     }
 
+    @discardableResult
+    public func duplicateCustomAction(actionID: String) -> CustomAction? {
+        guard let original = customActions.first(where: { $0.id == actionID }) else {
+            return nil
+        }
+        let newID = "custom.\(UUID().uuidString.prefix(8).lowercased())"
+        let override = ActionCustomizationManager.shared.override(for: actionID)
+        let baseTitle = override?.customTitle ?? original.title
+        let baseIcon = override?.customIconSymbol ?? original.iconName
+        let copyTitle = "\(baseTitle) Copy"
+
+        let duplicated = CustomAction(
+            id: newID,
+            title: copyTitle,
+            iconName: baseIcon,
+            type: original.type,
+            chrome: original.chrome,
+            rules: original.rules
+        )
+
+        saveCustomAction(duplicated)
+        insertActionOrderAfter(newID: newID, originalID: actionID)
+
+        for def in actionGroupDefs {
+            if let idx = def.memberActionIDs.firstIndex(of: actionID) {
+                addToGroup(actionID: newID, groupID: def.id, atIndex: idx + 1)
+                break
+            }
+        }
+
+        return duplicated
+    }
+
+    public func insertActionOrderAfter(newID: String, originalID: String) {
+        var order = settingsStore.get(.actionOrder)
+        if order.isEmpty {
+            order = registry.actions.map(\.id)
+        }
+        order.removeAll(where: { $0 == newID })
+        if let idx = order.firstIndex(of: originalID) {
+            order.insert(newID, at: idx + 1)
+        } else {
+            order.append(newID)
+        }
+        settingsStore.set(.actionOrder, value: order)
+        registry.sortActions()
+        self.actions = registry.actions
+        syncGroupMemberOrder()
+    }
+
     private func persistCustomActions(_ actions: [CustomAction]) {
         self.customActions = actions
         if let encoded = try? JSONEncoder().encode(actions) {

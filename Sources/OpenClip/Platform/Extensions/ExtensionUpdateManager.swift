@@ -29,10 +29,26 @@ public final class ExtensionUpdateManager: ObservableObject {
 
         let settings = DefaultSettingsStore.shared
         let sources = settings.get(.extensionSources)
-        let storePackageIDs = sources.keys.filter { sources[$0] == "store" }.sorted()
+
+        // Check all extensions present in the extensions directory + known store sources
+        let fm = FileManager.default
+        let items = (try? fm.contentsOfDirectory(at: Constants.extensionsDirectory, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+        var candidateIDs = Set<String>()
+        for item in items {
+            guard !item.lastPathComponent.hasPrefix(".") else { continue }
+            if let manifest = ExtensionManifestStore.readManifest(at: item.appendingPathComponent(Constants.manifestFileName)) ??
+                              ExtensionManifestStore.readManifest(at: item.appendingPathComponent("extension.json")) {
+                candidateIDs.insert(manifest.identifier)
+            } else {
+                candidateIDs.insert("\(Constants.customIdentifierPrefix)\(item.lastPathComponent)")
+            }
+        }
+        for packageID in sources.keys where sources[packageID] == "store" {
+            candidateIDs.insert(packageID)
+        }
 
         var installed: [InstalledPackageVersion] = []
-        for packageID in storePackageIDs {
+        for packageID in candidateIDs.sorted() {
             let version = ExtensionManifestStore.manifest(forPackageID: packageID, in: Constants.extensionsDirectory)?.version
             installed.append(InstalledPackageVersion(packageID: packageID, installedVersion: version, source: "store"))
         }
