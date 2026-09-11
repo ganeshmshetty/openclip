@@ -182,8 +182,13 @@ public struct ResultCardView: View {
             return .handled
         }
         .onKeyPress(.return, phases: .down) { press in
-            // Return pastes if paste is available, else copies; Shift+Return always copies.
-            if canPaste == false || press.modifiers.contains(.shift) {
+            // SwiftUI delivers the key here even while the follow-up field is the AppKit first
+            // responder (its focus is set by the controller, not through FocusState), so the
+            // field's decision applies at this level too: text typed → follow-up; empty → the
+            // card's meaning (paste if available, else copy; Shift+Return always copies).
+            if showsFollowUp {
+                handleFollowUpReturn(shift: press.modifiers.contains(.shift))
+            } else if canPaste == false || press.modifiers.contains(.shift) {
                 onCopy()
             } else {
                 onPaste()
@@ -637,8 +642,11 @@ public struct ResultCardView: View {
                 onDismiss()
                 return .handled
             }
-            .onKeyPress(.return, phases: .down) { press in
-                handleFollowUpReturn(press)
+            // ⏎ arrives as the field's submit (AppKit handles Return in an NSTextField before
+            // SwiftUI's key-press path sees it; an `.onKeyPress(.return)` here fell through to
+            // the source app). ⇧ is read from the live modifier state, like the composer rows.
+            .onSubmit {
+                handleFollowUpReturn(shift: NSEvent.modifierFlags.contains(.shift))
             }
             if hasText {
                 Image(systemName: "return")
@@ -678,13 +686,13 @@ public struct ResultCardView: View {
         return isStreaming ? .nothing : .followUp(instruction)
     }
 
-    private func handleFollowUpReturn(_ press: KeyPress) -> KeyPress.Result {
+    private func handleFollowUpReturn(shift: Bool) {
         switch Self.followUpReturn(
             text: followUp,
             awaitsInstruction: payload.awaitsInstruction,
             isStreaming: payload.isStreaming,
             canPaste: canPaste,
-            shift: press.modifiers.contains(.shift)
+            shift: shift
         ) {
         case .nothing:
             break
@@ -696,7 +704,6 @@ public struct ResultCardView: View {
             onFollowUp?(instruction)
             followUp = ""
         }
-        return .handled
     }
 
     private var footerButtons: some View {
