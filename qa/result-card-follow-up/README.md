@@ -3,7 +3,15 @@
 Branch `feat/result-card-follow-up`. Screenshots taken 2026-09-11 on a Developer-ID-signed Debug
 build of this branch, macOS 26.6, light appearance, Classic theme, AI provider = Cloud API
 (OpenRouter). TextEdit with a plain-text sample; the whole sentence selected with ⌘A; input
-driven by a small CGEvent script. AI responses are real. Videos follow in a later commit.
+driven by a small CGEvent script. AI responses are real. 
+
+## Videos
+
+| File | What it shows |
+| --- | --- |
+| `ask-and-refine.mp4` (36 s) | Select → **AI Tools** → **Ask…** (⌘1) → the ask card → type `make it sound friendly` → ⏎ → answer with the follow-up field → type `shorter` → ⏎ → refined answer with the diff against the previous answer → Esc. |
+
+## Screenshots
 
 | # | File | Moment |
 | --- | --- | --- |
