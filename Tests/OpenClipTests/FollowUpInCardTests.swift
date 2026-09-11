@@ -280,6 +280,11 @@ final class FollowUpInCardTests: XCTestCase {
         XCTAssertEqual(controller.cardConversation?.steps.first?.result, "the text")
     }
 
+    func testCopyAndPasteAreHiddenWhileAnAnswerStreams() {
+        XCTAssertFalse(ResultCardView.showsResultButtons(isStreaming: true), "nothing final to copy or paste mid-refinement")
+        XCTAssertTrue(ResultCardView.showsResultButtons(isStreaming: false))
+    }
+
     func testEscapeMeaningDependsOnWhetherAFollowUpIsInFlight() {
         XCTAssertTrue(ResultCardView.escapeCancelsFollowUp(isStreaming: true, canCancel: true))
         XCTAssertFalse(ResultCardView.escapeCancelsFollowUp(isStreaming: false, canCancel: true), "a settled card dismisses")

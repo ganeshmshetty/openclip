@@ -19,8 +19,8 @@
 // current text and re-streams the card in place — a second pass over the answer.
 // The card never leaves the screen for it: while the follow-up is in flight the previous answer
 // stays visible (dimmed until the first chunk, `payload.isRefining`), the field shows a spinner
-// and "Refining…" and keeps focus, and Esc cancels the refinement (`onCancelFollowUp`) instead
-// of closing.
+// and "Refining…" and keeps focus, Copy/Paste are hidden until the answer settles, and Esc
+// cancels the refinement (`onCancelFollowUp`) instead of closing.
 // (`PopupResizeHandles`, reported the same way to PopupWindowController.handleResize); the size
 // they settle on is remembered and, passed back in as `maxSize`, caps the content-driven size
 // when the next card opens: a short answer still gets a small card, a long one grows up to the
@@ -199,6 +199,8 @@ public struct ResultCardView: View {
         }
         .onKeyPress(keys: ["c"], phases: .down) { press in
             guard press.modifiers.contains(.command) else { return .ignored }
+            // Nothing final to copy while an answer streams.
+            guard showsResultButtons else { return .handled }
             onCopy()
             return .handled
         }
@@ -631,9 +633,23 @@ public struct ResultCardView: View {
                 followUpField
                     .padding(.horizontal, 14)
             }
+            // While an answer streams there is nothing final to copy or paste: the buttons go
+            // away (their space stays, so the field does not jump) and come back on settle.
             footerButtons
+                .opacity(showsResultButtons ? 1 : 0)
+                .allowsHitTesting(showsResultButtons)
+                .accessibilityHidden(!showsResultButtons)
         }
         .padding(.bottom, 10)
+    }
+
+    private var showsResultButtons: Bool {
+        Self.showsResultButtons(isStreaming: payload.isStreaming)
+    }
+
+    /// Copy / Paste (or Dismiss) are offered only once the card's text has settled.
+    static func showsResultButtons(isStreaming: Bool) -> Bool {
+        !isStreaming
     }
 
     /// The instruction field: ⏎ with text runs a follow-up on the card's current text; ⏎ on an
