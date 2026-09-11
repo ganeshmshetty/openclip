@@ -457,5 +457,8 @@
   "Move Up": "Monter",
   "Move Down": "Descendre",
   "%@ download": "%@ téléchargement",
-  "%@ downloads": "%@ téléchargements"
+  "%@ downloads": "%@ téléchargements",
+  "Ask AI: “%@”": "Demander à l’IA : « %@ »",
+  "Save as AI tool": "Enregistrer comme outil d’IA",
+  "Saved as AI tool · Generating…": "Enregistré comme outil d’IA · Génération…"
 }

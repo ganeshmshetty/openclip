@@ -289,9 +289,7 @@ public struct AITab: View {
                         newPrompt = ""
                     }
                     Button("Add Action") {
-                        let id = "custom_\(UUID().uuidString.prefix(8))"
-                        let preset = AIActionPreset(id: id, title: newTitle.trimmingCharacters(in: .whitespaces), prompt: newPrompt.trimmingCharacters(in: .whitespaces), isEnabled: true)
-                        aiManager.updatePreset(preset)
+                        aiManager.addCustomPreset(title: newTitle, prompt: newPrompt)
                         showingAddPresetSheet = false
                         newTitle = ""
                         newPrompt = ""

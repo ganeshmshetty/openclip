@@ -1653,6 +1653,34 @@
         }
       }
     },
+    "Ask AI: “%@”": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "询问 AI：“%@”"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "詢問 AI：「%@」"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demander à l’IA : « %@ »"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIに依頼: 「%@」"
+          }
+        }
+      }
+    },
     "Auto": {
       "localizations": {
         "zh-Hans": {
@@ -9997,6 +10025,34 @@
         }
       }
     },
+    "Save as AI tool": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存为 AI 工具"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "儲存為 AI 工具"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer comme outil d’IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIツールとして保存"
+          }
+        }
+      }
+    },
     "Saved Icons": {
       "localizations": {
         "zh-Hans": {
@@ -10021,6 +10077,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "保存済みアイコン"
+          }
+        }
+      }
+    },
+    "Saved as AI tool · Generating…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存为 AI 工具 · 正在生成…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已儲存為 AI 工具 · 正在產生…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistré comme outil d’IA · Génération…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIツールとして保存済み · 生成中…"
           }
         }
       }

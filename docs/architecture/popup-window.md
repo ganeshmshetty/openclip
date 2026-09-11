@@ -233,6 +233,23 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
 - **Row icons are strictly `[icon | text]`**: a `.text` icon falls back to
   `ConfigurableAction.preferenceIconName`; Iconify-format symbols (`prefix:name`) render via
   `AnyIconView`, matching the bar (`PopupSearchView.swift:214,230`).
+- **AI fallback in the empty state**: a query that matches nothing is offered to AI instead of
+  ending in "No matches". While AI is on (`AIServiceManager.isAIEnabled`), `PopupSearchView`
+  renders two rows in place of the notice — **Ask AI: “<query>”** (⌘1) runs the typed text as a
+  one-off instruction on the selection, **Save as AI tool** (⌘2) stores it as a custom
+  `AIActionPreset` and runs it. The rows are indexed like results (`rowCount`), so arrows,
+  Return, hover, click and the ⌘-digit hot keys all reach them. The rules live in
+  `PaletteAIPrompt` (`Sources/OpenClip/UI/Popup/PaletteAIPrompt.swift`): `rows(for:aiEnabled:)`
+  gates on a non-blank query, `instruction(from:)` collapses whitespace, `toolTitle(for:)` turns
+  the prompt into a ≤40-character title (first letter capitalised, elided at a word boundary) that
+  names both the saved tool and the one-off card. The palette reports the instruction through
+  `onRunAIPrompt`/`onSaveAIPrompt` → `PopupView` → `PopupWindowController.runAIPrompt` /
+  `saveAndRunAIPrompt`, which reuse `runAIPreset` (same "Generating…" toast, same streaming card;
+  the save path's toast reads "Saved as AI tool · Generating…"). Saving a prompt that already
+  exists as a preset (`AIServiceManager.preset(matchingPrompt:)`, case/whitespace-insensitive)
+  reuses that tool. A saved tool is a normal custom preset: `AIActionSync` registers it as an
+  `AIAction`, so it is searchable from the next palette entry and listed in Preferences → AI →
+  Actions. With AI off the plain "No matches" copy stays. `PaletteAIPromptTests` pins all of this.
 - **Escape** clears the query first, then exits to the actions bar. In a **scoped** sub-action
   palette, Escape instead drops the scope (`PopupSearchView.exitSearch()` → `onExitScope`) and
   closes back to the bar.

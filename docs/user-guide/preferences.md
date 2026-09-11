@@ -78,5 +78,20 @@ Navigate to **Preferences > AI** to configure your provider:
 | **Cloud AI (OpenAI / Claude / Gemini / DeepSeek / Groq / OpenRouter / Custom)** | Cloud API language models | Valid API Key stored securely in `SecretStore` (`~/.openclip/secrets.json`) |
 | **Browser Redirect** | Opens AI query in browser | No API key required |
 
+### Ask AI from the search palette
+
+Anything you type into the action-search palette (⌥⌘C, or the ⌘ button on the popup bar) that
+matches no action is offered to AI instead of a "No matches" notice:
+
+- **Ask AI: “…”** (⌘1 or Return) runs your text as a one-off instruction on the selected text —
+  for example select a paragraph, type `rewrite to slovak`, press Return — and streams the answer
+  into the result card, where you can paste it over the selection or copy it.
+- **Save as AI tool** (⌘2) keeps the instruction as a custom AI action and runs it. From then on
+  it appears in the palette by name (the instruction, capitalised), in the AI Tools bar, and under
+  **Preferences › AI › Actions**, where you can rename it, edit its prompt, or delete it.
+
+The rows appear only while AI is switched on; the instruction is sent to whichever provider is
+configured above.
+
 ### AI Settings Channel
 AI settings are managed through `AIServiceManager` and isolated to ensure security and privacy.

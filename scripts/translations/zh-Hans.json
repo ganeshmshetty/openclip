@@ -457,5 +457,8 @@
   "Move Up": "上移",
   "Move Down": "下移",
   "%@ download": "%@ 次下载",
-  "%@ downloads": "%@ 次下载"
+  "%@ downloads": "%@ 次下载",
+  "Ask AI: “%@”": "询问 AI：“%@”",
+  "Save as AI tool": "保存为 AI 工具",
+  "Saved as AI tool · Generating…": "已保存为 AI 工具 · 正在生成…"
 }

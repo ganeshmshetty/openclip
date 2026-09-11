@@ -11,6 +11,10 @@
 // back in as `maxSize`, caps the palette on the next entry: a couple of results still get a short
 // palette, a long list grows up to the maximum and scrolls beyond it. Once the user has dragged a
 // handle (`isUserSized`), the palette keeps the dragged size verbatim until it closes.
+// A query that matches nothing is not a dead end: while AI is on, the empty state offers the
+// typed text as an AI instruction — "Ask AI" runs it once on the selection, "Save as AI tool"
+// keeps it as a custom AI preset (a searchable action from then on) and runs it. Those rows
+// behave like results: arrows + Return, hover, click, ⌘1/⌘2 (see `PaletteAIPrompt`).
 import SwiftUI
 import AppKit
 import Core
@@ -26,6 +30,14 @@ public struct PopupSearchView: View {
     /// `perform`. Passed the registered AI action id (`ai.preset.<presetID>`); nil disables the
     /// route and falls back to `perform`.
     public let onRunAI: @MainActor (String) -> Void
+    /// Runs the typed query as a one-off AI instruction on the selection — the empty state's
+    /// "Ask AI" row. Passed the collapsed instruction (`PaletteAIPrompt.instruction(from:)`).
+    public let onRunAIPrompt: @MainActor (String) -> Void
+    /// Saves the typed query as a reusable AI tool and runs it — the empty state's "Save as AI
+    /// tool" row. Passed the collapsed instruction.
+    public let onSaveAIPrompt: @MainActor (String) -> Void
+    /// Whether AI is switched on; off, the empty state keeps its plain "No matches" copy.
+    private let isAIEnabled: Bool
     /// When non-nil, the palette is scoped to a parent action's sub-actions: it lists only those
     /// children and rerenders the field with the parent's icon + a "Search within ..." placeholder.
     public let scope: SearchScope?
@@ -130,9 +142,21 @@ public struct PopupSearchView: View {
     private static let rowSpacing: CGFloat = 2.0
     private static let listBottomPadding: CGFloat = 8.0
 
-    /// What the list needs to show every current result without scrolling.
+    /// What the list needs to show every current row without scrolling.
     private var naturalHeight: CGFloat {
-        Self.height(forRows: results.count)
+        Self.height(forRows: rowCount)
+    }
+
+    /// The AI fallback rows for the current query: offered only when the query matches nothing.
+    private var promptRows: [PaletteAIPromptRow] {
+        results.isEmpty ? PaletteAIPrompt.rows(for: query, aiEnabled: isAIEnabled) : []
+    }
+
+    /// The selectable rows on screen — the results, or the AI fallback rows when there are none.
+    /// Every keyboard, hover and ⌘-digit path indexes against this, so the fallback rows are
+    /// reached exactly like results.
+    private var rowCount: Int {
+        results.isEmpty ? promptRows.count : results.count
     }
 
     static func height(forRows rows: Int) -> CGFloat {
@@ -202,6 +226,9 @@ public struct PopupSearchView: View {
         onExit: @escaping @MainActor () -> Void,
         onExitScope: @escaping @MainActor () -> Void = {},
         onRunAI: @escaping @MainActor (String) -> Void = { _ in },
+        onRunAIPrompt: @escaping @MainActor (String) -> Void = { _ in },
+        onSaveAIPrompt: @escaping @MainActor (String) -> Void = { _ in },
+        aiEnabled: Bool = AIServiceManager.shared.isAIEnabled,
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
@@ -221,6 +248,9 @@ public struct PopupSearchView: View {
         self.onExit = onExit
         self.onExitScope = onExitScope
         self.onRunAI = onRunAI
+        self.onRunAIPrompt = onRunAIPrompt
+        self.onSaveAIPrompt = onSaveAIPrompt
+        self.isAIEnabled = aiEnabled
         self.onActionPerformed = onActionPerformed
         self.onWillPerformAction = onWillPerformAction
         self.onRunLoadingAction = onRunLoadingAction
@@ -436,7 +466,17 @@ public struct PopupSearchView: View {
     private var resultsList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                if results.isEmpty {
+                if results.isEmpty, !promptRows.isEmpty {
+                    // No action matches, but the query can still do something: hand it to AI.
+                    LazyVStack(spacing: 2) {
+                        ForEach(Array(promptRows.enumerated()), id: \.element) { index, row in
+                            promptRow(row, index: index)
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 48)
+                    .padding(.bottom, 8)
+                } else if results.isEmpty {
                     VStack {
                         Spacer()
                         VStack(spacing: 4) {
@@ -580,9 +620,74 @@ public struct PopupSearchView: View {
         }
     }
 
+    /// One AI fallback row — the same chrome as a result row (icon column, title, ⌘-digit hint,
+    /// selection/hover fills) so the empty state reads as two more things to run, not a notice.
+    @ViewBuilder
+    private func promptRow(_ row: PaletteAIPromptRow, index: Int) -> some View {
+        let isSelected = index == selectedIndex
+        let isHovered = hoveredTarget == .row(index)
+        let rowShape = RoundedRectangle(cornerRadius: PopupMetrics.searchRowCornerRadius, style: .continuous)
+        let foreground = isSelected ? Color.primary : PopupThemeModel.restForeground(for: effectiveTheme)
+        let title = PaletteAIPrompt.rowTitle(row, query: query)
+
+        Button {
+            selectedIndex = index
+            runSelected()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: PaletteAIPrompt.rowSymbol(row))
+                    .font(.system(size: 13, weight: .regular))
+                    .frame(width: 18, alignment: .center)
+                    .foregroundColor(foreground)
+
+                Text(title)
+                    .font(.system(size: 13, weight: .regular))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundColor(foreground)
+
+                Spacer(minLength: 8)
+
+                if let shortcut = Self.shortcutHint(forRow: index) {
+                    Text(shortcut)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(
+                            isSelected
+                                ? PopupThemeModel.restForeground(for: effectiveTheme)
+                                : PopupThemeModel.restSecondary(for: effectiveTheme)
+                        )
+                        .accessibilityLabel("Command \(index + 1)")
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: PopupMetrics.searchResultRowHeight)
+            .background(
+                Group {
+                    if isSelected {
+                        rowShape
+                            .fill(selectionHighlightFill)
+                            .overlay(rowShape.stroke(selectionHighlightBorder, lineWidth: 0.5))
+                    } else if isHovered {
+                        rowShape.fill(Color.primary.opacity(0.06))
+                    } else {
+                        Color.clear
+                    }
+                }
+            )
+            .contentShape(rowShape)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .searchHoverTarget(.row(index))
+        .onHover { hovering in
+            useLocalHoverFallback(for: .row(index), isHovering: hovering)
+        }
+    }
+
     private func moveSelection(by delta: Int) {
-        guard !results.isEmpty else { return }
-        let newIndex = min(max(selectedIndex + delta, 0), results.count - 1)
+        guard rowCount > 0 else { return }
+        let newIndex = min(max(selectedIndex + delta, 0), rowCount - 1)
         guard newIndex != selectedIndex else { return }
         scrollSelectionOnKeyboard = true
         selectedIndex = newIndex
@@ -616,13 +721,23 @@ public struct PopupSearchView: View {
     /// falls through to the field (⌘5 in a three-result list types nothing and does nothing)
     /// instead of being silently swallowed.
     private func runRow(at index: Int) -> Bool {
-        guard index >= 0, index < Self.maxShortcutRows, results.indices.contains(index) else { return false }
+        guard index >= 0, index < Self.maxShortcutRows, index < rowCount else { return false }
         selectedIndex = index
         runSelected()
         return true
     }
 
     private func runSelected() {
+        if results.isEmpty {
+            // The AI fallback rows: the typed query is the instruction.
+            guard promptRows.indices.contains(selectedIndex) else { return }
+            let instruction = PaletteAIPrompt.instruction(from: query)
+            switch promptRows[selectedIndex] {
+            case .ask: onRunAIPrompt(instruction)
+            case .save: onSaveAIPrompt(instruction)
+            }
+            return
+        }
         guard results.indices.contains(selectedIndex) else { return }
         let action = results[selectedIndex].action
         // AI preset actions render their result in the popup's AI card (same flow as the Sparkles
@@ -809,7 +924,7 @@ public struct PopupSearchView: View {
         }
         guard target != hoveredTarget else { return }
         hoveredTarget = target
-        if case .row(let index) = target, index < results.count {
+        if case .row(let index) = target, index < rowCount {
             selectedIndex = index
         }
     }
@@ -821,7 +936,7 @@ public struct PopupSearchView: View {
         if isHovering {
             guard hoveredTarget != target else { return }
             hoveredTarget = target
-            if case .row(let index) = target, index < results.count {
+            if case .row(let index) = target, index < rowCount {
                 selectedIndex = index
             }
         } else if hoveredTarget == target {

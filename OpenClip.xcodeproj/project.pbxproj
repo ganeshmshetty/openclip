@@ -23,6 +23,7 @@
 		0ABD4746A74B3657C3550DCE /* PopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F42C959E23FBB018FD815BBD /* PopupView.swift */; };
 		0AC19FB1B891B14A5D9D2ABD /* AppIdentifying+NSRunningApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD2E8E311CD870FA0E955A9 /* AppIdentifying+NSRunningApplication.swift */; };
 		0C858BC901D1378787CFCA42 /* AppLaunchClassifierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7F93A0807221276A6B0310 /* AppLaunchClassifierTests.swift */; };
+		0DDACD448D65748A7F26A9D9 /* PaletteAIPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB47ADC8B34E62ADF6403EC2 /* PaletteAIPromptTests.swift */; };
 		0E3D68AFA4DDEDAA15DEC3F5 /* MacSelectionMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD213AE6ECE1B6BFDBCDE342 /* MacSelectionMonitorTests.swift */; };
 		104969A805A5B24DC86357C2 /* ActionGroupIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3890F41894C5F466658419C /* ActionGroupIntegrationTests.swift */; };
 		1093E6E51DBCFB31D0D97796 /* PopupSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BA6733CB7FD55544834DC9B /* PopupSearchView.swift */; };
@@ -104,6 +105,7 @@
 		4C43B8EC4173B31666709C1D /* ActionBindingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 098BDC3E4D5CA799A32B48C8 /* ActionBindingStore.swift */; };
 		4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F3B8C9AB19BEC2ACF890FEB /* StatusBarController.swift */; };
 		4C7A369633219B87FC717CF6 /* DebugLogBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D3417470E254AA1CA970D2 /* DebugLogBufferTests.swift */; };
+		4CB49E0424CE26F1B9CB0A5A /* PaletteAIPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3982D7C103DE3872366CAE13 /* PaletteAIPrompt.swift */; };
 		4D95DD2D804C916472C1A427 /* DebugLogEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867F5FE32483EEF1ED7B18D1 /* DebugLogEntryTests.swift */; };
 		4E427DB028CD9AA797FDD7A5 /* ExtensionStoreCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1F0A70907A39A46DAC2196 /* ExtensionStoreCache.swift */; };
 		4E94CAC5D8C6131D7ABEC9FC /* MemorySettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF25B7CA70822AE323518F8 /* MemorySettingsStore.swift */; };
@@ -489,6 +491,7 @@
 		38966F7112271EC9D176FA15 /* NativeSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSearchField.swift; sourceTree = "<group>"; };
 		38D9A91D8E78B77B35D10754 /* Core.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Core.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		38E0B09A0FCBBCF4C67A0FFF /* AppleIntelligenceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleIntelligenceProvider.swift; sourceTree = "<group>"; };
+		3982D7C103DE3872366CAE13 /* PaletteAIPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteAIPrompt.swift; sourceTree = "<group>"; };
 		3A55EA02DDDA4E6CD7B599D1 /* AIActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIActionTests.swift; sourceTree = "<group>"; };
 		3C647642DA3D59197DDF60F5 /* ManifestValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManifestValidation.swift; sourceTree = "<group>"; };
 		3CA1668ABEA1DDA04C75B2BC /* EditActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditActionSheet.swift; sourceTree = "<group>"; };
@@ -730,6 +733,7 @@
 		E843649F2E5528CE1F44259F /* MenuActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuActionTests.swift; sourceTree = "<group>"; };
 		E97352E36DEEAE5F6A6AE6F5 /* OpenClip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenClip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9CB80BD9BDEB6CA9AA95B1F /* HotkeyManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManagerTests.swift; sourceTree = "<group>"; };
+		EB47ADC8B34E62ADF6403EC2 /* PaletteAIPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteAIPromptTests.swift; sourceTree = "<group>"; };
 		EB7F93A0807221276A6B0310 /* AppLaunchClassifierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLaunchClassifierTests.swift; sourceTree = "<group>"; };
 		EC570E95AD00AF13279BF5F1 /* OpenClipModuleLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipModuleLoader.swift; sourceTree = "<group>"; };
 		EDA9C8A4040E18E41E19E64A /* JavaScriptAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptAction.swift; sourceTree = "<group>"; };
@@ -948,6 +952,7 @@
 			isa = PBXGroup;
 			children = (
 				DFEB96F8C47927BF0E4EF7FD /* GroupSubActionBarView.swift */,
+				3982D7C103DE3872366CAE13 /* PaletteAIPrompt.swift */,
 				842374852607342FFC468020 /* PopupGesturePolicy.swift */,
 				A088DDC9F9B0BD52F785ACCB /* PopupHoverSupport.swift */,
 				182E96BF128E3FFA77FCE3C4 /* PopupMetrics.swift */,
@@ -1371,6 +1376,7 @@
 				8CB9BA0577EDDA7E174755C2 /* OpenClipJSHostTests.swift */,
 				1E5F5E01EF86BB0AFEFEE150 /* OpenClipModuleLoaderTests.swift */,
 				3359F30EB7FC15DFC02A4D9B /* OpenClipSnippetParserTests.swift */,
+				EB47ADC8B34E62ADF6403EC2 /* PaletteAIPromptTests.swift */,
 				F70CEEE45FFA6B08C6C286E3 /* PaletteAIRunTests.swift */,
 				D1FD683F171A6F049676827E /* PaletteShortcutTests.swift */,
 				201CA35D10C8474B786349EE /* PasteAvailabilityProbeTests.swift */,
@@ -1636,6 +1642,7 @@
 				ED408F095ADAD70E95B15D39 /* OpenClipJSHostTests.swift in Sources */,
 				72D406208C35164983A1EC13 /* OpenClipModuleLoaderTests.swift in Sources */,
 				CB0F2118E3D0E7195D500A5D /* OpenClipSnippetParserTests.swift in Sources */,
+				0DDACD448D65748A7F26A9D9 /* PaletteAIPromptTests.swift in Sources */,
 				FF37203790338215C05FC616 /* PaletteAIRunTests.swift in Sources */,
 				4F586CC0ED7A445DBA7C8C7D /* PaletteShortcutTests.swift in Sources */,
 				7A6B2CBBA01D8F8A4E89D8DC /* PasteAvailabilityProbeTests.swift in Sources */,
@@ -1865,6 +1872,7 @@
 				EE047575D4BBDD2F0D88A15C /* OpenClipModuleLoader.swift in Sources */,
 				6B6EB24072E6FDB50051E1F5 /* OpenClipSnippetParser+DefaultFactory.swift in Sources */,
 				E349DDD966C6A17A8B49DAAA /* OpenURLAction.swift in Sources */,
+				4CB49E0424CE26F1B9CB0A5A /* PaletteAIPrompt.swift in Sources */,
 				00F99CE9A59716DFB7EF8A58 /* PaletteRowShortcuts.swift in Sources */,
 				D3C8C3EA66019AC8C95C551C /* PasteAvailabilityProbe.swift in Sources */,
 				974C03DE6A31270A924FBC49 /* PasteboardCopyEngine.swift in Sources */,

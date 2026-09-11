@@ -67,6 +67,12 @@ public struct PopupView: View {
     public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
     /// Called when an AI preset action is run: the controller closes the popup and runs via the loading toast flow.
     public let onRunAI: (@MainActor (String) -> Void)?
+    /// Runs the palette's typed query as a one-off AI instruction (the empty state's "Ask AI"
+    /// row). nil falls back to the view's own streaming flow (preview/static hosts).
+    public let onRunAIPrompt: (@MainActor (String) -> Void)?
+    /// Saves the palette's typed query as a reusable AI tool and runs it (the empty state's
+    /// "Save as AI tool" row). nil falls back to the view's own flow.
+    public let onSaveAIPrompt: (@MainActor (String) -> Void)?
     /// Returns the click intent captured at mouse-down for the current click, so the left-click
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
@@ -182,6 +188,8 @@ public struct PopupView: View {
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
         onRunAI: (@MainActor (String) -> Void)? = nil,
+        onRunAIPrompt: (@MainActor (String) -> Void)? = nil,
+        onSaveAIPrompt: (@MainActor (String) -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary },
         onShowTooltip: (@MainActor (String, CGRect, String, Bool) -> Void)? = nil,
         onHideTooltip: (@MainActor () -> Void)? = nil
@@ -210,6 +218,8 @@ public struct PopupView: View {
         self.onWillPerformAction = onWillPerformAction
         self.onRunLoadingAction = onRunLoadingAction
         self.onRunAI = onRunAI
+        self.onRunAIPrompt = onRunAIPrompt
+        self.onSaveAIPrompt = onSaveAIPrompt
         self.onClickIntent = onClickIntent
         self.onShowTooltip = onShowTooltip
         self.onHideTooltip = onHideTooltip
@@ -508,6 +518,26 @@ public struct PopupView: View {
                     onExitSearch()
                     guard let preset = aiManager.preset(forActionID: actionID) else { return }
                     runAIPreset(prompt: aiManager.promptForPreset(preset), title: preset.title)
+                }
+            },
+            onRunAIPrompt: { instruction in
+                if let onRunAIPrompt {
+                    // Same contract as onRunAI: the controller's flow snapshots the selection and
+                    // dismisses the popup itself, so the palette must not exit first.
+                    onRunAIPrompt(instruction)
+                } else {
+                    onExitSearch()
+                    runAIPreset(prompt: instruction, title: PaletteAIPrompt.toolTitle(for: instruction))
+                }
+            },
+            onSaveAIPrompt: { instruction in
+                if let onSaveAIPrompt {
+                    onSaveAIPrompt(instruction)
+                } else {
+                    onExitSearch()
+                    let preset = aiManager.preset(matchingPrompt: instruction)
+                        ?? aiManager.addCustomPreset(title: PaletteAIPrompt.toolTitle(for: instruction), prompt: instruction)
+                    runAIPreset(prompt: preset.prompt, title: preset.title)
                 }
             },
             onActionPerformed: onActionPerformed,

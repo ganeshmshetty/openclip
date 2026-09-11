@@ -360,6 +360,12 @@ public class PopupWindowController {
                 let prompt = AIServiceManager.shared.promptForPreset(preset)
                 self.runAIPreset(prompt: prompt, title: preset.title)
             },
+            onRunAIPrompt: { [weak self] instruction in
+                self?.runAIPrompt(instruction)
+            },
+            onSaveAIPrompt: { [weak self] instruction in
+                self?.saveAndRunAIPrompt(instruction)
+            },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary },
             onShowTooltip: { [weak self] text, localFrame, theme, isDark in
                 self?.presentTooltip(text: text, localFrame: localFrame, effectiveTheme: theme, isDark: isDark)
@@ -1552,7 +1558,38 @@ public class PopupWindowController {
         modeStore.subBarAbove = actuallyAbove
     }
 
-    func runAIPreset(prompt: String, title: String) {
+    /// Runs an instruction typed into the palette against the selection, exactly like a preset
+    /// (same loading toast, same streaming card), with the instruction as the card's title.
+    func runAIPrompt(_ instruction: String) {
+        let prompt = PaletteAIPrompt.instruction(from: instruction)
+        guard !prompt.isEmpty else { return }
+        Log.ai.notice("Running a one-off AI prompt from the palette")
+        runAIPreset(prompt: prompt, title: PaletteAIPrompt.toolTitle(for: prompt))
+    }
+
+    /// Saves a palette instruction as a custom AI tool, then runs it. The tool is a regular
+    /// custom preset: searchable in the palette, listed in the AI sub-bar and in Preferences →
+    /// AI → Actions where it can be renamed, re-prompted or deleted. A prompt that is already
+    /// saved reuses its tool rather than minting a duplicate. The saved tool is recorded as used
+    /// so it ranks first among equals the next time it is searched.
+    func saveAndRunAIPrompt(_ instruction: String) {
+        let prompt = PaletteAIPrompt.instruction(from: instruction)
+        guard !prompt.isEmpty else { return }
+        let manager = AIServiceManager.shared
+        let existing = manager.preset(matchingPrompt: prompt)
+        let preset = existing ?? manager.addCustomPreset(title: PaletteAIPrompt.toolTitle(for: prompt), prompt: prompt)
+        usageStore.record(AIAction(presetID: preset.id, title: preset.title).id)
+        if existing == nil {
+            Log.ai.notice("Saved a palette prompt as AI tool \(preset.id, privacy: .public)")
+        }
+        runAIPreset(
+            prompt: manager.promptForPreset(preset),
+            title: preset.title,
+            loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Generating…") : nil
+        )
+    }
+
+    func runAIPreset(prompt: String, title: String, loadingMessage: String? = nil) {
         guard let context = currentActionContext else {
             Log.ai.error("Cannot run AI preset: currentActionContext is nil")
             return
@@ -1568,7 +1605,7 @@ public class PopupWindowController {
         hide()
         let session = aiSessionID
 
-        toastController.showLoading(message: String(localized: "Generating…"), anchorFrame: anchorFrame) { [weak self] in
+        toastController.showLoading(message: loadingMessage ?? String(localized: "Generating…"), anchorFrame: anchorFrame) { [weak self] in
             self?.cancelActiveTasks()
         }
 

@@ -457,5 +457,8 @@
   "Move Up": "上に移動",
   "Move Down": "下に移動",
   "%@ download": "%@ ダウンロード",
-  "%@ downloads": "%@ ダウンロード"
+  "%@ downloads": "%@ ダウンロード",
+  "Ask AI: “%@”": "AIに依頼: 「%@」",
+  "Save as AI tool": "AIツールとして保存",
+  "Saved as AI tool · Generating…": "AIツールとして保存済み · 生成中…"
 }

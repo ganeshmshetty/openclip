@@ -2,6 +2,13 @@
 
 ---
 
+## Unreleased
+
+### Features & Improvements
+- **Ask AI from the search palette**: a palette query that matches no action now offers **Ask AI: “…”** (⌘1) to run the typed text as a one-off instruction on the selection, and **Save as AI tool** (⌘2) to keep it as a custom AI action — searchable in the palette, listed in the AI Tools bar and editable under Preferences › AI › Actions — and run it. Replaces the "No matches" dead end whenever AI is switched on.
+
+---
+
 ## v1.5.0 - 2026-09-10
 
 ### Highlights
