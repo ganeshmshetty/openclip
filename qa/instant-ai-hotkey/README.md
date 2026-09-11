@@ -7,6 +7,8 @@ CGEvent script (the ⌥⌘I hotkey included). AI responses are real.
 
 ## Videos
 
+Each recording also has a `.gif` twin (10 fps, 720 px) so it plays inline on GitHub; the `.mp4` is the full-quality version.
+
 | File | What it shows |
 | --- | --- |
 | `instant-replace.mp4` (22 s) | Select → **⌥⌘I** → type `rewrite to slovak` → ⏎ → "Replacing…" → the selection is replaced in place, "Replaced with AI result" toast. |
