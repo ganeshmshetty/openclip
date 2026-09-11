@@ -7,6 +7,8 @@ selected with ⌘A; input driven by a small CGEvent script. AI responses are rea
 
 ## Videos
 
+Each recording also has a `.gif` twin (10 fps, 720 px) so it plays inline on GitHub; the `.mp4` is the full-quality version.
+
 | File | What it shows |
 | --- | --- |
 | `composer-ask.mp4` (24 s) | Select → **Ask AI** → type `rewrite to slovak` → ⏎ → "Generating…" → result card → Esc. |
