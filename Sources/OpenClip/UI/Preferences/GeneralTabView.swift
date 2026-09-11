@@ -68,6 +68,14 @@ struct GeneralTab: View {
                 ) {
                     KeyboardShortcuts.Recorder(for: .togglePopup)
                 }
+
+                SettingsRow(
+                    title: "Instant AI Shortcut",
+                    subtitle: "Type what AI should do with the selection; ⏎ replaces it with the answer.",
+                    systemImage: "bolt"
+                ) {
+                    KeyboardShortcuts.Recorder(for: .instantAI)
+                }
             }
 
             Section("Action Results") {

@@ -457,5 +457,18 @@
   "Move Up": "上に移動",
   "Move Down": "下に移動",
   "%@ download": "%@ ダウンロード",
-  "%@ downloads": "%@ ダウンロード"
+  "%@ downloads": "%@ ダウンロード",
+  "Instant AI": "インスタントAI",
+  "Tell AI what to do with the selection…": "選択範囲に対してAIに何をさせるか入力…",
+  "replace selection": "選択範囲を置換",
+  "copy result": "結果をコピー",
+  "show result": "結果を表示",
+  "last prompt": "前回の指示",
+  "Replacing…": "置換中…",
+  "Replaced with AI result": "AIの結果で置換しました",
+  "Copied AI result": "AIの結果をコピーしました",
+  "Copied — the app changed": "コピーしました — アプリが切り替わりました",
+  "Select some text first": "先にテキストを選択してください",
+  "Instant AI Shortcut": "インスタントAIショートカット",
+  "Type what AI should do with the selection; ⏎ replaces it with the answer.": "選択範囲に対してAIに何をさせるか入力し、⏎ で回答に置き換えます。"
 }

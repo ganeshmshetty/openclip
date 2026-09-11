@@ -23,7 +23,9 @@ public class PopupWindowController {
     var panel: PopupPanel?
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
-    private var currentContext: SelectionContext?
+    /// The selection the on-screen session was opened for; nil between sessions. Read by the
+    /// Instant AI hotkey to reuse an existing session.
+    private(set) var currentContext: SelectionContext?
     public var sourceAppBundleID: String? { currentContext?.sourceApp.bundleIdentifier }
     var currentActionContext: ActionContext?
     private var cardAbove = false
@@ -359,6 +361,9 @@ public class PopupWindowController {
                 guard let self, let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
                 let prompt = AIServiceManager.shared.promptForPreset(preset)
                 self.runAIPreset(prompt: prompt, title: preset.title)
+            },
+            onRunInstantAI: { [weak self] instruction, replace in
+                self?.runInstantAI(instruction, replace: replace)
             },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary },
             onShowTooltip: { [weak self] text, localFrame, theme, isDark in
@@ -1550,6 +1555,95 @@ public class PopupWindowController {
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary }
         )
         modeStore.subBarAbove = actuallyAbove
+    }
+
+    /// Opens the Instant AI prompt on `context`: a one-line instruction field placed at the
+    /// selection, hosted like a directly opened palette (key panel, focused field, Esc hides) but
+    /// scoped to `InstantAIAction` so search mode renders `InstantPromptView`. Replaces whatever
+    /// the popup was showing.
+    public func showInstantPrompt(for context: SelectionContext, pasteAvailable: Bool?) {
+        if panel?.isVisible == true { hide() }
+        modeStore.scope = SearchScope(parent: InstantAIAction(), children: [])
+        show(for: context, pasteAvailable: pasteAvailable, initialMode: .search)
+    }
+
+    /// The frontmost app at the moment an Instant AI answer lands — pasting is only safe into
+    /// the app the selection came from. Settable for tests.
+    var frontmostBundleIDProvider: @MainActor () -> String? = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+
+    /// Runs an Instant AI instruction on the selection. ⏎ (`replace`) waits for the whole answer
+    /// and pastes it over the selection — no card — under a "Replacing…" toast that can cancel
+    /// it; the answer is copied instead when the target can't paste or the user has moved to
+    /// another app meanwhile. ⇧⏎ (`replace == false`) is the review path: the answer streams
+    /// into the normal result card. Either way the instruction is remembered for ↑.
+    func runInstantAI(_ instruction: String, replace: Bool) {
+        let prompt = AIPromptText.instruction(from: instruction)
+        guard !prompt.isEmpty else { return }
+        settingsStore.set(.lastInstantAIPrompt, value: prompt)
+        guard replace else {
+            runAIPreset(prompt: prompt, title: AIPromptText.toolTitle(for: prompt))
+            return
+        }
+        guard let context = currentActionContext else {
+            Log.ai.error("Cannot run Instant AI: currentActionContext is nil")
+            return
+        }
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+
+        let selection = context.selection
+        let anchorFrame = panel?.frame ?? lastPopupFrame
+        let targetCanPaste = PasteAvailability.effective(policy: selection.appPolicy, probe: modeStore.canPaste)
+        let sourceBundleID = selection.sourceApp.bundleIdentifier
+        Log.ai.notice("Running an Instant AI instruction (replace in place)")
+
+        hide()
+        let session = aiSessionID
+        toastController.showLoading(message: String(localized: "Replacing…"), anchorFrame: anchorFrame) { [weak self] in
+            self?.cancelActiveTasks()
+        }
+
+        let task = Task { @MainActor in
+            self.modeStore.isProcessingAI = true
+            defer {
+                if !Task.isCancelled {
+                    self.activeStreamingTask = nil
+                    self.modeStore.isProcessingAI = false
+                }
+            }
+            do {
+                let provider = AIServiceManager.shared.currentProvider
+                let answer = try await provider.process(prompt: prompt, text: selection.text)
+                guard !Task.isCancelled, session == self.aiSessionID else {
+                    self.toastController.hide()
+                    return
+                }
+                if provider.type == .browser {
+                    // The browser provider opened the query in a tab; there is nothing to paste.
+                    self.toastController.hide()
+                    return
+                }
+                let stillInSourceApp = sourceBundleID == nil || self.frontmostBundleIDProvider() == sourceBundleID
+                let pastes = targetCanPaste != false && stillInSourceApp
+                self.handleActionResult(pastes ? .paste(answer) : .copy(answer), delivery: nil, suppressDeliveryToast: true)
+                let message = pastes
+                    ? String(localized: "Replaced with AI result")
+                    : (stillInSourceApp ? String(localized: "Copied AI result") : String(localized: "Copied — the app changed"))
+                self.toastController.show(StatusFeedback(message: message, style: .success, symbolName: "sparkles"), anchorFrame: anchorFrame)
+            } catch is CancellationError {
+                self.toastController.hide()
+            } catch let error as AIError where error == .cancelled {
+                self.toastController.hide()
+            } catch {
+                guard !Task.isCancelled, session == self.aiSessionID else {
+                    self.toastController.hide()
+                    return
+                }
+                Log.ai.error("Instant AI failed: \(error.localizedDescription)")
+                self.toastController.show(StatusFeedback(error: error), anchorFrame: anchorFrame)
+            }
+        }
+        activeStreamingTask = task
     }
 
     func runAIPreset(prompt: String, title: String) {

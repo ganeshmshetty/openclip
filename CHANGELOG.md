@@ -2,6 +2,13 @@
 
 ---
 
+## Unreleased
+
+### Features & Improvements
+- **Instant AI shortcut**: press ⌥⌘I (configurable under Preferences › General) on a selection to get a one-line prompt right there — type what AI should do and press ⏎, and the answer replaces the selection in place under a "Replacing…" toast (copied instead when the app can't paste or you've moved on). ⇧⏎ shows the answer in the result card first; ↑ recalls the last instruction.
+
+---
+
 ## v1.5.0 - 2026-09-10
 
 ### Highlights

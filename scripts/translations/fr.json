@@ -457,5 +457,18 @@
   "Move Up": "Monter",
   "Move Down": "Descendre",
   "%@ download": "%@ téléchargement",
-  "%@ downloads": "%@ téléchargements"
+  "%@ downloads": "%@ téléchargements",
+  "Instant AI": "IA instantanée",
+  "Tell AI what to do with the selection…": "Dites à l’IA quoi faire de la sélection…",
+  "replace selection": "remplacer la sélection",
+  "copy result": "copier le résultat",
+  "show result": "afficher le résultat",
+  "last prompt": "dernière instruction",
+  "Replacing…": "Remplacement…",
+  "Replaced with AI result": "Remplacé par le résultat de l’IA",
+  "Copied AI result": "Résultat de l’IA copié",
+  "Copied — the app changed": "Copié — l’app a changé",
+  "Select some text first": "Sélectionnez d’abord du texte",
+  "Instant AI Shortcut": "Raccourci IA instantanée",
+  "Type what AI should do with the selection; ⏎ replaces it with the answer.": "Saisissez ce que l’IA doit faire de la sélection ; ⏎ la remplace par la réponse."
 }

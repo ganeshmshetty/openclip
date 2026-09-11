@@ -457,5 +457,18 @@
   "Move Up": "上移",
   "Move Down": "下移",
   "%@ download": "%@ 次下载",
-  "%@ downloads": "%@ 次下载"
+  "%@ downloads": "%@ 次下载",
+  "Instant AI": "即时 AI",
+  "Tell AI what to do with the selection…": "告诉 AI 如何处理所选内容…",
+  "replace selection": "替换所选内容",
+  "copy result": "复制结果",
+  "show result": "显示结果",
+  "last prompt": "上次指令",
+  "Replacing…": "正在替换…",
+  "Replaced with AI result": "已替换为 AI 结果",
+  "Copied AI result": "已复制 AI 结果",
+  "Copied — the app changed": "已复制 — 应用已切换",
+  "Select some text first": "请先选择一些文本",
+  "Instant AI Shortcut": "即时 AI 快捷键",
+  "Type what AI should do with the selection; ⏎ replaces it with the answer.": "输入希望 AI 对所选内容执行的操作；按 ⏎ 用答案替换所选内容。"
 }

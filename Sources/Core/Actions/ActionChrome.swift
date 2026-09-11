@@ -185,6 +185,10 @@ public struct ActionChrome: Codable, Sendable, Equatable {
     /// routes its click into AI mode instead of `perform`, and the search palette excludes it
     /// (AI presets are already searchable there).
     public let launchesAI: Bool
+    /// True when the action is the parent of an AI prompt surface: search mode renders a
+    /// free-form instruction field for it instead of the action palette (the Instant AI prompt).
+    /// Such an action is a surface, never a leaf: it is not registered, searched or bound.
+    public let composesPrompt: Bool
     /// True when the action is slow (e.g. an AppleScript that activates an app) and the popup
     /// should close immediately on click with a spinner toast until the result lands.
     public let showsLoading: Bool
@@ -202,6 +206,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         source: Source = .builtin,
         requiresLiveSelection: Bool = false,
         launchesAI: Bool = false,
+        composesPrompt: Bool = false,
         showsLoading: Bool = false,
         loadingMessage: String? = nil,
         isInlineResult: Bool = false
@@ -212,6 +217,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.source = source
         self.requiresLiveSelection = requiresLiveSelection
         self.launchesAI = launchesAI
+        self.composesPrompt = composesPrompt
         self.showsLoading = showsLoading
         self.loadingMessage = loadingMessage
         self.isInlineResult = isInlineResult
@@ -225,6 +231,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.source = try container.decode(Source.self, forKey: .source)
         self.requiresLiveSelection = try container.decode(Bool.self, forKey: .requiresLiveSelection)
         self.launchesAI = try container.decode(Bool.self, forKey: .launchesAI)
+        self.composesPrompt = try container.decodeIfPresent(Bool.self, forKey: .composesPrompt) ?? false
         self.showsLoading = try container.decode(Bool.self, forKey: .showsLoading)
         self.loadingMessage = try container.decodeIfPresent(String.self, forKey: .loadingMessage)
         self.isInlineResult = try container.decodeIfPresent(Bool.self, forKey: .isInlineResult) ?? false
@@ -238,6 +245,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         try container.encode(source, forKey: .source)
         try container.encode(requiresLiveSelection, forKey: .requiresLiveSelection)
         try container.encode(launchesAI, forKey: .launchesAI)
+        try container.encode(composesPrompt, forKey: .composesPrompt)
         try container.encode(showsLoading, forKey: .showsLoading)
         try container.encodeIfPresent(loadingMessage, forKey: .loadingMessage)
         try container.encode(isInlineResult, forKey: .isInlineResult)
@@ -250,6 +258,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         case source
         case requiresLiveSelection
         case launchesAI
+        case composesPrompt
         case showsLoading
         case loadingMessage
         case isInlineResult

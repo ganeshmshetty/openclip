@@ -67,6 +67,9 @@ public struct PopupView: View {
     public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
     /// Called when an AI preset action is run: the controller closes the popup and runs via the loading toast flow.
     public let onRunAI: (@MainActor (String) -> Void)?
+    /// Runs an Instant AI instruction: `(instruction, replace)` — replace the selection in place
+    /// (⏎) or show the result card (⇧⏎). nil falls back to the view's own card flow.
+    public let onRunInstantAI: (@MainActor (String, Bool) -> Void)?
     /// Returns the click intent captured at mouse-down for the current click, so the left-click
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
@@ -128,6 +131,7 @@ public struct PopupView: View {
     /// session-scoped cancellation that never waits for SwiftUI view teardown.
     private let registerStreamingTask: @MainActor (Task<Void, Never>?) -> Void
     @ObservedObject private var aiManager = AIServiceManager.shared
+    @AppStorage(SettingKey.lastInstantAIPrompt.name) private var lastInstantPrompt: String = SettingKey.lastInstantAIPrompt.defaultValue
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
     @State private var isShowingCompletions: Bool = true
@@ -182,6 +186,7 @@ public struct PopupView: View {
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
         onRunAI: (@MainActor (String) -> Void)? = nil,
+        onRunInstantAI: (@MainActor (String, Bool) -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary },
         onShowTooltip: (@MainActor (String, CGRect, String, Bool) -> Void)? = nil,
         onHideTooltip: (@MainActor () -> Void)? = nil
@@ -210,6 +215,7 @@ public struct PopupView: View {
         self.onWillPerformAction = onWillPerformAction
         self.onRunLoadingAction = onRunLoadingAction
         self.onRunAI = onRunAI
+        self.onRunInstantAI = onRunInstantAI
         self.onClickIntent = onClickIntent
         self.onShowTooltip = onShowTooltip
         self.onHideTooltip = onHideTooltip
@@ -471,10 +477,46 @@ public struct PopupView: View {
         actionsHStack
     }
 
+    /// Search mode's surface: the Instant AI prompt when the scope's parent composes prompts
+    /// (opened by the Instant AI hotkey), otherwise the action-search palette.
+    @ViewBuilder
+    private var searchCard: some View {
+        if let parent = modeStore.scope?.parent, parent.chrome.composesPrompt {
+            instantPrompt
+        } else {
+            actionPalette
+        }
+    }
+
+    /// The Instant AI prompt, hosted like the palette (same scope plumbing, key mode and Esc).
+    private var instantPrompt: some View {
+        InstantPromptView(
+            lastPrompt: lastInstantPrompt.isEmpty ? nil : lastInstantPrompt,
+            canPaste: modeStore.canPaste,
+            onRun: { instruction, replace in
+                if let onRunInstantAI {
+                    // The controller's flow snapshots the selection and dismisses the popup
+                    // itself, so the prompt must not exit first.
+                    onRunInstantAI(instruction, replace)
+                } else {
+                    modeStore.scope = nil
+                    onExitSearch()
+                    runAIPreset(prompt: instruction, title: AIPromptText.toolTitle(for: instruction))
+                }
+            },
+            onExit: {
+                modeStore.scope = nil
+                onExitSearch()
+            }
+        )
+        .environment(\.colorScheme, effectiveColorScheme)
+        .environment(\.popupEffectiveTheme, effectiveTheme)
+    }
+
     /// The action-search palette: renders PopupSearchView with dedicated card chrome matching
     /// ResultCardView in content mode.
     @ViewBuilder
-    private var searchCard: some View {
+    private var actionPalette: some View {
         PopupSearchView(
             catalog: searchCatalog,
             context: context,

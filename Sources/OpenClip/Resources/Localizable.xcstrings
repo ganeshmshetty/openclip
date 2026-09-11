@@ -3053,6 +3053,62 @@
         }
       }
     },
+    "Copied AI result": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制 AI 结果"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已拷貝 AI 結果"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résultat de l’IA copié"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIの結果をコピーしました"
+          }
+        }
+      }
+    },
+    "Copied — the app changed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制 — 应用已切换"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已拷貝 — App 已切換"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copié — l’app a changé"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーしました — アプリが切り替わりました"
+          }
+        }
+      }
+    },
     "Copy": {
       "localizations": {
         "zh-Hans": {
@@ -5933,6 +5989,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "インストール中…"
+          }
+        }
+      }
+    },
+    "Instant AI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即时 AI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即時 AI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IA instantanée"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インスタントAI"
+          }
+        }
+      }
+    },
+    "Instant AI Shortcut": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即时 AI 快捷键"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即時 AI 快速鍵"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raccourci IA instantanée"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インスタントAIショートカット"
           }
         }
       }
@@ -9353,6 +9465,62 @@
         }
       }
     },
+    "Replaced with AI result": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已替换为 AI 结果"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已取代為 AI 結果"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remplacé par le résultat de l’IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIの結果で置換しました"
+          }
+        }
+      }
+    },
+    "Replacing…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在替换…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在取代…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remplacement…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "置換中…"
+          }
+        }
+      }
+    },
     "Report Issue…": {
       "localizations": {
         "zh-Hans": {
@@ -10389,6 +10557,34 @@
         }
       }
     },
+    "Select some text first": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先选择一些文本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請先選取一些文字"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez d’abord du texte"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先にテキストを選択してください"
+          }
+        }
+      }
+    },
     "Select which provider powers AI features when invoked.": {
       "localizations": {
         "zh-Hans": {
@@ -11145,6 +11341,34 @@
         }
       }
     },
+    "Tell AI what to do with the selection…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "告诉 AI 如何处理所选内容…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "告訴 AI 如何處理所選內容…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dites à l’IA quoi faire de la sélection…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択範囲に対してAIに何をさせるか入力…"
+          }
+        }
+      }
+    },
     "Text Snippet": {
       "localizations": {
         "zh-Hans": {
@@ -11729,6 +11953,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "タイプ"
+          }
+        }
+      }
+    },
+    "Type what AI should do with the selection; ⏎ replaces it with the answer.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入希望 AI 对所选内容执行的操作；按 ⏎ 用答案替换所选内容。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輸入希望 AI 對所選內容執行的操作；按 ⏎ 以答案取代所選內容。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez ce que l’IA doit faire de la sélection ; ⏎ la remplace par la réponse."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択範囲に対してAIに何をさせるか入力し、⏎ で回答に置き換えます。"
           }
         }
       }
@@ -12629,6 +12881,34 @@
         }
       }
     },
+    "copy result": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制结果"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷貝結果"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "copier le résultat"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結果をコピー"
+          }
+        }
+      }
+    },
     "e.g. **{text}**": {
       "localizations": {
         "zh-Hans": {
@@ -12797,6 +13077,34 @@
         }
       }
     },
+    "last prompt": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次指令"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次指令"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dernière instruction"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の指示"
+          }
+        }
+      }
+    },
     "macOS requires re-enabling Accessibility to continue detecting text selections.": {
       "localizations": {
         "zh-Hans": {
@@ -12821,6 +13129,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキスト選択の検出を継続するには、macOSでアクセシビリティを再度有効にする必要があります。"
+          }
+        }
+      }
+    },
+    "replace selection": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换所选内容"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取代所選內容"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "remplacer la sélection"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択範囲を置換"
+          }
+        }
+      }
+    },
+    "show result": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示结果"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示結果"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "afficher le résultat"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結果を表示"
           }
         }
       }

@@ -78,5 +78,17 @@ Navigate to **Preferences > AI** to configure your provider:
 | **Cloud AI (OpenAI / Claude / Gemini / DeepSeek / Groq / OpenRouter / Custom)** | Cloud API language models | Valid API Key stored securely in `SecretStore` (`~/.openclip/secrets.json`) |
 | **Browser Redirect** | Opens AI query in browser | No API key required |
 
+### Instant AI (shortcut)
+
+Select text and press the **Instant AI** shortcut (⌥⌘I by default; change it under
+Preferences › General). A one-line prompt appears at the selection:
+
+- Type what AI should do — `rewrite to slovak`, `make it shorter` — and press **⏎**. The popup
+  closes, a "Replacing…" toast shows while AI answers, and the answer is **pasted over the
+  selection** the moment it lands. If the app can't paste, or you have switched to another app
+  meanwhile, the answer is copied instead and the toast says so.
+- **⇧⏎** shows the answer in the result card first (review, then Paste or Copy).
+- **↑** recalls your last instruction; **Esc** closes the prompt.
+
 ### AI Settings Channel
 AI settings are managed through `AIServiceManager` and isolated to ensure security and privacy.

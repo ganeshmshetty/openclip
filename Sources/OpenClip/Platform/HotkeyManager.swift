@@ -10,6 +10,8 @@ import Core
 
 extension KeyboardShortcuts.Name {
     public static let togglePopup = Self("togglePopup", default: .init(.c, modifiers: [.command, .option]))
+    /// Instant AI: a one-line prompt on the selection whose answer replaces it in place.
+    public static let instantAI = Self("instantAI", default: .init(.i, modifiers: [.command, .option]))
 
     static func actionHotkey(_ actionID: String) -> Self {
         Self("actionHotkey.\(actionID)")
@@ -64,6 +66,11 @@ public final class HotkeyManager {
                 self?.handleTogglePopup()
             }
         }
+        KeyboardShortcuts.onKeyDown(for: .instantAI) { [weak self] in
+            MainActor.assumeIsolated {
+                self?.handleInstantAI()
+            }
+        }
 
         ActionCoordinator.shared.$actions
             .sink { [weak self] actions in
@@ -71,6 +78,32 @@ public final class HotkeyManager {
             }
             .store(in: &cancellables)
         registerActionHotkeys(ActionCoordinator.shared.actions)
+    }
+
+    /// Instant AI: opens the one-line prompt on the current selection. Reuses the on-screen
+    /// session when the popup is already up (bar, palette or card); otherwise resolves the
+    /// selection synchronously exactly like ⌥⌘C. Needs real text — there is nothing to replace
+    /// otherwise, so an empty selection gets a toast rather than an empty prompt.
+    public func handleInstantAI() {
+        if let popupController, popupController.isVisible, let context = popupController.currentContext {
+            popupController.showInstantPrompt(for: context, pasteAvailable: popupController.modeStore.canPaste)
+            return
+        }
+        guard let trigger = resolveSynchronousTrigger() else { return }
+        guard Self.instantPromptAllowed(text: trigger.context.text) else {
+            popupController?.showToast(
+                StatusFeedback(message: String(localized: "Select some text first"), style: .info, symbolName: "text.cursor"),
+                at: NSEvent.mouseLocation
+            )
+            return
+        }
+        popupController?.showInstantPrompt(for: trigger.context, pasteAvailable: trigger.canPaste)
+    }
+
+    /// Whether a selection is worth opening the Instant AI prompt for: substantial text only
+    /// (the same bar as the automatic popup), since the answer is meant to replace it.
+    static func instantPromptAllowed(text: String) -> Bool {
+        TextSanitizer.isSubstantial(text) && text.utf8.count <= Constants.maxTextLength
     }
 
     public func handleTogglePopup() {

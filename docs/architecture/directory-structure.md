@@ -115,6 +115,8 @@ Sources/
     │   ├── AIProvider.swift                  # AIProvider protocol & prompt formatting
     │   ├── AIServiceManager.swift            # cloudAPIKey is SecretStore-backed (@Published), other prefs via @AppStorage
     │   ├── AIToolsAction.swift               # AI Tools group launcher action
+    │   ├── InstantAIAction.swift             # Unregistered scope parent for the Instant AI prompt (chrome.composesPrompt)
+    │   ├── AIPromptText.swift                # Instruction collapsing + tool-title rules for typed prompts
     │   └── Providers/                        # Apple Intelligence, Cloud, Ollama, BrowserRedirect
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner
     │       ├── BrowserRedirectProvider.swift   # Browser search redirect runner
@@ -211,6 +213,7 @@ Sources/
         │   ├── PopupPositioner.swift         # Frame math & screen clamping (pure static, no singletons)
         │   ├── PopupPreview.swift            # Static popup bar preview (fixed canonical actions; Preferences Appearance tab)
         │   ├── PopupSearchView.swift         # Action-search palette: field + ranked results as one surface with the bar
+        │   ├── InstantPromptView.swift       # Instant AI prompt: one field at the selection; ⏎ replaces the selection with the answer
         │   ├── PopupThemeModel.swift         # Theme resolution: category (classic/glass) + shared appearance → tokens/colorScheme
         │   ├── PopupThemeSelector.swift      # Theme control: two rows (Classic|Glass, then System/Light/Dark); storage popupTheme + popupThemeColor
         │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode / content result-card branch + ⌘ affordance)

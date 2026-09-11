@@ -293,6 +293,26 @@ in `modeStore.scope`:
   reads **"Search within <parent.title>"**. Esc (`onExitScope`) drops the scope; the leading icon and
   placeholder come from `actionIcon(parent)/parent.displayTitle`.
 
+### Instant AI Prompt
+
+A second global hot key, **Instant AI** (`KeyboardShortcuts.Name.instantAI`, default ⌥⌘I,
+recorder under Preferences › General), opens the smallest AI surface there is: one field at the
+selection, no bar, no palette, no card. `HotkeyManager.handleInstantAI` reuses the on-screen
+session when the popup is up, otherwise resolves the selection synchronously like ⌥⌘C
+(`resolveSynchronousTrigger`) and requires substantial text (`instantPromptAllowed`; an empty
+selection gets a "Select some text first" toast). `PopupWindowController.showInstantPrompt`
+scopes search mode to `InstantAIAction` — an unregistered `composesPrompt` parent — and
+`PopupView.searchCard` renders `InstantPromptView` for such a scope, so key mode, field focus,
+placement and Esc (which hides, as for a directly opened palette) are the palette's. ⏎ runs
+`runInstantAI(_:replace: true)`: the popup hides, a cancellable "Replacing…" toast waits for the
+whole answer (`provider.process`), and the answer is **pasted over the selection**
+(`handleActionResult(.paste)`, an explicit request with no delivery re-decision) under a
+"Replaced with AI result" toast — downgraded to a copy when the unified paste availability says
+no, or when the frontmost app is no longer the selection's app (`frontmostBundleIDProvider`,
+"Copied — the app changed"). ⇧⏎ (`replace: false`) is the review path through `runAIPreset` and
+the result card. Either way the instruction is stored in `SettingKey.lastInstantAIPrompt` and ↑
+recalls it. `InstantAITests` pins the keys, the scoping and both delivery outcomes.
+
 ### Key-Mode Exceptions
 
 Search and content (AI-card) modes both make the panel key — the only two exceptions to the
