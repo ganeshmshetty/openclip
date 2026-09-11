@@ -3,7 +3,16 @@
 Branch `feat/instant-ai-hotkey`. Screenshots taken 2026-09-11 on a Developer-ID-signed Debug build
 of this branch, macOS 26.6, light appearance, Classic theme, AI provider = Cloud API (OpenRouter).
 TextEdit with a plain-text sample; the whole sentence selected with ⌘A; keys posted by a small
-CGEvent script (the ⌥⌘I hotkey included). AI responses are real. Videos follow in a later commit.
+CGEvent script (the ⌥⌘I hotkey included). AI responses are real. 
+
+## Videos
+
+| File | What it shows |
+| --- | --- |
+| `instant-replace.mp4` (22 s) | Select → **⌥⌘I** → type `rewrite to slovak` → ⏎ → "Replacing…" → the selection is replaced in place, "Replaced with AI result" toast. |
+| `instant-review-path.mp4` (24 s) | Select → **⌥⌘I** → **↑** recalls the last instruction → **⇧⏎** → "Generating…" → the result card instead of an in-place replacement → Esc. |
+
+## Screenshots
 
 | # | File | Moment |
 | --- | --- | --- |
