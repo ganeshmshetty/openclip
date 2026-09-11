@@ -371,6 +371,9 @@ public class PopupWindowController {
             onFollowUp: { [weak self] instruction in
                 self?.runFollowUp(instruction)
             },
+            onCancelFollowUp: { [weak self] in
+                self?.cancelFollowUp()
+            },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary },
             onShowTooltip: { [weak self] text, localFrame, theme, isDark in
                 self?.presentTooltip(text: text, localFrame: localFrame, effectiveTheme: theme, isDark: isDark)
@@ -905,6 +908,14 @@ public class PopupWindowController {
     /// Collapses the result card back to the actions bar. Never hides the popup.
     public func exitContent() {
         guard modeStore.mode == .content else { return }
+        if refiningPrevious != nil {
+            // Leaving the card drops a follow-up in flight; the stream must not re-open it.
+            activeStreamingTask?.cancel()
+            activeStreamingTask = nil
+            refiningPrevious = nil
+            followUpSource = nil
+            modeStore.isProcessingAI = false
+        }
         modeStore.resultCard = nil
         modeStore.resultCardSize = nil
         modeStore.isSurfaceUserSized = false
@@ -998,6 +1009,7 @@ public class PopupWindowController {
         InlineResultEvaluator.shared.clearPrewarmed()
         aiSessionID = UUID()
         followUpSource = nil
+        refiningPrevious = nil
 
         if toastController.currentFeedback?.keepVisible == true || toastController.isLoading {
             toastController.hide()
@@ -1697,11 +1709,132 @@ public class PopupWindowController {
     /// second pass over an answer ("shorter", "in Slovak"). The card re-streams in place, titled
     /// after the instruction, and diffs against the text the instruction ran on.
     func runFollowUp(_ instruction: String) {
-        guard let card = modeStore.resultCard, !card.isStreaming, !card.isError else { return }
+        guard let card = modeStore.resultCard, !card.isStreaming, !card.isError, currentActionContext != nil else { return }
         let prompt = PaletteAIPrompt.instruction(from: instruction)
         guard !prompt.isEmpty else { return }
         Log.ai.notice("Running a follow-up instruction in the result card")
-        runAIPreset(prompt: prompt, title: PaletteAIPrompt.toolTitle(for: prompt), inputText: card.text)
+        refineCard(card, prompt: prompt, title: PaletteAIPrompt.toolTitle(for: prompt))
+    }
+
+    /// The card a follow-up is refining, kept so a cancel or a failure puts it back. Non-nil
+    /// exactly while a follow-up is in flight.
+    private var refiningPrevious: ResultCardPayload?
+
+    /// Runs a follow-up *inside* the card. Unlike a preset run, nothing hides and no loading
+    /// toast shows: the card stays on screen with the previous answer dimmed under the field's
+    /// spinner (`isRefining`) until the first chunk, then streams the new answer in place and
+    /// settles with the diff against the text it ran on. Esc cancels, a failure restores the
+    /// previous answer under an error toast, and leaving content mode drops the stream.
+    private func refineCard(_ previous: ResultCardPayload, prompt: String, title: String) {
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+        let session = aiSessionID
+        let sourceText = previous.text
+        refiningPrevious = previous
+        followUpSource = sourceText
+        modeStore.isProcessingAI = true
+        freezeCardSizeForRefinement()
+        modeStore.resultCard = ResultCardPayload(
+            text: sourceText,
+            isError: false,
+            title: title,
+            icon: nil,
+            isStreaming: true,
+            original: sourceText,
+            isRefining: true
+        )
+
+        let task = Task { @MainActor in
+            defer {
+                if !Task.isCancelled {
+                    self.activeStreamingTask = nil
+                    self.modeStore.isProcessingAI = false
+                }
+            }
+            // The card is the only place this run renders: once the user has left content mode
+            // (back chevron) or the session ended, every later chunk is dropped.
+            @MainActor func stillRefining() -> Bool {
+                if Task.isCancelled { return false }
+                if session != self.aiSessionID { return false }
+                if self.modeStore.mode != .content { return false }
+                return self.refiningPrevious != nil
+            }
+            do {
+                let provider = AIServiceManager.shared.currentProvider
+                if provider.type == .browser {
+                    _ = try await provider.process(prompt: prompt, text: sourceText)
+                    guard stillRefining() else { return }
+                    self.restoreRefiningCard()
+                    return
+                }
+                var accumulated = ""
+                for try await chunk in provider.processStream(prompt: prompt, text: sourceText) {
+                    guard stillRefining() else { return }
+                    accumulated += chunk
+                    let cleaned = AIRequestSupport.extractResultText(accumulated)
+                    if !cleaned.isEmpty {
+                        self.showResultCard(text: cleaned, isError: false, title: title, isStreaming: true, session: session)
+                    }
+                }
+                guard stillRefining() else { return }
+                let finalResponse = AIRequestSupport.extractResultText(accumulated)
+                if finalResponse.isEmpty {
+                    self.restoreRefiningCard()
+                    self.toastController.show(StatusFeedback(message: String(localized: "No response generated"), style: .error), anchorFrame: self.panel?.frame)
+                } else {
+                    self.refiningPrevious = nil
+                    self.showResultCard(text: finalResponse, isError: false, title: title, isStreaming: false, session: session)
+                }
+            } catch is CancellationError {
+                // cancelFollowUp / hide already put the card back or took it down.
+            } catch let error as AIError where error == .cancelled {
+                // same
+            } catch {
+                guard stillRefining() else { return }
+                Log.ai.error("Follow-up failed in the result card: \(error.localizedDescription)")
+                self.restoreRefiningCard()
+                self.toastController.show(StatusFeedback(error: error), anchorFrame: self.panel?.frame)
+            }
+        }
+        activeStreamingTask = task
+    }
+
+    /// Pins the card to the exact size it has right now for the rest of its life on screen. The
+    /// card is content-sized — as wide as its longest line, as tall as the wrapped text — so a
+    /// refinement streaming in would otherwise re-measure it on every chunk and make the card
+    /// jump around under the user's eyes. The frozen size takes the same path as a hand-resized
+    /// card (`isSurfaceUserSized` + `resultCardSize`): the body scrolls if the new answer needs
+    /// more room, the user can still drag the handles, and nothing is persisted. A card the user
+    /// already resized is left alone; a test panel too small to be a card is ignored.
+    private func freezeCardSizeForRefinement() {
+        guard !modeStore.isSurfaceUserSized, let panel else { return }
+        let frozen = Self.cardSize(forPanelSize: panel.frame.size)
+        guard frozen.width >= PopupMetrics.aiCardMinWidth, frozen.height >= PopupMetrics.aiCardMinHeight else { return }
+        modeStore.resultCardSize = frozen
+        modeStore.isSurfaceUserSized = true
+    }
+
+    /// The card's size inside a panel frame: the panel minus the transparent shadow ring.
+    static func cardSize(forPanelSize size: CGSize) -> CGSize {
+        CGSize(width: size.width - 2 * PopupMetrics.popupShadowInset, height: size.height - 2 * PopupMetrics.popupShadowInset)
+    }
+
+    /// Puts the answer the follow-up was refining back, settled, with the field focused again.
+    private func restoreRefiningCard() {
+        guard let previous = refiningPrevious else { return }
+        refiningPrevious = nil
+        followUpSource = nil
+        modeStore.isProcessingAI = false
+        showResultCard(text: previous.text, isError: previous.isError, title: previous.title, icon: previous.icon, isStreaming: false, session: aiSessionID)
+    }
+
+    /// Esc while a follow-up streams: stop it and keep the previous answer on screen.
+    func cancelFollowUp() {
+        guard refiningPrevious != nil else { return }
+        Log.ai.info("Follow-up cancelled in the result card")
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+        restoreRefiningCard()
     }
 
     /// The text the current run was given instead of the selection (a follow-up), so the card

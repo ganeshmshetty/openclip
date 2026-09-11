@@ -166,11 +166,19 @@ that replaced the former interactive canvas.
   `isUserDragging`, which stops `updatePopupHover` from toggling `ignoresMouseEvents` mid-drag.
 - **Follow-up field**: above Copy/Paste the card carries an instruction field
   (`ResultCardView.followUpField`, shown whenever the host passes `onFollowUp` and the card is not
-  an error). ⏎ with text runs `PopupWindowController.runFollowUp`, which calls
-  `runAIPreset(prompt:title:inputText:)` with the card's *current text* as the input — a second
-  pass over the answer — and re-streams the card in place, titled after the instruction;
-  `followUpSource` carries that input so the payload's `original` is the text the instruction ran
-  on and the diff shows what the follow-up changed. ⏎ on an empty field keeps its old meaning
+  an error). ⏎ with text runs `PopupWindowController.runFollowUp` → `refineCard`, which refines
+  the card **in place**: nothing hides and no loading toast shows — the previous answer stays on
+  screen dimmed under the field's spinner (`ResultCardPayload.isRefining`, field placeholder
+  "Refining…", the field keeps focus so Esc still reaches it) until the first chunk, the new answer then streams into the same
+  card through `showResultCard`, and it settles titled after the instruction with `original` = the
+  text the follow-up ran on (`followUpSource`), so the diff shows what changed. The card's exact size is frozen for the
+  refinement (`freezeCardSizeForRefinement`: the panel minus the shadow ring becomes
+  `resultCardSize` with `isSurfaceUserSized`, the hand-resize path, so chunks never re-measure
+  the card; a user-resized card is left alone). `refiningPrevious`
+  holds the card being refined: Esc (`cancelFollowUp`, via `onCancelFollowUp` —
+  `ResultCardView.escapeCancelsFollowUp` decides Esc's meaning) and a failure put it back settled
+  (an error shows as a toast, not an error card); leaving content mode (`exitContent`) drops the
+  stream so a late chunk can never re-open the card. `FollowUpInCardTests` pins it. ⏎ on an empty field keeps its old meaning
   (paste / copy). AppKit handles Return in an `NSTextField` before SwiftUI's key-press path, and
   the field's focus is set by the controller (`focusCardField`, editable-field lookup so the
   selectable body is never focused) rather than through `FocusState`, so both the field's
