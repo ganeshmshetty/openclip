@@ -1,57 +1,53 @@
-# QA: Ask AI from the search palette (empty state)
+# QA: quick AI from the search palette
 
-Branch `feat/palette-ask-ai`. Recorded on 2026-09-11 against a Debug build of this branch
-(Developer ID signed so the Accessibility grant applies), macOS 26.6, light appearance, Classic
-theme, AI provider = Cloud API (OpenRouter, `openai/gpt-5.6-luna`). The editor is TextEdit with a
-plain-text sample; the selection is the whole sentence (⌘A), the palette is opened with the bar's
-⌘ button. Input was driven by a small CGEvent script so the timing is uniform; nothing in the app
-was mocked — the AI responses are real.
+Branch `feat/palette-ask-ai`, after folding in the pieces picked from the alternative drafts
+(#86 recents, #87 follow-up, #88 ⏎/⇧⏎). Captured 2026-09-11 on a Developer-ID-signed Debug build
+of this branch, macOS 26.6, light appearance, Classic theme, AI provider = Cloud API (OpenRouter).
+TextEdit with a plain-text sample; the whole sentence selected with ⌘A; the palette opened with
+the bar's ⌘ button; keys posted by a small CGEvent script. AI responses are real.
 
 ## Videos
 
-Each recording also has a `.gif` twin (10 fps, 720 px) so it plays inline on GitHub; the `.mp4` is the full-quality version.
+Each recording has a `.gif` twin (10 fps, 720 px) so it plays inline on GitHub; the `.mp4` is
+the full-quality version.
 
 | File | What it shows |
 | --- | --- |
-| `ask-ai.mp4` (19 s) | Select text → ⌘ → type `rewrite to slovak` (no action matches) → the empty state offers **Ask AI: “rewrite to slovak”** ⌘1 and **Save as AI tool** ⌘2 → ⌘1 → "Generating…" toast → result card titled *Rewrite to slovak* with the Slovak text, Copy / Paste. |
-| `save-as-ai-tool.mp4` (19 s) | Same entry with `make it sound friendly` → ⌘2 → toast reads **Saved as AI tool · Generating…** → result card titled *Make it sound friendly* (diff view, since it is a light edit). |
-| `reuse-saved-tool.mp4` (19 s) | Next selection → ⌘ → type `friendly` → the saved tool is now an ordinary palette result (sparkle icon, ⌘1) → ⌘1 runs it → result card. |
+| `ask-ai-replace.mp4` (22 s) | Type `rewrite to slovak` (no action matches) → the Ask AI / Save rows and the ⏎/⇧⏎ hint → **⏎** → "Replacing…" → the selection is replaced in place, "Replaced with AI result". |
+| `shift-return-card-and-follow-up.mp4` (34 s) | Type `make it sound friendly` → **⇧⏎** → "Generating…" → the result card with the **follow-up field** → type `shorter` → ⏎ → the card updates with a diff against the previous answer → Esc. |
+| `recent-prompt-and-save.mp4` (38 s) | Type `slo` → the **recent prompt** `rewrite to slovak` is a row (clock icon) with Save under it → ⌘1 runs it and replaces the selection → next selection, type `make it casual` → **⌘2** saves it as an AI tool and replaces the selection. |
 
 ## Screenshots
 
 | # | File | Moment |
 | --- | --- | --- |
-| 1 | `01-no-match-offers-ask-ai-and-save.png` | The empty state: two runnable rows instead of "No matches for …". |
-| 2 | `02-ask-ai-generating-toast.png` | After ⌘1: the popup closes and the standard loading toast shows. |
-| 3 | `03-ask-ai-result-card.png` | The streamed answer in the normal result card; the header is the instruction, capitalised. |
-| 4 | `04-save-as-ai-tool-row.png` | Second row selected by ⌘2 (same rows, different query). |
-| 5 | `05-saved-as-ai-tool-toast.png` | The save path's toast: "Saved as AI tool · Generating…". |
-| 6 | `06-saved-tool-result-card.png` | The saved tool's first run; the card carries the tool's title and the diff toggle. |
-| 7 | `07-saved-tool-is-a-palette-result.png` | On the next palette entry the tool matches by name like any preset. |
-| 8 | `08-saved-tool-rerun-result-card.png` | Running it from its row. |
+| 1 | `01-ask-and-save-rows-with-hint.png` | Nothing matches: **Ask AI: “…”** (⌘1), **Save as AI tool** (⌘2) and the hint "⏎ replace selection · ⇧⏎ show result". |
+| 2 | `02-replacing-toast.png` | ⏎: the popup closes, "Replacing…" shows while AI answers (click it to cancel). |
+| 3 | `03-selection-replaced-in-place.png` | The answer pasted over the selection — the document now reads in Slovak. No card. |
+| 4 | `04-shift-return-generating-toast.png` | ⇧⏎ on another instruction: the standard "Generating…" toast. |
+| 5 | `05-result-card-with-follow-up-field.png` | The answer in the result card (diff view for a light edit) with the **follow-up field** under it, focused. |
+| 6 | `06-follow-up-typed.png` | `shorter` typed as a follow-up. |
+| 7 | `07-refined-answer-with-diff.png` | ⏎: AI ran on the previous answer; the diff shows what the follow-up changed. |
+| 8 | `08-recent-prompt-row-and-save.png` | `slo` finds the recent `rewrite to slovak` as a row; Save is offered under it. |
+| 9 | `09-saved-as-tool-replacing-toast.png` | ⌘2 on a typed instruction: "Saved as AI tool · Replacing…". |
+| 10 | `10-saved-tool-replaced-in-place.png` | …and the selection replaced by the new tool's answer. |
+| 11 | `11-saved-tool-is-a-preset-row.png` | The saved tool is now a preset row (`Make it sound friendly`, sparkle icon); it has left the recents. |
 
 ## Also verified
 
-- **AI switched off** (`aiEnabled` = false): a non-matching query keeps the previous "No matches
-  for …" copy, no AI rows — screenshot `09-ai-off-keeps-no-matches.png`; `PaletteAIPromptTests`
-  pins that nothing runs on ⌘1 in that state.
-- **A matching query still lists actions** — the reuse recording (`friendly` → the saved tool)
-  and `testAMatchingQueryStillRunsTheActionNotAI`. The AI rows appear only when the result list
-  is empty.
-- **Keyboard paths** — Return, ⌘1 and ⌘2 on the rows are driven through the real palette in
-  `PaletteAIPromptTests` (typed via the field editor, keys via `performKeyEquivalent`); the
-  recordings use ⌘1/⌘2.
-- **Saving twice** reuses the existing tool instead of creating a duplicate
-  (`AIServiceManager.preset(matchingPrompt:)`, unit-tested; the toast then reads just
-  "Generating…"). Not exercised in the recordings.
-- **Light appearance** is what the recordings show (black text on the light card). Dark uses the
-  same theme tokens as the ordinary result rows and was not recorded.
+- With AI off, a non-matching query keeps the previous "No matches for …" copy (unit-tested:
+  nothing runs on ⌘1 in that state).
+- A matching query still lists actions (`friendly` → the saved preset), and presets keep their
+  existing behaviour (the result card).
+- Keyboard paths — ⏎ replace, ⇧⏎ card, ⌘1/⌘2, recents by fragment — are driven through the real
+  palette in `PaletteAIPromptTests`; the controller's replace / copy / card outcomes and the
+  recents bookkeeping in `PaletteAIReplaceTests`; the card's ⏎ decision and the follow-up run in
+  `ResultCardFollowUpTests`; the history rules in `AIPromptHistoryTests`.
+- Saving the same instruction twice reuses the existing tool (`preset(matchingPrompt:)`).
+- Light appearance is what the captures show; dark uses the same theme tokens.
 
 ## Not covered here
 
-- The saved tool's row under Preferences › Actions › AI Tools › Actions (rename / edit prompt /
-  delete). It is created with the same `custom_` preset shape as the "Add Custom AI Action"
-  sheet (`AIServiceManager.makeCustomPreset`, unit-tested), so it lists there like any custom
-  preset, but no screenshot was taken.
-- Browser-redirect provider: the instruction is handed to the browser template like a preset;
-  no card. Not recorded.
+- The "Copied AI result" / "Copied — the app changed" downgrades (unit-tested only).
+- Preferences › AI › Actions listing of the saved tool (same custom-preset shape as the Add sheet).
+- Browser-redirect provider (no card, nothing to paste).

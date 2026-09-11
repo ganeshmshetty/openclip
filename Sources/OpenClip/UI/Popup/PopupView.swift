@@ -67,12 +67,16 @@ public struct PopupView: View {
     public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
     /// Called when an AI preset action is run: the controller closes the popup and runs via the loading toast flow.
     public let onRunAI: (@MainActor (String) -> Void)?
-    /// Runs the palette's typed query as a one-off AI instruction (the empty state's "Ask AI"
-    /// row). nil falls back to the view's own streaming flow (preview/static hosts).
-    public let onRunAIPrompt: (@MainActor (String) -> Void)?
-    /// Saves the palette's typed query as a reusable AI tool and runs it (the empty state's
-    /// "Save as AI tool" row). nil falls back to the view's own flow.
-    public let onSaveAIPrompt: (@MainActor (String) -> Void)?
+    /// Runs a palette instruction (the "Ask AI" row or a recent prompt) on the selection:
+    /// `(instruction, replace)` — paste the answer over the selection, or show the result card.
+    /// nil falls back to the view's own card flow (preview/static hosts).
+    public let onRunAIPrompt: (@MainActor (String, Bool) -> Void)?
+    /// Saves the palette's typed query as a reusable AI tool and runs it (the "Save as AI tool"
+    /// row), same flag. nil falls back to the view's own flow.
+    public let onSaveAIPrompt: (@MainActor (String, Bool) -> Void)?
+    /// Runs an instruction typed into the result card's follow-up field on the card's current
+    /// text (the controller re-streams the card in place). nil hides the field.
+    public let onFollowUp: (@MainActor (String) -> Void)?
     /// Returns the click intent captured at mouse-down for the current click, so the left-click
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
@@ -134,6 +138,8 @@ public struct PopupView: View {
     /// session-scoped cancellation that never waits for SwiftUI view teardown.
     private let registerStreamingTask: @MainActor (Task<Void, Never>?) -> Void
     @ObservedObject private var aiManager = AIServiceManager.shared
+    /// Recent free-form instructions, appended to the palette catalog as `RecentPromptAction` rows.
+    @ObservedObject private var promptHistory = AIPromptHistory.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
     @State private var isShowingCompletions: Bool = true
@@ -188,8 +194,9 @@ public struct PopupView: View {
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
         onRunAI: (@MainActor (String) -> Void)? = nil,
-        onRunAIPrompt: (@MainActor (String) -> Void)? = nil,
-        onSaveAIPrompt: (@MainActor (String) -> Void)? = nil,
+        onRunAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
+        onSaveAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
+        onFollowUp: (@MainActor (String) -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary },
         onShowTooltip: (@MainActor (String, CGRect, String, Bool) -> Void)? = nil,
         onHideTooltip: (@MainActor () -> Void)? = nil
@@ -220,6 +227,7 @@ public struct PopupView: View {
         self.onRunAI = onRunAI
         self.onRunAIPrompt = onRunAIPrompt
         self.onSaveAIPrompt = onSaveAIPrompt
+        self.onFollowUp = onFollowUp
         self.onClickIntent = onClickIntent
         self.onShowTooltip = onShowTooltip
         self.onHideTooltip = onHideTooltip
@@ -396,7 +404,8 @@ public struct PopupView: View {
                 onCopy: { onCardEffect(.copy(payload.text)) },
                 onDrag: { phase in onCardDrag?(phase) },
                 onResize: { edge, phase in onResize?(edge, phase) },
-                onPin: { onPinCard?() }
+                onPin: { onPinCard?() },
+                onFollowUp: onFollowUp.map { run in { instruction in run(instruction) } }
             )
             .environment(\.colorScheme, effectiveColorScheme)
             .environment(\.popupEffectiveTheme, effectiveTheme)
@@ -520,19 +529,20 @@ public struct PopupView: View {
                     runAIPreset(prompt: aiManager.promptForPreset(preset), title: preset.title)
                 }
             },
-            onRunAIPrompt: { instruction in
+            onRunAIPrompt: { instruction, replace in
                 if let onRunAIPrompt {
                     // Same contract as onRunAI: the controller's flow snapshots the selection and
                     // dismisses the popup itself, so the palette must not exit first.
-                    onRunAIPrompt(instruction)
+                    onRunAIPrompt(instruction, replace)
                 } else {
+                    // Preview/static fallback: no in-place delivery here, always the card.
                     onExitSearch()
                     runAIPreset(prompt: instruction, title: PaletteAIPrompt.toolTitle(for: instruction))
                 }
             },
-            onSaveAIPrompt: { instruction in
+            onSaveAIPrompt: { instruction, replace in
                 if let onSaveAIPrompt {
-                    onSaveAIPrompt(instruction)
+                    onSaveAIPrompt(instruction, replace)
                 } else {
                     onExitSearch()
                     let preset = aiManager.preset(matchingPrompt: instruction)
@@ -552,8 +562,11 @@ public struct PopupView: View {
     /// The search palette's catalog: the coordinator's search catalog minus Paste-requiring
     /// actions hidden by a confirmed cannot-paste probe.
     private var searchCatalog: [any Action] {
-        ActionCoordinator.shared.searchCatalog(for: context)
+        let catalog = ActionCoordinator.shared.searchCatalog(for: context)
             .filter { !hiddenForPasteAvailability($0) }
+        // Recent free-form instructions are rows too, found by typing any part of them.
+        guard aiManager.isAIEnabled, !context.selection.text.isEmpty else { return catalog }
+        return catalog + promptHistory.prompts.map { RecentPromptAction(prompt: $0) }
     }
 
     // MARK: - AI Helpers

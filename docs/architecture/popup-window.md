@@ -164,6 +164,18 @@ that replaced the former interactive canvas.
   itself. `prepareForUserDrag` sets `horizontalAnchor = .none`, so a later width change (the diff
   toggle resizes the card) keeps the user's placement instead of re-centering, and raises
   `isUserDragging`, which stops `updatePopupHover` from toggling `ignoresMouseEvents` mid-drag.
+- **Follow-up field**: above Copy/Paste the card carries an instruction field
+  (`ResultCardView.followUpField`, shown whenever the host passes `onFollowUp` and the card is not
+  an error). ⏎ with text runs `PopupWindowController.runFollowUp`, which calls
+  `runAIPreset(prompt:title:inputText:)` with the card's *current text* as the input — a second
+  pass over the answer — and re-streams the card in place, titled after the instruction;
+  `followUpSource` carries that input so the payload's `original` is the text the instruction ran
+  on and the diff shows what the follow-up changed. ⏎ on an empty field keeps its old meaning
+  (paste / copy). AppKit handles Return in an `NSTextField` before SwiftUI's key-press path, and
+  the field's focus is set by the controller (`focusCardField`, editable-field lookup so the
+  selectable body is never focused) rather than through `FocusState`, so both the field's
+  `onSubmit` and the card-level ⏎ handler go through one decision (`followUpReturn`, unit-tested).
+  `ResultCardFollowUpTests` pins it.
 - **Footer**: Paste (right) and Copy (left of it) both route through
   `PopupView.onCardEffect` → `PopupWindowController.performCardEffect` — an explicit request that
   bypasses the paste-vs-copy re-decision. Both dismiss the popup and perform (Paste pastes over
@@ -233,23 +245,27 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
 - **Row icons are strictly `[icon | text]`**: a `.text` icon falls back to
   `ConfigurableAction.preferenceIconName`; Iconify-format symbols (`prefix:name`) render via
   `AnyIconView`, matching the bar (`PopupSearchView.swift:214,230`).
-- **AI fallback in the empty state**: a query that matches nothing is offered to AI instead of
-  ending in "No matches". While AI is on (`AIServiceManager.isAIEnabled`), `PopupSearchView`
-  renders two rows in place of the notice — **Ask AI: “<query>”** (⌘1) runs the typed text as a
-  one-off instruction on the selection, **Save as AI tool** (⌘2) stores it as a custom
-  `AIActionPreset` and runs it. The rows are indexed like results (`rowCount`), so arrows,
-  Return, hover, click and the ⌘-digit hot keys all reach them. The rules live in
-  `PaletteAIPrompt` (`Sources/OpenClip/UI/Popup/PaletteAIPrompt.swift`): `rows(for:aiEnabled:)`
-  gates on a non-blank query, `instruction(from:)` collapses whitespace, `toolTitle(for:)` turns
-  the prompt into a ≤40-character title (first letter capitalised, elided at a word boundary) that
-  names both the saved tool and the one-off card. The palette reports the instruction through
-  `onRunAIPrompt`/`onSaveAIPrompt` → `PopupView` → `PopupWindowController.runAIPrompt` /
-  `saveAndRunAIPrompt`, which reuse `runAIPreset` (same "Generating…" toast, same streaming card;
-  the save path's toast reads "Saved as AI tool · Generating…"). Saving a prompt that already
-  exists as a preset (`AIServiceManager.preset(matchingPrompt:)`, case/whitespace-insensitive)
-  reuses that tool. A saved tool is a normal custom preset: `AIActionSync` registers it as an
-  `AIAction`, so it is searchable from the next palette entry and listed in Preferences → AI →
-  Actions. With AI off the plain "No matches" copy stays. `PaletteAIPromptTests` pins all of this.
+- **AI rows in the palette**: a query that matches nothing is offered to AI instead of ending in
+  "No matches". While AI is on (`AIServiceManager.isAIEnabled`), `PopupSearchView` appends two rows
+  after the (empty) results — **Ask AI: “<query>”** and **Save as AI tool** — plus a key hint; when
+  the only matches are recent prompts it appends **Save** alone. **⏎, click and ⌘-digits paste
+  AI's answer over the selection** (`PopupWindowController.runAIPromptReplacing`: the popup
+  hides, a cancellable "Replacing…" toast waits for `provider.process`, the answer goes through
+  the explicit paste door `handleActionResult(.paste)` under a "Replaced with AI result" toast —
+  downgraded to a copy when the unified paste availability says no or the frontmost app is no
+  longer the selection's, `frontmostBundleIDProvider`); **⇧⏎ and ⇧-click show the result card
+  first** (`runAIPreset`, same streaming card as a preset, titled after the instruction). Save
+  stores the instruction as a custom `AIActionPreset` (`AIServiceManager.addCustomPreset`, or
+  reuses an existing one via `preset(matchingPrompt:)`) and runs it the same way. Every
+  instruction run this way is remembered by `AIPromptHistory` (`SettingKey.recentAIPrompts`, MRU,
+  capped at 8; a saved prompt leaves the list) and `PopupView.searchCatalog` appends one
+  `RecentPromptAction` per entry, so a recent is an ordinary row found by typing any part of it
+  and runs with the same ⏎/⇧⏎ meaning (resolved by type, never by id). The rules live in
+  `PaletteAIPrompt` (`rows(for:aiEnabled:results:)`, `instruction(from:)`, `toolTitle(for:)`,
+  `hint(canPaste:)`); the palette reports through `onRunAIPrompt(instruction, replace)` /
+  `onSaveAIPrompt` → `PopupView` → `PopupWindowController.runAIPrompt` / `saveAndRunAIPrompt`.
+  Presets keep their existing behaviour (the card). With AI off the plain "No matches" copy
+  stays. `PaletteAIPromptTests`, `AIPromptHistoryTests` and `PaletteAIReplaceTests` pin this.
 - **Escape** clears the query first, then exits to the actions bar. In a **scoped** sub-action
   palette, Escape instead drops the scope (`PopupSearchView.exitSearch()` → `onExitScope`) and
   closes back to the bar.

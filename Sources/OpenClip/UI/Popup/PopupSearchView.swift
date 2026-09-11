@@ -13,8 +13,10 @@
 // handle (`isUserSized`), the palette keeps the dragged size verbatim until it closes.
 // A query that matches nothing is not a dead end: while AI is on, the empty state offers the
 // typed text as an AI instruction — "Ask AI" runs it once on the selection, "Save as AI tool"
-// keeps it as a custom AI preset (a searchable action from then on) and runs it. Those rows
-// behave like results: arrows + Return, hover, click, ⌘1/⌘2 (see `PaletteAIPrompt`).
+// keeps it as a custom AI preset (a searchable action from then on) and runs it. Recent
+// instructions are ordinary rows of the catalog (`RecentPromptAction`), found by typing any part
+// of them. For all of these, ⏎ / click / ⌘-digit paste AI's answer over the selection and ⇧⏎ /
+// ⇧-click show the result card first (see `PaletteAIPrompt`).
 import SwiftUI
 import AppKit
 import Core
@@ -30,12 +32,13 @@ public struct PopupSearchView: View {
     /// `perform`. Passed the registered AI action id (`ai.preset.<presetID>`); nil disables the
     /// route and falls back to `perform`.
     public let onRunAI: @MainActor (String) -> Void
-    /// Runs the typed query as a one-off AI instruction on the selection — the empty state's
-    /// "Ask AI" row. Passed the collapsed instruction (`PaletteAIPrompt.instruction(from:)`).
-    public let onRunAIPrompt: @MainActor (String) -> Void
-    /// Saves the typed query as a reusable AI tool and runs it — the empty state's "Save as AI
-    /// tool" row. Passed the collapsed instruction.
-    public let onSaveAIPrompt: @MainActor (String) -> Void
+    /// Runs an instruction on the selection — the "Ask AI" row (the collapsed query) or a recent
+    /// prompt row. The flag is true to paste the answer over the selection (⏎, click, ⌘-digit)
+    /// and false to show the result card first (⇧⏎, ⇧-click).
+    public let onRunAIPrompt: @MainActor (String, Bool) -> Void
+    /// Saves the typed query as a reusable AI tool and runs it — the "Save as AI tool" row. Same
+    /// flag as `onRunAIPrompt`.
+    public let onSaveAIPrompt: @MainActor (String, Bool) -> Void
     /// Whether AI is switched on; off, the empty state keeps its plain "No matches" copy.
     private let isAIEnabled: Bool
     /// When non-nil, the palette is scoped to a parent action's sub-actions: it lists only those
@@ -144,20 +147,30 @@ public struct PopupSearchView: View {
 
     /// What the list needs to show every current row without scrolling.
     private var naturalHeight: CGFloat {
-        Self.height(forRows: rowCount)
+        Self.height(forRows: rowCount) + (promptRows.isEmpty ? 0 : Self.hintHeight)
     }
 
-    /// The AI fallback rows for the current query: offered only when the query matches nothing.
+    /// The AI rows under the results for the current query: Ask + Save when nothing matched, Save
+    /// alone when only recent prompts matched (they already run the query), none otherwise.
     private var promptRows: [PaletteAIPromptRow] {
-        results.isEmpty ? PaletteAIPrompt.rows(for: query, aiEnabled: isAIEnabled) : []
+        let kind: PaletteAIPrompt.Results
+        if results.isEmpty {
+            kind = .none
+        } else if results.allSatisfy({ $0.action is RecentPromptAction }) {
+            kind = .onlyRecentPrompts
+        } else {
+            kind = .actions
+        }
+        return PaletteAIPrompt.rows(for: query, aiEnabled: isAIEnabled, results: kind)
     }
 
-    /// The selectable rows on screen — the results, or the AI fallback rows when there are none.
-    /// Every keyboard, hover and ⌘-digit path indexes against this, so the fallback rows are
-    /// reached exactly like results.
+    /// The selectable rows on screen — the results followed by the AI rows. Every keyboard, hover
+    /// and ⌘-digit path indexes against this, so the AI rows are reached exactly like results.
     private var rowCount: Int {
-        results.isEmpty ? promptRows.count : results.count
+        results.count + promptRows.count
     }
+
+    private static let hintHeight: CGFloat = 22
 
     static func height(forRows rows: Int) -> CGFloat {
         fieldInset + CGFloat(rows) * PopupMetrics.searchResultRowHeight
@@ -226,8 +239,8 @@ public struct PopupSearchView: View {
         onExit: @escaping @MainActor () -> Void,
         onExitScope: @escaping @MainActor () -> Void = {},
         onRunAI: @escaping @MainActor (String) -> Void = { _ in },
-        onRunAIPrompt: @escaping @MainActor (String) -> Void = { _ in },
-        onSaveAIPrompt: @escaping @MainActor (String) -> Void = { _ in },
+        onRunAIPrompt: @escaping @MainActor (String, Bool) -> Void = { _, _ in },
+        onSaveAIPrompt: @escaping @MainActor (String, Bool) -> Void = { _, _ in },
         aiEnabled: Bool = AIServiceManager.shared.isAIEnabled,
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
@@ -372,14 +385,19 @@ public struct PopupSearchView: View {
             .font(.system(size: 13, weight: .regular))
             .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
             .focused($isFocused)
-            .onSubmit { runSelected() }
+            .onSubmit { runSelected(replace: !NSEvent.modifierFlags.contains(.shift)) }
             .onKeyPress { press in
                 // Attached to the focused field: Escape drops the scope (or exits search),
-                // up/down move the result selection. ⌘-digits never arrive here — a
-                // command-modified key is dispatched through `performKeyEquivalent` and never
-                // reaches `keyDown:` — so those live in `CommandDigitCatcher` below.
+                // up/down move the result selection, Return runs the row (⇧ asks for the result
+                // card instead of the in-place replacement on AI rows). ⌘-digits never arrive
+                // here — a command-modified key is dispatched through `performKeyEquivalent` and
+                // never reaches `keyDown:` — so those live in `CommandDigitCatcher` below.
                 if press.key == .escape {
                     exitSearch()
+                    return .handled
+                }
+                if press.key == .return {
+                    runSelected(replace: !press.modifiers.contains(.shift))
                     return .handled
                 }
                 if press.key == .upArrow {
@@ -466,17 +484,7 @@ public struct PopupSearchView: View {
     private var resultsList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                if results.isEmpty, !promptRows.isEmpty {
-                    // No action matches, but the query can still do something: hand it to AI.
-                    LazyVStack(spacing: 2) {
-                        ForEach(Array(promptRows.enumerated()), id: \.element) { index, row in
-                            promptRow(row, index: index)
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 48)
-                    .padding(.bottom, 8)
-                } else if results.isEmpty {
+                if results.isEmpty, promptRows.isEmpty {
                     VStack {
                         Spacer()
                         VStack(spacing: 4) {
@@ -498,6 +506,14 @@ public struct PopupSearchView: View {
                         ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
                             resultRow(item: item, index: index)
                                 .id(item.id)
+                        }
+                        // The AI rows follow the results (Ask + Save when nothing matched, Save
+                        // alone after recent-prompt matches), with the key hint under them.
+                        ForEach(Array(promptRows.enumerated()), id: \.element) { offset, row in
+                            promptRow(row, index: results.count + offset)
+                        }
+                        if !promptRows.isEmpty {
+                            promptHint
                         }
                     }
                     .padding(.horizontal, 8)
@@ -533,7 +549,7 @@ public struct PopupSearchView: View {
 
         Button {
             selectedIndex = index
-            runSelected()
+            runSelected(replace: !NSEvent.modifierFlags.contains(.shift))
         } label: {
             HStack(spacing: 10) {
                 iconView(for: rowIcon(for: item.action))
@@ -632,7 +648,7 @@ public struct PopupSearchView: View {
 
         Button {
             selectedIndex = index
-            runSelected()
+            runSelected(replace: !NSEvent.modifierFlags.contains(.shift))
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: PaletteAIPrompt.rowSymbol(row))
@@ -685,6 +701,16 @@ public struct PopupSearchView: View {
         }
     }
 
+    /// The key hint under the AI rows.
+    private var promptHint: some View {
+        Text(PaletteAIPrompt.hint(canPaste: modeStore.canPaste))
+            .font(.system(size: 10.5, weight: .medium, design: .rounded))
+            .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme).opacity(0.8))
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.hintHeight)
+            .accessibilityHidden(true)
+    }
+
     private func moveSelection(by delta: Int) {
         guard rowCount > 0 else { return }
         let newIndex = min(max(selectedIndex + delta, 0), rowCount - 1)
@@ -723,23 +749,31 @@ public struct PopupSearchView: View {
     private func runRow(at index: Int) -> Bool {
         guard index >= 0, index < Self.maxShortcutRows, index < rowCount else { return false }
         selectedIndex = index
-        runSelected()
+        runSelected(replace: true)
         return true
     }
 
-    private func runSelected() {
-        if results.isEmpty {
-            // The AI fallback rows: the typed query is the instruction.
-            guard promptRows.indices.contains(selectedIndex) else { return }
+    /// Runs the highlighted row. `replace` only matters for AI rows (Ask, Save, recents): true
+    /// pastes the answer over the selection, false shows the result card first.
+    private func runSelected(replace: Bool) {
+        if selectedIndex >= results.count {
+            // The AI rows: the typed query is the instruction.
+            let offset = selectedIndex - results.count
+            guard promptRows.indices.contains(offset) else { return }
             let instruction = PaletteAIPrompt.instruction(from: query)
-            switch promptRows[selectedIndex] {
-            case .ask: onRunAIPrompt(instruction)
-            case .save: onSaveAIPrompt(instruction)
+            switch promptRows[offset] {
+            case .ask: onRunAIPrompt(instruction, replace)
+            case .save: onSaveAIPrompt(instruction, replace)
             }
             return
         }
         guard results.indices.contains(selectedIndex) else { return }
         let action = results[selectedIndex].action
+        // A recent instruction runs exactly like the Ask row, with its own text.
+        if let recent = action as? RecentPromptAction {
+            onRunAIPrompt(recent.prompt, replace)
+            return
+        }
         // AI preset actions render their result in the popup's AI card (same flow as the Sparkles
         // toolbar), so route them there instead of through `perform`.
         if ActionIdentity.isAIPreset(action) {

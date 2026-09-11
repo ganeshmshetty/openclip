@@ -15,6 +15,9 @@
 // PopupWindowController.handleEvent), and its header doubles as a drag handle (a SwiftUI
 // DragGesture reported to PopupWindowController.handleCardDrag) so it can be moved out of the way
 // of the text underneath. Its right edge, bottom edge and bottom-right grip are resize handles
+// A follow-up field sits above Copy/Paste: an instruction typed there (⏎) runs AI on the card's
+// current text and re-streams the card in place — a second pass over the answer, or the first
+// pass for the ask card (`payload.awaitsInstruction`), which opens with the selection as the body.
 // (`PopupResizeHandles`, reported the same way to PopupWindowController.handleResize); the size
 // they settle on is remembered and, passed back in as `maxSize`, caps the content-driven size
 // when the next card opens: a short answer still gets a small card, a long one grows up to the
@@ -70,10 +73,15 @@ public struct ResultCardView: View {
     public let isPinned: Bool
     /// Called when the user taps the pin button; the owner toggles the pin state.
     public let onPin: @MainActor () -> Void
+    /// Runs an instruction typed into the follow-up field on the card's current text (⏎). nil
+    /// hides the field (a host without an AI flow).
+    public let onFollowUp: (@MainActor (String) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.popupEffectiveTheme) private var effectiveTheme
     @FocusState private var isCardFocused: Bool
+    @FocusState private var isFollowUpFocused: Bool
+    @State private var followUp = ""
     @State private var isChevronHovered = false
     @State private var isCloseHovered = false
     @State private var isDiffHovered = false
@@ -103,7 +111,8 @@ public struct ResultCardView: View {
         onCopy: @escaping @MainActor () -> Void,
         onDrag: @escaping @MainActor (ResultCardDragPhase) -> Void = { _ in },
         onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in },
-        onPin: @escaping @MainActor () -> Void = {}
+        onPin: @escaping @MainActor () -> Void = {},
+        onFollowUp: (@MainActor (String) -> Void)? = nil
     ) {
         self.payload = payload
         self.canPaste = canPaste
@@ -117,7 +126,11 @@ public struct ResultCardView: View {
         self.onDrag = onDrag
         self.onResize = onResize
         self.onPin = onPin
+        self.onFollowUp = onFollowUp
     }
+
+    /// The follow-up field shows whenever a host can run one and the card is not an error.
+    private var showsFollowUp: Bool { onFollowUp != nil && !payload.isError }
 
     public var body: some View {
         cardChrome {
@@ -148,7 +161,7 @@ public struct ResultCardView: View {
         .focusEffectDisabled()
         .focused($isCardFocused)
         .onAppear {
-            isCardFocused = true
+            if showsFollowUp { isFollowUpFocused = true } else { isCardFocused = true }
             refreshDiff()
         }
         .onChange(of: payload) { _, _ in
@@ -169,8 +182,13 @@ public struct ResultCardView: View {
             return .handled
         }
         .onKeyPress(.return, phases: .down) { press in
-            // Return pastes if paste is available, else copies; Shift+Return always copies.
-            if canPaste == false || press.modifiers.contains(.shift) {
+            // SwiftUI delivers the key here even while the follow-up field is the AppKit first
+            // responder (its focus is set by the controller, not through FocusState), so the
+            // field's decision applies at this level too: text typed → follow-up; empty → the
+            // card's meaning (paste if available, else copy; Shift+Return always copies).
+            if showsFollowUp {
+                handleFollowUpReturn(shift: press.modifiers.contains(.shift))
+            } else if canPaste == false || press.modifiers.contains(.shift) {
                 onCopy()
             } else {
                 onPaste()
@@ -371,7 +389,7 @@ public struct ResultCardView: View {
             startPoint: .top,
             endPoint: .bottom
         )
-        .frame(height: 44)
+        .frame(height: bottomInset + 2)
         .allowsHitTesting(false)
     }
 
@@ -504,7 +522,12 @@ public struct ResultCardView: View {
     private static let headerTopPadding: CGFloat = 14.0
     private static let gapAfterHeader: CGFloat = 14.0
     private static let topInset: CGFloat = headerTopPadding + headerHeight + gapAfterHeader
-    private static let bottomInset: CGFloat = 42.0
+    private static let baseBottomInset: CGFloat = 42.0
+    private static let followUpFieldHeight: CGFloat = 30.0
+    /// Room under the body for the footer: the buttons, plus the follow-up field when shown.
+    private var bottomInset: CGFloat {
+        Self.baseBottomInset + (showsFollowUp ? Self.followUpFieldHeight + 8 : 0)
+    }
 
     /// The height the body needs when wrapped at the card's actual width.
     private var naturalContentHeight: CGFloat {
@@ -516,7 +539,7 @@ public struct ResultCardView: View {
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
         )
-        return ceil(rect.height) + Self.topInset + Self.bottomInset
+        return ceil(rect.height) + Self.topInset + bottomInset
     }
 
     /// The card is as tall as its text needs, never shorter than the minimum and never taller
@@ -538,7 +561,7 @@ public struct ResultCardView: View {
                 .textSelection(.enabled)
                 .padding(.horizontal, Self.horizontalTextInset)
                 .padding(.top, Self.topInset)
-                .padding(.bottom, Self.bottomInset)
+                .padding(.bottom, bottomInset)
         }
         .frame(height: dynamicCardHeight)
     }
@@ -549,7 +572,7 @@ public struct ResultCardView: View {
             Text(diffAttributedText)
         } else {
             Text(payload.text)
-                .foregroundColor(payload.isError ? Color.red : Color.primary)
+                .foregroundColor(payload.isError ? Color.red : (payload.awaitsInstruction ? Color.primary.opacity(0.62) : Color.primary))
         }
     }
 
@@ -582,6 +605,108 @@ public struct ResultCardView: View {
     }
 
     private var footer: some View {
+        VStack(spacing: 8) {
+            if showsFollowUp {
+                followUpField
+                    .padding(.horizontal, 14)
+            }
+            if !payload.awaitsInstruction {
+                footerButtons
+            }
+        }
+        .padding(.bottom, 10)
+    }
+
+    /// The instruction field: ⏎ with text runs a follow-up on the card's current text; ⏎ on an
+    /// empty field keeps the card's normal meaning (paste, or copy when paste is unavailable).
+    private var followUpField: some View {
+        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+        let strokeColor = colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.10)
+        let hasText = !followUp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return HStack(spacing: 7) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.accentColor)
+            TextField(
+                payload.awaitsInstruction
+                    ? String(localized: "What should AI do with this text?")
+                    : String(localized: "Follow up…"),
+                text: $followUp
+            )
+            .textFieldStyle(.plain)
+            .font(.system(size: 12.5, weight: .regular))
+            .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
+            .focused($isFollowUpFocused)
+            .disabled(payload.isStreaming)
+            .onKeyPress(.escape) {
+                onDismiss()
+                return .handled
+            }
+            // ⏎ arrives as the field's submit (AppKit handles Return in an NSTextField before
+            // SwiftUI's key-press path sees it; an `.onKeyPress(.return)` here fell through to
+            // the source app). ⇧ is read from the live modifier state, like the composer rows.
+            .onSubmit {
+                handleFollowUpReturn(shift: NSEvent.modifierFlags.contains(.shift))
+            }
+            if hasText {
+                Image(systemName: "return")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: Self.followUpFieldHeight)
+        .background(
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay(shape.fill(Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.04)))
+                .overlay(shape.stroke(strokeColor, lineWidth: 0.5))
+        )
+        .accessibilityLabel(String(localized: "Follow-up instruction"))
+    }
+
+    /// What ⏎ in the follow-up field does. Pure, so the decision table is unit-testable without
+    /// hosting the card.
+    enum FollowUpReturn: Equatable {
+        case nothing
+        case paste
+        case copy
+        case followUp(String)
+    }
+
+    /// Nothing typed: ⏎ keeps the card's meaning (paste; copy when paste is unavailable or with
+    /// ⇧) — unless the card is still waiting for its first instruction, when there is no result
+    /// to consume. Text typed: a follow-up, once the current answer has settled.
+    static func followUpReturn(text: String, awaitsInstruction: Bool, isStreaming: Bool, canPaste: Bool?, shift: Bool) -> FollowUpReturn {
+        let instruction = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if instruction.isEmpty {
+            if awaitsInstruction { return .nothing }
+            return (canPaste == false || shift) ? .copy : .paste
+        }
+        return isStreaming ? .nothing : .followUp(instruction)
+    }
+
+    private func handleFollowUpReturn(shift: Bool) {
+        switch Self.followUpReturn(
+            text: followUp,
+            awaitsInstruction: payload.awaitsInstruction,
+            isStreaming: payload.isStreaming,
+            canPaste: canPaste,
+            shift: shift
+        ) {
+        case .nothing:
+            break
+        case .paste:
+            onPaste()
+        case .copy:
+            onCopy()
+        case .followUp(let instruction):
+            onFollowUp?(instruction)
+            followUp = ""
+        }
+    }
+
+    private var footerButtons: some View {
         HStack(spacing: 8) {
             Spacer(minLength: 0)
 
@@ -606,7 +731,6 @@ public struct ResultCardView: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.bottom, 10)
     }
 
     @ViewBuilder

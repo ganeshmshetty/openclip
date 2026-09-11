@@ -185,6 +185,8 @@ public class PopupWindowController {
     }
 
     func show(for context: SelectionContext, pasteAvailable: Bool?, preservingSessionID: UUID?, streamingTask: Task<Void, Never>?, initialMode: PopupMode = .actions) {
+        // A fresh session (not the AI re-show that keeps its session) has no follow-up in flight.
+        if preservingSessionID == nil { followUpSource = nil }
         let evaluator = InlineResultEvaluator.shared
         let aiSession: UUID
         if let preservingSessionID {
@@ -360,11 +362,14 @@ public class PopupWindowController {
                 let prompt = AIServiceManager.shared.promptForPreset(preset)
                 self.runAIPreset(prompt: prompt, title: preset.title)
             },
-            onRunAIPrompt: { [weak self] instruction in
-                self?.runAIPrompt(instruction)
+            onRunAIPrompt: { [weak self] instruction, replace in
+                self?.runAIPrompt(instruction, replace: replace)
             },
-            onSaveAIPrompt: { [weak self] instruction in
-                self?.saveAndRunAIPrompt(instruction)
+            onSaveAIPrompt: { [weak self] instruction, replace in
+                self?.saveAndRunAIPrompt(instruction, replace: replace)
+            },
+            onFollowUp: { [weak self] instruction in
+                self?.runFollowUp(instruction)
             },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary },
             onShowTooltip: { [weak self] text, localFrame, theme, isDark in
@@ -643,8 +648,16 @@ public class PopupWindowController {
             title: title,
             icon: icon,
             isStreaming: isStreaming,
-            original: currentActionContext?.selection.text
+            original: followUpSource ?? currentActionContext?.selection.text
         )
+        if !isStreaming {
+            // A settled card hands the keyboard to its instruction field so the next refinement
+            // is just typing.
+            Task { @MainActor in
+                await Task.yield()
+                self.focusCardField()
+            }
+        }
         if modeStore.mode != .content {
             hasUserMovedCard = false
             PaletteRowShortcuts.setActive(false)
@@ -984,6 +997,7 @@ public class PopupWindowController {
         InlineResultEvaluator.shared.cancelSession(aiSessionID)
         InlineResultEvaluator.shared.clearPrewarmed()
         aiSessionID = UUID()
+        followUpSource = nil
 
         if toastController.currentFeedback?.keepVisible == true || toastController.isLoading {
             toastController.hide()
@@ -1558,38 +1572,162 @@ public class PopupWindowController {
         modeStore.subBarAbove = actuallyAbove
     }
 
-    /// Runs an instruction typed into the palette against the selection, exactly like a preset
-    /// (same loading toast, same streaming card), with the instruction as the card's title.
-    func runAIPrompt(_ instruction: String) {
+    /// The recent-prompt list the palette rows come from. Settable for tests.
+    var promptHistory: AIPromptHistory = .shared
+
+    /// The frontmost app at the moment an in-place answer lands — pasting is only safe into the
+    /// app the selection came from. Settable for tests.
+    var frontmostBundleIDProvider: @MainActor () -> String? = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+
+    /// Runs a palette instruction (the Ask AI row or a recent prompt) on the selection and
+    /// remembers it as a recent. `replace` pastes the answer over the selection (⏎); otherwise
+    /// the answer streams into the result card (⇧⏎), titled after the instruction.
+    func runAIPrompt(_ instruction: String, replace: Bool) {
         let prompt = PaletteAIPrompt.instruction(from: instruction)
         guard !prompt.isEmpty else { return }
-        Log.ai.notice("Running a one-off AI prompt from the palette")
-        runAIPreset(prompt: prompt, title: PaletteAIPrompt.toolTitle(for: prompt))
+        promptHistory.record(prompt)
+        if replace {
+            Log.ai.notice("Running a palette AI prompt, replacing the selection")
+            runAIPromptReplacing(prompt: prompt)
+        } else {
+            Log.ai.notice("Running a palette AI prompt into the result card")
+            runAIPreset(prompt: prompt, title: PaletteAIPrompt.toolTitle(for: prompt))
+        }
     }
 
-    /// Saves a palette instruction as a custom AI tool, then runs it. The tool is a regular
-    /// custom preset: searchable in the palette, listed in the AI sub-bar and in Preferences →
-    /// AI → Actions where it can be renamed, re-prompted or deleted. A prompt that is already
-    /// saved reuses its tool rather than minting a duplicate. The saved tool is recorded as used
-    /// so it ranks first among equals the next time it is searched.
-    func saveAndRunAIPrompt(_ instruction: String) {
+    /// Saves a palette instruction as a custom AI tool, then runs it with the same ⏎/⇧⏎ meaning
+    /// as `runAIPrompt`. The tool is a regular custom preset: searchable in the palette, listed
+    /// in the AI sub-bar and in Preferences → AI → Actions where it can be renamed, re-prompted or
+    /// deleted. A prompt that is already saved reuses its tool rather than minting a duplicate,
+    /// and a saved prompt leaves the recents (it is a preset from now on). The saved tool is
+    /// recorded as used so it ranks first among equals the next time it is searched.
+    func saveAndRunAIPrompt(_ instruction: String, replace: Bool) {
         let prompt = PaletteAIPrompt.instruction(from: instruction)
         guard !prompt.isEmpty else { return }
         let manager = AIServiceManager.shared
         let existing = manager.preset(matchingPrompt: prompt)
         let preset = existing ?? manager.addCustomPreset(title: PaletteAIPrompt.toolTitle(for: prompt), prompt: prompt)
+        promptHistory.remove(prompt)
         usageStore.record(AIAction(presetID: preset.id, title: preset.title).id)
         if existing == nil {
             Log.ai.notice("Saved a palette prompt as AI tool \(preset.id, privacy: .public)")
         }
-        runAIPreset(
-            prompt: manager.promptForPreset(preset),
-            title: preset.title,
-            loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Generating…") : nil
-        )
+        if replace {
+            runAIPromptReplacing(
+                prompt: manager.promptForPreset(preset),
+                loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Replacing…") : nil
+            )
+        } else {
+            runAIPreset(
+                prompt: manager.promptForPreset(preset),
+                title: preset.title,
+                loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Generating…") : nil
+            )
+        }
     }
 
-    func runAIPreset(prompt: String, title: String, loadingMessage: String? = nil) {
+    /// Runs `prompt` on the selection and pastes the answer over it — no card. The popup hides,
+    /// a cancellable "Replacing…" toast waits for the whole answer, and the answer goes through
+    /// the explicit paste door (`handleActionResult(.paste)`, no delivery re-decision) under a
+    /// success toast. The answer is copied instead when the unified paste availability says the
+    /// target can't paste, or when the frontmost app is no longer the selection's app.
+    func runAIPromptReplacing(prompt: String, loadingMessage: String? = nil) {
+        guard let context = currentActionContext else {
+            Log.ai.error("Cannot replace with AI: currentActionContext is nil")
+            return
+        }
+        activeStreamingTask?.cancel()
+        activeStreamingTask = nil
+
+        let selection = context.selection
+        let anchorFrame = panel?.frame ?? lastPopupFrame
+        let targetCanPaste = PasteAvailability.effective(policy: selection.appPolicy, probe: modeStore.canPaste)
+        let sourceBundleID = selection.sourceApp.bundleIdentifier
+
+        hide()
+        let session = aiSessionID
+        toastController.showLoading(message: loadingMessage ?? String(localized: "Replacing…"), anchorFrame: anchorFrame) { [weak self] in
+            self?.cancelActiveTasks()
+        }
+
+        let task = Task { @MainActor in
+            self.modeStore.isProcessingAI = true
+            defer {
+                if !Task.isCancelled {
+                    self.activeStreamingTask = nil
+                    self.modeStore.isProcessingAI = false
+                }
+            }
+            do {
+                let provider = AIServiceManager.shared.currentProvider
+                let answer = try await provider.process(prompt: prompt, text: selection.text)
+                guard !Task.isCancelled, session == self.aiSessionID else {
+                    self.toastController.hide()
+                    return
+                }
+                if provider.type == .browser {
+                    // The browser provider opened the query in a tab; there is nothing to paste.
+                    self.toastController.hide()
+                    return
+                }
+                let stillInSourceApp = sourceBundleID == nil || self.frontmostBundleIDProvider() == sourceBundleID
+                let pastes = targetCanPaste != false && stillInSourceApp
+                self.handleActionResult(pastes ? .paste(answer) : .copy(answer), delivery: nil, suppressDeliveryToast: true)
+                let message = pastes
+                    ? String(localized: "Replaced with AI result")
+                    : (stillInSourceApp ? String(localized: "Copied AI result") : String(localized: "Copied — the app changed"))
+                self.toastController.show(StatusFeedback(message: message, style: .success, symbolName: "sparkles"), anchorFrame: anchorFrame)
+            } catch is CancellationError {
+                self.toastController.hide()
+            } catch let error as AIError where error == .cancelled {
+                self.toastController.hide()
+            } catch {
+                guard !Task.isCancelled, session == self.aiSessionID else {
+                    self.toastController.hide()
+                    return
+                }
+                Log.ai.error("Replacing with AI failed: \(error.localizedDescription)")
+                self.toastController.show(StatusFeedback(error: error), anchorFrame: anchorFrame)
+            }
+        }
+        activeStreamingTask = task
+    }
+
+    /// Runs an instruction typed into the card's follow-up field on the card's current text: a
+    /// second pass over an answer ("shorter", "in Slovak"). The card re-streams in place, titled
+    /// after the instruction, and diffs against the text the instruction ran on.
+    func runFollowUp(_ instruction: String) {
+        guard let card = modeStore.resultCard, !card.isStreaming, !card.isError else { return }
+        let prompt = PaletteAIPrompt.instruction(from: instruction)
+        guard !prompt.isEmpty else { return }
+        Log.ai.notice("Running a follow-up instruction in the result card")
+        runAIPreset(prompt: prompt, title: PaletteAIPrompt.toolTitle(for: prompt), inputText: card.text)
+    }
+
+    /// The text the current run was given instead of the selection (a follow-up), so the card
+    /// diffs against it. Set for one run; cleared by `hide()` and by a fresh `show(for:)`.
+    private var followUpSource: String?
+
+    /// Focuses the card's instruction field on the next run-loop turn (a `@FocusState` request
+    /// during the mode-change render is dropped on macOS, same as the search field). The card's
+    /// selectable body is an AppKit text view too; only the instruction field is editable.
+    private func focusCardField() {
+        guard let panel, panel.isVisible, modeStore.mode == .content else { return }
+        guard let field = Self.findEditableTextField(in: panel.contentView) else { return }
+        panel.makeFirstResponder(field)
+    }
+
+    /// The first editable text field in a view tree (the result card's follow-up field), or nil.
+    static func findEditableTextField(in view: NSView?) -> NSTextField? {
+        guard let view else { return nil }
+        if let field = view as? NSTextField, field.isEditable { return field }
+        for subview in view.subviews {
+            if let found = findEditableTextField(in: subview) { return found }
+        }
+        return nil
+    }
+
+    func runAIPreset(prompt: String, title: String, loadingMessage: String? = nil, inputText: String? = nil) {
         guard let context = currentActionContext else {
             Log.ai.error("Cannot run AI preset: currentActionContext is nil")
             return
@@ -1598,11 +1736,12 @@ public class PopupWindowController {
         activeStreamingTask = nil
 
         let selection = context.selection
-        let selectionText = selection.text
+        let selectionText = inputText ?? selection.text
         let anchorFrame = panel?.frame ?? lastPopupFrame
         let targetCanPaste = PasteAvailability.effective(policy: selection.appPolicy, probe: modeStore.canPaste)
 
         hide()
+        followUpSource = inputText
         let session = aiSessionID
 
         toastController.showLoading(message: loadingMessage ?? String(localized: "Generating…"), anchorFrame: anchorFrame) { [weak self] in

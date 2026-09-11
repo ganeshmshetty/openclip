@@ -115,6 +115,8 @@ Sources/
     │   ├── AIProvider.swift                  # AIProvider protocol & prompt formatting
     │   ├── AIServiceManager.swift            # cloudAPIKey is SecretStore-backed (@Published), other prefs via @AppStorage
     │   ├── AIToolsAction.swift               # AI Tools group launcher action
+    │   ├── AIPromptHistory.swift             # Recent free-form AI instructions (MRU, capped) shown as palette rows
+    │   ├── RecentPromptAction.swift          # A recent instruction as a palette row (never registered; appended by PopupView)
     │   └── Providers/                        # Apple Intelligence, Cloud, Ollama, BrowserRedirect
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner
     │       ├── BrowserRedirectProvider.swift   # Browser search redirect runner
@@ -211,7 +213,7 @@ Sources/
         │   ├── PopupPositioner.swift         # Frame math & screen clamping (pure static, no singletons)
         │   ├── PopupPreview.swift            # Static popup bar preview (fixed canonical actions; Preferences Appearance tab)
         │   ├── PopupSearchView.swift         # Action-search palette: field + ranked results as one surface with the bar
-        │   ├── PaletteAIPrompt.swift         # Palette AI fallback rules: "Ask AI" / "Save as AI tool" rows for a query that matches nothing
+        │   ├── PaletteAIPrompt.swift         # Palette AI rows: "Ask AI" / "Save as AI tool", the ⏎/⇧⏎ hint, instruction + tool-title rules
         │   ├── PopupThemeModel.swift         # Theme resolution: category (classic/glass) + shared appearance → tokens/colorScheme
         │   ├── PopupThemeSelector.swift      # Theme control: two rows (Classic|Glass, then System/Light/Dark); storage popupTheme + popupThemeColor
         │   ├── PopupView.swift               # SwiftUI popup bar (action bar / AI / completions / search-mode / content result-card branch + ⌘ affordance)

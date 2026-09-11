@@ -21,11 +21,34 @@ enum PaletteAIPrompt {
     /// Longest title a saved tool gets before it is elided with an ellipsis.
     static let maxToolTitleLength = 40
 
-    /// The rows the empty state offers for `query`: both rows for any non-blank query while AI is
-    /// switched on, none otherwise (the plain "No matches" copy stays).
-    static func rows(for query: String, aiEnabled: Bool) -> [PaletteAIPromptRow] {
+    /// What the palette found for the query, as far as the AI rows care.
+    enum Results {
+        /// Nothing matched: offer both rows.
+        case none
+        /// Only recent prompts matched: they already run the query, so offer just Save.
+        case onlyRecentPrompts
+        /// Real actions matched: no AI rows.
+        case actions
+    }
+
+    /// The rows offered under the results for `query`: both when nothing matched, Save alone when
+    /// only recent prompts matched, none when actions matched — and none for a blank query or
+    /// with AI switched off (the plain "No matches" copy stays).
+    static func rows(for query: String, aiEnabled: Bool, results: Results) -> [PaletteAIPromptRow] {
         guard aiEnabled, !instruction(from: query).isEmpty else { return [] }
-        return PaletteAIPromptRow.allCases
+        switch results {
+        case .none: return PaletteAIPromptRow.allCases
+        case .onlyRecentPrompts: return [.save]
+        case .actions: return []
+        }
+    }
+
+    /// The key hint under the AI rows: ⏎ replaces the selection (copies when the target can't
+    /// paste), ⇧⏎ shows the result card first.
+    static func hint(canPaste: Bool?) -> String {
+        canPaste == false
+            ? String(localized: "⏎ copy result · ⇧⏎ show result")
+            : String(localized: "⏎ replace selection · ⇧⏎ show result")
     }
 
     /// The instruction handed to the provider: the query with surrounding whitespace trimmed and

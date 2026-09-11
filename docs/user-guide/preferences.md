@@ -83,15 +83,27 @@ Navigate to **Preferences > AI** to configure your provider:
 Anything you type into the action-search palette (⌥⌘C, or the ⌘ button on the popup bar) that
 matches no action is offered to AI instead of a "No matches" notice:
 
-- **Ask AI: “…”** (⌘1 or Return) runs your text as a one-off instruction on the selected text —
-  for example select a paragraph, type `rewrite to slovak`, press Return — and streams the answer
-  into the result card, where you can paste it over the selection or copy it.
-- **Save as AI tool** (⌘2) keeps the instruction as a custom AI action and runs it. From then on
-  it appears in the palette by name (the instruction, capitalised), in the AI Tools bar, and under
+- **Ask AI: “…”** runs your text as an instruction on the selected text — select a paragraph,
+  type `rewrite to slovak`. Press **⏎** (or ⌘1) and the answer **replaces the selection** the
+  moment it lands (a "Replacing…" toast shows meanwhile; if the app can't paste, or you've
+  switched apps, the answer is copied instead). Press **⇧⏎** to see the answer in the result card
+  first, then paste or copy it.
+- **Save as AI tool** (⌘2) keeps the instruction as a custom AI action and runs it the same way.
+  From then on it appears in the palette by name, in the AI Tools bar, and under
   **Preferences › AI › Actions**, where you can rename it, edit its prompt, or delete it.
+- Your **recent instructions** are palette rows too: type any part of one (`slo` finds
+  `rewrite to slovak`) and run it with ⏎ or ⇧⏎ like the Ask AI row. Eight are kept; a saved
+  instruction leaves the list.
 
 The rows appear only while AI is switched on; the instruction is sent to whichever provider is
 configured above.
+
+### Refine an answer in the result card
+
+Every AI result card has an instruction field above its Copy and Paste buttons. Type what to
+change — `shorter`, `more formal` — and press **⏎**: AI runs on the current answer and the card
+updates in place, showing what changed. Chain as many refinements as you like; Paste always
+pastes the latest answer over the selection. ⏎ on an empty field pastes as before.
 
 ### AI Settings Channel
 AI settings are managed through `AIServiceManager` and isolated to ensure security and privacy.

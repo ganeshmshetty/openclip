@@ -460,5 +460,15 @@
   "%@ downloads": "%@ ダウンロード",
   "Ask AI: “%@”": "AIに依頼: 「%@」",
   "Save as AI tool": "AIツールとして保存",
-  "Saved as AI tool · Generating…": "AIツールとして保存済み · 生成中…"
+  "Saved as AI tool · Generating…": "AIツールとして保存済み · 生成中…",
+  "⏎ replace selection · ⇧⏎ show result": "⏎ 選択範囲を置換 · ⇧⏎ 結果を表示",
+  "⏎ copy result · ⇧⏎ show result": "⏎ 結果をコピー · ⇧⏎ 結果を表示",
+  "Replacing…": "置換中…",
+  "Saved as AI tool · Replacing…": "AIツールとして保存済み · 置換中…",
+  "Replaced with AI result": "AIの結果で置換しました",
+  "Copied AI result": "AIの結果をコピーしました",
+  "Copied — the app changed": "コピーしました — アプリが切り替わりました",
+  "Follow up…": "続けて指示…",
+  "Follow-up instruction": "追加の指示",
+  "What should AI do with this text?": "このテキストに対してAIに何をさせますか？"
 }

@@ -460,5 +460,15 @@
   "%@ downloads": "%@ téléchargements",
   "Ask AI: “%@”": "Demander à l’IA : « %@ »",
   "Save as AI tool": "Enregistrer comme outil d’IA",
-  "Saved as AI tool · Generating…": "Enregistré comme outil d’IA · Génération…"
+  "Saved as AI tool · Generating…": "Enregistré comme outil d’IA · Génération…",
+  "⏎ replace selection · ⇧⏎ show result": "⏎ remplacer la sélection · ⇧⏎ afficher le résultat",
+  "⏎ copy result · ⇧⏎ show result": "⏎ copier le résultat · ⇧⏎ afficher le résultat",
+  "Replacing…": "Remplacement…",
+  "Saved as AI tool · Replacing…": "Enregistré comme outil d’IA · Remplacement…",
+  "Replaced with AI result": "Remplacé par le résultat de l’IA",
+  "Copied AI result": "Résultat de l’IA copié",
+  "Copied — the app changed": "Copié — l’app a changé",
+  "Follow up…": "Préciser…",
+  "Follow-up instruction": "Instruction complémentaire",
+  "What should AI do with this text?": "Que doit faire l’IA de ce texte ?"
 }

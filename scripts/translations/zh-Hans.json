@@ -460,5 +460,15 @@
   "%@ downloads": "%@ 次下载",
   "Ask AI: “%@”": "询问 AI：“%@”",
   "Save as AI tool": "保存为 AI 工具",
-  "Saved as AI tool · Generating…": "已保存为 AI 工具 · 正在生成…"
+  "Saved as AI tool · Generating…": "已保存为 AI 工具 · 正在生成…",
+  "⏎ replace selection · ⇧⏎ show result": "⏎ 替换所选内容 · ⇧⏎ 显示结果",
+  "⏎ copy result · ⇧⏎ show result": "⏎ 复制结果 · ⇧⏎ 显示结果",
+  "Replacing…": "正在替换…",
+  "Saved as AI tool · Replacing…": "已保存为 AI 工具 · 正在替换…",
+  "Replaced with AI result": "已替换为 AI 结果",
+  "Copied AI result": "已复制 AI 结果",
+  "Copied — the app changed": "已复制 — 应用已切换",
+  "Follow up…": "继续追问…",
+  "Follow-up instruction": "追问指令",
+  "What should AI do with this text?": "希望 AI 对这段文本做什么？"
 }
