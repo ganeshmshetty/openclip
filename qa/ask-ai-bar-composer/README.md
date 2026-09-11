@@ -3,8 +3,16 @@
 Branch `feat/ask-ai-bar-composer`. Screenshots taken 2026-09-11 on a Developer-ID-signed Debug
 build of this branch (so the Accessibility grant applies), macOS 26.6, light appearance, Classic
 theme, AI provider = Cloud API (OpenRouter). TextEdit with a plain-text sample; the whole sentence
-selected with ⌘A; input driven by a small CGEvent script. AI responses are real. Videos follow in
-a later commit.
+selected with ⌘A; input driven by a small CGEvent script. AI responses are real. 
+
+## Videos
+
+| File | What it shows |
+| --- | --- |
+| `composer-ask.mp4` (24 s) | Select → **Ask AI** → type `rewrite to slovak` → ⏎ → "Generating…" → result card → Esc. |
+| `composer-recents-and-save.mp4` (24 s) | Select → **Ask AI**: the recent instruction is listed → type `make it sound friendly` → **⇧⏎** → "Saved as AI tool · Generating…" → result card titled after the new tool. |
+
+## Screenshots
 
 | # | File | Moment |
 | --- | --- | --- |
