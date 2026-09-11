@@ -92,7 +92,7 @@ final class FollowUpInCardTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.mode, .content)
         XCTAssertEqual(controller.modeStore.resultCard?.text, "Shorter answer")
         XCTAssertEqual(controller.modeStore.resultCard?.isStreaming, false)
-        XCTAssertEqual(controller.modeStore.resultCard?.original, "A long first answer", "the diff compares against the text the follow-up ran on")
+        XCTAssertEqual(controller.modeStore.resultCard?.original, "the original selection", "the diff always compares the original selection with the latest answer")
         XCTAssertFalse(controller.modeStore.isProcessingAI)
     }
 

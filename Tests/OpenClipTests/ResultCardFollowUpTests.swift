@@ -84,7 +84,7 @@ final class ResultCardFollowUpTests: XCTestCase {
         }
     }
 
-    func testFollowUpRunsOnTheCardTextAndDiffsAgainstIt() async {
+    func testFollowUpRunsOnTheCardTextAndDiffsAgainstTheSelection() async {
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         let controller = PopupWindowController(resultHandler: DefaultActionResultHandler(pasteboard: pasteboard))
         let panel = PopupPanel()
@@ -107,6 +107,6 @@ final class ResultCardFollowUpTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.mode, .content)
         XCTAssertEqual(controller.modeStore.resultCard?.text, "Shorter answer")
         XCTAssertEqual(controller.modeStore.resultCard?.title, "Make it shorter")
-        XCTAssertEqual(controller.modeStore.resultCard?.original, "A long first answer", "the diff compares against what the instruction ran on")
+        XCTAssertEqual(controller.modeStore.resultCard?.original, "the original selection", "the diff base is the selection, not the previous answer")
     }
 }

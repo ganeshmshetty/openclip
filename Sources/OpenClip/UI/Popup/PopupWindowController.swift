@@ -185,8 +185,6 @@ public class PopupWindowController {
     }
 
     func show(for context: SelectionContext, pasteAvailable: Bool?, preservingSessionID: UUID?, streamingTask: Task<Void, Never>?, initialMode: PopupMode = .actions) {
-        // A fresh session (not the AI re-show that keeps its session) has no follow-up in flight.
-        if preservingSessionID == nil { followUpSource = nil }
         let evaluator = InlineResultEvaluator.shared
         let aiSession: UUID
         if let preservingSessionID {
@@ -651,7 +649,7 @@ public class PopupWindowController {
             title: title,
             icon: icon,
             isStreaming: isStreaming,
-            original: followUpSource ?? currentActionContext?.selection.text
+            original: currentActionContext?.selection.text
         )
         if !isStreaming {
             // A settled card hands the keyboard to its instruction field so the next refinement
@@ -913,7 +911,6 @@ public class PopupWindowController {
             activeStreamingTask?.cancel()
             activeStreamingTask = nil
             refiningPrevious = nil
-            followUpSource = nil
             modeStore.isProcessingAI = false
         }
         cardConversation = nil
@@ -1009,7 +1006,6 @@ public class PopupWindowController {
         InlineResultEvaluator.shared.cancelSession(aiSessionID)
         InlineResultEvaluator.shared.clearPrewarmed()
         aiSessionID = UUID()
-        followUpSource = nil
         refiningPrevious = nil
         cardConversation = nil
 
@@ -1730,7 +1726,7 @@ public class PopupWindowController {
     /// Runs a follow-up *inside* the card. Unlike a preset run, nothing hides and no loading
     /// toast shows: the card stays on screen with the previous answer dimmed under the field's
     /// spinner (`isRefining`) until the first chunk, then streams the new answer in place and
-    /// settles with the diff against the text it ran on. Esc cancels, a failure restores the
+    /// settles with the diff against the original selection. Esc cancels, a failure restores the
     /// previous answer under an error toast, and leaving content mode drops the stream.
     private func refineCard(_ previous: ResultCardPayload, prompt: String, title: String) {
         activeStreamingTask?.cancel()
@@ -1742,7 +1738,6 @@ public class PopupWindowController {
             ?? AIConversation(original: currentActionContext?.selection.text ?? sourceText, steps: [])
         let followUpTask = conversation.followUpTask(current: prompt)
         refiningPrevious = previous
-        followUpSource = sourceText
         modeStore.isProcessingAI = true
         freezeCardSizeForRefinement()
         modeStore.resultCard = ResultCardPayload(
@@ -1751,7 +1746,7 @@ public class PopupWindowController {
             title: title,
             icon: nil,
             isStreaming: true,
-            original: sourceText,
+            original: currentActionContext?.selection.text,
             isRefining: true
         )
 
@@ -1835,7 +1830,6 @@ public class PopupWindowController {
     private func restoreRefiningCard() {
         guard let previous = refiningPrevious else { return }
         refiningPrevious = nil
-        followUpSource = nil
         modeStore.isProcessingAI = false
         showResultCard(text: previous.text, isError: previous.isError, title: previous.title, icon: previous.icon, isStreaming: false, session: aiSessionID)
     }
@@ -1848,10 +1842,6 @@ public class PopupWindowController {
         activeStreamingTask = nil
         restoreRefiningCard()
     }
-
-    /// The text the current run was given instead of the selection (a follow-up), so the card
-    /// diffs against it. Set for one run; cleared by `hide()` and by a fresh `show(for:)`.
-    private var followUpSource: String?
 
     /// Focuses the card's instruction field on the next run-loop turn (a `@FocusState` request
     /// during the mode-change render is dropped on macOS, same as the search field). The card's
@@ -1886,7 +1876,6 @@ public class PopupWindowController {
         let targetCanPaste = PasteAvailability.effective(policy: selection.appPolicy, probe: modeStore.canPaste)
 
         hide()
-        followUpSource = inputText
         let session = aiSessionID
 
         toastController.showLoading(message: loadingMessage ?? String(localized: "Generating…"), anchorFrame: anchorFrame) { [weak self] in

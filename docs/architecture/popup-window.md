@@ -171,7 +171,8 @@ that replaced the former interactive canvas.
   screen dimmed under the field's spinner (`ResultCardPayload.isRefining`, field placeholder
   "Refining…", the field keeps focus so Esc still reaches it) until the first chunk, the new answer then streams into the same
   card through `showResultCard`, and it settles titled after the instruction with `original` = the
-  text the follow-up ran on (`followUpSource`), so the diff shows what changed. The card's exact size is frozen for the
+  **original selection** — always, however many follow-ups came before — so the diff shows the
+  net change from what the user selected to the latest answer. The card's exact size is frozen for the
   refinement (`freezeCardSizeForRefinement`: the panel minus the shadow ring becomes
   `resultCardSize` with `isSurfaceUserSized`, the hand-resize path, so chunks never re-measure
   the card; a user-resized card is left alone). Follow-ups carry the session as **context**: `cardConversation`
