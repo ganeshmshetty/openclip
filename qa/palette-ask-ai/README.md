@@ -9,6 +9,8 @@ was mocked — the AI responses are real.
 
 ## Videos
 
+Each recording also has a `.gif` twin (10 fps, 720 px) so it plays inline on GitHub; the `.mp4` is the full-quality version.
+
 | File | What it shows |
 | --- | --- |
 | `ask-ai.mp4` (19 s) | Select text → ⌘ → type `rewrite to slovak` (no action matches) → the empty state offers **Ask AI: “rewrite to slovak”** ⌘1 and **Save as AI tool** ⌘2 → ⌘1 → "Generating…" toast → result card titled *Rewrite to slovak* with the Slovak text, Copy / Paste. |
