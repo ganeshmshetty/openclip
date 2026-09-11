@@ -185,6 +185,8 @@ public class PopupWindowController {
     }
 
     func show(for context: SelectionContext, pasteAvailable: Bool?, preservingSessionID: UUID?, streamingTask: Task<Void, Never>?, initialMode: PopupMode = .actions) {
+        // A fresh session (not the AI re-show that keeps its session) has no follow-up in flight.
+        if preservingSessionID == nil { followUpSource = nil }
         let evaluator = InlineResultEvaluator.shared
         let aiSession: UUID
         if let preservingSessionID {
@@ -356,9 +358,10 @@ public class PopupWindowController {
                 self.runLoadingAction(action, with: context, isSecondaryClick: self.pendingClickIntent == .secondary)
             },
             onRunAI: { [weak self] actionID in
-                guard let self, let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
-                let prompt = AIServiceManager.shared.promptForPreset(preset)
-                self.runAIPreset(prompt: prompt, title: preset.title)
+                self?.runAISelection(actionID: actionID)
+            },
+            onFollowUp: { [weak self] instruction in
+                self?.runFollowUp(instruction)
             },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary },
             onShowTooltip: { [weak self] text, localFrame, theme, isDark in
@@ -624,7 +627,7 @@ public class PopupWindowController {
     /// never OpenClip itself. Deliveries
     /// are session-stamped: a chunk from an abandoned stream is dropped instead of hijacking the
     /// current popup into content mode. Internal for tests.
-    func showResultCard(text: String, isError: Bool, title: String, icon: ActionIcon? = nil, isStreaming: Bool = false, session: UUID) {
+    func showResultCard(text: String, isError: Bool, title: String, icon: ActionIcon? = nil, isStreaming: Bool = false, session: UUID, awaitsInstruction: Bool = false) {
         guard session == aiSessionID else { return }
         if toastController.isLoading {
             toastController.hide()
@@ -637,8 +640,17 @@ public class PopupWindowController {
             title: title,
             icon: icon,
             isStreaming: isStreaming,
-            original: currentActionContext?.selection.text
+            original: followUpSource ?? currentActionContext?.selection.text,
+            awaitsInstruction: awaitsInstruction
         )
+        if !isStreaming {
+            // A settled card (or the ask card) hands the keyboard to its instruction field so
+            // the next refinement is just typing.
+            Task { @MainActor in
+                await Task.yield()
+                self.focusCardField()
+            }
+        }
         if modeStore.mode != .content {
             hasUserMovedCard = false
             PaletteRowShortcuts.setActive(false)
@@ -978,6 +990,7 @@ public class PopupWindowController {
         InlineResultEvaluator.shared.cancelSession(aiSessionID)
         InlineResultEvaluator.shared.clearPrewarmed()
         aiSessionID = UUID()
+        followUpSource = nil
 
         if toastController.currentFeedback?.keepVisible == true || toastController.isLoading {
             toastController.hide()
@@ -1522,13 +1535,12 @@ public class PopupWindowController {
                 self?.deliverResult(result)
             },
             onRunAI: { [weak self] actionID in
-                self?.usageStore.record(actionID)
-                guard let self, let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
+                guard let self else { return }
+                self.usageStore.record(actionID)
                 self.subBarController.hide()
                 self.modeStore.isSubBarActive = false
                 self.modeStore.activeSubGroupID = nil
-                let prompt = AIServiceManager.shared.promptForPreset(preset)
-                self.runAIPreset(prompt: prompt, title: preset.title)
+                self.runAISelection(actionID: actionID)
             },
             onRunLoadingAction: { [weak self] action in
                 guard let self, let context = self.currentActionContext else { return }
@@ -1552,7 +1564,73 @@ public class PopupWindowController {
         modeStore.subBarAbove = actuallyAbove
     }
 
-    func runAIPreset(prompt: String, title: String) {
+    /// Routes an AI-sourced selection from the palette, the AI Tools bar or a hotkey: presets run
+    /// their prompt; the Ask… entry (`InstructionPromptingAction`) opens the ask card instead.
+    func runAISelection(actionID: String) {
+        if let preset = AIServiceManager.shared.preset(forActionID: actionID) {
+            runAIPreset(prompt: AIServiceManager.shared.promptForPreset(preset), title: preset.title)
+        } else if let action = ActionCoordinator.shared.actions.first(where: { $0.id == actionID }),
+                  action is any InstructionPromptingAction {
+            openAskCard()
+        }
+    }
+
+    /// Opens the result card in its ask state: the selection as the body, no Copy/Paste yet, and
+    /// the instruction field focused. Swaps in over the bar, the palette or the AI sub-bar.
+    func openAskCard() {
+        guard let context = currentActionContext else { return }
+        subBarController.hide()
+        modeStore.isSubBarActive = false
+        modeStore.activeSubGroupID = nil
+        modeStore.scope = nil
+        Log.ai.notice("Opening the ask card")
+        showResultCard(
+            text: context.selection.text,
+            isError: false,
+            title: String(localized: "Ask AI"),
+            isStreaming: false,
+            session: aiSessionID,
+            awaitsInstruction: true
+        )
+    }
+
+    /// Runs an instruction typed into the card's follow-up field on the card's current text: a
+    /// second pass over an answer ("shorter", "in Slovak"), or the first pass for the ask card.
+    /// The card re-streams in place, titled after the instruction, and diffs against the text
+    /// the instruction ran on.
+    func runFollowUp(_ instruction: String) {
+        guard let card = modeStore.resultCard, !card.isStreaming, !card.isError else { return }
+        let prompt = AIPromptText.instruction(from: instruction)
+        guard !prompt.isEmpty else { return }
+        Log.ai.notice("Running a follow-up instruction in the result card")
+        runAIPreset(prompt: prompt, title: AIPromptText.toolTitle(for: prompt), inputText: card.text)
+    }
+
+    /// The text the current run was given instead of the selection (a follow-up), so the card
+    /// diffs against it. Set for one run; cleared by `hide()` and by a fresh `show(for:)`.
+    private var followUpSource: String?
+
+    /// Focuses the card's instruction field on the next run-loop turn (a `@FocusState` request
+    /// during the mode-change render is dropped on macOS, same as the search field).
+    private func focusCardField() {
+        guard let panel, panel.isVisible, modeStore.mode == .content else { return }
+        // The card's selectable body is an AppKit text view too; only the instruction field is
+        // editable.
+        guard let field = Self.findEditableTextField(in: panel.contentView) else { return }
+        panel.makeFirstResponder(field)
+    }
+
+    /// The first editable text field in a view tree (the result card's follow-up field), or nil.
+    static func findEditableTextField(in view: NSView?) -> NSTextField? {
+        guard let view else { return nil }
+        if let field = view as? NSTextField, field.isEditable { return field }
+        for subview in view.subviews {
+            if let found = findEditableTextField(in: subview) { return found }
+        }
+        return nil
+    }
+
+    func runAIPreset(prompt: String, title: String, inputText: String? = nil) {
         guard let context = currentActionContext else {
             Log.ai.error("Cannot run AI preset: currentActionContext is nil")
             return
@@ -1561,11 +1639,12 @@ public class PopupWindowController {
         activeStreamingTask = nil
 
         let selection = context.selection
-        let selectionText = selection.text
+        let selectionText = inputText ?? selection.text
         let anchorFrame = panel?.frame ?? lastPopupFrame
         let targetCanPaste = PasteAvailability.effective(policy: selection.appPolicy, probe: modeStore.canPaste)
 
         hide()
+        followUpSource = inputText
         let session = aiSessionID
 
         toastController.showLoading(message: String(localized: "Generating…"), anchorFrame: anchorFrame) { [weak self] in
@@ -1894,8 +1973,7 @@ public class PopupWindowController {
             modeStore.canPaste = pasteAvailable
         }
         if ActionIdentity.isAIPreset(action) {
-            guard let preset = AIServiceManager.shared.preset(forActionID: action.id) else { return }
-            runAIPreset(prompt: AIServiceManager.shared.promptForPreset(preset), title: preset.title)
+            runAISelection(actionID: action.id)
             return
         }
         runAction(action, with: context, isSecondaryClick: false)

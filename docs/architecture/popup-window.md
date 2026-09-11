@@ -164,6 +164,21 @@ that replaced the former interactive canvas.
   itself. `prepareForUserDrag` sets `horizontalAnchor = .none`, so a later width change (the diff
   toggle resizes the card) keeps the user's placement instead of re-centering, and raises
   `isUserDragging`, which stops `updatePopupHover` from toggling `ignoresMouseEvents` mid-drag.
+- **Follow-up field and the ask card**: above Copy/Paste the card carries an instruction field
+  (`ResultCardView.followUpField`, shown whenever the host passes `onFollowUp` and the card is
+  not an error). ⏎ with text runs `PopupWindowController.runFollowUp`, which calls
+  `runAIPreset(prompt:title:inputText:)` with the card's *current text* as the input — a second
+  pass over the answer — and re-streams the card in place, titled after the instruction
+  (`AIPromptText.toolTitle`); `followUpSource` carries that input so the payload's `original` is
+  the text the instruction ran on, not the selection, and the diff shows what the follow-up
+  changed. ⏎ on an empty field keeps its old meaning (paste / copy). A settled card hands focus
+  to the field (`focusCardField`, same next-run-loop nudge as the search field). The AI Tools
+  list leads with **Ask…** (`AskAIAction`, `ai.ask`, `.ai` chrome, registered by `AIActionSync`
+  ahead of the presets and excluded from their reconciliation via `InstructionPromptingAction`);
+  every AI selection now goes through `runAISelection(actionID:)`, which runs a preset's prompt or
+  opens the **ask card** — `ResultCardPayload.awaitsInstruction`: the selection as a dimmed body,
+  no Copy/Paste yet, the field placeholder "What should AI do with this text?". The first
+  instruction then runs on the selection like any follow-up. `ResultCardFollowUpTests` pins it.
 - **Footer**: Paste (right) and Copy (left of it) both route through
   `PopupView.onCardEffect` → `PopupWindowController.performCardEffect` — an explicit request that
   bypasses the paste-vs-copy re-decision. Both dismiss the popup and perform (Paste pastes over

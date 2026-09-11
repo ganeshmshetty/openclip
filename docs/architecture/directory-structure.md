@@ -115,6 +115,8 @@ Sources/
     │   ├── AIProvider.swift                  # AIProvider protocol & prompt formatting
     │   ├── AIServiceManager.swift            # cloudAPIKey is SecretStore-backed (@Published), other prefs via @AppStorage
     │   ├── AIToolsAction.swift               # AI Tools group launcher action
+    │   ├── AskAIAction.swift                 # AI Tools "Ask…" entry: opens the result card in its ask state
+    │   ├── AIPromptText.swift                # Instruction collapsing + tool-title rules for typed prompts
     │   └── Providers/                        # Apple Intelligence, Cloud, Ollama, BrowserRedirect
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner
     │       ├── BrowserRedirectProvider.swift   # Browser search redirect runner

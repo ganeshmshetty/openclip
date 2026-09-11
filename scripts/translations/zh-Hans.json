@@ -457,5 +457,10 @@
   "Move Up": "上移",
   "Move Down": "下移",
   "%@ download": "%@ 次下载",
-  "%@ downloads": "%@ 次下载"
+  "%@ downloads": "%@ 次下载",
+  "Ask…": "询问…",
+  "Ask AI": "询问 AI",
+  "Follow up…": "继续追问…",
+  "What should AI do with this text?": "希望 AI 对这段文本做什么？",
+  "Follow-up instruction": "追问指令"
 }

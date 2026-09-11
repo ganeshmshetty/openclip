@@ -457,5 +457,10 @@
   "Move Up": "上に移動",
   "Move Down": "下に移動",
   "%@ download": "%@ ダウンロード",
-  "%@ downloads": "%@ ダウンロード"
+  "%@ downloads": "%@ ダウンロード",
+  "Ask…": "依頼…",
+  "Ask AI": "AIに依頼",
+  "Follow up…": "続けて指示…",
+  "What should AI do with this text?": "このテキストに対してAIに何をさせますか？",
+  "Follow-up instruction": "追加の指示"
 }

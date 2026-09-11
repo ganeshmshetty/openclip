@@ -78,5 +78,16 @@ Navigate to **Preferences > AI** to configure your provider:
 | **Cloud AI (OpenAI / Claude / Gemini / DeepSeek / Groq / OpenRouter / Custom)** | Cloud API language models | Valid API Key stored securely in `SecretStore` (`~/.openclip/secrets.json`) |
 | **Browser Redirect** | Opens AI query in browser | No API key required |
 
+### Ask AI and refine in the result card
+
+Every AI result card has an instruction field above its Copy and Paste buttons. Type what to
+change — `shorter`, `in Slovak`, `more formal` — and press **⏎**: AI runs on the current answer
+and the card updates in place, showing what changed. Chain as many refinements as you like; Paste
+always pastes the latest answer over the selection.
+
+To start from scratch, the AI Tools bar (and the search palette) lead with **Ask…**: it opens the
+card on the selected text with the field focused, so you type the first instruction yourself
+instead of picking a preset.
+
 ### AI Settings Channel
 AI settings are managed through `AIServiceManager` and isolated to ensure security and privacy.

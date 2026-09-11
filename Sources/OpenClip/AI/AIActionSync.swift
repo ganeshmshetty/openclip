@@ -32,6 +32,9 @@ public final class AIActionSync {
                 self?.sync()
             }
         }
+        // The Ask… entry goes in ahead of the presets so it leads the AI Tools bar and the
+        // scoped palette; the reconciliation below leaves it alone.
+        coordinator.register(action: AskAIAction())
         sync()
         coordinator.register(action: AIToolsAction())
     }
@@ -51,7 +54,7 @@ public final class AIActionSync {
             // notifications.
             let newAIActions = presets.map { AIAction(presetID: $0.id, title: $0.title) }
             coordinator.replaceActions(
-                matching: { ActionIdentity.isAIPreset($0) },
+                matching: { ActionIdentity.isAIPreset($0) && !($0 is any InstructionPromptingAction) },
                 with: newAIActions
             )
         } else {

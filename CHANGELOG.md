@@ -2,6 +2,13 @@
 
 ---
 
+## Unreleased
+
+### Features & Improvements
+- **Refine AI results in the card, and Ask… from AI Tools**: the result card gains an instruction field — type `shorter` or `in Slovak` and press ⏎ to run AI on the current answer and update the card in place (with a diff of what changed), as many times as needed. AI Tools now leads with **Ask…**, which opens the card on the selection with the field focused so you type the first instruction instead of picking a preset.
+
+---
+
 ## v1.5.0 - 2026-09-10
 
 ### Highlights

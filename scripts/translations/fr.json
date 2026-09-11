@@ -457,5 +457,10 @@
   "Move Up": "Monter",
   "Move Down": "Descendre",
   "%@ download": "%@ téléchargement",
-  "%@ downloads": "%@ téléchargements"
+  "%@ downloads": "%@ téléchargements",
+  "Ask…": "Demander…",
+  "Ask AI": "Demander à l’IA",
+  "Follow up…": "Préciser…",
+  "What should AI do with this text?": "Que doit faire l’IA de ce texte ?",
+  "Follow-up instruction": "Instruction complémentaire"
 }

@@ -67,6 +67,9 @@ public struct PopupView: View {
     public let onRunLoadingAction: (@MainActor (any Action) -> Void)?
     /// Called when an AI preset action is run: the controller closes the popup and runs via the loading toast flow.
     public let onRunAI: (@MainActor (String) -> Void)?
+    /// Runs an instruction typed into the result card's follow-up field on the card's current
+    /// text (the controller re-streams the card in place). nil hides the field.
+    public let onFollowUp: (@MainActor (String) -> Void)?
     /// Returns the click intent captured at mouse-down for the current click, so the left-click
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
@@ -182,6 +185,7 @@ public struct PopupView: View {
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
         onRunAI: (@MainActor (String) -> Void)? = nil,
+        onFollowUp: (@MainActor (String) -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary },
         onShowTooltip: (@MainActor (String, CGRect, String, Bool) -> Void)? = nil,
         onHideTooltip: (@MainActor () -> Void)? = nil
@@ -210,6 +214,7 @@ public struct PopupView: View {
         self.onWillPerformAction = onWillPerformAction
         self.onRunLoadingAction = onRunLoadingAction
         self.onRunAI = onRunAI
+        self.onFollowUp = onFollowUp
         self.onClickIntent = onClickIntent
         self.onShowTooltip = onShowTooltip
         self.onHideTooltip = onHideTooltip
@@ -386,7 +391,8 @@ public struct PopupView: View {
                 onCopy: { onCardEffect(.copy(payload.text)) },
                 onDrag: { phase in onCardDrag?(phase) },
                 onResize: { edge, phase in onResize?(edge, phase) },
-                onPin: { onPinCard?() }
+                onPin: { onPinCard?() },
+                onFollowUp: onFollowUp.map { run in { instruction in run(instruction) } }
             )
             .environment(\.colorScheme, effectiveColorScheme)
             .environment(\.popupEffectiveTheme, effectiveTheme)
