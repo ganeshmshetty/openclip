@@ -43,12 +43,12 @@ enum PaletteAIPrompt {
         }
     }
 
-    /// The key hint under the AI rows: ⏎ replaces the selection (copies when the target can't
-    /// paste), ⇧⏎ shows the result card first.
+    /// The key hint under the AI rows: ⏎ shows the result card, ⇧⏎ replaces the selection
+    /// (copies when the target can't paste).
     static func hint(canPaste: Bool?) -> String {
         canPaste == false
-            ? String(localized: "⏎ copy result · ⇧⏎ show result")
-            : String(localized: "⏎ replace selection · ⇧⏎ show result")
+            ? String(localized: "⏎ show result · ⇧⏎ copy result")
+            : String(localized: "⏎ show result · ⇧⏎ replace selection")
     }
 
     /// The instruction handed to the provider: the query with surrounding whitespace trimmed and

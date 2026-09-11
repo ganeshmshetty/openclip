@@ -84,10 +84,10 @@ Anything you type into the action-search palette (⌥⌘C, or the ⌘ button on 
 matches no action is offered to AI instead of a "No matches" notice:
 
 - **Ask AI: “…”** runs your text as an instruction on the selected text — select a paragraph,
-  type `rewrite to slovak`. Press **⏎** (or ⌘1) and the answer **replaces the selection** the
-  moment it lands (a "Replacing…" toast shows meanwhile; if the app can't paste, or you've
-  switched apps, the answer is copied instead). Press **⇧⏎** to see the answer in the result card
-  first, then paste or copy it.
+  type `rewrite to slovak`. Press **⏎** (or ⌘1) to see the answer in the result card, with a
+  diff of what changed, then paste or copy it. Press **⇧⏎** and the answer **replaces the
+  selection** the moment it lands instead (a "Replacing…" toast shows meanwhile; if the app can't
+  paste, or you've switched apps, the answer is copied).
 - **Save as AI tool** (⌘2) keeps the instruction as a custom AI action and runs it the same way.
   From then on it appears in the palette by name, in the AI Tools bar, and under
   **Preferences › AI › Actions**, where you can rename it, edit its prompt, or delete it.

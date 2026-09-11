@@ -15,8 +15,8 @@
 // typed text as an AI instruction — "Ask AI" runs it once on the selection, "Save as AI tool"
 // keeps it as a custom AI preset (a searchable action from then on) and runs it. Recent
 // instructions are ordinary rows of the catalog (`RecentPromptAction`), found by typing any part
-// of them. For all of these, ⏎ / click / ⌘-digit paste AI's answer over the selection and ⇧⏎ /
-// ⇧-click show the result card first (see `PaletteAIPrompt`).
+// of them. For all of these, ⏎ / click / ⌘-digit show AI's answer in the result card (with the
+// diff) and ⇧⏎ / ⇧-click paste it over the selection (see `PaletteAIPrompt`).
 import SwiftUI
 import AppKit
 import Core
@@ -33,8 +33,8 @@ public struct PopupSearchView: View {
     /// route and falls back to `perform`.
     public let onRunAI: @MainActor (String) -> Void
     /// Runs an instruction on the selection — the "Ask AI" row (the collapsed query) or a recent
-    /// prompt row. The flag is true to paste the answer over the selection (⏎, click, ⌘-digit)
-    /// and false to show the result card first (⇧⏎, ⇧-click).
+    /// prompt row. The flag is true to paste the answer over the selection (⇧⏎, ⇧-click) and
+    /// false to show the result card first (⏎, click, ⌘-digit).
     public let onRunAIPrompt: @MainActor (String, Bool) -> Void
     /// Saves the typed query as a reusable AI tool and runs it — the "Save as AI tool" row. Same
     /// flag as `onRunAIPrompt`.
@@ -385,11 +385,11 @@ public struct PopupSearchView: View {
             .font(.system(size: 13, weight: .regular))
             .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
             .focused($isFocused)
-            .onSubmit { runSelected(replace: !NSEvent.modifierFlags.contains(.shift)) }
+            .onSubmit { runSelected(replace: NSEvent.modifierFlags.contains(.shift)) }
             .onKeyPress { press in
                 // Attached to the focused field: Escape drops the scope (or exits search),
-                // up/down move the result selection, Return runs the row (⇧ asks for the result
-                // card instead of the in-place replacement on AI rows). ⌘-digits never arrive
+                // up/down move the result selection, Return runs the row (⇧ asks for the in-place
+                // replacement instead of the result card on AI rows). ⌘-digits never arrive
                 // here — a command-modified key is dispatched through `performKeyEquivalent` and
                 // never reaches `keyDown:` — so those live in `CommandDigitCatcher` below.
                 if press.key == .escape {
@@ -397,7 +397,7 @@ public struct PopupSearchView: View {
                     return .handled
                 }
                 if press.key == .return {
-                    runSelected(replace: !press.modifiers.contains(.shift))
+                    runSelected(replace: press.modifiers.contains(.shift))
                     return .handled
                 }
                 if press.key == .upArrow {
@@ -549,7 +549,7 @@ public struct PopupSearchView: View {
 
         Button {
             selectedIndex = index
-            runSelected(replace: !NSEvent.modifierFlags.contains(.shift))
+            runSelected(replace: NSEvent.modifierFlags.contains(.shift))
         } label: {
             HStack(spacing: 10) {
                 iconView(for: rowIcon(for: item.action))
@@ -648,7 +648,7 @@ public struct PopupSearchView: View {
 
         Button {
             selectedIndex = index
-            runSelected(replace: !NSEvent.modifierFlags.contains(.shift))
+            runSelected(replace: NSEvent.modifierFlags.contains(.shift))
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: PaletteAIPrompt.rowSymbol(row))
@@ -749,12 +749,13 @@ public struct PopupSearchView: View {
     private func runRow(at index: Int) -> Bool {
         guard index >= 0, index < Self.maxShortcutRows, index < rowCount else { return false }
         selectedIndex = index
-        runSelected(replace: true)
+        runSelected(replace: false)
         return true
     }
 
-    /// Runs the highlighted row. `replace` only matters for AI rows (Ask, Save, recents): true
-    /// pastes the answer over the selection, false shows the result card first.
+    /// Runs the highlighted row. `replace` only matters for AI rows (Ask, Save, recents): false
+    /// (⏎, click, ⌘-digit) shows the result card first, true (⇧⏎, ⇧-click) pastes the answer
+    /// over the selection.
     private func runSelected(replace: Bool) {
         if selectedIndex >= results.count {
             // The AI rows: the typed query is the instruction.

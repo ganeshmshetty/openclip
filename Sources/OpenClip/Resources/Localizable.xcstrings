@@ -13161,58 +13161,58 @@
         }
       }
     },
-    "⏎ copy result · ⇧⏎ show result": {
+    "⏎ show result · ⇧⏎ copy result": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "⏎ 复制结果 · ⇧⏎ 显示结果"
+            "value": "⏎ 显示结果 · ⇧⏎ 复制结果"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "⏎ 拷貝結果 · ⇧⏎ 顯示結果"
+            "value": "⏎ 顯示結果 · ⇧⏎ 拷貝結果"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "⏎ copier le résultat · ⇧⏎ afficher le résultat"
+            "value": "⏎ afficher le résultat · ⇧⏎ copier le résultat"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "⏎ 結果をコピー · ⇧⏎ 結果を表示"
+            "value": "⏎ 結果を表示 · ⇧⏎ 結果をコピー"
           }
         }
       }
     },
-    "⏎ replace selection · ⇧⏎ show result": {
+    "⏎ show result · ⇧⏎ replace selection": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "⏎ 替换所选内容 · ⇧⏎ 显示结果"
+            "value": "⏎ 显示结果 · ⇧⏎ 替换所选内容"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "⏎ 取代所選內容 · ⇧⏎ 顯示結果"
+            "value": "⏎ 顯示結果 · ⇧⏎ 取代所選內容"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "⏎ remplacer la sélection · ⇧⏎ afficher le résultat"
+            "value": "⏎ afficher le résultat · ⇧⏎ remplacer la sélection"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "⏎ 選択範囲を置換 · ⇧⏎ 結果を表示"
+            "value": "⏎ 結果を表示 · ⇧⏎ 選択範囲を置換"
           }
         }
       }

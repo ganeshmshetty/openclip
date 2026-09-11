@@ -5,7 +5,7 @@
 ## Unreleased
 
 ### Features & Improvements
-- **Ask AI from the search palette**: a palette query that matches no action now offers **Ask AI: “…”** and **Save as AI tool** instead of the "No matches" dead end. ⏎ (or ⌘1/⌘2) runs the instruction and **replaces the selection in place** the moment the answer lands (copied instead when the app can't paste); ⇧⏎ shows the answer in the result card first. Saved instructions become custom AI actions — searchable in the palette, in the AI Tools bar and editable under Preferences › AI › Actions. **Recent instructions are palette rows** too, found by typing any part of them.
+- **Ask AI from the search palette**: a palette query that matches no action now offers **Ask AI: “…”** and **Save as AI tool** instead of the "No matches" dead end. ⏎ (or ⌘1/⌘2) shows the answer in the result card with a diff; ⇧⏎ **replaces the selection in place** the moment the answer lands (copied instead when the app can't paste). Saved instructions become custom AI actions — searchable in the palette, in the AI Tools bar and editable under Preferences › AI › Actions. **Recent instructions are palette rows** too, found by typing any part of them.
 - **Refine AI answers in the result card**: the card gains an instruction field — type `shorter` or `in Slovak` and press ⏎ to run AI on the current answer, as many times as needed before pasting. The card stays put while it refines: the previous answer stays visible under a spinner in the field, the new answer streams into the same card and settles with a diff of what changed, and Esc cancels a refinement instead of closing the card.
 
 ---

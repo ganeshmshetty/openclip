@@ -179,14 +179,14 @@ final class PaletteAIPromptTests: XCTestCase {
     func testCommandOneOnANonMatchingQueryAsksAI() throws {
         let recorder = Recorder()
         try drivePalette(query: "rewrite  to slovak", press: { try commandDigit("1", keyCode: 18, in: $0) }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:replace"],
-                       "the query is the instruction, collapsed; ⌘1 replaces in place; nothing may perform or exit first")
+        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:card"],
+                       "the query is the instruction, collapsed; ⌘1 shows the card; nothing may perform or exit first")
     }
 
     func testCommandTwoOnANonMatchingQuerySavesTheTool() throws {
         let recorder = Recorder()
         try drivePalette(query: "rewrite to slovak", press: { try commandDigit("2", keyCode: 19, in: $0) }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["save:rewrite to slovak:replace"])
+        XCTAssertEqual(recorder.events, ["save:rewrite to slovak:card"])
     }
 
     func testReturnRunsTheAskRowByDefault() throws {
@@ -199,10 +199,10 @@ final class PaletteAIPromptTests: XCTestCase {
             ))
             panel.sendEvent(event)
         }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:replace"])
+        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:card"], "⏎ shows the result card")
     }
 
-    func testShiftReturnAsksForTheResultCardInstead() throws {
+    func testShiftReturnReplacesTheSelectionInstead() throws {
         let recorder = Recorder()
         try drivePalette(query: "rewrite to slovak", press: { panel in
             let event = try XCTUnwrap(NSEvent.keyEvent(
@@ -212,7 +212,7 @@ final class PaletteAIPromptTests: XCTestCase {
             ))
             panel.sendEvent(event)
         }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:card"])
+        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:replace"], "⇧⏎ pastes over the selection")
     }
 
     // MARK: - Recent prompts as rows
@@ -220,13 +220,13 @@ final class PaletteAIPromptTests: XCTestCase {
     func testARecentPromptIsFoundByAFragmentAndRunsAsIs() throws {
         let recorder = Recorder()
         try drivePalette(query: "slovak", recents: ["rewrite to slovak"], press: { try commandDigit("1", keyCode: 18, in: $0) }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:replace"], "the recent's own text runs, not the fragment")
+        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:card"], "the recent's own text runs, not the fragment")
     }
 
     func testOnlyRecentMatchesStillOfferSaveAsTheNextRow() throws {
         let recorder = Recorder()
         try drivePalette(query: "slovak", recents: ["rewrite to slovak"], press: { try commandDigit("2", keyCode: 19, in: $0) }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["save:slovak:replace"], "row 2 is Save for the typed query")
+        XCTAssertEqual(recorder.events, ["save:slovak:card"], "row 2 is Save for the typed query")
     }
 
     func testRecentPromptRowsAreNeverRegisteredActions() {

@@ -256,13 +256,13 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
 - **AI rows in the palette**: a query that matches nothing is offered to AI instead of ending in
   "No matches". While AI is on (`AIServiceManager.isAIEnabled`), `PopupSearchView` appends two rows
   after the (empty) results — **Ask AI: “<query>”** and **Save as AI tool** — plus a key hint; when
-  the only matches are recent prompts it appends **Save** alone. **⏎, click and ⌘-digits paste
-  AI's answer over the selection** (`PopupWindowController.runAIPromptReplacing`: the popup
+  the only matches are recent prompts it appends **Save** alone. **⇧⏎ and ⇧-click paste AI's answer
+  over the selection** (`PopupWindowController.runAIPromptReplacing`: the popup
   hides, a cancellable "Replacing…" toast waits for `provider.process`, the answer goes through
   the explicit paste door `handleActionResult(.paste)` under a "Replaced with AI result" toast —
   downgraded to a copy when the unified paste availability says no or the frontmost app is no
-  longer the selection's, `frontmostBundleIDProvider`); **⇧⏎ and ⇧-click show the result card
-  first** (`runAIPreset`, same streaming card as a preset, titled after the instruction). Save
+  longer the selection's, `frontmostBundleIDProvider`); **⏎, click and ⌘-digits show the result
+  card first** (`runAIPreset`, same streaming card as a preset, titled after the instruction). Save
   stores the instruction as a custom `AIActionPreset` (`AIServiceManager.addCustomPreset`, or
   reuses an existing one via `preset(matchingPrompt:)`) and runs it the same way. Every
   instruction run this way is remembered by `AIPromptHistory` (`SettingKey.recentAIPrompts`, MRU,
