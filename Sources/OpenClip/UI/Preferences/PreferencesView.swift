@@ -146,7 +146,14 @@ public struct PreferencesView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenActionConfiguration)) { notification in
             guard let request = notification.userInfo?["request"] as? ConfigurationRequest,
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
-            activeSheet = .configure(action: action, request: request)
+            // AI settings are pages of the Actions pane now, so a request to configure them
+            // navigates there rather than stacking a modal copy on the window.
+            if action.chrome.launchesAI {
+                selectedTab = .actions
+                SettingsNavigator.shared.push(.ai)
+            } else {
+                activeSheet = .configure(action: action, request: request)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openClipSelectPreferencesTab)) { notification in
             if let tab = notification.object as? PreferenceTab {
@@ -161,11 +168,7 @@ public struct PreferencesView: View {
         .sheet(item: $activeSheet) { route in
             switch route {
             case .configure(let action, let request):
-                if action.chrome.launchesAI {
-                    ConfigureAISheet()
-                } else {
-                    EditActionSheet(action: action, configurationRequest: request)
-                }
+                EditActionSheet(action: action, configurationRequest: request)
             }
         }
     }

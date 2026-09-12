@@ -8,20 +8,21 @@ import Core
 @MainActor
 public struct EditGroupSheet: View {
     let groupID: String
+    /// `true` when the editor is a page of the Actions pane's navigation stack, which draws the
+    /// title and the way back itself.
+    let isPage: Bool
     @Environment(\.dismiss) private var dismiss
-    /// Set when the editor is shown in the Actions tab's settings popover, which closes itself
-    /// only on request; `nil` when it is presented as a sheet.
-    @Environment(\.popoverDismiss) private var popoverDismiss
+    @ObservedObject private var navigator = SettingsNavigator.shared
     @ObservedObject private var coordinator = ActionCoordinator.shared
 
     @State private var title: String = ""
     @State private var iconName: String = "folder"
     @State private var memberIDs: [String] = []
     @State private var memberIconOverrides: [String: String] = [:]
-    @State private var showingIconPicker = false
 
-    public init(groupID: String) {
+    public init(groupID: String, isPage: Bool = false) {
         self.groupID = groupID
+        self.isPage = isPage
     }
 
     private var groupDef: ActionGroupDef? {
@@ -33,8 +34,8 @@ public struct EditGroupSheet: View {
     }
 
     private func close() {
-        if let popoverDismiss {
-            popoverDismiss()
+        if isPage {
+            navigator.pop()
         } else {
             dismiss()
         }
@@ -42,17 +43,19 @@ public struct EditGroupSheet: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Edit Group")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    close()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+            if !isPage {
+                HStack {
+                    Text("Edit Group")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        close()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             HStack(spacing: 10) {
@@ -60,12 +63,15 @@ public struct EditGroupSheet: View {
                     .textFieldStyle(.roundedBorder)
 
                 Button {
-                    showingIconPicker.toggle()
+                    navigator.pushIconPicker(
+                        title: String(localized: "Choose Icon"),
+                        writingTo: $iconName
+                    )
                 } label: {
                     HStack(spacing: 4) {
                         AnyIconView(iconId: iconName.isEmpty ? "folder" : iconName)
                             .frame(width: 16, height: 16)
-                        Image(systemName: "chevron.down")
+                        Image(systemName: "chevron.right")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -74,9 +80,7 @@ public struct EditGroupSheet: View {
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
                 }
                 .buttonStyle(.plain)
-                .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                    IconPickerPopover(selectedIcon: $iconName)
-                }
+                .accessibilityLabel(String(localized: "Choose icon"))
             }
 
             Text("MEMBERS")
@@ -175,7 +179,8 @@ public struct EditGroupSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 360)
+        .frame(width: isPage ? nil : 360)
+        .frame(maxWidth: isPage ? .infinity : nil, maxHeight: isPage ? .infinity : nil, alignment: .top)
         .onAppear {
             if let groupDef {
                 title = groupDef.title
@@ -216,7 +221,7 @@ private struct GroupMemberRowView: View {
 
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
-    @State private var showingIconPicker = false
+    @ObservedObject private var navigator = SettingsNavigator.shared
 
     private var resolvedAction: (any Action)? {
         coordinator.actions.first(where: { $0.id == actionID })
@@ -242,7 +247,10 @@ private struct GroupMemberRowView: View {
     var body: some View {
         HStack(spacing: 8) {
             Button {
-                showingIconPicker.toggle()
+                navigator.pushIconPicker(
+                    title: String(localized: "Choose Icon"),
+                    writingTo: $customIconSymbol
+                )
             } label: {
                 ZStack {
                     if let presentation {
@@ -257,9 +265,6 @@ private struct GroupMemberRowView: View {
             .buttonStyle(.plain)
             .help(String(localized: "Customize Icon"))
             .accessibilityLabel(String(localized: "Customize Icon"))
-            .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                IconPickerPopover(selectedIcon: $customIconSymbol)
-            }
 
             Text(presentation?.title ?? actionID)
                 .font(.system(size: 12))

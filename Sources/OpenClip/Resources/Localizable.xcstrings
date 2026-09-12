@@ -85,6 +85,34 @@
         }
       }
     },
+    "%lld prompts in the AI Tools group": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“AI 工具”分组中有 %lld 条提示词"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「AI 工具」群組中有 %lld 條提示詞"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld invites dans le groupe Outils IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「AI ツール」グループに %lld 件のプロンプト"
+          }
+        }
+      }
+    },
     "%lldd ago": {
       "localizations": {
         "zh-Hans": {
@@ -277,6 +305,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "AI"
+          }
+        }
+      }
+    },
+    "AI Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI アクション"
           }
         }
       }
@@ -2577,6 +2633,34 @@
         }
       }
     },
+    "Choose Icon": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择图标"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇圖示"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisir une icône"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイコンを選択"
+          }
+        }
+      }
+    },
     "Choose a .openclipext folder, .zip archive, or script file": {
       "localizations": {
         "zh-Hans": {
@@ -4169,6 +4253,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ドラッグして移動"
+          }
+        }
+      }
+    },
+    "Drag to reorder.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动可重新排序。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖曳可重新排序。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faites glisser pour réordonner."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドラッグして並べ替えられます。"
           }
         }
       }

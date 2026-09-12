@@ -27,7 +27,7 @@ public struct CreateGroupSheet: View {
                     .textFieldStyle(.roundedBorder)
 
                 Button {
-                    showingIconPicker.toggle()
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker.toggle() }
                 } label: {
                     HStack(spacing: 4) {
                         AnyIconView(iconId: iconName.isEmpty ? "folder" : iconName)
@@ -41,9 +41,15 @@ public struct CreateGroupSheet: View {
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
                 }
                 .buttonStyle(.plain)
-                .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                    IconPickerPopover(selectedIcon: $iconName)
+                .accessibilityLabel(String(localized: "Choose icon"))
+            }
+
+            if showingIconPicker {
+                IconPickerView(selectedSymbol: $iconName) {
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker = false }
                 }
+                .frame(height: 240)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             if memberActionIDs.isEmpty {
@@ -77,6 +83,6 @@ public struct CreateGroupSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 360)
+        .frame(width: 420)
     }
 }

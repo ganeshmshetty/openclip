@@ -24,8 +24,10 @@ struct ActionAppearanceFields: View {
     /// Symbol Show Icon mode resolves to for text-glyph builtins (Copy/Cut/Paste) while no
     /// replacement has been picked; nil for actions whose icon is already symbol-representable.
     var textGlyphFallbackSymbol: String? = nil
+    /// Opens the icon chooser. The chooser is a page pushed by the enclosing navigator rather than
+    /// a popover, so the field only asks for it — it does not own its presentation.
+    var onPickIcon: () -> Void
 
-    @State private var showingIconPicker = false
     @State private var isIconHovered = false
 
     /// What the icon preview should render right now (same resolution the popup bar applies).
@@ -106,7 +108,7 @@ struct ActionAppearanceFields: View {
         HStack(alignment: .center, spacing: 14) {
             // Hero Icon Button
             Button {
-                showingIconPicker.toggle()
+                onPickIcon()
             } label: {
                 ZStack(alignment: .bottomTrailing) {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -131,9 +133,7 @@ struct ActionAppearanceFields: View {
             .buttonStyle(.plain)
             .help(iconButtonHelp)
             .onHover { isIconHovered = $0 }
-            .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                IconPickerPopover(selectedIcon: $iconSymbol)
-            }
+            .accessibilityLabel(String(localized: "Choose icon"))
 
             // Title & Display Mode Controls
             VStack(alignment: .leading, spacing: 8) {
@@ -180,19 +180,21 @@ struct InsetGroupCard<Content: View>: View {
     }
 }
 
-// MARK: - Icon Picker Popover
+// MARK: - Icon Picker Page
 
+/// The icon chooser as a full page of the settings stack. It fills the pane instead of floating
+/// over it, which is the whole reason the grid can finally breathe.
 @MainActor
-struct IconPickerPopover: View {
+struct IconPickerPage: View {
     @Binding var selectedIcon: String
-    @Environment(\.dismiss) private var dismiss
+    let onDone: () -> Void
 
     var body: some View {
         IconPickerView(selectedSymbol: $selectedIcon) {
-            dismiss()
+            onDone()
         }
-        .padding(12)
-        .frame(width: 360, height: 320)
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

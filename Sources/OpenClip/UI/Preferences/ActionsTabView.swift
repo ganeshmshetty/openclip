@@ -15,11 +15,11 @@ struct ActionsTab: View {
     @Binding var showingAddActionSheet: Bool
     @Binding var showingCreateGroupSheet: Bool
 
-    @State private var editingGroupID: String? = nil
     @State private var selectedRowIDs: Set<String> = []
 
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
+    @ObservedObject private var navigator = SettingsNavigator.shared
 
     /// Eligible candidate action IDs for custom grouping. Only top-level standalone actions
     /// (not AI presets, not AI launcher, not group parents, not extension sub-actions,
@@ -36,6 +36,29 @@ struct ActionsTab: View {
     }
 
     var body: some View {
+        // One column, a stack of pages. Every sub-setting that used to float over this list is a
+        // level of it now.
+        SettingsNavigationStack(navigator: navigator) {
+            outline
+        } page: { page in
+            self.page(page)
+        }
+        .sheet(isPresented: $showingAddActionSheet) {
+            AddCustomActionSheet()
+        }
+        .sheet(isPresented: $showingCreateGroupSheet, onDismiss: {
+            selectedRowIDs = []
+        }) {
+            CreateGroupSheet(memberActionIDs: candidateSelectedActionIDs)
+        }
+        // A page outlives neither the pane nor the action it edits.
+        .onDisappear {
+            navigator.popToRoot()
+        }
+    }
+
+    /// The root of the stack: the reorderable action outline.
+    private var outline: some View {
         ActionsOutlineView(
             coordinator: coordinator,
             customizationManager: customizationManager,
@@ -43,7 +66,7 @@ struct ActionsTab: View {
             disabledActionIDs: $disabledActionIDs,
             disabledPackages: $disabledPackages,
             onEditGroup: { groupID in
-                editingGroupID = groupID
+                navigator.push(.group(id: groupID))
             },
             onCreateGroupFromSelection: {
                 showingCreateGroupSheet = true
@@ -53,27 +76,46 @@ struct ActionsTab: View {
         // toolbar like the Form-based panes do. `ActionsScrollView` puts the rows
         // themselves back below it.
         .ignoresSafeArea(.container, edges: .top)
-        .sheet(isPresented: $showingAddActionSheet) {
-            AddCustomActionSheet()
-        }
-        .sheet(isPresented: $showingCreateGroupSheet, onDismiss: {
-            selectedRowIDs = []
-        }) {
-            CreateGroupSheet(memberActionIDs: candidateSelectedActionIDs)
-        }
-        .sheet(isPresented: Binding(
-            get: { editingGroupID != nil },
-            set: { if !$0 { editingGroupID = nil } }
-        )) {
-            if let editingGroupID {
-                EditGroupSheet(groupID: editingGroupID)
+    }
+
+    /// Content for each level of the stack. A page whose subject disappeared while it was open
+    /// (uninstalled extension, ungrouped group) pops itself rather than showing an empty page.
+    @ViewBuilder
+    private func page(_ page: SettingsPage) -> some View {
+        switch page {
+        case .action(let id):
+            if let action = coordinator.actions.first(where: { $0.id == id }) {
+                EditActionSheet(action: action, isPage: true)
+            } else {
+                missingSubject
             }
+        case .group(let id):
+            if coordinator.actions.contains(where: { $0.id == id }) {
+                EditGroupSheet(groupID: id, isPage: true)
+            } else {
+                missingSubject
+            }
+        case .iconPicker:
+            if let target = navigator.iconTarget {
+                IconPickerPage(selectedIcon: target) { navigator.pop() }
+            } else {
+                missingSubject
+            }
+        case .ai:
+            AIConfigurePage()
+        case .aiActions:
+            AIActionsPage()
+        case .aiPreset(let id):
+            AIPresetPage(presetID: id)
+        case .aiNewPreset:
+            AINewPresetPage()
         }
-        // The row settings editor is an application-defined popover: it never closes itself, so
-        // it has to go when the tab it belongs to does.
-        .onDisappear {
-            ActionSettingsPopover.shared.close()
-        }
+    }
+
+    private var missingSubject: some View {
+        Color.clear
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onAppear { navigator.pop() }
     }
 }
 
@@ -119,25 +161,15 @@ struct ActionRowView: View {
     }
 
     @State private var isHovered = false
-    /// Anchor for the settings editor. It is presented as a non-transient AppKit popover
-    /// (`ActionSettingsPopover`) rather than SwiftUI's `.popover`, so toggling an action in the
-    /// list behind it — or the outline reloading its rows — leaves the editor open.
-    @State private var configAnchor = PopoverAnchorBox()
-    @ObservedObject private var settingsPopover = ActionSettingsPopover.shared
 
-    private var isConfigPopoverOpen: Bool {
-        settingsPopover.openRowID == action.id
-    }
-
-    private func openConfigPopover() {
-        settingsPopover.toggle(rowID: action.id, anchor: configAnchor) {
-            if isAITools {
-                ConfigureAISheet()
-            } else if action.chrome.rowStyle == .actionGroup {
-                EditGroupSheet(groupID: action.id)
-            } else {
-                EditActionSheet(action: action)
-            }
+    /// Drills into this row's settings.
+    private func openSettings() {
+        if isAITools {
+            SettingsNavigator.shared.push(.ai)
+        } else if action.chrome.rowStyle == .actionGroup {
+            SettingsNavigator.shared.push(.group(id: action.id))
+        } else {
+            SettingsNavigator.shared.push(.action(id: action.id))
         }
     }
 
@@ -221,15 +253,15 @@ struct ActionRowView: View {
                 // Settings
                 if controls.contains(.settings) {
                     Button(action: {
-                        openConfigPopover()
+                        openSettings()
                     }) {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 12))
-                            .foregroundColor(isConfigPopoverOpen ? .accentColor : .secondary)
+                        // A chevron, not a gear: the control navigates, and says so.
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
-                    .background(PopoverAnchorView(box: configAnchor))
                     .help(isAITools ? String(localized: "Open AI settings") : (action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action")))
                     .accessibilityLabel(isAITools ? String(localized: "Open AI settings") : (action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action")))
                 } else {

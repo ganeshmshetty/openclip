@@ -13,6 +13,8 @@ public struct AddCustomActionSheet: View {
 
     // Appearance State (matching EditActionSheet's Hero Header Card)
     @State private var customTitle: String = ""
+    /// Expanded state of the inline icon chooser.
+    @State private var showingIconPicker = false
     @State private var iconSymbol: String = "wand.and.stars"
     private let initialIconSymbol: String = "wand.and.stars"
     @State private var displayMode: Int = 0 // 0 = Show Icon, 1 = Show Text
@@ -60,8 +62,23 @@ public struct AddCustomActionSheet: View {
                         iconSymbol: $iconSymbol,
                         initialIconSymbol: initialIconSymbol,
                         baseIcon: nil,
-                        displayMode: $displayMode
+                        displayMode: $displayMode,
+                        onPickIcon: {
+                            withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker.toggle() }
+                        }
                     )
+
+                    // This sheet is a creation flow, not a place you navigate into, so the chooser
+                    // expands in the card instead of pushing a page.
+                    if showingIconPicker {
+                        Divider()
+                        IconPickerView(selectedSymbol: $iconSymbol) {
+                            withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker = false }
+                        }
+                        .frame(height: 260)
+                        .padding(14)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
 
                 // Execution Logic Card

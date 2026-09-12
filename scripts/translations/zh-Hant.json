@@ -229,7 +229,6 @@
   "Apple Intelligence": "Apple Intelligence",
   "Local (LM Studio/Ollama)": "本機模型（LM Studio/Ollama）",
   "CLI": "命令列（CLI）",
-  "Cloud API": "雲端 API",
   "Ollama (Local LLM)": "Ollama（本機 LLM）",
   "Cloud API (OpenAI/Claude)": "雲端 API（OpenAI/Claude）",
   "Browser Redirection": "瀏覽器重新導向",
@@ -488,5 +487,9 @@
   "Duplicate Action": "複製動作",
   "Duplicate Extension": "複製擴充功能",
   "Duplicate Failed": "複製失敗",
-  "OpenClip could not duplicate extension: %@": "OpenClip 無法複製擴充功能：%@"
+  "OpenClip could not duplicate extension: %@": "OpenClip 無法複製擴充功能：%@",
+  "Choose Icon": "選擇圖示",
+  "AI Actions": "AI 操作",
+  "Drag to reorder.": "拖曳可重新排序。",
+  "%lld prompts in the AI Tools group": "「AI 工具」群組中有 %lld 條提示詞"
 }
