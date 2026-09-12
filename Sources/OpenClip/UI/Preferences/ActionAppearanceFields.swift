@@ -25,6 +25,9 @@ struct ActionAppearanceFields: View {
     /// replacement has been picked; nil for actions whose icon is already symbol-representable.
     var textGlyphFallbackSymbol: String? = nil
 
+    /// Expanded state of the inline icon picker. It used to be a `.popover` anchored to the hero
+    /// button — and because this editor is itself presented in a sheet, that meant a picker
+    /// floating free of the form it edits, on top of the preview it is meant to be compared with.
     @State private var showingIconPicker = false
     @State private var isIconHovered = false
 
@@ -103,10 +106,28 @@ struct ActionAppearanceFields: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            heroRow
+
+            if showingIconPicker {
+                Divider()
+
+                IconPickerView(selectedSymbol: $iconSymbol) {
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker = false }
+                }
+                .frame(height: 300)
+                .padding(14)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    /// The always-visible row: hero icon, name, popup-bar display mode.
+    private var heroRow: some View {
         HStack(alignment: .center, spacing: 14) {
             // Hero Icon Button
             Button {
-                showingIconPicker.toggle()
+                withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker.toggle() }
             } label: {
                 ZStack(alignment: .bottomTrailing) {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -131,9 +152,7 @@ struct ActionAppearanceFields: View {
             .buttonStyle(.plain)
             .help(iconButtonHelp)
             .onHover { isIconHovered = $0 }
-            .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                IconPickerPopover(selectedIcon: $iconSymbol)
-            }
+            .accessibilityLabel(String(localized: "Choose icon"))
 
             // Title & Display Mode Controls
             VStack(alignment: .leading, spacing: 8) {
@@ -180,19 +199,22 @@ struct InsetGroupCard<Content: View>: View {
     }
 }
 
-// MARK: - Icon Picker Popover
+// MARK: - Inline Icon Picker
 
+/// The icon picker as an expanding section of whatever form it belongs to, replacing the old
+/// `IconPickerPopover`. Callers own the expanded state so the picker can sit in the row it edits.
 @MainActor
-struct IconPickerPopover: View {
+struct InlineIconPicker: View {
     @Binding var selectedIcon: String
-    @Environment(\.dismiss) private var dismiss
+    var height: CGFloat = 280
+    let onDone: () -> Void
 
     var body: some View {
         IconPickerView(selectedSymbol: $selectedIcon) {
-            dismiss()
+            onDone()
         }
-        .padding(12)
-        .frame(width: 360, height: 320)
+        .frame(height: height)
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 }
 

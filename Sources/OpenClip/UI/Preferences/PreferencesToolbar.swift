@@ -26,6 +26,9 @@ public enum PreferencesToolbarAction: Sendable {
 @MainActor
 public final class PreferencesToolbarModel: ObservableObject {
     @Published public var tab: PreferenceTab = .general
+    /// Title to show instead of the tab's own, for routes that are not tabs — an action's page is
+    /// titled after the action.
+    @Published public var pageTitleOverride: String?
     @Published public var storeFilter: StoreFilter = .all
     @Published public var searchQuery: String = ""
     @Published public var isRefreshing: Bool = false
@@ -81,6 +84,17 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             .sink { [weak self] tab in self?.sync(tab: tab) }
             .store(in: &cancellables)
 
+        // A route that is not a tab (an action's page) titles the window itself, and arrives after
+        // the tab it is nested under.
+        model.$pageTitleOverride
+            .sink { [weak self] override in
+                guard let self else { return }
+                let title = override ?? self.model.tab.windowTitle
+                self.titleLabel?.stringValue = title
+                self.window?.setAccessibilityTitle(title)
+            }
+            .store(in: &cancellables)
+
         model.$storeFilter
             .sink { [weak self] filter in
                 self?.filterControl?.selectedSegment = StoreFilter.allCases.firstIndex(of: filter) ?? 0
@@ -113,8 +127,9 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     // MARK: - Item contents per tab
 
     private func sync(tab: PreferenceTab) {
-        titleLabel?.stringValue = tab.windowTitle
-        window?.setAccessibilityTitle(tab.windowTitle)
+        let title = model.pageTitleOverride ?? tab.windowTitle
+        titleLabel?.stringValue = title
+        window?.setAccessibilityTitle(title)
         let showsStoreControls = (tab == .store)
         setHidden(filterItem, !showsStoreControls)
         setHidden(searchItem, !showsStoreControls)

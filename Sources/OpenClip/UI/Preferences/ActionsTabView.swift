@@ -15,7 +15,6 @@ struct ActionsTab: View {
     @Binding var showingAddActionSheet: Bool
     @Binding var showingCreateGroupSheet: Bool
 
-    @State private var editingGroupID: String? = nil
     @State private var selectedRowIDs: Set<String> = []
 
     @ObservedObject private var coordinator = ActionCoordinator.shared
@@ -43,7 +42,7 @@ struct ActionsTab: View {
             disabledActionIDs: $disabledActionIDs,
             disabledPackages: $disabledPackages,
             onEditGroup: { groupID in
-                editingGroupID = groupID
+                SettingsRouter.shared.show(.action(id: groupID))
             },
             onCreateGroupFromSelection: {
                 showingCreateGroupSheet = true
@@ -60,19 +59,6 @@ struct ActionsTab: View {
             selectedRowIDs = []
         }) {
             CreateGroupSheet(memberActionIDs: candidateSelectedActionIDs)
-        }
-        .sheet(isPresented: Binding(
-            get: { editingGroupID != nil },
-            set: { if !$0 { editingGroupID = nil } }
-        )) {
-            if let editingGroupID {
-                EditGroupSheet(groupID: editingGroupID)
-            }
-        }
-        // The row settings editor is an application-defined popover: it never closes itself, so
-        // it has to go when the tab it belongs to does.
-        .onDisappear {
-            ActionSettingsPopover.shared.close()
         }
     }
 }
@@ -119,25 +105,14 @@ struct ActionRowView: View {
     }
 
     @State private var isHovered = false
-    /// Anchor for the settings editor. It is presented as a non-transient AppKit popover
-    /// (`ActionSettingsPopover`) rather than SwiftUI's `.popover`, so toggling an action in the
-    /// list behind it — or the outline reloading its rows — leaves the editor open.
-    @State private var configAnchor = PopoverAnchorBox()
-    @ObservedObject private var settingsPopover = ActionSettingsPopover.shared
 
-    private var isConfigPopoverOpen: Bool {
-        settingsPopover.openRowID == action.id
-    }
-
-    private func openConfigPopover() {
-        settingsPopover.toggle(rowID: action.id, anchor: configAnchor) {
-            if isAITools {
-                ConfigureAISheet()
-            } else if action.chrome.rowStyle == .actionGroup {
-                EditGroupSheet(groupID: action.id)
-            } else {
-                EditActionSheet(action: action)
-            }
+    /// Routes to this row's settings. AI Tools is not a per-action setting — engine, credentials,
+    /// model lists and a prompt library — so it has a page of its own in the sidebar.
+    private func openSettings() {
+        if isAITools {
+            SettingsRouter.shared.show(.ai)
+        } else {
+            SettingsRouter.shared.show(.action(id: action.id))
         }
     }
 
@@ -221,15 +196,14 @@ struct ActionRowView: View {
                 // Settings
                 if controls.contains(.settings) {
                     Button(action: {
-                        openConfigPopover()
+                        openSettings()
                     }) {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 12))
-                            .foregroundColor(isConfigPopoverOpen ? .accentColor : .secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
-                    .background(PopoverAnchorView(box: configAnchor))
                     .help(isAITools ? String(localized: "Open AI settings") : (action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action")))
                     .accessibilityLabel(isAITools ? String(localized: "Open AI settings") : (action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action")))
                 } else {

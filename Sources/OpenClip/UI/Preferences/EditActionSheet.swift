@@ -1,7 +1,8 @@
 // EditActionSheet.swift
 // OpenClip
 //
-// Renders the modal sheet / popover interface for editing existing action appearances, titles, and parameters.
+// Renders the editor for an action's appearance, title and parameters, either as its own
+// preferences pane or as a standalone sheet (the missing-options configuration request).
 // Styled in macOS Inset Grouped layout with Hero Header: content-hugging height, solid opaque background,
 // and conditional options/logic display (omitting redundant info notes when no config options exist).
 import SwiftUI
@@ -15,10 +16,11 @@ public struct EditActionSheet: View {
     /// Optional request from the action (e.g. a missing-required-options short-circuit): surfaces a
     /// reason banner and highlights the missing option rows in the unified editor (Phase 7).
     let configurationRequest: ConfigurationRequest?
+    /// `true` when the editor *is* a preferences pane (`ActionSettingsPane`): the pane draws the
+    /// breadcrumb, so the editor drops its own title bar and fixed width, and saving returns to the
+    /// Actions list rather than closing a window.
+    let isPane: Bool
     @Environment(\.dismiss) private var dismiss
-    /// Set when the editor is shown in the Actions tab's settings popover, which closes itself
-    /// only on request; `nil` when it is presented as a sheet.
-    @Environment(\.popoverDismiss) private var popoverDismiss
 
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
@@ -61,9 +63,10 @@ public struct EditActionSheet: View {
     @State private var saveAlertMessage: String = ""
     @State private var aliasText: String = ""
 
-    public init(action: any Action, configurationRequest: ConfigurationRequest? = nil) {
+    public init(action: any Action, configurationRequest: ConfigurationRequest? = nil, isPane: Bool = false) {
         self.action = action
         self.configurationRequest = configurationRequest
+        self.isPane = isPane
     }
 
     private var isBuiltin: Bool {
@@ -71,8 +74,8 @@ public struct EditActionSheet: View {
     }
 
     private func close() {
-        if let popoverDismiss {
-            popoverDismiss()
+        if isPane {
+            SettingsRouter.shared.backToActions()
         } else {
             dismiss()
         }
@@ -96,22 +99,25 @@ public struct EditActionSheet: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Configure Action")
-                    .font(.system(size: 13, weight: .semibold))
-                Spacer()
-                Button(action: { close() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundColor(.secondary)
+            if !isPane {
+                // Header. As a pane the window's toolbar carries the action's name and the pane
+                // carries the breadcrumb, so this would be a third title.
+                HStack {
+                    Text("Configure Action")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    Button(action: { close() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 15))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
 
             // Content Area (fits content dynamically)
             VStack(alignment: .leading, spacing: 12) {
@@ -327,9 +333,10 @@ public struct EditActionSheet: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
         }
-        .frame(width: 370)
+        .frame(width: isPane ? nil : 370)
+        .frame(maxWidth: isPane ? .infinity : nil)
         .fixedSize(horizontal: false, vertical: true)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(isPane ? Color.clear : Color(nsColor: .windowBackgroundColor))
         .alert("Unable to Save Changes", isPresented: $showingSaveAlert) {
             Button("OK", role: .cancel) {}
         } message: {

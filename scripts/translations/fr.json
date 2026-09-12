@@ -487,5 +487,14 @@
   "Duplicate Action": "Dupliquer l’action",
   "Duplicate Extension": "Dupliquer l’extension",
   "Duplicate Failed": "Échec de la duplication",
-  "OpenClip could not duplicate extension: %@": "OpenClip n’a pas pu dupliquer l’extension : %@"
+  "OpenClip could not duplicate extension: %@": "OpenClip n’a pas pu dupliquer l’extension : %@",
+  "AI Actions": "Actions IA",
+  "These appear inside the AI Tools group in the popup bar. Drag to reorder.": "Elles apparaissent dans le groupe Outils IA de la barre contextuelle. Faites glisser pour réordonner.",
+  "Shortcuts": "Raccourcis",
+  "Search shortcuts": "Rechercher des raccourcis",
+  "An alias jumps straight to an action when you type it in the palette. A hotkey runs it from anywhere.": "Un alias saute directement à une action lorsque vous le tapez dans la palette. Un raccourci l'exécute depuis n'importe où.",
+  "Built-in": "Intégrées",
+  "Custom Actions": "Actions personnalisées",
+  "Aliases can only contain letters and numbers.": "Les alias ne peuvent contenir que des lettres et des chiffres.",
+  "Alias for %@": "Alias pour %@"
 }

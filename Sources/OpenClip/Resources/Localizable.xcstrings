@@ -281,6 +281,34 @@
         }
       }
     },
+    "AI Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI アクション"
+          }
+        }
+      }
+    },
     "AI Tools": {
       "localizations": {
         "zh-Hans": {
@@ -1177,6 +1205,62 @@
         }
       }
     },
+    "Alias for %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 的别名"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 的別名"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alias pour %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ のエイリアス"
+          }
+        }
+      }
+    },
+    "Aliases can only contain letters and numbers.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "别名只能包含字母和数字。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別名只能包含字母和數字。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les alias ne peuvent contenir que des lettres et des chiffres."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エイリアスに使用できるのは英数字のみです。"
+          }
+        }
+      }
+    },
     "Aliases can only use letters, numbers, and hyphens.": {
       "localizations": {
         "zh-Hans": {
@@ -1257,6 +1341,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "すべての拡張機能"
+          }
+        }
+      }
+    },
+    "An alias jumps straight to an action when you type it in the palette. A hotkey runs it from anywhere.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在命令面板中输入别名可直接跳转到某个操作；快捷键则可在任意位置运行它。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在命令面板中輸入別名可直接跳至某個操作；快捷鍵則可在任意位置執行它。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un alias saute directement à une action lorsque vous le tapez dans la palette. Un raccourci l'exécute depuis n'importe où."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エイリアスはパレットで入力するとそのアクションに直接移動します。ホットキーはどこからでも実行します。"
           }
         }
       }
@@ -2153,6 +2265,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ブラウザリダイレクト"
+          }
+        }
+      }
+    },
+    "Built-in": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內建"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intégrées"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "組み込み"
           }
         }
       }
@@ -3553,6 +3693,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "カスタム"
+          }
+        }
+      }
+    },
+    "Custom Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自訂操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions personnalisées"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムアクション"
           }
         }
       }
@@ -10893,6 +11061,34 @@
         }
       }
     },
+    "Search shortcuts": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索快捷键"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋快捷鍵"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher des raccourcis"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ショートカットを検索"
+          }
+        }
+      }
+    },
     "Search to browse 50,000+ open source icons\n(Lucide, Tabler, Material Symbols, MDI…)": {
       "localizations": {
         "zh-Hans": {
@@ -11253,6 +11449,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "シェルスクリプト (Zsh)"
+          }
+        }
+      }
+    },
+    "Shortcuts": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快捷键"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快捷鍵"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raccourcis"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ショートカット"
           }
         }
       }
@@ -11981,6 +12205,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "解決されたファイルは有効な画像ではありません。"
+          }
+        }
+      }
+    },
+    "These appear inside the AI Tools group in the popup bar. Drag to reorder.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这些会显示在弹出栏的“AI 工具”分组中。拖动可重新排序。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這些會顯示在彈出列的「AI 工具」群組中。拖曳可重新排序。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elles apparaissent dans le groupe Outils IA de la barre contextuelle. Faites glisser pour réordonner."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポップアップバーの「AI ツール」グループに表示されます。ドラッグして並べ替えられます。"
           }
         }
       }

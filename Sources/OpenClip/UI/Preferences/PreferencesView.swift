@@ -1,10 +1,14 @@
 // PreferencesView.swift
 // OpenClip
 //
-// Renders the primary multi-tab preferences window interface for OpenClip.
+// Renders the primary multi-pane preferences window interface for OpenClip.
 // The chrome is deliberately stock AppKit/SwiftUI — a sidebar `List` and a
 // system toolbar — so the window inherits System Settings' look, vibrancy and
 // dark-mode behaviour instead of re-implementing them.
+//
+// What the window shows is decided by `SettingsRouter`, not by which layer was
+// opened last: every destination, including a single action's settings, is a
+// route the sidebar can point at. See `SettingsRouter.swift` for why.
 import SwiftUI
 import Core
 import KeyboardShortcuts
@@ -13,60 +17,64 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
     case general = "General"
     case appearance = "Appearance"
     case actions = "Actions"
+    case shortcuts = "Shortcuts"
+    case ai = "AI"
     case store = "Store"
     case appRules = "App Rules"
     case about = "About"
-    
+
     public var localizedTitle: LocalizedStringKey {
         LocalizedStringKey(rawValue)
     }
 
-    public var icon: String {
-        switch self {
-        case .general: return "gearshape.fill"
-        case .appearance: return "paintbrush.fill"
-        case .actions: return "bolt.horizontal.fill"
-        case .store: return "bag.fill"
-        case .appRules: return "shield.checkerboard"
-        case .about: return "info.circle.fill"
-        }
-    }
-
     /// The window's title for this pane. The window is titled after whatever is
-    /// on screen, the way every stock settings window is — "OpenClip Preferences"
-    /// on all six panes said nothing about where you were.
+    /// on screen, the way every stock settings window is.
     public var windowTitle: String {
         String(localized: String.LocalizationValue(rawValue))
     }
 
-    /// Sidebar symbol tint, matching System Settings' coloured glyph tiles.
-    public var tint: Color {
+    /// The route this tab names. `PreferenceTab` stays the public vocabulary for
+    /// the status item and the tab-selection notification; the router is what the
+    /// window actually follows.
+    var page: SettingsPage {
         switch self {
-        case .general: return .gray
-        case .appearance: return .pink
-        case .actions: return .orange
-        case .store: return .blue
-        case .appRules: return .indigo
-        case .about: return .teal
+        case .general: return .general
+        case .appearance: return .appearance
+        case .actions: return .actions
+        case .shortcuts: return .shortcuts
+        case .ai: return .ai
+        case .store: return .store
+        case .appRules: return .appRules
+        case .about: return .about
         }
+    }
+
+    /// The tab a route belongs to, for the toolbar's title. An action's page is
+    /// titled after the action itself, so it has no tab.
+    static func from(_ page: SettingsPage) -> PreferenceTab? {
+        allCases.first { $0.page == page }
     }
 }
 
 @MainActor
 public struct PreferencesView: View {
-    /// Shared max content width for the detail area. Keeps Actions/Appearance
-    /// compact and aligned with the window rather than stretching infinitely.
+    /// Shared max content width for the Form-based panes. Keeps them compact and
+    /// aligned with the window rather than stretching infinitely.
     private static let detailContentMaxWidth: CGFloat = 520
 
     @State private var disabledActionIDs: Set<String> = []
     @State private var disabledPackages: Set<String> = []
-    @State private var selectedTab: PreferenceTab
     @State private var activeSheet: PreferencesSheet?
     @State private var showingAddActionSheet = false
     @State private var showingCreateGroupSheet = false
     @State private var showingAppPicker = false
+    /// Sidebar filter. Settings are only findable if you already know which pane
+    /// they are on, which is the other half of the navigation problem.
+    @State private var sidebarQuery = ""
     @StateObject private var storeViewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
+    @ObservedObject private var customizationManager = ActionCustomizationManager.shared
+    @ObservedObject private var router = SettingsRouter.shared
     /// Owned by the window (StatusBarController) so the AppKit toolbar and these
     /// panes talk to the same object; the fallback instance is only for the
     /// SwiftUI `Settings` scene, which has no toolbar of its own.
@@ -76,7 +84,7 @@ public struct PreferencesView: View {
         initialTab: PreferenceTab = .general,
         toolbarModel: PreferencesToolbarModel = PreferencesToolbarModel()
     ) {
-        _selectedTab = State(initialValue: initialTab)
+        SettingsRouter.shared.page = initialTab.page
         _toolbarModel = ObservedObject(wrappedValue: toolbarModel)
     }
 
@@ -87,25 +95,18 @@ public struct PreferencesView: View {
             detail
         }
         .minimumWindowContentSize(width: 760, height: 480)
-        // Left at the system default: `.balanced` lets the detail column push
-        // into the sidebar's width, which is the case that runs out of room
-        // first when the window is dragged narrow.
         .navigationSplitViewStyle(.automatic)
-        // No frame here on purpose: the window owns its size (see
-        // StatusBarController.showPreferences). Wrapping the split view in a
-        // frame makes SwiftUI lay it out as ordinary content inside the window
-        // rather than as the window's own split view.
         .onAppear {
-            toolbarModel.tab = selectedTab
+            syncToolbar()
             loadDisabledState()
             Task {
                 await storeViewModel.resetAndFetch(limit: 100)
                 await ExtensionUpdateManager.shared.checkForUpdates()
             }
         }
-        .onChange(of: selectedTab) { _, newTab in
-            toolbarModel.tab = newTab
-            if newTab == .store && storeViewModel.extensions.isEmpty {
+        .onChange(of: router.page) { _, newPage in
+            syncToolbar()
+            if newPage == .store && storeViewModel.extensions.isEmpty {
                 Task {
                     await storeViewModel.resetAndFetch(limit: 100)
                 }
@@ -146,11 +147,21 @@ public struct PreferencesView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenActionConfiguration)) { notification in
             guard let request = notification.userInfo?["request"] as? ConfigurationRequest,
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
-            activeSheet = .configure(action: action, request: request)
+            // Everything is a route now, so a request to configure an action
+            // navigates to it instead of stacking a modal on the window. Only a
+            // request that names missing options still needs the sheet, because
+            // the sheet is what highlights them.
+            if action.chrome.launchesAI {
+                router.show(.ai)
+            } else if request.missingOptionIDs.isEmpty {
+                router.show(.action(id: action.id))
+            } else {
+                activeSheet = .configure(action: action, request: request)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openClipSelectPreferencesTab)) { notification in
             if let tab = notification.object as? PreferenceTab {
-                selectedTab = tab
+                router.show(tab.page)
             }
         }
         .sheet(isPresented: $showingAppPicker) {
@@ -161,43 +172,124 @@ public struct PreferencesView: View {
         .sheet(item: $activeSheet) { route in
             switch route {
             case .configure(let action, let request):
-                if action.chrome.launchesAI {
-                    ConfigureAISheet()
-                } else {
-                    EditActionSheet(action: action, configurationRequest: request)
-                }
+                EditActionSheet(action: action, configurationRequest: request)
             }
         }
     }
 
+    private func syncToolbar() {
+        toolbarModel.tab = PreferenceTab.from(router.page) ?? .actions
+        toolbarModel.pageTitleOverride = pageTitle(for: router.page)
+    }
+
+    /// An action's page is titled after the action, not after "Configure Action".
+    private func pageTitle(for page: SettingsPage) -> String? {
+        guard case .action(let id) = page,
+              let action = coordinator.actions.first(where: { $0.id == id }) else { return nil }
+        return customizationManager.presented(action, surface: .table).title
+    }
+
     // MARK: - Sidebar
 
-    /// `List` selection is optional by contract; the tab itself never is, so a
-    /// nil write (Escape, clicking empty space) keeps the current tab.
-    private var sidebarSelection: Binding<PreferenceTab?> {
+    /// One sidebar row. `isChild` renders an action's page indented under Actions,
+    /// which is what tells the window it is one level in.
+    private struct SidebarRow: Identifiable {
+        let page: SettingsPage
+        let title: String
+        let icon: String
+        let tint: Color
+        let isChild: Bool
+        var id: String { page.id }
+    }
+
+    private var sidebarRows: [SidebarRow] {
+        var rows: [SidebarRow] = []
+        for page in router.matches(sidebarQuery) {
+            rows.append(SidebarRow(
+                page: page,
+                title: page.title,
+                icon: page.icon,
+                tint: page.tint,
+                isChild: false
+            ))
+            // The action being configured lives under Actions, where it came from.
+            if page == .actions,
+               let id = router.lastConfiguredActionID,
+               let action = coordinator.actions.first(where: { $0.id == id }) {
+                let presentation = customizationManager.presented(action, surface: .table)
+                rows.append(SidebarRow(
+                    page: .action(id: id),
+                    title: presentation.title,
+                    icon: SettingsPage.action(id: id).icon,
+                    tint: SettingsPage.action(id: id).tint,
+                    isChild: true
+                ))
+            }
+        }
+        return rows
+    }
+
+    /// `List` selection is optional by contract; the route never is, so a nil
+    /// write (Escape, clicking empty space) keeps the current page.
+    private var sidebarSelection: Binding<SettingsPage?> {
         Binding(
-            get: { selectedTab },
+            get: { router.page },
             set: { newValue in
-                if let newValue { selectedTab = newValue }
+                if let newValue { router.show(newValue) }
             }
         )
     }
 
     private var sidebar: some View {
-        List(PreferenceTab.allCases, id: \.self, selection: sidebarSelection) { tab in
+        List(sidebarRows, selection: sidebarSelection) { row in
             Label {
-                Text(tab.localizedTitle)
+                Text(row.title)
+                    .lineLimit(1)
             } icon: {
-                Image(systemName: tab.icon)
-                    .foregroundStyle(tab.tint)
+                Image(systemName: row.icon)
+                    .foregroundStyle(row.tint)
             }
-            .accessibilityLabel(tab.localizedTitle)
+            .padding(.leading, row.isChild ? 16 : 0)
+            .tag(row.page)
+            .accessibilityLabel(row.title)
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 190, ideal: 205, max: 240)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            sidebarSearch
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             sidebarFooter
         }
+    }
+
+    private var sidebarSearch: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            TextField("Search", text: $sidebarQuery)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+            if !sidebarQuery.isEmpty {
+                Button {
+                    sidebarQuery = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
+        .padding(.horizontal, 10)
+        .padding(.bottom, 6)
     }
 
     private var sidebarFooter: some View {
@@ -243,7 +335,7 @@ public struct PreferencesView: View {
 
     @ViewBuilder
     private var detailContent: some View {
-        switch selectedTab {
+        switch router.page {
         case .general:
             GeneralTab()
         case .appearance:
@@ -257,6 +349,16 @@ public struct PreferencesView: View {
             )
             .frame(maxWidth: Self.detailContentMaxWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .action(let id):
+            ActionSettingsPane(actionID: id)
+                .frame(maxWidth: Self.detailContentMaxWidth)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .shortcuts:
+            ShortcutsPane()
+                .frame(maxWidth: Self.detailContentMaxWidth)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .ai:
+            AIPane()
         case .store:
             ExtensionStoreView(viewModel: storeViewModel)
         case .appRules:
@@ -271,14 +373,15 @@ public struct PreferencesView: View {
         disabledActionIDs = DefaultSettingsStore.shared.get(.disabledActionIDs)
         disabledPackages = DefaultSettingsStore.shared.get(.disabledPackages)
     }
-    
+
     private func saveDisabledState() {
         DefaultSettingsStore.shared.set(.disabledActionIDs, value: disabledActionIDs)
         DefaultSettingsStore.shared.set(.disabledPackages, value: disabledPackages)
     }
 }
 
-/// Single sheet route for Preferences presentations: editing an action's configuration.
+/// Single sheet route for Preferences presentations: the configuration request
+/// that has to highlight missing options.
 private enum PreferencesSheet: Identifiable {
     case configure(action: any Action, request: ConfigurationRequest?)
 

@@ -229,7 +229,6 @@
   "Apple Intelligence": "Apple Intelligence",
   "Local (LM Studio/Ollama)": "本機模型（LM Studio/Ollama）",
   "CLI": "命令列（CLI）",
-  "Cloud API": "雲端 API",
   "Ollama (Local LLM)": "Ollama（本機 LLM）",
   "Cloud API (OpenAI/Claude)": "雲端 API（OpenAI/Claude）",
   "Browser Redirection": "瀏覽器重新導向",
@@ -488,5 +487,14 @@
   "Duplicate Action": "複製動作",
   "Duplicate Extension": "複製擴充功能",
   "Duplicate Failed": "複製失敗",
-  "OpenClip could not duplicate extension: %@": "OpenClip 無法複製擴充功能：%@"
+  "OpenClip could not duplicate extension: %@": "OpenClip 無法複製擴充功能：%@",
+  "AI Actions": "AI 操作",
+  "These appear inside the AI Tools group in the popup bar. Drag to reorder.": "這些會顯示在彈出列的「AI 工具」群組中。拖曳可重新排序。",
+  "Shortcuts": "快捷鍵",
+  "Search shortcuts": "搜尋快捷鍵",
+  "An alias jumps straight to an action when you type it in the palette. A hotkey runs it from anywhere.": "在命令面板中輸入別名可直接跳至某個操作；快捷鍵則可在任意位置執行它。",
+  "Built-in": "內建",
+  "Custom Actions": "自訂操作",
+  "Aliases can only contain letters and numbers.": "別名只能包含字母和數字。",
+  "Alias for %@": "%@ 的別名"
 }

@@ -8,10 +8,9 @@ import Core
 @MainActor
 public struct EditGroupSheet: View {
     let groupID: String
+    /// `true` when the editor is a preferences pane rather than a sheet.
+    let isPane: Bool
     @Environment(\.dismiss) private var dismiss
-    /// Set when the editor is shown in the Actions tab's settings popover, which closes itself
-    /// only on request; `nil` when it is presented as a sheet.
-    @Environment(\.popoverDismiss) private var popoverDismiss
     @ObservedObject private var coordinator = ActionCoordinator.shared
 
     @State private var title: String = ""
@@ -20,8 +19,9 @@ public struct EditGroupSheet: View {
     @State private var memberIconOverrides: [String: String] = [:]
     @State private var showingIconPicker = false
 
-    public init(groupID: String) {
+    public init(groupID: String, isPane: Bool = false) {
         self.groupID = groupID
+        self.isPane = isPane
     }
 
     private var groupDef: ActionGroupDef? {
@@ -33,8 +33,8 @@ public struct EditGroupSheet: View {
     }
 
     private func close() {
-        if let popoverDismiss {
-            popoverDismiss()
+        if isPane {
+            SettingsRouter.shared.backToActions()
         } else {
             dismiss()
         }
@@ -42,17 +42,19 @@ public struct EditGroupSheet: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Edit Group")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    close()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+            if !isPane {
+                HStack {
+                    Text("Edit Group")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        close()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             HStack(spacing: 10) {
@@ -60,7 +62,7 @@ public struct EditGroupSheet: View {
                     .textFieldStyle(.roundedBorder)
 
                 Button {
-                    showingIconPicker.toggle()
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker.toggle() }
                 } label: {
                     HStack(spacing: 4) {
                         AnyIconView(iconId: iconName.isEmpty ? "folder" : iconName)
@@ -68,14 +70,19 @@ public struct EditGroupSheet: View {
                         Image(systemName: "chevron.down")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                            .rotationEffect(.degrees(showingIconPicker ? 180 : 0))
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
                 }
                 .buttonStyle(.plain)
-                .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                    IconPickerPopover(selectedIcon: $iconName)
+                .accessibilityLabel(String(localized: "Choose icon"))
+            }
+
+            if showingIconPicker {
+                InlineIconPicker(selectedIcon: $iconName, height: 260) {
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker = false }
                 }
             }
 
@@ -175,7 +182,8 @@ public struct EditGroupSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 360)
+        .frame(width: isPane ? nil : 360)
+        .frame(maxWidth: isPane ? .infinity : nil)
         .onAppear {
             if let groupDef {
                 title = groupDef.title
@@ -240,9 +248,25 @@ private struct GroupMemberRowView: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            row
+
+            if showingIconPicker {
+                InlineIconPicker(selectedIcon: $customIconSymbol, height: 240) {
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker = false }
+                }
+                .padding(.top, 6)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.03)))
+    }
+
+    private var row: some View {
         HStack(spacing: 8) {
             Button {
-                showingIconPicker.toggle()
+                withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker.toggle() }
             } label: {
                 ZStack {
                     if let presentation {
@@ -257,9 +281,6 @@ private struct GroupMemberRowView: View {
             .buttonStyle(.plain)
             .help(String(localized: "Customize Icon"))
             .accessibilityLabel(String(localized: "Customize Icon"))
-            .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                IconPickerPopover(selectedIcon: $customIconSymbol)
-            }
 
             Text(presentation?.title ?? actionID)
                 .font(.system(size: 12))
@@ -305,9 +326,6 @@ private struct GroupMemberRowView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.03)))
     }
 }
 
