@@ -7085,6 +7085,34 @@
         }
       }
     },
+    "Install from File…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从文件安装…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從檔案安裝…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installer depuis un fichier…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルからインストール…"
+          }
+        }
+      }
+    },
     "Install top extensions for instant translations, counts & speech.": {
       "localizations": {
         "zh-Hans": {

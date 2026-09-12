@@ -143,9 +143,7 @@ public struct PreferencesView: View {
                     memberIDs: CustomizePage.groupCandidates(selectedRowIDs: selectedRowIDs, coordinator: coordinator)
                 ))
             case .addCustomAction: router.push(.newCustomAction)
-            case .installExtension: presentInstallExtensionPanel()
             case .addApplication: router.push(.addApplication)
-            case .refresh: Task { await storeViewModel.refreshCatalog() }
             case .addAIAction: router.push(.aiNewPreset)
             case .setPageToggle(let isOn): setPageToggle(isOn)
             case .pageMenuItem(let id): runPageMenuItem(id)
@@ -169,6 +167,8 @@ public struct PreferencesView: View {
         }
         .onChange(of: storeViewModel.isLoading) { _, isLoading in
             toolbarModel.isRefreshing = isLoading
+            // The menu's Refresh greys out while one is running.
+            syncToolbar()
         }
         .onChange(of: disabledActionIDs) { _, _ in
             saveDisabledState()
@@ -266,6 +266,8 @@ public struct PreferencesView: View {
 
     private func pageMenuItems(for page: SettingsPage) -> [SettingsToolbarMenuItem] {
         switch page {
+        case .store:
+            return SettingsToolbarAccessories.storeMenuItems(isRefreshing: storeViewModel.isLoading)
         case .extensionPackage(let id):
             guard InstalledExtensionInfo.info(for: id, in: coordinator.actions) != nil else { return [] }
             let details = packageDetails?.packageID == id ? packageDetails : nil
@@ -287,6 +289,10 @@ public struct PreferencesView: View {
     /// own state is forwarded to it.
     private func runPageMenuItem(_ id: String) {
         switch id {
+        case SettingsToolbarCommand.storeInstallFile:
+            presentInstallExtensionPanel()
+        case SettingsToolbarCommand.storeRefresh:
+            Task { await storeViewModel.refreshCatalog() }
         case SettingsToolbarCommand.extensionReadme:
             if let url = packageDetails?.readmeURL {
                 NSWorkspace.shared.open(url)

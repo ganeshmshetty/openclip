@@ -40,12 +40,15 @@ public struct SettingsToolbarMenuItem: Identifiable, Equatable, Sendable {
     public var title: String
     public var symbol: String
     public var role: Role
+    /// False while the command cannot run — a refresh that is already running, for one.
+    public var isEnabled: Bool
 
-    public init(id: String, title: String, symbol: String = "", role: Role = .normal) {
+    public init(id: String, title: String, symbol: String = "", role: Role = .normal, isEnabled: Bool = true) {
         self.id = id
         self.title = title
         self.symbol = symbol
         self.role = role
+        self.isEnabled = isEnabled
     }
 
     public static func separator(id: String) -> SettingsToolbarMenuItem {
@@ -64,6 +67,8 @@ public enum SettingsToolbarCommand {
     public static let extensionUninstall = "extension.uninstall"
     public static let actionDuplicate = "action.duplicate"
     public static let actionDelete = "action.delete"
+    public static let storeInstallFile = "store.installFile"
+    public static let storeRefresh = "store.refresh"
 }
 
 /// Builds the ellipsis menu for a page. Pure, so what each kind of page offers is pinned by tests
@@ -107,6 +112,25 @@ public enum SettingsToolbarAccessories {
             role: .destructive
         ))
         return items
+    }
+
+    /// The Store's own menu: the two things you can do to the catalogue as a whole. Installing a
+    /// package you already have on disk belongs here rather than on Customize — the Store is where
+    /// extensions come from, however they arrive.
+    public static func storeMenuItems(isRefreshing: Bool) -> [SettingsToolbarMenuItem] {
+        [
+            SettingsToolbarMenuItem(
+                id: SettingsToolbarCommand.storeInstallFile,
+                title: String(localized: "Install from File…"),
+                symbol: "square.and.arrow.down"
+            ),
+            SettingsToolbarMenuItem(
+                id: SettingsToolbarCommand.storeRefresh,
+                title: String(localized: "Refresh Catalog"),
+                symbol: "arrow.clockwise",
+                isEnabled: !isRefreshing
+            ),
+        ]
     }
 
     public struct ActionMenuContext: Equatable, Sendable {

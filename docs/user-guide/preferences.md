@@ -45,13 +45,13 @@ the floating popup bar, and it manages **custom groups**.
 Settings > Customize
 ├── Drag a row to reorder the popup bar
 ├── Drop an action onto a group to add it; drag it out to remove it
-├── Select several rows, then + › New Group (or right-click › Create Group from Selection…)
+├── Select several rows, then + (or right-click › Create Group from Selection…)
 └── Right-click a group › Configure Group… / Ungroup
 ```
 
 Rows carry no switches or buttons. Double-clicking a row opens that action's own page, which is
-where its name, icon, shortcut, options and enable switch live. The toolbar's **+** offers
-New Group and Install Extension….
+where its name, icon, shortcut, options and enable switch live. The toolbar's **+** makes a
+**New Group** from the selected rows.
 
 ### How Action Ordering Works
 - Dragging actions changes their relative order in the floating popup bar.
@@ -79,6 +79,13 @@ applies them.
 Your own Open URL, Text Snippet and Shell Script actions live on the **Custom Actions** page:
 each with a switch and a › into its editor, plus **Add Custom Action** (also the toolbar's **+**).
 An action's page has **Duplicate** and **Delete Action…** in its footer.
+
+## Store
+
+**Store** browses the extension catalogue. Its header is the window toolbar: the **All / Popular /
+New** filter on the left, and on the right a **magnifier** that expands into a search field and a
+**…** menu holding **Install from File…** (for a `.openclipext` folder, `.zip` or script you
+already have) and **Refresh Catalog**.
 
 ## Extensions
 

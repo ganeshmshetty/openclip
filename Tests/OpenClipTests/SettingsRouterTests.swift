@@ -308,6 +308,21 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertFalse(bare.contains { $0.isSeparator })
     }
 
+    func testStoreMenuHoldsInstallAndRefreshAndGreysRefreshWhileItRuns() throws {
+        let idle = SettingsToolbarAccessories.storeMenuItems(isRefreshing: false)
+        XCTAssertEqual(idle.map(\.id), [
+            SettingsToolbarCommand.storeInstallFile,
+            SettingsToolbarCommand.storeRefresh,
+        ], "installing a package from disk belongs to the Store, not to Customize")
+        XCTAssertTrue(idle.allSatisfy(\.isEnabled))
+        XCTAssertFalse(idle.contains { $0.role == .destructive })
+
+        let busy = SettingsToolbarAccessories.storeMenuItems(isRefreshing: true)
+        XCTAssertTrue(try XCTUnwrap(busy.first { $0.id == SettingsToolbarCommand.storeInstallFile }).isEnabled)
+        XCTAssertFalse(try XCTUnwrap(busy.first { $0.id == SettingsToolbarCommand.storeRefresh }).isEnabled,
+                       "a refresh already running must not be startable again")
+    }
+
     func testActionMenuMatchesWhatTheActionAllows() {
         let builtin = SettingsToolbarAccessories.actionMenuItems(.init(canDuplicate: false, canDelete: false))
         XCTAssertTrue(builtin.isEmpty, "a built-in has no page-level actions, so no ellipsis at all")

@@ -560,5 +560,6 @@
   "More": "更多",
   "The action is removed from the popup bar and the palette.": "该操作将从弹出栏和命令面板中移除。",
   "Links": "链接",
-  "Report an Issue": "报告问题"
+  "Report an Issue": "报告问题",
+  "Install from File…": "从文件安装…"
 }

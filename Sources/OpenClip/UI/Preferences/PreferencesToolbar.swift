@@ -25,9 +25,7 @@ import Core
 public enum PreferencesToolbarAction: Sendable {
     case newGroup
     case addCustomAction
-    case installExtension
     case addApplication
-    case refresh
     case addAIAction
     /// The trailing switch was moved. The window decides what it means for the page on screen.
     case setPageToggle(Bool)
@@ -177,13 +175,11 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
 
         switch page {
         case .customize:
-            configureActionButton(symbol: "plus", tooltip: String(localized: "New Group or Install Extension"))
+            configureActionButton(symbol: "plus", tooltip: String(localized: "New Group"))
         case .customActions:
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Custom Action"))
         case .appRules:
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Application"))
-        case .store:
-            configureActionButton(symbol: "arrow.clockwise", tooltip: String(localized: "Refresh Catalog"))
         case .ai:
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Custom AI Action"))
         default:
@@ -260,6 +256,9 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
 
     @objc private func pageMenuPressed(_ sender: NSButton) {
         let menu = NSMenu()
+        // Items say for themselves whether they can run; menu validation would otherwise enable
+        // anything with a target and undo `isEnabled`.
+        menu.autoenablesItems = false
         for entry in model.pageMenuItems {
             guard !entry.isSeparator else {
                 menu.addItem(.separator())
@@ -268,6 +267,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             let item = NSMenuItem(title: entry.title, action: #selector(pageMenuItemPressed(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = entry.id
+            item.isEnabled = entry.isEnabled
             if !entry.symbol.isEmpty {
                 item.image = NSImage(systemSymbolName: entry.symbol, accessibilityDescription: nil)
             }
@@ -291,35 +291,17 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     @objc private func actionButtonPressed(_ sender: NSButton) {
         switch model.page {
         case .customize:
-            // Two ways to add to the popup bar's layout, so the button drops a menu rather than
-            // firing one action. Custom actions are added on their own page.
-            let menu = NSMenu()
-            menu.addItem(menuItem(String(localized: "New Group"), symbol: "folder.badge.plus", action: #selector(menuNewGroup)))
-            menu.addItem(menuItem(String(localized: "Install Extension…"), symbol: "square.and.arrow.down", action: #selector(menuInstallExtension)))
-            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
+            model.actions.send(.newGroup)
         case .customActions:
             model.actions.send(.addCustomAction)
         case .appRules:
             model.actions.send(.addApplication)
-        case .store:
-            model.actions.send(.refresh)
         case .ai:
             model.actions.send(.addAIAction)
         default:
             break
         }
     }
-
-    private func menuItem(_ title: String, symbol: String, action: Selector) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-        item.target = self
-        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-        return item
-    }
-
-    @objc private func menuNewGroup() { model.actions.send(.newGroup) }
-    @objc private func menuAddCustomAction() { model.actions.send(.addCustomAction) }
-    @objc private func menuInstallExtension() { model.actions.send(.installExtension) }
 
     @objc private func filterChanged(_ sender: NSSegmentedControl) {
         let filters = StoreFilter.allCases
@@ -489,23 +471,19 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             return item
 
         case ItemID.search:
-            // A plain item around an NSSearchField rather than NSSearchToolbarItem:
-            // the system item collapses to a magnifying glass at this window's
-            // width and, on the click that expands it again, takes enough room to
-            // push the filter into the overflow menu — so the field opened in the
-            // middle of the toolbar with the segments gone. A field that is always
-            // its full width never moves.
-            let field = NSSearchField(frame: NSRect(x: 0, y: 0, width: 160, height: 28))
-            field.delegate = self
-            field.bezelStyle = .roundedBezel
-            field.placeholderString = String(localized: "Search")
-            field.stringValue = model.searchQuery
-
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            item.view = field
+            // `NSSearchToolbarItem`: a magnifier that expands into a field, the way Mail and
+            // Notes search. It used to be a plain always-wide field because expanding it pushed
+            // the Store's filter into the overflow menu — the trailing side carried a button and
+            // a 160pt field then. It carries the magnifier and the ellipsis now, so there is room.
+            let item = NSSearchToolbarItem(itemIdentifier: itemIdentifier)
+            item.searchField.delegate = self
+            item.searchField.placeholderString = String(localized: "Search")
+            item.searchField.stringValue = model.searchQuery
+            item.preferredWidthForSearchField = 180
+            item.resignsFirstResponderWithCancel = true
             item.label = String(localized: "Search")
             item.visibilityPriority = .high
-            searchField = field
+            searchField = item.searchField
             searchItem = item
             setHidden(item, model.page != .store)
             return item
