@@ -80,11 +80,17 @@ public struct PreferencesView: View {
     /// SwiftUI `Settings` scene, which has no toolbar of its own.
     @ObservedObject private var toolbarModel: PreferencesToolbarModel
 
+    /// Route to select the first time this view appears. Applied in `onAppear`, not in `init`:
+    /// SwiftUI re-evaluates a scene's body freely, and writing the router from an initializer would
+    /// throw the user back to General at arbitrary moments.
+    private let initialPage: SettingsPage
+    @State private var didApplyInitialPage = false
+
     public init(
         initialTab: PreferenceTab = .general,
         toolbarModel: PreferencesToolbarModel = PreferencesToolbarModel()
     ) {
-        SettingsRouter.shared.page = initialTab.page
+        initialPage = initialTab.page
         _toolbarModel = ObservedObject(wrappedValue: toolbarModel)
     }
 
@@ -97,6 +103,10 @@ public struct PreferencesView: View {
         .minimumWindowContentSize(width: 760, height: 480)
         .navigationSplitViewStyle(.automatic)
         .onAppear {
+            if !didApplyInitialPage {
+                didApplyInitialPage = true
+                router.show(initialPage)
+            }
             syncToolbar()
             loadDisabledState()
             Task {
