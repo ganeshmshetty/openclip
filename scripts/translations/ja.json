@@ -561,5 +561,6 @@
   "The action is removed from the popup bar and the palette.": "アクションはポップアップバーとパレットから削除されます。",
   "Links": "リンク",
   "Report an Issue": "問題を報告",
-  "Install from File…": "ファイルからインストール…"
+  "Install from File…": "ファイルからインストール…",
+  "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options.": "アクションをオフにするとポップアップバーから隠れます。開くと名前、アイコン、ショートカット、オプションを変更できます。"
 }

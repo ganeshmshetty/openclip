@@ -561,5 +561,6 @@
   "The action is removed from the popup bar and the palette.": "该操作将从弹出栏和命令面板中移除。",
   "Links": "链接",
   "Report an Issue": "报告问题",
-  "Install from File…": "从文件安装…"
+  "Install from File…": "从文件安装…",
+  "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options.": "关闭该操作可将其从弹出栏隐藏。打开它可更改其名称、图标、快捷键和选项。"
 }

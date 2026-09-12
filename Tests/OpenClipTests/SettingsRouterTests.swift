@@ -265,6 +265,29 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertNil(InstalledExtensionInfo.info(for: "com.nowhere", in: actions))
     }
 
+    func testAOneCommandPackageIsStillAnExtensionWithItsOneCommand() throws {
+        // Not every package groups its commands behind one icon; a package can contribute a
+        // single top-level action, and it gets the same page with one row in it.
+        let package = "com.openclip.shortenlink"
+        let action = StubAction(
+            id: "\(package).action.0",
+            title: "Shorten Link",
+            chrome: Self.extensionChrome(package: package, badgeName: "Shorten Link")
+        )
+
+        let info = try XCTUnwrap(InstalledExtensionInfo.info(for: package, in: [action]))
+        XCTAssertEqual(info.name, "Shorten Link")
+        XCTAssertFalse(info.isGroup, "no group container, so nothing to rename in the popup bar")
+        XCTAssertNil(info.containerActionID)
+        XCTAssertEqual(info.commands.map(\.id), [action.id], "its one command is listed like any other")
+        XCTAssertEqual(info.uninstallActionID, action.id, "and it is what the uninstall matches on")
+
+        XCTAssertEqual(InstalledExtensionInfo.all(from: [action]).map(\.packageID), [package])
+        XCTAssertEqual(SettingsDestination.path(for: action),
+                       [.extensionPackage(id: package), .action(id: action.id)],
+                       "opening the command keeps its extension's page one step back")
+    }
+
     func testAGatedPackageReportsItsReasonAndHidesThePlaceholder() throws {
         let package = "com.example.gated"
         let gated = GatedExtensionAction(

@@ -14281,6 +14281,34 @@
         }
       }
     },
+    "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭该操作可将其从弹出栏隐藏。打开它可更改其名称、图标、快捷键和选项。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "關閉該操作可將其從彈出列隱藏。打開它可更改其名稱、圖示、快捷鍵和選項。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivez l'action pour la masquer de la barre contextuelle. Ouvrez-la pour modifier son nom, son icône, son raccourci et ses options."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションをオフにするとポップアップバーから隠れます。開くと名前、アイコン、ショートカット、オプションを変更できます。"
+          }
+        }
+      }
+    },
     "Type": {
       "localizations": {
         "zh-Hans": {

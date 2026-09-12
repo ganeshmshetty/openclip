@@ -2,7 +2,8 @@
 // OpenClip
 //
 // One installed extension's settings page: a hero saying what it is and who made it, the actions
-// it adds and the way into each one's settings. Whether it is on, and what can be done to it as a
+// it adds and the way into each one's settings — the same page whether the package groups five
+// commands behind one icon or contributes a single command. Whether it is on, and what can be done to it as a
 // whole — view its README, show its folder, uninstall it — live in the toolbar beside the back and
 // forward arrows, because they belong to the extension rather than to any row of the page.
 //
@@ -60,8 +61,32 @@ struct ExtensionPackagePage: View {
         }
     }
 
+    /// The page's sections, in the order they appear. Only the ones with something to show are
+    /// rendered — an empty `Section` still draws its card, which is how a one-command extension
+    /// (no group, so no name-and-icon row) ended up with a blank card at the foot of the page.
+    private enum PageSection {
+        case gate
+        case update
+        case actions
+        case naming
+    }
+
+    private func sections(for info: InstalledExtensionInfo) -> [PageSection] {
+        var sections: [PageSection] = []
+        if info.gatedReason != nil { sections.append(.gate) }
+        if updateManager.updatablePackageIDs.contains(packageID) { sections.append(.update) }
+        if !info.commands.isEmpty { sections.append(.actions) }
+        if info.containerActionID != nil { sections.append(.naming) }
+        return sections
+    }
+
     private func page(for info: InstalledExtensionInfo) -> some View {
-        VStack(spacing: 0) {
+        let sections = sections(for: info)
+        // The identifier rides whichever section ends the page, so it is always the last thing
+        // and never needs a card of its own.
+        let last = sections.last
+
+        return VStack(spacing: 0) {
             SettingsHeroHeader(
                 glyph: .icon(info.icon, tint: ExtensionTint.color(for: packageID)),
                 title: info.name,
@@ -70,7 +95,8 @@ struct ExtensionPackagePage: View {
             )
 
             Form {
-                if let reason = info.gatedReason, let text = extensionGateDescription(for: reason) {
+                if sections.contains(.gate), let reason = info.gatedReason,
+                   let text = extensionGateDescription(for: reason) {
                     Section {
                         Label {
                             Text(text)
@@ -80,10 +106,12 @@ struct ExtensionPackagePage: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundStyle(.orange)
                         }
+                    } footer: {
+                        identifierFooter(if: last == .gate)
                     }
                 }
 
-                if updateManager.updatablePackageIDs.contains(packageID) {
+                if sections.contains(.update) {
                     Section {
                         SettingsRow(
                             title: "Update Available",
@@ -96,12 +124,33 @@ struct ExtensionPackagePage: View {
                             .buttonStyle(.borderedProminent)
                             .disabled(isUpdating)
                         }
+                    } footer: {
+                        identifierFooter(if: last == .update)
                     }
                 }
 
-                actionsSection(info)
+                if sections.contains(.actions) {
+                    Section {
+                        ForEach(info.commands, id: \.id) { action in
+                            commandRow(action)
+                        }
+                    } header: {
+                        Text("Actions")
+                    } footer: {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(info.commands.count == 1
+                                 ? "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options."
+                                 : "Turn an action off to hide it from the popup bar. Open one to change its name, icon, shortcut and options.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                if let containerID = info.containerActionID {
+                            identifierFooter(if: last == .actions)
+                        }
+                    }
+                }
+
+                if sections.contains(.naming), let containerID = info.containerActionID {
                     Section {
                         SettingsDisclosureRow {
                             router.push(.action(id: containerID))
@@ -113,13 +162,7 @@ struct ExtensionPackagePage: View {
                             )
                         }
                     } footer: {
-                        identifierFooter
-                    }
-                } else {
-                    Section {
-                        EmptyView()
-                    } footer: {
-                        identifierFooter
+                        identifierFooter(if: last == .naming)
                     }
                 }
             }
@@ -128,12 +171,15 @@ struct ExtensionPackagePage: View {
     }
 
     /// The package identifier, quiet and selectable: the one thing on the page a bug report needs.
-    private var identifierFooter: some View {
-        Text(packageID)
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .center)
+    @ViewBuilder
+    private func identifierFooter(if shouldShow: Bool) -> some View {
+        if shouldShow {
+            Text(packageID)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
     }
 
     /// "Version 1.0.0 · OpenClip Team", whichever parts the manifest declares.
@@ -149,23 +195,6 @@ struct ExtensionPackagePage: View {
     }
 
     // MARK: - Actions
-
-    @ViewBuilder
-    private func actionsSection(_ info: InstalledExtensionInfo) -> some View {
-        if !info.commands.isEmpty {
-            Section {
-                ForEach(info.commands, id: \.id) { action in
-                    commandRow(action)
-                }
-            } header: {
-                Text("Actions")
-            } footer: {
-                Text("Turn an action off to hide it from the popup bar. Open one to change its name, icon, shortcut and options.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
 
     private func commandRow(_ action: any Action) -> some View {
         let presentation = customizationManager.presented(action, surface: .table)
