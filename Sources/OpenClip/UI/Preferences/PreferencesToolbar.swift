@@ -15,9 +15,16 @@
 // `NSToolbarItemGroup` wired to the router's history, so leaving any page —
 // an action's editor, the icon chooser, an extension — is the same gesture.
 // Trailing everything, on that same line, is what the page on screen is *about*:
-// its on/off switch and an ellipsis menu of what can be done to it as a whole
-// (view its README, show its folder, uninstall it). Both belong to the subject
+// an ellipsis menu of what can be done to it as a whole (view its README, show
+// its folder, uninstall it) and its on/off switch. Both belong to the subject
 // rather than to a row, which is why System Settings puts them here too.
+//
+// The switch is a *title bar accessory*, not a toolbar item: macOS 26 draws a
+// glass background behind toolbar items and merges adjacent ones into one
+// capsule, so a switch next to the ellipsis came out sharing a pill with it,
+// with a border drawn tight around the switch. An accessory sits outside that
+// treatment, so the switch reads as a bare control at the trailing edge and the
+// ellipsis keeps the ordinary toolbar-button background to its left.
 import AppKit
 import Combine
 import Core
@@ -64,9 +71,8 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         /// left a wide gap between "Store" and the first control.
         static let title = NSToolbarItem.Identifier("openclip.preferences.title")
         static let filter = NSToolbarItem.Identifier("openclip.preferences.filter")
-        /// The page subject's ellipsis menu and on/off switch, trailing.
+        /// The page subject's ellipsis menu, trailing. Its switch is a title bar accessory.
         static let pageMenu = NSToolbarItem.Identifier("openclip.preferences.pageMenu")
-        static let pageToggle = NSToolbarItem.Identifier("openclip.preferences.pageToggle")
         static let search = NSToolbarItem.Identifier("openclip.preferences.search")
         static let action = NSToolbarItem.Identifier("openclip.preferences.action")
     }
@@ -83,6 +89,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             // Once the content view has a split view the toolbar can be told
             // where the sidebar ends.
             installSidebarTrackingSeparator(retriesLeft: 20)
+            installPageToggleAccessory()
             window?.setAccessibilityTitle(model.title)
         }
     }
@@ -101,8 +108,8 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     private weak var actionButton: NSButton?
     private weak var pageMenuItem: NSToolbarItem?
     private weak var pageMenuButton: NSButton?
-    private weak var pageToggleItem: NSToolbarItem?
-    private weak var pageToggleControl: NSSwitch?
+    private var pageToggleAccessory: NSTitlebarAccessoryViewController?
+    private var pageToggleHost: TitlebarSwitchHost?
 
     public init(model: PreferencesToolbarModel, router: SettingsRouter = .shared) {
         self.model = model
@@ -187,18 +194,37 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         }
     }
 
-    /// Mirrors the page's switch onto the control. A switch that is off *and* unmovable is a
-    /// package the trust gate holds back, which the page explains in words underneath.
+    /// Puts the switch in the title bar, to the right of the toolbar's own items.
+    private func installPageToggleAccessory() {
+        guard let window, pageToggleAccessory == nil else { return }
+        let host = TitlebarSwitchHost()
+        host.control.target = self
+        host.control.action = #selector(pageTogglePressed(_:))
+
+        let accessory = NSTitlebarAccessoryViewController()
+        accessory.layoutAttribute = .right
+        accessory.view = host
+        window.addTitlebarAccessoryViewController(accessory)
+
+        pageToggleAccessory = accessory
+        pageToggleHost = host
+        sync(pageToggle: model.pageToggle)
+    }
+
+    /// Mirrors the page's switch onto the control, and gives back the space it occupies on a page
+    /// that has no switch. A switch that is off *and* unmovable is a package the trust gate holds
+    /// back, which the page explains in words underneath.
     private func sync(pageToggle toggle: SettingsToolbarToggle?) {
+        guard let host = pageToggleHost else { return }
         guard let toggle else {
-            setHidden(pageToggleItem, true)
+            host.showsControl = false
             return
         }
-        pageToggleControl?.state = toggle.isOn ? .on : .off
-        pageToggleControl?.isEnabled = toggle.isEnabled
-        pageToggleControl?.setAccessibilityLabel(toggle.label)
-        pageToggleItem?.toolTip = toggle.label
-        setHidden(pageToggleItem, false)
+        host.control.state = toggle.isOn ? .on : .off
+        host.control.isEnabled = toggle.isEnabled
+        host.control.setAccessibilityLabel(toggle.label)
+        host.toolTip = toggle.label
+        host.showsControl = true
     }
 
     private func syncNavigation() {
@@ -334,7 +360,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         // pushed the search field into the overflow menu at the window's minimum size.
         [
             ItemID.navigation, ItemID.title, ItemID.filter, .flexibleSpace,
-            ItemID.action, ItemID.search, ItemID.pageMenu, ItemID.pageToggle
+            ItemID.action, ItemID.search, ItemID.pageMenu
         ]
     }
 
@@ -506,29 +532,6 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             setHidden(item, model.pageMenuItems.isEmpty)
             return item
 
-        case ItemID.pageToggle:
-            // A real `NSSwitch`, so it is the system's switch in the system's toolbar: same
-            // metrics, same accent, same animation as the one in System Settings' title bar.
-            //
-            // Hosted in a fixed-size view rather than handed over bare: a toolbar stretches a
-            // custom view that reports no intrinsic size, and `NSSwitch` draws itself into
-            // whatever bounds it is given — which made it render at roughly twice its size,
-            // filling the whole height of the title bar.
-            let control = NSSwitch()
-            control.target = self
-            control.action = #selector(pageTogglePressed(_:))
-            control.controlSize = .regular
-            let host = ToolbarControlHost(control)
-
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            item.view = host
-            item.label = String(localized: "Enabled")
-            item.visibilityPriority = .high
-            pageToggleControl = control
-            pageToggleItem = item
-            sync(pageToggle: model.pageToggle)
-            return item
-
         case ItemID.action:
             let button = NSButton(
                 image: NSImage(systemSymbolName: "plus", accessibilityDescription: nil) ?? NSImage(),
@@ -552,26 +555,34 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     }
 }
 
-/// Fixed-size host for a toolbar's custom control.
+/// The title bar's trailing accessory: an `NSSwitch` parked at its own size.
 ///
-/// An `NSToolbarItem` sizes a custom view from its intrinsic content size, and a view that reports
-/// none is stretched to the space available. `NSSwitch` reports one, but it is lost the moment the
-/// item resizes the view it was handed — so the control is parked at its own size inside a host
-/// that reports that size and never resizes its subviews.
-private final class ToolbarControlHost: NSView {
-    private let contentSize: NSSize
+/// It is not a toolbar item on purpose — see the note at the top of this file — and it is not
+/// handed over bare either: an accessory's view is stretched to the title bar's height, and
+/// `NSSwitch` draws itself into whatever bounds it is given, so the control is positioned by hand
+/// and the host reports only the width the switch and its margins need. A page with no switch
+/// reports no width at all, so the toolbar gets the room back.
+private final class TitlebarSwitchHost: NSView {
+    let control = NSSwitch()
 
-    init(_ content: NSControl) {
-        content.sizeToFit()
-        // `NSSwitch` answers 38x22 at the regular control size; the constant is only a floor for
+    /// Clear of the window's trailing edge, and not crowding the ellipsis on the other side.
+    private static let trailingInset: CGFloat = 14
+    private static let leadingGap: CGFloat = 6
+
+    private let controlSize: NSSize
+
+    init() {
+        control.controlSize = .regular
+        control.sizeToFit()
+        let fitted = control.fittingSize
+        // `NSSwitch` answers 38x22 at the regular control size; the constants are only a floor for
         // a control that has not laid out yet.
-        let fitted = content.fittingSize
-        contentSize = NSSize(width: max(fitted.width, 38), height: max(fitted.height, 22))
-        super.init(frame: NSRect(origin: .zero, size: contentSize))
-        content.frame = NSRect(origin: .zero, size: contentSize)
-        content.autoresizingMask = []
+        controlSize = NSSize(width: max(fitted.width, 38), height: max(fitted.height, 22))
+        super.init(frame: NSRect(origin: .zero, size: controlSize))
+        control.setFrameSize(controlSize)
         autoresizesSubviews = false
-        addSubview(content)
+        addSubview(control)
+        setFrameSize(NSSize(width: intrinsicContentSize.width, height: controlSize.height))
     }
 
     @available(*, unavailable)
@@ -579,7 +590,31 @@ private final class ToolbarControlHost: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var intrinsicContentSize: NSSize { contentSize }
+    var showsControl: Bool = true {
+        didSet {
+            guard showsControl != oldValue else { return }
+            control.isHidden = !showsControl
+            invalidateIntrinsicContentSize()
+            setFrameSize(NSSize(width: intrinsicContentSize.width, height: frame.height))
+            needsLayout = true
+        }
+    }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(
+            width: showsControl ? Self.leadingGap + controlSize.width + Self.trailingInset : 0,
+            height: NSView.noIntrinsicMetric
+        )
+    }
+
+    /// Centred by hand: the accessory fills the height it is given, and the switch must not.
+    override func layout() {
+        super.layout()
+        control.setFrameOrigin(NSPoint(
+            x: Self.leadingGap,
+            y: ((bounds.height - controlSize.height) / 2).rounded()
+        ))
+    }
 
     /// The host is only a frame around the control; clicks belong to the control itself.
     override func hitTest(_ point: NSPoint) -> NSView? {
