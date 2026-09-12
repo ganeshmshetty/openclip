@@ -145,6 +145,7 @@ public struct PreferencesView: View {
             case .addCustomAction: router.push(.newCustomAction)
             case .addApplication: router.push(.addApplication)
             case .addAIAction: router.push(.aiNewPreset)
+            case .setStoreSort(let sort): storeViewModel.selectedSort = sort
             case .setPageToggle(let isOn): setPageToggle(isOn)
             case .pageMenuItem(let id): runPageMenuItem(id)
             }
@@ -156,6 +157,10 @@ public struct PreferencesView: View {
         }
         .onChange(of: storeViewModel.searchQuery) { _, query in
             toolbarModel.searchQuery = query
+        }
+        .onChange(of: storeViewModel.selectedSort) { _, sort in
+            guard toolbarModel.storeSort != sort else { return }
+            toolbarModel.storeSort = sort
         }
         .onChange(of: storeViewModel.isLoading) { _, isLoading in
             toolbarModel.isRefreshing = isLoading

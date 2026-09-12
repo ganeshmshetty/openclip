@@ -6,18 +6,33 @@
 import SwiftUI
 import Core
 
-public enum StoreFilter: String, CaseIterable, Identifiable, Sendable {
-    case all
-    case popular
-    case new
+/// How the store list is ordered. It replaced an All/Popular/New *filter*, which hid extensions
+/// rather than reordering them — "Popular" dropped everything with no downloads yet, which is
+/// exactly where a new extension starts.
+public enum StoreSort: String, CaseIterable, Identifiable, Sendable {
+    /// The catalogue's own order, with the curated showcase on top. The default.
+    case featured
+    case name
+    case downloads
+    case recentlyAdded
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
-        case .all: return String(localized: "All")
-        case .popular: return String(localized: "Popular")
-        case .new: return String(localized: "New")
+        case .featured: return String(localized: "Featured")
+        case .name: return String(localized: "Name")
+        case .downloads: return String(localized: "Downloads")
+        case .recentlyAdded: return String(localized: "Recently Added")
+        }
+    }
+
+    public var symbol: String {
+        switch self {
+        case .featured: return "rosette"
+        case .name: return "textformat"
+        case .downloads: return "arrow.down.circle"
+        case .recentlyAdded: return "clock"
         }
     }
 }
@@ -28,7 +43,7 @@ public final class ExtensionsStoreViewModel: ObservableObject {
     @Published public var extensions: [ExtensionItem] = []
     @Published public var featuredItems: [ExtensionItem] = []
     @Published public var newItems: [ExtensionItem] = []
-    @Published public var selectedFilter: StoreFilter = .all
+    @Published public var selectedSort: StoreSort = .featured
     @Published public var isLoading: Bool = false
     @Published public var currentPage: Int = 1
     @Published public var totalPages: Int = 1
@@ -190,34 +205,55 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         itemID == displayedExtensions.last?.id
     }
 
-    /// Full list when the "Popular" filter tab is selected.
-    public var popularFilterItems: [ExtensionItem] {
-        extensions
-            .filter { $0.downloadCount > 0 }
-            .sorted {
+    /// Orders `items` without dropping any of them. Pure, so the ordering is pinned by tests.
+    ///
+    /// `newest` is a rank rather than a date: the catalogue carries no published-at field, so the
+    /// API's own "new" list comes first (in its order), then the curated recent ids, then anything
+    /// whose version says it has moved past its first release. Ties keep catalogue order, which is
+    /// why the rank is paired with the original index instead of relying on a stable sort.
+    public static func sorted(
+        _ items: [ExtensionItem],
+        by sort: StoreSort,
+        apiNewItems: [ExtensionItem] = []
+    ) -> [ExtensionItem] {
+        switch sort {
+        case .featured:
+            return items
+
+        case .name:
+            return items.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+
+        case .downloads:
+            return items.sorted {
                 if $0.downloadCount != $1.downloadCount {
                     return $0.downloadCount > $1.downloadCount
                 }
                 return $0.name.localizedStandardCompare($1.name) == .orderedAscending
             }
-    }
 
-    /// Full list when the "New" filter tab is selected.
-    public var newFilterItems: [ExtensionItem] {
-        if !newItems.isEmpty {
-            var chosen = Set(newItems.map { $0.id.lowercased() })
-            let other = extensions.filter { ext in
-                !chosen.contains(ext.id.lowercased()) && Self.isNew(ext)
+        case .recentlyAdded:
+            var apiRank: [String: Int] = [:]
+            for (index, item) in apiNewItems.enumerated() {
+                apiRank[item.id.lowercased()] = index
             }
-            return newItems + other
+            let curated = Set(recentNewIDs.map { $0.lowercased() })
+
+            func rank(_ item: ExtensionItem) -> (Int, Int) {
+                let id = item.id.lowercased()
+                if let position = apiRank[id] { return (0, position) }
+                if curated.contains(id) { return (1, 0) }
+                return (isNew(item) ? 2 : 3, 0)
+            }
+
+            return items.enumerated()
+                .sorted { left, right in
+                    let leftRank = rank(left.element)
+                    let rightRank = rank(right.element)
+                    if leftRank != rightRank { return leftRank < rightRank }
+                    return left.offset < right.offset
+                }
+                .map(\.element)
         }
-        let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
-        let curatedNew = Self.recentNewIDs.compactMap { byID[$0.lowercased()] }
-        var chosen = Set(curatedNew.map { $0.id.lowercased() })
-        let updated = extensions.filter { ext in
-            !chosen.contains(ext.id.lowercased()) && Self.isNew(ext)
-        }
-        return curatedNew + updated
     }
 
     /// Monotonic result-set generation. Every reset bumps it; any response that resolves
@@ -242,27 +278,15 @@ public final class ExtensionsStoreViewModel: ObservableObject {
     deinit { searchTask?.cancel() }
 
     public var displayedExtensions: [ExtensionItem] {
-        let query = searchQuery.trimmingCharacters(in: .whitespaces)
-        if !query.isEmpty {
-            return extensions
-        }
-        switch selectedFilter {
-        case .all:
-            return extensions
-        case .popular:
-            return popularFilterItems
-        case .new:
-            return newFilterItems
-        }
+        Self.sorted(extensions, by: selectedSort, apiNewItems: newItems)
     }
 
     /// Debounced, cancellable search entry point for per-keystroke changes. Coalesces rapid
     /// typing into one request and cancels any in-flight one; the view calls this from
     /// `onChange(of: searchQuery)` instead of spawning its own unstructured task.
     public func queryDidChange() {
-        if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
-            selectedFilter = .all
-        }
+        // The chosen order carries over into the results: sorting is not a filter, so a search
+        // does not need to undo it.
         searchTask?.cancel()
         searchTask = Task { [weak self] in
             guard let self else { return }
@@ -345,53 +369,16 @@ public struct ExtensionStoreView: View {
     }
 
     public var body: some View {
-        // The search field lives in the window toolbar; the filter sits here, above the list it
-        // filters. It used to be a toolbar item too, and expanding the search pushed it — and the
-        // page's ellipsis menu — into the overflow menu, because four controls and a pane name do
-        // not fit one row at this window's width.
-        VStack(spacing: 0) {
-            filterBar
-            storeContent
-        }
+        // The search field and the sort button live in the window toolbar, so the pane is just
+        // the list. No padding around `storeContent`: the list has to reach the pane's top edge
+        // for the system to fade it out under the toolbar the way the Form-based panes are. The
+        // 12pt gutter lives on the scrolling content inside instead.
+        storeContent
         .task {
             if viewModel.extensions.isEmpty {
                 await viewModel.resetAndFetch(limit: 100)
             }
         }
-    }
-
-    /// All / Popular / New, at the same inset as the section headings below it. Picking a filter
-    /// clears a search, the way it did when both were in the toolbar.
-    private var filterBar: some View {
-        HStack(spacing: 0) {
-            Picker("Filter", selection: filterSelection) {
-                ForEach(StoreFilter.allCases) { filter in
-                    Text(filter.title).tag(filter)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 260)
-            .accessibilityLabel(String(localized: "Filter"))
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 10)
-    }
-
-    private var filterSelection: Binding<StoreFilter> {
-        Binding(
-            get: { viewModel.selectedFilter },
-            set: { newValue in
-                if !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
-                    viewModel.searchQuery = ""
-                    viewModel.queryDidChange()
-                }
-                viewModel.selectedFilter = newValue
-            }
-        )
     }
 
     private var storeContent: some View {
@@ -412,7 +399,7 @@ public struct ExtensionStoreView: View {
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if !isSearching && viewModel.selectedFilter == .all {
+            } else if !isSearching && viewModel.selectedSort == .featured {
                 sectionedAllStoreContent
             } else {
                 flatStoreContent

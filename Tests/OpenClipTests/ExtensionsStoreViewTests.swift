@@ -141,13 +141,13 @@ final class ExtensionsStoreViewTests: XCTestCase {
         XCTAssertNil(cleared)
     }
 
-    // MARK: - Store Filter & Badges
+    // MARK: - Store Sorting & Badges
 
     @MainActor
-    func testStoreFilterInitialStateAndDisplayedExtensions() {
+    func testSortingOrdersTheCatalogueWithoutDroppingAnything() {
         let api = RecordingStoreAPI()
         let viewModel = ExtensionsStoreViewModel(api: api)
-        XCTAssertEqual(viewModel.selectedFilter, .all)
+        XCTAssertEqual(viewModel.selectedSort, .featured, "the catalogue's own order to begin with")
 
         let item1 = ExtensionItem(id: "com.openclip.quick-translate", name: "Quick Translate",
                                   description: "", author: "openclip", icon: "", downloadCount: 1500, downloadURL: "")
@@ -157,39 +157,68 @@ final class ExtensionsStoreViewTests: XCTestCase {
                                   description: "", author: "openclip", icon: "", downloadCount: 0, downloadURL: "", version: "1.0.0")
 
         viewModel.extensions = [item1, item2, item3]
+        let everything = Set([item1, item2, item3].map(\.id))
 
-        // All filter returns everything
-        viewModel.selectedFilter = .all
-        XCTAssertEqual(viewModel.displayedExtensions.map(\.id), ["com.openclip.quick-translate", "com.openclip.render-html", "com.openclip.basic-tool"])
-
-        // Showcase sections in 'All'
+        // Featured keeps the catalogue's order, and the showcase sections still work off it.
+        XCTAssertEqual(viewModel.displayedExtensions.map(\.id),
+                       ["com.openclip.quick-translate", "com.openclip.render-html", "com.openclip.basic-tool"])
         XCTAssertEqual(viewModel.featuredSectionItems.map(\.id), ["com.openclip.quick-translate"])
         XCTAssertEqual(viewModel.newSectionItems.map(\.id), ["com.openclip.render-html"])
         XCTAssertEqual(viewModel.remainingAllSectionItems.map(\.id), ["com.openclip.basic-tool"])
 
-        // Popular filter includes curated item (quick-translate) and popular items
-        viewModel.selectedFilter = .popular
-        let popularIDs = viewModel.displayedExtensions.map(\.id)
-        XCTAssertTrue(popularIDs.contains("com.openclip.quick-translate"))
-        XCTAssertFalse(popularIDs.contains("com.openclip.basic-tool"))
+        viewModel.selectedSort = .name
+        XCTAssertEqual(viewModel.displayedExtensions.map(\.name), ["Basic Tool", "Quick Translate", "Render HTML"])
 
-        // New filter includes render-html (version 1.1.0 / in recent list)
-        viewModel.selectedFilter = .new
-        let newIDs = viewModel.displayedExtensions.map(\.id)
-        XCTAssertTrue(newIDs.contains("com.openclip.render-html"))
-        XCTAssertFalse(newIDs.contains("com.openclip.basic-tool"))
+        viewModel.selectedSort = .downloads
+        XCTAssertEqual(viewModel.displayedExtensions.map(\.id),
+                       ["com.openclip.quick-translate", "com.openclip.render-html", "com.openclip.basic-tool"])
+        XCTAssertEqual(Set(viewModel.displayedExtensions.map(\.id)), everything,
+                       "an extension nobody has downloaded yet sorts last, it does not disappear")
+
+        viewModel.selectedSort = .recentlyAdded
+        let recent = viewModel.displayedExtensions.map(\.id)
+        XCTAssertEqual(recent.first, "com.openclip.render-html", "curated as recent, and past its first version")
+        XCTAssertEqual(Set(recent), everything)
     }
 
     @MainActor
-    func testSearchQueryResetsFilterToAll() {
+    func testSortingIsPureAndKeepsCatalogueOrderWithinARank() {
+        func item(_ id: String, _ name: String, downloads: Int = 0, version: String = "1.0.0") -> ExtensionItem {
+            ExtensionItem(id: id, name: name, description: "", author: "", icon: "",
+                          downloadCount: downloads, downloadURL: "", version: version)
+        }
+        let a = item("com.x.a", "Alpha", downloads: 5)
+        let b = item("com.x.b", "bravo", downloads: 5)
+        let c = item("com.x.c", "Charlie", downloads: 9)
+        let input = [a, b, c]
+
+        XCTAssertEqual(ExtensionsStoreViewModel.sorted(input, by: .featured).map(\.id), input.map(\.id))
+        XCTAssertEqual(ExtensionsStoreViewModel.sorted(input, by: .name).map(\.name), ["Alpha", "bravo", "Charlie"],
+                       "names sort the way the Finder sorts them, not by code point")
+        XCTAssertEqual(ExtensionsStoreViewModel.sorted(input, by: .downloads).map(\.id),
+                       ["com.x.c", "com.x.a", "com.x.b"], "equal counts fall back to the name")
+
+        // Nothing is added or lost, whatever the order.
+        for sort in StoreSort.allCases {
+            XCTAssertEqual(Set(ExtensionsStoreViewModel.sorted(input, by: sort).map(\.id)), Set(input.map(\.id)))
+            XCTAssertEqual(ExtensionsStoreViewModel.sorted(input, by: sort).count, input.count)
+        }
+
+        // The API's own "new" list leads, in its order, and everything else keeps catalogue order.
+        let ranked = ExtensionsStoreViewModel.sorted(input, by: .recentlyAdded, apiNewItems: [c, a])
+        XCTAssertEqual(ranked.map(\.id), ["com.x.c", "com.x.a", "com.x.b"])
+    }
+
+    @MainActor
+    func testSearchKeepsTheChosenOrder() {
         let api = RecordingStoreAPI()
         let viewModel = ExtensionsStoreViewModel(api: api)
-        viewModel.selectedFilter = .popular
+        viewModel.selectedSort = .name
 
         viewModel.searchQuery = "translate"
         viewModel.queryDidChange()
 
-        XCTAssertEqual(viewModel.selectedFilter, .all, "Non-empty search query should automatically reset filter to .all")
+        XCTAssertEqual(viewModel.selectedSort, .name, "sorting is not a filter, so searching does not undo it")
     }
 
     /// When the last fetched item belongs to featured/new sections, it does not appear in
@@ -246,44 +275,46 @@ final class ExtensionsStoreViewTests: XCTestCase {
         XCTAssertTrue(showcaseOnlyVM.shouldTriggerSectionedPagination(for: "com.openclip.render-html"))
     }
 
-    /// When the last fetched item is excluded by the active filter (e.g. .popular), it does not
-    /// appear in displayedExtensions. Pagination must trigger from displayedExtensions.last.
+    /// Sorting reorders the catalogue, so the row rendered last is not the item fetched last.
+    /// Pagination hangs off the last *rendered* row, or the next page never loads.
     @MainActor
-    func testPaginationTriggeredWhenLastFetchedItemExcludedByActiveFilter() async throws {
+    func testPaginationTriggersOnTheLastRenderedRowNotTheLastFetched() async throws {
         let api = GatedStoreAPI()
         let viewModel = ExtensionsStoreViewModel(api: api)
-        viewModel.selectedFilter = .popular
+        viewModel.selectedSort = .downloads
 
-        let popularItem = ExtensionItem(id: "com.openclip.custom-popular", name: "Popular",
-                                        description: "", author: "openclip", icon: "", downloadCount: 500, downloadURL: "")
-        let obscureItem = ExtensionItem(id: "com.openclip.obscure-tool", name: "Obscure",
-                                        description: "", author: "openclip", icon: "", downloadCount: 0, downloadURL: "", version: "1.0.0")
+        let quiet = ExtensionItem(id: "com.openclip.quiet", name: "Quiet",
+                                  description: "", author: "openclip", icon: "", downloadCount: 10, downloadURL: "")
+        let loud = ExtensionItem(id: "com.openclip.loud", name: "Loud",
+                                 description: "", author: "openclip", icon: "", downloadCount: 500, downloadURL: "")
 
         let initial = Task { await viewModel.resetAndFetch() }
         try await waitUntil { await api.hasPending(query: "", page: 1) }
-        await api.release(query: "", page: 1, items: [popularItem, obscureItem], totalPages: 2)
+        await api.release(query: "", page: 1, items: [quiet, loud], totalPages: 2)
         await initial.value
 
         XCTAssertEqual(viewModel.currentPage, 2)
-        // Last fetched item in full extensions array is obscureItem
-        XCTAssertEqual(viewModel.extensions.last?.id, "com.openclip.obscure-tool")
-        // But displayedExtensions in .popular only includes popularItem
-        XCTAssertEqual(viewModel.displayedExtensions.map(\.id), ["com.openclip.custom-popular"])
+        XCTAssertEqual(viewModel.extensions.last?.id, "com.openclip.loud", "fetched last")
+        XCTAssertEqual(viewModel.displayedExtensions.map(\.id),
+                       ["com.openclip.loud", "com.openclip.quiet"],
+                       "and rendered first, because it has the most downloads")
 
-        // Flat pagination must trigger on the last displayed item, not obscureItem
-        XCTAssertTrue(viewModel.shouldTriggerFlatPagination(for: "com.openclip.custom-popular"))
-        XCTAssertFalse(viewModel.shouldTriggerFlatPagination(for: "com.openclip.obscure-tool"))
+        XCTAssertTrue(viewModel.shouldTriggerFlatPagination(for: "com.openclip.quiet"))
+        XCTAssertFalse(viewModel.shouldTriggerFlatPagination(for: "com.openclip.loud"))
 
         // Simulating the onAppear trigger on the last rendered card initiates page 2 fetch.
         let nextPage = Task { await viewModel.fetchNextPage() }
         try await waitUntil { await api.hasPending(query: "", page: 2) }
-        let page2Item = ExtensionItem(id: "com.openclip.page2-popular", name: "Page 2 Popular",
+        let page2Item = ExtensionItem(id: "com.openclip.middling", name: "Middling",
                                       description: "", author: "openclip", icon: "", downloadCount: 200, downloadURL: "")
         await api.release(query: "", page: 2, items: [page2Item], totalPages: 2)
         await nextPage.value
 
         XCTAssertEqual(viewModel.currentPage, 3)
-        XCTAssertEqual(viewModel.displayedExtensions.map(\.id), ["com.openclip.custom-popular", "com.openclip.page2-popular"])
+        XCTAssertEqual(viewModel.displayedExtensions.map(\.id),
+                       ["com.openclip.loud", "com.openclip.middling", "com.openclip.quiet"],
+                       "the new page is ordered in with the rest, not appended blindly")
+        XCTAssertTrue(viewModel.shouldTriggerFlatPagination(for: "com.openclip.quiet"))
     }
 
     /// The Featured section must always return 4 extensions: even before fetching,
@@ -428,7 +459,7 @@ final class ExtensionsStoreViewTests: XCTestCase {
 
         viewModel.extensions = [featuredItem, topItem, mediumItem]
         viewModel.featuredItems = [featuredItem]
-        viewModel.selectedFilter = .popular
+        viewModel.selectedSort = .downloads
 
         // Top item with 500 downloads must be first, not the featured item with 50 downloads
         XCTAssertEqual(viewModel.displayedExtensions.map(\.id), [

@@ -84,9 +84,12 @@ An action's page has **Duplicate** and **Delete Action…** in its footer.
 ## Store
 
 **Store** browses the extension catalogue. The toolbar carries the search field — the system's, so
-it collapses to a magnifier when the window is too narrow for it — and a **…** menu holding
-**Install from File…** (for a `.openclipext` folder, `.zip` or script you already have) and
-**Refresh Catalog**. The **All / Popular / New** filter sits at the top of the list it filters.
+it collapses to a magnifier when the window is too narrow for it — a **sort** button (Featured,
+Name, Downloads, Recently Added), and a **…** menu holding **Install from File…** (for a
+`.openclipext` folder, `.zip` or script you already have) and **Refresh Catalog**.
+
+Sorting reorders the catalogue; it never hides anything. **Featured** is the catalogue's own order,
+with the curated showcase on top, and it is the only one that shows the Featured section.
 
 ## Extensions
 

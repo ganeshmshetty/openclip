@@ -11,10 +11,11 @@
 // title bar's geometry is the same on every pane. It also gets the store a real
 // AppKit search field, which is what a SwiftUI toolbar item could not give it.
 //
-// The Store's All/Popular/New filter is deliberately *not* here: with it, the
-// expanding search field, the ellipsis and the pane name all competing for one
-// row, expanding the search pushed the other two into the overflow menu. The
-// filter belongs with the list it filters anyway, so it lives in the page.
+// The Store's All/Popular/New filter used to sit here as a segmented control,
+// and with it, the expanding search field, the ellipsis and the pane name all
+// competing for one row, expanding the search pushed the other two into the
+// overflow menu. It is a sort now — a single menu button, which costs the width
+// of an icon rather than three labels.
 //
 // Leading everything is the back/forward pair System Settings has: an
 // `NSToolbarItemGroup` wired to the router's history, so leaving any page —
@@ -39,6 +40,8 @@ public enum PreferencesToolbarAction: Sendable {
     case addCustomAction
     case addApplication
     case addAIAction
+    /// The Store's list order was picked from the sort menu.
+    case setStoreSort(StoreSort)
     /// The trailing switch was moved. The window decides what it means for the page on screen.
     case setPageToggle(Bool)
     /// A pick from the trailing ellipsis menu, by `SettingsToolbarMenuItem.id`.
@@ -57,6 +60,7 @@ public final class PreferencesToolbarModel: ObservableObject {
     /// What the trailing ellipsis menu offers. Empty hides it.
     @Published public var pageMenuItems: [SettingsToolbarMenuItem] = []
     @Published public var searchQuery: String = ""
+    @Published public var storeSort: StoreSort = .featured
     @Published public var isRefreshing: Bool = false
 
     /// Toolbar button presses, forwarded to whichever pane acts on them.
@@ -74,6 +78,8 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         /// a unified toolbar reserves a title area of its own choosing, which
         /// left a wide gap between "Store" and the first control.
         static let title = NSToolbarItem.Identifier("openclip.preferences.title")
+        /// The Store's list order.
+        static let sort = NSToolbarItem.Identifier("openclip.preferences.sort")
         /// The page subject's ellipsis menu, trailing. Its switch is a title bar accessory.
         static let pageMenu = NSToolbarItem.Identifier("openclip.preferences.pageMenu")
         static let search = NSToolbarItem.Identifier("openclip.preferences.search")
@@ -106,6 +112,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     private weak var searchItem: NSToolbarItem?
     private weak var actionItem: NSToolbarItem?
     private weak var searchField: NSSearchField?
+    private weak var sortItem: NSMenuToolbarItem?
     private weak var actionButton: NSButton?
     private weak var pageMenuItem: NSToolbarItem?
     private weak var pageMenuButton: NSButton?
@@ -141,6 +148,13 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             }
             .store(in: &cancellables)
 
+        model.$storeSort
+            .sink { [weak self] sort in
+                guard let self else { return }
+                self.sortItem?.menu = self.makeSortMenu(selected: sort)
+            }
+            .store(in: &cancellables)
+
         model.$pageToggle
             .sink { [weak self] toggle in self?.sync(pageToggle: toggle) }
             .store(in: &cancellables)
@@ -172,6 +186,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
 
     private func sync(page: SettingsPage) {
         setHidden(searchItem, page != .store)
+        setHidden(sortItem, page != .store)
 
         switch page {
         case .customize:
@@ -302,6 +317,27 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
     }
 
+    /// The sort menu, rebuilt when the choice changes so the tick moves with it.
+    private func makeSortMenu(selected: StoreSort) -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        for sort in StoreSort.allCases {
+            let item = NSMenuItem(title: sort.title, action: #selector(sortItemPressed(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = sort.rawValue
+            item.image = NSImage(systemSymbolName: sort.symbol, accessibilityDescription: nil)
+            item.state = (sort == selected) ? .on : .off
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    @objc private func sortItemPressed(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let sort = StoreSort(rawValue: raw) else { return }
+        model.actions.send(.setStoreSort(sort))
+    }
+
     @objc private func pageMenuItemPressed(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String else { return }
         model.actions.send(.pageMenuItem(id))
@@ -344,7 +380,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         // pushed the search field into the overflow menu at the window's minimum size.
         [
             ItemID.navigation, ItemID.title, .flexibleSpace,
-            ItemID.action, ItemID.search, ItemID.pageMenu
+            ItemID.action, ItemID.search, ItemID.sort, ItemID.pageMenu
         ]
     }
 
@@ -466,6 +502,24 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             item.visibilityPriority = .high
             searchField = item.searchField
             searchItem = item
+            setHidden(item, model.page != .store)
+            return item
+
+        case ItemID.sort:
+            // `NSMenuToolbarItem` rather than a button that pops a menu: it is the system's
+            // menu-in-a-toolbar control, so it gets the press-and-hold behaviour and the keyboard
+            // handling for free.
+            let item = NSMenuToolbarItem(itemIdentifier: itemIdentifier)
+            item.image = NSImage(
+                systemSymbolName: "arrow.up.arrow.down",
+                accessibilityDescription: String(localized: "Sort")
+            )
+            item.menu = makeSortMenu(selected: model.storeSort)
+            item.showsIndicator = false
+            item.label = String(localized: "Sort")
+            item.toolTip = String(localized: "Sort")
+            item.visibilityPriority = .high
+            sortItem = item
             setHidden(item, model.page != .store)
             return item
 

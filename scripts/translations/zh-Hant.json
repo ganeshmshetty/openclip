@@ -565,5 +565,9 @@
   "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options.": "關閉該操作可將其從彈出列隱藏。打開它可更改其名稱、圖示、快捷鍵和選項。",
   "New Group %lld": "新增群組 %lld",
   "Select the actions on Customize first, or drag one action onto another to group them.": "請先在「自訂」中選取操作，或將一個操作拖到另一個操作上以建立群組。",
-  "Drag to reorder the popup bar. Drop one action onto another to group them, or onto a group to add it; drag the last one out and the group goes. Double-click a row to open its settings.": "拖曳可重新排列彈出列。將一個操作拖到另一個操作上可建立群組，拖到群組上則會加入；拖出最後一個操作後群組會被移除。點兩下某列可打開其設定。"
+  "Drag to reorder the popup bar. Drop one action onto another to group them, or onto a group to add it; drag the last one out and the group goes. Double-click a row to open its settings.": "拖曳可重新排列彈出列。將一個操作拖到另一個操作上可建立群組，拖到群組上則會加入；拖出最後一個操作後群組會被移除。點兩下某列可打開其設定。",
+  "Sort": "排序",
+  "Name": "名稱",
+  "Downloads": "下載量",
+  "Recently Added": "最近新增"
 }

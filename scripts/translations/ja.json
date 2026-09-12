@@ -565,5 +565,9 @@
   "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options.": "アクションをオフにするとポップアップバーから隠れます。開くと名前、アイコン、ショートカット、オプションを変更できます。",
   "New Group %lld": "新規グループ %lld",
   "Select the actions on Customize first, or drag one action onto another to group them.": "先に「カスタマイズ」でアクションを選択するか、アクションを別のアクションにドラッグしてグループ化します。",
-  "Drag to reorder the popup bar. Drop one action onto another to group them, or onto a group to add it; drag the last one out and the group goes. Double-click a row to open its settings.": "ドラッグしてポップアップバーを並べ替えます。アクションを別のアクションにドロップするとグループになり、グループにドロップすると追加されます。最後の 1 つを外すとグループは消えます。行をダブルクリックすると設定が開きます。"
+  "Drag to reorder the popup bar. Drop one action onto another to group them, or onto a group to add it; drag the last one out and the group goes. Double-click a row to open its settings.": "ドラッグしてポップアップバーを並べ替えます。アクションを別のアクションにドロップするとグループになり、グループにドロップすると追加されます。最後の 1 つを外すとグループは消えます。行をダブルクリックすると設定が開きます。",
+  "Sort": "並べ替え",
+  "Name": "名前",
+  "Downloads": "ダウンロード数",
+  "Recently Added": "最近追加"
 }
