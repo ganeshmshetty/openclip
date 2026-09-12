@@ -209,36 +209,40 @@ struct SettingsSidebar: View {
     }
 
     var body: some View {
-        List(selection: $selection) {
-            if !filteredSystemRows.isEmpty {
-                Section {
-                    ForEach(filteredSystemRows) { row in
-                        rowView(row)
-                    }
-                }
-            }
-
-            if !filteredExtensionRows.isEmpty {
-                Section {
-                    ForEach(filteredExtensionRows) { row in
-                        rowView(row)
-                    }
-                }
-            }
-
-            if !hasResults {
-                Section {
-                    Text("No Results")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 12)
-                        .selectionDisabled()
-                }
-            }
-        }
-        .listStyle(.sidebar)
-        .safeAreaInset(edge: .top, spacing: 0) {
+        // The field is stacked above the list rather than laid over it as a safe-area inset: an
+        // inset lets the rows scroll *under* the field, so a row passed behind it while the
+        // scroller stopped below it. Stacked, the field owns its strip and nothing crosses it.
+        VStack(spacing: 0) {
             searchField
+
+            List(selection: $selection) {
+                if !filteredSystemRows.isEmpty {
+                    Section {
+                        ForEach(filteredSystemRows) { row in
+                            rowView(row)
+                        }
+                    }
+                }
+
+                if !filteredExtensionRows.isEmpty {
+                    Section {
+                        ForEach(filteredExtensionRows) { row in
+                            rowView(row)
+                        }
+                    }
+                }
+
+                if !hasResults {
+                    Section {
+                        Text("No Results")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 12)
+                            .selectionDisabled()
+                    }
+                }
+            }
+            .listStyle(.sidebar)
         }
     }
 
@@ -268,6 +272,7 @@ struct SettingsSidebar: View {
         )
         .frame(height: 24)
         .padding(.horizontal, 10)
+        .padding(.top, 2)
         .padding(.bottom, 8)
         .accessibilityLabel(String(localized: "Search settings"))
     }
