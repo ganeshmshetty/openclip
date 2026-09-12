@@ -83,10 +83,10 @@ An action's page has **Duplicate** and **Delete Action…** in its footer.
 
 ## Store
 
-**Store** browses the extension catalogue. Its header is the window toolbar: the **All / Popular /
-New** filter on the left, and on the right a **magnifier** that expands into a search field and a
-**…** menu holding **Install from File…** (for a `.openclipext` folder, `.zip` or script you
-already have) and **Refresh Catalog**.
+**Store** browses the extension catalogue. The toolbar carries the search field — the system's, so
+it collapses to a magnifier when the window is too narrow for it — and a **…** menu holding
+**Install from File…** (for a `.openclipext` folder, `.zip` or script you already have) and
+**Refresh Catalog**. The **All / Popular / New** filter sits at the top of the list it filters.
 
 ## Extensions
 

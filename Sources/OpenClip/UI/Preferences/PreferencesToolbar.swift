@@ -11,6 +11,11 @@
 // title bar's geometry is the same on every pane. It also gets the store a real
 // AppKit search field, which is what a SwiftUI toolbar item could not give it.
 //
+// The Store's All/Popular/New filter is deliberately *not* here: with it, the
+// expanding search field, the ellipsis and the pane name all competing for one
+// row, expanding the search pushed the other two into the overflow menu. The
+// filter belongs with the list it filters anyway, so it lives in the page.
+//
 // Leading everything is the back/forward pair System Settings has: an
 // `NSToolbarItemGroup` wired to the router's history, so leaving any page —
 // an action's editor, the icon chooser, an extension — is the same gesture.
@@ -51,7 +56,6 @@ public final class PreferencesToolbarModel: ObservableObject {
     @Published public var pageToggle: SettingsToolbarToggle?
     /// What the trailing ellipsis menu offers. Empty hides it.
     @Published public var pageMenuItems: [SettingsToolbarMenuItem] = []
-    @Published public var storeFilter: StoreFilter = .all
     @Published public var searchQuery: String = ""
     @Published public var isRefreshing: Bool = false
 
@@ -70,7 +74,6 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         /// a unified toolbar reserves a title area of its own choosing, which
         /// left a wide gap between "Store" and the first control.
         static let title = NSToolbarItem.Identifier("openclip.preferences.title")
-        static let filter = NSToolbarItem.Identifier("openclip.preferences.filter")
         /// The page subject's ellipsis menu, trailing. Its switch is a title bar accessory.
         static let pageMenu = NSToolbarItem.Identifier("openclip.preferences.pageMenu")
         static let search = NSToolbarItem.Identifier("openclip.preferences.search")
@@ -100,10 +103,8 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     private weak var backItem: NSToolbarItem?
     private weak var forwardItem: NSToolbarItem?
     private weak var titleLabel: NSTextField?
-    private weak var filterItem: NSToolbarItem?
     private weak var searchItem: NSToolbarItem?
     private weak var actionItem: NSToolbarItem?
-    private weak var filterControl: NSSegmentedControl?
     private weak var searchField: NSSearchField?
     private weak var actionButton: NSButton?
     private weak var pageMenuItem: NSToolbarItem?
@@ -124,12 +125,6 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             .sink { [weak self] title in
                 self?.titleLabel?.stringValue = title
                 self?.window?.setAccessibilityTitle(title)
-            }
-            .store(in: &cancellables)
-
-        model.$storeFilter
-            .sink { [weak self] filter in
-                self?.filterControl?.selectedSegment = StoreFilter.allCases.firstIndex(of: filter) ?? 0
             }
             .store(in: &cancellables)
 
@@ -176,9 +171,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     // MARK: - Item contents per page
 
     private func sync(page: SettingsPage) {
-        let showsStoreControls = (page == .store)
-        setHidden(filterItem, !showsStoreControls)
-        setHidden(searchItem, !showsStoreControls)
+        setHidden(searchItem, page != .store)
 
         switch page {
         case .customize:
@@ -329,15 +322,6 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         }
     }
 
-    @objc private func filterChanged(_ sender: NSSegmentedControl) {
-        let filters = StoreFilter.allCases
-        guard filters.indices.contains(sender.selectedSegment) else { return }
-        if !model.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
-            model.searchQuery = ""
-        }
-        model.storeFilter = filters[sender.selectedSegment]
-    }
-
     public func controlTextDidChange(_ notification: Notification) {
         guard let field = notification.object as? NSSearchField else { return }
         model.searchQuery = field.stringValue
@@ -359,7 +343,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         // edge. Centring the filter with a leading flexible space spent the width twice and
         // pushed the search field into the overflow menu at the window's minimum size.
         [
-            ItemID.navigation, ItemID.title, ItemID.filter, .flexibleSpace,
+            ItemID.navigation, ItemID.title, .flexibleSpace,
             ItemID.action, ItemID.search, ItemID.pageMenu
         ]
     }
@@ -465,35 +449,6 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             // the window's right edge, flexible space and all.
             item.isNavigational = true
             titleLabel = label
-            return item
-
-        case ItemID.filter:
-            let control = NSSegmentedControl(
-                labels: StoreFilter.allCases.map(\.title),
-                trackingMode: .selectOne,
-                target: self,
-                action: #selector(filterChanged(_:))
-            )
-            control.segmentStyle = .automatic
-            // Each segment as wide as its own label, sized into a real frame: an
-            // equal-width control spends more room than the labels need, and the
-            // toolbar answers a set of items too wide for the window by dropping
-            // the trailing ones into the overflow menu. Constraints are no good
-            // here either — a constrained view has no size for the toolbar to
-            // measure.
-            control.segmentDistribution = .fit
-            control.sizeToFit()
-            control.selectedSegment = StoreFilter.allCases.firstIndex(of: model.storeFilter) ?? 0
-
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            item.view = control
-            item.label = String(localized: "Filter")
-            item.visibilityPriority = .high
-            // Leading edge, beside the pane name — see the title item above.
-            item.isNavigational = true
-            filterControl = control
-            filterItem = item
-            setHidden(item, model.page != .store)
             return item
 
         case ItemID.search:

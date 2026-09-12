@@ -345,18 +345,53 @@ public struct ExtensionStoreView: View {
     }
 
     public var body: some View {
-        // The filter and the search field live in the window toolbar (see
-        // PreferencesView.toolbarContent), so the pane is just the list.
-        // No padding around `storeContent`: the list has to reach the pane's top
-        // edge for the system to fade it out under the toolbar the way the
-        // Form-based panes are. The 12pt gutter lives on the scrolling content
-        // inside instead.
-        storeContent
+        // The search field lives in the window toolbar; the filter sits here, above the list it
+        // filters. It used to be a toolbar item too, and expanding the search pushed it — and the
+        // page's ellipsis menu — into the overflow menu, because four controls and a pane name do
+        // not fit one row at this window's width.
+        VStack(spacing: 0) {
+            filterBar
+            storeContent
+        }
         .task {
             if viewModel.extensions.isEmpty {
                 await viewModel.resetAndFetch(limit: 100)
             }
         }
+    }
+
+    /// All / Popular / New, at the same inset as the section headings below it. Picking a filter
+    /// clears a search, the way it did when both were in the toolbar.
+    private var filterBar: some View {
+        HStack(spacing: 0) {
+            Picker("Filter", selection: filterSelection) {
+                ForEach(StoreFilter.allCases) { filter in
+                    Text(filter.title).tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 260)
+            .accessibilityLabel(String(localized: "Filter"))
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
+    }
+
+    private var filterSelection: Binding<StoreFilter> {
+        Binding(
+            get: { viewModel.selectedFilter },
+            set: { newValue in
+                if !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
+                    viewModel.searchQuery = ""
+                    viewModel.queryDidChange()
+                }
+                viewModel.selectedFilter = newValue
+            }
+        )
     }
 
     private var storeContent: some View {

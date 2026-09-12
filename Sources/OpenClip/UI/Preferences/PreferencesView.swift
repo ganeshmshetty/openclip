@@ -149,14 +149,6 @@ public struct PreferencesView: View {
             case .pageMenuItem(let id): runPageMenuItem(id)
             }
         }
-        .onChange(of: toolbarModel.storeFilter) { _, filter in
-            guard storeViewModel.selectedFilter != filter else { return }
-            storeViewModel.selectedFilter = filter
-        }
-        .onChange(of: storeViewModel.selectedFilter) { _, filter in
-            guard toolbarModel.storeFilter != filter else { return }
-            toolbarModel.storeFilter = filter
-        }
         .onChange(of: toolbarModel.searchQuery) { _, query in
             guard storeViewModel.searchQuery != query else { return }
             storeViewModel.searchQuery = query
