@@ -9745,6 +9745,34 @@
         }
       }
     },
+    "Palette": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命令面板"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命令面板"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palette"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パレット"
+          }
+        }
+      }
+    },
     "Paste": {
       "localizations": {
         "zh-Hans": {
@@ -10105,6 +10133,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "人気"
+          }
+        }
+      }
+    },
+    "Popup": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "弹出栏"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "彈出列"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Barre contextuelle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポップアップ"
           }
         }
       }

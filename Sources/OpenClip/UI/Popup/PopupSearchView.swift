@@ -94,7 +94,11 @@ public struct PopupSearchView: View {
     /// Deliberately *not* `@ObservedObject`: `location` publishes at event-monitor rate, and
     /// observing the whole object re-evaluates the entire palette body per mouse move. Only
     /// `hoverState.$location` is subscribed to via `.onReceive`.
-    private let hoverState = PopupHoverState.shared
+    private let hoverState: PopupHoverState
+    /// True for the Appearance page's preview: the palette draws and filters as it would live,
+    /// but never takes focus on its own, installs no event monitors, offers no resize handles and
+    /// runs nothing — Return, a row click and the footer badges are inert.
+    private let isStatic: Bool
     /// Resolves user-customized action titles/icons (composition-injected, defaults to the shared
     /// customization manager — never a hidden singleton reference inside the Action extension).
     private let presenter: any ActionPresenting
@@ -236,9 +240,13 @@ public struct PopupSearchView: View {
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
-        onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary }
+        onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary },
+        hoverState: PopupHoverState = .shared,
+        isStatic: Bool = false
     ) {
         self.catalog = catalog
+        self.hoverState = hoverState
+        self.isStatic = isStatic
         self.context = context
         self.resultsAbove = resultsAbove
         self.presenter = presenter
@@ -296,14 +304,20 @@ public struct PopupSearchView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             }
 
-            PopupResizeHandles(
-                tint: PopupThemeModel.restForeground(for: effectiveTheme),
-                accessibilityLabel: String(localized: "Resize search palette"),
-                onResize: onResize
-            )
+            if !isStatic {
+                PopupResizeHandles(
+                    tint: PopupThemeModel.restForeground(for: effectiveTheme),
+                    accessibilityLabel: String(localized: "Resize search palette"),
+                    onResize: onResize
+                )
+            }
         }
         .frame(width: cardWidth, height: cardHeight)
-        .background(CommandDigitCatcher { row in runRow(at: row - 1) })
+        .background {
+            if !isStatic {
+                CommandDigitCatcher { row in runRow(at: row - 1) }
+            }
+        }
         .popupCardChrome(cornerRadius: PopupMetrics.searchCornerRadius, effectiveTheme: effectiveTheme, colorScheme: colorScheme)
         .onPreferenceChange(SearchHoverFramePreferenceKey.self) { frames in
             MainActor.assumeIsolated {
@@ -323,6 +337,7 @@ public struct PopupSearchView: View {
             rebuildSearchIndex()
         }
         .onAppear {
+            guard !isStatic else { return }
             isFocused = true
             isCommandPressed = NSEvent.modifierFlags.contains(.command)
             localFlagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
@@ -473,6 +488,7 @@ public struct PopupSearchView: View {
     /// Closes the palette by dropping the scope back to the full list (Esc with an empty scoped
     /// query) or, when already flat, exiting search entirely.
     private func exitSearch() {
+        guard !isStatic else { return }
         if scope != nil { onExitScope() } else { onExit() }
     }
 
@@ -841,6 +857,7 @@ public struct PopupSearchView: View {
     /// (⏎, click, ⌘-digit) shows the result card first, true (⇧⏎, ⇧-click) pastes the answer
     /// over the selection.
     private func runSelected(replace: Bool) {
+        guard !isStatic else { return }
         if selectedIndex >= results.count {
             // The AI rows: the typed query is the instruction.
             let offset = selectedIndex - results.count

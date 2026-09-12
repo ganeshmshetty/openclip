@@ -105,7 +105,7 @@ All overrides are managed via [`ActionCustomizationManager`](../../Sources/Core/
 
 ## Popup Appearance & Theme
 
-The **Appearance** tab shows a static preview of the floating popup bar and lets you style it. The preview is a fixed visual mock of the canonical action set (Search, Copy, Cut, Paste, Services plus the AI Tools action) — it does **not** reflect your configured actions, ordering, or overrides, and hovering it never affects the real popup.
+The **Appearance** page shows a preview stage and lets you style the popup. A segmented switch above the stage picks **Popup** (the floating bar) or **Palette** (the ⌘ action-search view); both are the real views drawn in a static mode with the canonical action set (Search, Copy, Cut, Paste plus the AI Tools action) — they do **not** reflect your configured actions, ordering, or overrides, and nothing you do in them affects the real popup. You can type into the palette preview to see filtering and row styles; nothing runs.
 
 ### Popup Theme
 The theme control has two labeled rows:

@@ -1,11 +1,11 @@
 // PopupPreview.swift
 // OpenClip
 //
-// Static visual preview of the popup bar rendered with a fixed action set
-// (Search, Copy, Cut, Paste, Share + AI), mirroring how the real bar will look
-// for the currently selected theme. It is intentionally decoupled from the live
-// action registry so it always shows the same canonical actions. Used by the
-// Preferences Appearance tab.
+// Static visual previews of the popup bar and of the action-search palette, rendered with a
+// fixed action set (Search, Copy, Cut, Paste + AI Tools), mirroring how each will look for the
+// currently selected theme. They are intentionally decoupled from the live action registry so
+// they always show the same canonical actions. Used by the Appearance settings page, which draws
+// the stage around them and the switch between them.
 import SwiftUI
 import AppKit
 import Core
@@ -50,29 +50,59 @@ struct PopupPreview: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            Text("Popup Preview")
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
+        PopupView(
+            actions: Self.previewActions,
+            context: mockContext,
+            hoverState: Self.previewHoverState,
+            isStatic: true,
+            modeStore: previewModeStore
+        ) { _ in }
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: 96)
+    }
+}
 
-            PopupView(
-                actions: Self.previewActions,
-                context: mockContext,
-                hoverState: Self.previewHoverState,
-                isStatic: true,
-                modeStore: previewModeStore
-            ) { _ in }
-                .padding(.vertical, 8)
-        }
-        .frame(maxWidth: .infinity, minHeight: 140)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+/// Static preview of the action-search palette (the ⌘ view), drawn by the real palette in its
+/// static mode with the same canonical actions as the bar preview. You can type into it to see
+/// filtering and the row styles; nothing runs.
+@MainActor
+struct PalettePreview: View {
+    private static let previewActions: [any Action] = [
+        SearchAction(),
+        CopyAction(),
+        CutAction(),
+        PasteAction(),
+        AIToolsAction()
+    ]
+
+    /// Its own hover state, so the preview never reacts to — or leaks into — the real popup's.
+    private static let previewHoverState = PopupHoverState()
+
+    private var mockContext: ActionContext {
+        let app = NSRunningApplication.current
+        let context = SelectionContext(
+            text: "OpenClip Preview",
+            sourceApp: AppIdentity(app),
+            cursorPosition: .zero,
+            selectionBounds: nil,
+            timestamp: Date(),
+            appPolicy: .default
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        return ActionContext(selection: context, modifiers: [])
+    }
+
+    var body: some View {
+        PopupSearchView(
+            catalog: Self.previewActions,
+            context: mockContext,
+            modeStore: PopupModeStore(),
+            onResult: { _ in },
+            onExit: {},
+            aiEnabled: false,
+            hoverState: Self.previewHoverState,
+            isStatic: true
         )
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
     }
 }
