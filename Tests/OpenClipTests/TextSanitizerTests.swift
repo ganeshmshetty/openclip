@@ -1,5 +1,5 @@
 import XCTest
-@testable import Core
+import OpenSelection
 
 final class TextSanitizerTests: XCTestCase {
 

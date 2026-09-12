@@ -64,6 +64,7 @@ targets:
         LOCALIZATION_PREFERS_STRING_CATALOGS: YES
     dependencies:
       - target: Core
+      - package: OpenSelection
       - package: KeyboardShortcuts
       - package: SDWebImageSwiftUI
       - package: SDWebImageSVGCoder
@@ -80,7 +81,10 @@ targets:
         SWIFT_STRICT_CONCURRENCY: complete
     dependencies:
       - target: OpenClip
+      - package: OpenSelection
 packages:
+  OpenSelection:
+    path: ../OpenSelection
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 2.0.0

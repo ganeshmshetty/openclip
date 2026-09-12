@@ -172,13 +172,8 @@ Sources/
     │   │   ├── OpenClipModuleLoader.swift    # CommonJS require() module loader and containment validator
     │   │   └── ShortcutAction.swift          # type: "shortcut" runtime → .runShortcut(name:input:)
     │   ├── SecretStore.swift                 # File-backed secrets storage (~/.openclip/secrets.json, POSIX 0600)
-    │   ├── Selection/                        # Fresh-AX selection retrieval (coordinator + strategies)
-    │   │   ├── AXElementInspector.swift      # Fresh focused-app/UI-element snapshot (never system-wide focused element)
-    │   │   ├── AXMenuNavigator.swift         # Accessibility menu traversal for Edit ▸ Copy/Paste
-    │   │   ├── AXTextControlStrategy.swift   # kAXSelectedText read for native text controls
-    │   │   ├── AXWebAreaStrategy.swift       # WebKit marker-range read (settle-retry lives in the coordinator)
-    │   │   ├── CursorClassifier.swift        # Cursor image → CursorClass
-    │   │   └── SelectionRetrievalCoordinator.swift # Gate + mode routing + inspect watchdog + deadline-capped Edit ▸ Copy press
+    │   ├── Selection/                        # Selection retrieval bridge to OpenSelection package
+    │   │   └── OpenSelectionBridge.swift     # Re-exports OpenSelection, maps Core domain types, logging bridge
     │   └── UnifiedIconProvider.swift         # Unified icon loader and cache
     ├── Resources/
     │   └── Localizable.xcstrings             # App string catalog (en source + zh-Hans). Regenerate with scripts/generate_localizable.py

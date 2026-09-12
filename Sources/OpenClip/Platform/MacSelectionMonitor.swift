@@ -31,7 +31,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// Injectable seams for headless tests; production uses live system state.
     internal var frontmostAppProvider: @MainActor () -> NSRunningApplication? = { NSWorkspace.shared.frontmostApplication }
     internal var currentMouseLocation: @MainActor () -> CGPoint = { NSEvent.mouseLocation }
-    internal var currentCursorProvider: @MainActor () -> CursorClass = { CursorClassifier.current }
+    internal var currentCursorProvider: @MainActor () -> CursorClass = { CursorClassifier.current.asCore }
     /// Whether the primary button is physically down (fire-time stationarity input); production
     /// reads AppKit live, tests force it true.
     internal var primaryButtonPressed: @MainActor () -> Bool = { NSEvent.pressedMouseButtons & 1 != 0 }
@@ -59,44 +59,29 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         RuleEngine.shared.resolvePolicies(for: bundleID ?? "")
     }
     
-    /// Key codes (ANSI/QWERTY) that signal a selection gesture worth retrieving.
-    private static let selectAllKeyCode: UInt16 = 0x00      // kVK_ANSI_A
-    /// ⌘L: "select the location" — the address bar in browsers, the current line in editors.
-    /// Like ⌘A it selects a whole container, so it is gated the same way downstream.
-    private static let selectLocationKeyCode: UInt16 = 0x25 // kVK_ANSI_L
-    /// Keys that extend a selection when Shift is held: the four arrows plus the page/line jumps,
-    /// which are the same gesture over a bigger stride (⇧⌥→ and ⇧End both extend a selection).
-    private static let extendKeyCodes: Set<UInt16> = [
-        0x7B, 0x7C, 0x7D, 0x7E,   // left / right / down / up
-        0x73, 0x77,               // home / end
-        0x74, 0x79                // page up / page down
-    ]
-
-    /// Squared drift limits for the hold trigger (points²). A drag beyond `holdDragDisarmSquared`
-    /// (5 px) disarms the pending timer outright; the timer fires only while the press is parked
-    /// within `holdFireDriftSquared` (2 px) — a slow selection drag must never pop the bar.
-    private static let holdDragDisarmSquared: CGFloat = 25.0
-    private static let holdFireDriftSquared: CGFloat = 4.0
-    /// Delay before the second stationarity sample, catching gestures that begin exactly as the
-    /// timer fires (the pointer was parked until that instant).
+    // Delegated to OpenSelectionMonitor
+    internal static let selectAllKeyCode: UInt16 = OpenSelectionMonitor.selectAllKeyCode
+    internal static let selectLocationKeyCode: UInt16 = OpenSelectionMonitor.selectLocationKeyCode
+    internal static let extendKeyCodes: Set<UInt16> = OpenSelectionMonitor.extendKeyCodes
+    internal static let holdDragDisarmSquared: CGFloat = OpenSelectionMonitor.holdDragDisarmSquared
+    internal static let holdFireDriftSquared: CGFloat = OpenSelectionMonitor.holdFireDriftSquared
+    internal static let dragThresholdSquared: CGFloat = OpenSelectionMonitor.dragThresholdSquared
     private static let holdStationaryConfirmDelayNanoseconds: UInt64 = 90_000_000
 
-    /// Pure fire-time decision (unit-tested): the hold trigger only counts as stationary while the
-    /// primary button is down and the pointer sits within `holdFireDriftSquared` of the down point.
     internal static func holdStationary(downPoint: CGPoint?, pointer: CGPoint, buttonPressed: Bool) -> Bool {
-        guard buttonPressed else { return false }
-        guard let downPoint else { return true }
-        let dx = pointer.x - downPoint.x
-        let dy = pointer.y - downPoint.y
-        return dx * dx + dy * dy <= holdFireDriftSquared
+        OpenSelectionMonitor.holdStationary(downPoint: downPoint, pointer: pointer, buttonPressed: buttonPressed)
     }
     
+    internal var innerMonitor: OpenSelectionMonitor
+
     internal init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
         self.settingsStore = settingsStore
+        self.innerMonitor = OpenSelection.monitor()
     }
     
     internal func start() {
         guard monitor == nil else { return }
+        innerMonitor.start()
         
         mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
             let point = NSEvent.mouseLocation
@@ -170,6 +155,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     }
 
     internal func stop() {
+        innerMonitor.stop()
         debounceTask?.cancel()
         debounceTask = nil
         mouseHoldTask?.cancel()
@@ -193,75 +179,18 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         }
     }
     
-    // MARK: - Trigger detection
-    
-    /// True when a key event is a selection gesture OpenClip should retrieve: ⌘A (select all),
-    /// ⌘L (select the address bar / current line), or an extend key with Shift held (⇧/⌥⇧/⌘⇧ +
-    /// arrow, Home, End, Page Up, Page Down). The whole-container gestures require the exact
-    /// `.command` set; extend gestures fire whenever `.shift` is held with optional
-    /// `.option`/`.command`, so plain typing and unrelated shortcuts still don't match.
-    /// Persistent/non-gesture flags (`.capsLock`
-    /// is held in every keyDown's modifierFlags while caps lock is engaged; `.function`, `.numericPad`,
-    /// `.help` are device/hardware bits) are stripped before comparing — Home/End/Page keys carry
-    /// `.function`, so that stripping is what lets them match at all.
+    // MARK: - Trigger detection (delegated to OpenSelectionMonitor)
+
     internal static func isSelectionTrigger(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
-        let gestureFlags = normalizedGestureFlags(flags)
-        if gestureFlags == .command {
-            return keyCode == selectAllKeyCode || keyCode == selectLocationKeyCode
-        }
-        if gestureFlags.contains(.shift) && gestureFlags.isSubset(of: [.shift, .option, .command]) {
-            return extendKeyCodes.contains(keyCode)
-        }
-        return false
+        OpenSelectionMonitor.isSelectionTrigger(keyCode: keyCode, flags: flags)
     }
 
-    /// True for the whole-container select gestures — the exact ⌘A (select all) and ⌘L (select the
-    /// location / line). Both hand the retrieval gate the same "this selects everything in the
-    /// focused container" signal, so a row selection in Finder/Mail is refused while text is not.
     internal static func isSelectAllKey(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
-        let gestureFlags = normalizedGestureFlags(flags)
-        guard gestureFlags == .command else { return false }
-        return keyCode == selectAllKeyCode || keyCode == selectLocationKeyCode
+        OpenSelectionMonitor.isSelectAllKey(keyCode: keyCode, flags: flags)
     }
 
-    /// Strips the flags that are never part of a gesture: `.capsLock` rides along in every keyDown
-    /// while caps lock is engaged, and `.function`/`.numericPad`/`.help` are device bits.
-    private static func normalizedGestureFlags(_ flags: NSEvent.ModifierFlags) -> NSEvent.ModifierFlags {
-        flags
-            .intersection(.deviceIndependentFlagsMask)
-            .subtracting([.capsLock, .function, .numericPad, .help])
-    }
-
-    /// True when a key event clears an existing text selection (navigation or editing keys without Command/Control).
     internal static func isSelectionClearingKey(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
-        // Selection triggers (⌘A, ⌘L, ⇧+arrows/jumps) extend or select text rather than clearing it
-        if isSelectionTrigger(keyCode: keyCode, flags: flags) {
-            return false
-        }
-        let gestureFlags = normalizedGestureFlags(flags)
-        // Command or Control modified keystrokes are shortcuts (e.g. ⌥⌘C, ⌘C, ⌘V, ⌘S), not typing/caret navigation
-        if gestureFlags.contains(.command) || gestureFlags.contains(.control) {
-            return false
-        }
-        // Arrow/navigation keys without Shift move the caret and clear selection
-        if extendKeyCodes.contains(keyCode) {
-            return true
-        }
-        // Escape, Delete, Backspace, Return, Space, Tab
-        let editingKeyCodes: Set<UInt16> = [
-            0x35, // Escape
-            0x33, // Delete / Backspace
-            0x75, // Forward Delete
-            0x24, // Return
-            0x4C, // Enter
-            0x31, // Space
-            0x30  // Tab
-        ]
-        if editingKeyCodes.contains(keyCode) {
-            return true
-        }
-        // Typing keys (plain, Shift, Option, or Shift+Option for special characters/accents)
-        return gestureFlags.isSubset(of: [.shift, .option])
+        OpenSelectionMonitor.isSelectionClearingKey(keyCode: keyCode, flags: flags)
     }
     
     // MARK: - Event handling
@@ -428,7 +357,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         if !isDragOrMultiClick, let downPoint {
             let dx = cursor.x - downPoint.x
             let dy = cursor.y - downPoint.y
-            isDragOrMultiClick = (dx * dx + dy * dy) > 9.0 // > 3px movement
+            isDragOrMultiClick = (dx * dx + dy * dy) > Self.dragThresholdSquared // > 5pt movement
         }
         guard isDragOrMultiClick else {
             clearSelection()
@@ -452,7 +381,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             let result = await retriever.retrieve(
                 for: appIdentity,
                 policy: policy,
-                cursor: CursorClassifier.current
+                cursor: CursorClassifier.current.asCore
             )
             if Task.isCancelled { return }
             await self.deliverSelection(
@@ -498,7 +427,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             let result = await retriever.retrieve(
                 for: appIdentity,
                 policy: policy,
-                cursor: CursorClassifier.current,
+                cursor: CursorClassifier.current.asCore,
                 isSelectAll: isSelectAll
             )
             if Task.isCancelled { return }
@@ -518,31 +447,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         }
     }
 
-    /// Screen anchor for a keyboard-triggered selection popup (pure, unit-tested).
-    ///
-    /// Arrow-key selections anchor on the selection's accessibility bounds so the popup appears
-    /// next to the selected text even when the mouse rests elsewhere. A ⌘A select-all spans the
-    /// whole document, so its top-left corner is meaningless as an anchor — the popup follows the
-    /// pointer instead, matching where the user is working. The pointer fallback also applies
-    /// when there are no usable bounds or the converted anchor lands off-screen.
+    /// Screen anchor for a keyboard-triggered selection popup (delegated to OpenSelectionMonitor).
     internal static func keyboardAnchor(bounds: CGRect?, isSelectAll: Bool, mouseLocation: CGPoint) -> CGPoint {
-        if !isSelectAll, let bounds {
-            let anchor = cocoaPoint(fromAXPoint: CGPoint(x: bounds.minX, y: bounds.minY))
-            if NSScreen.screens.contains(where: { $0.frame.contains(anchor) }) {
-                return anchor
-            }
-        }
-        return mouseLocation
+        OpenSelectionMonitor.keyboardAnchor(bounds: bounds, isSelectAll: isSelectAll, mouseLocation: mouseLocation)
     }
 
-    /// Converts an accessibility-coordinate point into Cocoa screen coordinates. AX uses a global
-    /// top-left origin on the *primary* display (the screen at `.zero`, `NSScreen.screens[0]`) —
-    /// not `NSScreen.main`, which tracks keyboard focus and differs from primary on multi-display
-    /// setups.
-    private static func cocoaPoint(fromAXPoint point: CGPoint) -> CGPoint {
-        guard let primary = NSScreen.screens.first else { return point }
-        return CGPoint(x: point.x, y: primary.frame.maxY - point.y)
-    }
     
     /// Shared post-retrieval assembly: build the length-gated SelectionContext and notify
     /// `onSelection` with the paste-probe result. Used by both the mouse and keyboard paths.

@@ -281,7 +281,7 @@ public final class HotkeyManager {
         if let result = await SelectionRetrievalCoordinator().retrieve(
             for: appIdentity,
             policy: policy,
-            cursor: CursorClassifier.current
+            cursor: CursorClassifier.current.asCore
         ) {
             retrievedText = result.text
             selectionBounds = result.bounds
