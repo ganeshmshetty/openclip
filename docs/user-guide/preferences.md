@@ -23,10 +23,11 @@ immediately without stopping OpenClip, its selection monitoring, or its global s
 The settings window is laid out like System Settings:
 
 - **Search** at the top of the sidebar filters the pages by name and by what they contain — type
-  `hotkey` to find Shortcuts, `api key` to find AI, or an action's name to find the extension that
-  provides it.
-- The sidebar has two groups: OpenClip's own pages (General, Appearance, Actions, Shortcuts,
-  App Rules, Store, About), then **AI and every installed extension**, one page each.
+  `hotkey` to find Shortcuts, `api key` to find AI, `sum` to find Calculate, or an action's name
+  to find the extension that provides it.
+- The sidebar has two groups: OpenClip's own pages (General, Appearance, Customize, Shortcuts,
+  App Rules, Store, About), then **AI, every built-in action, every installed extension and your
+  Custom Actions**, one page each, by name.
 - Anything you drill into — an action's settings, the icon chooser, a prompt — opens as a page in
   the same column. The **‹ ›** arrows in the toolbar (or `⌘[` / `⌘]`) move back and forward
   through the pages you visited, exactly like System Settings. Nothing opens in a popover or a
@@ -34,27 +35,42 @@ The settings window is laid out like System Settings:
 
 ---
 
-## Action Catalog & Drag-and-Drop Reordering
+## Customize: the popup bar's layout
 
-The **Actions** page lists all available builtin actions, user-configured custom actions, and installed extension packages.
+The **Customize** page does two things and nothing else: it sets the **order** of everything in
+the floating popup bar, and it manages **custom groups**.
 
 ```
-Settings > Actions
-├── Drag a row to reorder actions in the floating popup bar (drop onto a group to add to it)
-├── Toggle the switch to enable or disable individual actions
-└── Click › (or double-click the row) to open that row's settings page
+Settings > Customize
+├── Drag a row to reorder the popup bar
+├── Drop an action onto a group to add it; drag it out to remove it
+├── Select several rows, then + › New Group (or right-click › Create Group from Selection…)
+└── Right-click a group › Configure Group… / Ungroup
 ```
 
-A row's **›** opens a page for what the row is: an action opens its editor (name, icon, alias,
-hotkey, options), a custom group opens the group editor, an extension's group row opens the
-**extension's page**, and the AI Tools row opens the **AI** page. The toolbar's **+** offers
-New Group, Add Custom Action and Install Extension…, each as a page.
+Rows carry no switches or buttons. Double-clicking a row opens that action's own page, which is
+where its name, icon, shortcut, options and enable switch live. The toolbar's **+** offers
+New Group and Install Extension….
 
 ### How Action Ordering Works
 - Dragging actions changes their relative order in the floating popup bar.
 - Action ordering is saved automatically via [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) under key `actionOrder`.
 
 ---
+
+## Built-in actions
+
+Search, Copy, Cut, Paste, Calculate, Define, Add Event, Open Link, Reveal in Finder and Word
+Completion each have a row in the sidebar's second group. The page has an **Enabled** switch,
+the name and icon shown in the popup bar, the alias and hotkey, and any options the action
+declares (Search's engine, for example). **Revert** discards unsaved edits; **Save Changes**
+applies them.
+
+## Custom Actions
+
+Your own Open URL, Text Snippet and Shell Script actions live on the **Custom Actions** page:
+each with a switch and a › into its editor, plus **Add Custom Action** (also the toolbar's **+**).
+An action's page has **Duplicate** and **Delete Action…** in its footer.
 
 ## Extensions
 

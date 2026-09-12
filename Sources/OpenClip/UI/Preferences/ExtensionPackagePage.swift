@@ -52,7 +52,7 @@ struct ExtensionPackagePage: View {
             } else {
                 // The package went away while its page was open (uninstalled from the Store, or its
                 // folder was deleted). Show the list rather than an empty pane.
-                Color.clear.onAppear { router.select(.actions) }
+                Color.clear.onAppear { router.select(.customize) }
             }
         }
         .task(id: packageID) {
@@ -331,7 +331,7 @@ struct ExtensionPackagePage: View {
             do {
                 try await ExtensionManager.shared.uninstallExtension(actionID: info.uninstallActionID)
                 NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
-                router.select(.actions)
+                router.select(.customize)
                 router.notify(SettingsNotice(
                     title: String(localized: "Extension Removed"),
                     message: String(localized: "\(name) was removed from this Mac."),

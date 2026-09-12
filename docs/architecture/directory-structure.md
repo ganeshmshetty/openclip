@@ -223,16 +223,18 @@ Sources/
         └── Preferences/                      # Settings window (sidebar + router-driven pages, no popovers/sheets)
             ├── AboutTabView.swift            # About page: app icon/name/version, updates, links, diagnostics
             ├── ActionAppearanceFields.swift  # Hero icon/name/display-mode fields + IconPickerPage
-            ├── ActionEditorPage.swift        # One action's settings page (appearance, keyboard, options/logic)
+            ├── ActionDuplicator.swift        # Duplicate a custom action or extension next to the original
+            ├── ActionEditorPage.swift        # One action's settings page (enabled, appearance, keyboard, options/logic, delete/duplicate)
             ├── ActionEnablement.swift        # Shared enable-switch rule for actions and packages
-            ├── ActionsOutlineView.swift      # Native NSOutlineView for the Actions page (reorder, groups, drag/drop)
-            ├── ActionsTabView.swift          # Actions page: outline + ActionRowView/PackageHeaderRowView, row → page routing
+            ├── ActionsOutlineView.swift      # Native NSOutlineView for the Customize page (reorder, groups, drag/drop)
             ├── AddApplicationPage.swift      # App Rules ▸ Add Application page (running/installed apps, custom bundle id)
             ├── AIActionsSection.swift        # AI prompt library section (reorderable, rows drill into a prompt)
             ├── AIConfigureForm.swift         # Shared AI engine/provider form (embedded in AIPage and onboarding)
             ├── AIPage.swift                  # AI page (toggle + engine + prompts) and the prompt edit/new pages
             ├── AppearanceTabView.swift       # Appearance page: popup preview + theme selector
             ├── AppRulesTab.swift             # Application rules page
+            ├── CustomActionsPage.swift       # The user's custom actions: list, switches, add
+            ├── CustomizePage.swift           # Customize page: popup bar order + custom groups (outline + plain rows)
             ├── DynamicActionConfigView.swift # Dynamic extension options configuration view
             ├── ExtensionCardView.swift       # Store list row for a single extension listing
             ├── ExtensionInstallPanel.swift   # Shared "Install File…" NSOpenPanel presenter
@@ -247,6 +249,7 @@ Sources/
             ├── PreferencesToolbar.swift      # AppKit toolbar: back/forward group, title, store filter/search, + button
             ├── PreferencesView.swift         # Settings window root: sidebar + SettingsNavigationStack detail
             ├── SettingsNavigationStack.swift # Mounted-levels page host, SettingsEditorPage footer layout, shared rows
+            ├── SettingsDestination.swift     # Router path for any action's settings (builtin row / extension / custom / group)
             ├── SettingsNoticeBanner.swift    # Inline (glass) notice that replaces NSAlert in the window
             ├── SettingsRouter.swift          # SettingsPage enum + SettingsRouter (path, history, notices)
             ├── SettingsRowLabel.swift        # Shared settings row shapes

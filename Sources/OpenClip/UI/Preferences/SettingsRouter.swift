@@ -24,15 +24,22 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     // Sidebar — OpenClip
     case general
     case appearance
-    case actions
+    /// The popup bar's layout: the order of everything on it, and custom groups. Nothing else —
+    /// every action's own settings live on the action's page.
+    case customize
     case shortcuts
     case appRules
     case store
     case about
 
-    // Sidebar — Extensions. AI is first, then one row per installed package.
+    // Sidebar — the second group. AI first, then every built-in action, every installed
+    /// extension and the user's custom actions, one row each, by name.
     case ai
     case extensionPackage(id: String)
+    /// A built-in action's settings (Copy, Search, Calculate, …), as its own sidebar row.
+    case builtinAction(id: String)
+    /// The user's own Open URL / Text Snippet / Shell Script actions.
+    case customActions
 
     // Pages reached from a sidebar page.
     /// One action's settings, or one group's when the id names a group.
@@ -50,13 +57,15 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         switch self {
         case .general: return "general"
         case .appearance: return "appearance"
-        case .actions: return "actions"
+        case .customize: return "customize"
         case .shortcuts: return "shortcuts"
         case .appRules: return "appRules"
         case .store: return "store"
         case .about: return "about"
         case .ai: return "ai"
         case .extensionPackage(let id): return "extension:\(id)"
+        case .builtinAction(let id): return "builtin:\(id)"
+        case .customActions: return "customActions"
         case .action(let id): return "action:\(id)"
         case .newCustomAction: return "newCustomAction"
         case .newGroup: return "newGroup"
@@ -69,13 +78,14 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
 
     /// The sidebar's first group, in order.
     public static let systemPages: [SettingsPage] = [
-        .general, .appearance, .actions, .shortcuts, .appRules, .store, .about
+        .general, .appearance, .customize, .shortcuts, .appRules, .store, .about
     ]
 
     /// True for pages the sidebar lists; false for pages reached from one of them.
     public var isSidebarPage: Bool {
         switch self {
-        case .general, .appearance, .actions, .shortcuts, .appRules, .store, .about, .ai, .extensionPackage:
+        case .general, .appearance, .customize, .shortcuts, .appRules, .store, .about, .ai, .extensionPackage,
+             .builtinAction, .customActions:
             return true
         case .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
             return false
@@ -88,7 +98,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         switch self {
         case .general: return String(localized: "General")
         case .appearance: return String(localized: "Appearance")
-        case .actions: return String(localized: "Actions")
+        case .customize: return String(localized: "Customize")
         case .shortcuts: return String(localized: "Shortcuts")
         case .appRules: return String(localized: "App Rules")
         case .store: return String(localized: "Store")
@@ -99,7 +109,8 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .iconPicker: return String(localized: "Choose Icon")
         case .aiNewPreset: return String(localized: "New AI Action")
         case .addApplication: return String(localized: "Add Application")
-        case .extensionPackage, .action, .aiPreset: return nil
+        case .customActions: return String(localized: "Custom Actions")
+        case .extensionPackage, .builtinAction, .action, .aiPreset: return nil
         }
     }
 
@@ -108,13 +119,15 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         switch self {
         case .general: return "gearshape.fill"
         case .appearance: return "paintbrush.fill"
-        case .actions: return "bolt.horizontal.fill"
+        case .customize: return "slider.horizontal.3"
         case .shortcuts: return "command"
         case .appRules: return "shield.checkered"
         case .store: return "bag.fill"
         case .about: return "info.circle.fill"
         case .ai: return "sparkles"
         case .extensionPackage: return "puzzlepiece.extension.fill"
+        case .builtinAction: return "bolt.fill"
+        case .customActions: return "wand.and.stars"
         case .action: return "slider.horizontal.3"
         case .newCustomAction: return "plus.circle.fill"
         case .newGroup: return "folder.fill.badge.plus"
@@ -129,13 +142,14 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         switch self {
         case .general: return Color(nsColor: .systemGray)
         case .appearance: return .pink
-        case .actions: return .orange
+        case .customize: return .orange
         case .shortcuts: return .green
         case .appRules: return .indigo
         case .store: return .blue
         case .about: return .teal
         case .ai: return .purple
-        case .extensionPackage, .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
+        case .customActions: return .mint
+        case .extensionPackage, .builtinAction, .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
             return .gray
         }
     }
@@ -146,13 +160,14 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         switch self {
         case .general: return ["startup", "launch", "login", "menu bar", "trigger", "hotkey", "permission", "accessibility", "paste", "copy", "preview"]
         case .appearance: return ["theme", "dark", "light", "glass", "popup", "preview"]
-        case .actions: return ["extension", "group", "enable", "order", "reorder", "custom action", "install"]
+        case .customize: return ["actions", "popup bar", "order", "reorder", "arrange", "group", "groups", "layout", "install"]
         case .shortcuts: return ["hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .appRules: return ["apps", "exclude", "allow", "block", "rules", "disable", "per-app"]
         case .store: return ["extensions", "install", "catalog", "browse", "download"]
         case .about: return ["version", "update", "licence", "license", "logs", "diagnostics", "github"]
         case .ai: return ["model", "api key", "prompt", "openai", "claude", "gemini", "ollama", "cli", "local", "cloud", "apple intelligence", "rewrite", "summarize"]
-        case .extensionPackage, .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
+        case .customActions: return ["custom", "snippet", "script", "shell", "url", "open url", "text snippet", "my actions"]
+        case .extensionPackage, .builtinAction, .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
             return []
         }
     }
@@ -295,14 +310,10 @@ public final class SettingsRouter: ObservableObject {
     /// Opens an action's page because something outside the window asked for it, keeping the
     /// request so the page can explain why and highlight what is missing.
     public func openConfiguration(for action: any Action, request: ConfigurationRequest?) {
-        if action.chrome.launchesAI {
-            select(.ai)
-            return
-        }
-        if let request {
+        if let request, !action.chrome.launchesAI {
             configurationRequests[action.id] = request
         }
-        show(path: [.actions, .action(id: action.id)])
+        show(path: SettingsDestination.path(for: action))
     }
 
     public func configurationRequest(for actionID: String) -> ConfigurationRequest? {

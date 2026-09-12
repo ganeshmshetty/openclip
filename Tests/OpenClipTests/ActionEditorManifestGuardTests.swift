@@ -1,16 +1,15 @@
-// ActionRowControlsTests.swift
+// ActionEditorManifestGuardTests.swift
 // OpenClip
 //
-// Pins which trailing controls an Actions-tab row exposes. A command inside a multi-command
-// extension (an extension-group sub-action) gets the settings cog when — and only when — it
-// declares options, and never the delete control. It also pins the edit sheet's guard against
-// rewriting the parent group's manifest entry when the sheet was opened for a nested sub-action.
+// Pins the Customize outline's node identity (a hot-reloaded manifest that adds options must
+// re-render the row) and the action editor's guard against rewriting the parent group's manifest
+// entry when the editor was opened for a nested sub-action.
 import XCTest
 @testable import Core
 @testable import OpenClip
 
 @MainActor
-final class ActionRowControlsTests: XCTestCase {
+final class ActionEditorManifestGuardTests: XCTestCase {
     private let packageID = "io.appwrite.openclip.function-runner"
     private var groupID: String { "\(packageID).appwrite" }
 
@@ -20,30 +19,6 @@ final class ActionRowControlsTests: XCTestCase {
 
     private func endpointOption() -> ExtensionOption {
         ExtensionOption(identifier: "endpoint", label: "Endpoint", defaultValue: "https://cloud.appwrite.io/v1")
-    }
-
-    // MARK: - Sub-action rows
-
-    func testSubActionWithOptionsShowsSettingsButNotDelete() {
-        let action = OptionedAction(id: "\(groupID).execute", packageID: packageID, options: [endpointOption()])
-        let controls = subActionNode(action).rowControls
-        XCTAssertTrue(controls.contains(.settings), "A command that declares options needs the settings cog")
-        XCTAssertFalse(controls.contains(.delete), "A command is removed with its package, never on its own")
-    }
-
-    func testSubActionWithoutOptionsShowsSettingsButNotDelete() {
-        let action = OptionedAction(id: "\(groupID).plain", packageID: packageID, options: [])
-        let controls = subActionNode(action).rowControls
-        XCTAssertTrue(controls.contains(.settings), "A command without options still needs settings for custom title/icon")
-        XCTAssertFalse(controls.contains(.delete), "A command is removed with its package, never on its own")
-    }
-
-    func testDecoratedSubActionForwardsOptionsToControls() {
-        // The factory wraps sub-actions that declare keywords / delivery / menu relevance; the cog
-        // decision must see the options through the wrapper.
-        let base = OptionedAction(id: "\(groupID).execute", packageID: packageID, options: [endpointOption()])
-        let wrapped = KeywordDecoratedAction(base: base, keywords: ["run"])
-        XCTAssertTrue(subActionNode(wrapped).rowControls.contains(.settings))
     }
 
     func testSubActionOptionsChangeTheNodeSignature() {
@@ -72,33 +47,14 @@ final class ActionRowControlsTests: XCTestCase {
         XCTAssertNotEqual(node1.signature, node2.signature)
     }
 
-    // MARK: - Other rows
-
-    func testTopLevelRowsKeepBothControls() {
-        let standalone = OptionedAction(id: "\(packageID).single", packageID: packageID, options: [])
-        XCTAssertEqual(OutlineNode(id: standalone.id, kind: .standaloneAction(standalone)).rowControls, .all)
-
-        let group = GroupAction(
-            id: groupID,
-            title: "Appwrite",
-            icon: .symbol("bolt"),
-            chrome: ActionChrome(rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .extensionPkg(packageID: packageID))
-        )
-        XCTAssertEqual(OutlineNode(id: group.id, kind: .extensionGroup(group)).rowControls, .all)
-    }
-
-    func testPackageHeaderHasNoControls() {
-        let node = OutlineNode(id: "header:\(packageID)", kind: .packageHeader(packageID: packageID, title: "Appwrite", gatedReason: nil))
-        XCTAssertTrue(node.rowControls.isEmpty)
-    }
-
-    // MARK: - Edit sheet manifest-save guard
+    // MARK: - Action editor manifest-save guard
 
     private func groupManifest() -> ExtensionMetadata {
         let sub = ExtensionActionMetadata(id: "execute", title: "Execute Function", script: "main.js", type: "javascript")
         let group = ExtensionActionMetadata(id: "appwrite", title: "Appwrite", type: "group", subActions: [sub])
         return ExtensionMetadata(identifier: packageID, name: "Appwrite Function Runner", actions: [group], options: nil)
     }
+
 
     func testLocatedEntryBacksTopLevelAction() {
         let state = LocatedManifest(manifestURL: URL(fileURLWithPath: "/tmp/openclip.json"), manifest: groupManifest(), targetIndex: 0)

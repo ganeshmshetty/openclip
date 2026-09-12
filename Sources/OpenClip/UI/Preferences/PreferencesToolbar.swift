@@ -147,8 +147,10 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         setHidden(searchItem, !showsStoreControls)
 
         switch page {
-        case .actions:
-            configureActionButton(symbol: "plus", tooltip: String(localized: "Add Action or Group"))
+        case .customize:
+            configureActionButton(symbol: "plus", tooltip: String(localized: "New Group or Install Extension"))
+        case .customActions:
+            configureActionButton(symbol: "plus", tooltip: String(localized: "Add Custom Action"))
         case .appRules:
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Application"))
         case .store:
@@ -211,14 +213,15 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
 
     @objc private func actionButtonPressed(_ sender: NSButton) {
         switch model.page {
-        case .actions:
-            // The Actions page's button offers three ways to add, so it drops a
-            // menu rather than firing one action.
+        case .customize:
+            // Two ways to add to the popup bar's layout, so the button drops a menu rather than
+            // firing one action. Custom actions are added on their own page.
             let menu = NSMenu()
             menu.addItem(menuItem(String(localized: "New Group"), symbol: "folder.badge.plus", action: #selector(menuNewGroup)))
-            menu.addItem(menuItem(String(localized: "Add Custom Action"), symbol: "plus.circle", action: #selector(menuAddCustomAction)))
             menu.addItem(menuItem(String(localized: "Install Extension…"), symbol: "square.and.arrow.down", action: #selector(menuInstallExtension)))
             menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
+        case .customActions:
+            model.actions.send(.addCustomAction)
         case .appRules:
             model.actions.send(.addApplication)
         case .store:

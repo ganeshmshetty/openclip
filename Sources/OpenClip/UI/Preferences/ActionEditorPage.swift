@@ -1,10 +1,11 @@
 // ActionEditorPage.swift
 // OpenClip
 //
-// One action's settings as a page of the Settings window: appearance (name, icon, how the popup
-// bar shows it), keyboard (alias, hotkey), and either the options the action declares or, for a
-// GUI-authored custom action, its execution logic. Reached from the action's row in the Actions
-// list, from its extension's page, or from the Shortcuts table.
+// One action's settings as a page of the Settings window: whether it is on, appearance (name,
+// icon, how the popup bar shows it), keyboard (alias, hotkey), and either the options the action
+// declares or, for a GUI-authored custom action, its execution logic. A built-in action shows it
+// as its own sidebar page; an extension's command, a custom action or a group reach it from their
+// owner's page, the Customize list or the Shortcuts table.
 //
 // This used to be an `.applicationDefined` NSPopover pinned to a list row: a 370pt floating panel
 // that ignored clicks in the list behind it, ignored Escape, and stayed up when you changed panes.
@@ -18,7 +19,13 @@ import KeyboardShortcuts
 @MainActor
 public struct ActionEditorPage: View {
     let action: any Action
+    /// True when the page is a sidebar row of its own (a built-in action): there is nothing to go
+    /// back to, so Cancel becomes Revert and Save stays on the page.
+    let isSidebarPage: Bool
+    @Binding private var disabledActionIDs: Set<String>
+    @Binding private var disabledPackages: Set<String>
     @ObservedObject private var router = SettingsRouter.shared
+    @ObservedObject private var coordinator = ActionCoordinator.shared
 
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
@@ -61,9 +68,37 @@ public struct ActionEditorPage: View {
     /// to run modal over the window.
     @State private var saveErrorMessage: String?
     @State private var aliasText: String = ""
+    @State private var isConfirmingDelete = false
+    @State private var isDuplicating = false
 
-    public init(action: any Action) {
+    public init(
+        action: any Action,
+        disabledActionIDs: Binding<Set<String>>,
+        disabledPackages: Binding<Set<String>>,
+        isSidebarPage: Bool = false
+    ) {
         self.action = action
+        _disabledActionIDs = disabledActionIDs
+        _disabledPackages = disabledPackages
+        self.isSidebarPage = isSidebarPage
+    }
+
+    /// The switch the row in the Customize list used to carry. Live, not part of Save: turning an
+    /// action off is not an edit to it.
+    private var isEnabled: Binding<Bool> {
+        ActionEnablement.binding(
+            for: action,
+            disabledActionIDs: $disabledActionIDs,
+            disabledPackages: $disabledPackages
+        )
+    }
+
+    private var isCustomAction: Bool {
+        SettingsDestination.isCustomAction(action)
+    }
+
+    private var canDuplicate: Bool {
+        ActionIdentity.canDuplicate(action)
     }
 
     private var isBuiltin: Bool {
@@ -76,9 +111,15 @@ public struct ActionEditorPage: View {
         router.configurationRequest(for: action.id)
     }
 
+    /// Leaves the page, or — on a sidebar page — stays and reloads it from what is saved.
     private func close() {
         router.clearConfigurationRequest(for: action.id)
-        router.pop()
+        if isSidebarPage {
+            saveErrorMessage = nil
+            loadInitialState()
+        } else {
+            router.pop()
+        }
     }
 
     /// Banner text when the page was opened because the action needs configuration. Falls back to a
@@ -119,6 +160,21 @@ public struct ActionEditorPage: View {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .stroke(Color.orange.opacity(0.35), lineWidth: 1)
                     )
+                }
+
+                InsetGroupCard {
+                    SettingsRow(
+                        title: "Enabled",
+                        subtitle: "Off hides the action from the popup bar and the palette.",
+                        systemImage: "power"
+                    ) {
+                        Toggle("", isOn: isEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .accessibilityLabel(String(localized: "Enable \(action.title)"))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
                 }
 
                 // Hero Header Card (Icon, Name & Display Mode)
@@ -299,9 +355,40 @@ public struct ActionEditorPage: View {
                     .font(.caption)
                     .disabled(manifestMissing)
 
+                    if canDuplicate {
+                        Button(isDuplicating ? "Duplicating…" : "Duplicate") {
+                            duplicate()
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                        .disabled(isDuplicating)
+                    }
+
+                    if isCustomAction {
+                        if isConfirmingDelete {
+                            Text("Delete this action?")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Keep") { isConfirmingDelete = false }
+                                .controlSize(.small)
+                            Button("Delete", role: .destructive) { deleteAction() }
+                                .controlSize(.small)
+                                .buttonStyle(.borderedProminent)
+                                .tint(.red)
+                        } else {
+                            Button("Delete Action…", role: .destructive) {
+                                isConfirmingDelete = true
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                        }
+                    }
+
                     Spacer()
 
-                    Button("Cancel") { close() }
+                    Button(isSidebarPage ? "Revert" : "Cancel") { close() }
                         .keyboardShortcut(.cancelAction)
 
                     Button("Save Changes") {
@@ -322,6 +409,47 @@ public struct ActionEditorPage: View {
         }
         .onDisappear {
             router.clearConfigurationRequest(for: action.id)
+        }
+    }
+
+    // MARK: - Delete and duplicate
+
+    /// Removes a custom action the way the Customize list's trash used to: a store-backed one is
+    /// deleted from the store, a manifest-backed one has its package removed.
+    private func deleteAction() {
+        let id = action.id
+        Task {
+            if case .custom = action.chrome.source {
+                ActionCoordinator.shared.deleteCustomAction(actionID: id)
+                ActionCustomizationManager.shared.resetOverride(for: id)
+            } else {
+                do {
+                    try await ExtensionManager.shared.uninstallExtension(actionID: id)
+                    ActionCustomizationManager.shared.resetOverride(for: id)
+                    NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                } catch {
+                    Log.extensions.error("Failed to remove custom action '\(id, privacy: .public)': \(error.localizedDescription)")
+                    isConfirmingDelete = false
+                    router.notifyError(
+                        title: String(localized: "Remove Failed"),
+                        message: String(localized: "OpenClip could not remove extension: \(error.localizedDescription)")
+                    )
+                    return
+                }
+            }
+            router.clearConfigurationRequest(for: id)
+            router.pop()
+        }
+    }
+
+    /// Makes a copy next to this action and opens the copy's page.
+    private func duplicate() {
+        isDuplicating = true
+        Task {
+            defer { isDuplicating = false }
+            guard let newID = await ActionDuplicator.duplicate(actionID: action.id),
+                  let copy = coordinator.actions.first(where: { $0.id == newID }) else { return }
+            SettingsDestination.open(copy)
         }
     }
 

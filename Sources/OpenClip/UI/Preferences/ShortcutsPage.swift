@@ -6,7 +6,7 @@
 // Until now the only way to see or change an action's hotkey was to find its row in the Actions
 // list, click its gear, and read the KEYBOARD card inside the floating editor — one action at a
 // time, with no way to see what was already taken. Answering "what is ⌥⌘T bound to?" meant opening
-// fifteen popovers.
+// fifteen popovers. Clicking a name here opens the action's page wherever it lives.
 //
 // Every action's global shortcut on one categorized page, so bindings are set where they can be
 // compared. The per-action page keeps its own copy of the same two fields — a binding is
@@ -121,7 +121,7 @@ struct ShortcutsPage: View {
             // The name is the way into the action's own page: the shortcuts table is a map, and a
             // map should let you open what it points at.
             Button {
-                router.push(.action(id: action.id))
+                SettingsDestination.open(action)
             } label: {
                 Text(presentation.title)
                     .font(.system(size: 13))

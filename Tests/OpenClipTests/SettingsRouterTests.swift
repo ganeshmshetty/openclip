@@ -3,8 +3,8 @@
 //
 // Pins the settings window's navigation model: the router's path and history (what the toolbar's
 // back/forward arrows walk), the sidebar's search matching, how installed extensions are derived
-// from the action catalog for the sidebar's second group, and which page a row in the Actions
-// list opens.
+// from the action catalog for the sidebar's second group, and where every kind of action's
+// settings live.
 
 import XCTest
 import SwiftUI
@@ -27,27 +27,27 @@ final class SettingsRouterTests: XCTestCase {
 
     func testSelectReplacesThePathAndRecordsEveryStep() {
         let router = SettingsRouter()
-        router.select(.actions)
+        router.select(.customize)
         router.push(.action(id: "builtin.search"))
         router.select(.ai)
 
         XCTAssertEqual(router.path, [.ai])
-        XCTAssertEqual(router.history, [[.general], [.actions], [.actions, .action(id: "builtin.search")], [.ai]])
+        XCTAssertEqual(router.history, [[.general], [.customize], [.customize, .action(id: "builtin.search")], [.ai]])
         XCTAssertTrue(router.canGoBack)
         XCTAssertFalse(router.canGoForward)
     }
 
     func testPushDrillsInAndPopComesBackOut() {
         let router = SettingsRouter()
-        router.select(.actions)
+        router.select(.customize)
         router.push(.action(id: "a"))
-        XCTAssertEqual(router.path, [.actions, .action(id: "a")])
-        XCTAssertEqual(router.sidebarPage, .actions, "the sidebar keeps the page the editor was reached from")
+        XCTAssertEqual(router.path, [.customize, .action(id: "a")])
+        XCTAssertEqual(router.sidebarPage, .customize, "the sidebar keeps the page the editor was reached from")
         XCTAssertEqual(router.currentPage, .action(id: "a"))
 
         router.pop()
-        XCTAssertEqual(router.path, [.actions])
-        XCTAssertEqual(router.history.last, [.actions], "pop is a navigation of its own, so it is recorded")
+        XCTAssertEqual(router.path, [.customize])
+        XCTAssertEqual(router.history.last, [.customize], "pop is a navigation of its own, so it is recorded")
     }
 
     func testPopOnASidebarPageIsANoOp() {
@@ -61,27 +61,27 @@ final class SettingsRouterTests: XCTestCase {
 
     func testPushingAPageAlreadyInThePathReturnsToItInsteadOfStacking() {
         let router = SettingsRouter()
-        router.select(.actions)
+        router.select(.customize)
         router.push(.action(id: "a"))
         router.pushIconPicker(writingTo: .constant("bolt"))
         XCTAssertEqual(router.path.count, 3)
 
         router.push(.action(id: "a"))
-        XCTAssertEqual(router.path, [.actions, .action(id: "a")])
+        XCTAssertEqual(router.path, [.customize, .action(id: "a")])
     }
 
     func testBackAndForwardWalkTheHistory() {
         let router = SettingsRouter()
-        router.select(.actions)
+        router.select(.customize)
         router.push(.action(id: "a"))
         router.select(.about)
 
         router.goBack()
-        XCTAssertEqual(router.path, [.actions, .action(id: "a")])
+        XCTAssertEqual(router.path, [.customize, .action(id: "a")])
         XCTAssertTrue(router.canGoForward)
 
         router.goBack()
-        XCTAssertEqual(router.path, [.actions])
+        XCTAssertEqual(router.path, [.customize])
         router.goBack()
         XCTAssertEqual(router.path, [.general])
         XCTAssertFalse(router.canGoBack)
@@ -99,36 +99,36 @@ final class SettingsRouterTests: XCTestCase {
 
     func testANewNavigationAfterGoingBackDropsTheForwardEntries() {
         let router = SettingsRouter()
-        router.select(.actions)
+        router.select(.customize)
         router.select(.about)
         router.goBack()
         XCTAssertTrue(router.canGoForward)
 
         router.select(.shortcuts)
         XCTAssertFalse(router.canGoForward)
-        XCTAssertEqual(router.history, [[.general], [.actions], [.shortcuts]])
+        XCTAssertEqual(router.history, [[.general], [.customize], [.shortcuts]])
     }
 
     func testShowingTheCurrentPathAgainRecordsNothing() {
         let router = SettingsRouter()
-        router.select(.actions)
-        router.select(.actions)
-        router.show(path: [.actions])
-        XCTAssertEqual(router.history, [[.general], [.actions]])
+        router.select(.customize)
+        router.select(.customize)
+        router.show(path: [.customize])
+        XCTAssertEqual(router.history, [[.general], [.customize]])
     }
 
     func testSelectingTheSidebarPageWhileDrilledInReturnsToItsTop() {
         let router = SettingsRouter()
-        router.select(.actions)
+        router.select(.customize)
         router.push(.action(id: "a"))
-        router.select(.actions)
-        XCTAssertEqual(router.path, [.actions])
+        router.select(.customize)
+        XCTAssertEqual(router.path, [.customize])
     }
 
     func testHistoryIsCapped() {
         let router = SettingsRouter()
         for step in 0..<(SettingsRouter.historyLimit + 40) {
-            router.select(step % 2 == 0 ? .actions : .general)
+            router.select(step % 2 == 0 ? .customize : .general)
         }
         XCTAssertEqual(router.history.count, SettingsRouter.historyLimit)
         XCTAssertEqual(router.historyIndex, SettingsRouter.historyLimit - 1)
@@ -142,7 +142,8 @@ final class SettingsRouterTests: XCTestCase {
 
         router.openConfiguration(for: action, request: request)
 
-        XCTAssertEqual(router.path, [.actions, .action(id: action.id)])
+        XCTAssertEqual(router.path, [.extensionPackage(id: "com.example.tool"), .action(id: action.id)],
+                       "an extension's command is configured under its extension")
         XCTAssertEqual(router.configurationRequest(for: action.id), request)
         router.clearConfigurationRequest(for: action.id)
         XCTAssertNil(router.configurationRequest(for: action.id))
@@ -152,7 +153,7 @@ final class SettingsRouterTests: XCTestCase {
         let router = SettingsRouter()
         var symbol = "bolt"
         let binding = Binding(get: { symbol }, set: { symbol = $0 })
-        router.select(.actions)
+        router.select(.customize)
         router.push(.action(id: "a"))
         router.pushIconPicker(writingTo: binding)
 
@@ -251,23 +252,34 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertNil(extensionGateDescription(for: .revoked), "a revoked package is explained by its switch being off")
     }
 
-    // MARK: - Where a row goes
+    // MARK: - Where an action's settings live
 
-    func testActionRowsOpenTheRightPage() {
-        let plain = StubAction(id: "builtin.copy", title: "Copy", chrome: ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin))
-        XCTAssertEqual(ActionsTab.settingsPage(for: plain), .action(id: "builtin.copy"))
+    func testEveryKindOfActionHasOneHome() {
+        let builtin = StubAction(id: "builtin.copy", title: "Copy", chrome: ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin))
+        XCTAssertEqual(SettingsDestination.path(for: builtin), [.builtinAction(id: "builtin.copy")], "a built-in is a sidebar row of its own")
 
         let group = StubAction(id: "com.openclip.jwt.jwt", title: "JWT", chrome: Self.extensionChrome(package: "com.openclip.jwt", badgeName: "JWT", popupBehavior: .showSubActions))
-        XCTAssertEqual(ActionsTab.settingsPage(for: group), .extensionPackage(id: "com.openclip.jwt"), "an extension's group row is the extension")
+        XCTAssertEqual(SettingsDestination.path(for: group), [.extensionPackage(id: "com.openclip.jwt")], "an extension's group row is the extension")
 
         let command = StubAction(id: "com.openclip.jwt.jwt.inspect", title: "Inspect", chrome: Self.extensionChrome(package: "com.openclip.jwt", badgeName: "JWT"))
-        XCTAssertEqual(ActionsTab.settingsPage(for: command), .action(id: command.id))
+        XCTAssertEqual(SettingsDestination.path(for: command), [.extensionPackage(id: "com.openclip.jwt"), .action(id: command.id)], "a command sits under its extension")
 
-        let customGroup = StubAction(id: "custom.abc.group", title: "Mine", chrome: Self.extensionChrome(package: "custom.abc", badgeName: "Mine", popupBehavior: .showSubActions))
-        XCTAssertEqual(ActionsTab.settingsPage(for: customGroup), .action(id: customGroup.id), "a custom package is the user's action, not an extension")
+        let custom = StubAction(id: "custom.abc123", title: "Mine", chrome: ActionChrome(badge: .custom, rowStyle: .standard, popupBehavior: .perform, source: .custom))
+        XCTAssertEqual(SettingsDestination.path(for: custom), [.customActions, .action(id: "custom.abc123")])
+        XCTAssertTrue(SettingsDestination.isCustomAction(custom))
+
+        let manifestBackedCustom = StubAction(id: "custom.def456", title: "Snippet", chrome: Self.extensionChrome(package: "custom.def456", badgeName: "Snippet"))
+        XCTAssertEqual(SettingsDestination.path(for: manifestBackedCustom), [.customActions, .action(id: "custom.def456")], "a custom action stored as a manifest package is still the user's action")
+        XCTAssertTrue(SettingsDestination.isCustomAction(manifestBackedCustom))
+
+        let customGroup = StubAction(id: "vgroup.abc", title: "My Group", chrome: ActionChrome(badge: .none, rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .custom))
+        XCTAssertEqual(SettingsDestination.path(for: customGroup), [.customize, .action(id: "vgroup.abc")], "groups are made and edited on Customize")
+        XCTAssertFalse(SettingsDestination.isCustomAction(customGroup))
 
         let gated = GatedExtensionAction(packageID: "com.example.gated", title: "Gated", icon: .symbol("lock"), chrome: Self.extensionChrome(package: "com.example.gated"), reason: .notEnabled)
-        XCTAssertEqual(ActionsTab.settingsPage(for: gated), .extensionPackage(id: "com.example.gated"))
+        XCTAssertEqual(SettingsDestination.path(for: gated), [.extensionPackage(id: "com.example.gated")])
+
+        XCTAssertEqual(SettingsDestination.path(forPackage: "com.example.multi"), [.extensionPackage(id: "com.example.multi")])
     }
 
     // MARK: - Helpers

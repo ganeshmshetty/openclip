@@ -258,8 +258,6 @@ final class ActionGroupIntegrationTests: XCTestCase {
             coordinator: coordinator,
             customizationManager: ActionCustomizationManager(settingsStore: settingsStore),
             selectedRowIDs: .constant([]),
-            disabledActionIDs: .constant([]),
-            disabledPackages: .constant([]),
             onEditGroup: { _ in },
             onCreateGroupFromSelection: { },
             onOpenNode: { _ in }
@@ -321,22 +319,17 @@ final class ActionGroupIntegrationTests: XCTestCase {
             return results
         }
 
-        var switchFrames: [CGRect] = []
+        // The Customize list is the popup bar's layout and nothing else: every row type (an
+        // extension group and its sub-action, a custom group and its members, a package header and
+        // its actions) renders a cell, and none of them carries a switch or any other control —
+        // enabling, configuring and removing all live on the action's own page.
+        var renderedRows = 0
         for r in 0..<outlineView.numberOfRows {
             guard let rowView = outlineView.view(atColumn: 0, row: r, makeIfNecessary: true) else { continue }
-            let switches = findSwitches(in: rowView).map { $0.window?.contentView?.convert($0.bounds, from: $0) ?? .zero }
-            if let sw = switches.first {
-                switchFrames.append(sw)
-            }
+            renderedRows += 1
+            XCTAssertTrue(findSwitches(in: rowView).isEmpty, "Row \(r) must not carry a switch; the action's page owns it")
         }
-
-        XCTAssertGreaterThanOrEqual(switchFrames.count, 4, "Must find switches across multiple row types")
-        if let baseline = switchFrames.first {
-            for (idx, frame) in switchFrames.enumerated() {
-                XCTAssertEqual(frame.minX, baseline.minX, accuracy: 1.0, "Switch in row \(idx) must align horizontally with baseline (minX: \(frame.minX) vs \(baseline.minX))")
-                XCTAssertEqual(frame.maxX, baseline.maxX, accuracy: 1.0, "Switch in row \(idx) must align horizontally with baseline (maxX: \(frame.maxX) vs \(baseline.maxX))")
-            }
-        }
+        XCTAssertGreaterThanOrEqual(renderedRows, 7, "Must render cells across every row type")
     }
 
     func testOutlineViewRebuildsAndReloadsOnIconCustomizationChange() {
@@ -345,8 +338,6 @@ final class ActionGroupIntegrationTests: XCTestCase {
             coordinator: coordinator,
             customizationManager: customizationManager,
             selectedRowIDs: .constant([]),
-            disabledActionIDs: .constant([]),
-            disabledPackages: .constant([]),
             onEditGroup: { _ in },
             onCreateGroupFromSelection: { },
             onOpenNode: { _ in }
@@ -390,8 +381,6 @@ final class ActionGroupIntegrationTests: XCTestCase {
             coordinator: coordinator,
             customizationManager: customizationManager,
             selectedRowIDs: .constant([]),
-            disabledActionIDs: .constant([]),
-            disabledPackages: .constant([]),
             onEditGroup: { _ in },
             onCreateGroupFromSelection: { },
             onOpenNode: { _ in }

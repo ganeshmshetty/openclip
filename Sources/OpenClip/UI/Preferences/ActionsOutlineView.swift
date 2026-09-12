@@ -1,9 +1,10 @@
 // ActionsOutlineView.swift
 // OpenClip
 //
-// Native AppKit NSOutlineView wrapper for the Actions preference tab.
+// Native AppKit NSOutlineView wrapper for the Customize page.
 // Implements hierarchical tree presentation, native macOS folder drop highlighting,
-// spring-loaded folder expansion, multi-selection, and reordering.
+// spring-loaded folder expansion, multi-selection, and reordering. Rows carry no controls: the
+// page is the popup bar's layout, and an action's settings are a page of their own.
 
 import AppKit
 import SwiftUI
@@ -82,21 +83,6 @@ final class OutlineNode: NSObject {
         switch kind {
         case .customGroup(let def, _): return def
         default: return nil
-        }
-    }
-
-    /// Trailing controls for this row's `ActionRowView`. An extension sub-action is removed with
-    /// its package, so it never gets the delete control; it gets the settings cog only when the
-    /// command declares options (a multi-command extension configures each command on its own
-    /// row — the group's cog opens the group editor, which has no option fields).
-    var rowControls: ActionRowControls {
-        switch kind {
-        case .extensionSubAction:
-            return .settings
-        case .packageHeader:
-            return []
-        case .customGroup, .extensionGroup, .standaloneAction, .groupMember:
-            return .all
         }
     }
 
@@ -252,21 +238,6 @@ final class ActionsOutlineTableView: NSOutlineView {
         }
         return (delegate as? ActionsOutlineCoordinator)?.contextMenu(for: node)
     }
-
-    override func keyDown(with event: NSEvent) {
-        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "d" {
-            let selectedRow = selectedRow
-            if selectedRow >= 0,
-               let node = item(atRow: selectedRow) as? OutlineNode,
-               let coordinator = delegate as? ActionsOutlineCoordinator {
-                if let action = node.action, ActionIdentity.canDuplicate(action) {
-                    coordinator.duplicateAction(id: action.id)
-                    return
-                }
-            }
-        }
-        super.keyDown(with: event)
-    }
 }
 
 // MARK: - Scroll View
@@ -294,8 +265,6 @@ struct ActionsOutlineView: NSViewRepresentable {
     @ObservedObject var coordinator: ActionCoordinator
     @ObservedObject var customizationManager: ActionCustomizationManager
     @Binding var selectedRowIDs: Set<String>
-    @Binding var disabledActionIDs: Set<String>
-    @Binding var disabledPackages: Set<String>
     let onEditGroup: (String) -> Void
     let onCreateGroupFromSelection: () -> Void
     /// Double-click on a row: opens that row's settings page.
@@ -596,14 +565,9 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         }
 
         switch node.kind {
-        case .packageHeader(let packageID, let title, let gatedReason):
+        case .packageHeader(_, let title, let gatedReason):
             cellView.setContent(
-                PackageHeaderRowView(
-                    packageID: packageID,
-                    title: title,
-                    gatedReason: gatedReason,
-                    disabledPackages: parent.$disabledPackages
-                )
+                PackageHeaderRowView(title: title, gatedReason: gatedReason)
             )
 
         case .customGroup(_, let action), .extensionGroup(let action),
@@ -612,12 +576,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             let presentation = parent.customizationManager.presented(action, surface: .table)
 
             cellView.setContent(
-                ActionRowView(
-                    action: action,
-                    presentationModel: presentation,
-                    isEnabled: enabledBinding(for: action),
-                    controls: node.rowControls
-                )
+                ActionRowView(action: action, presentationModel: presentation)
             )
         }
 
@@ -830,32 +789,12 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             menu.addItem(ungroupItem)
 
         case .groupMember(let action, let parentGroupID):
-            if ActionIdentity.canDuplicate(action) {
-                let duplicateItem = NSMenuItem(title: String(localized: "Duplicate"), action: #selector(handleDuplicateActionMenuItem(_:)), keyEquivalent: "d")
-                duplicateItem.keyEquivalentModifierMask = [.command]
-                duplicateItem.target = self
-                duplicateItem.representedObject = action.id
-                menu.addItem(duplicateItem)
-
-                menu.addItem(NSMenuItem.separator())
-            }
-
             let removeItem = NSMenuItem(title: String(localized: "Remove from Group"), action: #selector(handleRemoveFromGroupMenuItem(_:)), keyEquivalent: "")
             removeItem.target = self
             removeItem.representedObject = (actionID: action.id, groupID: parentGroupID)
             menu.addItem(removeItem)
 
         case .standaloneAction(let action):
-            if ActionIdentity.canDuplicate(action) {
-                let duplicateItem = NSMenuItem(title: String(localized: "Duplicate"), action: #selector(handleDuplicateActionMenuItem(_:)), keyEquivalent: "d")
-                duplicateItem.keyEquivalentModifierMask = [.command]
-                duplicateItem.target = self
-                duplicateItem.representedObject = action.id
-                menu.addItem(duplicateItem)
-
-                menu.addItem(NSMenuItem.separator())
-            }
-
             if parent.coordinator.isEligibleForGrouping(actionID: action.id) {
                 if !parent.coordinator.actionGroupDefs.isEmpty {
                     let addToGroupItem = NSMenuItem(title: String(localized: "Add to Group"), action: nil, keyEquivalent: "")
@@ -877,92 +816,11 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 }
             }
 
-        case .extensionGroup(let action):
-            if ActionIdentity.canDuplicate(action) {
-                let duplicateItem = NSMenuItem(title: String(localized: "Duplicate Extension"), action: #selector(handleDuplicateActionMenuItem(_:)), keyEquivalent: "d")
-                duplicateItem.keyEquivalentModifierMask = [.command]
-                duplicateItem.target = self
-                duplicateItem.representedObject = action.id
-                menu.addItem(duplicateItem)
-            }
-
-        case .extensionSubAction(let action, _):
-            if ActionIdentity.canDuplicate(action) {
-                let duplicateItem = NSMenuItem(title: String(localized: "Duplicate Extension"), action: #selector(handleDuplicateActionMenuItem(_:)), keyEquivalent: "d")
-                duplicateItem.keyEquivalentModifierMask = [.command]
-                duplicateItem.target = self
-                duplicateItem.representedObject = action.id
-                menu.addItem(duplicateItem)
-            }
-
-        case .packageHeader:
+        case .extensionGroup, .extensionSubAction, .packageHeader:
             break
         }
 
         return menu
-    }
-
-    @objc private func handleDuplicateActionMenuItem(_ sender: NSMenuItem) {
-        if let actionID = sender.representedObject as? String {
-            duplicateAction(id: actionID)
-        }
-    }
-
-    func duplicateAction(id: String) {
-        Task { @MainActor in
-            guard let action = parent.coordinator.actions.first(where: { $0.id == id }) else { return }
-            let duplicatedID: String?
-            if action.chrome.source == .custom {
-                duplicatedID = parent.coordinator.duplicateCustomAction(actionID: id)?.id
-            } else if case .extensionPkg = action.chrome.source {
-                do {
-                    let newActionID = try await ExtensionManager.shared.duplicateExtension(actionID: id)
-                    parent.coordinator.insertActionOrderAfter(newID: newActionID, originalID: id)
-                    for def in parent.coordinator.actionGroupDefs {
-                        if let idx = def.memberActionIDs.firstIndex(of: id) {
-                            parent.coordinator.addToGroup(actionID: newActionID, groupID: def.id, atIndex: idx + 1)
-                            break
-                        }
-                    }
-                    duplicatedID = newActionID
-                } catch {
-                    Log.extensions.error("Failed to duplicate extension '\(id, privacy: .public)': \(error.localizedDescription)")
-                    SettingsRouter.shared.notifyError(
-                        title: String(localized: "Duplicate Failed"),
-                        message: String(localized: "OpenClip could not duplicate extension: \(error.localizedDescription)")
-                    )
-                    return
-                }
-            } else {
-                return
-            }
-
-            for def in parent.coordinator.actionGroupDefs {
-                if def.memberActionIDs.contains(id) {
-                    expandedNodeIDs.insert(def.id)
-                    break
-                }
-            }
-
-            rebuildTree()
-            outlineView?.reloadData()
-
-            if let duplicatedID {
-                selectAndScrollTo(actionID: duplicatedID)
-            }
-        }
-    }
-
-    private func selectAndScrollTo(actionID: String) {
-        guard let outlineView else { return }
-        for row in 0..<outlineView.numberOfRows {
-            if let node = outlineView.item(atRow: row) as? OutlineNode, node.id == actionID {
-                outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-                outlineView.scrollRowToVisible(row)
-                parent.selectedRowIDs = [actionID]
-                break
-            }
-        }
     }
 
     @objc private func handleEditGroupMenuItem(_ sender: NSMenuItem) {
@@ -998,13 +856,5 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
 
     @objc private func handleCreateGroupFromSelectionMenuItem() {
         parent.onCreateGroupFromSelection()
-    }
-
-    private func enabledBinding(for action: any Action) -> Binding<Bool> {
-        ActionEnablement.binding(
-            for: action,
-            disabledActionIDs: parent.$disabledActionIDs,
-            disabledPackages: parent.$disabledPackages
-        )
     }
 }

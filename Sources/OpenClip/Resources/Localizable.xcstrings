@@ -925,6 +925,34 @@
         }
       }
     },
+    "Actions you made yourself: open a URL with the selection, paste a snippet built from it, or run a shell script on it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你自己创建的操作：用选中文本打开 URL、粘贴由其生成的片段，或对其运行 Shell 脚本。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你自己建立的操作：用選取的文字打開 URL、貼上由其產生的片段，或對其執行 Shell 指令碼。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les actions que vous avez créées : ouvrir une URL avec la sélection, coller un extrait construit à partir d'elle ou exécuter un script shell dessus."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自分で作成したアクション: 選択テキストで URL を開く、選択テキストから作ったスニペットをペーストする、または選択テキストに対してシェルスクリプトを実行します。"
+          }
+        }
+      }
+    },
     "Active AI Engine": {
       "localizations": {
         "zh-Hans": {
@@ -4145,6 +4173,34 @@
         }
       }
     },
+    "Customize": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自訂"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personnaliser"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタマイズ"
+          }
+        }
+      }
+    },
     "Customize Icon": {
       "localizations": {
         "zh-Hans": {
@@ -4481,6 +4537,34 @@
         }
       }
     },
+    "Delete this action?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要删除此操作吗？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要刪除此操作嗎？"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer cette action ?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このアクションを削除しますか?"
+          }
+        }
+      }
+    },
     "Disable in this app": {
       "localizations": {
         "zh-Hans": {
@@ -4733,6 +4817,34 @@
         }
       }
     },
+    "Drag to reorder the popup bar. Drop an action onto a group to add it; select several and use + to make a group. Double-click a row to open its settings.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动可重新排列弹出栏。将操作拖到分组上即可加入；选择多项并使用 + 可创建分组。双击某行可打开其设置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖曳可重新排列彈出列。將操作拖到群組上即可加入；選取多項並使用 + 可建立群組。點兩下某列可打開其設定。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faites glisser pour réordonner la barre contextuelle. Déposez une action sur un groupe pour l'y ajouter ; sélectionnez-en plusieurs et utilisez + pour créer un groupe. Double-cliquez sur une ligne pour ouvrir ses réglages."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドラッグしてポップアップバーを並べ替えます。アクションをグループにドロップすると追加され、複数選択して + でグループを作れます。行をダブルクリックすると設定が開きます。"
+          }
+        }
+      }
+    },
     "Drag to resize": {
       "localizations": {
         "zh-Hans": {
@@ -4897,6 +5009,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "複製に失敗しました"
+          }
+        }
+      }
+    },
+    "Duplicating…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在复制…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在複製…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplication…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製中…"
           }
         }
       }
@@ -5205,6 +5345,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ポップアップバーのAIアクションを有効または無効にします。編集アイコンをクリックしてプロンプトをカスタマイズすることもできます。"
+          }
+        }
+      }
+    },
+    "Enabled": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已启用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已啟用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activée"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効"
           }
         }
       }
@@ -8009,6 +8177,34 @@
         }
       }
     },
+    "New Group or Install Extension": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建分组或安装扩展"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增群組或安裝擴充功能"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouveau groupe ou installer une extension"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新規グループまたは拡張機能をインストール"
+          }
+        }
+      }
+    },
     "New extension found in folder. Toggle on to enable.": {
       "localizations": {
         "zh-Hans": {
@@ -8229,6 +8425,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "このグループにアクションはありません。"
+          }
+        }
+      }
+    },
+    "No custom actions yet.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚无自定义操作。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚無自訂操作。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune action personnalisée pour l'instant."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムアクションはまだありません。"
           }
         }
       }
@@ -8597,6 +8821,34 @@
         }
       }
     },
+    "Off hides the action from the popup bar and the palette.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭后，该操作将从弹出栏和命令面板中隐藏。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "關閉後，該操作將從彈出列和命令面板中隱藏。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivée, l'action disparaît de la barre contextuelle et de la palette."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフにするとポップアップバーとパレットから隠れます。"
+          }
+        }
+      }
+    },
     "Ollama": {
       "localizations": {
         "zh-Hans": {
@@ -8873,6 +9125,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "システム設定を開く…"
+          }
+        }
+      }
+    },
+    "Open URL": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 URL"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打開 URL"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir une URL"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL を開く"
+          }
+        }
+      }
+    },
+    "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开操作可更改其名称、图标、快捷键或功能，或将其删除。使用“自定”将其放入弹出栏。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打開操作可更改其名稱、圖示、快捷鍵或功能，或將其刪除。使用「自訂」將其放入彈出列。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrez une action pour changer son nom, son icône, son raccourci ou ce qu'elle fait, ou pour la supprimer. Utilisez Personnaliser pour la placer dans la barre contextuelle."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションを開くと名前、アイコン、ショートカット、動作を変更したり、削除したりできます。ポップアップバーに配置するには「カスタマイズ」を使います。"
           }
         }
       }
@@ -11365,6 +11673,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Finderで表示"
+          }
+        }
+      }
+    },
+    "Revert": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还原"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "還原"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rétablir"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元に戻す"
           }
         }
       }

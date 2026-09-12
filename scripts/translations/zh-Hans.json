@@ -538,5 +538,17 @@
   "Turn an action off to hide it from the popup bar. Open one to change its name, icon, shortcut and options.": "关闭操作可将其从弹出栏隐藏。打开操作可更改其名称、图标、快捷键和选项。",
   "Ungroup? The actions return to the list.": "要取消分组吗？操作将返回列表。",
   "Ungroup…": "取消分组…",
-  "Update Failed": "更新失败"
+  "Update Failed": "更新失败",
+  "Customize": "自定",
+  "Enabled": "已启用",
+  "Off hides the action from the popup bar and the palette.": "关闭后，该操作将从弹出栏和命令面板中隐藏。",
+  "Revert": "还原",
+  "Duplicating…": "正在复制…",
+  "Delete this action?": "要删除此操作吗？",
+  "New Group or Install Extension": "新建分组或安装扩展",
+  "No custom actions yet.": "尚无自定义操作。",
+  "Open URL": "打开 URL",
+  "Actions you made yourself: open a URL with the selection, paste a snippet built from it, or run a shell script on it.": "你自己创建的操作：用选中文本打开 URL、粘贴由其生成的片段，或对其运行 Shell 脚本。",
+  "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.": "打开操作可更改其名称、图标、快捷键或功能，或将其删除。使用“自定”将其放入弹出栏。",
+  "Drag to reorder the popup bar. Drop an action onto a group to add it; select several and use + to make a group. Double-click a row to open its settings.": "拖动可重新排列弹出栏。将操作拖到分组上即可加入；选择多项并使用 + 可创建分组。双击某行可打开其设置。"
 }

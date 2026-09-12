@@ -2,8 +2,9 @@
 // OpenClip
 //
 // The Settings window: a System Settings style sidebar — search field, OpenClip's pages, then
-// AI and every installed extension — and a detail column that shows whatever the router's path
-// says, with the toolbar's back and forward arrows as the way around.
+// AI, every built-in action, every installed extension and the user's custom actions — and a
+// detail column that shows whatever the router's path says, with the toolbar's back and forward
+// arrows as the way around.
 //
 // The chrome is deliberately stock AppKit/SwiftUI — a sidebar `List` and a system toolbar — so
 // the window inherits System Settings' look, vibrancy and dark-mode behaviour instead of
@@ -40,7 +41,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
         switch self {
         case .general: return .general
         case .appearance: return .appearance
-        case .actions: return .actions
+        case .actions: return .customize
         case .shortcuts: return .shortcuts
         case .ai: return .ai
         case .store: return .store
@@ -52,12 +53,12 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
 
 @MainActor
 public struct PreferencesView: View {
-    /// Widest the Actions list grows; the grouped `Form` pages set their own width.
-    private static let actionsListMaxWidth: CGFloat = 640
+    /// Widest the Customize list grows; the grouped `Form` pages set their own width.
+    private static let customizeListMaxWidth: CGFloat = 640
 
     @State private var disabledActionIDs: Set<String> = []
     @State private var disabledPackages: Set<String> = []
-    /// The Actions list's selection, kept here so the toolbar's New Group can seed a group with it.
+    /// The Customize list's selection, kept here so the toolbar's New Group can seed a group with it.
     @State private var selectedRowIDs: Set<String> = []
     @State private var sidebarQuery = ""
     @StateObject private var storeViewModel = ExtensionsStoreViewModel()
@@ -127,7 +128,7 @@ public struct PreferencesView: View {
             switch action {
             case .newGroup:
                 router.push(.newGroup(
-                    memberIDs: ActionsTab.groupCandidates(selectedRowIDs: selectedRowIDs, coordinator: coordinator)
+                    memberIDs: CustomizePage.groupCandidates(selectedRowIDs: selectedRowIDs, coordinator: coordinator)
                 ))
             case .addCustomAction: router.push(.newCustomAction)
             case .installExtension: presentInstallExtensionPanel()
@@ -185,7 +186,7 @@ public struct PreferencesView: View {
         switch page {
         case .extensionPackage(let id):
             return InstalledExtensionInfo.info(for: id, in: coordinator.actions)?.name ?? id
-        case .action(let id):
+        case .action(let id), .builtinAction(let id):
             guard let action = coordinator.actions.first(where: { $0.id == id }) else {
                 return String(localized: "Configure Action")
             }
@@ -203,10 +204,25 @@ public struct PreferencesView: View {
         SettingsPage.systemPages.map { SettingsSidebarRow(systemPage: $0) }
     }
 
-    /// AI first, then every installed extension by name. An extension row answers a search for
-    /// any of its actions' names or keywords, so "verify" finds the JWT extension.
-    private var extensionRows: [SettingsSidebarRow] {
-        var rows = [SettingsSidebarRow(systemPage: .ai)]
+    /// The second group: AI first, then every built-in action, every installed extension and the
+    /// user's custom actions, by name — the way Raycast lists Calculator and Calendar next to
+    /// third-party extensions. A row answers a search for any of its actions' names or keywords,
+    /// so "verify" finds the JWT extension and "sum" finds Calculate.
+    private var secondGroupRows: [SettingsSidebarRow] {
+        var rows: [SettingsSidebarRow] = []
+
+        for action in coordinator.actions where ActionIdentity.isBuiltin(action)
+            && !action.chrome.launchesAI
+            && action.chrome.rowStyle != .actionGroup {
+            let presentation = customizationManager.presented(action, surface: .table)
+            rows.append(SettingsSidebarRow(
+                page: .builtinAction(id: action.id),
+                title: presentation.title,
+                keywords: action.keywords + [action.id],
+                tile: .icon(Self.tileIcon(for: action, presented: presentation), tint: ExtensionTint.color(for: action.id))
+            ))
+        }
+
         for info in InstalledExtensionInfo.all(from: coordinator.actions) {
             var keywords = info.commands.map { customizationManager.presented($0, surface: .table).title }
             keywords.append(contentsOf: info.commands.flatMap(\.keywords))
@@ -218,7 +234,29 @@ public struct PreferencesView: View {
                 tile: .icon(info.icon, tint: ExtensionTint.color(for: info.packageID))
             ))
         }
-        return rows
+
+        let customTitles = coordinator.actions
+            .filter { SettingsDestination.isCustomAction($0) }
+            .map { customizationManager.presented($0, surface: .table).title }
+        rows.append(SettingsSidebarRow(
+            page: .customActions,
+            title: SettingsPage.customActions.staticTitle ?? "",
+            keywords: SettingsPage.customActions.searchKeywords + customTitles,
+            tile: .symbol(SettingsPage.customActions.systemImage, tint: SettingsPage.customActions.tint)
+        ))
+
+        rows.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        return [SettingsSidebarRow(systemPage: .ai)] + rows
+    }
+
+    /// A built-in's tile glyph. Copy, Cut and Paste draw as text glyphs in the popup bar; their
+    /// settings symbol is what a tile can show.
+    private static func tileIcon(for action: any Action, presented: ActionPresentationModel) -> ActionIcon {
+        if case .text = presented.icon,
+           let symbol = (action as? any ConfigurableAction)?.preferenceIconName, !symbol.isEmpty {
+            return .symbol(symbol)
+        }
+        return presented.icon
     }
 
     /// `List` selection is optional by contract; the page never is, so a nil write (Escape,
@@ -238,7 +276,7 @@ public struct PreferencesView: View {
             selection: sidebarSelection,
             query: $sidebarQuery,
             systemRows: systemRows,
-            extensionRows: extensionRows
+            extensionRows: secondGroupRows
         )
         .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -321,14 +359,10 @@ public struct PreferencesView: View {
             GeneralTab()
         case .appearance:
             AppearanceTab()
-        case .actions:
-            ActionsTab(
-                disabledActionIDs: $disabledActionIDs,
-                disabledPackages: $disabledPackages,
-                selectedRowIDs: $selectedRowIDs
-            )
-            .frame(maxWidth: Self.actionsListMaxWidth)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .customize:
+            CustomizePage(selectedRowIDs: $selectedRowIDs)
+                .frame(maxWidth: Self.customizeListMaxWidth)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .shortcuts:
             ShortcutsPage()
         case .appRules:
@@ -342,6 +376,22 @@ public struct PreferencesView: View {
         case .extensionPackage(let id):
             ExtensionPackagePage(
                 packageID: id,
+                disabledActionIDs: $disabledActionIDs,
+                disabledPackages: $disabledPackages
+            )
+        case .builtinAction(let id):
+            if let action = coordinator.actions.first(where: { $0.id == id }) {
+                ActionEditorPage(
+                    action: action,
+                    disabledActionIDs: $disabledActionIDs,
+                    disabledPackages: $disabledPackages,
+                    isSidebarPage: true
+                )
+            } else {
+                Color.clear.onAppear { router.select(.customize) }
+            }
+        case .customActions:
+            CustomActionsPage(
                 disabledActionIDs: $disabledActionIDs,
                 disabledPackages: $disabledPackages
             )
@@ -371,7 +421,11 @@ public struct PreferencesView: View {
             if action.chrome.rowStyle == .actionGroup {
                 GroupEditorPage(groupID: action.id)
             } else {
-                ActionEditorPage(action: action)
+                ActionEditorPage(
+                    action: action,
+                    disabledActionIDs: $disabledActionIDs,
+                    disabledPackages: $disabledPackages
+                )
             }
         } else {
             Color.clear.onAppear { router.pop() }
