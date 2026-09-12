@@ -31,42 +31,46 @@ struct CustomActionsPage: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SettingsHeroHeader(
-                glyph: .symbol(SettingsPage.customActions.systemImage, tint: SettingsPage.customActions.tint),
-                title: String(localized: "Custom Actions"),
-                subtitle: String(localized: "Actions you made yourself: open a URL with the selection, paste a snippet built from it, or run a shell script on it.")
-            )
-
-            Form {
-                Section {
-                    if customActions.isEmpty {
-                        Text("No custom actions yet.")
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 8)
-                    } else {
-                        ForEach(customActions, id: \.id) { action in
-                            row(action)
-                        }
-                    }
-
-                    SettingsDisclosureRow {
-                        router.push(.newCustomAction)
-                    } content: {
-                        Label("Add Custom Action", systemImage: "plus.circle")
-                            .foregroundStyle(Color.accentColor)
-                    }
-                } header: {
-                    Text("Actions")
-                } footer: {
-                    Text("Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+        Form {
+            // A section header rather than a view above the form, so the hero scrolls away with
+            // the rest of the page instead of staying pinned under the toolbar.
+            Section {
+                EmptyView()
+            } header: {
+                SettingsHeroHeader(
+                    glyph: .symbol(SettingsPage.customActions.systemImage, tint: SettingsPage.customActions.tint),
+                    title: String(localized: "Custom Actions"),
+                    subtitle: String(localized: "Actions you made yourself: open a URL with the selection, paste a snippet built from it, or run a shell script on it.")
+                )
             }
-            .formStyle(.grouped)
+
+            Section {
+                if customActions.isEmpty {
+                    Text("No custom actions yet.")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 8)
+                } else {
+                    ForEach(customActions, id: \.id) { action in
+                        row(action)
+                    }
+                }
+
+                SettingsDisclosureRow {
+                    router.push(.newCustomAction)
+                } content: {
+                    Label("Add Custom Action", systemImage: "plus.circle")
+                        .foregroundStyle(Color.accentColor)
+                }
+            } header: {
+                Text("Actions")
+            } footer: {
+                Text("Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
+        .formStyle(.grouped)
     }
 
     private func row(_ action: any Action) -> some View {

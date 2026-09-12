@@ -18,20 +18,24 @@ struct AIPage: View {
     @ObservedObject private var aiManager = AIServiceManager.shared
 
     var body: some View {
-        VStack(spacing: 0) {
-            SettingsHeroHeader(
-                glyph: .symbol(SettingsPage.ai.systemImage, tint: SettingsPage.ai.tint),
-                title: String(localized: "AI Tools"),
-                subtitle: String(localized: "Rewrite, summarize, translate or ask about the selected text, using the engine below.")
-            )
-
-            Form {
-                AIConfigureForm(embedded: true)
-
-                AIActionsSection()
+        Form {
+            // A section header rather than a view above the form, so the hero scrolls away with
+            // the rest of the page instead of staying pinned under the toolbar.
+            Section {
+                EmptyView()
+            } header: {
+                SettingsHeroHeader(
+                    glyph: .symbol(SettingsPage.ai.systemImage, tint: SettingsPage.ai.tint),
+                    title: String(localized: "AI Tools"),
+                    subtitle: String(localized: "Rewrite, summarize, translate or ask about the selected text, using the engine below.")
+                )
             }
-            .formStyle(.grouped)
+
+            AIConfigureForm(embedded: true)
+
+            AIActionsSection()
         }
+        .formStyle(.grouped)
     }
 }
 

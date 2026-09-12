@@ -86,88 +86,93 @@ struct ExtensionPackagePage: View {
         // and never needs a card of its own.
         let last = sections.last
 
-        return VStack(spacing: 0) {
-            SettingsHeroHeader(
-                glyph: .icon(info.icon, tint: ExtensionTint.color(for: packageID)),
-                title: info.name,
-                subtitle: manifest?.localizedDescription?.resolve() ?? manifest?.description,
-                footnote: byline
-            )
+        return Form {
+            // The hero rides a section header rather than sitting above the form: a header
+            // scrolls with the content and draws no card, where a view above the form stayed
+            // pinned under the toolbar however far the page was scrolled.
+            Section {
+                EmptyView()
+            } header: {
+                SettingsHeroHeader(
+                    glyph: .icon(info.icon, tint: ExtensionTint.color(for: packageID)),
+                    title: info.name,
+                    subtitle: manifest?.localizedDescription?.resolve() ?? manifest?.description,
+                    footnote: byline
+                )
+            }
 
-            Form {
-                if sections.contains(.gate), let reason = info.gatedReason,
-                   let text = extensionGateDescription(for: reason) {
-                    Section {
-                        Label {
-                            Text(text)
-                                .font(.callout)
-                                .fixedSize(horizontal: false, vertical: true)
-                        } icon: {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                        }
-                    } footer: {
-                        identifierFooter(if: last == .gate)
+        if sections.contains(.gate), let reason = info.gatedReason,
+               let text = extensionGateDescription(for: reason) {
+                Section {
+                    Label {
+                        Text(text)
+                            .font(.callout)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
                     }
+                } footer: {
+                    identifierFooter(if: last == .gate)
                 }
+            }
 
-                if sections.contains(.update) {
-                    Section {
-                        SettingsRow(
-                            title: "Update Available",
-                            subtitle: "A newer version is in the Store.",
-                            systemImage: "arrow.down.circle"
-                        ) {
-                            Button(isUpdating ? String(localized: "Updating…") : String(localized: "Update")) {
-                                update()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(isUpdating)
+            if sections.contains(.update) {
+                Section {
+                    SettingsRow(
+                        title: "Update Available",
+                        subtitle: "A newer version is in the Store.",
+                        systemImage: "arrow.down.circle"
+                    ) {
+                        Button(isUpdating ? String(localized: "Updating…") : String(localized: "Update")) {
+                            update()
                         }
-                    } footer: {
-                        identifierFooter(if: last == .update)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isUpdating)
                     }
+                } footer: {
+                    identifierFooter(if: last == .update)
                 }
+            }
 
-                if sections.contains(.actions) {
-                    Section {
-                        ForEach(info.commands, id: \.id) { action in
-                            commandRow(action)
-                        }
-                    } header: {
-                        Text("Actions")
-                    } footer: {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(info.commands.count == 1
-                                 ? "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options."
-                                 : "Turn an action off to hide it from the popup bar. Open one to change its name, icon, shortcut and options.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            identifierFooter(if: last == .actions)
-                        }
+            if sections.contains(.actions) {
+                Section {
+                    ForEach(info.commands, id: \.id) { action in
+                        commandRow(action)
                     }
-                }
+                } header: {
+                    Text("Actions")
+                } footer: {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(info.commands.count == 1
+                             ? "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options."
+                             : "Turn an action off to hide it from the popup bar. Open one to change its name, icon, shortcut and options.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                if sections.contains(.naming), let containerID = info.containerActionID {
-                    Section {
-                        SettingsDisclosureRow {
-                            router.push(.action(id: containerID))
-                        } content: {
-                            SettingsRowLabel(
-                                title: "Name and Icon in Popup Bar",
-                                subtitle: "Rename the group or change the icon its actions sit behind.",
-                                systemImage: "square.grid.2x2"
-                            )
-                        }
-                    } footer: {
-                        identifierFooter(if: last == .naming)
+                        identifierFooter(if: last == .actions)
                     }
                 }
             }
-            .formStyle(.grouped)
+
+            if sections.contains(.naming), let containerID = info.containerActionID {
+                Section {
+                    SettingsDisclosureRow {
+                        router.push(.action(id: containerID))
+                    } content: {
+                        SettingsRowLabel(
+                            title: "Name and Icon in Popup Bar",
+                            subtitle: "Rename the group or change the icon its actions sit behind.",
+                            systemImage: "square.grid.2x2"
+                        )
+                    }
+                } footer: {
+                    identifierFooter(if: last == .naming)
+                }
+            }
         }
+        .formStyle(.grouped)
     }
 
     /// The package identifier, quiet and selectable: the one thing on the page a bug report needs.
