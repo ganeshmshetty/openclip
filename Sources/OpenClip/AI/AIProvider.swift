@@ -7,20 +7,24 @@ import Core
 
 public enum AIProviderType: String, CaseIterable, Identifiable, Sendable {
     case apple = "apple"
-    case ollama = "ollama"
+    case local = "local"
+    case cli = "cli"
     case cloud = "cloud"
-    case browser = "browser"
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
         case .apple: return String(localized: "Apple Intelligence")
-        case .ollama: return String(localized: "Ollama (Local LLM)")
-        case .cloud: return String(localized: "Cloud API (OpenAI/Claude)")
-        case .browser: return String(localized: "Browser Redirection")
+        case .local: return String(localized: "Local (LM Studio/Ollama)")
+        case .cli: return String(localized: "CLI")
+        case .cloud: return String(localized: "Cloud API")
         }
     }
+}
+
+extension AIProviderType {
+    public static var ollama: AIProviderType { .local }
 }
 
 public enum AIError: Error, LocalizedError, Sendable, Equatable {

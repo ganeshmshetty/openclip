@@ -116,12 +116,12 @@ Sources/
     │   ├── AIServiceManager.swift            # cloudAPIKey is SecretStore-backed (@Published), other prefs via @AppStorage
     │   ├── AIToolsAction.swift               # AI Tools group launcher action
     │   ├── AIConversation.swift              # A card session (selection + instructions + results) rendered as labelled context for follow-ups
-    │   └── Providers/                        # Apple Intelligence, Cloud, Ollama, BrowserRedirect
+    │   └── Providers/                        # Apple Intelligence, Local LLMs, CLI Subscriptions, Cloud API
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner
-    │       ├── BrowserRedirectProvider.swift   # Browser search redirect runner
+    │       ├── CLIProvider.swift             # Subprocess CLI runner (Claude Code, Codex CLI, GitHub Copilot)
     │       ├── CloudAPIProvider.swift        # OpenAI-compatible / Anthropic / Gemini / DeepSeek / Groq cloud chat
     │       ├── CloudAPIProviderDTOs.swift    # Codable chat request/response payloads for cloud APIs
-    │       └── OllamaProvider.swift          # Local Ollama runner
+    │       └── LocalLLMProvider.swift        # Universal local LLM runner (LM Studio, Ollama, Jan, llama.cpp)
     ├── Notifications/
     │   └── Notification.Name+OpenClip.swift  # Internal notification names
     ├── Platform/                             # macOS Platform Services

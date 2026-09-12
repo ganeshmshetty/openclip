@@ -1712,11 +1712,6 @@ public class PopupWindowController {
                 }
                 let answer = AIRequestSupport.extractResultText(accumulated)
                 guard !answer.isEmpty else { throw AIError.invalidResponse }
-                if provider.type == .browser {
-                    // The browser provider opened the query in a tab; there is nothing to paste.
-                    self.toastController.hide()
-                    return
-                }
                 let stillInSourceApp = sourceBundleID == nil || self.frontmostBundleIDProvider() == sourceBundleID
                 let pastes = targetCanPaste != false && stillInSourceApp
                 self.handleActionResult(pastes ? .paste(answer) : .copy(answer), delivery: nil, suppressDeliveryToast: true)
@@ -1804,12 +1799,6 @@ public class PopupWindowController {
             }
             do {
                 let provider = AIServiceManager.shared.currentProvider
-                if provider.type == .browser {
-                    _ = try await provider.process(prompt: followUpTask, text: sourceText)
-                    guard stillRefining() else { return }
-                    self.restoreRefiningCard()
-                    return
-                }
                 var accumulated = ""
                 var activeTitle = title
                 for try await chunk in provider.processStream(prompt: followUpTask, text: sourceText) {
@@ -1942,16 +1931,6 @@ public class PopupWindowController {
 
             do {
                 let provider = AIServiceManager.shared.currentProvider
-                if provider.type == .browser {
-                    _ = try await provider.process(prompt: prompt, text: selectionText)
-                    guard !Task.isCancelled, session == self.aiSessionID else {
-                        self.toastController.hide()
-                        return
-                    }
-                    self.toastController.hide()
-                    self.deliverResult(.success)
-                    return
-                }
 
                 var accumulated = ""
 

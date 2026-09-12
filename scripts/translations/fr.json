@@ -227,6 +227,8 @@
   "Delete Action": "Supprimer l’action",
   "Save": "Enregistrer",
   "Apple Intelligence": "Apple Intelligence",
+  "Local (LM Studio/Ollama)": "Modèles locaux (LM Studio/Ollama)",
+  "CLI": "Ligne de commande (CLI)",
   "Ollama (Local LLM)": "Ollama (LLM local)",
   "Cloud API (OpenAI/Claude)": "API Cloud (OpenAI/Claude)",
   "Browser Redirection": "Redirection vers le navigateur",

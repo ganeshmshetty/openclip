@@ -32,21 +32,21 @@ final class AIProviderTests: XCTestCase {
         }
     }
 
-    // MARK: - Ollama
+    // MARK: - Local LLM
 
-    func testOllamaNormalizesEmptyBaseURLAndModel() {
-        let provider = OllamaProvider(baseURL: "", model: "  ")
-        XCTAssertEqual(provider.baseURL, "http://localhost:11434")
-        XCTAssertEqual(provider.model, "llama3")
+    func testLocalLLMNormalizesEmptyBaseURLAndModel() {
+        let provider = LocalLLMProvider(baseURL: "", model: "  ")
+        XCTAssertEqual(provider.baseURL, "http://localhost:1234/v1")
+        XCTAssertEqual(provider.model, "default")
     }
 
-    func testOllamaStripsTrailingSlash() {
-        let provider = OllamaProvider(baseURL: "http://localhost:11434/", model: "llama3")
-        XCTAssertEqual(provider.baseURL, "http://localhost:11434")
+    func testLocalLLMStripsTrailingSlash() {
+        let provider = LocalLLMProvider(baseURL: "http://localhost:1234/v1/", model: "default")
+        XCTAssertEqual(provider.baseURL, "http://localhost:1234/v1")
     }
 
-    func testOllamaRejectsEmptyText() async {
-        let provider = OllamaProvider(baseURL: "http://localhost:11434", model: "llama3")
+    func testLocalLLMRejectsEmptyText() async {
+        let provider = LocalLLMProvider(baseURL: "http://localhost:1234/v1", model: "default")
         do {
             _ = try await provider.process(prompt: "Summarize", text: "\t")
             XCTFail("Expected emptyInput")
@@ -57,11 +57,54 @@ final class AIProviderTests: XCTestCase {
         }
     }
 
-    // MARK: - Browser redirect
+    // MARK: - CLI Provider
 
-    func testBrowserRedirectUsesDefaultTemplateWhenEmpty() {
-        let provider = BrowserRedirectProvider(template: "")
-        XCTAssertEqual(provider.template, "https://chatgpt.com/?q={text}")
+    func testCLIProviderInitialization() {
+        let provider = CLIProvider(preset: .claude, customCommand: "", modelOverride: "sonnet")
+        XCTAssertEqual(provider.type, .cli)
+        XCTAssertEqual(provider.preset, .claude)
+        XCTAssertEqual(provider.modelOverride, "sonnet")
+    }
+
+    func testCLIPresetLoginCommandsAndModels() {
+        XCTAssertEqual(CLIPreset.claude.loginCommand, "claude auth login")
+        XCTAssertEqual(CLIPreset.codex.loginCommand, "codex")
+        XCTAssertEqual(CLIPreset.copilot.loginCommand, "gh auth login")
+        XCTAssertFalse(CLIPreset.claude.authHelpText.isEmpty)
+        XCTAssertTrue(CLIPreset.claude.defaultModels.contains("sonnet"))
+        XCTAssertTrue(CLIPreset.codex.defaultModels.contains("o3-mini"))
+    }
+
+    func testEffectiveCLIModelResolution() {
+        let manager = AIServiceManager.shared
+        let previousCLIModel = manager.cliModel
+        let previousCLICustomModel = manager.cliCustomModel
+        defer {
+            manager.cliModel = previousCLIModel
+            manager.cliCustomModel = previousCLICustomModel
+        }
+
+        manager.cliModel = "default"
+        XCTAssertEqual(manager.effectiveCLIModel, "")
+
+        manager.cliModel = "sonnet"
+        XCTAssertEqual(manager.effectiveCLIModel, "sonnet")
+
+        manager.cliModel = "custom"
+        manager.cliCustomModel = "claude-3-7-sonnet-20250219"
+        XCTAssertEqual(manager.effectiveCLIModel, "claude-3-7-sonnet-20250219")
+    }
+
+    func testCLIProviderRejectsEmptyText() async {
+        let provider = CLIProvider(preset: .claude)
+        do {
+            _ = try await provider.process(prompt: "Summarize", text: "  ")
+            XCTFail("Expected emptyInput")
+        } catch let error as AIError {
+            XCTAssertEqual(error, .emptyInput)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
     }
 
     // MARK: - Manager
@@ -74,34 +117,14 @@ final class AIProviderTests: XCTestCase {
         manager.activeProviderType = .apple
         XCTAssertEqual(manager.currentProvider.type, .apple)
 
-        manager.activeProviderType = .ollama
-        XCTAssertEqual(manager.currentProvider.type, .ollama)
+        manager.activeProviderType = .local
+        XCTAssertEqual(manager.currentProvider.type, .local)
+
+        manager.activeProviderType = .cli
+        XCTAssertEqual(manager.currentProvider.type, .cli)
 
         manager.activeProviderType = .cloud
         XCTAssertEqual(manager.currentProvider.type, .cloud)
-
-        manager.activeProviderType = .browser
-        XCTAssertEqual(manager.currentProvider.type, .browser)
-    }
-
-    func testEffectiveBrowserURLTemplatePresets() {
-        let manager = AIServiceManager.shared
-        let previousPreset = manager.browserPreset
-        let previousCustom = manager.browserURLTemplate
-        defer {
-            manager.browserPreset = previousPreset
-            manager.browserURLTemplate = previousCustom
-        }
-
-        manager.browserPreset = "claude"
-        XCTAssertTrue(manager.effectiveBrowserURLTemplate.contains("claude.ai"))
-
-        manager.browserPreset = "custom"
-        manager.browserURLTemplate = "https://example.com/ai?q={text}"
-        XCTAssertEqual(manager.effectiveBrowserURLTemplate, "https://example.com/ai?q={text}")
-
-        manager.browserURLTemplate = "   "
-        XCTAssertEqual(manager.effectiveBrowserURLTemplate, "https://chatgpt.com/?q={text}")
     }
 
     func testAIErrorDescriptionsArePresent() {

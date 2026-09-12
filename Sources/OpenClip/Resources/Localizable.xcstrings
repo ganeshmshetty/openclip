@@ -2157,6 +2157,34 @@
         }
       }
     },
+    "CLI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命令行（CLI）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命令列（CLI）"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ligne de commande (CLI)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コマンドライン (CLI)"
+          }
+        }
+      }
+    },
     "Calculate": {
       "localizations": {
         "zh-Hans": {
@@ -2824,7 +2852,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "クラウドAPI"
+            "value": "クラウド API"
           }
         }
       }
@@ -6689,6 +6717,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アプリケーションを読み込み中…"
+          }
+        }
+      }
+    },
+    "Local (LM Studio/Ollama)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本地模型（LM Studio/Ollama）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本機模型（LM Studio/Ollama）"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modèles locaux (LM Studio/Ollama)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカルモデル (LM Studio/Ollama)"
           }
         }
       }
