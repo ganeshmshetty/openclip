@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00F0A9839339C1E8829D2A6D /* ExtensionTrustStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7065CFC746479DF29BD1525F /* ExtensionTrustStateTests.swift */; };
 		00F99CE9A59716DFB7EF8A58 /* PaletteRowShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4953987A3DEEA1E3E220311D /* PaletteRowShortcuts.swift */; };
+		0144B49CB0F92F93428F0AA4 /* BrandColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F4A03EAAAED8DD581B6D60 /* BrandColor.swift */; };
 		016ACDECE2BC05DB5A380F65 /* CustomAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8DAACCC7C82CE7BB96D5F0D /* CustomAction.swift */; };
 		01A2A263D4D44A93E3409667 /* PopupGesturePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 842374852607342FFC468020 /* PopupGesturePolicy.swift */; };
 		02AF81963047538ADE0363F5 /* RuleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E8EC4414979D75CE50BA12 /* RuleEngine.swift */; };
@@ -752,6 +753,7 @@
 		E48C7D3BE1BDBA1DCF96A7E8 /* ActionEditorPageAppearanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionEditorPageAppearanceTests.swift; sourceTree = "<group>"; };
 		E4EE0D2C6FF196DA2CFCF327 /* RelevanceProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelevanceProviding.swift; sourceTree = "<group>"; };
 		E4EF53D5A01CA2A1884F414D /* DebugLogLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogLevel.swift; sourceTree = "<group>"; };
+		E4F4A03EAAAED8DD581B6D60 /* BrandColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandColor.swift; sourceTree = "<group>"; };
 		E54AEEA54ADE3106E777F448 /* ActionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionResult.swift; sourceTree = "<group>"; };
 		E64E77AACA56DB3C341E5044 /* LocalIconCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalIconCacheTests.swift; sourceTree = "<group>"; };
 		E74EC58C6E636CC1388565D9 /* DefaultActionFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultActionFactory.swift; sourceTree = "<group>"; };
@@ -1052,6 +1054,7 @@
 		442E875DFEB929427D5A4801 /* Design */ = {
 			isa = PBXGroup;
 			children = (
+				E4F4A03EAAAED8DD581B6D60 /* BrandColor.swift */,
 				14D700402A242D8DEE0F3686 /* LiquidGlass.swift */,
 				38966F7112271EC9D176FA15 /* NativeSearchField.swift */,
 				472E7385DBCBD7C2443AC1B9 /* WindowConfigurator.swift */,
@@ -1880,6 +1883,7 @@
 				7EDDECF89D21D258E5A00C01 /* AppleIntelligenceProvider.swift in Sources */,
 				B4DA8361B40017E09D1FF51A /* AppleScriptAction.swift in Sources */,
 				5855A29EBF520A06EC21B4CE /* AppleScriptRunner.swift in Sources */,
+				0144B49CB0F92F93428F0AA4 /* BrandColor.swift in Sources */,
 				33B0F70025C8AC0BBDC59CFE /* CLIProvider.swift in Sources */,
 				852D201010BC7079F239A3E2 /* CloudAPIProvider.swift in Sources */,
 				6A8B1D61ED0B48983AE8A60E /* CloudAPIProviderDTOs.swift in Sources */,

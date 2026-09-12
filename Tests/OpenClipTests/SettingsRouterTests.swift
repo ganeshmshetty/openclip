@@ -437,6 +437,47 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertEqual(received, [SettingsToolbarCommand.actionDuplicate, SettingsToolbarCommand.actionDelete])
     }
 
+    // MARK: - Tints
+
+    func testAGeneratedExtensionTintIsNeverBlue() {
+        // Blue belongs to OpenClip's own rows, so nothing installed may land in that band however
+        // its identifier hashes.
+        var seen = Set<Int>()
+        for index in 0..<5_000 {
+            let hue = SettingsTint.hue(for: "com.example.extension.\(index)")
+            XCTAssertFalse(SettingsTint.reservedBlueHues.contains(hue),
+                           "id \(index) landed on hue \(hue), inside the reserved band")
+            XCTAssertTrue((0..<360).contains(hue), "hue \(hue) is not a hue")
+            seen.insert(hue)
+        }
+        XCTAssertGreaterThan(seen.count, 100, "the palette must still spread, not pile up on a few hues")
+
+        // The real identifiers this Mac has installed, and the empty case.
+        for id in ["io.appwrite.openclip", "com.openclip.jwt", "com.openclip.harper", "com.openclip.urlquery", ""] {
+            XCTAssertFalse(SettingsTint.reservedBlueHues.contains(SettingsTint.hue(for: id)), id)
+        }
+    }
+
+    func testAnExtensionKeepsTheSameTintEveryTime() {
+        let first = SettingsTint.hue(for: "com.openclip.jwt")
+        let again = SettingsTint.hue(for: "com.openclip.jwt")
+        XCTAssertEqual(first, again, "a package's colour must not move between launches")
+        XCTAssertNotEqual(first, SettingsTint.hue(for: "com.openclip.urlquery"))
+    }
+
+    func testTheSidebarsThreeKindsOfRowAreThreeColours() {
+        for page in SettingsPage.systemPages {
+            XCTAssertEqual(page.tint, SettingsTint.system, "\(page.id) is the app's own settings, so grey")
+        }
+        XCTAssertEqual(SettingsPage.ai.tint, SettingsTint.openClip)
+        XCTAssertEqual(SettingsPage.customActions.tint, SettingsTint.openClip)
+        XCTAssertEqual(SettingsPage.builtinAction(id: "builtin.copy").tint, SettingsTint.openClip)
+
+        let installed = SettingsPage.extensionPackage(id: "com.openclip.jwt").tint
+        XCTAssertNotEqual(installed, SettingsTint.openClip, "an extension never wears the brand colour")
+        XCTAssertNotEqual(installed, SettingsTint.system)
+    }
+
     // MARK: - Naming a group made by dropping
 
     func testADroppedGroupTakesThePlainNameUntilItIsTaken() {

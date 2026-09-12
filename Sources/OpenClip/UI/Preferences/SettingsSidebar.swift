@@ -92,14 +92,42 @@ enum SettingsSidebarFilter {
     }
 }
 
-/// A stable colour for an extension's tile, so the same package always gets the same tint.
-enum ExtensionTint {
-    static func color(for packageID: String) -> Color {
+/// What colour a settings tile is, in three rules.
+///
+/// The sidebar is read by colour before it is read by name: grey is the app's own settings, blue
+/// is OpenClip itself — its built-in actions, AI, your custom actions — and everything else is a
+/// third-party extension wearing a colour derived from its identifier. Blue is *reserved*: a
+/// generated tint never lands in it, so nothing installed can pass for something OpenClip ships.
+enum SettingsTint {
+    /// The settings sections themselves. They are chrome, not content, so they recede.
+    static let system = Color(nsColor: .systemGray)
+
+    /// Everything OpenClip ships.
+    static let openClip = Color.openClipBrand
+
+    /// Hues that read as blue, from cyan through indigo. Reserved.
+    static let reservedBlueHues: Range<Int> = 190..<270
+
+    /// A stable colour for an extension's tile, so the same package always gets the same tint —
+    /// and never a blue one.
+    static func extensionTint(for packageID: String) -> Color {
+        Color(hue: Double(hue(for: packageID)) / 360.0, saturation: 0.58, brightness: 0.70)
+    }
+
+    /// The hue an identifier maps to, in degrees, with the reserved band skipped rather than
+    /// clamped — clamping would pile every id that hashed into the band onto its two edges.
+    /// Pure, so "never blue" is pinned by tests.
+    static func hue(for packageID: String) -> Int {
         var hash = 0
         for byte in packageID.utf8 {
             hash = (hash &* 31 &+ Int(byte)) % 360
         }
-        return Color(hue: Double(max(hash, 0)) / 360.0, saturation: 0.58, brightness: 0.70)
+        let available = 360 - reservedBlueHues.count
+        var value = ((hash % available) + available) % available
+        if value >= reservedBlueHues.lowerBound {
+            value += reservedBlueHues.count
+        }
+        return value
     }
 }
 

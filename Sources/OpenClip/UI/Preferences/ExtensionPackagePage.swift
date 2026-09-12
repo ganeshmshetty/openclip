@@ -97,7 +97,7 @@ struct ExtensionPackagePage: View {
                 EmptyView()
             } header: {
                 SettingsHeroHeader(
-                    glyph: .icon(info.icon, tint: ExtensionTint.color(for: packageID)),
+                    glyph: .icon(info.icon, tint: SettingsTint.extensionTint(for: packageID)),
                     title: info.name,
                     subtitle: manifest?.localizedDescription?.resolve() ?? manifest?.description,
                     footnote: byline

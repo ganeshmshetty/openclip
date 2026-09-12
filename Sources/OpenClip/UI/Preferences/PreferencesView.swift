@@ -397,7 +397,7 @@ public struct PreferencesView: View {
                 page: .builtinAction(id: action.id),
                 title: presentation.title,
                 keywords: action.keywords + [action.id],
-                tile: .icon(SettingsHeroHeader.glyph(for: action, presented: presentation), tint: ExtensionTint.color(for: action.id))
+                tile: .icon(SettingsHeroHeader.glyph(for: action, presented: presentation), tint: SettingsTint.openClip)
             ))
         }
 
@@ -409,7 +409,7 @@ public struct PreferencesView: View {
                 page: .extensionPackage(id: info.packageID),
                 title: info.name,
                 keywords: keywords,
-                tile: .icon(info.icon, tint: ExtensionTint.color(for: info.packageID))
+                tile: .icon(info.icon, tint: SettingsTint.extensionTint(for: info.packageID))
             ))
         }
 

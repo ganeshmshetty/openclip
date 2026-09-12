@@ -138,20 +138,19 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         }
     }
 
-    /// Sidebar tile colour, matching System Settings' coloured glyph tiles.
+    /// Sidebar tile colour. The app's own settings are grey so they recede; what OpenClip ships
+    /// is the brand blue; a third-party extension's colour comes from its identifier. See
+    /// `SettingsTint`.
     var tint: Color {
         switch self {
-        case .general: return Color(nsColor: .systemGray)
-        case .appearance: return .pink
-        case .customize: return .orange
-        case .shortcuts: return .green
-        case .appRules: return .indigo
-        case .store: return .blue
-        case .about: return .teal
-        case .ai: return .purple
-        case .customActions: return .mint
-        case .extensionPackage, .builtinAction, .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
-            return .gray
+        case .general, .appearance, .customize, .shortcuts, .appRules, .store, .about:
+            return SettingsTint.system
+        case .ai, .customActions, .builtinAction:
+            return SettingsTint.openClip
+        case .extensionPackage(let id):
+            return SettingsTint.extensionTint(for: id)
+        case .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
+            return SettingsTint.openClip
         }
     }
 

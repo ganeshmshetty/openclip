@@ -143,7 +143,7 @@ public struct ActionEditorPage: View {
                     SettingsHeroHeader(
                         glyph: .icon(
                             SettingsHeroHeader.glyph(for: action, presented: presentation),
-                            tint: ExtensionTint.color(for: action.id)
+                            tint: SettingsTint.openClip
                         ),
                         title: presentation.title,
                         footnote: String(localized: "Built-in action")
