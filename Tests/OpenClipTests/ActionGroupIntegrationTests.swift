@@ -529,6 +529,49 @@ final class ActionsOutlineDropTests: XCTestCase {
         OutlineNode(id: id, kind: .standaloneAction(action(id)))
     }
 
+    // MARK: - Reordering inside an extension's group
+
+    func testMovingACommandDownLandsWhereTheGapWas() {
+        let members = ["a", "b", "c", "d"]
+        // The outline counts the gaps with the dragged row still in place, so dropping "a" into
+        // the gap before "d" (index 3) must leave it *after* "c", not after "d".
+        XCTAssertEqual(ActionsOutlineCoordinator.reordered(members, moving: "a", toChildIndex: 3),
+                       ["b", "c", "a", "d"])
+        XCTAssertEqual(ActionsOutlineCoordinator.reordered(members, moving: "a", toChildIndex: 4),
+                       ["b", "c", "d", "a"], "the gap below the last row")
+    }
+
+    func testMovingACommandUpLandsInTheGapItself() {
+        let members = ["a", "b", "c", "d"]
+        XCTAssertEqual(ActionsOutlineCoordinator.reordered(members, moving: "d", toChildIndex: 0),
+                       ["d", "a", "b", "c"])
+        XCTAssertEqual(ActionsOutlineCoordinator.reordered(members, moving: "c", toChildIndex: 1),
+                       ["a", "c", "b", "d"])
+    }
+
+    func testDroppingACommandBackWhereItWasChangesNothing() {
+        let members = ["a", "b", "c", "d"]
+        for (index, id) in members.enumerated() {
+            XCTAssertEqual(ActionsOutlineCoordinator.reordered(members, moving: id, toChildIndex: index),
+                           members, "\(id) dropped into its own gap")
+            XCTAssertEqual(ActionsOutlineCoordinator.reordered(members, moving: id, toChildIndex: index + 1),
+                           members, "\(id) dropped into the gap just below itself")
+        }
+    }
+
+    func testReorderingKeepsEveryCommandAndIgnoresAStranger() {
+        let members = ["a", "b", "c", "d"]
+        for id in members {
+            for index in 0...members.count {
+                let result = ActionsOutlineCoordinator.reordered(members, moving: id, toChildIndex: index)
+                XCTAssertEqual(Set(result), Set(members), "nothing lost moving \(id) to \(index)")
+                XCTAssertEqual(result.count, members.count, "nothing duplicated moving \(id) to \(index)")
+            }
+        }
+        XCTAssertEqual(ActionsOutlineCoordinator.reordered(members, moving: "zzz", toChildIndex: 0), members)
+        XCTAssertEqual(ActionsOutlineCoordinator.reordered(members, moving: "a", toChildIndex: 99), ["b", "c", "d", "a"])
+    }
+
     func testDroppingAnActionOntoAnotherMakesAGroupOfTheTwo() {
         let outcome = outlineCoordinator.dropOntoOutcome(draggedID: "action.2", target: standalone("action.1"))
         XCTAssertEqual(outcome, .makeGroup(withTargetID: "action.1"),

@@ -5,6 +5,10 @@
 // Implements hierarchical tree presentation, native macOS folder drop highlighting,
 // spring-loaded folder expansion, multi-selection, and reordering. Rows carry no controls: the
 // page is the popup bar's layout, and an action's settings are a page of their own.
+//
+// What can be dragged where: a top-level action reorders, drops onto another action to group the
+// two, or drops into a custom group; a custom group's member can leave it; and a command of an
+// extension can be reordered among its siblings but not taken out of its package.
 
 import AppKit
 import SwiftUI
@@ -627,8 +631,14 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> (any NSPasteboardWriting)? {
         guard let node = item as? OutlineNode else { return nil }
         switch node.kind {
-        case .packageHeader, .extensionSubAction:
+        case .packageHeader:
             return nil
+        case .extensionSubAction(let action, _):
+            // Draggable so its order inside its own package can be changed; `validateDrop` is
+            // what keeps it from leaving.
+            let pbItem = NSPasteboardItem()
+            pbItem.setString(action.id, forType: actionPasteboardType)
+            return pbItem
         case .standaloneAction(let action), .groupMember(let action, _):
             let pbItem = NSPasteboardItem()
             pbItem.setString(action.id, forType: actionPasteboardType)
@@ -648,6 +658,17 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     ) -> NSDragOperation {
         guard let draggedID = info.draggingPasteboard.string(forType: actionPasteboardType) else {
             return []
+        }
+
+        // Case 0: A command of an extension belongs to its package — it can be reordered among
+        // its siblings and moved nowhere else, so every other drop is refused outright rather
+        // than falling through to the retarget and root-level cases below.
+        if let owningGroupID = extensionGroupID(ofSubActionWithID: draggedID) {
+            guard let targetNode = item as? OutlineNode,
+                  case .extensionGroup(let groupAction) = targetNode.kind,
+                  groupAction.id == owningGroupID,
+                  index >= 0 else { return [] }
+            return .move
         }
 
         // Case 1: Hovering over or inside a custom group
@@ -715,6 +736,23 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             return false
         }
 
+        // Reordered inside its own extension group
+        if let owningGroupID = extensionGroupID(ofSubActionWithID: draggedID),
+           let targetNode = item as? OutlineNode,
+           case .extensionGroup(let groupAction) = targetNode.kind,
+           groupAction.id == owningGroupID,
+           index >= 0 {
+            let members = parent.coordinator.memberActionIDs(for: owningGroupID)
+            let reordered = Self.reordered(members, moving: draggedID, toChildIndex: index)
+            guard reordered != members else { return false }
+            parent.coordinator.setExtensionGroupMemberOrder(groupID: owningGroupID, memberIDs: reordered)
+            expandedNodeIDs.insert(owningGroupID)
+            rebuildTree()
+            outlineView.reloadData()
+            outlineView.expandItem(targetNode)
+            return true
+        }
+
         // Dropped ON or INSIDE custom group
         if let targetNode = item as? OutlineNode, case .customGroup(let def, _) = targetNode.kind {
             if index == NSOutlineViewDropOnItemIndex {
@@ -776,6 +814,34 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         }
 
         return false
+    }
+
+    // MARK: - Reordering inside an extension's group
+
+    /// The extension group a dragged id is a command of, or nil when it is not one.
+    private func extensionGroupID(ofSubActionWithID id: String) -> String? {
+        for root in rootNodes {
+            for child in root.children {
+                if case .extensionSubAction(let action, let parentGroupID) = child.kind, action.id == id {
+                    return parentGroupID
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Moves `id` to the gap an outline view reports for a drop between children.
+    ///
+    /// That index counts the rows *as they are on screen*, with the dragged row still among them,
+    /// so moving a row downwards lands one place too far once it has been lifted out. Pure, so the
+    /// off-by-one is pinned by tests rather than argued about.
+    static func reordered(_ members: [String], moving id: String, toChildIndex index: Int) -> [String] {
+        guard let from = members.firstIndex(of: id) else { return members }
+        var reordered = members
+        reordered.remove(at: from)
+        let destination = index > from ? index - 1 : index
+        reordered.insert(id, at: min(max(destination, 0), reordered.count))
+        return reordered
     }
 
     // MARK: - Grouping by drop
