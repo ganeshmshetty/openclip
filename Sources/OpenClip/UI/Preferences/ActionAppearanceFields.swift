@@ -194,7 +194,7 @@ struct IconPickerPage: View {
             onDone()
         }
         .padding(14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 

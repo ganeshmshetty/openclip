@@ -287,6 +287,7 @@ struct AIPresetPage: View {
                 LabeledContent(String(localized: "Action Title")) {
                     TextField("Title", text: $title)
                         .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -296,6 +297,7 @@ struct AIPresetPage: View {
                     TextField("Prompt instruction...", text: $prompt, axis: .vertical)
                         .lineLimit(4...10)
                         .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
                 }
             }
 
@@ -359,6 +361,7 @@ struct AINewPresetPage: View {
                 LabeledContent(String(localized: "Action Title")) {
                     TextField("e.g. Simplify", text: $title)
                         .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -368,6 +371,7 @@ struct AINewPresetPage: View {
                     TextField("e.g. Rewrite text using simple 5th-grade vocabulary", text: $prompt, axis: .vertical)
                         .lineLimit(4...10)
                         .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
                 }
             }
 
