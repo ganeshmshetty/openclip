@@ -4845,34 +4845,6 @@
         }
       }
     },
-    "Drag actions onto the group in the Actions list to add more.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在“操作”列表中将操作拖到该分组上即可添加更多。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在「操作」列表中將操作拖到該群組上即可加入更多。"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Faites glisser des actions sur le groupe dans la liste Actions pour en ajouter."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "アクションリストでグループにアクションをドラッグして追加できます。"
-          }
-        }
-      }
-    },
     "Drag icon to add to a group": {
       "localizations": {
         "zh-Hans": {
@@ -4929,6 +4901,34 @@
         }
       }
     },
+    "Drag to reorder the actions behind this extension's icon.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动可重新排列此扩展图标下的操作。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖曳可重新排列此擴充功能圖示下的操作。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faites glisser pour réordonner les actions regroupées sous l'icône de cette extension."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この拡張機能のアイコンにまとめられたアクションをドラッグして並べ替えます。"
+          }
+        }
+      }
+    },
     "Drag to reorder the popup bar. Drop an action onto a group to add it; select several and use + to make a group. Double-click a row to open its settings.": {
       "localizations": {
         "zh-Hans": {
@@ -4981,6 +4981,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ドラッグしてポップアップバーを並べ替えます。アクションを別のアクションにドロップするとグループになり、グループにドロップすると追加されます。最後の 1 つを外すとグループは消えます。行をダブルクリックすると設定が開きます。"
+          }
+        }
+      }
+    },
+    "Drag to reorder. Drag actions onto the group on Customize to add more.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动可重新排序。在“自定义”中将操作拖到分组上即可添加更多。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖曳可重新排序。在「自訂」中將操作拖到群組上即可加入更多。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faites glisser pour réordonner. Faites glisser des actions sur le groupe dans Personnaliser pour en ajouter."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドラッグして並べ替えます。「カスタマイズ」でアクションをグループにドラッグすると追加できます。"
           }
         }
       }
@@ -8117,62 +8145,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "その他のアクション"
-          }
-        }
-      }
-    },
-    "Move Down": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "下移"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "下移"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Descendre"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "下に移動"
-          }
-        }
-      }
-    },
-    "Move Up": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "上移"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "上移"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Monter"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "上に移動"
           }
         }
       }

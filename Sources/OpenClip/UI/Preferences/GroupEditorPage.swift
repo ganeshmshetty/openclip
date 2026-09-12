@@ -1,9 +1,9 @@
 // GroupEditorPage.swift
 // OpenClip
 //
-// A group's settings as a page: its name and icon in the popup bar, its members and their order,
-// and — for a group the user made — the way to disband it. Serves both custom groups and the group
-// an extension ships, which can be renamed and re-ordered but not disbanded.
+// A group's settings as a page: its name and icon in the popup bar, its members and the order they
+// are dragged into, and — for a group the user made — the way to disband it. Serves both custom
+// groups and the group an extension ships, which can be renamed and re-ordered but not disbanded.
 import SwiftUI
 import Core
 
@@ -90,11 +90,16 @@ public struct GroupEditorPage: View {
 
                     InsetGroupCard {
                         VStack(spacing: 0) {
-                            ForEach(Array(memberIDs.enumerated()), id: \.element) { index, actionID in
-                                if index > 0 {
-                                    Divider()
-                                        .padding(.horizontal, 12)
-                                }
+                            ReorderableRows(
+                                ids: memberIDs,
+                                dragPreviewTitle: { memberTitle($0) },
+                                onMove: { id, gap in
+                                    withAnimation(.easeInOut(duration: 0.18)) {
+                                        memberIDs = RowReordering.reordering(memberIDs, moving: id, toGap: gap)
+                                    }
+                                },
+                                dividerInset: 12
+                            ) { actionID in
                                 GroupMemberRowView(
                                     actionID: actionID,
                                     customIconSymbol: Binding(
@@ -102,20 +107,6 @@ public struct GroupEditorPage: View {
                                         set: { memberIconOverrides[actionID] = $0 }
                                     ),
                                     isCustomGroup: isCustomGroup,
-                                    canMoveUp: index > 0,
-                                    canMoveDown: index < memberIDs.count - 1,
-                                    onMoveUp: {
-                                        guard let idx = memberIDs.firstIndex(of: actionID), idx > 0 else { return }
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            memberIDs.swapAt(idx, idx - 1)
-                                        }
-                                    },
-                                    onMoveDown: {
-                                        guard let idx = memberIDs.firstIndex(of: actionID), idx < memberIDs.count - 1 else { return }
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            memberIDs.swapAt(idx, idx + 1)
-                                        }
-                                    },
                                     onRemove: {
                                         withAnimation(.easeInOut(duration: 0.2)) {
                                             memberIDs.removeAll { $0 == actionID }
@@ -135,12 +126,12 @@ public struct GroupEditorPage: View {
                         }
                     }
 
-                    if isCustomGroup {
-                        Text("Drag actions onto the group in the Actions list to add more.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 4)
-                    }
+                    Text(isCustomGroup
+                         ? "Drag to reorder. Drag actions onto the group on Customize to add more."
+                         : "Drag to reorder the actions behind this extension's icon.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 4)
                 }
             }
         } footer: {
@@ -185,6 +176,12 @@ public struct GroupEditorPage: View {
             loaded = true
             load()
         }
+    }
+
+    /// What a dragged member is labelled with while it is in flight.
+    private func memberTitle(_ actionID: String) -> String {
+        guard let action = coordinator.actions.first(where: { $0.id == actionID }) else { return actionID }
+        return ActionCustomizationManager.shared.presented(action, surface: .table).title
     }
 
     private func load() {
@@ -254,10 +251,6 @@ private struct GroupMemberRowView: View {
     let actionID: String
     @Binding var customIconSymbol: String
     let isCustomGroup: Bool
-    let canMoveUp: Bool
-    let canMoveDown: Bool
-    let onMoveUp: () -> Void
-    let onMoveDown: () -> Void
     let onRemove: () -> Void
 
     @ObservedObject private var coordinator = ActionCoordinator.shared
@@ -308,34 +301,6 @@ private struct GroupMemberRowView: View {
                 .font(.system(size: 13))
 
             Spacer()
-
-            if canMoveUp || canMoveDown {
-                HStack(spacing: 2) {
-                    Button {
-                        onMoveUp()
-                    } label: {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 10, weight: .semibold))
-                            .frame(width: 18, height: 18)
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(!canMoveUp)
-                    .help(String(localized: "Move Up"))
-                    .accessibilityLabel(String(localized: "Move Up"))
-
-                    Button {
-                        onMoveDown()
-                    } label: {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
-                            .frame(width: 18, height: 18)
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(!canMoveDown)
-                    .help(String(localized: "Move Down"))
-                    .accessibilityLabel(String(localized: "Move Down"))
-                }
-            }
 
             if isCustomGroup {
                 Button {
