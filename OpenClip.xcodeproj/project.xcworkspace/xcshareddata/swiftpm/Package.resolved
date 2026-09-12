@@ -1,5 +1,5 @@
 {
-  "originHash" : "8d19f74f19e5889da463b13cd038fca201c6530e3548fae9334cc615b0e5e76a",
+  "originHash" : "a177cacbcf01628eba2ca277a72d462395a6834b9154451ac0f80591803aa9d7",
   "pins" : [
     {
       "identity" : "keyboardshortcuts",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "c3c361f409b8dbe1eab186078b41c330a6a82c9a",
         "version" : "2.2.2"
+      }
+    },
+    {
+      "identity" : "openselection",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ganeshmshetty/OpenSelection",
+      "state" : {
+        "revision" : "65d4db4eccacc65a7aab7533e524b5712a8125b9",
+        "version" : "0.1.0"
       }
     },
     {

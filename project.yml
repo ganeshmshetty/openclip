@@ -84,7 +84,8 @@ targets:
       - package: OpenSelection
 packages:
   OpenSelection:
-    path: ../OpenSelection
+    url: https://github.com/ganeshmshetty/OpenSelection
+    from: 0.1.0
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 2.0.0
