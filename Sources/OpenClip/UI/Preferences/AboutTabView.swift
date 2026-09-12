@@ -2,6 +2,8 @@
 // OpenClip
 //
 // The About preferences tab: app identity, version, software updates, links, and diagnostics.
+// It is where every outward link lives — the sidebar used to carry two icon buttons in its footer,
+// which sat on top of the scrolling rows once the list grew past the window.
 // Split out of PreferencesView.swift.
 import SwiftUI
 import AppKit
@@ -72,6 +74,11 @@ struct AboutTab: View {
 
             Section("Links") {
                 linkRow("Website", systemImage: "globe", url: "https://www.getopenclip.app")
+                linkRow(
+                    "Documentation",
+                    systemImage: "book",
+                    url: "https://www.getopenclip.app/docs"
+                )
                 linkRow(
                     "GitHub",
                     systemImage: "chevron.left.forwardslash.chevron.right",

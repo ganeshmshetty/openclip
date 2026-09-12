@@ -452,39 +452,6 @@ public struct PreferencesView: View {
             extensionRows: secondGroupRows
         )
         .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            sidebarFooter
-        }
-    }
-
-    private var sidebarFooter: some View {
-        HStack(spacing: 14) {
-            Button {
-                if let url = URL(string: "https://www.getopenclip.app/docs") {
-                    NSWorkspace.shared.open(url)
-                }
-            } label: {
-                Image(systemName: "questionmark.circle")
-            }
-            .help("Documentation")
-            .accessibilityLabel("Documentation")
-
-            Button {
-                if let url = URL(string: "https://github.com/ganeshmshetty/openclip") {
-                    NSWorkspace.shared.open(url)
-                }
-            } label: {
-                Image(systemName: "chevron.left.forwardslash.chevron.right")
-            }
-            .help("GitHub Repository")
-            .accessibilityLabel("GitHub Repository")
-
-            Spacer()
-        }
-        .buttonStyle(.borderless)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
     // MARK: - Detail

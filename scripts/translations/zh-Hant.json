@@ -558,5 +558,7 @@
   "Uninstall": "解除安裝",
   "Delete %@?": "要刪除 %@ 嗎？",
   "More": "更多",
-  "The action is removed from the popup bar and the palette.": "該操作將從彈出列和命令面板中移除。"
+  "The action is removed from the popup bar and the palette.": "該操作將從彈出列和命令面板中移除。",
+  "Links": "連結",
+  "Report an Issue": "回報問題"
 }

@@ -558,5 +558,7 @@
   "Uninstall": "アンインストール",
   "Delete %@?": "%@ を削除しますか?",
   "More": "その他",
-  "The action is removed from the popup bar and the palette.": "アクションはポップアップバーとパレットから削除されます。"
+  "The action is removed from the popup bar and the palette.": "アクションはポップアップバーとパレットから削除されます。",
+  "Links": "リンク",
+  "Report an Issue": "問題を報告"
 }

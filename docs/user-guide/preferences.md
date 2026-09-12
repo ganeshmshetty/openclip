@@ -28,6 +28,7 @@ The settings window is laid out like System Settings:
 - The sidebar has two groups: OpenClip's own pages (General, Appearance, Customize, Shortcuts,
   App Rules, Store, About), then **AI, every built-in action, every installed extension and your
   Custom Actions**, one page each, by name.
+- **About** carries every outward link: Website, Documentation, GitHub and Report an Issue.
 - Anything you drill into — an action's settings, the icon chooser, a prompt — opens as a page in
   the same column. The **‹ ›** arrows in the toolbar (or `⌘[` / `⌘]`) move back and forward
   through the pages you visited, exactly like System Settings. Nothing opens in a popover or a
