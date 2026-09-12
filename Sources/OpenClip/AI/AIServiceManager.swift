@@ -49,17 +49,88 @@ public final class AIServiceManager: ObservableObject {
     @AppStorage("aiCloudModel") public var cloudModel: String = "gpt-4o-mini" {
         willSet { objectWillChange.send() }
     }
-    @AppStorage("aiOllamaURL") public var ollamaURL: String = "http://localhost:11434" {
+    @AppStorage("aiLocalPreset") public var localPresetRaw: String = LocalLLMPreset.lmstudio.rawValue {
         willSet { objectWillChange.send() }
     }
-    @AppStorage("aiOllamaModel") public var ollamaModel: String = "llama3" {
+    @AppStorage("aiLocalURL") public var localURL: String = "http://localhost:1234/v1" {
         willSet { objectWillChange.send() }
     }
-    @AppStorage("aiBrowserPreset") public var browserPreset: String = "chatgpt" {
+    @AppStorage("aiLocalModel") public var localModel: String = "default" {
         willSet { objectWillChange.send() }
     }
-    @AppStorage("aiBrowserURLTemplate") public var browserURLTemplate: String = "https://chatgpt.com/?q={text}" {
+    @AppStorage("aiCLIPreset") public var cliPresetRaw: String = CLIPreset.claude.rawValue {
         willSet { objectWillChange.send() }
+    }
+    @AppStorage("aiCLICustomCommand") public var cliCustomCommand: String = "" {
+        willSet { objectWillChange.send() }
+    }
+    @AppStorage("aiCLIModel") public var cliModel: String = "default" {
+        willSet { objectWillChange.send() }
+    }
+    @AppStorage("aiCLICustomModel") public var cliCustomModel: String = "" {
+        willSet { objectWillChange.send() }
+    }
+    @AppStorage("aiCLICustomAuthCommand") public var cliCustomAuthCommand: String = "" {
+        willSet { objectWillChange.send() }
+    }
+    @AppStorage("aiLocalCustomModel") public var localCustomModel: String = "" {
+        willSet { objectWillChange.send() }
+    }
+    @AppStorage("aiCloudCustomModel") public var cloudCustomModel: String = "" {
+        willSet { objectWillChange.send() }
+    }
+
+    public var effectiveCLIModel: String {
+        if cliModel == "custom" {
+            return cliCustomModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return (cliModel == "default") ? "" : cliModel
+    }
+
+    public var effectiveLocalModel: String {
+        if localModel == "custom" {
+            return localCustomModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return localModel
+    }
+
+    public var effectiveCloudModel: String {
+        if cloudModel == "custom" {
+            let trimmed = cloudCustomModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? cloudServiceProvider.primaryModel : trimmed
+        }
+        return (cloudModel == "default") ? cloudServiceProvider.primaryModel : cloudModel
+    }
+
+    public var localPreset: LocalLLMPreset {
+        get { LocalLLMPreset(rawValue: localPresetRaw) ?? .lmstudio }
+        set {
+            localPresetRaw = newValue.rawValue
+            localURL = newValue.defaultBaseURL
+            if let first = newValue.defaultModels.first {
+                localModel = first
+            }
+        }
+    }
+
+    public var cliPreset: CLIPreset {
+        get { CLIPreset(rawValue: cliPresetRaw) ?? .claude }
+        set {
+            cliPresetRaw = newValue.rawValue
+            if let first = newValue.defaultModels.first {
+                cliModel = first
+            }
+        }
+    }
+
+    /// Backwards-compatibility properties for existing settings
+    public var ollamaURL: String {
+        get { localURL }
+        set { localURL = newValue }
+    }
+    public var ollamaModel: String {
+        get { localModel }
+        set { localModel = newValue }
     }
     @AppStorage("aiActionPresetsJSON") public var actionPresetsJSON: String = "" {
         willSet { objectWillChange.send() }
@@ -224,7 +295,15 @@ public final class AIServiceManager: ObservableObject {
     }
 
     public var activeProviderType: AIProviderType {
-        get { AIProviderType(rawValue: activeProviderRaw) ?? .apple }
+        get {
+            switch activeProviderRaw {
+            case "apple": return .apple
+            case "local", "ollama": return .local
+            case "cli": return .cli
+            case "cloud": return .cloud
+            default: return .apple
+            }
+        }
         set { activeProviderRaw = newValue.rawValue }
     }
 
@@ -238,20 +317,6 @@ public final class AIServiceManager: ObservableObject {
         }
     }
 
-    public var effectiveBrowserURLTemplate: String {
-        switch browserPreset {
-        case "claude": return "https://claude.ai/new?q={text}"
-        case "perplexity": return "https://www.perplexity.ai/search?q={text}"
-        case "gemini": return "https://gemini.google.com/app?q={text}"
-        case "deepseek": return "https://chat.deepseek.com/?q={text}"
-        case "custom":
-            let custom = browserURLTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
-            return custom.isEmpty ? "https://chatgpt.com/?q={text}" : custom
-        default:
-            return "https://chatgpt.com/?q={text}"
-        }
-    }
-
     /// Overrides the AI provider instance (for testing/mocking).
     public var providerOverride: (any AIProvider)? = nil
 
@@ -262,12 +327,12 @@ public final class AIServiceManager: ObservableObject {
         switch activeProviderType {
         case .apple:
             return AppleIntelligenceProvider()
-        case .ollama:
-            return OllamaProvider(baseURL: ollamaURL, model: ollamaModel)
+        case .local:
+            return LocalLLMProvider(baseURL: localURL, model: effectiveLocalModel)
+        case .cli:
+            return CLIProvider(preset: cliPreset, customCommand: cliCustomCommand, modelOverride: effectiveCLIModel)
         case .cloud:
-            return CloudAPIProvider(apiKey: cloudAPIKey, model: cloudModel, serviceProvider: cloudServiceProvider, customBaseURL: cloudCustomURL)
-        case .browser:
-            return BrowserRedirectProvider(template: effectiveBrowserURLTemplate)
+            return CloudAPIProvider(apiKey: cloudAPIKey, model: effectiveCloudModel, serviceProvider: cloudServiceProvider, customBaseURL: cloudCustomURL)
         }
     }
 }
@@ -295,14 +360,26 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    public var primaryModel: String {
+        switch self {
+        case .openai: return "gpt-4o-mini"
+        case .anthropic: return "claude-3-7-sonnet-latest"
+        case .google: return "gemini-2.0-flash"
+        case .deepseek: return "deepseek-chat"
+        case .groq: return "llama-3.3-70b-versatile"
+        case .openrouter: return "openai/gpt-4o-mini"
+        case .custom: return "default"
+        }
+    }
+
     public var defaultModels: [String] {
         switch self {
-        case .openai: return ["gpt-4o-mini", "gpt-4o", "o1-mini", "o1", "gpt-4-turbo"]
-        case .anthropic: return ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"]
+        case .openai: return ["gpt-4o-mini", "gpt-4o", "o3-mini", "o1", "gpt-4-turbo"]
+        case .anthropic: return ["claude-3-7-sonnet-latest", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"]
         case .google: return ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
         case .deepseek: return ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]
         case .groq: return ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "deepseek-r1-distill-llama-70b"]
-        case .openrouter: return ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "deepseek/deepseek-r1", "google/gemini-2.0-flash-001"]
+        case .openrouter: return ["openai/gpt-4o-mini", "anthropic/claude-3.7-sonnet", "deepseek/deepseek-r1", "google/gemini-2.0-flash-001"]
         case .custom: return ["default"]
         }
     }

@@ -603,12 +603,6 @@ public struct PopupView: View {
 
             do {
                 let provider = aiManager.currentProvider
-                if provider.type == .browser {
-                    _ = try await provider.process(prompt: prompt, text: selectionText)
-                    guard !Task.isCancelled else { return }
-                    onResult(.success)
-                    return
-                }
 
                 var accumulated = ""
                 var hasYielded = false
