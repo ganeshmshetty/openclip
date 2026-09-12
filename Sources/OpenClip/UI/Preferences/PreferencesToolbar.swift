@@ -531,13 +531,19 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         case ItemID.pageToggle:
             // A real `NSSwitch`, so it is the system's switch in the system's toolbar: same
             // metrics, same accent, same animation as the one in System Settings' title bar.
+            //
+            // Hosted in a fixed-size view rather than handed over bare: a toolbar stretches a
+            // custom view that reports no intrinsic size, and `NSSwitch` draws itself into
+            // whatever bounds it is given — which made it render at roughly twice its size,
+            // filling the whole height of the title bar.
             let control = NSSwitch()
             control.target = self
             control.action = #selector(pageTogglePressed(_:))
-            control.sizeToFit()
+            control.controlSize = .regular
+            let host = ToolbarControlHost(control)
 
             let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            item.view = control
+            item.view = host
             item.label = String(localized: "Enabled")
             item.visibilityPriority = .high
             pageToggleControl = control
@@ -565,5 +571,41 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         default:
             return nil
         }
+    }
+}
+
+/// Fixed-size host for a toolbar's custom control.
+///
+/// An `NSToolbarItem` sizes a custom view from its intrinsic content size, and a view that reports
+/// none is stretched to the space available. `NSSwitch` reports one, but it is lost the moment the
+/// item resizes the view it was handed — so the control is parked at its own size inside a host
+/// that reports that size and never resizes its subviews.
+private final class ToolbarControlHost: NSView {
+    private let contentSize: NSSize
+
+    init(_ content: NSControl) {
+        content.sizeToFit()
+        // `NSSwitch` answers 38x22 at the regular control size; the constant is only a floor for
+        // a control that has not laid out yet.
+        let fitted = content.fittingSize
+        contentSize = NSSize(width: max(fitted.width, 38), height: max(fitted.height, 22))
+        super.init(frame: NSRect(origin: .zero, size: contentSize))
+        content.frame = NSRect(origin: .zero, size: contentSize)
+        content.autoresizingMask = []
+        autoresizesSubviews = false
+        addSubview(content)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var intrinsicContentSize: NSSize { contentSize }
+
+    /// The host is only a frame around the control; clicks belong to the control itself.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        return hit === self ? nil : hit
     }
 }
