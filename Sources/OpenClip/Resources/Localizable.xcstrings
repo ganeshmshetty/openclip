@@ -2437,6 +2437,34 @@
         }
       }
     },
+    "Built-in action": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内置操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內建操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action intégrée"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "組み込みアクション"
+          }
+        }
+      }
+    },
     "Bundle Identifier": {
       "localizations": {
         "zh-Hans": {

@@ -397,7 +397,7 @@ public struct PreferencesView: View {
                 page: .builtinAction(id: action.id),
                 title: presentation.title,
                 keywords: action.keywords + [action.id],
-                tile: .icon(Self.tileIcon(for: action, presented: presentation), tint: ExtensionTint.color(for: action.id))
+                tile: .icon(SettingsHeroHeader.glyph(for: action, presented: presentation), tint: ExtensionTint.color(for: action.id))
             ))
         }
 
@@ -424,16 +424,6 @@ public struct PreferencesView: View {
         ))
 
         return SettingsSidebarOrder.sorted(rows)
-    }
-
-    /// A built-in's tile glyph. Copy, Cut and Paste draw as text glyphs in the popup bar; their
-    /// settings symbol is what a tile can show.
-    private static func tileIcon(for action: any Action, presented: ActionPresentationModel) -> ActionIcon {
-        if case .text = presented.icon,
-           let symbol = (action as? any ConfigurableAction)?.preferenceIconName, !symbol.isEmpty {
-            return .symbol(symbol)
-        }
-        return presented.icon
     }
 
     /// `List` selection is optional by contract; the page never is, so a nil write (Escape,

@@ -135,6 +135,22 @@ public struct ActionEditorPage: View {
     public var body: some View {
         SettingsEditorPage {
             VStack(alignment: .leading, spacing: 14) {
+                if isSidebarPage {
+                    // A page the sidebar lists is *about* this action, so it opens the way an
+                    // extension's page does. A sub-page reached from its owner does not: the
+                    // owner's hero already said what you are inside.
+                    let presentation = customizationManager.presented(action, surface: .table)
+                    SettingsHeroHeader(
+                        glyph: .icon(
+                            SettingsHeroHeader.glyph(for: action, presented: presentation),
+                            tint: ExtensionTint.color(for: action.id)
+                        ),
+                        title: presentation.title,
+                        footnote: String(localized: "Built-in action")
+                    )
+                    .padding(.top, -8)
+                }
+
                 if let bannerText = configurationBannerText {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")

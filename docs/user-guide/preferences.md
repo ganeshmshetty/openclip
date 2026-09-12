@@ -70,10 +70,10 @@ or keyword.
 ## Built-in actions
 
 Search, Copy, Cut, Paste, Calculate, Define, Add Event, Open Link, Reveal in Finder and Word
-Completion each have a row in the sidebar's second group. The page has an **Enabled** switch,
-the name and icon shown in the popup bar, the alias and hotkey, and any options the action
-declares (Search's engine, for example). **Revert** discards unsaved edits; **Save Changes**
-applies them.
+Completion each have a row in the sidebar's second group. The page opens with the same hero an
+extension's page does — the action's icon and name — then the name and icon shown in the popup
+bar, the alias and hotkey, and any options the action declares (Search's engine, for example).
+Its switch is in the toolbar. **Revert** discards unsaved edits; **Save Changes** applies them.
 
 ## Custom Actions
 

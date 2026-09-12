@@ -77,3 +77,19 @@ struct SettingsHeroHeader: View {
         }
     }
 }
+
+extension SettingsHeroHeader {
+    /// The tile glyph for an action.
+    ///
+    /// Copy, Cut and Paste draw as *text* in the popup bar — that is their icon — and a tile can
+    /// only show a glyph, so those fall back to the symbol they carry for exactly this purpose.
+    @MainActor
+    static func glyph(for action: any Action, presented: ActionPresentationModel) -> ActionIcon {
+        if case .text = presented.icon,
+           let symbol = (action as? any ConfigurableAction)?.preferenceIconName,
+           !symbol.isEmpty {
+            return .symbol(symbol)
+        }
+        return presented.icon
+    }
+}
