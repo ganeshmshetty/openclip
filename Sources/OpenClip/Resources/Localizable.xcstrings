@@ -281,6 +281,34 @@
         }
       }
     },
+    "AI Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI アクション"
+          }
+        }
+      }
+    },
     "AI Tools": {
       "localizations": {
         "zh-Hans": {
@@ -11981,6 +12009,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "解決されたファイルは有効な画像ではありません。"
+          }
+        }
+      }
+    },
+    "These appear inside the AI Tools group in the popup bar. Drag to reorder.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这些会显示在弹出栏的“AI 工具”分组中。拖动可重新排序。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這些會顯示在彈出列的「AI 工具」群組中。拖曳可重新排序。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elles apparaissent dans le groupe Outils IA de la barre contextuelle. Faites glisser pour réordonner."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポップアップバーの「AI ツール」グループに表示されます。ドラッグして並べ替えられます。"
           }
         }
       }

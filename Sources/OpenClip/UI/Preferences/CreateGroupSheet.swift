@@ -27,7 +27,7 @@ public struct CreateGroupSheet: View {
                     .textFieldStyle(.roundedBorder)
 
                 Button {
-                    showingIconPicker.toggle()
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker.toggle() }
                 } label: {
                     HStack(spacing: 4) {
                         AnyIconView(iconId: iconName.isEmpty ? "folder" : iconName)
@@ -35,14 +35,19 @@ public struct CreateGroupSheet: View {
                         Image(systemName: "chevron.down")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                            .rotationEffect(.degrees(showingIconPicker ? 180 : 0))
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
                 }
                 .buttonStyle(.plain)
-                .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                    IconPickerPopover(selectedIcon: $iconName)
+                .accessibilityLabel(String(localized: "Choose icon"))
+            }
+
+            if showingIconPicker {
+                InlineIconPicker(selectedIcon: $iconName, height: 240) {
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker = false }
                 }
             }
 
@@ -77,6 +82,6 @@ public struct CreateGroupSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 360)
+        .frame(width: 420)
     }
 }

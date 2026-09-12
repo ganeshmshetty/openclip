@@ -1,7 +1,7 @@
 // EditActionSheet.swift
 // OpenClip
 //
-// Renders the modal sheet / popover interface for editing existing action appearances, titles, and parameters.
+// Renders the modal sheet for editing existing action appearances, titles, and parameters.
 // Styled in macOS Inset Grouped layout with Hero Header: content-hugging height, solid opaque background,
 // and conditional options/logic display (omitting redundant info notes when no config options exist).
 import SwiftUI
@@ -16,9 +16,6 @@ public struct EditActionSheet: View {
     /// reason banner and highlights the missing option rows in the unified editor (Phase 7).
     let configurationRequest: ConfigurationRequest?
     @Environment(\.dismiss) private var dismiss
-    /// Set when the editor is shown in the Actions tab's settings popover, which closes itself
-    /// only on request; `nil` when it is presented as a sheet.
-    @Environment(\.popoverDismiss) private var popoverDismiss
 
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
@@ -71,11 +68,7 @@ public struct EditActionSheet: View {
     }
 
     private func close() {
-        if let popoverDismiss {
-            popoverDismiss()
-        } else {
-            dismiss()
-        }
+        dismiss()
     }
 
     /// Banner text when the sheet was opened because the action needs configuration. Falls back to a
@@ -327,7 +320,7 @@ public struct EditActionSheet: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
         }
-        .frame(width: 370)
+        .frame(width: 420)
         .fixedSize(horizontal: false, vertical: true)
         .background(Color(nsColor: .windowBackgroundColor))
         .alert("Unable to Save Changes", isPresented: $showingSaveAlert) {

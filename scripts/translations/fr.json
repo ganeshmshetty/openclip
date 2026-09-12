@@ -487,5 +487,7 @@
   "Duplicate Action": "Dupliquer l’action",
   "Duplicate Extension": "Dupliquer l’extension",
   "Duplicate Failed": "Échec de la duplication",
-  "OpenClip could not duplicate extension: %@": "OpenClip n’a pas pu dupliquer l’extension : %@"
+  "OpenClip could not duplicate extension: %@": "OpenClip n’a pas pu dupliquer l’extension : %@",
+  "AI Actions": "Actions IA",
+  "These appear inside the AI Tools group in the popup bar. Drag to reorder.": "Elles apparaissent dans le groupe Outils IA de la barre contextuelle. Faites glisser pour réordonner."
 }

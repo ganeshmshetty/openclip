@@ -13,6 +13,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
     case general = "General"
     case appearance = "Appearance"
     case actions = "Actions"
+    case ai = "AI"
     case store = "Store"
     case appRules = "App Rules"
     case about = "About"
@@ -26,6 +27,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
         case .general: return "gearshape.fill"
         case .appearance: return "paintbrush.fill"
         case .actions: return "bolt.horizontal.fill"
+        case .ai: return "sparkles"
         case .store: return "bag.fill"
         case .appRules: return "shield.checkerboard"
         case .about: return "info.circle.fill"
@@ -45,6 +47,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
         case .general: return .gray
         case .appearance: return .pink
         case .actions: return .orange
+        case .ai: return .purple
         case .store: return .blue
         case .appRules: return .indigo
         case .about: return .teal
@@ -146,7 +149,13 @@ public struct PreferencesView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenActionConfiguration)) { notification in
             guard let request = notification.userInfo?["request"] as? ConfigurationRequest,
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
-            activeSheet = .configure(action: action, request: request)
+            // AI is a pane, not a modal: a request to configure it selects it instead of stacking
+            // a second copy of the same settings on top of the window.
+            if action.chrome.launchesAI {
+                selectedTab = .ai
+            } else {
+                activeSheet = .configure(action: action, request: request)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openClipSelectPreferencesTab)) { notification in
             if let tab = notification.object as? PreferenceTab {
@@ -161,11 +170,7 @@ public struct PreferencesView: View {
         .sheet(item: $activeSheet) { route in
             switch route {
             case .configure(let action, let request):
-                if action.chrome.launchesAI {
-                    ConfigureAISheet()
-                } else {
-                    EditActionSheet(action: action, configurationRequest: request)
-                }
+                EditActionSheet(action: action, configurationRequest: request)
             }
         }
     }
@@ -257,6 +262,8 @@ public struct PreferencesView: View {
             )
             .frame(maxWidth: Self.detailContentMaxWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .ai:
+            AIPane()
         case .store:
             ExtensionStoreView(viewModel: storeViewModel)
         case .appRules:

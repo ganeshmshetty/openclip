@@ -229,7 +229,6 @@
   "Apple Intelligence": "Apple Intelligence",
   "Local (LM Studio/Ollama)": "本地模型（LM Studio/Ollama）",
   "CLI": "命令行（CLI）",
-  "Cloud API": "云端 API",
   "Ollama (Local LLM)": "Ollama（本地大模型）",
   "Cloud API (OpenAI/Claude)": "云端 API（OpenAI/Claude）",
   "Browser Redirection": "浏览器跳转",
@@ -488,5 +487,7 @@
   "Duplicate Action": "复制操作",
   "Duplicate Extension": "复制扩展",
   "Duplicate Failed": "复制失败",
-  "OpenClip could not duplicate extension: %@": "OpenClip 无法复制扩展：%@"
+  "OpenClip could not duplicate extension: %@": "OpenClip 无法复制扩展：%@",
+  "AI Actions": "AI 操作",
+  "These appear inside the AI Tools group in the popup bar. Drag to reorder.": "这些会显示在弹出栏的“AI 工具”分组中。拖动可重新排序。"
 }
