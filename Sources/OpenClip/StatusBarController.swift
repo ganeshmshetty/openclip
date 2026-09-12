@@ -665,10 +665,13 @@ class StatusBarController: NSObject, NSMenuDelegate {
         toolbarController.window = window
         window.toolbarStyle = .unified
         window.titleVisibility = .hidden
-        // Left at .automatic on purpose: it defers to NSSplitViewItem, which draws
-        // the title bar separator over the detail pane only, so the sidebar keeps
-        // one unbroken surface from the traffic lights down.
-        window.titlebarSeparatorStyle = .automatic
+        // No hairline under the title bar, ever. `.automatic` defers to the split
+        // view items, which decide per column from whether that column's content
+        // scrolls under the title bar — so a page whose top is a hero or a search
+        // field drew a line and a page whose top is a list did not, and moving
+        // between them flickered one in and out. `PreferencesView` pins the split
+        // items to match, since an item's own style outranks the window's.
+        window.titlebarSeparatorStyle = .none
         // Closing the window must not deallocate it while `preferencesWindow`
         // still points at it — the reuse check above reads the window back
         // after a close, and the default (release on close) makes that a read

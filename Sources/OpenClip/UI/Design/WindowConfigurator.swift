@@ -60,3 +60,42 @@ extension View {
         )
     }
 }
+
+extension View {
+    /// Keeps the title bar's hairline hidden on every page of the hosting window.
+    ///
+    /// macOS decides this per split-view column, from whether that column's content scrolls under
+    /// the title bar: a page whose top element is a scroll view got no line, and a page that
+    /// starts with something static — a hero, a search field, a preview — got one. Setting it on
+    /// the window is not enough, because `NSSplitViewItem.titlebarSeparatorStyle` outranks the
+    /// window's, and SwiftUI rewrites the items' style as the layout changes. So both are set, and
+    /// re-set on every update the way `minimumWindowContentSize` re-asserts its own values.
+    func hidesTitlebarSeparator() -> some View {
+        background(
+            WindowConfigurator { window in
+                window.titlebarSeparatorStyle = .none
+                for controller in WindowConfigurator.splitViewControllers(in: window.contentViewController) {
+                    for item in controller.splitViewItems where item.titlebarSeparatorStyle != .none {
+                        item.titlebarSeparatorStyle = .none
+                    }
+                }
+            }
+        )
+    }
+}
+
+extension WindowConfigurator {
+    /// Every `NSSplitViewController` under `root`, including nested ones: SwiftUI hosts a
+    /// `NavigationSplitView` inside one, but how deep it sits is its own business.
+    static func splitViewControllers(in root: NSViewController?) -> [NSSplitViewController] {
+        guard let root else { return [] }
+        var found: [NSSplitViewController] = []
+        if let controller = root as? NSSplitViewController {
+            found.append(controller)
+        }
+        for child in root.children {
+            found.append(contentsOf: splitViewControllers(in: child))
+        }
+        return found
+    }
+}

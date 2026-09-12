@@ -97,6 +97,7 @@ public struct PreferencesView: View {
             detail
         }
         .minimumWindowContentSize(width: 760, height: 480)
+        .hidesTitlebarSeparator()
         // Left at the system default: `.balanced` lets the detail column push
         // into the sidebar's width, which is the case that runs out of room
         // first when the window is dragged narrow.
