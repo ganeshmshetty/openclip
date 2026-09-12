@@ -213,12 +213,14 @@ public struct AIActionsSection: View {
             LabeledField(title: String(localized: "Action Title")) {
                 TextField("Title", text: $draftTitle)
                     .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
             }
 
             LabeledField(title: String(localized: "Prompt Instruction")) {
                 TextField("Prompt instruction...", text: $draftPrompt, axis: .vertical)
                     .lineLimit(3...6)
                     .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
             }
 
             HStack {
@@ -264,12 +266,14 @@ public struct AIActionsSection: View {
             LabeledField(title: String(localized: "Action Title")) {
                 TextField("e.g. Simplify", text: $newTitle)
                     .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
             }
 
             LabeledField(title: String(localized: "Prompt Instruction")) {
                 TextField("e.g. Rewrite text using simple 5th-grade vocabulary", text: $newPrompt, axis: .vertical)
                     .lineLimit(2...5)
                     .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
             }
 
             HStack {

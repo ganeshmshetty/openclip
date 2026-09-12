@@ -28,7 +28,10 @@ struct ActionAppearanceFields: View {
     /// Expanded state of the inline icon picker. It used to be a `.popover` anchored to the hero
     /// button — and because this editor is itself presented in a sheet, that meant a picker
     /// floating free of the form it edits, on top of the preview it is meant to be compared with.
-    @State private var showingIconPicker = false
+    ///
+    /// Owned by the caller: an expanded picker roughly doubles the form's height, and the sheet
+    /// that hosts it has to know so it can scroll rather than hang off the bottom of the window.
+    @Binding var showingIconPicker: Bool
     @State private var isIconHovered = false
 
     /// What the icon preview should render right now (same resolution the popup bar applies).

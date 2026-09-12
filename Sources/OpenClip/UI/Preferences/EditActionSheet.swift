@@ -57,6 +57,8 @@ public struct EditActionSheet: View {
     @State private var showingSaveAlert: Bool = false
     @State private var saveAlertMessage: String = ""
     @State private var aliasText: String = ""
+    /// Expanded state of the inline icon picker, owned here so the sheet can bound its height.
+    @State private var showingIconPicker = false
 
     public init(action: any Action, configurationRequest: ConfigurationRequest? = nil) {
         self.action = action
@@ -106,7 +108,10 @@ public struct EditActionSheet: View {
             .padding(.top, 14)
             .padding(.bottom, 10)
 
-            // Content Area (fits content dynamically)
+            // Content Area. It hugs its content, except while the icon picker is expanded — that
+            // roughly doubles the form, so the sheet takes a fixed height and scrolls instead of
+            // hanging off the bottom of the window.
+            ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 if let bannerText = configurationBannerText {
                     HStack(alignment: .top, spacing: 8) {
@@ -138,7 +143,8 @@ public struct EditActionSheet: View {
                         initialIconSymbol: initialIconSymbol,
                         baseIcon: baseIconState,
                         displayMode: $displayMode,
-                        textGlyphFallbackSymbol: Self.iconModeFallbackSymbol(for: action)
+                        textGlyphFallbackSymbol: Self.iconModeFallbackSymbol(for: action),
+                        showingIconPicker: $showingIconPicker
                     )
                 }
                 .disabled(manifestMissing)
@@ -290,6 +296,8 @@ public struct EditActionSheet: View {
                 }
             }
             .padding(14)
+            }
+            .scrollDisabled(!showingIconPicker)
 
             // Footer Action Buttons
             HStack(spacing: 12) {
@@ -321,7 +329,8 @@ public struct EditActionSheet: View {
             .padding(.vertical, 10)
         }
         .frame(width: 420)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(height: showingIconPicker ? 560 : nil)
+        .fixedSize(horizontal: false, vertical: !showingIconPicker)
         .background(Color(nsColor: .windowBackgroundColor))
         .alert("Unable to Save Changes", isPresented: $showingSaveAlert) {
             Button("OK", role: .cancel) {}

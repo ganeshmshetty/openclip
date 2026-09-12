@@ -13,6 +13,8 @@ public struct AddCustomActionSheet: View {
 
     // Appearance State (matching EditActionSheet's Hero Header Card)
     @State private var customTitle: String = ""
+    /// Expanded state of the inline icon picker, owned here so the sheet can bound its height.
+    @State private var showingIconPicker = false
     @State private var iconSymbol: String = "wand.and.stars"
     private let initialIconSymbol: String = "wand.and.stars"
     @State private var displayMode: Int = 0 // 0 = Show Icon, 1 = Show Text
@@ -50,7 +52,9 @@ public struct AddCustomActionSheet: View {
             .padding(.top, 14)
             .padding(.bottom, 10)
 
-            // Content Area
+            // Content Area. Scrolls while the icon picker is expanded so the sheet stays inside
+            // the window.
+            ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 // Hero Header Card (Icon, Name & Display Mode)
                 InsetGroupCard {
@@ -60,7 +64,8 @@ public struct AddCustomActionSheet: View {
                         iconSymbol: $iconSymbol,
                         initialIconSymbol: initialIconSymbol,
                         baseIcon: nil,
-                        displayMode: $displayMode
+                        displayMode: $displayMode,
+                        showingIconPicker: $showingIconPicker
                     )
                 }
 
@@ -160,6 +165,8 @@ public struct AddCustomActionSheet: View {
                 }
             }
             .padding(16)
+            }
+            .scrollDisabled(!showingIconPicker)
 
             // Footer
             HStack(spacing: 8) {
@@ -174,6 +181,8 @@ public struct AddCustomActionSheet: View {
             .padding(.vertical, 12)
         }
         .frame(width: 440)
+        .frame(height: showingIconPicker ? 600 : nil)
+        .fixedSize(horizontal: false, vertical: !showingIconPicker)
     }
 
     private func addAction() {
