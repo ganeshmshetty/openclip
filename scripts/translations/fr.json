@@ -551,8 +551,6 @@
   "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.": "Ouvrez une action pour changer son nom, son icône, son raccourci ou ce qu'elle fait, ou pour la supprimer. Utilisez Personnaliser pour la placer dans la barre contextuelle.",
   "Drag to reorder the popup bar. Drop an action onto a group to add it; select several and use + to make a group. Double-click a row to open its settings.": "Faites glisser pour réordonner la barre contextuelle. Déposez une action sur un groupe pour l'y ajouter ; sélectionnez-en plusieurs et utilisez + pour créer un groupe. Double-cliquez sur une ligne pour ouvrir ses réglages.",
   "Switch an action off to hide it from the popup bar and the palette. An alias jumps straight to an action when you type it in the palette; a hotkey runs it from anywhere.": "Désactivez une action pour la masquer de la barre contextuelle et de la palette. Un alias saute directement à une action lorsque vous le tapez dans la palette ; un raccourci l'exécute depuis n'importe où.",
-  "Popup": "Barre contextuelle",
-  "Palette": "Palette",
   "View README": "Afficher le README",
   "Uninstall Extension": "Désinstaller l'extension",
   "Uninstall %@?": "Désinstaller %@ ?",

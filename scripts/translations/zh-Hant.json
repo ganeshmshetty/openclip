@@ -552,8 +552,6 @@
   "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.": "打開操作可更改其名稱、圖示、快捷鍵或功能，或將其刪除。使用「自訂」將其放入彈出列。",
   "Drag to reorder the popup bar. Drop an action onto a group to add it; select several and use + to make a group. Double-click a row to open its settings.": "拖曳可重新排列彈出列。將操作拖到群組上即可加入；選取多項並使用 + 可建立群組。點兩下某列可打開其設定。",
   "Switch an action off to hide it from the popup bar and the palette. An alias jumps straight to an action when you type it in the palette; a hotkey runs it from anywhere.": "關閉操作可將其從彈出列和命令面板中隱藏。在命令面板中輸入別名可直接跳至某個操作；快捷鍵則可在任意位置執行它。",
-  "Popup": "彈出列",
-  "Palette": "命令面板",
   "View README": "查看 README",
   "Uninstall Extension": "解除安裝擴充功能",
   "Uninstall %@?": "要解除安裝 %@ 嗎？",
