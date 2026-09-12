@@ -139,6 +139,21 @@ public final class CLIProvider: AIProvider {
 
     // MARK: - Binary Resolution
 
+    /// Waits for short-lived CLI probes without allowing a stuck login shell or auth command to
+    /// block the caller indefinitely. A timed-out probe is always treated as a failed check.
+    nonisolated private static func waitForExit(_ process: Process, timeout: TimeInterval = 10) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning {
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 0 else {
+                ShellProcessRunner.terminateProcessGroup(process)
+                return false
+            }
+            Thread.sleep(forTimeInterval: min(0.05, remaining))
+        }
+        return true
+    }
+
     nonisolated public static func resolveBinaryPath(for binary: String) -> String? {
         let trimmed = binary.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -172,8 +187,12 @@ public final class CLIProvider: AIProvider {
         process.arguments = ["-l", "-c", "which \(trimmed)"]
         process.standardOutput = pipe
         process.standardError = Pipe()
-        try? process.run()
-        process.waitUntilExit()
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+        guard waitForExit(process) else { return nil }
 
         if process.terminationStatus == 0 {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -254,7 +273,7 @@ public final class CLIProvider: AIProvider {
                 process.standardError = Pipe()
                 do {
                     try process.run()
-                    process.waitUntilExit()
+                    guard waitForExit(process) else { return (false, "Auth Failed") }
                     return (process.terminationStatus == 0, process.terminationStatus == 0 ? "Authenticated" : "Auth Failed")
                 } catch {
                     return (false, "Auth Failed")
@@ -286,7 +305,7 @@ public final class CLIProvider: AIProvider {
             process.standardError = Pipe()
             do {
                 try process.run()
-                process.waitUntilExit()
+                guard waitForExit(process) else { return (false, "Not Authenticated") }
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 let output = String(data: data, encoding: .utf8) ?? ""
                 if output.contains("\"loggedIn\": true") || output.contains("\"loggedIn\":true") {
@@ -309,7 +328,7 @@ public final class CLIProvider: AIProvider {
             process.standardError = errPipe
             do {
                 try process.run()
-                process.waitUntilExit()
+                guard waitForExit(process) else { return (false, "Not Authenticated") }
                 let outData = pipe.fileHandleForReading.readDataToEndOfFile()
                 let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
                 let output = (String(data: outData, encoding: .utf8) ?? "") + (String(data: errData, encoding: .utf8) ?? "")
@@ -330,7 +349,7 @@ public final class CLIProvider: AIProvider {
             process.standardError = Pipe()
             do {
                 try process.run()
-                process.waitUntilExit()
+                guard waitForExit(process) else { return (false, "Not Authenticated") }
                 if process.terminationStatus == 0 {
                     return (true, "Authenticated")
                 }

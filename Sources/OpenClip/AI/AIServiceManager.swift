@@ -292,6 +292,17 @@ public final class AIServiceManager: ObservableObject {
         } else {
             self.cloudAPIKey = ""
         }
+
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: "aiLocalURL") == nil,
+           let legacyURL = defaults.string(forKey: "aiOllamaURL"), !legacyURL.isEmpty {
+            localURL = legacyURL
+            localPresetRaw = LocalLLMPreset.ollama.rawValue
+        }
+        if defaults.object(forKey: "aiLocalModel") == nil,
+           let legacyModel = defaults.string(forKey: "aiOllamaModel"), !legacyModel.isEmpty {
+            localModel = legacyModel
+        }
     }
 
     public var activeProviderType: AIProviderType {

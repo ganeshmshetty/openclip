@@ -77,6 +77,13 @@ final class AIProviderTests: XCTestCase {
 
     func testEffectiveCLIModelResolution() {
         let manager = AIServiceManager.shared
+        let previousCLIModel = manager.cliModel
+        let previousCLICustomModel = manager.cliCustomModel
+        defer {
+            manager.cliModel = previousCLIModel
+            manager.cliCustomModel = previousCLICustomModel
+        }
+
         manager.cliModel = "default"
         XCTAssertEqual(manager.effectiveCLIModel, "")
 
