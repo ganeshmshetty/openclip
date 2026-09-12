@@ -2,9 +2,9 @@
 // OpenClip
 //
 // The window's table of contents, laid out the way System Settings lays out its own: a search
-// field at the top, then two groups of rows with coloured glyph tiles — OpenClip's own pages
-// first, then everything that provides actions, one row each. Selecting a row is the only thing
-// the sidebar does; the router decides what that shows.
+// field at the top, then three groups of rows with coloured glyph tiles — OpenClip's own pages,
+// then what it ships that provides actions, then what the user installed, one row each.
+// Selecting a row is the only thing the sidebar does; the router decides what that shows.
 
 import SwiftUI
 import Core
@@ -73,6 +73,21 @@ enum SettingsSidebarOrder {
         case .extensionPackage: return 3
         default: return 4
         }
+    }
+
+    /// Whether a row is a package the user installed, which is where the second gap goes: what
+    /// OpenClip ships reads as one block, what was installed as another. It is the same line the
+    /// tint colours draw — blue above it, a generated colour below.
+    static func isInstalledExtension(_ page: SettingsPage) -> Bool {
+        if case .extensionPackage = page { return true }
+        return false
+    }
+
+    /// The second group cut in two at that line, each half still in `sorted` order.
+    static func split(
+        _ rows: [SettingsSidebarRow]
+    ) -> (bundled: [SettingsSidebarRow], installed: [SettingsSidebarRow]) {
+        (rows.filter { !isInstalledExtension($0.page) }, rows.filter { isInstalledExtension($0.page) })
     }
 
     static func sorted(_ rows: [SettingsSidebarRow]) -> [SettingsSidebarRow] {
@@ -252,9 +267,21 @@ struct SettingsSidebar: View {
                     }
                 }
 
-                if !filteredExtensionRows.isEmpty {
+                // Two sections rather than one, so the gap that separates the settings from
+                // what OpenClip ships repeats between what OpenClip ships and what was installed.
+                let (bundled, installed) = SettingsSidebarOrder.split(filteredExtensionRows)
+
+                if !bundled.isEmpty {
                     Section {
-                        ForEach(filteredExtensionRows) { row in
+                        ForEach(bundled) { row in
+                            rowView(row)
+                        }
+                    }
+                }
+
+                if !installed.isEmpty {
+                    Section {
+                        ForEach(installed) { row in
                             rowView(row)
                         }
                     }

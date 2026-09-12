@@ -214,6 +214,33 @@ final class SettingsRouterTests: XCTestCase {
         ])
     }
 
+    func testTheSecondGroupSplitsWhereTheTintChanges() {
+        let rows = SettingsSidebarOrder.sorted([
+            SettingsSidebarRow(page: .extensionPackage(id: "com.a.appwrite"), title: "Appwrite", tile: .symbol("puzzlepiece.extension.fill", tint: .gray)),
+            SettingsSidebarRow(page: .builtinAction(id: "builtin.copy"), title: "Copy", tile: .symbol("bolt.fill", tint: .gray)),
+            SettingsSidebarRow(page: .customActions, title: "Custom Actions", tile: .symbol("wand.and.stars", tint: .mint)),
+            SettingsSidebarRow(page: .extensionPackage(id: "com.z.jwt"), title: "JWT", tile: .symbol("puzzlepiece.extension.fill", tint: .gray)),
+            SettingsSidebarRow(systemPage: .ai),
+        ])
+
+        let (bundled, installed) = SettingsSidebarOrder.split(rows)
+        XCTAssertEqual(bundled.map(\.title), ["AI", "Copy", "Custom Actions"],
+                       "everything OpenClip ships stays above the gap, in its sorted order")
+        XCTAssertEqual(installed.map(\.title), ["Appwrite", "JWT"],
+                       "only installed packages sit below it")
+    }
+
+    func testSplittingASidebarWithNothingInstalledLeavesTheSecondSectionEmpty() {
+        let rows = [
+            SettingsSidebarRow(systemPage: .ai),
+            SettingsSidebarRow(page: .customActions, title: "Custom Actions", tile: .symbol("wand.and.stars", tint: .mint)),
+        ]
+
+        let (bundled, installed) = SettingsSidebarOrder.split(rows)
+        XCTAssertEqual(bundled.count, 2)
+        XCTAssertTrue(installed.isEmpty, "no trailing gap when nothing is installed")
+    }
+
     func testTheSidebarOrderIsStableForRowsOfTheSameKind() {
         let rows = [
             SettingsSidebarRow(page: .extensionPackage(id: "b"), title: "Übersicht", tile: .symbol("x", tint: .gray)),
