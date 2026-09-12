@@ -9,10 +9,12 @@
 // The switch and the alias/hotkey pair also appear on each action's page; a binding is
 // legitimately part of the action *and* part of the keyboard map, and System Settings duplicates
 // settings across panes for the same reason.
+//
+// The rows are `ActionSettingsRow`, the same component an extension's page and Custom Actions use,
+// so every list of actions in the window is one table.
 
 import SwiftUI
 import Core
-import KeyboardShortcuts
 
 @MainActor
 struct ShortcutsPage: View {
@@ -25,8 +27,6 @@ struct ShortcutsPage: View {
     @ObservedObject private var aiManager = AIServiceManager.shared
 
     @State private var query = ""
-    /// Alias drafts, so a half-typed alias does not get rejected on every keystroke.
-    @State private var aliasDrafts: [String: String] = [:]
     @State private var aliasError: String?
 
     init(disabledActionIDs: Binding<Set<String>>, disabledPackages: Binding<Set<String>>) {
@@ -135,87 +135,13 @@ struct ShortcutsPage: View {
         .padding(.bottom, 4)
     }
 
-    @ViewBuilder
     private func row(for action: any Action) -> some View {
-        let presentation = customizationManager.presented(action, surface: .table)
-        let isEnabled = ActionEnablement.binding(
-            for: action,
+        ActionSettingsRow(
+            action: action,
             disabledActionIDs: $disabledActionIDs,
-            disabledPackages: $disabledPackages
-        )
-
-        HStack(spacing: 10) {
-            Toggle("", isOn: isEnabled)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .accessibilityLabel(String(localized: "Enable \(presentation.title)"))
-
-            // The name is the way into the action's own page: the shortcuts table is a map, and a
-            // map should let you open what it points at.
-            Button {
-                SettingsDestination.open(action)
-            } label: {
-                HStack(spacing: 8) {
-                    ActionIconView(icon: presentation.icon, size: 14)
-                        .frame(width: 18, height: 18)
-                        .foregroundStyle(.secondary)
-                    Text(presentation.title)
-                        .font(.system(size: 13))
-                        .foregroundStyle(isEnabled.wrappedValue ? .primary : .secondary)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Configure Action")
-
-            TextField("alias", text: aliasBinding(for: action.id), prompt: Text("alias"))
-                .textFieldStyle(.roundedBorder)
-                // A Form lays a cell out as label + control, which turned each field's placeholder
-                // into a column of its own.
-                .labelsHidden()
-                .frame(width: 88)
-                .accessibilityLabel(String(localized: "Alias for \(presentation.title)"))
-
-            KeyboardShortcuts.Recorder(for: .actionHotkey(action.id))
-
-            Button {
-                SettingsDestination.open(action)
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 18, height: 18)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Configure Action")
-            .accessibilityLabel(String(localized: "Configure \(presentation.title)"))
-        }
-        .padding(.vertical, 3)
-    }
-
-    /// Writes through to `ActionBindingStore`, surfacing the same collision message the per-action
-    /// editor shows rather than silently dropping the alias.
-    private func aliasBinding(for actionID: String) -> Binding<String> {
-        Binding(
-            get: { aliasDrafts[actionID] ?? bindingStore.alias(for: actionID) ?? "" },
-            set: { newValue in
-                aliasDrafts[actionID] = newValue
-                switch bindingStore.setAlias(newValue, for: actionID) {
-                case .accepted, .cleared:
-                    withAnimation(.easeInOut(duration: 0.18)) { aliasError = nil }
-                case .invalid:
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        aliasError = String(localized: "Aliases can only contain letters and numbers.")
-                    }
-                case .collision:
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        aliasError = String(localized: "That alias is already used.")
-                    }
-                }
+            disabledPackages: $disabledPackages,
+            onAliasMessage: { message in
+                withAnimation(.easeInOut(duration: 0.18)) { aliasError = message }
             }
         )
     }

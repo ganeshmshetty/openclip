@@ -3,7 +3,8 @@
 //
 // One installed extension's settings page: a hero saying what it is and who made it, the actions
 // it adds and the way into each one's settings — the same page whether the package groups five
-// commands behind one icon or contributes a single command. Whether it is on, and what can be done to it as a
+// commands behind one icon or contributes a single command. Its command table is
+// `ActionSettingsRow`, the same rows the Shortcuts page is made of. Whether it is on, and what can be done to it as a
 // whole — view its README, show its folder, uninstall it — live in the toolbar beside the back and
 // forward arrows, because they belong to the extension rather than to any row of the page.
 //
@@ -30,6 +31,8 @@ struct ExtensionPackagePage: View {
     @ObservedObject private var router = SettingsRouter.shared
 
     @State private var isUpdating = false
+    /// Why an alias typed in the table below was refused.
+    @State private var aliasError: String?
 
     init(
         packageID: String,
@@ -138,12 +141,23 @@ struct ExtensionPackagePage: View {
             if sections.contains(.actions) {
                 Section {
                     ForEach(info.commands, id: \.id) { action in
-                        commandRow(action)
+                        ActionSettingsRow(
+                            action: action,
+                            disabledActionIDs: $disabledActionIDs,
+                            disabledPackages: $disabledPackages,
+                            onAliasMessage: { message in
+                                withAnimation(.easeInOut(duration: 0.18)) { aliasError = message }
+                            }
+                        )
                     }
                 } header: {
                     Text("Actions")
                 } footer: {
                     VStack(alignment: .leading, spacing: 10) {
+                        if let aliasError {
+                            SettingsInlineError(message: aliasError)
+                        }
+
                         Text(info.commands.count == 1
                              ? "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options."
                              : "Turn an action off to hide it from the popup bar. Open one to change its name, icon, shortcut and options.")
@@ -200,51 +214,6 @@ struct ExtensionPackagePage: View {
     }
 
     // MARK: - Actions
-
-    private func commandRow(_ action: any Action) -> some View {
-        let presentation = customizationManager.presented(action, surface: .table)
-
-        return HStack(spacing: 10) {
-            Button {
-                router.push(.action(id: action.id))
-            } label: {
-                HStack(spacing: 10) {
-                    ActionIconView(icon: presentation.icon, size: 14)
-                        .frame(width: 20, height: 20)
-                        .foregroundStyle(.secondary)
-                    Text(presentation.title)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Configure Action")
-
-            Toggle("", isOn: ActionEnablement.binding(
-                for: action,
-                disabledActionIDs: $disabledActionIDs,
-                disabledPackages: $disabledPackages
-            ))
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .accessibilityLabel(String(localized: "Enable \(presentation.title)"))
-
-            Button {
-                router.push(.action(id: action.id))
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 18, height: 18)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(String(localized: "Configure \(presentation.title)"))
-        }
-        .padding(.vertical, 2)
-    }
 
     // MARK: - Work
 

@@ -254,6 +254,7 @@
 		AA4C8F95DCFD439591C9FA05 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E803385A2D8E9D1D257F00 /* Constants.swift */; };
 		AA905209842701F51E2A5712 /* SelectionRetrievalMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3573C5F0E0C00C1A562BBBDC /* SelectionRetrievalMode.swift */; };
 		ACCD0DDEFEB27D40BA433024 /* LocalLLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D0B6A4A79189F0D076BE588 /* LocalLLMProvider.swift */; };
+		AD118FFD5F5D03FF31363446 /* ActionSettingsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEC5413B7D4BB13F4F703A50 /* ActionSettingsRow.swift */; };
 		AD8D6DC58BE9E129ADADD8FB /* ExtensionTrustGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD745BEE3016BC493B5D9B8F /* ExtensionTrustGate.swift */; };
 		AE8C8312A2C5B67FCF938E4E /* SettingKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1830B25888AE1D0532D00813 /* SettingKey.swift */; };
 		AEB67702CE089BAFFFB8DCB7 /* ActionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = E54AEEA54ADE3106E777F448 /* ActionResult.swift */; };
@@ -738,6 +739,7 @@
 		DCA0A12F58628A20E611FABA /* SubBarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubBarPanel.swift; sourceTree = "<group>"; };
 		DD5BFC0CF295E615C2535C32 /* BrowserDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserDetector.swift; sourceTree = "<group>"; };
 		DDF25B7CA70822AE323518F8 /* MemorySettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsStore.swift; sourceTree = "<group>"; };
+		DEC5413B7D4BB13F4F703A50 /* ActionSettingsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionSettingsRow.swift; sourceTree = "<group>"; };
 		DECAB4B5213F632283318CD6 /* SelectionMonitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionMonitoring.swift; sourceTree = "<group>"; };
 		DF42F1F38524FF53F4FF61B2 /* PopupPageLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPageLayoutTests.swift; sourceTree = "<group>"; };
 		DFEB96F8C47927BF0E4EF7FD /* GroupSubActionBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupSubActionBarView.swift; sourceTree = "<group>"; };
@@ -1230,6 +1232,7 @@
 				DB99B16B6E2B91267FEF3BDF /* ActionDuplicator.swift */,
 				B2FA23546DAC271B345121E9 /* ActionEditorPage.swift */,
 				5C64E96C4608764CDED516A8 /* ActionEnablement.swift */,
+				DEC5413B7D4BB13F4F703A50 /* ActionSettingsRow.swift */,
 				57D60E95E942E1B268E615D3 /* ActionsOutlineView.swift */,
 				843B284D25AD62298BFCBCD8 /* AddApplicationPage.swift */,
 				39BE2FE0E2B11D74B93E2006 /* AIActionsSection.swift */,
@@ -1865,6 +1868,7 @@
 				5A14DE3CC0CA1D776F8A6036 /* ActionIconImageHelper.swift in Sources */,
 				6A92D05EC5B07D80B3C833C3 /* ActionIconView.swift in Sources */,
 				6B40A0FD70FC637EF0736DDC /* ActionResultHandler.swift in Sources */,
+				AD118FFD5F5D03FF31363446 /* ActionSettingsRow.swift in Sources */,
 				36AA21AC4ACFF3351BC40330 /* ActionsOutlineView.swift in Sources */,
 				9C5C5A56EBFDFBB19A51A2A3 /* AddApplicationPage.swift in Sources */,
 				84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */,

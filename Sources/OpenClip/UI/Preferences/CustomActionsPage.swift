@@ -2,8 +2,9 @@
 // OpenClip
 //
 // The user's own actions — Open URL, Text Snippet, Shell Script — as one sidebar page, the way
-// Raycast keeps Quicklinks and Script Commands together: a hero, then each action with its switch
-// and a way into its editor, and the way to add another. Duplicating or deleting one is done from
+// Raycast keeps Quicklinks and Script Commands together: a hero, then each action in the same
+// `ActionSettingsRow` table the Shortcuts page and an extension's page use, and the way to add
+// another. Duplicating or deleting one is done from
 // its own page's toolbar menu.
 
 import SwiftUI
@@ -17,6 +18,8 @@ struct CustomActionsPage: View {
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     @ObservedObject private var router = SettingsRouter.shared
+    /// Why an alias typed in the table below was refused.
+    @State private var aliasError: String?
 
     init(disabledActionIDs: Binding<Set<String>>, disabledPackages: Binding<Set<String>>) {
         _disabledActionIDs = disabledActionIDs
@@ -52,7 +55,15 @@ struct CustomActionsPage: View {
                         .padding(.vertical, 8)
                 } else {
                     ForEach(customActions, id: \.id) { action in
-                        row(action)
+                        ActionSettingsRow(
+                            action: action,
+                            disabledActionIDs: $disabledActionIDs,
+                            disabledPackages: $disabledPackages,
+                            subtitle: kindDescription(action),
+                            onAliasMessage: { message in
+                                withAnimation(.easeInOut(duration: 0.18)) { aliasError = message }
+                            }
+                        )
                     }
                 }
 
@@ -65,63 +76,18 @@ struct CustomActionsPage: View {
             } header: {
                 Text("Actions")
             } footer: {
-                Text("Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    if let aliasError {
+                        SettingsInlineError(message: aliasError)
+                    }
+
+                    Text("Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
-    }
-
-    private func row(_ action: any Action) -> some View {
-        let presentation = customizationManager.presented(action, surface: .table)
-
-        return HStack(spacing: 10) {
-            Button {
-                router.push(.action(id: action.id))
-            } label: {
-                HStack(spacing: 10) {
-                    ActionIconView(icon: presentation.icon, size: 14)
-                        .frame(width: 20, height: 20)
-                        .foregroundStyle(.secondary)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(presentation.title)
-                            .lineLimit(1)
-                        Text(kindDescription(action))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 8)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Configure Action")
-
-            Toggle("", isOn: ActionEnablement.binding(
-                for: action,
-                disabledActionIDs: $disabledActionIDs,
-                disabledPackages: $disabledPackages
-            ))
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .accessibilityLabel(String(localized: "Enable \(presentation.title)"))
-
-            Button {
-                router.push(.action(id: action.id))
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 18, height: 18)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(String(localized: "Configure \(presentation.title)"))
-        }
-        .padding(.vertical, 2)
     }
 
     private func kindDescription(_ action: any Action) -> String {
