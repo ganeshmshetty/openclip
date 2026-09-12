@@ -251,7 +251,7 @@ public final class ExtensionManager: Sendable {
         await loadExtensions(from: directory)
     }
 
-    /// Re-records the trust fingerprint after an authorized in-app edit (EditActionSheet save) so
+    /// Re-records the trust fingerprint after an authorized in-app edit (ActionEditorPage save) so
     /// tamper detection does not falsely flag the changed files. Only an already-`trusted` package
     /// is re-trusted: a `revoked` (explicit user "no") or never-enabled (`seen`) package keeps its
     /// trust state — a config-sheet save must never double as a consent flow. The next explicit
@@ -465,7 +465,8 @@ public final class ExtensionManager: Sendable {
                             keywords: manifest.keywords,
                             localizedName: nil,
                             description: manifest.description,
-                            localizedDescription: manifest.localizedDescription
+                            localizedDescription: manifest.localizedDescription,
+                            author: manifest.author
                         )
 
                         try ExtensionManifestStore.writeManifest(updatedManifest, to: destManifestURL)

@@ -3,7 +3,8 @@
 //
 // Provides reusable SwiftUI form controls for customizing action titles, icon symbols, and display modes.
 // Follows Approach 2 (Hero Header / Shortcuts style): prominent 48x48 hero icon button on the left,
-// action name TextField and [Show Icon | Show Text] segmented control on the right.
+// action name TextField and [Show Icon | Show Text] segmented control on the right. The hero button
+// asks the router for the icon chooser page (see `IconPickerPage`) instead of floating a popover.
 import SwiftUI
 import Core
 
@@ -24,8 +25,10 @@ struct ActionAppearanceFields: View {
     /// Symbol Show Icon mode resolves to for text-glyph builtins (Copy/Cut/Paste) while no
     /// replacement has been picked; nil for actions whose icon is already symbol-representable.
     var textGlyphFallbackSymbol: String? = nil
+    /// Opens the icon chooser. The chooser is a page the router pushes rather than a popover, so
+    /// the field only asks for it — it does not own its presentation.
+    var onPickIcon: () -> Void
 
-    @State private var showingIconPicker = false
     @State private var isIconHovered = false
 
     /// What the icon preview should render right now (same resolution the popup bar applies).
@@ -106,7 +109,7 @@ struct ActionAppearanceFields: View {
         HStack(alignment: .center, spacing: 14) {
             // Hero Icon Button
             Button {
-                showingIconPicker.toggle()
+                onPickIcon()
             } label: {
                 ZStack(alignment: .bottomTrailing) {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -131,9 +134,7 @@ struct ActionAppearanceFields: View {
             .buttonStyle(.plain)
             .help(iconButtonHelp)
             .onHover { isIconHovered = $0 }
-            .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                IconPickerPopover(selectedIcon: $iconSymbol)
-            }
+            .accessibilityLabel(String(localized: "Choose icon"))
 
             // Title & Display Mode Controls
             VStack(alignment: .leading, spacing: 8) {
@@ -180,19 +181,42 @@ struct InsetGroupCard<Content: View>: View {
     }
 }
 
-// MARK: - Icon Picker Popover
+// MARK: - Icon Picker Page
 
+/// The icon chooser as a page of the settings window. It writes to whatever binding the router was
+/// handed when the page was pushed — the editor underneath stays mounted with its draft — and
+/// picking an icon is what leaves the page.
 @MainActor
-struct IconPickerPopover: View {
-    @Binding var selectedIcon: String
-    @Environment(\.dismiss) private var dismiss
+struct IconPickerPage: View {
+    @ObservedObject private var router = SettingsRouter.shared
 
     var body: some View {
-        IconPickerView(selectedSymbol: $selectedIcon) {
-            dismiss()
+        if let target = router.iconTarget {
+            VStack(spacing: 0) {
+                IconPickerView(selectedSymbol: target, fillsAvailableHeight: true) {
+                    router.pop()
+                }
+                .padding(20)
+                .frame(maxWidth: 640)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+                Divider()
+
+                HStack {
+                    Text("Choosing an icon returns to the action.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Done") { router.pop() }
+                        .keyboardShortcut(.defaultAction)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.bar)
+            }
+        } else {
+            // Nothing to write to: the chooser was reached without an editor underneath it.
+            Color.clear.onAppear { router.pop() }
         }
-        .padding(12)
-        .frame(width: 360, height: 320)
     }
 }
-

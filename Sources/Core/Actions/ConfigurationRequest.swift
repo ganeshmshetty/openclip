@@ -4,7 +4,7 @@
 // Pure Core value type describing a request from an action to open its configuration UI. Carried in
 // the `openClipOpenActionConfiguration` notification's userInfo; Preferences finds the action by id
 // in `ActionCoordinator.shared.actions` (data-driven — never by string switching) and presents its
-// `EditActionSheet`.
+// `ActionEditorPage`.
 import Foundation
 
 public struct ConfigurationRequest: Sendable, Equatable {

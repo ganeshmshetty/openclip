@@ -96,20 +96,20 @@ final class AIActionTests: XCTestCase {
 
     /// The gap follows the cursor by row midpoints — the rule AppKit's insertion bar uses.
     func testInsertionGapFollowsRowMidpoints() {
-        XCTAssertEqual(AITab.insertionGap(atY: 0, rowFrames: rowFrames), 0, "above the first row")
-        XCTAssertEqual(AITab.insertionGap(atY: 14, rowFrames: rowFrames), 0, "top half of row 0")
-        XCTAssertEqual(AITab.insertionGap(atY: 16, rowFrames: rowFrames), 1, "bottom half of row 0")
-        XCTAssertEqual(AITab.insertionGap(atY: 46, rowFrames: rowFrames), 2, "bottom half of row 1")
-        XCTAssertEqual(AITab.insertionGap(atY: 400, rowFrames: rowFrames), 4, "below the last row")
-        XCTAssertEqual(AITab.insertionGap(atY: 10, rowFrames: []), 0, "empty list has one gap")
+        XCTAssertEqual(AIActionsSection.insertionGap(atY: 0, rowFrames: rowFrames), 0, "above the first row")
+        XCTAssertEqual(AIActionsSection.insertionGap(atY: 14, rowFrames: rowFrames), 0, "top half of row 0")
+        XCTAssertEqual(AIActionsSection.insertionGap(atY: 16, rowFrames: rowFrames), 1, "bottom half of row 0")
+        XCTAssertEqual(AIActionsSection.insertionGap(atY: 46, rowFrames: rowFrames), 2, "bottom half of row 1")
+        XCTAssertEqual(AIActionsSection.insertionGap(atY: 400, rowFrames: rowFrames), 4, "below the last row")
+        XCTAssertEqual(AIActionsSection.insertionGap(atY: 10, rowFrames: []), 0, "empty list has one gap")
     }
 
     /// The bar is drawn in the gap — on a row edge, never across a row.
     func testInsertionBarSitsOnTheRowEdges() {
-        XCTAssertEqual(AITab.insertionY(forGap: 0, rowFrames: rowFrames), 0)
-        XCTAssertEqual(AITab.insertionY(forGap: 2, rowFrames: rowFrames), 60)
-        XCTAssertEqual(AITab.insertionY(forGap: 4, rowFrames: rowFrames), 120, "trailing gap sits on the last row's bottom edge")
-        XCTAssertNil(AITab.insertionY(forGap: 0, rowFrames: []))
+        XCTAssertEqual(AIActionsSection.insertionY(forGap: 0, rowFrames: rowFrames), 0)
+        XCTAssertEqual(AIActionsSection.insertionY(forGap: 2, rowFrames: rowFrames), 60)
+        XCTAssertEqual(AIActionsSection.insertionY(forGap: 4, rowFrames: rowFrames), 120, "trailing gap sits on the last row's bottom edge")
+        XCTAssertNil(AIActionsSection.insertionY(forGap: 0, rowFrames: []))
     }
 
     func testAIActionIconForPreset() {

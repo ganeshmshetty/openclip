@@ -9,7 +9,7 @@ extension Notification.Name {
     /// Posted when an action requests its configuration UI. The popup hides first
     /// (`.openConfiguration` dismisses the popup); the payload `ConfigurationRequest` travels in
     /// `userInfo["request"]`. StatusBarController/Preferences observes this, finds the action by id
-    /// in `ActionCoordinator.shared.actions`, and presents its `EditActionSheet`.
+    /// in `ActionCoordinator.shared.actions`, and presents its `ActionEditorPage`.
     static let openClipOpenActionConfiguration = Notification.Name("OpenClipOpenActionConfiguration")
 
     /// Posted when extension packages are installed, uninstalled, enabled, or disabled.

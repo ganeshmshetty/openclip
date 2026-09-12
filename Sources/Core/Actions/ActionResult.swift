@@ -51,7 +51,7 @@ public indirect enum ActionResult: Sendable {
     /// Surface a transient toast (success/error/info) as a banner or corner badge. Dismisses the
     /// popup by default; `keepVisible` opts out.
     case toast(StatusFeedback)
-    /// Hide the popup and ask the user to configure the named action (opens Preferences → EditActionSheet).
+    /// Hide the popup and ask the user to configure the named action (opens Preferences → ActionEditorPage).
     case openConfiguration(ConfigurationRequest)
 
     // MARK: - Flow combinators

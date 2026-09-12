@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Shared "Install File…" NSOpenPanel presenter for the extension store and installed
-// extensions views. Split out of ExtensionsStoreView.swift.
+// extensions views. The open panel is the one dialog the settings window still shows. Split out of ExtensionsStoreView.swift.
 import AppKit
 import Core
 
@@ -29,12 +29,11 @@ func presentInstallExtensionPanel() {
                 }
             } catch {
                 await MainActor.run {
-                    let alert = NSAlert()
-                    alert.messageText = String(localized: "Extension Install Failed")
-                    alert.informativeText = error.localizedDescription
-                    alert.alertStyle = .warning
-                    alert.addButton(withTitle: String(localized: "OK"))
-                    alert.runModal()
+                    // The settings window reports failures inline rather than in a modal alert.
+                    SettingsRouter.shared.notifyError(
+                        title: String(localized: "Extension Install Failed"),
+                        message: error.localizedDescription
+                    )
                 }
             }
         }

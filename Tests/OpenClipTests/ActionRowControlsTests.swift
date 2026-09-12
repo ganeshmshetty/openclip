@@ -102,13 +102,13 @@ final class ActionRowControlsTests: XCTestCase {
 
     func testLocatedEntryBacksTopLevelAction() {
         let state = LocatedManifest(manifestURL: URL(fileURLWithPath: "/tmp/openclip.json"), manifest: groupManifest(), targetIndex: 0)
-        XCTAssertTrue(EditActionSheet.locatedEntryBacks(actionID: groupID, in: state))
+        XCTAssertTrue(ActionEditorPage.locatedEntryBacks(actionID: groupID, in: state))
     }
 
     func testLocatedEntryDoesNotBackNestedSubAction() {
         // The locator resolves a sub-action to its parent's index; saving there would rename the group.
         let state = LocatedManifest(manifestURL: URL(fileURLWithPath: "/tmp/openclip.json"), manifest: groupManifest(), targetIndex: 0)
-        XCTAssertFalse(EditActionSheet.locatedEntryBacks(actionID: "\(groupID).execute", in: state))
+        XCTAssertFalse(ActionEditorPage.locatedEntryBacks(actionID: "\(groupID).execute", in: state))
     }
 
     func testLocateManifestResolvesSubActionToParentEntryThatDoesNotBackIt() throws {
@@ -119,9 +119,9 @@ final class ActionRowControlsTests: XCTestCase {
         try ExtensionManifestStore.writeManifest(groupManifest(), to: packageDir.appendingPathComponent(Constants.manifestFileName))
 
         let subAction = OptionedAction(id: "\(groupID).execute", packageID: packageID, options: [endpointOption()])
-        let located = try XCTUnwrap(EditActionSheet.locateManifest(for: subAction, in: tempDir))
+        let located = try XCTUnwrap(ActionEditorPage.locateManifest(for: subAction, in: tempDir))
         XCTAssertEqual(located.targetIndex, 0)
-        XCTAssertFalse(EditActionSheet.locatedEntryBacks(actionID: subAction.id, in: located))
+        XCTAssertFalse(ActionEditorPage.locatedEntryBacks(actionID: subAction.id, in: located))
     }
 }
 

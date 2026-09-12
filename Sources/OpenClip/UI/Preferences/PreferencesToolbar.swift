@@ -1,7 +1,7 @@
 // PreferencesToolbar.swift
 // OpenClip
 //
-// The preferences window's toolbar, owned by AppKit rather than by SwiftUI.
+// The settings window's toolbar, owned by AppKit rather than by SwiftUI.
 //
 // SwiftUI builds the window's NSToolbar from whatever `.toolbar` publishes and
 // tears it down again when a pane publishes nothing, and every rebuild makes
@@ -10,6 +10,10 @@
 // created once with a fixed set of items and only their contents change, so the
 // title bar's geometry is the same on every pane. It also gets the store a real
 // AppKit search field, which is what a SwiftUI toolbar item could not give it.
+//
+// Leading everything is the back/forward pair System Settings has: an
+// `NSToolbarItemGroup` wired to the router's history, so leaving any page —
+// an action's editor, the icon chooser, an extension — is the same gesture.
 import AppKit
 import Combine
 import Core
@@ -20,12 +24,16 @@ public enum PreferencesToolbarAction: Sendable {
     case installExtension
     case addApplication
     case refresh
+    case addAIAction
 }
 
 /// The bridge between the SwiftUI panes and the AppKit toolbar.
 @MainActor
 public final class PreferencesToolbarModel: ObservableObject {
-    @Published public var tab: PreferenceTab = .general
+    /// The page on screen. Decides which controls the toolbar shows.
+    @Published public var page: SettingsPage = .general
+    /// The page's title, resolved by the window (an action's page is titled after the action).
+    @Published public var title: String = SettingsPage.general.staticTitle ?? ""
     @Published public var storeFilter: StoreFilter = .all
     @Published public var searchQuery: String = ""
     @Published public var isRefreshing: Bool = false
@@ -37,8 +45,10 @@ public final class PreferencesToolbarModel: ObservableObject {
 }
 
 @MainActor
-public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
+public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegate, NSToolbarItemValidation {
     private enum ItemID {
+        /// Back and forward through the router's history, as one grouped control.
+        static let navigation = NSToolbarItem.Identifier("openclip.preferences.navigation")
         /// The pane's name as a toolbar item rather than the window's own title:
         /// a unified toolbar reserves a title area of its own choosing, which
         /// left a wide gap between "Store" and the first control.
@@ -49,6 +59,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     }
 
     private let model: PreferencesToolbarModel
+    private let router: SettingsRouter
     private var cancellables: Set<AnyCancellable> = []
     /// Set by whoever opens the window. The pane name is drawn by the title item
     /// below, not by the window: `titleVisibility = .hidden` is ignored by a
@@ -59,12 +70,15 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             // Once the content view has a split view the toolbar can be told
             // where the sidebar ends.
             installSidebarTrackingSeparator(retriesLeft: 20)
-            window?.setAccessibilityTitle(model.tab.windowTitle)
+            window?.setAccessibilityTitle(model.title)
         }
     }
 
     private weak var trackingSplitView: NSSplitView?
 
+    private weak var navigationGroup: NSToolbarItemGroup?
+    private weak var backItem: NSToolbarItem?
+    private weak var forwardItem: NSToolbarItem?
     private weak var titleLabel: NSTextField?
     private weak var filterItem: NSToolbarItem?
     private weak var searchItem: NSToolbarItem?
@@ -73,12 +87,20 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     private weak var searchField: NSSearchField?
     private weak var actionButton: NSButton?
 
-    public init(model: PreferencesToolbarModel) {
+    public init(model: PreferencesToolbarModel, router: SettingsRouter = .shared) {
         self.model = model
+        self.router = router
         super.init()
 
-        model.$tab
-            .sink { [weak self] tab in self?.sync(tab: tab) }
+        model.$page
+            .sink { [weak self] page in self?.sync(page: page) }
+            .store(in: &cancellables)
+
+        model.$title
+            .sink { [weak self] title in
+                self?.titleLabel?.stringValue = title
+                self?.window?.setAccessibilityTitle(title)
+            }
             .store(in: &cancellables)
 
         model.$storeFilter
@@ -96,8 +118,15 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
 
         model.$isRefreshing
             .sink { [weak self] isRefreshing in
-                self?.actionButton?.isEnabled = !(isRefreshing && self?.model.tab == .store)
+                self?.actionButton?.isEnabled = !(isRefreshing && self?.model.page == .store)
             }
+            .store(in: &cancellables)
+
+        // `objectWillChange` fires before the router's state changes; the next turn of the run
+        // loop sees the new history.
+        router.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.syncNavigation() }
             .store(in: &cancellables)
     }
 
@@ -110,24 +139,33 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         return toolbar
     }
 
-    // MARK: - Item contents per tab
+    // MARK: - Item contents per page
 
-    private func sync(tab: PreferenceTab) {
-        titleLabel?.stringValue = tab.windowTitle
-        window?.setAccessibilityTitle(tab.windowTitle)
-        let showsStoreControls = (tab == .store)
+    private func sync(page: SettingsPage) {
+        let showsStoreControls = (page == .store)
         setHidden(filterItem, !showsStoreControls)
         setHidden(searchItem, !showsStoreControls)
 
-        switch tab {
+        switch page {
         case .actions:
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Action or Group"))
         case .appRules:
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Application"))
         case .store:
             configureActionButton(symbol: "arrow.clockwise", tooltip: String(localized: "Refresh Catalog"))
+        case .ai:
+            configureActionButton(symbol: "plus", tooltip: String(localized: "Add Custom AI Action"))
         default:
             setHidden(actionItem, true)
+        }
+    }
+
+    private func syncNavigation() {
+        backItem?.isEnabled = router.canGoBack
+        forwardItem?.isEnabled = router.canGoForward
+        if let control = navigationGroup?.view as? NSSegmentedControl, control.segmentCount == 2 {
+            control.setEnabled(router.canGoBack, forSegment: 0)
+            control.setEnabled(router.canGoForward, forSegment: 1)
         }
     }
 
@@ -147,17 +185,34 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         guard let button = actionButton else { return }
         button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tooltip)
         button.toolTip = tooltip
-        button.isEnabled = !(model.tab == .store && model.isRefreshing)
+        button.isEnabled = !(model.page == .store && model.isRefreshing)
         setHidden(actionItem, false)
         actionItem?.toolTip = tooltip
     }
 
     // MARK: - Actions
 
+    @objc private func navigationPressed(_ sender: Any?) {
+        let index: Int
+        if let group = sender as? NSToolbarItemGroup {
+            index = group.selectedIndex
+        } else if let control = sender as? NSSegmentedControl {
+            index = control.selectedSegment
+        } else {
+            return
+        }
+        switch index {
+        case 0: router.goBack()
+        case 1: router.goForward()
+        default: break
+        }
+        syncNavigation()
+    }
+
     @objc private func actionButtonPressed(_ sender: NSButton) {
-        switch model.tab {
+        switch model.page {
         case .actions:
-            // The Actions tab's button offers three ways to add, so it drops a
+            // The Actions page's button offers three ways to add, so it drops a
             // menu rather than firing one action.
             let menu = NSMenu()
             menu.addItem(menuItem(String(localized: "New Group"), symbol: "folder.badge.plus", action: #selector(menuNewGroup)))
@@ -168,6 +223,8 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             model.actions.send(.addApplication)
         case .store:
             model.actions.send(.refresh)
+        case .ai:
+            model.actions.send(.addAIAction)
         default:
             break
         }
@@ -198,16 +255,22 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         model.searchQuery = field.stringValue
     }
 
+    // MARK: - NSToolbarItemValidation
+
+    public func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
+        if item === backItem { return router.canGoBack }
+        if item === forwardItem { return router.canGoForward }
+        return true
+    }
+
     // MARK: - NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        // Filter hard left of the content area, search hard right, one flexible
-        // space between them. Centring the filter with a leading flexible space
-        // spent the width twice and pushed the search field into the overflow
-        // menu at the window's minimum size.
-        // Pane name, filter beside it, then everything else pinned right: the
-        // pane's button, with the search field last against the window edge.
-        [ItemID.title, ItemID.filter, .flexibleSpace, ItemID.action, ItemID.search]
+        // Back/forward first, then the pane name, the store's filter beside it, and everything
+        // else pinned right: the pane's button, with the search field last against the window
+        // edge. Centring the filter with a leading flexible space spent the width twice and
+        // pushed the search field into the overflow menu at the window's minimum size.
+        [ItemID.navigation, ItemID.title, ItemID.filter, .flexibleSpace, ItemID.action, ItemID.search]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -264,8 +327,39 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
                 dividerIndex: 0
             )
 
+        case ItemID.navigation:
+            let back = String(localized: "Back")
+            let forward = String(localized: "Forward")
+            let group = NSToolbarItemGroup(
+                itemIdentifier: itemIdentifier,
+                images: [
+                    NSImage(systemSymbolName: "chevron.left", accessibilityDescription: back) ?? NSImage(),
+                    NSImage(systemSymbolName: "chevron.right", accessibilityDescription: forward) ?? NSImage()
+                ],
+                selectionMode: .momentary,
+                labels: [back, forward],
+                target: self,
+                action: #selector(navigationPressed(_:))
+            )
+            group.controlRepresentation = .expanded
+            group.label = String(localized: "Back/Forward")
+            group.paletteLabel = group.label
+            // Navigational, like a back button: it is what pins the group to the
+            // leading edge of the content area.
+            group.isNavigational = true
+            group.visibilityPriority = .high
+            if group.subitems.count == 2 {
+                group.subitems[0].toolTip = back
+                group.subitems[1].toolTip = forward
+                backItem = group.subitems[0]
+                forwardItem = group.subitems[1]
+            }
+            navigationGroup = group
+            syncNavigation()
+            return group
+
         case ItemID.title:
-            let label = NSTextField(labelWithString: model.tab.windowTitle)
+            let label = NSTextField(labelWithString: model.title)
             label.font = .systemFont(ofSize: 15, weight: .bold)
             label.textColor = .labelColor
             label.lineBreakMode = .byTruncatingTail
@@ -308,7 +402,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             item.isNavigational = true
             filterControl = control
             filterItem = item
-            setHidden(item, model.tab != .store)
+            setHidden(item, model.page != .store)
             return item
 
         case ItemID.search:
@@ -330,7 +424,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             item.visibilityPriority = .high
             searchField = field
             searchItem = item
-            setHidden(item, model.tab != .store)
+            setHidden(item, model.page != .store)
             return item
 
         case ItemID.action:
@@ -347,7 +441,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             item.visibilityPriority = .high
             actionButton = button
             actionItem = item
-            sync(tab: model.tab)
+            sync(page: model.page)
             return item
 
         default:

@@ -1,17 +1,17 @@
-// AddCustomActionSheet.swift
+// NewCustomActionPage.swift
 // OpenClip
 //
-// Renders the modal sheet interface for creating new custom actions (Open URL, Text Snippet, Shell Script).
-// Newly created actions are saved as first-class CustomAction models in SettingsStore and registered
-// via ActionCoordinator, visually matching EditActionSheet.
+// Creating a custom action (Open URL, Text Snippet, Shell Script) as a page of the Settings
+// window. Newly created actions are saved as first-class CustomAction models in SettingsStore and
+// registered via ActionCoordinator; the page mirrors the action editor so the two feel like one.
 import SwiftUI
 import Core
 
 @MainActor
-public struct AddCustomActionSheet: View {
-    @Environment(\.dismiss) private var dismiss
+public struct NewCustomActionPage: View {
+    @ObservedObject private var router = SettingsRouter.shared
 
-    // Appearance State (matching EditActionSheet's Hero Header Card)
+    // Appearance State (matching ActionEditorPage's Hero Header Card)
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = "wand.and.stars"
     private let initialIconSymbol: String = "wand.and.stars"
@@ -32,35 +32,20 @@ public struct AddCustomActionSheet: View {
     public init() {}
 
     public var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Add Custom Action")
-                    .font(.system(size: 13, weight: .semibold))
-                Spacer()
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
-
-            // Content Area
-            VStack(alignment: .leading, spacing: 12) {
+        SettingsEditorPage {
+            VStack(alignment: .leading, spacing: 14) {
                 // Hero Header Card (Icon, Name & Display Mode)
                 InsetGroupCard {
                     ActionAppearanceFields(
                         title: $customTitle,
-                        displayTextFallback: "Custom Action",
+                        displayTextFallback: String(localized: "Custom Action"),
                         iconSymbol: $iconSymbol,
                         initialIconSymbol: initialIconSymbol,
                         baseIcon: nil,
-                        displayMode: $displayMode
+                        displayMode: $displayMode,
+                        onPickIcon: {
+                            router.pushIconPicker(writingTo: $iconSymbol)
+                        }
                     )
                 }
 
@@ -68,7 +53,7 @@ public struct AddCustomActionSheet: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("EXECUTION LOGIC")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .padding(.leading, 4)
 
                     InsetGroupCard {
@@ -76,7 +61,7 @@ public struct AddCustomActionSheet: View {
                             HStack {
                                 Text("Type")
                                     .font(.subheadline)
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                 Spacer()
                                 Picker("", selection: $actionKind) {
                                     Text("Open URL").tag(ActionKind.openURL)
@@ -98,21 +83,21 @@ public struct AddCustomActionSheet: View {
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text("URL Template")
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                         TextField("https://example.com/search?q={text}", text: $customURLTemplate)
                                             .textFieldStyle(.roundedBorder)
                                         Text("Use **{text}** or **{selection}** as a placeholder for the selected text.")
                                             .font(.caption2)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                     }
                                 case .textSnippet:
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text("Snippet Template")
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                         TextEditor(text: $customSnippetTemplate)
                                             .font(.system(.body, design: .monospaced))
-                                            .frame(height: 70)
+                                            .frame(height: 90)
                                             .scrollContentBackground(.hidden)
                                             .padding(6)
                                             .background(
@@ -125,16 +110,16 @@ public struct AddCustomActionSheet: View {
                                             )
                                         Text("Use **{text}** or **{selection}** as a placeholder for the selected text.")
                                             .font(.caption2)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                     }
                                 case .shellScript:
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text("Shell Script (Zsh)")
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                         TextEditor(text: $customShellScript)
                                             .font(.system(.body, design: .monospaced))
-                                            .frame(height: 90)
+                                            .frame(height: 110)
                                             .scrollContentBackground(.hidden)
                                             .padding(6)
                                             .background(
@@ -149,7 +134,7 @@ public struct AddCustomActionSheet: View {
                                             .font(.subheadline)
                                         Text("Use **$OPENCLIP_TEXT** for the selected text.")
                                             .font(.caption2)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                             }
@@ -159,21 +144,17 @@ public struct AddCustomActionSheet: View {
                     }
                 }
             }
-            .padding(16)
-
-            // Footer
-            HStack(spacing: 8) {
+        } footer: {
+            HStack(spacing: 12) {
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button("Cancel") { router.pop() }
                     .keyboardShortcut(.cancelAction)
                 Button("Add Action") { addAction() }
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .disabled(customTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
         }
-        .frame(width: 440)
     }
 
     private func addAction() {
@@ -210,6 +191,6 @@ public struct AddCustomActionSheet: View {
             )
         }
 
-        dismiss()
+        router.pop()
     }
 }

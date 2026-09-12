@@ -261,7 +261,8 @@ final class ActionGroupIntegrationTests: XCTestCase {
             disabledActionIDs: .constant([]),
             disabledPackages: .constant([]),
             onEditGroup: { _ in },
-            onCreateGroupFromSelection: { }
+            onCreateGroupFromSelection: { },
+            onOpenNode: { _ in }
         )
         let coord = ActionsOutlineCoordinator(parentView)
         coord.outlineView = outlineView
@@ -347,7 +348,8 @@ final class ActionGroupIntegrationTests: XCTestCase {
             disabledActionIDs: .constant([]),
             disabledPackages: .constant([]),
             onEditGroup: { _ in },
-            onCreateGroupFromSelection: { }
+            onCreateGroupFromSelection: { },
+            onOpenNode: { _ in }
         )
         let outlineView = ActionsOutlineTableView(frame: NSRect(x: 0, y: 0, width: 400, height: 400))
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("ActionColumn"))
@@ -391,7 +393,8 @@ final class ActionGroupIntegrationTests: XCTestCase {
             disabledActionIDs: .constant([]),
             disabledPackages: .constant([]),
             onEditGroup: { _ in },
-            onCreateGroupFromSelection: { }
+            onCreateGroupFromSelection: { },
+            onOpenNode: { _ in }
         )
         let outlineView = ActionsOutlineTableView(frame: NSRect(x: 0, y: 0, width: 400, height: 400))
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("ActionColumn"))

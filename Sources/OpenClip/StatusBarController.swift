@@ -539,7 +539,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
     
     /// Decision 8 config-open path: an action requested its configuration. The popup has already
     /// hidden; open Preferences and hand the request to the coordinator so PreferencesView can
-    /// present the matching EditActionSheet (the window may not have existed yet).
+    /// present the matching ActionEditorPage (the window may not have existed yet).
     @objc private func handleOpenConfiguration(_ notification: Notification) {
         showPreferences()
     }
@@ -608,7 +608,8 @@ class StatusBarController: NSObject, NSMenuDelegate {
             return
         }
         let toolbarModel = PreferencesToolbarModel()
-        toolbarModel.tab = tab
+        toolbarModel.page = tab.page
+        toolbarModel.title = tab.windowTitle
         let toolbarController = PreferencesToolbarController(model: toolbarModel)
         preferencesToolbarController = toolbarController
         let controller = NSHostingController(

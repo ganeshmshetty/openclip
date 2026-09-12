@@ -298,6 +298,8 @@ struct ActionsOutlineView: NSViewRepresentable {
     @Binding var disabledPackages: Set<String>
     let onEditGroup: (String) -> Void
     let onCreateGroupFromSelection: () -> Void
+    /// Double-click on a row: opens that row's settings page.
+    let onOpenNode: (OutlineNode) -> Void
 
     func makeCoordinator() -> ActionsOutlineCoordinator {
         ActionsOutlineCoordinator(self)
@@ -807,9 +809,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         guard let outlineView else { return }
         let row = outlineView.clickedRow
         guard row >= 0, let node = outlineView.item(atRow: row) as? OutlineNode else { return }
-        if case .customGroup(let def, _) = node.kind {
-            parent.onEditGroup(def.id)
-        }
+        parent.onOpenNode(node)
     }
 
     func contextMenu(for node: OutlineNode) -> NSMenu {
@@ -927,11 +927,10 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                     duplicatedID = newActionID
                 } catch {
                     Log.extensions.error("Failed to duplicate extension '\(id, privacy: .public)': \(error.localizedDescription)")
-                    let failure = NSAlert()
-                    failure.messageText = String(localized: "Duplicate Failed")
-                    failure.informativeText = String(localized: "OpenClip could not duplicate extension: \(error.localizedDescription)")
-                    failure.alertStyle = .warning
-                    failure.runModal()
+                    SettingsRouter.shared.notifyError(
+                        title: String(localized: "Duplicate Failed"),
+                        message: String(localized: "OpenClip could not duplicate extension: \(error.localizedDescription)")
+                    )
                     return
                 }
             } else {
@@ -1002,65 +1001,10 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     }
 
     private func enabledBinding(for action: any Action) -> Binding<Bool> {
-        if action.chrome.launchesAI {
-            return Binding(
-                get: { AIServiceManager.shared.isAIEnabled },
-                set: { AIServiceManager.shared.isAIEnabled = $0 }
-            )
-        }
-        if ActionIdentity.isAIPreset(action) {
-            return Binding(
-                get: { AIServiceManager.shared.preset(forActionID: action.id)?.isEnabled ?? false },
-                set: { enabled in
-                    guard var preset = AIServiceManager.shared.preset(forActionID: action.id) else { return }
-                    preset.isEnabled = enabled
-                    AIServiceManager.shared.updatePreset(preset)
-                }
-            )
-        }
-        if let gated = action as? GatedExtensionAction {
-            return Binding(
-                get: { false },
-                set: { enabled in
-                    if enabled {
-                        self.parent.disabledActionIDs.remove(action.id)
-                        self.parent.disabledPackages.remove(gated.packageID)
-                        Task {
-                            await ExtensionManager.shared.enablePackage(packageID: gated.packageID)
-                            NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
-                        }
-                    }
-                }
-            )
-        }
-        if let packageID = ActionIdentity.extensionPackageID(of: action) {
-            return Binding(
-                get: { !self.parent.disabledActionIDs.contains(action.id) && !self.parent.disabledPackages.contains(packageID) },
-                set: { enabled in
-                    if enabled {
-                        self.parent.disabledActionIDs.remove(action.id)
-                        if self.parent.disabledPackages.contains(packageID) {
-                            self.parent.disabledPackages.remove(packageID)
-                            Task {
-                                await ExtensionManager.shared.enablePackage(packageID: packageID)
-                                NotificationCenter.default.post(name: .init("OpenClipExtensionsDidChange"), object: nil)
-                            }
-                        }
-                    } else {
-                        self.parent.disabledActionIDs.insert(action.id)
-                    }
-                }
-            )
-        }
-        return Binding(
-            get: { !self.parent.disabledActionIDs.contains(action.id) },
-            set: { enabled in
-                if enabled {
-                    self.parent.disabledActionIDs.remove(action.id)
-                } else {
-                    self.parent.disabledActionIDs.insert(action.id)
-                }
-            }
+        ActionEnablement.binding(
+            for: action,
+            disabledActionIDs: parent.$disabledActionIDs,
+            disabledPackages: parent.$disabledPackages
         )
     }
 }

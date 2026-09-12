@@ -108,7 +108,7 @@ final class CustomActionManifestWriterTests: XCTestCase {
     
     @MainActor
     func testLocateManifestReturnsNilForStandaloneScriptFile() throws {
-        // A standalone snippet script is a file, not a manifest package directory. EditActionSheet
+        // A standalone snippet script is a file, not a manifest package directory. ActionEditorPage
         // must not find a manifest for it, so the edit sheet stays read-only instead of dropping edits.
         let scriptPath = tempDir.appendingPathComponent("test_script.sh")
         let scriptContent = """
@@ -127,7 +127,7 @@ final class CustomActionManifestWriterTests: XCTestCase {
             scriptURL: scriptPath
         )
         
-        let located = EditActionSheet.locateManifest(for: scriptAction, in: tempDir)
+        let located = ActionEditorPage.locateManifest(for: scriptAction, in: tempDir)
         XCTAssertNil(located, "A standalone script file must not resolve to an editable manifest")
     }
     
@@ -141,7 +141,7 @@ final class CustomActionManifestWriterTests: XCTestCase {
         )
         try CustomActionManifestWriter.write(action: action, to: tempDir)
         
-        let located = EditActionSheet.locateManifest(for: action, in: tempDir)
+        let located = ActionEditorPage.locateManifest(for: action, in: tempDir)
         XCTAssertNotNil(located, "A manifest package must resolve to an editable manifest")
         XCTAssertEqual(located?.manifestURL.deletingLastPathComponent().lastPathComponent, action.id)
         XCTAssertEqual(located?.manifest.identifier, action.id)

@@ -9,15 +9,8 @@ import Core
 @MainActor
 public struct AppRulesTab: View {
     @ObservedObject private var ruleEngine = RuleEngine.shared
-    /// Owned by PreferencesView: the Add button lives in the window toolbar
-    /// alongside every other tab's, so this pane doesn't declare a toolbar of
-    /// its own — a second toolbar group renders as its own floating glass
-    /// capsule next to the first one.
-    @Binding private var showingAppPicker: Bool
 
-    public init(showingAppPicker: Binding<Bool>) {
-        _showingAppPicker = showingAppPicker
-    }
+    public init() {}
     
     public var body: some View {
         Form {
@@ -28,7 +21,8 @@ public struct AppRulesTab: View {
                     } description: {
                         Text("OpenClip works in all applications by default. Add an application to configure per-app rules or exclusions.")
                     } actions: {
-                        Button("Add Application") { showingAppPicker = true }
+                        // Adding is a page, not a sheet — the same Add the toolbar's + opens.
+                        Button("Add Application") { SettingsRouter.shared.push(.addApplication) }
                     }
                     .padding(.vertical, 12)
                 } else {

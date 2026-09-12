@@ -11,7 +11,6 @@ import Core
 @MainActor
 struct AboutTab: View {
     @State private var isExporting = false
-    @State private var exportError: String?
     @ObservedObject private var updateManager = AppUpdateManager.shared
 
     private var version: String {
@@ -112,16 +111,6 @@ struct AboutTab: View {
             }
         }
         .formStyle(.grouped)
-        .alert("Export Logs Failed", isPresented: Binding(
-            get: { exportError != nil },
-            set: { if !$0 { exportError = nil } }
-        )) {
-            Button("OK", role: .cancel) {
-                exportError = nil
-            }
-        } message: {
-            Text(exportError ?? "An unknown error occurred.")
-        }
     }
 
     // MARK: - Pieces
@@ -238,7 +227,11 @@ struct AboutTab: View {
                     try fileManager.copyItem(at: tempZipURL, to: destinationURL)
                 }
             } catch {
-                exportError = error.localizedDescription
+                // Inline, where the window shows every failure, rather than a modal alert.
+                SettingsRouter.shared.notifyError(
+                    title: String(localized: "Export Logs Failed"),
+                    message: error.localizedDescription
+                )
             }
         }
     }

@@ -1,36 +1,36 @@
-// EditActionSheet.swift
+// ActionEditorPage.swift
 // OpenClip
 //
-// Renders the modal sheet / popover interface for editing existing action appearances, titles, and parameters.
-// Styled in macOS Inset Grouped layout with Hero Header: content-hugging height, solid opaque background,
-// and conditional options/logic display (omitting redundant info notes when no config options exist).
+// One action's settings as a page of the Settings window: appearance (name, icon, how the popup
+// bar shows it), keyboard (alias, hotkey), and either the options the action declares or, for a
+// GUI-authored custom action, its execution logic. Reached from the action's row in the Actions
+// list, from its extension's page, or from the Shortcuts table.
+//
+// This used to be an `.applicationDefined` NSPopover pinned to a list row: a 370pt floating panel
+// that ignored clicks in the list behind it, ignored Escape, and stayed up when you changed panes.
+// As a page it gets the window's width, the toolbar's title says which action it is, and the way
+// back is the same arrow as everywhere else.
 import SwiftUI
 import AppKit
 import Core
 import KeyboardShortcuts
 
 @MainActor
-public struct EditActionSheet: View {
+public struct ActionEditorPage: View {
     let action: any Action
-    /// Optional request from the action (e.g. a missing-required-options short-circuit): surfaces a
-    /// reason banner and highlights the missing option rows in the unified editor (Phase 7).
-    let configurationRequest: ConfigurationRequest?
-    @Environment(\.dismiss) private var dismiss
-    /// Set when the editor is shown in the Actions tab's settings popover, which closes itself
-    /// only on request; `nil` when it is presented as a sheet.
-    @Environment(\.popoverDismiss) private var popoverDismiss
+    @ObservedObject private var router = SettingsRouter.shared
 
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
     @State private var initialIconSymbol: String = ""
-    /// Icon-symbol customization stored before the sheet opened (nil = none). An untouched icon
+    /// Icon-symbol customization stored before the page opened (nil = none). An untouched icon
     /// field round-trips this on Save instead of writing the picker's baseline, so title-only
     /// edits can't clobber package-file / remote-image / text-glyph icons.
     @State private var initialStoredSymbol: String? = nil
     /// The action's effective real icon while no replacement has been picked from the picker;
     /// drives the honest preview in the Appearance fields.
     @State private var baseIconState: ActionIcon? = nil
-    /// Set by Reset Name & Icon; the persisted override is cleared on Save (not immediately), so
+    /// Set by Reset to Default; the persisted override is cleared on Save (not immediately), so
     /// Cancel still backs out of an accidental reset.
     @State private var appearanceResetPending = false
     @State private var displayMode: Int = 0 // 0 = Icon, 1 = Text
@@ -55,30 +55,33 @@ public struct EditActionSheet: View {
     @State private var manifestState: LocatedManifest?
     @State private var logicEditable: Bool = false
     // True when a non-builtin action has no locatable manifest (standalone script file), so the
-    // sheet must stay read-only instead of dropping edits on Save.
+    // page must stay read-only instead of dropping edits on Save.
     @State private var manifestMissing: Bool = false
-    @State private var showingSaveAlert: Bool = false
-    @State private var saveAlertMessage: String = ""
+    /// Why the last Save did not go through. Shown inline above the buttons, where an alert used
+    /// to run modal over the window.
+    @State private var saveErrorMessage: String?
     @State private var aliasText: String = ""
 
-    public init(action: any Action, configurationRequest: ConfigurationRequest? = nil) {
+    public init(action: any Action) {
         self.action = action
-        self.configurationRequest = configurationRequest
     }
 
     private var isBuiltin: Bool {
         ActionIdentity.isBuiltin(action)
     }
 
-    private func close() {
-        if let popoverDismiss {
-            popoverDismiss()
-        } else {
-            dismiss()
-        }
+    /// The request that opened this page from outside the window, if any: the popup found the
+    /// action with required options unset.
+    private var configurationRequest: ConfigurationRequest? {
+        router.configurationRequest(for: action.id)
     }
 
-    /// Banner text when the sheet was opened because the action needs configuration. Falls back to a
+    private func close() {
+        router.clearConfigurationRequest(for: action.id)
+        router.pop()
+    }
+
+    /// Banner text when the page was opened because the action needs configuration. Falls back to a
     /// generic message when the request has no reason but does name missing options.
     private var configurationBannerText: String? {
         guard let configurationRequest else { return nil }
@@ -95,34 +98,16 @@ public struct EditActionSheet: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Configure Action")
-                    .font(.system(size: 13, weight: .semibold))
-                Spacer()
-                Button(action: { close() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
-
-            // Content Area (fits content dynamically)
-            VStack(alignment: .leading, spacing: 12) {
+        SettingsEditorPage {
+            VStack(alignment: .leading, spacing: 14) {
                 if let bannerText = configurationBannerText {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                             .font(.system(size: 13))
                         Text(bannerText)
-                            .font(.caption)
-                            .foregroundColor(.primary)
+                            .font(.callout)
+                            .foregroundStyle(.primary)
                         Spacer(minLength: 0)
                     }
                     .padding(10)
@@ -145,7 +130,10 @@ public struct EditActionSheet: View {
                         initialIconSymbol: initialIconSymbol,
                         baseIcon: baseIconState,
                         displayMode: $displayMode,
-                        textGlyphFallbackSymbol: Self.iconModeFallbackSymbol(for: action)
+                        textGlyphFallbackSymbol: Self.iconModeFallbackSymbol(for: action),
+                        onPickIcon: {
+                            router.pushIconPicker(writingTo: $iconSymbol)
+                        }
                     )
                 }
                 .disabled(manifestMissing)
@@ -154,7 +142,7 @@ public struct EditActionSheet: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("KEYBOARD")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .padding(.leading, 4)
 
                         InsetGroupCard {
@@ -192,7 +180,7 @@ public struct EditActionSheet: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("OPTIONS")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .padding(.leading, 4)
 
                         InsetGroupCard {
@@ -209,7 +197,7 @@ public struct EditActionSheet: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("EXECUTION LOGIC")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .padding(.leading, 4)
 
                         InsetGroupCard {
@@ -217,7 +205,7 @@ public struct EditActionSheet: View {
                                 HStack(spacing: 12) {
                                     Text("Type")
                                         .font(.subheadline)
-                                        .foregroundColor(.primary)
+                                        .foregroundStyle(.primary)
                                     Spacer()
                                     Picker("Type", selection: $editKind) {
                                         Text("Open URL").tag(EditKind.openURL)
@@ -237,16 +225,16 @@ public struct EditActionSheet: View {
                                     switch editKind {
                                     case .openURL:
                                         VStack(alignment: .leading, spacing: 4) {
-                                            Text("URL Template").font(.caption).foregroundColor(.secondary)
+                                            Text("URL Template").font(.caption).foregroundStyle(.secondary)
                                             TextField("https://example.com/search?q={text}", text: $customURLTemplate)
                                                 .textFieldStyle(.roundedBorder)
                                         }
                                     case .textSnippet:
                                         VStack(alignment: .leading, spacing: 4) {
-                                            Text("Snippet Template").font(.caption).foregroundColor(.secondary)
+                                            Text("Snippet Template").font(.caption).foregroundStyle(.secondary)
                                             TextEditor(text: $customSnippetTemplate)
                                                 .font(.system(.body, design: .monospaced))
-                                                .frame(height: 70)
+                                                .frame(height: 90)
                                                 .scrollContentBackground(.hidden)
                                                 .padding(6)
                                                 .background(
@@ -257,10 +245,10 @@ public struct EditActionSheet: View {
                                         }
                                     case .shellScript:
                                         VStack(alignment: .leading, spacing: 6) {
-                                            Text("Shell Script (Zsh)").font(.caption).foregroundColor(.secondary)
+                                            Text("Shell Script (Zsh)").font(.caption).foregroundStyle(.secondary)
                                             TextEditor(text: $customShellScript)
                                                 .font(.system(.body, design: .monospaced))
-                                                .frame(height: 90)
+                                                .frame(height: 110)
                                                 .scrollContentBackground(.hidden)
                                                 .padding(6)
                                                 .background(
@@ -284,59 +272,56 @@ public struct EditActionSheet: View {
                     InsetGroupCard {
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: "exclamationmark.triangle")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .font(.system(size: 13))
                                 .padding(.top, 1)
 
                             Text("This action is a standalone script file with no editable manifest. Re-create it as an extension package to customize its behavior.")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         .padding(12)
                     }
                 }
             }
-            .padding(14)
-
-            // Footer Action Buttons
-            HStack(spacing: 12) {
-                Button("Reset to Default") {
-                    resetAppearance()
+        } footer: {
+            VStack(alignment: .leading, spacing: 10) {
+                if let saveErrorMessage {
+                    SettingsInlineError(message: saveErrorMessage)
                 }
-                .buttonStyle(.plain)
-                .foregroundColor(.secondary)
-                .font(.caption)
-                .disabled(manifestMissing)
 
-                Spacer()
+                HStack(spacing: 12) {
+                    Button("Reset to Default") {
+                        resetAppearance()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .disabled(manifestMissing)
 
-                Button("Cancel") { close() }
-                    .keyboardShortcut(.cancelAction)
+                    Spacer()
 
-                Button("Save Changes") {
-                    Task {
-                        if await saveChanges() {
-                            close()
+                    Button("Cancel") { close() }
+                        .keyboardShortcut(.cancelAction)
+
+                    Button("Save Changes") {
+                        Task {
+                            if await saveChanges() {
+                                close()
+                            }
                         }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(saveDisabled)
+                    .keyboardShortcut(.defaultAction)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(saveDisabled)
-                .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-        }
-        .frame(width: 370)
-        .fixedSize(horizontal: false, vertical: true)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .alert("Unable to Save Changes", isPresented: $showingSaveAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(saveAlertMessage)
         }
         .onAppear {
             loadInitialState()
+        }
+        .onDisappear {
+            router.clearConfigurationRequest(for: action.id)
         }
     }
 
@@ -345,14 +330,14 @@ public struct EditActionSheet: View {
     /// Locates the manifest package whose identifier matches the action's chrome source (or, as a
     /// fallback for stray `.custom` actions, its id) and returns the target action's edit state.
     /// Only directory-backed manifest packages are considered; a standalone script file with the
-    /// same identifier returns nil, which the sheet treats as a read-only, uneditable action.
+    /// same identifier returns nil, which the page treats as a read-only, uneditable action.
     static func locateManifest(for action: any Action, in directory: URL = Constants.extensionsDirectory) -> LocatedManifest? {
         ExtensionManifestStore.locateManifest(for: action, in: directory)
     }
 
     /// True when the located manifest entry is `actionID` itself. The locator resolves a nested
     /// sub-action to its parent group's top-level index, so for a group member this is false and
-    /// the sheet must not write the entry — doing so would stamp the member's title and icon onto
+    /// the page must not write the entry — doing so would stamp the member's title and icon onto
     /// the whole group. Pure, unit-tested.
     static func locatedEntryBacks(actionID: String, in state: LocatedManifest) -> Bool {
         guard state.manifest.actions.indices.contains(state.targetIndex) else { return false }
@@ -388,7 +373,7 @@ public struct EditActionSheet: View {
         manifestState = Self.locateManifest(for: action)
         guard let state = manifestState else {
             // Standalone-script action (or a stray non-builtin with no manifest on disk): the JSON
-            // manifest is the only editable surface, so there is nothing to write. Keep the sheet
+            // manifest is the only editable surface, so there is nothing to write. Keep the page
             // read-only and disable Save rather than silently dropping edits.
             logicEditable = false
             manifestMissing = true
@@ -398,8 +383,8 @@ public struct EditActionSheet: View {
 
         // Raw execution-logic editing (type/URL/script) is a GUI-authored-action surface only:
         // com.custom.<id> packages keep the editor, while store and developer extension packages
-        // stay read-only in the General tab — their behavior belongs to the package, and an
-        // accidental rewrite here would silently mutate an installed third-party extension.
+        // stay read-only — their behavior belongs to the package, and an accidental rewrite here
+        // would silently mutate an installed third-party extension.
         guard state.manifest.identifier.hasPrefix(Constants.customIdentifierPrefix) else {
             logicEditable = false
             return
@@ -471,19 +456,23 @@ public struct EditActionSheet: View {
 
     // MARK: - Saving
 
+    private func fail(_ message: String) -> Bool {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            saveErrorMessage = message
+        }
+        return false
+    }
+
     private func saveChanges() async -> Bool {
+        saveErrorMessage = nil
         if ActionIdentity.isBindable(action) {
             switch ActionBindingStore.shared.setAlias(aliasText, for: action.id) {
             case .accepted, .cleared:
                 break
             case .invalid:
-                saveAlertMessage = String(localized: "Aliases can only use letters, numbers, and hyphens.")
-                showingSaveAlert = true
-                return false
+                return fail(String(localized: "Aliases can only use letters, numbers, and hyphens."))
             case .collision:
-                saveAlertMessage = String(localized: "That alias is already used.")
-                showingSaveAlert = true
-                return false
+                return fail(String(localized: "That alias is already used."))
             }
         }
         if appearanceResetPending {
@@ -612,9 +601,7 @@ public struct EditActionSheet: View {
         guard let state = manifestState else {
             // Defensive: the Save button is disabled in this state, but if reached anyway (e.g. a
             // keyboard path) surface the reason instead of silently returning with edits dropped.
-            saveAlertMessage = String(localized: "This action is backed by a standalone script file with no editable manifest, so changes cannot be saved here.")
-            showingSaveAlert = true
-            return false
+            return fail(String(localized: "This action is backed by a standalone script file with no editable manifest, so changes cannot be saved here."))
         }
 
         // A sub-action of an extension group resolves to the group's manifest entry. Its
@@ -688,16 +675,15 @@ public struct EditActionSheet: View {
             keywords: state.manifest.keywords,
             localizedName: state.manifest.localizedName,
             description: state.manifest.description,
-            localizedDescription: state.manifest.localizedDescription
+            localizedDescription: state.manifest.localizedDescription,
+            author: state.manifest.author
         )
 
         do {
             try ExtensionManifestStore.writeManifest(updatedManifest, to: state.manifestURL)
         } catch {
             Log.factory.error("Failed to save action manifest: \(error.localizedDescription)")
-            saveAlertMessage = String(localized: "Failed to save the action manifest: \(error.localizedDescription)")
-            showingSaveAlert = true
-            return false
+            return fail(String(localized: "Failed to save the action manifest: \(error.localizedDescription)"))
         }
 
         // Re-trust the package with its newly computed fingerprint so tamper detection does not

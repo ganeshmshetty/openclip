@@ -15,6 +15,9 @@ import AppKit
 public struct IconPickerView: View {
     @Binding var selectedSymbol: String
     var onSelect: (() -> Void)? = nil
+    /// True when the picker is a page of its own and the grids may take all the height they are
+    /// given; false keeps the compact heights the picker had inside a popover.
+    var fillsAvailableHeight: Bool = false
 
     @StateObject private var provider = UnifiedIconProvider.shared
     @StateObject private var customIconManager = CustomIconManager.shared
@@ -29,10 +32,21 @@ public struct IconPickerView: View {
 
     enum IconTab { case native, openSource, custom }
 
-    public init(selectedSymbol: Binding<String>, selectedText: Binding<String> = .constant(""), mode: Binding<Int> = .constant(0), onSelect: (() -> Void)? = nil) {
+    public init(
+        selectedSymbol: Binding<String>,
+        selectedText: Binding<String> = .constant(""),
+        mode: Binding<Int> = .constant(0),
+        fillsAvailableHeight: Bool = false,
+        onSelect: (() -> Void)? = nil
+    ) {
         self._selectedSymbol = selectedSymbol
+        self.fillsAvailableHeight = fillsAvailableHeight
         self.onSelect = onSelect
     }
+
+    /// Height of the icon grids: the page lets them grow, the compact layout caps them.
+    private var gridMaxHeight: CGFloat { fillsAvailableHeight ? .infinity : 180 }
+    private var savedGridMaxHeight: CGFloat { fillsAvailableHeight ? .infinity : 110 }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -123,7 +137,7 @@ public struct IconPickerView: View {
                     }
                     .padding(2)
                 }
-                .frame(maxHeight: 180)
+                .frame(maxHeight: gridMaxHeight)
             }
         }
     }
@@ -164,14 +178,14 @@ public struct IconPickerView: View {
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                .frame(maxWidth: .infinity, maxHeight: 180)
+                .frame(maxWidth: .infinity, maxHeight: gridMaxHeight)
             } else if provider.isSearching {
                 VStack {
                     ProgressView("Searching Iconify…")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                .frame(maxWidth: .infinity, maxHeight: 180)
+                .frame(maxWidth: .infinity, maxHeight: gridMaxHeight)
             } else {
                 let openSourceResults = provider.searchResults.filter { $0.id.contains(":") }
                 if openSourceResults.isEmpty {
@@ -180,7 +194,7 @@ public struct IconPickerView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: 180)
+                    .frame(maxWidth: .infinity, maxHeight: gridMaxHeight)
                 } else {
                     // Grid display for Open Source icons
                     ScrollView {
@@ -198,7 +212,7 @@ public struct IconPickerView: View {
                         }
                         .padding(2)
                     }
-                    .frame(maxHeight: 180)
+                    .frame(maxHeight: gridMaxHeight)
                 }
             }
         }
@@ -308,7 +322,7 @@ public struct IconPickerView: View {
                             .font(.caption2)
                             .foregroundColor(.secondary.opacity(0.8))
                     }
-                    .frame(maxWidth: .infinity, maxHeight: 110)
+                    .frame(maxWidth: .infinity, maxHeight: savedGridMaxHeight)
                 } else {
                     ScrollView {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 8), spacing: 4) {
@@ -335,7 +349,7 @@ public struct IconPickerView: View {
                         }
                         .padding(2)
                     }
-                    .frame(maxHeight: 110)
+                    .frame(maxHeight: savedGridMaxHeight)
                 }
             }
         }

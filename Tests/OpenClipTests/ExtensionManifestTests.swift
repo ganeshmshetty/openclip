@@ -224,7 +224,7 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertNil(action.toast?.style)
     }
 
-    func testEditActionSheetPreservesVersionAndCapabilities() throws {
+    func testActionEditorPreservesVersionAndCapabilities() throws {
         let manifest = ExtensionMetadata(
             identifier: "com.test.extension",
             name: "Test Ext",

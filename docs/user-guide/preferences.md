@@ -18,20 +18,52 @@ immediately without stopping OpenClip, its selection monitoring, or its global s
 
 ---
 
+## Finding your way around
+
+The settings window is laid out like System Settings:
+
+- **Search** at the top of the sidebar filters the pages by name and by what they contain — type
+  `hotkey` to find Shortcuts, `api key` to find AI, or an action's name to find the extension that
+  provides it.
+- The sidebar has two groups: OpenClip's own pages (General, Appearance, Actions, Shortcuts,
+  App Rules, Store, About), then **AI and every installed extension**, one page each.
+- Anything you drill into — an action's settings, the icon chooser, a prompt — opens as a page in
+  the same column. The **‹ ›** arrows in the toolbar (or `⌘[` / `⌘]`) move back and forward
+  through the pages you visited, exactly like System Settings. Nothing opens in a popover or a
+  sheet, and problems are reported inline at the top of the page rather than in an alert.
+
+---
+
 ## Action Catalog & Drag-and-Drop Reordering
 
-The **Actions** tab lists all available builtin actions, user-configured custom actions, and installed extension packages.
+The **Actions** page lists all available builtin actions, user-configured custom actions, and installed extension packages.
 
 ```
-Preferences > Actions
-├── Drag handle (≡) to reorder actions in the floating popup bar
-├── Toggle checkbox to enable or disable individual actions
-└── Click 'Edit' () to customize title and icon overrides
+Settings > Actions
+├── Drag a row to reorder actions in the floating popup bar (drop onto a group to add to it)
+├── Toggle the switch to enable or disable individual actions
+└── Click › (or double-click the row) to open that row's settings page
 ```
+
+A row's **›** opens a page for what the row is: an action opens its editor (name, icon, alias,
+hotkey, options), a custom group opens the group editor, an extension's group row opens the
+**extension's page**, and the AI Tools row opens the **AI** page. The toolbar's **+** offers
+New Group, Add Custom Action and Install Extension…, each as a page.
 
 ### How Action Ordering Works
 - Dragging actions changes their relative order in the floating popup bar.
 - Action ordering is saved automatically via [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) under key `actionOrder`.
+
+---
+
+## Extensions
+
+Every installed extension has a page under the sidebar's second group. It shows the extension's
+icon, version, author and description, a switch for the whole package, each of its actions with
+its own switch and a **›** into that action's settings, **Update** when the Store has a newer
+version, **Show in Finder**, and **Remove Extension…** (confirmed inline). For an extension that
+groups its actions behind one icon, **Name and Icon in Popup Bar** renames the group or changes
+its icon.
 
 ---
 
@@ -69,7 +101,7 @@ The preview always reflects the active combination, and a pinned appearance forc
 
 OpenClip includes an AI assistant overlay that processes text selections using local or cloud AI models.
 
-Navigate to **Preferences > AI** to configure your provider:
+Select **AI** in the sidebar (the first row of the Extensions group) to turn AI Tools on or off and configure your provider:
 
 | Provider | Description | Setup Requirements |
 | :--- | :--- | :--- |
@@ -90,7 +122,7 @@ matches no action is offered to AI instead of a "No matches" notice:
   paste, or you've switched apps, the answer is copied).
 - **Save as AI tool** (⌘2) keeps the instruction as a custom AI action and runs it the same way.
   From then on it appears in the palette by name, in the AI Tools bar, and under
-  **Preferences › AI › Actions**, where you can rename it, edit its prompt, or delete it.
+  **Settings › AI › AI Actions**, where opening it renames it, edits its prompt, or deletes it.
 - Your **recent instructions** are palette rows too: type any part of one (`slo` finds
   `rewrite to slovak`) and run it with ⏎ or ⇧⏎ like the Ask AI row. Eight are kept; a saved
   instruction leaves the list.

@@ -2455,7 +2455,7 @@ public class PopupWindowController {
 
     /// Decision 8 config-open path: the popup has already hidden (`.openConfiguration` dismisses it);
     /// post the configuration notification so the Preferences host presents the action's
-    /// EditActionSheet (StatusBarController opens Preferences and drives the sheet).
+    /// ActionEditorPage (StatusBarController opens Preferences and drives the sheet).
     private func presentConfiguration(for request: ConfigurationRequest) {
         NotificationCenter.default.post(
             name: .openClipOpenActionConfiguration,

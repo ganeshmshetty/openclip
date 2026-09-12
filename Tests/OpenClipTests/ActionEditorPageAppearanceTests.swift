@@ -6,7 +6,7 @@ import XCTest
 /// must never replace an action's real icon (package file / remote image / text glyph) with the
 /// icon picker's placeholder, and legacy overrides written by that old bug heal on the next save.
 @MainActor
-final class EditActionSheetAppearanceTests: XCTestCase {
+final class ActionEditorPageAppearanceTests: XCTestCase {
     private let localIcon = ActionIcon.local(URL(fileURLWithPath: "/tmp/pkg/icon.svg"))
 
     // MARK: - resolvedSymbolOverride
@@ -14,26 +14,26 @@ final class EditActionSheetAppearanceTests: XCTestCase {
     func testTitleOnlyEditDoesNotClobberNonSymbolIcon() {
         // Non-symbol-representable icons leave the field empty ("untouched"); saving must not
         // invent a symbol override.
-        XCTAssertNil(EditActionSheet.resolvedSymbolOverride(current: "", initial: "", stored: nil))
+        XCTAssertNil(ActionEditorPage.resolvedSymbolOverride(current: "", initial: "", stored: nil))
     }
 
     func testUnchangedFieldRoundTripsPreviouslyStoredSymbol() {
         XCTAssertEqual(
-            EditActionSheet.resolvedSymbolOverride(current: "heart.fill", initial: "heart.fill", stored: "heart.fill"),
+            ActionEditorPage.resolvedSymbolOverride(current: "heart.fill", initial: "heart.fill", stored: "heart.fill"),
             "heart.fill"
         )
     }
 
     func testPickedReplacementSymbolWinsOverStoredOne() {
         XCTAssertEqual(
-            EditActionSheet.resolvedSymbolOverride(current: "bolt.fill", initial: "heart.fill", stored: "heart.fill"),
+            ActionEditorPage.resolvedSymbolOverride(current: "bolt.fill", initial: "heart.fill", stored: "heart.fill"),
             "bolt.fill"
         )
     }
 
     func testPickedSymbolOnNonSymbolBaselinePersists() {
         XCTAssertEqual(
-            EditActionSheet.resolvedSymbolOverride(current: "bolt.fill", initial: "", stored: nil),
+            ActionEditorPage.resolvedSymbolOverride(current: "bolt.fill", initial: "", stored: nil),
             "bolt.fill"
         )
     }
@@ -41,38 +41,38 @@ final class EditActionSheetAppearanceTests: XCTestCase {
     // MARK: - initialDisplayMode
 
     func testInitialDisplayModeDefaultsToTextForTextGlyphIcons() {
-        XCTAssertEqual(EditActionSheet.initialDisplayMode(override: nil, actionIcon: .text("Copy")), 1)
+        XCTAssertEqual(ActionEditorPage.initialDisplayMode(override: nil, actionIcon: .text("Copy")), 1)
     }
 
     func testInitialDisplayModeDefaultsToIconForSymbolIcons() {
-        XCTAssertEqual(EditActionSheet.initialDisplayMode(override: nil, actionIcon: .symbol("star")), 0)
+        XCTAssertEqual(ActionEditorPage.initialDisplayMode(override: nil, actionIcon: .symbol("star")), 0)
     }
 
     func testInitialDisplayModeStoredTextOverrideWins() {
         let override = ActionOverride(customIconSymbol: "doc.on.doc", customIconText: "Copy")
-        XCTAssertEqual(EditActionSheet.initialDisplayMode(override: override, actionIcon: .text("Copy")), 1)
+        XCTAssertEqual(ActionEditorPage.initialDisplayMode(override: override, actionIcon: .text("Copy")), 1)
     }
 
     func testInitialDisplayModeStoredSymbolOverrideKeepsIconModeForTextGlyphBuiltins() {
         // Regression: Copy/Cut/Paste saved in Show Icon mode must reopen in Show Icon, not flip
         // back to Show Text just because their own icon is a text glyph.
         let override = ActionOverride(customIconSymbol: "doc.on.doc")
-        XCTAssertEqual(EditActionSheet.initialDisplayMode(override: override, actionIcon: .text("Copy")), 0)
+        XCTAssertEqual(ActionEditorPage.initialDisplayMode(override: override, actionIcon: .text("Copy")), 0)
     }
 
     func testInitialDisplayModeStoredSymbolOverrideKeepsIconModeForSymbolIcons() {
         let override = ActionOverride(customIconSymbol: "heart.fill")
-        XCTAssertEqual(EditActionSheet.initialDisplayMode(override: override, actionIcon: .symbol("star")), 0)
+        XCTAssertEqual(ActionEditorPage.initialDisplayMode(override: override, actionIcon: .symbol("star")), 0)
     }
 
     // MARK: - iconModeFallbackSymbol
 
     func testIconModeFallbackSymbolForTextGlyphBuiltins() {
-        XCTAssertEqual(EditActionSheet.iconModeFallbackSymbol(for: CopyAction()), "doc.on.doc")
-        XCTAssertEqual(EditActionSheet.iconModeFallbackSymbol(for: CutAction()), "scissors")
-        XCTAssertEqual(EditActionSheet.iconModeFallbackSymbol(for: PasteAction()), "doc.on.clipboard")
-        XCTAssertNil(EditActionSheet.iconModeFallbackSymbol(for: TextGlyphExtensionAction()))
-        XCTAssertNil(EditActionSheet.iconModeFallbackSymbol(for: SearchAction()))
+        XCTAssertEqual(ActionEditorPage.iconModeFallbackSymbol(for: CopyAction()), "doc.on.doc")
+        XCTAssertEqual(ActionEditorPage.iconModeFallbackSymbol(for: CutAction()), "scissors")
+        XCTAssertEqual(ActionEditorPage.iconModeFallbackSymbol(for: PasteAction()), "doc.on.clipboard")
+        XCTAssertNil(ActionEditorPage.iconModeFallbackSymbol(for: TextGlyphExtensionAction()))
+        XCTAssertNil(ActionEditorPage.iconModeFallbackSymbol(for: SearchAction()))
     }
 
     // MARK: - resolvedIconModeSymbolOverride (Show Icon mode on text-glyph builtins)
@@ -81,42 +81,42 @@ final class EditActionSheetAppearanceTests: XCTestCase {
         // Copy/Cut/Paste carry `.text` icons by default; switching them to Show Icon must persist
         // their hand-written preference symbol so popupIcon stops resolving the text glyph.
         XCTAssertEqual(
-            EditActionSheet.resolvedIconModeSymbolOverride(displayMode: 0, current: "", initial: "", stored: nil, action: CopyAction()),
+            ActionEditorPage.resolvedIconModeSymbolOverride(displayMode: 0, current: "", initial: "", stored: nil, action: CopyAction()),
             "doc.on.doc"
         )
         XCTAssertEqual(
-            EditActionSheet.resolvedIconModeSymbolOverride(displayMode: 0, current: "", initial: "", stored: nil, action: CutAction()),
+            ActionEditorPage.resolvedIconModeSymbolOverride(displayMode: 0, current: "", initial: "", stored: nil, action: CutAction()),
             "scissors"
         )
         XCTAssertEqual(
-            EditActionSheet.resolvedIconModeSymbolOverride(displayMode: 0, current: "", initial: "", stored: nil, action: PasteAction()),
+            ActionEditorPage.resolvedIconModeSymbolOverride(displayMode: 0, current: "", initial: "", stored: nil, action: PasteAction()),
             "doc.on.clipboard"
         )
     }
 
     func testShowTextModeDoesNotPersistBuiltinSymbolForTextGlyphBuiltins() {
         XCTAssertNil(
-            EditActionSheet.resolvedIconModeSymbolOverride(displayMode: 1, current: "", initial: "", stored: nil, action: CopyAction())
+            ActionEditorPage.resolvedIconModeSymbolOverride(displayMode: 1, current: "", initial: "", stored: nil, action: CopyAction())
         )
     }
 
     func testShowIconModeKeepsStoredSymbolOverBuiltinFallback() {
         XCTAssertEqual(
-            EditActionSheet.resolvedIconModeSymbolOverride(displayMode: 0, current: "heart.fill", initial: "heart.fill", stored: "heart.fill", action: CopyAction()),
+            ActionEditorPage.resolvedIconModeSymbolOverride(displayMode: 0, current: "heart.fill", initial: "heart.fill", stored: "heart.fill", action: CopyAction()),
             "heart.fill"
         )
     }
 
     func testShowIconModePickedSymbolWinsOverBuiltinFallback() {
         XCTAssertEqual(
-            EditActionSheet.resolvedIconModeSymbolOverride(displayMode: 0, current: "bolt.fill", initial: "", stored: nil, action: CopyAction()),
+            ActionEditorPage.resolvedIconModeSymbolOverride(displayMode: 0, current: "bolt.fill", initial: "", stored: nil, action: CopyAction()),
             "bolt.fill"
         )
     }
 
     func testShowIconModeAddsNoOverrideForSymbolIconedBuiltins() {
         XCTAssertNil(
-            EditActionSheet.resolvedIconModeSymbolOverride(displayMode: 0, current: "magnifyingglass", initial: "magnifyingglass", stored: nil, action: SearchAction())
+            ActionEditorPage.resolvedIconModeSymbolOverride(displayMode: 0, current: "magnifyingglass", initial: "magnifyingglass", stored: nil, action: SearchAction())
         )
     }
 
@@ -124,26 +124,26 @@ final class EditActionSheetAppearanceTests: XCTestCase {
         // Extension actions derive preferenceIconName from the icon (the glyph text itself is not a
         // symbol), so Show Icon mode must not invent an override for them.
         XCTAssertNil(
-            EditActionSheet.resolvedIconModeSymbolOverride(displayMode: 0, current: "", initial: "", stored: nil, action: TextGlyphExtensionAction())
+            ActionEditorPage.resolvedIconModeSymbolOverride(displayMode: 0, current: "", initial: "", stored: nil, action: TextGlyphExtensionAction())
         )
     }
 
     // MARK: - sanitizedStoredSymbol (legacy clobber healing)
 
     func testLegacyStarPlaceholderOnNonSymbolIconsIsTreatedAsAbsent() {
-        XCTAssertNil(EditActionSheet.sanitizedStoredSymbol("star", actionIcon: localIcon))
-        XCTAssertNil(EditActionSheet.sanitizedStoredSymbol("star", actionIcon: .text("⌘C")))
-        XCTAssertNil(EditActionSheet.sanitizedStoredSymbol("star", actionIcon: .url(URL(string: "https://example.com/i.png")!)))
+        XCTAssertNil(ActionEditorPage.sanitizedStoredSymbol("star", actionIcon: localIcon))
+        XCTAssertNil(ActionEditorPage.sanitizedStoredSymbol("star", actionIcon: .text("⌘C")))
+        XCTAssertNil(ActionEditorPage.sanitizedStoredSymbol("star", actionIcon: .url(URL(string: "https://example.com/i.png")!)))
     }
 
     func testGenuineStarPickOnStarIconedActionIsKept() {
-        XCTAssertEqual(EditActionSheet.sanitizedStoredSymbol("star", actionIcon: .symbol("star")), "star")
+        XCTAssertEqual(ActionEditorPage.sanitizedStoredSymbol("star", actionIcon: .symbol("star")), "star")
     }
 
     func testRealCustomizationsAndAbsenceArePreserved() {
-        XCTAssertEqual(EditActionSheet.sanitizedStoredSymbol("heart.fill", actionIcon: localIcon), "heart.fill")
-        XCTAssertNil(EditActionSheet.sanitizedStoredSymbol(nil, actionIcon: localIcon))
-        XCTAssertNil(EditActionSheet.sanitizedStoredSymbol("", actionIcon: localIcon))
+        XCTAssertEqual(ActionEditorPage.sanitizedStoredSymbol("heart.fill", actionIcon: localIcon), "heart.fill")
+        XCTAssertNil(ActionEditorPage.sanitizedStoredSymbol(nil, actionIcon: localIcon))
+        XCTAssertNil(ActionEditorPage.sanitizedStoredSymbol("", actionIcon: localIcon))
     }
 
     // MARK: - resolvedPreviewIcon (ActionAppearanceFields)

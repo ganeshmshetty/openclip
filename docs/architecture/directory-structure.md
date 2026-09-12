@@ -220,24 +220,36 @@ Sources/
         │   ├── ToastPanel.swift              # Non-key floating NSPanel behind the status toast
         │   ├── ToastPanelController.swift    # Owns the toast panel + auto-dismiss timer; single status surface
         │   └── ToastView.swift               # One-line SwiftUI toast `[spinner | icon] message`, PopupThemeModel-themed
-        └── Preferences/                      # Settings & preferences views
-            ├── AboutTabView.swift            # About tab: app icon/name/version
-            ├── ActionAppearanceFields.swift
-            ├── ActionsTabView.swift          # Actions tab: reorderable list + ActionRowView/PackageHeaderRowView + add/install controls
-            ├── AddCustomActionSheet.swift    # Sheet to create new custom action
-            ├── AIConfigureForm.swift         # Shared AI engine/provider form
-            ├── AITab.swift                   # Preferences AI configuration tab
-            ├── AppearanceTabView.swift       # Appearance tab: popup preview + theme selector
-            ├── AppPickerSheet.swift          # Running/installed app selector sheet
-            ├── AppRulesTab.swift             # Application rules configuration tab
-            ├── CreateGroupSheet.swift        # Custom action group creation sheet
+        └── Preferences/                      # Settings window (sidebar + router-driven pages, no popovers/sheets)
+            ├── AboutTabView.swift            # About page: app icon/name/version, updates, links, diagnostics
+            ├── ActionAppearanceFields.swift  # Hero icon/name/display-mode fields + IconPickerPage
+            ├── ActionEditorPage.swift        # One action's settings page (appearance, keyboard, options/logic)
+            ├── ActionEnablement.swift        # Shared enable-switch rule for actions and packages
+            ├── ActionsOutlineView.swift      # Native NSOutlineView for the Actions page (reorder, groups, drag/drop)
+            ├── ActionsTabView.swift          # Actions page: outline + ActionRowView/PackageHeaderRowView, row → page routing
+            ├── AddApplicationPage.swift      # App Rules ▸ Add Application page (running/installed apps, custom bundle id)
+            ├── AIActionsSection.swift        # AI prompt library section (reorderable, rows drill into a prompt)
+            ├── AIConfigureForm.swift         # Shared AI engine/provider form (embedded in AIPage and onboarding)
+            ├── AIPage.swift                  # AI page (toggle + engine + prompts) and the prompt edit/new pages
+            ├── AppearanceTabView.swift       # Appearance page: popup preview + theme selector
+            ├── AppRulesTab.swift             # Application rules page
             ├── DynamicActionConfigView.swift # Dynamic extension options configuration view
-            ├── EditActionSheet.swift         # Custom action editor sheet
-            ├── EditGroupSheet.swift          # Custom action group editor sheet
-            ├── ExtensionCardView.swift       # Store grid card for a single extension listing
+            ├── ExtensionCardView.swift       # Store list row for a single extension listing
             ├── ExtensionInstallPanel.swift   # Shared "Install File…" NSOpenPanel presenter
+            ├── ExtensionPackagePage.swift    # One installed extension's page (toggle, actions, update, remove)
             ├── ExtensionsStoreView.swift     # Extension store browser (ViewModel + ExtensionStoreView)
-            ├── GeneralTabView.swift          # General tab: enable toggle, hotkey, start-at-login, menu bar, permissions
-            ├── IconPickerView.swift          # SF Symbol icon picker sheet
-            └── PreferencesView.swift         # Preferences window root view tab bar
+            ├── GeneralTabView.swift          # General page: triggers, results, menu bar, login, permissions
+            ├── GroupEditorPage.swift         # Group settings page (name, icon, members, ungroup)
+            ├── IconPickerView.swift          # SF Symbol / Iconify / custom icon picker (compact or full-page)
+            ├── InstalledExtensionInfo.swift  # Installed packages derived from the action catalog
+            ├── NewCustomActionPage.swift     # Page to create a custom action
+            ├── NewGroupPage.swift            # Page to create a custom group
+            ├── PreferencesToolbar.swift      # AppKit toolbar: back/forward group, title, store filter/search, + button
+            ├── PreferencesView.swift         # Settings window root: sidebar + SettingsNavigationStack detail
+            ├── SettingsNavigationStack.swift # Mounted-levels page host, SettingsEditorPage footer layout, shared rows
+            ├── SettingsNoticeBanner.swift    # Inline (glass) notice that replaces NSAlert in the window
+            ├── SettingsRouter.swift          # SettingsPage enum + SettingsRouter (path, history, notices)
+            ├── SettingsRowLabel.swift        # Shared settings row shapes
+            ├── SettingsSidebar.swift         # Sidebar: search field, two row groups, icon tiles
+            └── ShortcutsPage.swift           # Every action's alias and hotkey in one table
 ```

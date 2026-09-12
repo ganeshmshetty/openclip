@@ -385,6 +385,9 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
     public let localizedName: LocalizedStringValue?
     public let description: String?
     public let localizedDescription: LocalizedStringValue?
+    /// Who published the package, as written in the manifest. Shown on the extension's settings
+    /// page; carried through `writeManifest` so an in-app edit does not drop it.
+    public let author: String?
     public let actions: [ExtensionActionMetadata]
     public let options: [ExtensionOptionMetadata]?
     /// Declared package version (e.g. `"1.0.0"`). Ignored by the loader except for validation
@@ -410,13 +413,15 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         keywords: [String]? = nil,
         localizedName: LocalizedStringValue? = nil,
         description: String? = nil,
-        localizedDescription: LocalizedStringValue? = nil
+        localizedDescription: LocalizedStringValue? = nil,
+        author: String? = nil
     ) {
         self.identifier = identifier
         self.name = name
         self.localizedName = localizedName ?? LocalizedStringValue(string: name)
         self.description = description
         self.localizedDescription = localizedDescription ?? description.map { LocalizedStringValue(string: $0) }
+        self.author = author
         self.actions = actions
         self.options = options
         self.version = version
@@ -451,6 +456,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         let resolvedDesc = LocalizedStringValue.merge(base: baseDesc, locales: descLocales)
         self.localizedDescription = resolvedDesc
         self.description = resolvedDesc?.resolve()
+        self.author = try? container.decodeIfPresent(String.self, forKey: .author)
         // Support both "actions" (array) and "action" (singular object)
         if let array = try? container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .actions) ?? container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .legacyActions) {
             self.actions = array
@@ -486,6 +492,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         } else {
             try container.encodeIfPresent(description, forKey: .description)
         }
+        try container.encodeIfPresent(author, forKey: .author)
         try container.encode(actions, forKey: .actions)
         try container.encodeIfPresent(options, forKey: .options)
         try container.encodeIfPresent(version, forKey: .version)
@@ -506,6 +513,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         case legacyDescription = "Description"
         case descriptionLocales = "descriptionLocales"
         case descriptions = "descriptions"
+        case author = "author"
         case actions = "actions"
         case action = "action"     // singular fallback
         case legacyActions = "Actions"
