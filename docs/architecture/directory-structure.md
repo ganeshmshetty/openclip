@@ -246,13 +246,15 @@ Sources/
             ├── InstalledExtensionInfo.swift  # Installed packages derived from the action catalog
             ├── NewCustomActionPage.swift     # Page to create a custom action
             ├── NewGroupPage.swift            # Page to create a custom group
-            ├── PreferencesToolbar.swift      # AppKit toolbar: back/forward group, title, store filter/search, + button
+            ├── PreferencesToolbar.swift      # AppKit toolbar: back/forward group, title, store filter/search, + button, page switch + … menu
             ├── PreferencesView.swift         # Settings window root: sidebar + SettingsNavigationStack detail
             ├── SettingsNavigationStack.swift # Mounted-levels page host, SettingsEditorPage footer layout, shared rows
             ├── SettingsDestination.swift     # Router path for any action's settings (builtin row / extension / custom / group)
+            ├── SettingsHeroHeader.swift      # Centred icon/title/subtitle identity block for pages about one thing
             ├── SettingsNoticeBanner.swift    # Inline (glass) notice that replaces NSAlert in the window
             ├── SettingsRouter.swift          # SettingsPage enum + SettingsRouter (path, history, notices)
             ├── SettingsRowLabel.swift        # Shared settings row shapes
+            ├── SettingsToolbarAccessories.swift # Trailing toolbar switch + ellipsis menu models and per-page items
             ├── SettingsSidebar.swift         # Sidebar: search field, two row groups, icon tiles
             └── ShortcutsPage.swift           # Every action's switch, alias and hotkey in one table, grouped by source
 ```

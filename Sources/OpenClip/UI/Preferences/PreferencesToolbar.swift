@@ -14,6 +14,10 @@
 // Leading everything is the back/forward pair System Settings has: an
 // `NSToolbarItemGroup` wired to the router's history, so leaving any page —
 // an action's editor, the icon chooser, an extension — is the same gesture.
+// Trailing everything, on that same line, is what the page on screen is *about*:
+// its on/off switch and an ellipsis menu of what can be done to it as a whole
+// (view its README, show its folder, uninstall it). Both belong to the subject
+// rather than to a row, which is why System Settings puts them here too.
 import AppKit
 import Combine
 import Core
@@ -25,6 +29,10 @@ public enum PreferencesToolbarAction: Sendable {
     case addApplication
     case refresh
     case addAIAction
+    /// The trailing switch was moved. The window decides what it means for the page on screen.
+    case setPageToggle(Bool)
+    /// A pick from the trailing ellipsis menu, by `SettingsToolbarMenuItem.id`.
+    case pageMenuItem(String)
 }
 
 /// The bridge between the SwiftUI panes and the AppKit toolbar.
@@ -34,6 +42,10 @@ public final class PreferencesToolbarModel: ObservableObject {
     @Published public var page: SettingsPage = .general
     /// The page's title, resolved by the window (an action's page is titled after the action).
     @Published public var title: String = SettingsPage.general.staticTitle ?? ""
+    /// The subject's on/off switch, trailing in the toolbar. `nil` hides it.
+    @Published public var pageToggle: SettingsToolbarToggle?
+    /// What the trailing ellipsis menu offers. Empty hides it.
+    @Published public var pageMenuItems: [SettingsToolbarMenuItem] = []
     @Published public var storeFilter: StoreFilter = .all
     @Published public var searchQuery: String = ""
     @Published public var isRefreshing: Bool = false
@@ -54,6 +66,9 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         /// left a wide gap between "Store" and the first control.
         static let title = NSToolbarItem.Identifier("openclip.preferences.title")
         static let filter = NSToolbarItem.Identifier("openclip.preferences.filter")
+        /// The page subject's ellipsis menu and on/off switch, trailing.
+        static let pageMenu = NSToolbarItem.Identifier("openclip.preferences.pageMenu")
+        static let pageToggle = NSToolbarItem.Identifier("openclip.preferences.pageToggle")
         static let search = NSToolbarItem.Identifier("openclip.preferences.search")
         static let action = NSToolbarItem.Identifier("openclip.preferences.action")
     }
@@ -86,6 +101,10 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
     private weak var filterControl: NSSegmentedControl?
     private weak var searchField: NSSearchField?
     private weak var actionButton: NSButton?
+    private weak var pageMenuItem: NSToolbarItem?
+    private weak var pageMenuButton: NSButton?
+    private weak var pageToggleItem: NSToolbarItem?
+    private weak var pageToggleControl: NSSwitch?
 
     public init(model: PreferencesToolbarModel, router: SettingsRouter = .shared) {
         self.model = model
@@ -119,6 +138,16 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         model.$isRefreshing
             .sink { [weak self] isRefreshing in
                 self?.actionButton?.isEnabled = !(isRefreshing && self?.model.page == .store)
+            }
+            .store(in: &cancellables)
+
+        model.$pageToggle
+            .sink { [weak self] toggle in self?.sync(pageToggle: toggle) }
+            .store(in: &cancellables)
+
+        model.$pageMenuItems
+            .sink { [weak self] items in
+                self?.setHidden(self?.pageMenuItem, items.isEmpty)
             }
             .store(in: &cancellables)
 
@@ -160,6 +189,20 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         default:
             setHidden(actionItem, true)
         }
+    }
+
+    /// Mirrors the page's switch onto the control. A switch that is off *and* unmovable is a
+    /// package the trust gate holds back, which the page explains in words underneath.
+    private func sync(pageToggle toggle: SettingsToolbarToggle?) {
+        guard let toggle else {
+            setHidden(pageToggleItem, true)
+            return
+        }
+        pageToggleControl?.state = toggle.isOn ? .on : .off
+        pageToggleControl?.isEnabled = toggle.isEnabled
+        pageToggleControl?.setAccessibilityLabel(toggle.label)
+        pageToggleItem?.toolTip = toggle.label
+        setHidden(pageToggleItem, false)
     }
 
     private func syncNavigation() {
@@ -209,6 +252,40 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         default: break
         }
         syncNavigation()
+    }
+
+    @objc private func pageTogglePressed(_ sender: NSSwitch) {
+        model.actions.send(.setPageToggle(sender.state == .on))
+    }
+
+    @objc private func pageMenuPressed(_ sender: NSButton) {
+        let menu = NSMenu()
+        for entry in model.pageMenuItems {
+            guard !entry.isSeparator else {
+                menu.addItem(.separator())
+                continue
+            }
+            let item = NSMenuItem(title: entry.title, action: #selector(pageMenuItemPressed(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = entry.id
+            if !entry.symbol.isEmpty {
+                item.image = NSImage(systemSymbolName: entry.symbol, accessibilityDescription: nil)
+            }
+            if entry.role == .destructive {
+                // NSMenu has no destructive role, so the colour has to be drawn on.
+                item.attributedTitle = NSAttributedString(
+                    string: entry.title,
+                    attributes: [.foregroundColor: NSColor.systemRed]
+                )
+            }
+            menu.addItem(item)
+        }
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
+    }
+
+    @objc private func pageMenuItemPressed(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        model.actions.send(.pageMenuItem(id))
     }
 
     @objc private func actionButtonPressed(_ sender: NSButton) {
@@ -273,7 +350,10 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         // else pinned right: the pane's button, with the search field last against the window
         // edge. Centring the filter with a leading flexible space spent the width twice and
         // pushed the search field into the overflow menu at the window's minimum size.
-        [ItemID.navigation, ItemID.title, ItemID.filter, .flexibleSpace, ItemID.action, ItemID.search]
+        [
+            ItemID.navigation, ItemID.title, ItemID.filter, .flexibleSpace,
+            ItemID.action, ItemID.search, ItemID.pageMenu, ItemID.pageToggle
+        ]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -428,6 +508,41 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             searchField = field
             searchItem = item
             setHidden(item, model.page != .store)
+            return item
+
+        case ItemID.pageMenu:
+            let button = NSButton(
+                image: NSImage(systemSymbolName: "ellipsis", accessibilityDescription: String(localized: "More")) ?? NSImage(),
+                target: self,
+                action: #selector(pageMenuPressed(_:))
+            )
+            button.bezelStyle = .toolbar
+
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.view = button
+            item.label = String(localized: "More")
+            item.toolTip = String(localized: "More")
+            item.visibilityPriority = .high
+            pageMenuButton = button
+            pageMenuItem = item
+            setHidden(item, model.pageMenuItems.isEmpty)
+            return item
+
+        case ItemID.pageToggle:
+            // A real `NSSwitch`, so it is the system's switch in the system's toolbar: same
+            // metrics, same accent, same animation as the one in System Settings' title bar.
+            let control = NSSwitch()
+            control.target = self
+            control.action = #selector(pageTogglePressed(_:))
+            control.sizeToFit()
+
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.view = control
+            item.label = String(localized: "Enabled")
+            item.visibilityPriority = .high
+            pageToggleControl = control
+            pageToggleItem = item
+            sync(pageToggle: model.pageToggle)
             return item
 
         case ItemID.action:

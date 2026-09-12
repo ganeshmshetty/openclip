@@ -3,7 +3,8 @@
 //
 // The window's replacement for `NSAlert`: a message that floats at the top of the detail column,
 // on a piece of Liquid Glass on macOS 26 and on a standard material before it. It says what went
-// wrong where it went wrong, and it goes away with one click.
+// wrong where it went wrong, and it goes away with one click — or, when something destructive is
+// about to happen, it asks first and waits for the red button.
 
 import SwiftUI
 
@@ -11,11 +12,13 @@ import SwiftUI
 struct SettingsNoticeBanner: View {
     let notice: SettingsNotice
     let onDismiss: () -> Void
+    var onConfirm: (() -> Void)?
 
     private var symbol: String {
         switch notice.style {
         case .info: return "info.circle.fill"
         case .error: return "exclamationmark.triangle.fill"
+        case .destructiveConfirmation: return "trash.circle.fill"
         }
     }
 
@@ -23,6 +26,7 @@ struct SettingsNoticeBanner: View {
         switch notice.style {
         case .info: return .accentColor
         case .error: return .orange
+        case .destructiveConfirmation: return .red
         }
     }
 
@@ -44,21 +48,34 @@ struct SettingsNoticeBanner: View {
 
             Spacer(minLength: 8)
 
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20, height: 20)
-                    .contentShape(Rectangle())
+            if notice.isConfirmation {
+                // A question, so it gets the two buttons an alert would have had — and the
+                // destructive one is never the default, so Return cannot go through with it.
+                Button("Cancel", action: onDismiss)
+                    .keyboardShortcut(.cancelAction)
+
+                Button(notice.confirmTitle ?? String(localized: "Continue")) {
+                    onConfirm?()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+            } else {
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Dismiss")
+                .accessibilityLabel("Dismiss")
+                .keyboardShortcut(.cancelAction)
             }
-            .buttonStyle(.plain)
-            .help("Dismiss")
-            .accessibilityLabel("Dismiss")
-            .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .frame(maxWidth: 520)
+        .frame(maxWidth: 560)
         .settingsGlassCard(cornerRadius: 14)
         .shadow(color: Color.black.opacity(0.14), radius: 12, x: 0, y: 6)
         .padding(.horizontal, 20)

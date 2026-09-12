@@ -57,6 +57,7 @@
 		2625F61BBDA95D300AA8BBC4 /* LocalizedStringValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0E732D2DCAF53EDEB6653D /* LocalizedStringValue.swift */; };
 		264760E3D025E183E831C7C0 /* ActionVisibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CA2E8ED39FAF909162A8023 /* ActionVisibility.swift */; };
 		28866ECB981E609DE49A0446 /* InstalledAppsScannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74377A23CADC86774742A0BD /* InstalledAppsScannerTests.swift */; };
+		291F588451AEDCC09B14B54F /* SettingsHeroHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F48D14096F6030D7269BB3 /* SettingsHeroHeader.swift */; };
 		29DC7732228424F98AEF1665 /* CustomActionManifestWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37C5B4BFF2D115C64916D6E9 /* CustomActionManifestWriter.swift */; };
 		2B3E3EB0BC1A9BA0919C017E /* TestIsolation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB27AADC6E8AFED7FA86F02 /* TestIsolation.swift */; };
 		2BA13E2C55DB83FBD4B84666 /* TextSanitizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25F5B1000D24EE8852A91066 /* TextSanitizerTests.swift */; };
@@ -244,6 +245,7 @@
 		A4E5C8D67CA65BB32559291A /* DefaultAppRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 074DF8EB3340407D7E993ED7 /* DefaultAppRules.swift */; };
 		A540BA1A00AF36250B272122 /* OpenSelectionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5F4AFF322060F5A1943DFDD /* OpenSelectionBridge.swift */; };
 		A571B116559543251679E39F /* ExtensionManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 704D6BE45F2AF94603F2FA07 /* ExtensionManifest.swift */; };
+		A652770546448411955ADD0E /* SettingsToolbarAccessories.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE01BC94B28C281E99C97DDE /* SettingsToolbarAccessories.swift */; };
 		A68E3E6C2500AB9707C47DBD /* ActionChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108E36CD124AAFD86FD11118 /* ActionChrome.swift */; };
 		A84AC0EE09C7C092975A8641 /* GroupEditorPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CF590B61F0C97749C6628A1 /* GroupEditorPage.swift */; };
 		A93C09CC9AF91C0C1D6EB765 /* AIConversationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8E594506CA8101F91FE94C /* AIConversationTests.swift */; };
@@ -581,6 +583,7 @@
 		74011E62AB2E26EB03C81D18 /* ExtensionPackageHashResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionPackageHashResolverTests.swift; sourceTree = "<group>"; };
 		74377A23CADC86774742A0BD /* InstalledAppsScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledAppsScannerTests.swift; sourceTree = "<group>"; };
 		750ADA88A976EEF10B2481E2 /* AppFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFilter.swift; sourceTree = "<group>"; };
+		75F48D14096F6030D7269BB3 /* SettingsHeroHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsHeroHeader.swift; sourceTree = "<group>"; };
 		7683646692AA6067DA5AA86D /* ActionCustomizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCustomizationManager.swift; sourceTree = "<group>"; };
 		7726769286BF1C3870E0A003 /* JSNativeFetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSNativeFetch.swift; sourceTree = "<group>"; };
 		79D64C96408A09CB4C053E1E /* SettingKey+ResultCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingKey+ResultCard.swift"; sourceTree = "<group>"; };
@@ -776,6 +779,7 @@
 		FADAC40972B146605441712F /* ExtensionUpdatePlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUpdatePlannerTests.swift; sourceTree = "<group>"; };
 		FB8E693598E421C204E409DD /* WordCompletionProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordCompletionProviding.swift; sourceTree = "<group>"; };
 		FD745BEE3016BC493B5D9B8F /* ExtensionTrustGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionTrustGate.swift; sourceTree = "<group>"; };
+		FE01BC94B28C281E99C97DDE /* SettingsToolbarAccessories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsToolbarAccessories.swift; sourceTree = "<group>"; };
 		FF9BC6017410358A72E64420 /* TooltipPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TooltipPresenter.swift; sourceTree = "<group>"; };
 		FFE7151632E620F610F28030 /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -1247,11 +1251,13 @@
 				7F26242B60606C743CBBA169 /* PreferencesToolbar.swift */,
 				F660BE562891C148ECA1E083 /* PreferencesView.swift */,
 				ABDA0F539A95EE3AEE2D2AA4 /* SettingsDestination.swift */,
+				75F48D14096F6030D7269BB3 /* SettingsHeroHeader.swift */,
 				20C4D27D498FCD6DFC9A9AB5 /* SettingsNavigationStack.swift */,
 				0AF3AA6CD7D50EFBF864A117 /* SettingsNoticeBanner.swift */,
 				C1045FDA1167A3490F2FC191 /* SettingsRouter.swift */,
 				CE94C5DF6F55C48818CE55EC /* SettingsRowLabel.swift */,
 				419CB1B34212FA07CBF6B9F8 /* SettingsSidebar.swift */,
+				FE01BC94B28C281E99C97DDE /* SettingsToolbarAccessories.swift */,
 				6E15ACA717AFB2E02C6D8982 /* ShortcutsPage.swift */,
 			);
 			path = Preferences;
@@ -1956,11 +1962,13 @@
 				E86F203A8AF88E30A78C7709 /* SettingKey+ResultCard.swift in Sources */,
 				66D0BC9F0103DA6CC8BC7EF6 /* SettingKey+SearchPalette.swift in Sources */,
 				E92401E5A4F4D6EBD89F25B2 /* SettingsDestination.swift in Sources */,
+				291F588451AEDCC09B14B54F /* SettingsHeroHeader.swift in Sources */,
 				3E6F0DDD297CE4CF885B614A /* SettingsNavigationStack.swift in Sources */,
 				1EA69A22B765ABF0A7D3EE76 /* SettingsNoticeBanner.swift in Sources */,
 				65F6C2ADDFE9F36178DED76E /* SettingsRouter.swift in Sources */,
 				E75472EBB90E82A98D3C787E /* SettingsRowLabel.swift in Sources */,
 				B648737BC22B86358E531505 /* SettingsSidebar.swift in Sources */,
+				A652770546448411955ADD0E /* SettingsToolbarAccessories.swift in Sources */,
 				E6C58D0747EA41DECA6FFFA2 /* ShortcutAction.swift in Sources */,
 				43B5991EB10B6C3126082E09 /* ShortcutsPage.swift in Sources */,
 				4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */,

@@ -1,9 +1,11 @@
 // ActionEditorPage.swift
 // OpenClip
 //
-// One action's settings as a page of the Settings window: whether it is on, appearance (name,
-// icon, how the popup bar shows it), keyboard (alias, hotkey), and either the options the action
-// declares or, for a GUI-authored custom action, its execution logic. A built-in action shows it
+// One action's settings as a page of the Settings window: appearance (name, icon, how the popup
+// bar shows it), keyboard (alias, hotkey), and either the options the action declares or, for a
+// GUI-authored custom action, its execution logic. Whether it is on, and duplicating or deleting
+// it, are in the toolbar beside the back and forward arrows — they belong to the action, not to
+// this form, and they take effect without a Save. A built-in action shows it
 // as its own sidebar page; an extension's command, a custom action or a group reach it from their
 // owner's page, the Customize list or the Shortcuts table.
 //
@@ -22,10 +24,9 @@ public struct ActionEditorPage: View {
     /// True when the page is a sidebar row of its own (a built-in action): there is nothing to go
     /// back to, so Cancel becomes Revert and Save stays on the page.
     let isSidebarPage: Bool
-    @Binding private var disabledActionIDs: Set<String>
-    @Binding private var disabledPackages: Set<String>
     @ObservedObject private var router = SettingsRouter.shared
     @ObservedObject private var coordinator = ActionCoordinator.shared
+    @ObservedObject private var customizationManager = ActionCustomizationManager.shared
 
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
@@ -68,29 +69,14 @@ public struct ActionEditorPage: View {
     /// to run modal over the window.
     @State private var saveErrorMessage: String?
     @State private var aliasText: String = ""
-    @State private var isConfirmingDelete = false
     @State private var isDuplicating = false
 
     public init(
         action: any Action,
-        disabledActionIDs: Binding<Set<String>>,
-        disabledPackages: Binding<Set<String>>,
         isSidebarPage: Bool = false
     ) {
         self.action = action
-        _disabledActionIDs = disabledActionIDs
-        _disabledPackages = disabledPackages
         self.isSidebarPage = isSidebarPage
-    }
-
-    /// The switch the row in the Customize list used to carry. Live, not part of Save: turning an
-    /// action off is not an edit to it.
-    private var isEnabled: Binding<Bool> {
-        ActionEnablement.binding(
-            for: action,
-            disabledActionIDs: $disabledActionIDs,
-            disabledPackages: $disabledPackages
-        )
     }
 
     private var isCustomAction: Bool {
@@ -99,6 +85,14 @@ public struct ActionEditorPage: View {
 
     private var canDuplicate: Bool {
         ActionIdentity.canDuplicate(action)
+    }
+
+    /// True when this level of the stack is the one on screen.
+    private var isCurrent: Bool {
+        switch router.currentPage {
+        case .action(let id), .builtinAction(let id): return id == action.id
+        default: return false
+        }
     }
 
     private var isBuiltin: Bool {
@@ -160,21 +154,6 @@ public struct ActionEditorPage: View {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .stroke(Color.orange.opacity(0.35), lineWidth: 1)
                     )
-                }
-
-                InsetGroupCard {
-                    SettingsRow(
-                        title: "Enabled",
-                        subtitle: "Off hides the action from the popup bar and the palette.",
-                        systemImage: "power"
-                    ) {
-                        Toggle("", isOn: isEnabled)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .accessibilityLabel(String(localized: "Enable \(action.title)"))
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
                 }
 
                 // Hero Header Card (Icon, Name & Display Mode)
@@ -355,35 +334,10 @@ public struct ActionEditorPage: View {
                     .font(.caption)
                     .disabled(manifestMissing)
 
-                    if canDuplicate {
-                        Button(isDuplicating ? "Duplicating…" : "Duplicate") {
-                            duplicate()
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                        .disabled(isDuplicating)
-                    }
-
-                    if isCustomAction {
-                        if isConfirmingDelete {
-                            Text("Delete this action?")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Button("Keep") { isConfirmingDelete = false }
-                                .controlSize(.small)
-                            Button("Delete", role: .destructive) { deleteAction() }
-                                .controlSize(.small)
-                                .buttonStyle(.borderedProminent)
-                                .tint(.red)
-                        } else {
-                            Button("Delete Action…", role: .destructive) {
-                                isConfirmingDelete = true
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.red)
+                    if isDuplicating {
+                        Text("Duplicating…")
                             .font(.caption)
-                        }
+                            .foregroundStyle(.secondary)
                     }
 
                     Spacer()
@@ -410,9 +364,33 @@ public struct ActionEditorPage: View {
         .onDisappear {
             router.clearConfigurationRequest(for: action.id)
         }
+        // The toolbar's ellipsis menu belongs to whichever page is on screen; levels underneath
+        // stay mounted, so each one answers only for itself.
+        .onReceive(router.pageCommands) { command in
+            guard isCurrent else { return }
+            switch command {
+            case SettingsToolbarCommand.actionDuplicate: duplicate()
+            case SettingsToolbarCommand.actionDelete: confirmDelete()
+            default: break
+            }
+        }
     }
 
     // MARK: - Delete and duplicate
+
+    /// Asks first, in the banner that floats over the page, the way every destructive step in this
+    /// window does.
+    private func confirmDelete() {
+        guard isCustomAction else { return }
+        let name = customizationManager.presented(action, surface: .table).title
+        router.confirmDestructive(
+            title: String(localized: "Delete \(name)?"),
+            message: String(localized: "The action is removed from the popup bar and the palette."),
+            confirmTitle: String(localized: "Delete")
+        ) {
+            deleteAction()
+        }
+    }
 
     /// Removes a custom action the way the Customize list's trash used to: a store-backed one is
     /// deleted from the store, a manifest-backed one has its package removed.
@@ -429,7 +407,6 @@ public struct ActionEditorPage: View {
                     NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
                 } catch {
                     Log.extensions.error("Failed to remove custom action '\(id, privacy: .public)': \(error.localizedDescription)")
-                    isConfirmingDelete = false
                     router.notifyError(
                         title: String(localized: "Remove Failed"),
                         message: String(localized: "OpenClip could not remove extension: \(error.localizedDescription)")

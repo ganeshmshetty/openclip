@@ -14,6 +14,7 @@
 // route it points at.
 
 import SwiftUI
+import Combine
 import Core
 
 /// Everything the Settings window can show.
@@ -173,24 +174,45 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     }
 }
 
-/// An inline message the window shows instead of an alert: a failed removal, a failed export.
-public struct SettingsNotice: Identifiable, Equatable, Sendable {
-    public enum Style: Sendable {
+/// An inline message the window shows instead of an alert: a failed removal, a failed export, or
+/// the question an alert used to ask before something destructive ("Uninstall JWT?").
+///
+/// A confirmation carries the work it would do, so the page that asked keeps owning it — the
+/// banner only draws the question and the button.
+@MainActor
+public struct SettingsNotice: Identifiable {
+    public enum Style: Sendable, Equatable {
         case info
         case error
+        /// A question about to do something destructive: a red confirm button.
+        case destructiveConfirmation
     }
 
     public let id: UUID
     public let title: String
     public let message: String
     public let style: Style
+    /// Title of the button that goes through with it. `nil` for a notice that only reports.
+    public let confirmTitle: String?
+    public let onConfirm: (@MainActor () -> Void)?
 
-    public init(title: String, message: String, style: Style = .error) {
+    public init(
+        title: String,
+        message: String,
+        style: Style = .error,
+        confirmTitle: String? = nil,
+        onConfirm: (@MainActor () -> Void)? = nil
+    ) {
         self.id = UUID()
         self.title = title
         self.message = message
         self.style = style
+        self.confirmTitle = confirmTitle
+        self.onConfirm = onConfirm
     }
+
+    /// True when the banner has to be answered rather than merely dismissed.
+    public var isConfirmation: Bool { onConfirm != nil }
 }
 
 /// The one place that knows where the Settings window is.
@@ -219,6 +241,11 @@ public final class SettingsRouter: ObservableObject {
     /// Requests to configure an action that arrived from outside the window (the popup found an
     /// action with missing required options). The action's page reads and shows them.
     private var configurationRequests: [String: ConfigurationRequest] = [:]
+
+    /// Picks from the toolbar's ellipsis menu, delivered to whichever page put them there. The
+    /// page owns the work (a draft to reset, an editor to leave), so the window forwards rather
+    /// than acting: see `SettingsToolbarCommand` for the ids.
+    public let pageCommands = PassthroughSubject<String, Never>()
 
     static let historyLimit = 100
     static let transition: Animation = .easeInOut(duration: 0.22)
@@ -335,6 +362,30 @@ public final class SettingsRouter: ObservableObject {
     /// Reports a failure where an alert used to run modal over the window.
     public func notifyError(title: String, message: String) {
         notify(SettingsNotice(title: title, message: message, style: .error))
+    }
+
+    /// Asks before something destructive, where an alert used to. Escape and the banner's close
+    /// button both mean "no"; only the red button goes through with it.
+    public func confirmDestructive(
+        title: String,
+        message: String,
+        confirmTitle: String,
+        onConfirm: @escaping @MainActor () -> Void
+    ) {
+        notify(SettingsNotice(
+            title: title,
+            message: message,
+            style: .destructiveConfirmation,
+            confirmTitle: confirmTitle,
+            onConfirm: onConfirm
+        ))
+    }
+
+    /// Runs the current notice's confirmation and takes the banner down.
+    public func confirmNotice() {
+        let action = notice?.onConfirm
+        dismissNotice()
+        action?()
     }
 
     public func dismissNotice() {

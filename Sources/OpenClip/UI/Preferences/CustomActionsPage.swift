@@ -2,8 +2,9 @@
 // OpenClip
 //
 // The user's own actions — Open URL, Text Snippet, Shell Script — as one sidebar page, the way
-// Raycast keeps Quicklinks and Script Commands together: each with its switch and a way into its
-// editor, and the way to add another. Deleting one is done on its page.
+// Raycast keeps Quicklinks and Script Commands together: a hero, then each action with its switch
+// and a way into its editor, and the way to add another. Duplicating or deleting one is done from
+// its own page's toolbar menu.
 
 import SwiftUI
 import Core
@@ -30,52 +31,42 @@ struct CustomActionsPage: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                HStack(alignment: .center, spacing: 14) {
-                    SettingsIconTile(systemImage: SettingsPage.customActions.systemImage, tint: SettingsPage.customActions.tint, size: 52)
+        VStack(spacing: 0) {
+            SettingsHeroHeader(
+                glyph: .symbol(SettingsPage.customActions.systemImage, tint: SettingsPage.customActions.tint),
+                title: String(localized: "Custom Actions"),
+                subtitle: String(localized: "Actions you made yourself: open a URL with the selection, paste a snippet built from it, or run a shell script on it.")
+            )
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Custom Actions")
-                            .font(.title3.weight(.semibold))
-                        Text("Actions you made yourself: open a URL with the selection, paste a snippet built from it, or run a shell script on it.")
-                            .font(.callout)
+            Form {
+                Section {
+                    if customActions.isEmpty {
+                        Text("No custom actions yet.")
                             .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 8)
+                    } else {
+                        ForEach(customActions, id: \.id) { action in
+                            row(action)
+                        }
                     }
 
-                    Spacer(minLength: 12)
-                }
-                .padding(.vertical, 6)
-            }
-
-            Section {
-                if customActions.isEmpty {
-                    Text("No custom actions yet.")
+                    SettingsDisclosureRow {
+                        router.push(.newCustomAction)
+                    } content: {
+                        Label("Add Custom Action", systemImage: "plus.circle")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                } header: {
+                    Text("Actions")
+                } footer: {
+                    Text("Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 8)
-                } else {
-                    ForEach(customActions, id: \.id) { action in
-                        row(action)
-                    }
                 }
-
-                SettingsDisclosureRow {
-                    router.push(.newCustomAction)
-                } content: {
-                    Label("Add Custom Action", systemImage: "plus.circle")
-                        .foregroundStyle(Color.accentColor)
-                }
-            } header: {
-                Text("Actions")
-            } footer: {
-                Text("Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
     }
 
     private func row(_ action: any Action) -> some View {

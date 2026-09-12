@@ -61,6 +61,11 @@ public struct PreferencesView: View {
     /// The Customize list's selection, kept here so the toolbar's New Group can seed a group with it.
     @State private var selectedRowIDs: Set<String> = []
     @State private var sidebarQuery = ""
+    /// The folder, manifest and README of the extension whose page is on screen. Read once, off
+    /// the main thread, and used by both the page's hero and the toolbar's ellipsis menu.
+    @State private var packageDetails: ExtensionPackageDetails?
+    /// Bumped when extensions change, so the details above are read again.
+    @State private var packageReloadToken = 0
     @StateObject private var storeViewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
@@ -110,6 +115,12 @@ public struct PreferencesView: View {
                 await ExtensionUpdateManager.shared.checkForUpdates()
             }
         }
+        .task(id: packageDetailsKey) {
+            await loadPackageDetails()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openClipExtensionsDidChange)) { _ in
+            packageReloadToken += 1
+        }
         .onChange(of: router.path) { _, newPath in
             syncToolbar()
             if newPath.last == .store && storeViewModel.extensions.isEmpty {
@@ -135,6 +146,8 @@ public struct PreferencesView: View {
             case .addApplication: router.push(.addApplication)
             case .refresh: Task { await storeViewModel.refreshCatalog() }
             case .addAIAction: router.push(.aiNewPreset)
+            case .setPageToggle(let isOn): setPageToggle(isOn)
+            case .pageMenuItem(let id): runPageMenuItem(id)
             }
         }
         .onChange(of: toolbarModel.storeFilter) { _, filter in
@@ -156,8 +169,15 @@ public struct PreferencesView: View {
         .onChange(of: storeViewModel.isLoading) { _, isLoading in
             toolbarModel.isRefreshing = isLoading
         }
-        .onChange(of: disabledActionIDs) { _, _ in saveDisabledState() }
-        .onChange(of: disabledPackages) { _, _ in saveDisabledState() }
+        .onChange(of: disabledActionIDs) { _, _ in
+            saveDisabledState()
+            syncToolbar()
+        }
+        .onChange(of: disabledPackages) { _, _ in
+            saveDisabledState()
+            syncToolbar()
+        }
+        .onChange(of: packageDetails) { _, _ in syncToolbar() }
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenActionConfiguration)) { notification in
             guard let request = notification.userInfo?["request"] as? ConfigurationRequest,
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
@@ -178,6 +198,159 @@ public struct PreferencesView: View {
     private func syncToolbar() {
         toolbarModel.page = router.currentPage
         toolbarModel.title = title(for: router.currentPage)
+        toolbarModel.pageToggle = pageToggle(for: router.currentPage)
+        toolbarModel.pageMenuItems = pageMenuItems(for: router.currentPage)
+    }
+
+    /// The action a page is about, when it is about one: an action's editor, or a built-in's page.
+    private func subjectAction(of page: SettingsPage) -> (any Action)? {
+        switch page {
+        case .action(let id), .builtinAction(let id):
+            return coordinator.actions.first(where: { $0.id == id })
+        default:
+            return nil
+        }
+    }
+
+    /// The switch the toolbar shows, trailing, on a page that is about something switchable.
+    private func pageToggle(for page: SettingsPage) -> SettingsToolbarToggle? {
+        switch page {
+        case .ai:
+            return SettingsToolbarToggle(
+                isOn: aiManager.isAIEnabled,
+                label: String(localized: "Enable AI Tools")
+            )
+        case .extensionPackage(let id):
+            guard let info = InstalledExtensionInfo.info(for: id, in: coordinator.actions) else { return nil }
+            return SettingsToolbarToggle(
+                isOn: info.gatedReason == nil && !disabledPackages.contains(id),
+                label: String(localized: "Enable \(info.name)")
+            )
+        default:
+            guard let action = subjectAction(of: page) else { return nil }
+            let presentation = customizationManager.presented(action, surface: .table)
+            return SettingsToolbarToggle(
+                isOn: ActionEnablement.binding(
+                    for: action,
+                    disabledActionIDs: $disabledActionIDs,
+                    disabledPackages: $disabledPackages
+                ).wrappedValue,
+                label: String(localized: "Enable \(presentation.title)")
+            )
+        }
+    }
+
+    /// Moving the toolbar's switch means whatever it means for the page on screen.
+    private func setPageToggle(_ isOn: Bool) {
+        switch router.currentPage {
+        case .ai:
+            aiManager.isAIEnabled = isOn
+        case .extensionPackage(let id):
+            guard let info = InstalledExtensionInfo.info(for: id, in: coordinator.actions) else { return }
+            ActionEnablement.packageBinding(
+                packageID: id,
+                gatedReason: info.gatedReason,
+                disabledPackages: $disabledPackages
+            ).wrappedValue = isOn
+        default:
+            guard let action = subjectAction(of: router.currentPage) else { return }
+            ActionEnablement.binding(
+                for: action,
+                disabledActionIDs: $disabledActionIDs,
+                disabledPackages: $disabledPackages
+            ).wrappedValue = isOn
+        }
+        syncToolbar()
+    }
+
+    private func pageMenuItems(for page: SettingsPage) -> [SettingsToolbarMenuItem] {
+        switch page {
+        case .extensionPackage(let id):
+            guard InstalledExtensionInfo.info(for: id, in: coordinator.actions) != nil else { return [] }
+            let details = packageDetails?.packageID == id ? packageDetails : nil
+            return SettingsToolbarAccessories.extensionMenuItems(
+                .init(hasReadme: details?.readmeURL != nil, hasFolder: details?.directoryURL != nil)
+            )
+        default:
+            guard let action = subjectAction(of: page) else { return [] }
+            return SettingsToolbarAccessories.actionMenuItems(
+                .init(
+                    canDuplicate: ActionIdentity.canDuplicate(action),
+                    canDelete: SettingsDestination.isCustomAction(action)
+                )
+            )
+        }
+    }
+
+    /// The window handles what it owns (an extension's files); anything that belongs to a page's
+    /// own state is forwarded to it.
+    private func runPageMenuItem(_ id: String) {
+        switch id {
+        case SettingsToolbarCommand.extensionReadme:
+            if let url = packageDetails?.readmeURL {
+                NSWorkspace.shared.open(url)
+            }
+        case SettingsToolbarCommand.extensionFinder:
+            if let url = packageDetails?.directoryURL {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            }
+        case SettingsToolbarCommand.extensionUninstall:
+            confirmUninstall()
+        default:
+            router.pageCommands.send(id)
+        }
+    }
+
+    private func confirmUninstall() {
+        guard case .extensionPackage(let id) = router.currentPage,
+              let info = InstalledExtensionInfo.info(for: id, in: coordinator.actions) else { return }
+        router.confirmDestructive(
+            title: String(localized: "Uninstall \(info.name)?"),
+            message: String(localized: "Its files and settings are deleted from this Mac."),
+            confirmTitle: String(localized: "Uninstall")
+        ) {
+            uninstallExtension(info)
+        }
+    }
+
+    private func uninstallExtension(_ info: InstalledExtensionInfo) {
+        let name = info.name
+        let packageID = info.packageID
+        Task {
+            do {
+                try await ExtensionManager.shared.uninstallExtension(actionID: info.uninstallActionID)
+                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                router.select(.customize)
+                router.notify(SettingsNotice(
+                    title: String(localized: "Extension Removed"),
+                    message: String(localized: "\(name) was removed from this Mac."),
+                    style: .info
+                ))
+            } catch {
+                Log.extensions.error("Failed to uninstall extension '\(packageID, privacy: .public)': \(error.localizedDescription)")
+                router.notifyError(
+                    title: String(localized: "Remove Failed"),
+                    message: String(localized: "OpenClip could not remove extension: \(error.localizedDescription)")
+                )
+            }
+        }
+    }
+
+    // MARK: - Extension package details
+
+    /// Identity of what `packageDetails` should hold: the extension on screen, and the reload
+    /// token so an install or removal re-reads the folder.
+    private var packageDetailsKey: String {
+        guard case .extensionPackage(let id) = router.currentPage else { return "none#\(packageReloadToken)" }
+        return "\(id)#\(packageReloadToken)"
+    }
+
+    private func loadPackageDetails() async {
+        guard case .extensionPackage(let id) = router.currentPage else {
+            packageDetails = nil
+            return
+        }
+        packageDetails = await ExtensionPackageDetails.load(packageID: id)
     }
 
     /// A page's title: fixed for most, taken from the data for an action, an extension or a prompt.
@@ -323,9 +496,12 @@ public struct PreferencesView: View {
             }
 
             if let notice = router.notice {
-                SettingsNoticeBanner(notice: notice) {
-                    router.dismissNotice()
-                }
+                SettingsNoticeBanner(
+                    notice: notice,
+                    onDismiss: { router.dismissNotice() },
+                    onConfirm: { router.confirmNotice() }
+                )
+                .id(notice.id)
                 .zIndex(10)
             }
         }
@@ -379,17 +555,13 @@ public struct PreferencesView: View {
         case .extensionPackage(let id):
             ExtensionPackagePage(
                 packageID: id,
+                details: packageDetails?.packageID == id ? packageDetails : nil,
                 disabledActionIDs: $disabledActionIDs,
                 disabledPackages: $disabledPackages
             )
         case .builtinAction(let id):
             if let action = coordinator.actions.first(where: { $0.id == id }) {
-                ActionEditorPage(
-                    action: action,
-                    disabledActionIDs: $disabledActionIDs,
-                    disabledPackages: $disabledPackages,
-                    isSidebarPage: true
-                )
+                ActionEditorPage(action: action, isSidebarPage: true)
             } else {
                 Color.clear.onAppear { router.select(.customize) }
             }
@@ -424,11 +596,7 @@ public struct PreferencesView: View {
             if action.chrome.rowStyle == .actionGroup {
                 GroupEditorPage(groupID: action.id)
             } else {
-                ActionEditorPage(
-                    action: action,
-                    disabledActionIDs: $disabledActionIDs,
-                    disabledPackages: $disabledPackages
-                )
+                ActionEditorPage(action: action)
             }
         } else {
             Color.clear.onAppear { router.pop() }

@@ -3,10 +3,11 @@
 //
 // Pins the settings window's navigation model: the router's path and history (what the toolbar's
 // back/forward arrows walk), the sidebar's search matching, how installed extensions are derived
-// from the action catalog for the sidebar's second group, and where every kind of action's
-// settings live.
+// from the action catalog for the sidebar's second group, where every kind of action's settings
+// live, and what the toolbar's trailing switch and ellipsis menu offer per page.
 
 import XCTest
+import Combine
 import SwiftUI
 @testable import Core
 @testable import OpenClip
@@ -280,6 +281,93 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertEqual(SettingsDestination.path(for: gated), [.extensionPackage(id: "com.example.gated")])
 
         XCTAssertEqual(SettingsDestination.path(forPackage: "com.example.multi"), [.extensionPackage(id: "com.example.multi")])
+    }
+
+    // MARK: - Toolbar accessories
+
+    func testExtensionMenuOffersReadmeAndFinderOnlyWhenTheyExist() {
+        let full = SettingsToolbarAccessories.extensionMenuItems(.init(hasReadme: true, hasFolder: true))
+        XCTAssertEqual(full.map(\.id), [
+            SettingsToolbarCommand.extensionReadme,
+            SettingsToolbarCommand.extensionFinder,
+            "extension.separator",
+            SettingsToolbarCommand.extensionUninstall,
+        ])
+        XCTAssertEqual(full.last?.role, .destructive, "uninstall is the red one")
+
+        let noReadme = SettingsToolbarAccessories.extensionMenuItems(.init(hasReadme: false, hasFolder: true))
+        XCTAssertEqual(noReadme.map(\.id), [
+            SettingsToolbarCommand.extensionFinder,
+            "extension.separator",
+            SettingsToolbarCommand.extensionUninstall,
+        ])
+
+        let bare = SettingsToolbarAccessories.extensionMenuItems(.init(hasReadme: false, hasFolder: false))
+        XCTAssertEqual(bare.map(\.id), [SettingsToolbarCommand.extensionUninstall],
+                       "no separator when there is nothing above it")
+        XCTAssertFalse(bare.contains { $0.isSeparator })
+    }
+
+    func testActionMenuMatchesWhatTheActionAllows() {
+        let builtin = SettingsToolbarAccessories.actionMenuItems(.init(canDuplicate: false, canDelete: false))
+        XCTAssertTrue(builtin.isEmpty, "a built-in has no page-level actions, so no ellipsis at all")
+
+        let command = SettingsToolbarAccessories.actionMenuItems(.init(canDuplicate: true, canDelete: false))
+        XCTAssertEqual(command.map(\.id), [SettingsToolbarCommand.actionDuplicate])
+
+        let custom = SettingsToolbarAccessories.actionMenuItems(.init(canDuplicate: true, canDelete: true))
+        XCTAssertEqual(custom.map(\.id), [
+            SettingsToolbarCommand.actionDuplicate,
+            "action.separator",
+            SettingsToolbarCommand.actionDelete,
+        ])
+        XCTAssertEqual(custom.last?.role, .destructive)
+
+        let deleteOnly = SettingsToolbarAccessories.actionMenuItems(.init(canDuplicate: false, canDelete: true))
+        XCTAssertEqual(deleteOnly.map(\.id), [SettingsToolbarCommand.actionDelete])
+    }
+
+    func testADestructiveConfirmationWaitsForTheRedButton() throws {
+        let router = SettingsRouter()
+        var uninstalled = false
+        router.confirmDestructive(title: "Uninstall JWT?", message: "Gone for good.", confirmTitle: "Uninstall") {
+            uninstalled = true
+        }
+
+        let notice = try XCTUnwrap(router.notice)
+        XCTAssertEqual(notice.style, .destructiveConfirmation)
+        XCTAssertEqual(notice.confirmTitle, "Uninstall")
+        XCTAssertTrue(notice.isConfirmation)
+        XCTAssertFalse(uninstalled, "posting the question must not do the thing")
+
+        router.dismissNotice()
+        XCTAssertFalse(uninstalled, "dismissing is a no")
+        XCTAssertNil(router.notice)
+
+        router.confirmDestructive(title: "Uninstall JWT?", message: "Gone for good.", confirmTitle: "Uninstall") {
+            uninstalled = true
+        }
+        router.confirmNotice()
+        XCTAssertTrue(uninstalled)
+        XCTAssertNil(router.notice, "answering takes the banner down")
+    }
+
+    func testAPlainNoticeHasNothingToConfirm() throws {
+        let router = SettingsRouter()
+        router.notifyError(title: "Remove Failed", message: "Nope")
+        XCTAssertFalse(try XCTUnwrap(router.notice).isConfirmation)
+        router.confirmNotice()
+        XCTAssertNil(router.notice, "confirming a plain notice just dismisses it")
+    }
+
+    func testPageCommandsReachTheSubscribedPage() {
+        let router = SettingsRouter()
+        var received: [String] = []
+        let token = router.pageCommands.sink { received.append($0) }
+        router.pageCommands.send(SettingsToolbarCommand.actionDuplicate)
+        router.pageCommands.send(SettingsToolbarCommand.actionDelete)
+        token.cancel()
+        XCTAssertEqual(received, [SettingsToolbarCommand.actionDuplicate, SettingsToolbarCommand.actionDelete])
     }
 
     // MARK: - Helpers

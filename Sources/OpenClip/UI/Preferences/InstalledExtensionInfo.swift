@@ -9,6 +9,60 @@
 import Foundation
 import Core
 
+/// What an installed package's folder holds beyond the actions it registers: the manifest's
+/// version, author and description, where the folder is, and whether it ships a README. Read off
+/// the main thread by the settings window, which hands it to the extension's page and uses it to
+/// decide what the toolbar's ellipsis menu offers.
+struct ExtensionPackageDetails: Equatable {
+    let packageID: String
+    let manifest: ExtensionMetadata?
+    let directoryURL: URL?
+    let readmeURL: URL?
+
+    /// Filenames treated as the package's README, in the order they are looked for.
+    static let readmeNames = ["README.md", "readme.md", "README.markdown", "README.txt", "README"]
+
+    static func empty(packageID: String) -> ExtensionPackageDetails {
+        ExtensionPackageDetails(packageID: packageID, manifest: nil, directoryURL: nil, readmeURL: nil)
+    }
+
+    /// Walks the extensions directory for the package's folder. Runs off the main actor: it opens
+    /// and decodes every manifest it passes.
+    static func load(
+        packageID: String,
+        in directory: URL = Constants.extensionsDirectory
+    ) async -> ExtensionPackageDetails {
+        await Task.detached(priority: .utility) { () -> ExtensionPackageDetails in
+            let fileManager = FileManager.default
+            guard let items = try? fileManager.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.isDirectoryKey]
+            ) else { return .empty(packageID: packageID) }
+
+            for item in items where !item.lastPathComponent.hasPrefix(".") {
+                var isDirectory: ObjCBool = false
+                guard fileManager.fileExists(atPath: item.path, isDirectory: &isDirectory),
+                      isDirectory.boolValue,
+                      let manifestURL = ExtensionManifestStore.manifestFileURL(in: item),
+                      let manifest = ExtensionManifestStore.readManifest(at: manifestURL),
+                      manifest.identifier == packageID else { continue }
+
+                let readme = readmeNames
+                    .map(item.appendingPathComponent)
+                    .first { fileManager.fileExists(atPath: $0.path) }
+
+                return ExtensionPackageDetails(
+                    packageID: packageID,
+                    manifest: manifest,
+                    directoryURL: item,
+                    readmeURL: readme
+                )
+            }
+            return .empty(packageID: packageID)
+        }.value
+    }
+}
+
 struct InstalledExtensionInfo: Identifiable {
     let packageID: String
     let name: String

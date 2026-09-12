@@ -1,8 +1,9 @@
 // AIPage.swift
 // OpenClip
 //
-// The AI settings page: whether AI Tools is on, which engine answers, and the library of prompts
-// that appear in the AI Tools group — with each prompt a page of its own.
+// The AI settings page: which engine answers, and the library of prompts that appear in the AI
+// Tools group — with each prompt a page of its own. Whether AI Tools is on at all is the switch in
+// the toolbar, beside the back and forward arrows, the same as an installed extension's.
 //
 // AI settings used to hang off the gear on the "AI Tools" row of the Actions list, which opened a
 // fixed 440x480 popover with its own segmented sub-tabs and a sheet on top of those for editing a
@@ -17,35 +18,20 @@ struct AIPage: View {
     @ObservedObject private var aiManager = AIServiceManager.shared
 
     var body: some View {
-        Form {
-            Section {
-                HStack(alignment: .center, spacing: 14) {
-                    SettingsIconTile(systemImage: "sparkles", tint: .purple, size: 52)
+        VStack(spacing: 0) {
+            SettingsHeroHeader(
+                glyph: .symbol(SettingsPage.ai.systemImage, tint: SettingsPage.ai.tint),
+                title: String(localized: "AI Tools"),
+                subtitle: String(localized: "Rewrite, summarize, translate or ask about the selected text, using the engine below.")
+            )
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("AI Tools")
-                            .font(.title3.weight(.semibold))
-                        Text("Rewrite, summarize, translate or ask about the selected text, using the engine below.")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+            Form {
+                AIConfigureForm(embedded: true)
 
-                    Spacer(minLength: 12)
-
-                    Toggle("", isOn: $aiManager.isAIEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .accessibilityLabel(String(localized: "Enable AI Tools"))
-                }
-                .padding(.vertical, 6)
+                AIActionsSection()
             }
-
-            AIConfigureForm(embedded: true)
-
-            AIActionsSection()
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
     }
 }
 

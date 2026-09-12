@@ -81,12 +81,21 @@ An action's page has **Duplicate** and **Delete Action…** in its footer.
 
 ## Extensions
 
-Every installed extension has a page under the sidebar's second group. It shows the extension's
-icon, version, author and description, a switch for the whole package, each of its actions with
-its own switch and a **›** into that action's settings, **Update** when the Store has a newer
-version, **Show in Finder**, and **Remove Extension…** (confirmed inline). For an extension that
-groups its actions behind one icon, **Name and Icon in Popup Bar** renames the group or changes
-its icon.
+Every installed extension has a page under the sidebar's second group, opening with a hero: the
+extension's icon, its name, what it does, and its version and author.
+
+The extension's own controls sit in the toolbar, on the same line as the back and forward arrows:
+
+- The **switch** on the right turns the whole package on or off.
+- The **…** menu beside it holds **View README**, **Show in Finder** and **Uninstall Extension**.
+  Uninstalling asks first, in a banner at the top of the page.
+
+Below the hero are each of the extension's actions with its own switch and a **›** into that
+action's settings, **Update** when the Store has a newer version, and — for an extension that
+groups its actions behind one icon — **Name and Icon in Popup Bar**.
+
+The same toolbar pattern applies to every page that is about one thing: **AI** has its switch
+there, and an action's page has its switch plus **Duplicate** and **Delete Action** in the … menu.
 
 ---
 
