@@ -238,6 +238,9 @@ public final class ExtensionsStoreViewModel: ObservableObject {
             }
             let curated = Set(recentNewIDs.map { $0.lowercased() })
 
+            /// Newest first for anything the catalogue dated. The ranks below are the fallback for
+            /// a snapshot from before `publishedAt` existed: the API's own "new" list in its
+            /// order, then the curated ids, then anything past its first release.
             func rank(_ item: ExtensionItem) -> (Int, Int) {
                 let id = item.id.lowercased()
                 if let position = apiRank[id] { return (0, position) }
@@ -245,14 +248,23 @@ public final class ExtensionsStoreViewModel: ObservableObject {
                 return (isNew(item) ? 2 : 3, 0)
             }
 
-            return items.enumerated()
-                .sorted { left, right in
-                    let leftRank = rank(left.element)
-                    let rightRank = rank(right.element)
-                    if leftRank != rightRank { return leftRank < rightRank }
-                    return left.offset < right.offset
-                }
-                .map(\.element)
+            let dated = items.enumerated().filter { $0.element.publishedDate != nil }
+            let undated = items.enumerated().filter { $0.element.publishedDate == nil }
+
+            let newestFirst = dated.sorted { left, right in
+                let leftDate = left.element.publishedDate ?? .distantPast
+                let rightDate = right.element.publishedDate ?? .distantPast
+                if leftDate != rightDate { return leftDate > rightDate }
+                return left.offset < right.offset
+            }
+            let ranked = undated.sorted { left, right in
+                let leftRank = rank(left.element)
+                let rightRank = rank(right.element)
+                if leftRank != rightRank { return leftRank < rightRank }
+                return left.offset < right.offset
+            }
+
+            return (newestFirst + ranked).map(\.element)
         }
     }
 

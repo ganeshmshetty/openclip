@@ -42,6 +42,23 @@ public struct ExtensionItem: Sendable, Codable, Identifiable {
         self.iconURL = iconURL
         self.publishedAt = publishedAt
     }
+
+    /// `publishedAt` as a date, or nil when the catalogue did not carry one.
+    public var publishedDate: Date? {
+        Self.parsePublishedAt(publishedAt)
+    }
+
+    /// The catalogue writes an internet timestamp with an offset ("2026-08-20T22:00:51+05:30");
+    /// a date-only value is accepted too, and anything else — or a snapshot from before the field
+    /// existed — is nil rather than a guess. Pure, so the accepted shapes are pinned by tests.
+    public static func parsePublishedAt(_ raw: String?) -> Date? {
+        guard let raw else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let date = try? Date(trimmed, strategy: .iso8601) { return date }
+        if let date = try? Date(trimmed, strategy: .iso8601.year().month().day()) { return date }
+        return nil
+    }
 }
 
 public struct ExtensionsPageResponse: Sendable, Codable {

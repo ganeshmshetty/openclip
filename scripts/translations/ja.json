@@ -570,5 +570,6 @@
   "Name": "名前",
   "Downloads": "ダウンロード数",
   "Recently Added": "最近追加",
-  "Built-in action": "組み込みアクション"
+  "Built-in action": "組み込みアクション",
+  "Added %@": "追加日 %@"
 }

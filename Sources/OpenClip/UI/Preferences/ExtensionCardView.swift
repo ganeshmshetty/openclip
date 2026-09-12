@@ -71,7 +71,9 @@ struct ExtensionCardView: View {
         isFeaturedExplicit ?? ExtensionsStoreViewModel.isFeatured(item)
     }
 
-    /// Byline and download count on one quiet line under the description.
+    /// Byline, download count and publication date on one quiet line under the description. The
+    /// last two are what the Store sorts by, so a sorted list can be read without guessing why it
+    /// is in that order.
     private var metadataLine: String {
         var parts: [String] = []
         if !item.author.isEmpty {
@@ -81,6 +83,9 @@ struct ExtensionCardView: View {
             parts.append(String(localized: "\(formattedDownloadCount(item.downloadCount)) download"))
         } else if item.downloadCount > 1 {
             parts.append(String(localized: "\(formattedDownloadCount(item.downloadCount)) downloads"))
+        }
+        if let published = item.publishedDate {
+            parts.append(String(localized: "Added \(published.formatted(.dateTime.day().month(.abbreviated).year()))"))
         }
         return parts.joined(separator: " · ")
     }

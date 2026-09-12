@@ -209,6 +209,44 @@ final class ExtensionsStoreViewTests: XCTestCase {
         XCTAssertEqual(ranked.map(\.id), ["com.x.c", "com.x.a", "com.x.b"])
     }
 
+    func testThePublicationDateIsParsedFromWhatTheCatalogueActuallySends() throws {
+        // The shape the live catalogue uses: an internet timestamp with an offset.
+        let offset = ExtensionItem.parsePublishedAt("2026-08-20T22:00:51+05:30")
+        XCTAssertEqual(try XCTUnwrap(offset).timeIntervalSince1970, 1_787_243_451, accuracy: 1)
+
+        // And the shapes it might use instead.
+        XCTAssertNotNil(ExtensionItem.parsePublishedAt("2026-09-08T20:29:52Z"))
+        XCTAssertNotNil(ExtensionItem.parsePublishedAt("2026-09-08T20:29:52.123Z"))
+        XCTAssertNotNil(ExtensionItem.parsePublishedAt("2026-09-08"))
+        XCTAssertNotNil(ExtensionItem.parsePublishedAt("  2026-09-08T20:29:52Z  "))
+
+        // A snapshot from before the field existed, or a value that makes no sense, is nil rather
+        // than a guess — the row simply says nothing about when it was added.
+        XCTAssertNil(ExtensionItem.parsePublishedAt(nil))
+        XCTAssertNil(ExtensionItem.parsePublishedAt(""))
+        XCTAssertNil(ExtensionItem.parsePublishedAt("last tuesday"))
+        XCTAssertNil(ExtensionItem(id: "x", name: "X", description: "", author: "", icon: "",
+                                   downloadCount: 0, downloadURL: "").publishedDate)
+    }
+
+    @MainActor
+    func testRecentlyAddedSortsByTheCatalogueDateNewestFirst() {
+        func item(_ id: String, published: String?) -> ExtensionItem {
+            ExtensionItem(id: id, name: id, description: "", author: "", icon: "",
+                          downloadCount: 0, downloadURL: "", publishedAt: published)
+        }
+        let old = item("com.x.old", published: "2026-01-02T10:00:00Z")
+        let newest = item("com.x.newest", published: "2026-09-08T10:00:00Z")
+        let middle = item("com.x.middle", published: "2026-05-05T10:00:00Z")
+        let undated = item("com.x.undated", published: nil)
+
+        let sorted = ExtensionsStoreViewModel.sorted([old, undated, newest, middle], by: .recentlyAdded)
+        XCTAssertEqual(sorted.map(\.id),
+                       ["com.x.newest", "com.x.middle", "com.x.old", "com.x.undated"],
+                       "dated newest first, and anything the catalogue did not date goes last")
+        XCTAssertEqual(sorted.count, 4, "nothing is dropped for having no date")
+    }
+
     @MainActor
     func testSearchKeepsTheChosenOrder() {
         let api = RecordingStoreAPI()

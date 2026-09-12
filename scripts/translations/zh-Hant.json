@@ -570,5 +570,6 @@
   "Name": "名稱",
   "Downloads": "下載量",
   "Recently Added": "最近新增",
-  "Built-in action": "內建操作"
+  "Built-in action": "內建操作",
+  "Added %@": "新增於 %@"
 }

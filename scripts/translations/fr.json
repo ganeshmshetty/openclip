@@ -569,5 +569,6 @@
   "Name": "Nom",
   "Downloads": "Téléchargements",
   "Recently Added": "Ajoutées récemment",
-  "Built-in action": "Action intégrée"
+  "Built-in action": "Action intégrée",
+  "Added %@": "Ajoutée le %@"
 }
