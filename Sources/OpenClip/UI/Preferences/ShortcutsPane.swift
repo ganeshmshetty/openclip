@@ -66,8 +66,11 @@ struct ShortcutsPane: View {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
-                    TextField("Search shortcuts", text: $query)
+                    // `prompt:` rather than the label: `labelsHidden()` is what stops a Form from
+                    // promoting the label into its own column, and it takes the placeholder with it.
+                    TextField("Search shortcuts", text: $query, prompt: Text("Search shortcuts"))
                         .textFieldStyle(.plain)
+                        .labelsHidden()
                     if !query.isEmpty {
                         Button {
                             query = ""
@@ -85,13 +88,11 @@ struct ShortcutsPane: View {
             }
 
             ForEach(sections, id: \.title) { section in
+                // No explicit dividers: a `Form` section already separates its rows, and adding
+                // them made every row a double-height cell with a gap under it.
                 Section(section.title) {
                     ForEach(section.actions, id: \.id) { action in
                         row(for: action)
-
-                        if action.id != section.actions.last?.id {
-                            Divider()
-                        }
                     }
                 }
             }
@@ -132,9 +133,12 @@ struct ShortcutsPane: View {
 
             Spacer(minLength: 12)
 
-            TextField("alias", text: aliasBinding(for: action.id))
+            TextField("alias", text: aliasBinding(for: action.id), prompt: Text("alias"))
                 .textFieldStyle(.roundedBorder)
-                .frame(width: 72)
+                // A Form lays a cell out as label + control, which turned each field's placeholder
+                // into a column of its own.
+                .labelsHidden()
+                .frame(width: 88)
                 .accessibilityLabel(String(localized: "Alias for \(presentation.title)"))
 
             KeyboardShortcuts.Recorder(for: .actionHotkey(action.id))
