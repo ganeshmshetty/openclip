@@ -86,7 +86,7 @@ public struct PreferencesView: View {
         } detail: {
             detail
         }
-        .minimumWindowContentSize(width: 760, height: 480)
+        .minimumWindowContentSize(width: 900, height: 520)
         // Left at the system default: `.balanced` lets the detail column push
         // into the sidebar's width, which is the case that runs out of room
         // first when the window is dragged narrow.
@@ -146,7 +146,14 @@ public struct PreferencesView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenActionConfiguration)) { notification in
             guard let request = notification.userInfo?["request"] as? ConfigurationRequest,
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
-            activeSheet = .configure(action: action, request: request)
+            // AI settings live in the inspector now, so a request to configure them selects the
+            // row rather than stacking a modal copy on the window.
+            if action.chrome.launchesAI {
+                selectedTab = .actions
+                ActionInspectorModel.shared.inspectedID = action.id
+            } else {
+                activeSheet = .configure(action: action, request: request)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openClipSelectPreferencesTab)) { notification in
             if let tab = notification.object as? PreferenceTab {
@@ -161,11 +168,7 @@ public struct PreferencesView: View {
         .sheet(item: $activeSheet) { route in
             switch route {
             case .configure(let action, let request):
-                if action.chrome.launchesAI {
-                    ConfigureAISheet()
-                } else {
-                    EditActionSheet(action: action, configurationRequest: request)
-                }
+                EditActionSheet(action: action, configurationRequest: request)
             }
         }
     }
@@ -237,7 +240,7 @@ public struct PreferencesView: View {
             // The detail column's floor, which is what stops the window shrinking:
             // the split view happily collapses the sidebar, so the minimum the
             // window inherits is whatever the content insists on.
-            .frame(minWidth: 540, minHeight: 460)
+            .frame(minWidth: 680, minHeight: 460)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -249,13 +252,14 @@ public struct PreferencesView: View {
         case .appearance:
             AppearanceTab()
         case .actions:
+            // No width cap here, unlike the Form-based panes: the Actions pane is a list plus an
+            // inspector, and both want the column.
             ActionsTab(
                 disabledActionIDs: $disabledActionIDs,
                 disabledPackages: $disabledPackages,
                 showingAddActionSheet: $showingAddActionSheet,
                 showingCreateGroupSheet: $showingCreateGroupSheet
             )
-            .frame(maxWidth: Self.detailContentMaxWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .store:
             ExtensionStoreView(viewModel: storeViewModel)

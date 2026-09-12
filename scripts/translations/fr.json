@@ -487,5 +487,11 @@
   "Duplicate Action": "Dupliquer l’action",
   "Duplicate Extension": "Dupliquer l’extension",
   "Duplicate Failed": "Échec de la duplication",
-  "OpenClip could not duplicate extension: %@": "OpenClip n’a pas pu dupliquer l’extension : %@"
+  "OpenClip could not duplicate extension: %@": "OpenClip n’a pas pu dupliquer l’extension : %@",
+  "AI Actions": "Actions IA",
+  "These appear inside the AI Tools group in the popup bar. Drag to reorder.": "Elles apparaissent dans le groupe Outils IA de la barre contextuelle. Faites glisser pour réordonner.",
+  "Revert": "Rétablir",
+  "Select an action to configure it": "Sélectionnez une action pour la configurer",
+  "%lld actions selected": "%lld actions sélectionnées",
+  "Use the + button to group them, or select a single action to configure it.": "Utilisez le bouton + pour les grouper, ou sélectionnez une seule action pour la configurer."
 }

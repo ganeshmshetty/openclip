@@ -57,6 +57,34 @@
         }
       }
     },
+    "%lld actions selected": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选择 %lld 个操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已選擇 %lld 個操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld actions sélectionnées"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 件のアクションを選択中"
+          }
+        }
+      }
+    },
     "%lld actions will be grouped.": {
       "localizations": {
         "zh-Hans": {
@@ -277,6 +305,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "AI"
+          }
+        }
+      }
+    },
+    "AI Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI アクション"
           }
         }
       }
@@ -10361,6 +10417,34 @@
         }
       }
     },
+    "Revert": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还原"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "還原"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rétablir"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元に戻す"
+          }
+        }
+      }
+    },
     "Rewrite": {
       "localizations": {
         "zh-Hans": {
@@ -11029,6 +11113,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "インストールする拡張機能を選択"
+          }
+        }
+      }
+    },
+    "Select an action to configure it": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择一个操作以进行配置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇一個操作以進行設定"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez une action pour la configurer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定するアクションを選択してください"
           }
         }
       }
@@ -11981,6 +12093,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "解決されたファイルは有効な画像ではありません。"
+          }
+        }
+      }
+    },
+    "These appear inside the AI Tools group in the popup bar. Drag to reorder.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这些会显示在弹出栏的“AI 工具”分组中。拖动可重新排序。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這些會顯示在彈出列的「AI 工具」群組中。拖曳可重新排序。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elles apparaissent dans le groupe Outils IA de la barre contextuelle. Faites glisser pour réordonner."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポップアップバーの「AI ツール」グループに表示されます。ドラッグして並べ替えられます。"
           }
         }
       }
@@ -13073,6 +13213,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "選択したテキストのプレースホルダーとして **{text}** を使用します。"
+          }
+        }
+      }
+    },
+    "Use the + button to group them, or select a single action to configure it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 + 按钮将它们分组，或选择单个操作进行配置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 + 按鈕將它們分組，或選擇單一操作進行設定。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisez le bouton + pour les grouper, ou sélectionnez une seule action pour la configurer."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ ボタンでグループ化するか、1 つのアクションを選択して設定します。"
           }
         }
       }

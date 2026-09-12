@@ -8,6 +8,11 @@ import AppKit
 
 @MainActor
 public struct AIConfigureForm: View {
+    /// `true` when the caller supplies the surrounding `Form` (the AI preferences pane, which
+    /// appends the AI action library as a further section). `false` renders a self-contained form,
+    /// which is what the first-launch onboarding flow wants.
+    private let embedded: Bool
+
     @ObservedObject private var aiManager = AIServiceManager.shared
 
     @State private var fetchedCloudModels: [String] = []
@@ -25,12 +30,29 @@ public struct AIConfigureForm: View {
 
     @State private var cliAuthStatus: (isAuthenticated: Bool, message: String)? = nil
     @State private var isCheckingCLIAuth: Bool = false
-    @State private var showingAuthInfoPopover: Bool = false
+    /// Expanded state of the inline "how to authenticate" note. It was a popover hanging off an
+    /// info button — a popover opened from inside a popover, for two sentences and a button.
+    @State private var showingAuthHelp: Bool = false
 
-    public init() {}
+    public init(embedded: Bool = false) {
+        self.embedded = embedded
+    }
 
     public var body: some View {
-        Form {
+        if embedded {
+            sections
+        } else {
+            Form {
+                sections
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private var sections: some View {
+        Group {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Active AI Engine")
@@ -135,39 +157,15 @@ public struct AIConfigureForm: View {
                         }
 
                         Button {
-                            showingAuthInfoPopover = true
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                showingAuthHelp.toggle()
+                            }
                         } label: {
-                            Image(systemName: "info.circle")
+                            Image(systemName: showingAuthHelp ? "info.circle.fill" : "info.circle")
                                 .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
                         .help("How to authenticate")
-                        .popover(isPresented: $showingAuthInfoPopover) {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Authentication")
-                                    .font(.headline)
-                                Text(authHelpText)
-                                    .font(.callout)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                if aiManager.cliPreset == .codex {
-                                    Button("Open Terminal") {
-                                        NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app"))
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .controlSize(.small)
-                                } else if !aiManager.cliPreset.loginCommand.isEmpty {
-                                    Button("Copy Terminal Command") {
-                                        NSPasteboard.general.clearContents()
-                                        NSPasteboard.general.setString(aiManager.cliPreset.loginCommand, forType: .string)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .controlSize(.small)
-                                }
-                            }
-                            .padding(14)
-                            .frame(width: 280)
-                        }
 
                         Spacer()
 
@@ -180,6 +178,10 @@ public struct AIConfigureForm: View {
                     }
                     .font(.caption)
                     .padding(.vertical, 2)
+
+                    if showingAuthHelp {
+                        authHelpNote
+                    }
 
                     if aiManager.cliPreset == .custom {
                         TextField("Execution Command", text: $aiManager.cliCustomCommand, prompt: Text("e.g. llm -m claude-3-5-sonnet"))
@@ -269,8 +271,6 @@ public struct AIConfigureForm: View {
             }
             .disabled(!aiManager.isAIEnabled)
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
         .onAppear {
             if aiManager.activeProviderType == .cli {
                 checkCLIAuth()
@@ -291,6 +291,37 @@ public struct AIConfigureForm: View {
                 fetchCloudModels()
             }
         }
+    }
+
+    /// Inline replacement for the old authentication popover. Same copy, same button, but it
+    /// expands the row it belongs to instead of opening a layer on top of the settings it explains.
+    private var authHelpNote: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(authHelpText)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if aiManager.cliPreset == .codex {
+                Button("Open Terminal") {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app"))
+                }
+                .controlSize(.small)
+            } else if !aiManager.cliPreset.loginCommand.isEmpty {
+                Button("Copy Terminal Command") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(aiManager.cliPreset.loginCommand, forType: .string)
+                }
+                .controlSize(.small)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     // MARK: - Intelligent Model Resolution

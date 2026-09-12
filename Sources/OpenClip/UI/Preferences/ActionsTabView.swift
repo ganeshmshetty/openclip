@@ -15,11 +15,11 @@ struct ActionsTab: View {
     @Binding var showingAddActionSheet: Bool
     @Binding var showingCreateGroupSheet: Bool
 
-    @State private var editingGroupID: String? = nil
     @State private var selectedRowIDs: Set<String> = []
 
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
+    @ObservedObject private var inspector = ActionInspectorModel.shared
 
     /// Eligible candidate action IDs for custom grouping. Only top-level standalone actions
     /// (not AI presets, not AI launcher, not group parents, not extension sub-actions,
@@ -36,6 +36,30 @@ struct ActionsTab: View {
     }
 
     var body: some View {
+        // List on the left, settings on the right, in the same window. Selecting a row configures
+        // it; nothing floats over the list, so the list is still readable while you edit.
+        HStack(spacing: 0) {
+            outline
+                .frame(minWidth: 280, maxWidth: .infinity)
+
+            Divider()
+
+            ActionInspector(selectedRowIDs: selectedRowIDs)
+        }
+        .onChange(of: selectedRowIDs) { _, ids in
+            inspector.selectionChanged(to: ids)
+        }
+        .sheet(isPresented: $showingAddActionSheet) {
+            AddCustomActionSheet()
+        }
+        .sheet(isPresented: $showingCreateGroupSheet, onDismiss: {
+            selectedRowIDs = []
+        }) {
+            CreateGroupSheet(memberActionIDs: candidateSelectedActionIDs)
+        }
+    }
+
+    private var outline: some View {
         ActionsOutlineView(
             coordinator: coordinator,
             customizationManager: customizationManager,
@@ -43,7 +67,7 @@ struct ActionsTab: View {
             disabledActionIDs: $disabledActionIDs,
             disabledPackages: $disabledPackages,
             onEditGroup: { groupID in
-                editingGroupID = groupID
+                inspector.inspectedID = groupID
             },
             onCreateGroupFromSelection: {
                 showingCreateGroupSheet = true
@@ -53,27 +77,6 @@ struct ActionsTab: View {
         // toolbar like the Form-based panes do. `ActionsScrollView` puts the rows
         // themselves back below it.
         .ignoresSafeArea(.container, edges: .top)
-        .sheet(isPresented: $showingAddActionSheet) {
-            AddCustomActionSheet()
-        }
-        .sheet(isPresented: $showingCreateGroupSheet, onDismiss: {
-            selectedRowIDs = []
-        }) {
-            CreateGroupSheet(memberActionIDs: candidateSelectedActionIDs)
-        }
-        .sheet(isPresented: Binding(
-            get: { editingGroupID != nil },
-            set: { if !$0 { editingGroupID = nil } }
-        )) {
-            if let editingGroupID {
-                EditGroupSheet(groupID: editingGroupID)
-            }
-        }
-        // The row settings editor is an application-defined popover: it never closes itself, so
-        // it has to go when the tab it belongs to does.
-        .onDisappear {
-            ActionSettingsPopover.shared.close()
-        }
     }
 }
 
@@ -119,26 +122,10 @@ struct ActionRowView: View {
     }
 
     @State private var isHovered = false
-    /// Anchor for the settings editor. It is presented as a non-transient AppKit popover
-    /// (`ActionSettingsPopover`) rather than SwiftUI's `.popover`, so toggling an action in the
-    /// list behind it — or the outline reloading its rows — leaves the editor open.
-    @State private var configAnchor = PopoverAnchorBox()
-    @ObservedObject private var settingsPopover = ActionSettingsPopover.shared
+    @ObservedObject private var inspector = ActionInspectorModel.shared
 
-    private var isConfigPopoverOpen: Bool {
-        settingsPopover.openRowID == action.id
-    }
-
-    private func openConfigPopover() {
-        settingsPopover.toggle(rowID: action.id, anchor: configAnchor) {
-            if isAITools {
-                ConfigureAISheet()
-            } else if action.chrome.rowStyle == .actionGroup {
-                EditGroupSheet(groupID: action.id)
-            } else {
-                EditActionSheet(action: action)
-            }
-        }
+    private var isInspected: Bool {
+        inspector.inspectedID == action.id
     }
 
     var body: some View {
@@ -221,15 +208,14 @@ struct ActionRowView: View {
                 // Settings
                 if controls.contains(.settings) {
                     Button(action: {
-                        openConfigPopover()
+                        inspector.inspectedID = action.id
                     }) {
                         Image(systemName: "gearshape")
                             .font(.system(size: 12))
-                            .foregroundColor(isConfigPopoverOpen ? .accentColor : .secondary)
+                            .foregroundColor(isInspected ? .accentColor : .secondary)
                     }
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
-                    .background(PopoverAnchorView(box: configAnchor))
                     .help(isAITools ? String(localized: "Open AI settings") : (action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action")))
                     .accessibilityLabel(isAITools ? String(localized: "Open AI settings") : (action.chrome.rowStyle == .actionGroup ? String(localized: "Configure Group") : String(localized: "Configure Action")))
                 } else {

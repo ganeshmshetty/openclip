@@ -1,7 +1,8 @@
 // EditActionSheet.swift
 // OpenClip
 //
-// Renders the modal sheet / popover interface for editing existing action appearances, titles, and parameters.
+// Renders the editor for an action's appearance, title and parameters, either inline in the Actions
+// pane's inspector column or as a standalone sheet (the configuration-request route).
 // Styled in macOS Inset Grouped layout with Hero Header: content-hugging height, solid opaque background,
 // and conditional options/logic display (omitting redundant info notes when no config options exist).
 import SwiftUI
@@ -15,10 +16,11 @@ public struct EditActionSheet: View {
     /// Optional request from the action (e.g. a missing-required-options short-circuit): surfaces a
     /// reason banner and highlights the missing option rows in the unified editor (Phase 7).
     let configurationRequest: ConfigurationRequest?
+    /// `true` when the editor is the Actions pane's inspector column: it fills the column instead of
+    /// sizing to its content, drops its own title bar, and stays open — "Cancel" reverts the draft
+    /// rather than closing a window that was never opened.
+    let isInspector: Bool
     @Environment(\.dismiss) private var dismiss
-    /// Set when the editor is shown in the Actions tab's settings popover, which closes itself
-    /// only on request; `nil` when it is presented as a sheet.
-    @Environment(\.popoverDismiss) private var popoverDismiss
 
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
@@ -61,9 +63,10 @@ public struct EditActionSheet: View {
     @State private var saveAlertMessage: String = ""
     @State private var aliasText: String = ""
 
-    public init(action: any Action, configurationRequest: ConfigurationRequest? = nil) {
+    public init(action: any Action, configurationRequest: ConfigurationRequest? = nil, isInspector: Bool = false) {
         self.action = action
         self.configurationRequest = configurationRequest
+        self.isInspector = isInspector
     }
 
     private var isBuiltin: Bool {
@@ -71,8 +74,9 @@ public struct EditActionSheet: View {
     }
 
     private func close() {
-        if let popoverDismiss {
-            popoverDismiss()
+        if isInspector {
+            // Nothing to close: re-seed the draft from what is stored, which is what Cancel meant.
+            loadInitialState()
         } else {
             dismiss()
         }
@@ -96,24 +100,42 @@ public struct EditActionSheet: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Configure Action")
-                    .font(.system(size: 13, weight: .semibold))
-                Spacer()
-                Button(action: { close() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundColor(.secondary)
+            if isInspector {
+                // The inspector's own title: the action being configured, so the column says what
+                // it is editing without a window title bar.
+                HStack(spacing: 8) {
+                    Text(ActionCustomizationManager.shared.presented(action, surface: .table).title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                    Spacer()
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
+            } else {
+                // Header
+                HStack {
+                    Text("Configure Action")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    Button(action: { close() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 15))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
 
-            // Content Area (fits content dynamically)
+            Divider()
+
+            // Content Area. As a sheet it hugs its content; in the inspector it scrolls, because
+            // the column's height is the window's, not the form's.
+            ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 if let bannerText = configurationBannerText {
                     HStack(alignment: .top, spacing: 8) {
@@ -297,6 +319,10 @@ public struct EditActionSheet: View {
                 }
             }
             .padding(14)
+            }
+            .scrollDisabled(!isInspector)
+
+            Divider()
 
             // Footer Action Buttons
             HStack(spacing: 12) {
@@ -310,7 +336,7 @@ public struct EditActionSheet: View {
 
                 Spacer()
 
-                Button("Cancel") { close() }
+                Button(isInspector ? String(localized: "Revert") : String(localized: "Cancel")) { close() }
                     .keyboardShortcut(.cancelAction)
 
                 Button("Save Changes") {
@@ -327,8 +353,9 @@ public struct EditActionSheet: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
         }
-        .frame(width: 370)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: isInspector ? nil : 370)
+        .frame(maxWidth: isInspector ? .infinity : nil, maxHeight: isInspector ? .infinity : nil)
+        .fixedSize(horizontal: false, vertical: !isInspector)
         .background(Color(nsColor: .windowBackgroundColor))
         .alert("Unable to Save Changes", isPresented: $showingSaveAlert) {
             Button("OK", role: .cancel) {}

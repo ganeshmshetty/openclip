@@ -8,10 +8,9 @@ import Core
 @MainActor
 public struct EditGroupSheet: View {
     let groupID: String
+    /// `true` when the editor fills the Actions pane's inspector column rather than a sheet.
+    let isInspector: Bool
     @Environment(\.dismiss) private var dismiss
-    /// Set when the editor is shown in the Actions tab's settings popover, which closes itself
-    /// only on request; `nil` when it is presented as a sheet.
-    @Environment(\.popoverDismiss) private var popoverDismiss
     @ObservedObject private var coordinator = ActionCoordinator.shared
 
     @State private var title: String = ""
@@ -20,8 +19,9 @@ public struct EditGroupSheet: View {
     @State private var memberIconOverrides: [String: String] = [:]
     @State private var showingIconPicker = false
 
-    public init(groupID: String) {
+    public init(groupID: String, isInspector: Bool = false) {
         self.groupID = groupID
+        self.isInspector = isInspector
     }
 
     private var groupDef: ActionGroupDef? {
@@ -33,8 +33,9 @@ public struct EditGroupSheet: View {
     }
 
     private func close() {
-        if let popoverDismiss {
-            popoverDismiss()
+        if isInspector {
+            // Nothing to close: re-seed the draft from what is stored, which is what Cancel meant.
+            loadInitialState()
         } else {
             dismiss()
         }
@@ -46,13 +47,15 @@ public struct EditGroupSheet: View {
                 Text("Edit Group")
                     .font(.headline)
                 Spacer()
-                Button {
-                    close()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                if !isInspector {
+                    Button {
+                        close()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             HStack(spacing: 10) {
@@ -60,7 +63,7 @@ public struct EditGroupSheet: View {
                     .textFieldStyle(.roundedBorder)
 
                 Button {
-                    showingIconPicker.toggle()
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker.toggle() }
                 } label: {
                     HStack(spacing: 4) {
                         AnyIconView(iconId: iconName.isEmpty ? "folder" : iconName)
@@ -68,14 +71,19 @@ public struct EditGroupSheet: View {
                         Image(systemName: "chevron.down")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                            .rotationEffect(.degrees(showingIconPicker ? 180 : 0))
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
                 }
                 .buttonStyle(.plain)
-                .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                    IconPickerPopover(selectedIcon: $iconName)
+                .accessibilityLabel(String(localized: "Choose icon"))
+            }
+
+            if showingIconPicker {
+                InlineIconPicker(selectedIcon: $iconName, height: 240) {
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker = false }
                 }
             }
 
@@ -131,7 +139,7 @@ public struct EditGroupSheet: View {
 
                 Spacer()
 
-                Button("Cancel") { close() }
+                Button(isInspector ? String(localized: "Revert") : String(localized: "Cancel")) { close() }
                     .keyboardShortcut(.cancelAction)
 
                 Button("Save") {
@@ -175,31 +183,38 @@ public struct EditGroupSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 360)
+        .frame(width: isInspector ? nil : 360)
+        .frame(maxWidth: isInspector ? .infinity : nil, maxHeight: isInspector ? .infinity : nil, alignment: .top)
         .onAppear {
-            if let groupDef {
-                title = groupDef.title
-                iconName = groupDef.iconName.isEmpty ? "folder" : groupDef.iconName
-                memberIDs = groupDef.memberActionIDs
-            } else {
-                let override = ActionCustomizationManager.shared.override(for: groupID)
-                let groupAction = coordinator.actions.first(where: { $0.id == groupID })
-                title = override?.customTitle ?? groupAction?.title ?? ""
-                if let customSymbol = override?.customIconSymbol {
-                    iconName = customSymbol
-                } else if let configurable = groupAction as? any ConfigurableAction, !configurable.preferenceIconName.isEmpty {
-                    iconName = configurable.preferenceIconName
-                } else {
-                    iconName = "folder"
-                }
-                memberIDs = coordinator.memberActionIDs(for: groupID)
-            }
-            var initialIcons: [String: String] = [:]
-            for id in memberIDs {
-                initialIcons[id] = ActionCustomizationManager.shared.override(for: id)?.customIconSymbol ?? ""
-            }
-            memberIconOverrides = initialIcons
+            loadInitialState()
         }
+    }
+
+    /// Seeds the draft from what is stored. Runs on appear, and again when the inspector's Revert
+    /// backs an edit out.
+    private func loadInitialState() {
+        if let groupDef {
+            title = groupDef.title
+            iconName = groupDef.iconName.isEmpty ? "folder" : groupDef.iconName
+            memberIDs = groupDef.memberActionIDs
+        } else {
+            let override = ActionCustomizationManager.shared.override(for: groupID)
+            let groupAction = coordinator.actions.first(where: { $0.id == groupID })
+            title = override?.customTitle ?? groupAction?.title ?? ""
+            if let customSymbol = override?.customIconSymbol {
+                iconName = customSymbol
+            } else if let configurable = groupAction as? any ConfigurableAction, !configurable.preferenceIconName.isEmpty {
+                iconName = configurable.preferenceIconName
+            } else {
+                iconName = "folder"
+            }
+            memberIDs = coordinator.memberActionIDs(for: groupID)
+        }
+        var initialIcons: [String: String] = [:]
+        for id in memberIDs {
+            initialIcons[id] = ActionCustomizationManager.shared.override(for: id)?.customIconSymbol ?? ""
+        }
+        memberIconOverrides = initialIcons
     }
 }
 
@@ -240,9 +255,25 @@ private struct GroupMemberRowView: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            row
+
+            if showingIconPicker {
+                InlineIconPicker(selectedIcon: $customIconSymbol, height: 220) {
+                    withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker = false }
+                }
+                .padding(.top, 6)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.03)))
+    }
+
+    private var row: some View {
         HStack(spacing: 8) {
             Button {
-                showingIconPicker.toggle()
+                withAnimation(.easeInOut(duration: 0.18)) { showingIconPicker.toggle() }
             } label: {
                 ZStack {
                     if let presentation {
@@ -257,9 +288,6 @@ private struct GroupMemberRowView: View {
             .buttonStyle(.plain)
             .help(String(localized: "Customize Icon"))
             .accessibilityLabel(String(localized: "Customize Icon"))
-            .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                IconPickerPopover(selectedIcon: $customIconSymbol)
-            }
 
             Text(presentation?.title ?? actionID)
                 .font(.system(size: 12))
@@ -305,9 +333,6 @@ private struct GroupMemberRowView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.03)))
     }
 }
 
