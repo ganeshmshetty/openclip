@@ -24,14 +24,21 @@ enum SettingsDestination {
 
     /// The path that shows `action`'s settings.
     ///
-    /// - AI Tools is the AI page.
+    /// - AI Tools is the AI page; one of its prompts is that prompt's page under AI.
     /// - An extension's group row, or the placeholder the trust gate registers for it, is the
     ///   extension's page; one of its commands is that command's editor under the extension's page.
     /// - A custom group is the group editor under Customize, where groups are made.
     /// - A custom action is its editor under Custom Actions.
     /// - A built-in action has a sidebar row of its own.
+    @MainActor
     static func path(for action: any Action) -> [SettingsPage] {
         if action.chrome.launchesAI {
+            return [.ai]
+        }
+        if ActionIdentity.isAIPreset(action) {
+            if let preset = AIServiceManager.shared.preset(forActionID: action.id) {
+                return [.ai, .aiPreset(id: preset.id)]
+            }
             return [.ai]
         }
         if let gated = action as? GatedExtensionAction {

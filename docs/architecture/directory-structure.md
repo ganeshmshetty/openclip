@@ -254,5 +254,5 @@ Sources/
             ├── SettingsRouter.swift          # SettingsPage enum + SettingsRouter (path, history, notices)
             ├── SettingsRowLabel.swift        # Shared settings row shapes
             ├── SettingsSidebar.swift         # Sidebar: search field, two row groups, icon tiles
-            └── ShortcutsPage.swift           # Every action's alias and hotkey in one table
+            └── ShortcutsPage.swift           # Every action's switch, alias and hotkey in one table, grouped by source
 ```

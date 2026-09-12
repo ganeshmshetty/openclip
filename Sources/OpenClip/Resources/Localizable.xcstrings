@@ -13273,6 +13273,34 @@
         }
       }
     },
+    "Switch an action off to hide it from the popup bar and the palette. An alias jumps straight to an action when you type it in the palette; a hotkey runs it from anywhere.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭操作可将其从弹出栏和命令面板中隐藏。在命令面板中输入别名可直接跳转到某个操作；快捷键则可在任意位置运行它。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "關閉操作可將其從彈出列和命令面板中隱藏。在命令面板中輸入別名可直接跳至某個操作；快捷鍵則可在任意位置執行它。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivez une action pour la masquer de la barre contextuelle et de la palette. Un alias saute directement à une action lorsque vous le tapez dans la palette ; un raccourci l'exécute depuis n'importe où."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションをオフにするとポップアップバーとパレットから隠れます。エイリアスはパレットで入力するとそのアクションに直接移動し、ホットキーはどこからでも実行します。"
+          }
+        }
+      }
+    },
     "System": {
       "localizations": {
         "zh-Hans": {

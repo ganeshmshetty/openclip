@@ -550,5 +550,6 @@
   "Open URL": "打开 URL",
   "Actions you made yourself: open a URL with the selection, paste a snippet built from it, or run a shell script on it.": "你自己创建的操作：用选中文本打开 URL、粘贴由其生成的片段，或对其运行 Shell 脚本。",
   "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Customize to place it in the popup bar.": "打开操作可更改其名称、图标、快捷键或功能，或将其删除。使用“自定”将其放入弹出栏。",
-  "Drag to reorder the popup bar. Drop an action onto a group to add it; select several and use + to make a group. Double-click a row to open its settings.": "拖动可重新排列弹出栏。将操作拖到分组上即可加入；选择多项并使用 + 可创建分组。双击某行可打开其设置。"
+  "Drag to reorder the popup bar. Drop an action onto a group to add it; select several and use + to make a group. Double-click a row to open its settings.": "拖动可重新排列弹出栏。将操作拖到分组上即可加入；选择多项并使用 + 可创建分组。双击某行可打开其设置。",
+  "Switch an action off to hide it from the popup bar and the palette. An alias jumps straight to an action when you type it in the palette; a hotkey runs it from anywhere.": "关闭操作可将其从弹出栏和命令面板中隐藏。在命令面板中输入别名可直接跳转到某个操作；快捷键则可在任意位置运行它。"
 }

@@ -364,7 +364,10 @@ public struct PreferencesView: View {
                 .frame(maxWidth: Self.customizeListMaxWidth)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .shortcuts:
-            ShortcutsPage()
+            ShortcutsPage(
+                disabledActionIDs: $disabledActionIDs,
+                disabledPackages: $disabledPackages
+            )
         case .appRules:
             AppRulesTab()
         case .store:

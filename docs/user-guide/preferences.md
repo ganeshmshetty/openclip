@@ -58,6 +58,13 @@ New Group and Install Extension….
 
 ---
 
+## Shortcuts
+
+**Shortcuts** lists every runnable action — built-ins, AI prompts, your custom actions, then one
+group per installed extension — with a switch, an alias (type it in the palette to jump straight
+to the action), a hotkey, and a **›** into the action's own page. Search filters by name, alias
+or keyword.
+
 ## Built-in actions
 
 Search, Copy, Cut, Paste, Calculate, Define, Add Event, Open Link, Reveal in Finder and Word
