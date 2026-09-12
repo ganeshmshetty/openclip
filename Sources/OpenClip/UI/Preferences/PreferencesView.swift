@@ -384,12 +384,13 @@ public struct PreferencesView: View {
         SettingsPage.systemPages.map { SettingsSidebarRow(systemPage: $0) }
     }
 
-    /// The second group: AI first, then every built-in action, every installed extension and the
-    /// user's custom actions, by name — the way Raycast lists Calculator and Calendar next to
-    /// third-party extensions. A row answers a search for any of its actions' names or keywords,
+    /// The second group: everything that provides actions, one row each — the way Raycast lists
+    /// Calculator and Calendar next to third-party extensions. What OpenClip ships comes first
+    /// (AI, then the built-in actions, then the user's own), and installed extensions follow; see
+    /// `SettingsSidebarOrder`. A row answers a search for any of its actions' names or keywords,
     /// so "verify" finds the JWT extension and "sum" finds Calculate.
     private var secondGroupRows: [SettingsSidebarRow] {
-        var rows: [SettingsSidebarRow] = []
+        var rows: [SettingsSidebarRow] = [SettingsSidebarRow(systemPage: .ai)]
 
         for action in coordinator.actions where ActionIdentity.isBuiltin(action)
             && !action.chrome.launchesAI
@@ -425,8 +426,7 @@ public struct PreferencesView: View {
             tile: .symbol(SettingsPage.customActions.systemImage, tint: SettingsPage.customActions.tint)
         ))
 
-        rows.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        return [SettingsSidebarRow(systemPage: .ai)] + rows
+        return SettingsSidebarOrder.sorted(rows)
     }
 
     /// A built-in's tile glyph. Copy, Cut and Paste draw as text glyphs in the popup bar; their

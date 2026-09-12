@@ -26,8 +26,9 @@ The settings window is laid out like System Settings:
   `hotkey` to find Shortcuts, `api key` to find AI, `sum` to find Calculate, or an action's name
   to find the extension that provides it.
 - The sidebar has two groups: OpenClip's own pages (General, Appearance, Customize, Shortcuts,
-  App Rules, Store, About), then **AI, every built-in action, every installed extension and your
-  Custom Actions**, one page each, by name.
+  App Rules, Store, About), then a page for everything that provides actions — **AI, then the
+  built-in actions, then your Custom Actions, then every installed extension**. What shipped with
+  OpenClip comes before what you installed, and names sort alphabetically inside each of those.
 - **About** carries every outward link: Website, Documentation, GitHub and Report an Issue.
 - Anything you drill into — an action's settings, the icon chooser, a prompt — opens as a page in
   the same column. The **‹ ›** arrows in the toolbar (or `⌘[` / `⌘]`) move back and forward

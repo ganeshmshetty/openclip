@@ -2,9 +2,9 @@
 // OpenClip
 //
 // The window's table of contents, laid out the way System Settings lays out its own: a search
-// field at the top, then two groups of rows with coloured glyph tiles — OpenClip's own pages first,
-// then AI and every installed extension, one row each. Selecting a row is the only thing the
-// sidebar does; the router decides what that shows.
+// field at the top, then two groups of rows with coloured glyph tiles — OpenClip's own pages
+// first, then everything that provides actions, one row each. Selecting a row is the only thing
+// the sidebar does; the router decides what that shows.
 
 import SwiftUI
 import Core
@@ -56,6 +56,32 @@ struct SettingsSidebarRow: Identifiable {
             .split(whereSeparator: { $0.isWhitespace })
             .map(String.init)
             .filter { !$0.isEmpty }
+    }
+}
+
+/// The order of the sidebar's second group: what OpenClip ships first, then what the user
+/// installed. Inside a rank the rows read alphabetically, so a name is still where you expect it.
+enum SettingsSidebarOrder {
+    /// Lower sorts first. AI leads because it is the headline feature; the built-in actions
+    /// follow; the user's own actions close out what came with the app or was written here; and
+    /// installed extensions come last, because they are the part that changes.
+    static func rank(of page: SettingsPage) -> Int {
+        switch page {
+        case .ai: return 0
+        case .builtinAction: return 1
+        case .customActions: return 2
+        case .extensionPackage: return 3
+        default: return 4
+        }
+    }
+
+    static func sorted(_ rows: [SettingsSidebarRow]) -> [SettingsSidebarRow] {
+        rows.sorted { left, right in
+            let leftRank = rank(of: left.page)
+            let rightRank = rank(of: right.page)
+            if leftRank != rightRank { return leftRank < rightRank }
+            return left.title.localizedStandardCompare(right.title) == .orderedAscending
+        }
     }
 }
 

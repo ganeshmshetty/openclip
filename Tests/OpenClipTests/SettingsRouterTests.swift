@@ -195,6 +195,35 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertEqual(SettingsSidebarFilter.filter(rows, query: "licence").map(\.page), [.about])
     }
 
+    func testTheSidebarListsWhatShippedBeforeWhatWasInstalled() {
+        // Deliberately shuffled, and with names that would interleave under a plain A-Z sort.
+        let rows = [
+            SettingsSidebarRow(page: .extensionPackage(id: "com.a.appwrite"), title: "Appwrite", tile: .symbol("puzzlepiece.extension.fill", tint: .gray)),
+            SettingsSidebarRow(page: .builtinAction(id: "builtin.paste"), title: "Paste", tile: .symbol("bolt.fill", tint: .gray)),
+            SettingsSidebarRow(page: .customActions, title: "Custom Actions", tile: .symbol("wand.and.stars", tint: .mint)),
+            SettingsSidebarRow(page: .extensionPackage(id: "com.z.jwt"), title: "JWT", tile: .symbol("puzzlepiece.extension.fill", tint: .gray)),
+            SettingsSidebarRow(page: .builtinAction(id: "builtin.copy"), title: "Copy", tile: .symbol("bolt.fill", tint: .gray)),
+            SettingsSidebarRow(systemPage: .ai),
+        ]
+
+        XCTAssertEqual(SettingsSidebarOrder.sorted(rows).map(\.title), [
+            "AI",              // OpenClip's own, first
+            "Copy", "Paste",   // then the built-in actions, alphabetically
+            "Custom Actions",  // then what the user wrote here
+            "Appwrite", "JWT", // then what the user installed, alphabetically
+        ])
+    }
+
+    func testTheSidebarOrderIsStableForRowsOfTheSameKind() {
+        let rows = [
+            SettingsSidebarRow(page: .extensionPackage(id: "b"), title: "Übersicht", tile: .symbol("x", tint: .gray)),
+            SettingsSidebarRow(page: .extensionPackage(id: "a"), title: "Alpha", tile: .symbol("x", tint: .gray)),
+            SettingsSidebarRow(page: .extensionPackage(id: "c"), title: "alpha two", tile: .symbol("x", tint: .gray)),
+        ]
+        XCTAssertEqual(SettingsSidebarOrder.sorted(rows).map(\.title), ["Alpha", "alpha two", "Übersicht"],
+                       "names sort the way the Finder sorts them, not by code point")
+    }
+
     // MARK: - Installed extensions
 
     func testInstalledExtensionsGroupByPackageSortByNameAndSkipWhatIsNotAnExtension() {
