@@ -437,6 +437,43 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertEqual(received, [SettingsToolbarCommand.actionDuplicate, SettingsToolbarCommand.actionDelete])
     }
 
+    // MARK: - Naming a group made by dropping
+
+    func testADroppedGroupTakesThePlainNameUntilItIsTaken() {
+        let numbered: (Int) -> String = { "New Group \($0)" }
+
+        XCTAssertEqual(
+            ActionsOutlineCoordinator.uniqueGroupTitle(base: "New Group", numbered: numbered, existing: []),
+            "New Group"
+        )
+        XCTAssertEqual(
+            ActionsOutlineCoordinator.uniqueGroupTitle(base: "New Group", numbered: numbered, existing: ["Writing"]),
+            "New Group"
+        )
+        XCTAssertEqual(
+            ActionsOutlineCoordinator.uniqueGroupTitle(base: "New Group", numbered: numbered, existing: ["New Group"]),
+            "New Group 2"
+        )
+        XCTAssertEqual(
+            ActionsOutlineCoordinator.uniqueGroupTitle(
+                base: "New Group",
+                numbered: numbered,
+                existing: ["New Group", "New Group 2", "New Group 3"]
+            ),
+            "New Group 4",
+            "it counts past every number already in use"
+        )
+        XCTAssertEqual(
+            ActionsOutlineCoordinator.uniqueGroupTitle(
+                base: "New Group",
+                numbered: numbered,
+                existing: ["New Group", "New Group 3"]
+            ),
+            "New Group 2",
+            "and fills the first gap rather than always going to the end"
+        )
+    }
+
     // MARK: - Helpers
 
     private static func extensionChrome(

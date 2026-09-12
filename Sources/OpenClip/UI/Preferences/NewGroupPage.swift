@@ -121,7 +121,9 @@ public struct NewGroupPage: View {
                     router.pop()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                // A group with nothing in it is a row in the popup bar that opens onto nothing,
+                // and it would be dropped the moment anything else touched the groups.
+                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || memberActionIDs.isEmpty)
                 .keyboardShortcut(.defaultAction)
             }
         }
@@ -129,7 +131,7 @@ public struct NewGroupPage: View {
 
     private var memberCountText: String {
         switch memberActionIDs.count {
-        case 0: return String(localized: "Select actions in the Actions list first to start the group with them.")
+        case 0: return String(localized: "Select the actions on Customize first, or drag one action onto another to group them.")
         case 1: return String(localized: "1 action will be grouped.")
         default: return String(localized: "\(memberActionIDs.count) actions will be grouped.")
         }

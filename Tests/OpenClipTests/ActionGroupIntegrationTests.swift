@@ -170,22 +170,25 @@ final class ActionGroupIntegrationTests: XCTestCase {
         XCTAssertEqual(decoded.first?.memberActionIDs, ["action.1", "action.2", "action.3"])
     }
 
-    func testEmptyGroupCreationAndAddingActions() throws {
+    /// A group with nothing in it is not kept, so the old "make an empty group, then drag actions
+    /// in" flow is gone: a group is made *from* actions, and it lasts as long as it holds one.
+    func testAGroupLastsExactlyAsLongAsItHoldsSomething() throws {
         let a1 = DummyAction(id: "action.1", title: "Action 1")
         let a2 = DummyAction(id: "action.2", title: "Action 2")
         coordinator.register(action: a1)
         coordinator.register(action: a2)
 
-        // Create empty group
-        coordinator.createGroup(title: "Empty Group", iconName: "folder", memberActionIDs: [])
+        XCTAssertNil(coordinator.createGroup(title: "Empty Group", iconName: "folder", memberActionIDs: []))
+        XCTAssertTrue(coordinator.actionGroupDefs.isEmpty)
+        XCTAssertFalse(coordinator.actions.contains { $0.id.hasPrefix("vgroup.") })
+
+        // Made from two actions — which is what dropping one onto the other does — it is real.
+        let groupID = try XCTUnwrap(
+            coordinator.createGroup(title: "Pair", iconName: "folder", memberActionIDs: ["action.1", "action.2"])
+        )
         XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
-        let groupID = coordinator.actionGroupDefs[0].id
-        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, [])
+        XCTAssertTrue(coordinator.actions.contains { $0.id == groupID })
 
-        // Empty group is present in coordinator.actions list (for Preferences UI)
-        XCTAssertTrue(coordinator.actions.contains(where: { $0.id == groupID }))
-
-        // But empty group is hidden from popup bar availableActions
         let context = ActionContext(
             selection: SelectionContext(
                 text: "test text",
@@ -196,18 +199,22 @@ final class ActionGroupIntegrationTests: XCTestCase {
             )
         )
         var available = coordinator.resolveActions(for: context)
-        XCTAssertFalse(available.contains(where: { $0.id == groupID }), "Empty group must not appear on popup bar")
-        XCTAssertTrue(available.contains(where: { $0.id == "action.1" }))
-        XCTAssertTrue(available.contains(where: { $0.id == "action.2" }))
+        XCTAssertTrue(available.contains { $0.id == groupID }, "a group with members belongs on the bar")
 
-        // Drag action.1 into the empty group
-        coordinator.addToGroup(actionID: "action.1", groupID: groupID)
-        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.1"])
+        // Drag one out: the group holds the other, so it stays.
+        coordinator.removeFromGroup(actionID: "action.1", groupID: groupID)
+        XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
+        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.2"])
 
-        // Now group has 1 member -> visible on popup bar
+        // Drag the last one out: the group goes with it, and so does its row on the bar.
+        coordinator.removeFromGroup(actionID: "action.2", groupID: groupID)
+        XCTAssertTrue(coordinator.actionGroupDefs.isEmpty)
+        XCTAssertFalse(coordinator.actions.contains { $0.id == groupID })
+
         available = coordinator.resolveActions(for: context)
-        XCTAssertTrue(available.contains(where: { $0.id == groupID }), "Group with members must appear on popup bar")
-        XCTAssertTrue(available.contains(where: { $0.id == "action.1" }))
+        XCTAssertFalse(available.contains { $0.id == groupID }, "and its row on the bar goes with it")
+        XCTAssertTrue(available.contains { $0.id == "action.1" })
+        XCTAssertTrue(available.contains { $0.id == "action.2" })
     }
 
     func testExtensionGroupMemberResolutionAndCustomization() {
@@ -483,4 +490,114 @@ private struct DummyAction: Action, Sendable {
 
     @MainActor func isEnabled(for context: ActionContext) -> Bool { true }
     @MainActor func perform(_ context: ActionContext) async throws -> ActionResult { .none }
+}
+
+// MARK: - Grouping by dropping one action onto another
+
+@MainActor
+final class ActionsOutlineDropTests: XCTestCase {
+    private var settingsStore: MemorySettingsStore!
+    private var registry: ActionRegistry!
+    private var coordinator: ActionCoordinator!
+    private var outlineCoordinator: ActionsOutlineCoordinator!
+
+    override func setUp() {
+        super.setUp()
+        settingsStore = MemorySettingsStore()
+        registry = ActionRegistry(settingsStore: settingsStore)
+        coordinator = ActionCoordinator(registry: registry, settingsStore: settingsStore)
+        for index in 1...4 {
+            coordinator.register(action: DummyAction(id: "action.\(index)", title: "Action \(index)"))
+        }
+        outlineCoordinator = ActionsOutlineCoordinator(
+            ActionsOutlineView(
+                coordinator: coordinator,
+                customizationManager: ActionCustomizationManager(settingsStore: settingsStore),
+                selectedRowIDs: .constant([]),
+                onEditGroup: { _ in },
+                onCreateGroupFromSelection: { },
+                onOpenNode: { _ in }
+            )
+        )
+    }
+
+    private func action(_ id: String) -> any Action {
+        coordinator.actions.first { $0.id == id }!
+    }
+
+    private func standalone(_ id: String) -> OutlineNode {
+        OutlineNode(id: id, kind: .standaloneAction(action(id)))
+    }
+
+    func testDroppingAnActionOntoAnotherMakesAGroupOfTheTwo() {
+        let outcome = outlineCoordinator.dropOntoOutcome(draggedID: "action.2", target: standalone("action.1"))
+        XCTAssertEqual(outcome, .makeGroup(withTargetID: "action.1"),
+                       "the target leads the group, the way the row you dropped onto stays put")
+    }
+
+    func testDroppingAnActionOntoItselfDoesNothing() {
+        XCTAssertNil(outlineCoordinator.dropOntoOutcome(draggedID: "action.1", target: standalone("action.1")))
+    }
+
+    func testDroppingOntoAMemberJoinsTheGroupItIsIn() {
+        coordinator.createGroup(title: "Pair", iconName: "folder", memberActionIDs: ["action.1", "action.2"])
+        let groupID = coordinator.actionGroupDefs[0].id
+        let member = OutlineNode(id: "action.2", kind: .groupMember(action: action("action.2"), parentGroupID: groupID))
+
+        XCTAssertEqual(
+            outlineCoordinator.dropOntoOutcome(draggedID: "action.3", target: member),
+            .joinGroup(id: groupID, afterMemberID: "action.2")
+        )
+    }
+
+    func testDroppingAMemberOntoItsOwnSiblingIsAReorderNotAGrouping() {
+        coordinator.createGroup(title: "Pair", iconName: "folder", memberActionIDs: ["action.1", "action.2"])
+        let groupID = coordinator.actionGroupDefs[0].id
+        let sibling = OutlineNode(id: "action.2", kind: .groupMember(action: action("action.2"), parentGroupID: groupID))
+
+        XCTAssertNil(outlineCoordinator.dropOntoOutcome(draggedID: "action.1", target: sibling),
+                     "both are already in the same group, so there is nothing to group")
+    }
+
+    func testAnExtensionsOwnRowsCannotTakeADrop() {
+        let packageChrome = ActionChrome(
+            badge: .extensionPkg("JWT"),
+            rowStyle: .standard,
+            popupBehavior: .perform,
+            source: .extensionPkg(packageID: "com.openclip.jwt")
+        )
+        let command = DummyAction(id: "com.openclip.jwt.inspect", title: "Inspect", chrome: packageChrome)
+        coordinator.register(action: command)
+
+        let subAction = OutlineNode(
+            id: command.id,
+            kind: .extensionSubAction(action: command, parentGroupID: "com.openclip.jwt.jwt")
+        )
+        XCTAssertNil(outlineCoordinator.dropOntoOutcome(draggedID: "action.1", target: subAction))
+
+        let header = OutlineNode(
+            id: "pkg.com.openclip.jwt",
+            kind: .packageHeader(packageID: "com.openclip.jwt", title: "JWT", gatedReason: nil)
+        )
+        XCTAssertNil(outlineCoordinator.dropOntoOutcome(draggedID: "action.1", target: header))
+    }
+
+    func testAnIneligibleActionIsNeverGrouped() {
+        let aiTools = DummyAction(
+            id: "builtin.ai_tools",
+            title: "AI Tools",
+            chrome: ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .showSubActions, source: .builtin)
+        )
+        coordinator.register(action: aiTools)
+
+        XCTAssertNil(outlineCoordinator.dropOntoOutcome(draggedID: "builtin.ai_tools", target: standalone("action.1")),
+                     "dragging something that cannot be grouped")
+        XCTAssertNil(
+            outlineCoordinator.dropOntoOutcome(
+                draggedID: "action.1",
+                target: OutlineNode(id: aiTools.id, kind: .standaloneAction(aiTools))
+            ),
+            "dropping onto something that cannot be grouped"
+        )
+    }
 }

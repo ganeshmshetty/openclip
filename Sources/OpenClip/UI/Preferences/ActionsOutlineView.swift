@@ -674,7 +674,16 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             }
         }
 
-        // Case 2: Hovering ON an item that is NOT a custom group -> retarget to insert between rows!
+        // Case 2: Hovering ON another action -> the drop makes a group of the two, the way
+        // dragging one icon onto another does on the Home screen. AppKit draws the row highlight
+        // for a drop-on-item, so the affordance is already there.
+        if let targetNode = item as? OutlineNode,
+           index == NSOutlineViewDropOnItemIndex,
+           dropOntoOutcome(draggedID: draggedID, target: targetNode) != nil {
+            return .move
+        }
+
+        // Case 3: Hovering ON an item that can hold nothing -> retarget to insert between rows!
         if item != nil && index == NSOutlineViewDropOnItemIndex {
             // Resolve the top-level ancestor of the hovered item and use its root index.
             var topLevel = item
@@ -688,7 +697,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             }
         }
 
-        // Case 3: Hovering at root level (reordering top-level actions)
+        // Case 4: Hovering at root level (reordering top-level actions)
         if item == nil && index >= 0 {
             return .move
         }
@@ -723,6 +732,13 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 outlineView.reloadData()
                 return true
             }
+        }
+
+        // Dropped ON another action: group the two, or join the group the target is already in.
+        if let targetNode = item as? OutlineNode,
+           index == NSOutlineViewDropOnItemIndex,
+           let outcome = dropOntoOutcome(draggedID: draggedID, target: targetNode) {
+            return perform(outcome, draggedID: draggedID, in: outlineView)
         }
 
         // Dropped at root level
@@ -760,6 +776,93 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         }
 
         return false
+    }
+
+    // MARK: - Grouping by drop
+
+    /// What dropping `draggedID` *onto* `target` should do, or nil when the target cannot hold it
+    /// and the drop should fall through to reordering.
+    enum DropOntoOutcome: Equatable {
+        /// Neither action is in a group: make one holding both, the target first.
+        case makeGroup(withTargetID: String)
+        /// The target is already in a custom group: put the dragged action in beside it.
+        case joinGroup(id: String, afterMemberID: String)
+    }
+
+    func dropOntoOutcome(draggedID: String, target: OutlineNode) -> DropOntoOutcome? {
+        guard draggedID != target.id,
+              parent.coordinator.isEligibleForGrouping(actionID: draggedID) else { return nil }
+
+        switch target.kind {
+        case .standaloneAction(let action):
+            guard parent.coordinator.isEligibleForGrouping(actionID: action.id) else { return nil }
+            return .makeGroup(withTargetID: action.id)
+
+        case .groupMember(let action, let parentGroupID):
+            // Already a sibling: this is a reorder, not a grouping.
+            guard let def = parent.coordinator.actionGroupDefs.first(where: { $0.id == parentGroupID }),
+                  !def.memberActionIDs.contains(draggedID) else { return nil }
+            return .joinGroup(id: parentGroupID, afterMemberID: action.id)
+
+        case .customGroup, .extensionGroup, .extensionSubAction, .packageHeader:
+            // A custom group is handled before this; the rest belong to an extension package and
+            // cannot take a member.
+            return nil
+        }
+    }
+
+    private func perform(
+        _ outcome: DropOntoOutcome,
+        draggedID: String,
+        in outlineView: NSOutlineView
+    ) -> Bool {
+        let groupID: String?
+        switch outcome {
+        case .makeGroup(let targetID):
+            let title = Self.uniqueGroupTitle(
+                base: String(localized: "New Group"),
+                numbered: { String(localized: "New Group \($0)") },
+                existing: parent.coordinator.actionGroupDefs.map(\.title)
+            )
+            groupID = parent.coordinator.createGroup(
+                title: title,
+                iconName: "folder",
+                memberActionIDs: [targetID, draggedID]
+            )
+
+        case .joinGroup(let id, let afterMemberID):
+            let members = parent.coordinator.actionGroupDefs.first(where: { $0.id == id })?.memberActionIDs ?? []
+            let insertion = members.firstIndex(of: afterMemberID).map { $0 + 1 }
+            parent.coordinator.addToGroup(actionID: draggedID, groupID: id, atIndex: insertion)
+            groupID = id
+        }
+
+        guard let groupID else { return false }
+
+        // Open the group so the drop's result is visible rather than hidden behind a chevron.
+        expandedNodeIDs.insert(groupID)
+        rebuildTree()
+        outlineView.reloadData()
+        if let node = rootNodes.first(where: { $0.id == groupID }) {
+            outlineView.expandItem(node)
+        }
+        return true
+    }
+
+    /// A name for a group made by dropping, which has no chance to ask for one: the plain name
+    /// until it is taken, then the numbered form. Pure, so the numbering is pinned by tests.
+    static func uniqueGroupTitle(
+        base: String,
+        numbered: (Int) -> String,
+        existing: [String]
+    ) -> String {
+        let taken = Set(existing)
+        guard taken.contains(base) else { return base }
+        var index = 2
+        while taken.contains(numbered(index)) {
+            index += 1
+        }
+        return numbered(index)
     }
 
     // MARK: - Actions & Menus

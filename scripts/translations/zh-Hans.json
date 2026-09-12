@@ -562,5 +562,8 @@
   "Links": "链接",
   "Report an Issue": "报告问题",
   "Install from File…": "从文件安装…",
-  "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options.": "关闭该操作可将其从弹出栏隐藏。打开它可更改其名称、图标、快捷键和选项。"
+  "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options.": "关闭该操作可将其从弹出栏隐藏。打开它可更改其名称、图标、快捷键和选项。",
+  "New Group %lld": "新建分组 %lld",
+  "Select the actions on Customize first, or drag one action onto another to group them.": "请先在“自定”中选择操作，或将一个操作拖到另一个操作上以创建分组。",
+  "Drag to reorder the popup bar. Drop one action onto another to group them, or onto a group to add it; drag the last one out and the group goes. Double-click a row to open its settings.": "拖动可重新排列弹出栏。将一个操作拖到另一个操作上可创建分组，拖到分组上则会加入；拖出最后一个操作后分组会被移除。双击某行可打开其设置。"
 }

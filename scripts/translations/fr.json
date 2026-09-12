@@ -561,5 +561,8 @@
   "Links": "Liens",
   "Report an Issue": "Signaler un problème",
   "Install from File…": "Installer depuis un fichier…",
-  "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options.": "Désactivez l'action pour la masquer de la barre contextuelle. Ouvrez-la pour modifier son nom, son icône, son raccourci et ses options."
+  "Turn the action off to hide it from the popup bar. Open it to change its name, icon, shortcut and options.": "Désactivez l'action pour la masquer de la barre contextuelle. Ouvrez-la pour modifier son nom, son icône, son raccourci et ses options.",
+  "New Group %lld": "Nouveau groupe %lld",
+  "Select the actions on Customize first, or drag one action onto another to group them.": "Sélectionnez d'abord les actions dans Personnaliser, ou faites glisser une action sur une autre pour les grouper.",
+  "Drag to reorder the popup bar. Drop one action onto another to group them, or onto a group to add it; drag the last one out and the group goes. Double-click a row to open its settings.": "Faites glisser pour réordonner la barre contextuelle. Déposez une action sur une autre pour les grouper, ou sur un groupe pour l'y ajouter ; sortez la dernière et le groupe disparaît. Double-cliquez sur une ligne pour ouvrir ses réglages."
 }

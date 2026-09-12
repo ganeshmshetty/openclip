@@ -270,7 +270,10 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         return true
     }
 
-    public func createGroup(title: String, iconName: String, memberActionIDs: [String] = []) {
+    /// Returns the new group's id, or nil when nothing eligible was left to put in it — an empty
+    /// group is not kept (see `saveAndApplyGroupDefs`).
+    @discardableResult
+    public func createGroup(title: String, iconName: String, memberActionIDs: [String] = []) -> String? {
         var seen = Set<String>()
         var deduped: [String] = []
         for rawID in memberActionIDs {
@@ -295,6 +298,7 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         updated.append(newDef)
         actionGroupDefs = updated
         saveAndApplyGroupDefs()
+        return actionGroupDefs.contains(where: { $0.id == newID }) ? newID : nil
     }
 
     private func isEligible(actionID: String, forGroup groupID: String, existingMembers: Set<String>) -> Bool {
@@ -424,6 +428,13 @@ public final class ActionCoordinator: ObservableObject, Sendable {
                 isEligible(actionID: $0, forGroup: groupID, existingMembers: existingMembers)
             }
         }
+        // A group is a container for actions, so an empty one is a row in the popup bar that opens
+        // onto nothing: taking the last action out of a group takes the group with it, however it
+        // left — dragged to the top level, dragged into another group, or deleted outright.
+        //
+        // Only mutations come through here. `loadGroupDefs` deliberately does not, so a group whose
+        // members have not been registered yet survives launch.
+        actionGroupDefs.removeAll { $0.memberActionIDs.isEmpty }
         saveGroupDefs(actionGroupDefs)
         registry.setGroupDefs(actionGroupDefs)
     }

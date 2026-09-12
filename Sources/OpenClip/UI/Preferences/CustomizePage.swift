@@ -71,7 +71,7 @@ struct CustomizePage: View {
         HStack(spacing: 6) {
             Image(systemName: "hand.draw")
                 .foregroundStyle(.tertiary)
-            Text("Drag to reorder the popup bar. Drop an action onto a group to add it; select several and use + to make a group. Double-click a row to open its settings.")
+            Text("Drag to reorder the popup bar. Drop one action onto another to group them, or onto a group to add it; drag the last one out and the group goes. Double-click a row to open its settings.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

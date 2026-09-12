@@ -19,17 +19,21 @@ final class ActionCoordinatorGroupTests: XCTestCase {
         coordinator.register(action: DummyAction(id: "action.5", title: "Action 5"))
     }
 
-    func testCreateEmptyGroup() {
-        coordinator.createGroup(title: "Empty", iconName: "folder", memberActionIDs: [])
-        XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
-        XCTAssertEqual(coordinator.actionGroupDefs.first?.memberActionIDs, [])
-        XCTAssertEqual(coordinator.actionGroupDefs.first?.title, "Empty")
-        XCTAssertEqual(coordinator.actionGroupDefs.first?.iconName, "folder")
+    /// A group is a container for actions, so an empty one is a row in the popup bar that opens
+    /// onto nothing. It is not kept, whichever way it came to be empty.
+    func testAGroupWithNoMembersIsNotKept() {
+        XCTAssertNil(coordinator.createGroup(title: "Empty", iconName: "folder", memberActionIDs: []))
+        XCTAssertTrue(coordinator.actionGroupDefs.isEmpty)
+
+        // Same when every id handed over turns out to be ineligible.
+        XCTAssertNil(coordinator.createGroup(title: "Junk", iconName: "folder", memberActionIDs: ["", " ", "nope"]))
+        XCTAssertTrue(coordinator.actionGroupDefs.isEmpty)
     }
 
     func testCreateGroupWithSingleMember() {
-        coordinator.createGroup(title: "Single", iconName: "folder", memberActionIDs: ["action.1"])
+        let id = coordinator.createGroup(title: "Single", iconName: "folder", memberActionIDs: ["action.1"])
         XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
+        XCTAssertEqual(id, coordinator.actionGroupDefs.first?.id, "the caller is told which group it made")
         XCTAssertEqual(coordinator.actionGroupDefs.first?.memberActionIDs, ["action.1"])
         XCTAssertEqual(coordinator.actionGroupDefs.first?.title, "Single")
     }
@@ -44,7 +48,7 @@ final class ActionCoordinatorGroupTests: XCTestCase {
         XCTAssertEqual(coordinator.actionGroupDefs.last?.memberActionIDs, ["action.2", "action.3"])
     }
 
-    func testCreateGroupRemovesMembersFromExistingGroupsWithoutDisbanding() {
+    func testCreateGroupRemovesMembersFromExistingGroupsAndDropsOneItEmpties() {
         // Create Group 1 with actions 1, 2, 3
         coordinator.createGroup(title: "Group 1", iconName: "folder", memberActionIDs: ["action.1", "action.2", "action.3"])
         XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
@@ -55,10 +59,10 @@ final class ActionCoordinatorGroupTests: XCTestCase {
         XCTAssertEqual(coordinator.actionGroupDefs.count, 2)
         XCTAssertEqual(coordinator.actionGroupDefs.first(where: { $0.id == group1ID })?.memberActionIDs, ["action.2", "action.3"])
 
-        // Create Group 3 with action 2 and 3 -> Group 1 is now empty but remains
+        // Create Group 3 with action 2 and 3 -> Group 1 has nothing left, so it goes
         coordinator.createGroup(title: "Group 3", iconName: "star", memberActionIDs: ["action.2", "action.3"])
-        XCTAssertEqual(coordinator.actionGroupDefs.count, 3)
-        XCTAssertEqual(coordinator.actionGroupDefs.first(where: { $0.id == group1ID })?.memberActionIDs, [])
+        XCTAssertEqual(coordinator.actionGroupDefs.count, 2)
+        XCTAssertNil(coordinator.actionGroupDefs.first(where: { $0.id == group1ID }))
     }
 
     func testUpdateGroupUpdatesMetadataAndMembers() {
@@ -89,18 +93,34 @@ final class ActionCoordinatorGroupTests: XCTestCase {
         XCTAssertTrue(coordinator.actionGroupDefs.isEmpty)
     }
 
-    func testRemoveMemberKeepsGroupDefWhenEmpty() {
+    /// Taking the last action out of a group takes the group with it — this is what dragging the
+    /// last row out to the top level does.
+    func testRemovingTheLastMemberRemovesTheGroup() {
         coordinator.createGroup(title: "Valid", iconName: "folder", memberActionIDs: ["action.1", "action.2"])
-        XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
+        let groupID = coordinator.actionGroupDefs[0].id
 
-        coordinator.removeFromGroup(actionID: "action.1", groupID: coordinator.actionGroupDefs[0].id)
-        XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
+        coordinator.removeFromGroup(actionID: "action.1", groupID: groupID)
+        XCTAssertEqual(coordinator.actionGroupDefs.count, 1, "one left, so the group stays")
         XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, ["action.2"])
 
-        // Removing the last member leaves 0 members -> group remains
-        coordinator.removeFromGroup(actionID: "action.2", groupID: coordinator.actionGroupDefs[0].id)
-        XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
-        XCTAssertEqual(coordinator.actionGroupDefs[0].memberActionIDs, [])
+        coordinator.removeFromGroup(actionID: "action.2", groupID: groupID)
+        XCTAssertTrue(coordinator.actionGroupDefs.isEmpty, "nothing left, so neither is the group")
+        XCTAssertEqual(ActionGroupDef.decodeOrEmpty(from: settingsStore.get(.actionGroups)).count, 0,
+                       "and that is what is persisted")
+    }
+
+    /// Dragging the last member straight into another group counts as taking it out too.
+    func testMovingTheLastMemberToAnotherGroupRemovesTheEmptiedOne() {
+        coordinator.createGroup(title: "Source", iconName: "folder", memberActionIDs: ["action.1"])
+        coordinator.createGroup(title: "Target", iconName: "star", memberActionIDs: ["action.2", "action.3"])
+        let sourceID = coordinator.actionGroupDefs.first(where: { $0.title == "Source" })!.id
+        let targetID = coordinator.actionGroupDefs.first(where: { $0.title == "Target" })!.id
+
+        coordinator.addToGroup(actionID: "action.1", groupID: targetID)
+
+        XCTAssertNil(coordinator.actionGroupDefs.first(where: { $0.id == sourceID }))
+        XCTAssertEqual(coordinator.actionGroupDefs.first(where: { $0.id == targetID })?.memberActionIDs,
+                       ["action.2", "action.3", "action.1"])
     }
 
     func testUnregisterExtensionRetainsGroupMembershipInDefs() {
