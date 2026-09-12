@@ -70,7 +70,7 @@ public struct PopupView: View {
     /// Runs a palette instruction (the "Ask AI" row or a recent prompt) on the selection:
     /// `(instruction, replace)` — paste the answer over the selection, or show the result card.
     /// nil falls back to the view's own card flow (preview/static hosts).
-    public let onRunAIPrompt: (@MainActor (String, Bool) -> Void)?
+    public let onRunAIPrompt: (@MainActor (String, Bool, Bool) -> Void)?
     /// Saves the palette's typed query as a reusable AI tool and runs it (the "Save as AI tool"
     /// row), same flag. nil falls back to the view's own flow.
     public let onSaveAIPrompt: (@MainActor (String, Bool) -> Void)?
@@ -194,7 +194,7 @@ public struct PopupView: View {
         onWillPerformAction: (@MainActor (any Action) -> Void)? = nil,
         onRunLoadingAction: (@MainActor (any Action) -> Void)? = nil,
         onRunAI: (@MainActor (String) -> Void)? = nil,
-        onRunAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
+        onRunAIPrompt: (@MainActor (String, Bool, Bool) -> Void)? = nil,
         onSaveAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
         onFollowUp: (@MainActor (String) -> Void)? = nil,
         onCancelFollowUp: (@MainActor () -> Void)? = nil,
@@ -532,15 +532,18 @@ public struct PopupView: View {
                     runAIPreset(prompt: aiManager.promptForPreset(preset), title: preset.title)
                 }
             },
-            onRunAIPrompt: { instruction, replace in
+            onRunAIPrompt: { instruction, replace, includeContext in
                 if let onRunAIPrompt {
                     // Same contract as onRunAI: the controller's flow snapshots the selection and
                     // dismisses the popup itself, so the palette must not exit first.
-                    onRunAIPrompt(instruction, replace)
+                    onRunAIPrompt(instruction, replace, includeContext)
                 } else {
                     // Preview/static fallback: no in-place delivery here, always the card.
                     onExitSearch()
-                    runAIPreset(prompt: PaletteAIPrompt.askAITaskPrompt(for: instruction), title: PaletteAIPrompt.toolTitle(for: instruction))
+                    let taskPrompt = includeContext
+                        ? PaletteAIPrompt.askAITaskPrompt(for: instruction)
+                        : PaletteAIPrompt.standaloneQuestionPrompt(for: instruction)
+                    runAIPreset(prompt: taskPrompt, title: PaletteAIPrompt.toolTitle(for: instruction))
                 }
             },
             onSaveAIPrompt: { instruction, replace in

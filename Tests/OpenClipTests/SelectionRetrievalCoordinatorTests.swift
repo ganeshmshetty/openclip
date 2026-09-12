@@ -940,6 +940,74 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
 
         for task in hungTasks { _ = await task.value }
     }
+
+    // MARK: - Microsoft Office & Copy Guarding (Issue #90)
+
+    func testMicrosoftOfficeCascadesToOfficeScriptAndDoesNotCopy() async {
+        final class CopyCounter: @unchecked Sendable { var count = 0 }
+        let copyCounter = CopyCounter()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            copyCapture: { _ in
+                copyCounter.count += 1
+                return TextResult(text: "clobbered copy")
+            },
+            scriptRunner: { script in
+                XCTAssertTrue(script.contains("com.microsoft.Word"))
+                return "text from word selection"
+            }
+        )
+
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.microsoft.Word"),
+            policy: AppPolicyContext(retrievalMode: .axTextControl),
+            cursor: .unknown
+        )
+
+        XCTAssertEqual(result?.text, "text from word selection")
+        XCTAssertEqual(copyCounter.count, 0, "Office must be retrieved via AppleScript without firing copy")
+    }
+
+    func testMicrosoftOfficeWithMissingValueReturnsNilWithoutFallback() async {
+        final class CopyCounter: @unchecked Sendable { var count = 0 }
+        let copyCounter = CopyCounter()
+        let coordinator = SelectionRetrievalCoordinator(
+            inspect: { Self.textFieldTarget(selectedText: nil) },
+            copyCapture: { _ in
+                copyCounter.count += 1
+                return TextResult(text: "clobbered copy")
+            },
+            scriptRunner: { _ in "missing value" }
+        )
+
+        let result = await coordinator.retrieve(
+            for: AppIdentity(bundleIdentifier: "com.microsoft.Word"),
+            policy: AppPolicyContext(retrievalMode: .axTextControl),
+            cursor: .unknown
+        )
+
+        XCTAssertNil(result, "missing value indicates no active selection in Word")
+        XCTAssertEqual(copyCounter.count, 0, "Must never fall back to keyboard copy in Office")
+    }
+
+    func testMicrosoftOfficeScriptTemplates() {
+        XCTAssertTrue(SelectionRetrievalCoordinator.isMicrosoftOffice("com.microsoft.Word"))
+        XCTAssertTrue(SelectionRetrievalCoordinator.isMicrosoftOffice("com.microsoft.Excel"))
+        XCTAssertTrue(SelectionRetrievalCoordinator.isMicrosoftOffice("com.microsoft.Powerpoint"))
+        XCTAssertFalse(SelectionRetrievalCoordinator.isMicrosoftOffice("com.apple.TextEdit"))
+
+        let wordScript = SelectionRetrievalCoordinator.officeScript(for: "com.microsoft.Word")
+        XCTAssertTrue(wordScript?.contains("com.microsoft.Word") == true)
+        XCTAssertTrue(wordScript?.contains("content of text object of selection") == true)
+
+        let excelScript = SelectionRetrievalCoordinator.officeScript(for: "com.microsoft.Excel")
+        XCTAssertTrue(excelScript?.contains("com.microsoft.Excel") == true)
+        XCTAssertTrue(excelScript?.contains("string value of selection") == true)
+
+        let pptScript = SelectionRetrievalCoordinator.officeScript(for: "com.microsoft.Powerpoint")
+        XCTAssertTrue(pptScript?.contains("com.microsoft.Powerpoint") == true)
+        XCTAssertTrue(pptScript?.contains("content of text range of selection") == true)
+    }
 }
 
 /// Counts started menu presses.

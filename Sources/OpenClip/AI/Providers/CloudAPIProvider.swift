@@ -24,9 +24,9 @@ public final class CloudAPIProvider: AIProvider {
 
     public func processStream(prompt: String, text: String) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
-            let input: String
+            let validated: (prompt: String, text: String)
             do {
-                input = try AIRequestSupport.requireNonEmptyText(text)
+                validated = try AIRequestSupport.validateInput(prompt: prompt, text: text)
             } catch {
                 continuation.finish(throwing: error)
                 return
@@ -37,8 +37,9 @@ public final class CloudAPIProvider: AIProvider {
                 return
             }
 
-            let systemInstruction = AIRequestSupport.systemPrompt(for: prompt)
-            let userContent = AIRequestSupport.userContent(for: input)
+            let hasInputText = !validated.text.isEmpty
+            let systemInstruction = AIRequestSupport.systemPrompt(for: validated.prompt, hasInputText: hasInputText)
+            let userContent = AIRequestSupport.userContent(for: validated.text, fallbackPrompt: validated.prompt)
 
             let streamTask: Task<Void, Never>
             switch serviceProvider {

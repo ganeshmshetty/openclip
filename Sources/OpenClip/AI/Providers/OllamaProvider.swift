@@ -22,9 +22,10 @@ public final class OllamaProvider: AIProvider {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let input = try AIRequestSupport.requireNonEmptyText(text)
-                    let systemInstruction = AIRequestSupport.systemPrompt(for: prompt)
-                    let userContent = AIRequestSupport.userContent(for: input)
+                    let validated = try AIRequestSupport.validateInput(prompt: prompt, text: text)
+                    let hasInputText = !validated.text.isEmpty
+                    let systemInstruction = AIRequestSupport.systemPrompt(for: validated.prompt, hasInputText: hasInputText)
+                    let userContent = AIRequestSupport.userContent(for: validated.text, fallbackPrompt: validated.prompt)
                     let fullPrompt = "\(systemInstruction)\n\n\(userContent)"
 
                     guard let url = URL(string: "\(baseURL)/api/generate") else {

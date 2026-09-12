@@ -14,15 +14,15 @@ import Core
 
 /// Executes AppleScript sources as killable `osascript` subprocesses. `@unchecked Sendable` because
 /// it is a stateless facade — all per-run state lives in ShellProcessRunner locals.
-final class AppleScriptRunner: @unchecked Sendable {
-    static let shared = AppleScriptRunner()
+public final class AppleScriptRunner: @unchecked Sendable {
+    public static let shared = AppleScriptRunner()
 
     private init() {}
 
     /// Runs `source` and returns its trimmed string result. Throws on non-zero exit (stderr text as
     /// the message, matching ShellProcessRunner's error policy) and on watchdog timeout. `timeout`
     /// overrides the default `Constants.scriptTimeout` budget on the subprocess watchdog.
-    func run(_ source: String, timeout: TimeInterval? = nil) async throws -> String {
+    public func run(_ source: String, timeout: TimeInterval? = nil) async throws -> String {
         let invocation = ShellProcessRunner.Invocation(
             executableURL: URL(fileURLWithPath: "/usr/bin/osascript"),
             arguments: ["-e", source],

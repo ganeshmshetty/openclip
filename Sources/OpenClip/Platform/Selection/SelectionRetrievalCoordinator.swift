@@ -15,6 +15,7 @@ public struct SelectionRetrievalCoordinator: Sendable {
     public typealias CopyTrigger = PasteboardCopyEngine.CopyTrigger
     public typealias CopyCapture = @Sendable (CopyTrigger) async -> TextResult?
     public typealias MenuPress = @Sendable (AXUIElement?) -> Void
+    public typealias ScriptRunner = @Sendable (String) async throws -> String
 
     /// Dedicated concurrent queue for blocking AX work (the inspect snapshot and the Edit ▸ Copy
     /// AXPress). Concurrent so a blocked accessibility call cannot prevent later inspectWithWatchdog
@@ -40,18 +41,27 @@ public struct SelectionRetrievalCoordinator: Sendable {
     private let inspect: TargetProvider
     private let copyCapture: CopyCapture
     private let menuPress: MenuPress
+    private let scriptRunner: ScriptRunner
 
-    /// The strategies and the Edit ▸ Copy press are injectable so unit tests can exercise the gate
+    /// The strategies, Edit ▸ Copy press, and script runner are injectable so unit tests can exercise the gate
     /// and mode routing with fixture targets instead of the live accessibility tree (production
     /// defaults run live AX).
     public init(
         inspect: @escaping TargetProvider = { AXElementInspector.inspect() },
         copyCapture: @escaping CopyCapture = Self.defaultCopyCapture,
-        menuPress: @escaping MenuPress = Self.pressEditCopyMenu
+        menuPress: @escaping MenuPress = Self.pressEditCopyMenu,
+        scriptRunner: @escaping ScriptRunner = Self.defaultScriptRunner
     ) {
         self.inspect = inspect
         self.copyCapture = copyCapture
         self.menuPress = menuPress
+        self.scriptRunner = scriptRunner
+    }
+
+    /// Default AppleScript runner for Office selection retrieval.
+    @usableFromInline
+    static func defaultScriptRunner(_ script: String) async throws -> String {
+        try await AppleScriptRunner.shared.run(script, timeout: 0.25)
     }
 
     /// The production copy capture: archive the pasteboard, run the copy trigger, poll for the
@@ -205,7 +215,7 @@ public struct SelectionRetrievalCoordinator: Sendable {
     ) async -> TextResult {
         guard allowCopyFallback else { return result }
         guard result.html == nil && result.rtf == nil else { return result }
-        guard strategy != .keyboardCopy && strategy != .menuCopy else { return result }
+        guard strategy != .keyboardCopy && strategy != .menuCopy && strategy != .officeScript else { return result }
         let bundleIsBrowser = Self.isScriptableBrowser(app.bundleIdentifier)
         guard bundleIsBrowser || target.webArea != nil || target.role == "AXWebArea" else { return result }
         Log.selection.debug("coordinator: text-only web selection; enriching via pasteboard rich capture")
@@ -240,6 +250,15 @@ public struct SelectionRetrievalCoordinator: Sendable {
         DefaultAppRules.nativeApps
     )
 
+    private static let microsoftOfficeBundleIDs: Set<String> = Set(
+        DefaultAppRules.microsoftOfficeGroup
+    )
+
+    public static func isMicrosoftOffice(_ bundleIdentifier: String?) -> Bool {
+        guard let bundleIdentifier else { return false }
+        return microsoftOfficeBundleIDs.contains(bundleIdentifier)
+    }
+
     /// Resolves targeted strategies for `policy.retrievalMode`, providing tiered fallback
     /// where dynamic web content requires it, while strictly confining native controls and terminals
     /// to their direct mechanisms to eliminate redundant double timeouts and false cascades.
@@ -250,6 +269,12 @@ public struct SelectionRetrievalCoordinator: Sendable {
     ) -> [RetrievalStrategy] {
         switch policy.retrievalMode {
         case .axTextControl:
+            // Microsoft Office apps (Word, Excel, PowerPoint) maintain an internal document clipboard;
+            // blind ⌘C clobbers it. Retrieve via native AppleScript object model instead (Issue #90).
+            if let bundleIdentifier, Self.isMicrosoftOffice(bundleIdentifier) {
+                return [.officeScript]
+            }
+
             // Embedded webview (e.g. Apple Mail email body, Help viewer, Xcode documentation) -> web cascade
             if target.webArea != nil || target.role == "AXWebArea" || target.containedInRoles.contains("AXWebArea") {
                 return [.axWebArea, .keyboardCopy]
@@ -311,6 +336,9 @@ public struct SelectionRetrievalCoordinator: Sendable {
         case .browserScript:
             return nil
 
+        case .officeScript:
+            return await runOfficeScript(for: app, target: target)
+
         case .menuCopy, .keyboardCopy:
             // The copy engine is the source of truth for whether a selection existed: it returns nil
             // when the clipboard changeCount never advances or the copied string is empty, so a copy
@@ -326,6 +354,18 @@ public struct SelectionRetrievalCoordinator: Sendable {
                     }
                 }
             case .keyboardCopy:
+                // Guard: If the app has an Edit ▸ Copy menu item, check if it is enabled before
+                // firing a blind ⌘C. When nothing is selected (or when empty space is highlighted),
+                // macOS apps disable Edit ▸ Copy. Firing ⌘C on an empty selection clobbers app-internal
+                // clipboards, triggers system error beeps, and pollutes clipboard managers (Issue #90).
+                if let focusedApp = target.focusedApp,
+                   AXMenuNavigator.findMenuItem(.copy, in: focusedApp, requireEnabled: false) != nil {
+                    let isEnabled = AXMenuNavigator.findMenuItem(.copy, in: focusedApp, requireEnabled: true) != nil
+                    guard isEnabled else {
+                        Log.selection.debug("coordinator: Edit ▸ Copy is disabled; skipping keyboardCopy")
+                        return nil
+                    }
+                }
                 trigger = { SessionEventTapPoster().postKey(keyCode: Constants.copyVirtualKey, flags: .maskCommand) }
             default:
                 return nil
@@ -335,11 +375,40 @@ public struct SelectionRetrievalCoordinator: Sendable {
         }
     }
 
+    /// AppleScript source for Microsoft Office selection retrieval.
+    public static func officeScript(for bundleIdentifier: String) -> String? {
+        switch bundleIdentifier {
+        case "com.microsoft.Word":
+            return "tell application id \"com.microsoft.Word\" to if (count of documents) > 0 then return content of text object of selection"
+        case "com.microsoft.Excel":
+            return "tell application id \"com.microsoft.Excel\" to if (count of workbooks) > 0 then return string value of selection"
+        case "com.microsoft.Powerpoint":
+            return "tell application id \"com.microsoft.Powerpoint\" to if (count of presentations) > 0 then return content of text range of selection"
+        default:
+            return nil
+        }
+    }
+
+    private func runOfficeScript(for app: AppIdentity, target: AXElementInspector.Target) async -> TextResult? {
+        guard let bundleID = app.bundleIdentifier,
+              let script = Self.officeScript(for: bundleID) else { return nil }
+        do {
+            let output = try await scriptRunner(script)
+            let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, trimmed != "missing value" else { return nil }
+            return TextResult(text: trimmed, bounds: target.bounds)
+        } catch {
+            Log.selection.debug("coordinator: office script failed for \(bundleID, privacy: .public): \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     /// A leaf strategy in the fallback cascade.
     private enum RetrievalStrategy: String, Equatable, Sendable {
         case axTextControl = "ax-text-control"
         case axWebArea = "ax-web-area"
         case browserScript = "browser-script"
+        case officeScript = "office-script"
         case menuCopy = "menu-copy"
         case keyboardCopy = "keyboard-copy"
 

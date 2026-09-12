@@ -11,7 +11,9 @@ import Foundation
 
 /// One row of the palette's AI fallback, in display order.
 enum PaletteAIPromptRow: Hashable, CaseIterable {
-    /// Run the typed text as a one-off AI instruction on the selection.
+    /// Run the typed text as an AI instruction transforming the selection.
+    case apply
+    /// Run the typed text as a standalone AI question without selection context.
     case ask
     /// Save the typed text as a custom AI tool, then run it.
     case save
@@ -65,6 +67,18 @@ enum PaletteAIPrompt {
             .joined(separator: " ")
     }
 
+    /// Prompt instruction wrapped with format requirements for standalone questions/tasks.
+    static func standaloneQuestionPrompt(for query: String) -> String {
+        let task = instruction(from: query)
+        return """
+        \(task)
+
+        Format requirements:
+        1. Output a short 2-4 word title for this question/topic inside <title>...</title> tags.
+        2. Output your answer or response inside <result>...</result> tags.
+        """
+    }
+
     /// Prompt instruction wrapped with format requirements to generate a 2-4 word task title.
     static func askAITaskPrompt(for query: String) -> String {
         let task = instruction(from: query)
@@ -109,12 +123,13 @@ enum PaletteAIPrompt {
         return cut.trimmingCharacters(in: .whitespaces) + "…"
     }
 
-    /// The row's display title. The Ask row quotes the query verbatim so it reads as what will be
-    /// sent; the Save row is a fixed label.
-    static func rowTitle(_ row: PaletteAIPromptRow, query: String) -> String {
+    /// The row's display title.
+    static func rowTitle(_ row: PaletteAIPromptRow, query: String = "") -> String {
         switch row {
+        case .apply:
+            return String(localized: "Apply to Selection")
         case .ask:
-            return String(localized: "Ask AI: “\(instruction(from: query))”")
+            return String(localized: "Ask AI")
         case .save:
             return String(localized: "Save and Ask AI")
         }
@@ -123,7 +138,8 @@ enum PaletteAIPrompt {
     /// The row's SF Symbol.
     static func rowSymbol(_ row: PaletteAIPromptRow) -> String {
         switch row {
-        case .ask: return "sparkles"
+        case .apply: return "sparkles"
+        case .ask: return "questionmark.bubble"
         case .save: return "plus.circle"
         }
     }

@@ -20,9 +20,21 @@ public final class BrowserRedirectProvider: AIProvider {
     }
 
     public func process(prompt: String, text: String) async throws -> String {
-        let input = try AIRequestSupport.requireNonEmptyText(text)
-        let instruction = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        let fullQuery = instruction.isEmpty ? input : "\(instruction): \(input)"
+        let validated = try AIRequestSupport.validateInput(prompt: prompt, text: text)
+        let instruction = validated.prompt
+        let input = validated.text
+        let fullQuery: String
+        if input.isEmpty {
+            if let separator = instruction.range(of: "\n\nFormat requirements:") {
+                fullQuery = String(instruction[..<separator.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                fullQuery = instruction
+            }
+        } else if instruction.isEmpty {
+            fullQuery = input
+        } else {
+            fullQuery = "\(instruction): \(input)"
+        }
 
         guard let encodedQuery = fullQuery.addingPercentEncoding(withAllowedCharacters: AIRequestSupport.queryValueAllowed) else {
             throw AIError.invalidURL(fullQuery)

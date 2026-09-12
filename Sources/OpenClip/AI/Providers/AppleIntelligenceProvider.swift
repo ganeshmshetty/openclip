@@ -18,9 +18,9 @@ public final class AppleIntelligenceProvider: AIProvider {
 
     public func processStream(prompt: String, text: String) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
-            let input: String
+            let validated: (prompt: String, text: String)
             do {
-                input = try AIRequestSupport.requireNonEmptyText(text)
+                validated = try AIRequestSupport.validateInput(prompt: prompt, text: text)
             } catch {
                 continuation.finish(throwing: error)
                 return
@@ -31,8 +31,9 @@ public final class AppleIntelligenceProvider: AIProvider {
             if #available(macOS 26.0, *) {
                 let streamTask = Task {
                     do {
-                        let session = LanguageModelSession(instructions: AIRequestSupport.systemPrompt(for: prompt))
-                        let userContent = AIRequestSupport.userContent(for: input)
+                        let hasInputText = !validated.text.isEmpty
+                        let session = LanguageModelSession(instructions: AIRequestSupport.systemPrompt(for: validated.prompt, hasInputText: hasInputText))
+                        let userContent = AIRequestSupport.userContent(for: validated.text, fallbackPrompt: validated.prompt)
                         let response = try await session.respond(to: userContent)
                         try Task.checkCancellation()
                         let content = AIRequestSupport.extractResultText(response.content)

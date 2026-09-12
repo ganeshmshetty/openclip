@@ -152,8 +152,9 @@ public struct ResultCardView: View {
         }
     }
 
-    /// The follow-up field shows whenever a host can run one and the card is not an error.
-    private var showsFollowUp: Bool { onFollowUp != nil && !payload.isError }
+    /// The follow-up field shows whenever a host can run one, the card is not an error,
+    /// and the payload supports follow-up (AI results).
+    private var showsFollowUp: Bool { onFollowUp != nil && !payload.isError && payload.canFollowUp }
 
     public var body: some View {
         cardChrome {
@@ -462,10 +463,12 @@ public struct ResultCardView: View {
         } label: {
             Image(systemName: "arrow.left.arrow.right")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundColor(showsDiff ? .accentColor : PopupThemeModel.restForeground(for: effectiveTheme).opacity(isDiffHovered ? 0.9 : 0.6))
+                .foregroundColor(showsDiff ? .white : PopupThemeModel.restForeground(for: effectiveTheme).opacity(isDiffHovered ? 0.9 : 0.6))
                 .frame(width: 22, height: 22)
                 .background(
-                    showsDiff ? Color.accentColor.opacity(0.14) : (isDiffHovered ? Color.primary.opacity(0.08) : Color.clear),
+                    showsDiff
+                        ? (isDiffHovered ? Color.accentColor.opacity(0.28) : Color.accentColor.opacity(0.20))
+                        : (isDiffHovered ? Color.primary.opacity(0.08) : Color.clear),
                     in: Circle()
                 )
                 .contentShape(Circle())
@@ -482,10 +485,12 @@ public struct ResultCardView: View {
         } label: {
             Image(systemName: isPinned ? "pin.fill" : "pin")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundColor(isPinned ? .accentColor : PopupThemeModel.restForeground(for: effectiveTheme).opacity(isPinHovered ? 0.9 : 0.6))
+                .foregroundColor(isPinned ? .white : PopupThemeModel.restForeground(for: effectiveTheme).opacity(isPinHovered ? 0.9 : 0.6))
                 .frame(width: 22, height: 22)
                 .background(
-                    isPinned ? Color.accentColor.opacity(0.14) : (isPinHovered ? Color.primary.opacity(0.08) : Color.clear),
+                    isPinned
+                        ? (isPinHovered ? Color.accentColor.opacity(0.28) : Color.accentColor.opacity(0.20))
+                        : (isPinHovered ? Color.primary.opacity(0.08) : Color.clear),
                     in: Circle()
                 )
                 .contentShape(Circle())
@@ -662,17 +667,12 @@ public struct ResultCardView: View {
     }
 
     static let followUpMaxWidthCollapsed: CGFloat = 160.0
-    static let followUpMaxWidthExpanded: CGFloat = 280.0
-
-    private var followUpWidthCap: CGFloat {
-        isTypingFollowUp ? Self.followUpMaxWidthExpanded : Self.followUpMaxWidthCollapsed
-    }
 
     private var footer: some View {
         HStack(spacing: 8) {
             if showsFollowUp {
                 followUpField
-                    .frame(maxWidth: followUpWidthCap, alignment: .leading)
+                    .frame(maxWidth: isTypingFollowUp ? .infinity : Self.followUpMaxWidthCollapsed, alignment: .leading)
             }
 
             Spacer(minLength: 0)

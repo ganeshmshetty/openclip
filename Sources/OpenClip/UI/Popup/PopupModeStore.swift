@@ -80,8 +80,10 @@ public struct ResultCardPayload: Sendable, Equatable {
     /// True while a follow-up is in flight and no chunk has arrived yet: `text` is still the
     /// previous answer, shown dimmed under the field's spinner so the card never goes blank.
     public let isRefining: Bool
+    /// True when the result supports AI follow-up refinement (AI results). False for extension/script results.
+    public let canFollowUp: Bool
 
-    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false) {
+    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true) {
         self.text = text
         self.isError = isError
         self.title = title
@@ -89,6 +91,7 @@ public struct ResultCardPayload: Sendable, Equatable {
         self.isStreaming = isStreaming
         self.original = original
         self.isRefining = isRefining
+        self.canFollowUp = canFollowUp
     }
 }
 

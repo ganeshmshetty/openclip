@@ -32,10 +32,10 @@ public struct PopupSearchView: View {
     /// `perform`. Passed the registered AI action id (`ai.preset.<presetID>`); nil disables the
     /// route and falls back to `perform`.
     public let onRunAI: @MainActor (String) -> Void
-    /// Runs an instruction on the selection — the "Ask AI" row (the collapsed query) or a recent
-    /// prompt row. The flag is true to paste the answer over the selection (⇧⏎, ⇧-click) and
+    /// Runs an instruction on the selection (or standalone without context if includeContext is false).
+    /// The flag is true to paste the answer over the selection (⇧⏎, ⇧-click) and
     /// false to show the result card first (⏎, click, ⌘-digit).
-    public let onRunAIPrompt: @MainActor (String, Bool) -> Void
+    public let onRunAIPrompt: @MainActor (String, Bool, Bool) -> Void
     /// Saves the typed query as a reusable AI tool and runs it — the "Save as AI tool" row. Same
     /// flag as `onRunAIPrompt`.
     public let onSaveAIPrompt: @MainActor (String, Bool) -> Void
@@ -147,7 +147,7 @@ public struct PopupSearchView: View {
 
     /// What the list needs to show every current row without scrolling.
     private var naturalHeight: CGFloat {
-        Self.height(forRows: rowCount) + (promptRows.isEmpty ? 0 : Self.hintHeight)
+        Self.height(forRows: rowCount) + (promptRows.isEmpty ? 0 : Self.footerOverlayHeight)
     }
 
     /// The AI rows under the results for the current query: Ask + Save when nothing matched, none otherwise.
@@ -161,7 +161,7 @@ public struct PopupSearchView: View {
         results.count + promptRows.count
     }
 
-    private static let hintHeight: CGFloat = 28
+    private static let footerOverlayHeight: CGFloat = 28.0
 
     static func height(forRows rows: Int) -> CGFloat {
         fieldInset + CGFloat(rows) * PopupMetrics.searchResultRowHeight
@@ -230,7 +230,7 @@ public struct PopupSearchView: View {
         onExit: @escaping @MainActor () -> Void,
         onExitScope: @escaping @MainActor () -> Void = {},
         onRunAI: @escaping @MainActor (String) -> Void = { _ in },
-        onRunAIPrompt: @escaping @MainActor (String, Bool) -> Void = { _, _ in },
+        onRunAIPrompt: @escaping @MainActor (String, Bool, Bool) -> Void = { _, _, _ in },
         onSaveAIPrompt: @escaping @MainActor (String, Bool) -> Void = { _, _ in },
         aiEnabled: Bool = AIServiceManager.shared.isAIEnabled,
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
@@ -287,6 +287,14 @@ public struct PopupSearchView: View {
                 .padding(.horizontal, 10)
                 .padding(.top, 8)
                 .frame(maxWidth: .infinity, alignment: .top)
+
+            if rowCount > 0 {
+                bottomBlurOverlay
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+
+                footerOverlay
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            }
 
             PopupResizeHandles(
                 tint: PopupThemeModel.restForeground(for: effectiveTheme),
@@ -359,6 +367,21 @@ public struct PopupSearchView: View {
             endPoint: .bottom
         )
         .frame(height: 52)
+        .allowsHitTesting(false)
+    }
+
+    private var bottomBlurOverlay: some View {
+        let bg = cardBackgroundColor
+        return LinearGradient(
+            stops: [
+                .init(color: bg.opacity(0.0), location: 0.0),
+                .init(color: bg.opacity(0.85), location: 0.45),
+                .init(color: bg, location: 1.0)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 48)
         .allowsHitTesting(false)
     }
 
@@ -499,17 +522,14 @@ public struct PopupSearchView: View {
                                 .id(item.id)
                         }
                         // The AI rows follow the results (Ask + Save when nothing matched, Save
-                        // alone after recent-prompt matches), with the key hint under them.
+                        // alone after recent-prompt matches).
                         ForEach(Array(promptRows.enumerated()), id: \.element) { offset, row in
                             promptRow(row, index: results.count + offset)
-                        }
-                        if !promptRows.isEmpty {
-                            promptHint
                         }
                     }
                     .padding(.horizontal, 8)
                     .padding(.top, 48)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 38)
                 }
             }
             .frame(height: cardHeight)
@@ -692,51 +712,76 @@ public struct PopupSearchView: View {
         }
     }
 
-    /// The action badges hint under the AI rows (Raycast-style short-named buttons).
-    private var promptHint: some View {
+    private var isSelectedAI: Bool {
+        if selectedIndex >= results.count {
+            return true
+        }
+        guard results.indices.contains(selectedIndex) else { return false }
+        return ActionIdentity.isAIPreset(results[selectedIndex].action)
+    }
+
+    /// The action badges overlay at the bottom of the palette.
+    private var footerOverlay: some View {
         HStack(spacing: 6) {
             Spacer(minLength: 0)
 
-            hintBadge(
-                title: PaletteAIPrompt.secondaryActionTitle(canPaste: modeStore.canPaste),
-                shortcut: "⇧⏎",
-                isAccent: false
-            ) {
-                runSelected(replace: true)
-            }
+            if rowCount > 0 {
+                if isSelectedAI {
+                    hintBadge(
+                        title: PaletteAIPrompt.secondaryActionTitle(canPaste: modeStore.canPaste),
+                        shortcut: "⇧⏎",
+                        isAccent: false
+                    ) {
+                        runSelected(replace: true)
+                    }
 
-            hintBadge(
-                title: PaletteAIPrompt.primaryActionTitle(),
-                shortcut: "⏎",
-                isAccent: true
-            ) {
-                runSelected(replace: false)
+                    hintBadge(
+                        title: PaletteAIPrompt.primaryActionTitle(),
+                        shortcut: "⏎",
+                        isAccent: true
+                    ) {
+                        runSelected(replace: false)
+                    }
+                } else {
+                    hintBadge(
+                        title: "",
+                        shortcut: "⇧⏎",
+                        isAccent: false
+                    ) {
+                        runSelected(replace: true)
+                    }
+
+                    hintBadge(
+                        title: String(localized: "Run"),
+                        shortcut: "⏎",
+                        isAccent: true
+                    ) {
+                        runSelected(replace: false)
+                    }
+                }
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.top, 4)
-        .frame(height: Self.hintHeight)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+        .frame(height: Self.footerOverlayHeight)
+        .animation(.easeInOut(duration: 0.15), value: isSelectedAI)
         .accessibilityHidden(true)
     }
 
     @ViewBuilder
     private func hintBadge(title: String, shortcut: String, isAccent: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Text(title)
-                    .font(.system(size: 11, weight: isAccent ? .semibold : .medium))
-                    .foregroundColor(isAccent ? .white : PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+            HStack(spacing: 4) {
+                if !title.isEmpty {
+                    Text(title)
+                        .font(.system(size: 11, weight: isAccent ? .semibold : .medium))
+                        .foregroundColor(isAccent ? .white : PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                }
                 Text(shortcut)
-                    .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundColor(isAccent ? .white.opacity(0.9) : PopupThemeModel.restSecondary(for: effectiveTheme))
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1.5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 3.5, style: .continuous)
-                            .fill(isAccent ? Color.black.opacity(0.18) : (colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06)))
-                    )
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, title.isEmpty ? 7 : 8)
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -802,7 +847,8 @@ public struct PopupSearchView: View {
             guard promptRows.indices.contains(offset) else { return }
             let instruction = PaletteAIPrompt.instruction(from: query)
             switch promptRows[offset] {
-            case .ask: onRunAIPrompt(instruction, replace)
+            case .apply: onRunAIPrompt(instruction, replace, true)
+            case .ask: onRunAIPrompt(instruction, replace, false)
             case .save: onSaveAIPrompt(instruction, replace)
             }
             return
@@ -839,7 +885,7 @@ public struct PopupSearchView: View {
                         let performContext = ActionContext(
                             selection: context.selection,
                             modifiers: context.modifiers,
-                            isSecondaryClick: onClickIntent() == .secondary,
+                            isSecondaryClick: replace || onClickIntent() == .secondary,
                             match: match
                         )
                         let result = try await action.perform(performContext)
@@ -859,7 +905,7 @@ public struct PopupSearchView: View {
                 let performContext = ActionContext(
                     selection: context.selection,
                     modifiers: context.modifiers,
-                    isSecondaryClick: onClickIntent() == .secondary,
+                    isSecondaryClick: replace || onClickIntent() == .secondary,
                     match: match
                 )
                 let result = try await action.perform(performContext)

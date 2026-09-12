@@ -81,11 +81,10 @@ public enum PopupMetrics {
     /// Fraction of an extra result row shown beyond `searchMaxRows` so the next action peeks,
     /// hinting that the list scrolls.
     public static let searchPeekRowFraction: CGFloat = 0.0
-    /// Smallest size the palette's resize handles allow: the field plus two rows. A remembered
-    /// size (`SettingKey.searchPaletteWidth` / `searchPaletteHeight`) replaces the default column
-    /// and row count above; see `PopupResizeGeometry`.
-    public static let searchPaletteMinWidth: CGFloat = 240
-    public static let searchPaletteMinHeight: CGFloat = 128
+    /// Smallest size the palette's resize handles allow: compacts to the default search bar
+    /// content width (300 pt) and default visible rows height (258 pt) that it has at first.
+    public static let searchPaletteMinWidth: CGFloat = searchPanelContentWidth
+    public static let searchPaletteMinHeight: CGFloat = 258.0
     /// Shared height cap for the popup panel (search palette field + result rows and content cards).
     /// Lifted per session via `PopupPanel.heightCap` while a resizable surface shows.
     public static let popupMaxHeight: CGFloat = 312

@@ -57,6 +57,7 @@ final class ResultCardFollowUpTests: XCTestCase {
         XCTAssertNotNil(try hostedField(ResultCardPayload(text: "A result", isError: false, title: "Rewrite"), followUp: true))
         XCTAssertNil(try hostedField(ResultCardPayload(text: "A result", isError: false, title: "Rewrite"), followUp: false))
         XCTAssertNil(try hostedField(ResultCardPayload(text: "Boom", isError: true, title: "Rewrite"), followUp: true))
+        XCTAssertNil(try hostedField(ResultCardPayload(text: "A result", isError: false, title: "Extension", canFollowUp: false), followUp: true))
     }
 
     private func hostedField(_ payload: ResultCardPayload, followUp: Bool) throws -> NSTextField? {

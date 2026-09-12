@@ -61,6 +61,12 @@ public enum DefaultAppRules: Sendable {
         "company.thebrowser.*"
     ]
     
+    public static let microsoftOfficeGroup: [String] = [
+        "com.microsoft.Word",
+        "com.microsoft.Excel",
+        "com.microsoft.Powerpoint"
+    ]
+    
     public static let nativeApps: [String] = [
         "com.apple.TextEdit",
         "com.apple.mail",

@@ -300,7 +300,7 @@ final class SearchPaletteResizeTests: XCTestCase {
     func testRememberedSizeIsAMaximumForThePalette() {
         let maximum = CGSize(width: 480, height: 360)
         let two = fittingSize(catalog: stubs(2), maxSize: maximum)
-        XCTAssertEqual(two.height, PopupSearchView.height(forRows: 2), accuracy: 1.0, "two results take two rows, not the maximum")
+        XCTAssertEqual(two.height, PopupMetrics.searchPaletteMinHeight, accuracy: 1.0, "two results keep the minimum palette height")
         XCTAssertEqual(two.width, defaultWidth, accuracy: 1.0, "short titles keep the default column")
 
         let twenty = fittingSize(catalog: stubs(20), maxSize: maximum)
@@ -311,7 +311,7 @@ final class SearchPaletteResizeTests: XCTestCase {
         XCTAssertEqual(userSized.height, 360, accuracy: 1.0)
 
         XCTAssertEqual(fittingSize(catalog: stubs(20)).height, defaultHeight, accuracy: 1.0, "without a remembered size the default column is the maximum")
-        XCTAssertEqual(fittingSize(catalog: stubs(2)).height, PopupSearchView.height(forRows: 2), accuracy: 1.0)
+        XCTAssertEqual(fittingSize(catalog: stubs(2)).height, PopupMetrics.searchPaletteMinHeight, accuracy: 1.0)
         XCTAssertEqual(fittingSize(catalog: []).height, PopupMetrics.searchPaletteMinHeight, accuracy: 1.0, "the empty state keeps the minimum")
     }
 

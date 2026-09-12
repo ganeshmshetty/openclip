@@ -162,4 +162,24 @@ final class PaletteAIReplaceTests: XCTestCase {
         XCTAssertEqual(controller.modeStore.resultCard?.text, "ahoj svet")
         XCTAssertEqual(controller.modeStore.resultCard?.title, "Slovak Translation", "uses AI-generated title instead of full prompt")
     }
+
+    func testStandaloneAskAIRunsWithoutSelectionContext() async {
+        let handler = RecordingHandler()
+        let controller = makeController(handler: handler)
+        let provider = FixedProvider(reply: "<title>Capital of Slovakia</title><result>Bratislava</result>")
+        AIServiceManager.shared.providerOverride = provider
+        defer { AIServiceManager.shared.providerOverride = nil }
+        controller.startTestSession(for: selection("should be ignored"), pasteAvailable: true)
+        defer { controller.hide() }
+
+        controller.runAIPrompt("what is the capital of slovakia", replace: false, includeContext: false)
+        _ = await controller.activeStreamingTask?.value
+
+        XCTAssertEqual(provider.lastText, "", "standalone question passes empty text context")
+        XCTAssertEqual(provider.lastPrompt, PaletteAIPrompt.standaloneQuestionPrompt(for: "what is the capital of slovakia"))
+        XCTAssertEqual(controller.modeStore.mode, .content)
+        XCTAssertEqual(controller.modeStore.resultCard?.text, "Bratislava")
+        XCTAssertEqual(controller.modeStore.resultCard?.title, "Capital of Slovakia")
+        XCTAssertNil(controller.modeStore.resultCard?.original, "standalone questions do not have an original text for diff")
+    }
 }

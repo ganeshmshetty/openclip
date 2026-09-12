@@ -14,8 +14,8 @@ final class PaletteAIPromptTests: XCTestCase {
     // MARK: - Rows
 
     func testRowsAppearOnlyForANonBlankQueryWhileAIIsOn() {
-        XCTAssertEqual(PaletteAIPrompt.rows(for: "rewrite to slovak", aiEnabled: true, results: .none), [.ask, .save])
-        XCTAssertEqual(PaletteAIPrompt.rows(for: "x", aiEnabled: true, results: .none), [.ask, .save])
+        XCTAssertEqual(PaletteAIPrompt.rows(for: "rewrite to slovak", aiEnabled: true, results: .none), [.apply, .ask, .save])
+        XCTAssertEqual(PaletteAIPrompt.rows(for: "x", aiEnabled: true, results: .none), [.apply, .ask, .save])
         XCTAssertTrue(PaletteAIPrompt.rows(for: "", aiEnabled: true, results: .none).isEmpty)
         XCTAssertTrue(PaletteAIPrompt.rows(for: "   \n", aiEnabled: true, results: .none).isEmpty, "whitespace is not a prompt")
         XCTAssertTrue(PaletteAIPrompt.rows(for: "rewrite to slovak", aiEnabled: false, results: .none).isEmpty,
@@ -23,14 +23,14 @@ final class PaletteAIPromptTests: XCTestCase {
     }
 
     func testRowsFollowWhatMatched() {
-        XCTAssertEqual(PaletteAIPrompt.rows(for: "slovak", aiEnabled: true, results: .none), [.ask, .save],
-                       "when nothing matched, Ask and Save are offered")
+        XCTAssertEqual(PaletteAIPrompt.rows(for: "slovak", aiEnabled: true, results: .none), [.apply, .ask, .save],
+                       "when nothing matched, Apply, Ask and Save are offered")
         XCTAssertTrue(PaletteAIPrompt.rows(for: "copy", aiEnabled: true, results: .actions).isEmpty,
                       "real matches leave no room for AI rows")
     }
 
-    func testAskRowIsFirstSoCommandOneRunsIt() {
-        XCTAssertEqual(PaletteAIPrompt.rows(for: "q", aiEnabled: true, results: .none).first, .ask)
+    func testApplyRowIsFirstSoCommandOneRunsIt() {
+        XCTAssertEqual(PaletteAIPrompt.rows(for: "q", aiEnabled: true, results: .none).first, .apply)
     }
 
     func testHintNamesTheDeliveryTheTargetAllows() {
@@ -77,9 +77,16 @@ final class PaletteAIPromptTests: XCTestCase {
         XCTAssertEqual(PaletteAIPrompt.toolTitle(for: prompt), "B" + String(repeating: "b", count: PaletteAIPrompt.maxToolTitleLength - 1))
     }
 
-    func testRowTitlesQuoteTheQueryForAskOnly() {
-        XCTAssertTrue(PaletteAIPrompt.rowTitle(.ask, query: "  rewrite  to slovak").contains("“rewrite to slovak”"))
-        XCTAssertEqual(PaletteAIPrompt.rowTitle(.save, query: "rewrite to slovak"), "Save and Ask AI")
+    func testRowTitles() {
+        XCTAssertEqual(PaletteAIPrompt.rowTitle(.apply), "Apply to Selection")
+        XCTAssertEqual(PaletteAIPrompt.rowTitle(.ask), "Ask AI")
+        XCTAssertEqual(PaletteAIPrompt.rowTitle(.save), "Save and Ask AI")
+    }
+
+    func testRowSymbols() {
+        XCTAssertEqual(PaletteAIPrompt.rowSymbol(.apply), "sparkles")
+        XCTAssertEqual(PaletteAIPrompt.rowSymbol(.ask), "questionmark.bubble")
+        XCTAssertEqual(PaletteAIPrompt.rowSymbol(.save), "plus.circle")
     }
 
     // MARK: - Preset factory
@@ -131,7 +138,9 @@ final class PaletteAIPromptTests: XCTestCase {
             onResult: { _ in recorder.events.append("result") },
             onExit: { recorder.events.append("exit") },
             onRunAI: { _ in recorder.events.append("run-ai") },
-            onRunAIPrompt: { recorder.events.append("ask:\($0):\($1 ? "replace" : "card")") },
+            onRunAIPrompt: { instruction, replace, includeContext in
+                recorder.events.append("\(includeContext ? "apply" : "ask"):\(instruction):\(replace ? "replace" : "card")")
+            },
             onSaveAIPrompt: { recorder.events.append("save:\($0):\($1 ? "replace" : "card")") },
             aiEnabled: aiEnabled
         )
@@ -176,20 +185,26 @@ final class PaletteAIPromptTests: XCTestCase {
         XCTAssertTrue(panel.performKeyEquivalent(with: event), "⌘\(digit) must reach the palette")
     }
 
-    func testCommandOneOnANonMatchingQueryAsksAI() throws {
+    func testCommandOneOnANonMatchingQueryAppliesToSelection() throws {
         let recorder = Recorder()
         try drivePalette(query: "rewrite  to slovak", press: { try commandDigit("1", keyCode: 18, in: $0) }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:card"],
+        XCTAssertEqual(recorder.events, ["apply:rewrite to slovak:card"],
                        "the query is the instruction, collapsed; ⌘1 shows the card; nothing may perform or exit first")
     }
 
-    func testCommandTwoOnANonMatchingQuerySavesTheTool() throws {
+    func testCommandTwoOnANonMatchingQueryAsksAIStandalone() throws {
         let recorder = Recorder()
         try drivePalette(query: "rewrite to slovak", press: { try commandDigit("2", keyCode: 19, in: $0) }, recorder: recorder)
+        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:card"])
+    }
+
+    func testCommandThreeOnANonMatchingQuerySavesTheTool() throws {
+        let recorder = Recorder()
+        try drivePalette(query: "rewrite to slovak", press: { try commandDigit("3", keyCode: 20, in: $0) }, recorder: recorder)
         XCTAssertEqual(recorder.events, ["save:rewrite to slovak:card"])
     }
 
-    func testReturnRunsTheAskRowByDefault() throws {
+    func testReturnRunsTheApplyRowByDefault() throws {
         let recorder = Recorder()
         try drivePalette(query: "rewrite to slovak", press: { panel in
             let event = try XCTUnwrap(NSEvent.keyEvent(
@@ -199,7 +214,7 @@ final class PaletteAIPromptTests: XCTestCase {
             ))
             panel.sendEvent(event)
         }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:card"], "⏎ shows the result card")
+        XCTAssertEqual(recorder.events, ["apply:rewrite to slovak:card"], "⏎ shows the result card")
     }
 
     func testShiftReturnReplacesTheSelectionInstead() throws {
@@ -212,7 +227,7 @@ final class PaletteAIPromptTests: XCTestCase {
             ))
             panel.sendEvent(event)
         }, recorder: recorder)
-        XCTAssertEqual(recorder.events, ["ask:rewrite to slovak:replace"], "⇧⏎ pastes over the selection")
+        XCTAssertEqual(recorder.events, ["apply:rewrite to slovak:replace"], "⇧⏎ pastes over the selection")
     }
 
     func testAMatchingQueryStillRunsTheActionNotAI() throws {

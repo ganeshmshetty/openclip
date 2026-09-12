@@ -360,8 +360,8 @@ public class PopupWindowController {
                 let prompt = AIServiceManager.shared.promptForPreset(preset)
                 self.runAIPreset(prompt: prompt, title: preset.title)
             },
-            onRunAIPrompt: { [weak self] instruction, replace in
-                self?.runAIPrompt(instruction, replace: replace)
+            onRunAIPrompt: { [weak self] instruction, replace, includeContext in
+                self?.runAIPrompt(instruction, replace: replace, includeContext: includeContext)
             },
             onSaveAIPrompt: { [weak self] instruction, replace in
                 self?.saveAndRunAIPrompt(instruction, replace: replace)
@@ -636,12 +636,23 @@ public class PopupWindowController {
     /// never OpenClip itself. Deliveries
     /// are session-stamped: a chunk from an abandoned stream is dropped instead of hijacking the
     /// current popup into content mode. Internal for tests.
-    func showResultCard(text: String, isError: Bool, title: String, icon: ActionIcon? = nil, isStreaming: Bool = false, session: UUID) {
+    func showResultCard(
+        text: String,
+        isError: Bool,
+        title: String,
+        icon: ActionIcon? = nil,
+        isStreaming: Bool = false,
+        session: UUID,
+        originalText: String? = nil,
+        overrideOriginal: Bool = false,
+        canFollowUp: Bool = true
+    ) {
         guard session == aiSessionID else { return }
         if toastController.isLoading {
             toastController.hide()
         }
         modeStore.isProcessingAI = isStreaming
+        let original = overrideOriginal ? originalText : currentActionContext?.selection.text
         // The selection the action ran on rides along so the card can diff input → output.
         modeStore.resultCard = ResultCardPayload(
             text: text,
@@ -649,7 +660,8 @@ public class PopupWindowController {
             title: title,
             icon: icon,
             isStreaming: isStreaming,
-            original: currentActionContext?.selection.text
+            original: original,
+            canFollowUp: canFollowUp
         )
         if !isStreaming {
             // A settled card hands the keyboard to its instruction field so the next refinement
@@ -1586,18 +1598,22 @@ public class PopupWindowController {
     /// app the selection came from. Settable for tests.
     var frontmostBundleIDProvider: @MainActor () -> String? = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
 
-    /// Runs a palette instruction (the Ask AI row) on the selection. `replace` pastes the answer over the selection (⏎); otherwise
-    /// the answer streams into the result card (⇧⏎), titled after the instruction.
-    func runAIPrompt(_ instruction: String, replace: Bool) {
+    /// Runs a palette instruction on the selection (or standalone without context if `includeContext` is false).
+    /// `replace` pastes the answer over the selection (⏎); otherwise the answer streams into the result card (⇧⏎),
+    /// titled after the instruction.
+    func runAIPrompt(_ instruction: String, replace: Bool, includeContext: Bool = true) {
         let prompt = PaletteAIPrompt.instruction(from: instruction)
         guard !prompt.isEmpty else { return }
-        let taskPrompt = PaletteAIPrompt.askAITaskPrompt(for: prompt)
+        let taskPrompt = includeContext
+            ? PaletteAIPrompt.askAITaskPrompt(for: prompt)
+            : PaletteAIPrompt.standaloneQuestionPrompt(for: prompt)
+        let inputText: String? = includeContext ? nil : ""
         if replace {
             Log.ai.notice("Running a palette AI prompt, replacing the selection")
-            runAIPromptReplacing(prompt: taskPrompt)
+            runAIPromptReplacing(prompt: taskPrompt, inputText: inputText)
         } else {
             Log.ai.notice("Running a palette AI prompt into the result card")
-            runAIPreset(prompt: taskPrompt, title: PaletteAIPrompt.toolTitle(for: prompt))
+            runAIPreset(prompt: taskPrompt, title: PaletteAIPrompt.toolTitle(for: prompt), inputText: inputText)
         }
     }
 
@@ -1646,7 +1662,7 @@ public class PopupWindowController {
     /// the explicit paste door (`handleActionResult(.paste)`, no delivery re-decision) under a
     /// success toast. The answer is copied instead when the unified paste availability says the
     /// target can't paste, or when the frontmost app is no longer the selection's app.
-    func runAIPromptReplacing(prompt: String, loadingMessage: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
+    func runAIPromptReplacing(prompt: String, loadingMessage: String? = nil, inputText: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
         guard let context = currentActionContext else {
             Log.ai.error("Cannot replace with AI: currentActionContext is nil")
             return
@@ -1655,6 +1671,7 @@ public class PopupWindowController {
         activeStreamingTask = nil
 
         let selection = context.selection
+        let selectionText = inputText ?? selection.text
         let anchorFrame = panel?.frame ?? lastPopupFrame
         let targetCanPaste = PasteAvailability.effective(policy: selection.appPolicy, probe: modeStore.canPaste)
         let sourceBundleID = selection.sourceApp.bundleIdentifier
@@ -1676,7 +1693,7 @@ public class PopupWindowController {
             do {
                 let provider = AIServiceManager.shared.currentProvider
                 var accumulated = ""
-                for try await chunk in provider.processStream(prompt: prompt, text: selection.text) {
+                for try await chunk in provider.processStream(prompt: prompt, text: selectionText) {
                     guard !Task.isCancelled, session == self.aiSessionID else {
                         self.toastController.hide()
                         return
@@ -1755,7 +1772,7 @@ public class PopupWindowController {
         let sourceText = previous.text
         // The history rides along as labelled context; the current instruction stays the task.
         let conversation = cardConversation
-            ?? AIConversation(original: currentActionContext?.selection.text ?? sourceText, steps: [])
+            ?? AIConversation(original: previous.original ?? sourceText, steps: [])
         let followUpTask = conversation.followUpTask(current: prompt)
         refiningPrevious = previous
         modeStore.isProcessingAI = true
@@ -1766,7 +1783,7 @@ public class PopupWindowController {
             title: title,
             icon: nil,
             isStreaming: true,
-            original: currentActionContext?.selection.text,
+            original: previous.original,
             isRefining: true
         )
 
@@ -1803,7 +1820,7 @@ public class PopupWindowController {
                     }
                     let cleaned = AIRequestSupport.extractResultText(accumulated)
                     if !cleaned.isEmpty {
-                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session)
+                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session, originalText: previous.original, overrideOriginal: true)
                     }
                 }
                 guard stillRefining() else { return }
@@ -1817,7 +1834,7 @@ public class PopupWindowController {
                 } else {
                     self.refiningPrevious = nil
                     self.cardConversation = conversation.appending(instruction: prompt, result: finalResponse)
-                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session)
+                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session, originalText: previous.original, overrideOriginal: true)
                 }
             } catch is CancellationError {
                 // cancelFollowUp / hide already put the card back or took it down.
@@ -1858,7 +1875,7 @@ public class PopupWindowController {
         guard let previous = refiningPrevious else { return }
         refiningPrevious = nil
         modeStore.isProcessingAI = false
-        showResultCard(text: previous.text, isError: previous.isError, title: previous.title, icon: previous.icon, isStreaming: false, session: aiSessionID)
+        showResultCard(text: previous.text, isError: previous.isError, title: previous.title, icon: previous.icon, isStreaming: false, session: aiSessionID, originalText: previous.original, overrideOriginal: true, canFollowUp: previous.canFollowUp)
     }
 
     /// Esc while a follow-up streams: stop it and keep the previous answer on screen.
@@ -1899,6 +1916,8 @@ public class PopupWindowController {
 
         let selection = context.selection
         let selectionText = inputText ?? selection.text
+        let originalForCard = inputText != nil ? (inputText!.isEmpty ? nil : inputText) : nil
+        let overrideOriginal = inputText != nil
         let anchorFrame = panel?.frame ?? lastPopupFrame
         let targetCanPaste = PasteAvailability.effective(policy: selection.appPolicy, probe: modeStore.canPaste)
 
@@ -1955,7 +1974,7 @@ public class PopupWindowController {
                             guard !Task.isCancelled, session == self.aiSessionID else { return }
                             self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
                         }
-                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session)
+                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal)
                     }
                 }
 
@@ -1974,7 +1993,7 @@ public class PopupWindowController {
                         let canPaste = targetCanPaste
                         guard !Task.isCancelled, session == self.aiSessionID else { return }
                         self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
-                        self.showResultCard(text: "No response generated", isError: true, title: activeTitle, isStreaming: false, session: session)
+                        self.showResultCard(text: "No response generated", isError: true, title: activeTitle, isStreaming: false, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal)
                     }
                 } else {
                     if !hasYielded {
@@ -1986,8 +2005,10 @@ public class PopupWindowController {
                     // (refineCard) extend it.
                     if inputText == nil {
                         self.cardConversation = AIConversation(original: selectionText, steps: [.init(instruction: prompt, result: finalResponse)])
+                    } else {
+                        self.cardConversation = AIConversation(original: finalResponse, steps: [.init(instruction: prompt, result: finalResponse)])
                     }
-                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session)
+                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal)
                 }
             } catch is CancellationError {
                 Log.ai.info("AI streaming cancelled")
@@ -2005,7 +2026,7 @@ public class PopupWindowController {
                     self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
                 }
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                self.showResultCard(text: message, isError: true, title: title, isStreaming: false, session: session)
+                self.showResultCard(text: message, isError: true, title: title, isStreaming: false, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal)
             }
         }
         activeStreamingTask = task
@@ -2141,7 +2162,7 @@ public class PopupWindowController {
                     if modeStore.canPaste == nil {
                         modeStore.canPaste = await pasteProbe.canPaste(in: delivery?.application, policy: delivery?.policy ?? .default) ?? false
                     }
-                    showResultCard(text: text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID)
+                    showResultCard(text: text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID, canFollowUp: false)
                     return
                 }
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
@@ -2417,7 +2438,7 @@ public class PopupWindowController {
                     if let selection = delivery.selection {
                         let canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
                         show(for: selection, pasteAvailable: canPaste)
-                        showResultCard(text: text, isError: false, title: delivery.actionTitle ?? "Action", icon: delivery.actionIcon, session: aiSessionID)
+                        showResultCard(text: text, isError: false, title: delivery.actionTitle ?? "Action", icon: delivery.actionIcon, session: aiSessionID, canFollowUp: false)
                     }
                     return
                 }
