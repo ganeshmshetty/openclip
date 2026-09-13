@@ -41,8 +41,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
         switch self {
         case .general: return .general
         case .appearance: return .appearance
-        case .actions: return .customize
-        case .shortcuts: return .shortcuts
+        case .actions, .shortcuts: return .customize
         case .ai: return .ai
         case .store: return .store
         case .appRules: return .appRules
@@ -54,7 +53,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
 @MainActor
 public struct PreferencesView: View {
     /// Widest the Customize list grows; the grouped `Form` pages set their own width.
-    private static let customizeListMaxWidth: CGFloat = 640
+    private static let customizeListMaxWidth: CGFloat = 880
 
     @State private var disabledActionIDs: Set<String> = []
     @State private var disabledPackages: Set<String> = []
@@ -496,15 +495,14 @@ public struct PreferencesView: View {
             GeneralTab()
         case .appearance:
             AppearanceTab()
-        case .customize:
-            CustomizePage(selectedRowIDs: $selectedRowIDs)
-                .frame(maxWidth: Self.customizeListMaxWidth)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .shortcuts:
-            ShortcutsPage(
+        case .customize, .shortcuts:
+            CustomizePage(
+                selectedRowIDs: $selectedRowIDs,
                 disabledActionIDs: $disabledActionIDs,
                 disabledPackages: $disabledPackages
             )
+            .frame(maxWidth: Self.customizeListMaxWidth)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .appRules:
             AppRulesTab()
         case .store:
@@ -514,12 +512,19 @@ public struct PreferencesView: View {
         case .ai:
             AIPage()
         case .extensionPackage(let id):
-            ExtensionPackagePage(
-                packageID: id,
-                details: packageDetails?.packageID == id ? packageDetails : nil,
-                disabledActionIDs: $disabledActionIDs,
-                disabledPackages: $disabledPackages
-            )
+            if let info = InstalledExtensionInfo.info(for: id, in: coordinator.actions),
+               info.commands.count == 1,
+               !info.isGroup,
+               let singleAction = info.commands.first {
+                ActionEditorPage(action: singleAction, isSidebarPage: true)
+            } else {
+                ExtensionPackagePage(
+                    packageID: id,
+                    details: packageDetails?.packageID == id ? packageDetails : nil,
+                    disabledActionIDs: $disabledActionIDs,
+                    disabledPackages: $disabledPackages
+                )
+            }
         case .builtinAction(let id):
             if let action = coordinator.actions.first(where: { $0.id == id }) {
                 ActionEditorPage(action: action, isSidebarPage: true)

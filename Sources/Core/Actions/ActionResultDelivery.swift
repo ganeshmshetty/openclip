@@ -23,7 +23,7 @@ import Foundation
 /// "When an action returns text"). `.preview` renders the text in the AI result card;
 /// `.paste`/`.copy` deliver it directly. Core never reads the setting itself — the controller
 /// injects the per-click value into `resolve`.
-public enum ResultDeliveryPreference: String, CaseIterable, Sendable, Equatable {
+public enum ResultDeliveryPreference: String, CaseIterable, Sendable, Equatable, Codable {
     case preview
     case paste
     case copy

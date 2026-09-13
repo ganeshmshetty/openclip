@@ -167,79 +167,182 @@ struct ExtensionCardView: View {
 
             // Right Action Buttons
             HStack(spacing: 8) {
-                if isInstalled {
-                    if updateManager.updatablePackageIDs.contains(item.id) {
-                        Button(action: {
-                            isUpdating = true
-                            installError = nil
-                            Task {
-                                do {
-                                    try await updateManager.update(packageID: item.id)
-                                } catch {
-                                    installError = error.localizedDescription
-                                }
-                                isUpdating = false
-                                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
-                            }
-                        }) {
-                            Label(isUpdating ? String(localized: "Updating…") : String(localized: "Update"), systemImage: "arrow.down.circle")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .disabled(isUpdating)
-                    }
-
-                    Button(isUninstalling ? String(localized: "Removing…") : String(localized: "Remove")) {
-                        if let action = matchingInstalledAction {
-                            isUninstalling = true
-                            installError = nil
-                            Task {
-                                do {
-                                    try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
-                                } catch {
-                                    installError = error.localizedDescription
-                                    Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
-                                }
-                                isUninstalling = false
-                                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
-                            }
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .frame(minWidth: 64)
-                    .disabled(isUninstalling)
-                    .help(String(localized: "Remove \(item.name)"))
-                    .accessibilityLabel(String(localized: "Remove \(item.name)"))
-                } else {
-                    Button(isInstalling ? String(localized: "Installing…") : String(localized: "Install")) {
-                        guard let url = URL(string: item.downloadURL) else {
-                            installError = String(localized: "Invalid download URL.")
-                            return
-                        }
-                        isInstalling = true
+                if isInstalled, updateManager.updatablePackageIDs.contains(item.id) {
+                    Button(action: {
+                        isUpdating = true
                         installError = nil
                         Task {
                             do {
-                                ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
-                                _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
-                                await updateManager.checkForUpdates()
-                                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                                try await updateManager.update(packageID: item.id)
                             } catch {
                                 installError = error.localizedDescription
                             }
-                            isInstalling = false
+                            isUpdating = false
+                            NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
                         }
+                    }) {
+                        Label(isUpdating ? String(localized: "Updating…") : String(localized: "Update"), systemImage: "arrow.down.circle")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
-                    .frame(minWidth: 64)
-                    .disabled(isInstalling)
+                    .disabled(isUpdating)
                 }
+
+                StoreActionButton(
+                    item: item,
+                    isInstalled: isInstalled,
+                    isInstalling: isInstalling,
+                    isUninstalling: isUninstalling,
+                    onInstall: {
+                        performInstall()
+                    },
+                    onUninstall: {
+                        performUninstall()
+                    }
+                )
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .contentShape(Rectangle())
+    }
+
+    private func performInstall() {
+        guard let url = URL(string: item.downloadURL) else {
+            installError = String(localized: "Invalid download URL.")
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isInstalling = true
+        }
+        installError = nil
+        Task {
+            let startTime = Date()
+            do {
+                ExtensionManager.shared.prepareInstall(source: "store", packageID: item.id)
+                _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(url, extensionID: item.id)
+                await updateManager.checkForUpdates()
+            } catch {
+                installError = error.localizedDescription
+            }
+            let elapsed = Date().timeIntervalSince(startTime)
+            if elapsed < 0.3 {
+                try? await Task.sleep(nanoseconds: UInt64((0.3 - elapsed) * 1_000_000_000))
+            }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isInstalling = false
+            }
+            NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+        }
+    }
+
+    private func performUninstall() {
+        guard let action = matchingInstalledAction else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isUninstalling = true
+        }
+        installError = nil
+        Task {
+            let startTime = Date()
+            do {
+                try await ExtensionManager.shared.uninstallExtension(actionID: action.id)
+            } catch {
+                installError = error.localizedDescription
+                Log.extensions.error("Failed to uninstall extension '\(action.id, privacy: .public)': \(error.localizedDescription)")
+            }
+            let elapsed = Date().timeIntervalSince(startTime)
+            if elapsed < 0.3 {
+                try? await Task.sleep(nanoseconds: UInt64((0.3 - elapsed) * 1_000_000_000))
+            }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isUninstalling = false
+            }
+            NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+        }
+    }
+}
+
+// MARK: - Store Action Button
+
+private struct StoreActionButton: View {
+    let item: ExtensionItem
+    let isInstalled: Bool
+    let isInstalling: Bool
+    let isUninstalling: Bool
+    let onInstall: () -> Void
+    let onUninstall: () -> Void
+
+    private var isLoading: Bool {
+        isInstalling || isUninstalling
+    }
+
+    var body: some View {
+        Button {
+            if isInstalled {
+                onUninstall()
+            } else {
+                onInstall()
+            }
+        } label: {
+            ZStack {
+                if isInstalling {
+                    SpinningArc(color: .white)
+                        .transition(.opacity)
+                } else if isUninstalling {
+                    SpinningArc(color: .secondary)
+                        .transition(.opacity)
+                } else if isInstalled {
+                    Image(systemName: "trash")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .transition(.opacity)
+                } else {
+                    Image(systemName: "arrow.down.to.line")
+                        .font(.system(size: 11.5, weight: .bold))
+                        .foregroundStyle(.white)
+                        .transition(.opacity)
+                }
+            }
+            .frame(width: 26, height: 26)
+            .background(
+                RoundedRectangle(cornerRadius: 6.5, style: .continuous)
+                    .fill(isInstalled ? Color.primary.opacity(0.06) : Color.accentColor)
+            )
+        }
+        .buttonStyle(StoreActionButtonStyle())
+        .disabled(isLoading)
+        .animation(.easeInOut(duration: 0.2), value: isInstalled)
+        .animation(.easeInOut(duration: 0.2), value: isLoading)
+        .help(isInstalled ? String(localized: "Remove \(item.name)") : String(localized: "Install \(item.name)"))
+        .accessibilityLabel(isInstalled ? String(localized: "Remove \(item.name)") : String(localized: "Install \(item.name)"))
+    }
+}
+
+// MARK: - Store Action Button Style
+
+private struct StoreActionButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.75 : 1.0)
+    }
+}
+
+// MARK: - Spinning Arc
+
+private struct SpinningArc: View {
+    let color: Color
+    @State private var isSpinning = false
+
+    var body: some View {
+        Circle()
+            .trim(from: 0.08, to: 0.82)
+            .stroke(color, style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
+            .frame(width: 12, height: 12)
+            .rotationEffect(.degrees(isSpinning ? 360 : 0))
+            .onAppear {
+                withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
+                    isSpinning = true
+                }
+            }
     }
 }

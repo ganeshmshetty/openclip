@@ -25,11 +25,18 @@ public struct ActionOverride: Codable, Sendable, Equatable {
     public var customTitle: String?
     public var customIconSymbol: String?
     public var customIconText: String?
+    public var deliveryPreference: ResultDeliveryPreference?
     
-    public init(customTitle: String? = nil, customIconSymbol: String? = nil, customIconText: String? = nil) {
+    public init(
+        customTitle: String? = nil,
+        customIconSymbol: String? = nil,
+        customIconText: String? = nil,
+        deliveryPreference: ResultDeliveryPreference? = nil
+    ) {
         self.customTitle = customTitle
         self.customIconSymbol = customIconSymbol
         self.customIconText = customIconText
+        self.deliveryPreference = deliveryPreference
     }
 }
 
@@ -70,12 +77,31 @@ public final class ActionCustomizationManager: ObservableObject, ActionPresentin
         let trimmedText = text?.trimmingCharacters(in: .whitespacesAndNewlines)
         existing.customIconText = (trimmedText?.isEmpty == false) ? trimmedText : nil
         
-        if existing.customTitle == nil && existing.customIconSymbol == nil && existing.customIconText == nil {
+        if existing.customTitle == nil
+            && existing.customIconSymbol == nil
+            && existing.customIconText == nil
+            && existing.deliveryPreference == nil {
             overrides.removeValue(forKey: actionID)
         } else {
             overrides[actionID] = existing
         }
         
+        saveOverrides()
+    }
+
+    public func setDeliveryPreference(_ preference: ResultDeliveryPreference?, for actionID: String) {
+        var existing = overrides[actionID] ?? ActionOverride()
+        existing.deliveryPreference = preference
+
+        if existing.customTitle == nil
+            && existing.customIconSymbol == nil
+            && existing.customIconText == nil
+            && existing.deliveryPreference == nil {
+            overrides.removeValue(forKey: actionID)
+        } else {
+            overrides[actionID] = existing
+        }
+
         saveOverrides()
     }
     

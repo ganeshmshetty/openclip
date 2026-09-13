@@ -50,6 +50,11 @@ enum SettingsDestination {
             if action.chrome.popupBehavior == .showSubActions {
                 return [.extensionPackage(id: packageID)]
             }
+            if let info = InstalledExtensionInfo.info(for: packageID, in: ActionCoordinator.shared.actions),
+               info.commands.count == 1,
+               !info.isGroup {
+                return [.extensionPackage(id: packageID)]
+            }
             return [.extensionPackage(id: packageID), .action(id: action.id)]
         }
         if action.chrome.rowStyle == .actionGroup {

@@ -72,16 +72,12 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         OpenSelectionMonitor.holdStationary(downPoint: downPoint, pointer: pointer, buttonPressed: buttonPressed)
     }
     
-    internal var innerMonitor: OpenSelectionMonitor
-
     internal init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
         self.settingsStore = settingsStore
-        self.innerMonitor = OpenSelection.monitor()
     }
     
     internal func start() {
         guard monitor == nil else { return }
-        innerMonitor.start()
         
         mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
             let point = NSEvent.mouseLocation
@@ -155,7 +151,6 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     }
 
     internal func stop() {
-        innerMonitor.stop()
         debounceTask?.cancel()
         debounceTask = nil
         mouseHoldTask?.cancel()

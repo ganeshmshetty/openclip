@@ -12,6 +12,7 @@ struct NativeSearchField: NSViewRepresentable {
     @Binding var text: String
     var placeholder: String
     var controlSize: NSControl.ControlSize = .regular
+    var focusRingType: NSFocusRingType = .default
     /// Called when the user presses Return; searches that are too expensive to
     /// run per keystroke (the Iconify catalog) hang off this instead of `text`.
     var onSubmit: ((String) -> Void)?
@@ -20,7 +21,11 @@ struct NativeSearchField: NSViewRepresentable {
         let field = NSSearchField()
         field.placeholderString = placeholder
         field.controlSize = controlSize
+        field.bezelStyle = .roundedBezel
+        field.focusRingType = focusRingType
         field.font = .systemFont(ofSize: NSFont.systemFontSize(for: controlSize))
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         field.delegate = context.coordinator
         field.target = context.coordinator
         field.action = #selector(Coordinator.searchFieldDidSubmit(_:))
@@ -32,6 +37,10 @@ struct NativeSearchField: NSViewRepresentable {
     func updateNSView(_ field: NSSearchField, context: Context) {
         context.coordinator.parent = self
         field.placeholderString = placeholder
+        field.controlSize = controlSize
+        field.focusRingType = focusRingType
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         if field.stringValue != text {
             field.stringValue = text
         }

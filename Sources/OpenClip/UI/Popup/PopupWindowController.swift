@@ -2053,12 +2053,14 @@ public class PopupWindowController {
         let title = action?.title ?? pendingActionTitle
         let icon = action?.displayIcon(using: ActionCustomizationManager.shared) ?? pendingActionIcon
         let targetApp = previousFrontmostApp ?? (frontmostApplicationProvider()?.bundleIdentifier != Bundle.main.bundleIdentifier ? frontmostApplicationProvider() : previousFrontmostApp)
+        let customPref = action.flatMap { ActionCustomizationManager.shared.override(for: $0.id)?.deliveryPreference }
+        let effectivePref = (intent == .primary && customPref != nil) ? customPref! : preference(for: intent)
         return DeliveryContext(
             policy: currentActionContext?.selection.appPolicy ?? .default,
             clickIntent: intent,
             delivery: actionDelivery,
             application: targetApp,
-            preference: preference(for: intent),
+            preference: effectivePref,
             actionTitle: title,
             actionIcon: icon,
             selection: currentActionContext?.selection

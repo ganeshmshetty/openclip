@@ -577,9 +577,9 @@ private struct ExtensionCardSkeletonRow: View {
 
             Spacer()
 
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: 6.5, style: .continuous)
                 .fill(Color.primary.opacity(0.07))
-                .frame(width: 64, height: 24)
+                .frame(width: 26, height: 26)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

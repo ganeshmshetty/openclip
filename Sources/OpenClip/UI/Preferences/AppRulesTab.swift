@@ -17,14 +17,16 @@ public struct AppRulesTab: View {
             Section {
                 if ruleEngine.userRules.isEmpty {
                     ContentUnavailableView {
-                        Label("No App Rules Configured", systemImage: "app.badge.checkmark")
+                        Label("No App Rules Configured", systemImage: "shield")
                     } description: {
                         Text("OpenClip works in all applications by default. Add an application to configure per-app rules or exclusions.")
+                            .multilineTextAlignment(.center)
                     } actions: {
                         // Adding is a page, not a sheet — the same Add the toolbar's + opens.
                         Button("Add Application") { SettingsRouter.shared.push(.addApplication) }
                     }
-                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
                 } else {
                     ForEach(ruleEngine.userRules) { rule in
                         AppRuleRowView(rule: rule) { updatedRule in

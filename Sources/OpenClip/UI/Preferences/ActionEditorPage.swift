@@ -69,6 +69,7 @@ public struct ActionEditorPage: View {
     /// to run modal over the window.
     @State private var saveErrorMessage: String?
     @State private var aliasText: String = ""
+    @State private var deliveryPrefString: String = "default"
     @State private var isDuplicating = false
 
     public init(
@@ -91,6 +92,8 @@ public struct ActionEditorPage: View {
     private var isCurrent: Bool {
         switch router.currentPage {
         case .action(let id), .builtinAction(let id): return id == action.id
+        case .extensionPackage(let id):
+            return ActionIdentity.extensionPackageID(of: action) == id
         default: return false
         }
     }
@@ -132,6 +135,61 @@ public struct ActionEditorPage: View {
         return !isBuiltin && manifestState == nil
     }
 
+    private var heroFootnote: String {
+        if ActionIdentity.isBuiltin(action) {
+            return String(localized: "Built-in action")
+        }
+        if let packageID = ActionIdentity.extensionPackageID(of: action),
+           let info = InstalledExtensionInfo.info(for: packageID, in: coordinator.actions) {
+            return info.name
+        }
+        if isCustomAction {
+            return String(localized: "Custom Action")
+        }
+        return ""
+    }
+
+    private var heroTint: Color {
+        if let packageID = ActionIdentity.extensionPackageID(of: action) {
+            return SettingsTint.extensionTint(for: packageID)
+        }
+        return SettingsTint.openClip
+    }
+
+    private var canProduceTextOutput: Bool {
+        if action.id == "builtin.calculate" { return true }
+        if isBuiltin { return false }
+        if ActionIdentity.isAIPreset(action) || action.chrome.launchesAI { return true }
+        if action is CustomAction {
+            return editKind != .openURL
+        }
+        if let state = manifestState {
+            let meta = state.manifest.actions[state.targetIndex]
+            switch meta.kind {
+            case .textSnippet, .applescript, .shellInline, .scriptFile:
+                return true
+            case .url, .webSearch, .keyPress, .service, .shortcut, .group:
+                return false
+            case .js:
+                if let code = meta.scriptCode {
+                    let hasReturnExpr = code.range(of: #"return\s+[^;}\s]"#, options: String.CompareOptions.regularExpression) != nil
+                    let hasPasteOrCopy = code.contains("openclip.paste") || code.contains("openclip.copy")
+                    return hasReturnExpr || hasPasteOrCopy
+                }
+                if let scriptName = meta.script {
+                    let fileURL = state.manifestURL.deletingLastPathComponent().appendingPathComponent(scriptName)
+                    if let content = try? String(contentsOf: fileURL, encoding: .utf8) {
+                        let hasReturnExpr = content.range(of: #"return\s+[^;}\s]"#, options: String.CompareOptions.regularExpression) != nil
+                        let hasPasteOrCopy = content.contains("openclip.paste") || content.contains("openclip.copy")
+                        return hasReturnExpr || hasPasteOrCopy
+                    }
+                }
+                return true
+            }
+        }
+        return false
+    }
+
     public var body: some View {
         SettingsEditorPage {
             VStack(alignment: .leading, spacing: 14) {
@@ -143,10 +201,10 @@ public struct ActionEditorPage: View {
                     SettingsHeroHeader(
                         glyph: .icon(
                             SettingsHeroHeader.glyph(for: action, presented: presentation),
-                            tint: SettingsTint.openClip
+                            tint: heroTint
                         ),
                         title: presentation.title,
-                        footnote: String(localized: "Built-in action")
+                        footnote: heroFootnote
                     )
                     .padding(.top, -8)
                 }
@@ -197,31 +255,50 @@ public struct ActionEditorPage: View {
                             .padding(.leading, 4)
 
                         InsetGroupCard {
-                            VStack(alignment: .leading, spacing: 0) {
-                                HStack(spacing: 12) {
-                                    Text("Alias")
-                                        .font(.subheadline)
-                                    Spacer()
-                                    TextField("e.g. tr", text: $aliasText)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 120)
-                                        .disabled(manifestMissing)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
+                            HStack(spacing: 12) {
+                                Text("Alias")
+                                    .font(.subheadline)
+                                TextField("e.g. tr", text: $aliasText)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 80)
+                                    .disabled(manifestMissing)
 
-                                Divider()
-                                    .padding(.horizontal, 12)
+                                Spacer()
 
-                                HStack(spacing: 12) {
-                                    Text("Hotkey")
-                                        .font(.subheadline)
-                                    Spacer()
-                                    KeyboardShortcuts.Recorder(for: .actionHotkey(action.id))
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
+                                Text("Hotkey")
+                                    .font(.subheadline)
+                                KeyboardShortcuts.Recorder(for: .actionHotkey(action.id))
                             }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                        }
+                    }
+                }
+
+                if canProduceTextOutput {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("OUTPUT")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 4)
+
+                        InsetGroupCard {
+                            HStack(spacing: 12) {
+                                Text("When finished")
+                                    .font(.subheadline)
+                                Spacer()
+                                Picker("", selection: $deliveryPrefString) {
+                                    Text("Default").tag("default")
+                                    Text("Preview").tag("preview")
+                                    Text("Paste").tag("paste")
+                                    Text("Copy").tag("copy")
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.segmented)
+                                .frame(width: 250)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
                         }
                     }
                 }
@@ -473,6 +550,11 @@ public struct ActionEditorPage: View {
 
         aliasText = ActionBindingStore.shared.alias(for: action.id) ?? ""
         customTitle = override?.customTitle ?? action.title
+        if let pref = override?.deliveryPreference {
+            deliveryPrefString = pref.rawValue
+        } else {
+            deliveryPrefString = "default"
+        }
         initialStoredSymbol = Self.sanitizedStoredSymbol(override?.customIconSymbol, actionIcon: action.icon)
         seedBaseline(from: ActionCustomizationManager.shared.popupIcon(for: action))
         displayMode = Self.initialDisplayMode(override: override, actionIcon: action.icon)
@@ -566,6 +648,7 @@ public struct ActionEditorPage: View {
         // backs out of an accidental reset.
         appearanceResetPending = true
         initialStoredSymbol = nil
+        deliveryPrefString = "default"
         seedBaseline(from: action.icon)
         if case .text = action.icon {
             displayMode = 1
@@ -656,6 +739,14 @@ public struct ActionEditorPage: View {
             symbol: symbolOverride,
             text: textOverride
         )
+
+        let pref: ResultDeliveryPreference? = switch deliveryPrefString {
+        case "preview": .preview
+        case "paste": .paste
+        case "copy": .copy
+        default: nil
+        }
+        ActionCustomizationManager.shared.setDeliveryPreference(pref, for: action.id)
     }
 
     /// The display mode the editor opens in. Show Text wins when a text override is stored (it

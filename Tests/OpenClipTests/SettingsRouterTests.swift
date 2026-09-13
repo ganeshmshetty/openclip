@@ -191,7 +191,7 @@ final class SettingsRouterTests: XCTestCase {
     func testSidebarFilterKeepsEverythingForABlankQueryAndOrder() {
         let rows = SettingsPage.systemPages.map { SettingsSidebarRow(systemPage: $0) }
         XCTAssertEqual(SettingsSidebarFilter.filter(rows, query: "").map(\.page), SettingsPage.systemPages)
-        XCTAssertEqual(SettingsSidebarFilter.filter(rows, query: "hotkey").map(\.page), [.general, .shortcuts])
+        XCTAssertEqual(SettingsSidebarFilter.filter(rows, query: "hotkey").map(\.page), [.general, .customize])
         XCTAssertEqual(SettingsSidebarFilter.filter(rows, query: "licence").map(\.page), [.about])
     }
 

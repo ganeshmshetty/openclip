@@ -231,6 +231,12 @@ final class OutlineTableRowView: NSTableRowView {
 
 @MainActor
 final class ActionsOutlineTableView: NSOutlineView {
+    override func layout() {
+        super.layout()
+        autoresizesOutlineColumn = false
+        sizeLastColumnToFit()
+    }
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let point = convert(event.locationInWindow, from: nil)
         let clickedRow = row(at: point)
@@ -257,8 +263,13 @@ final class ActionsScrollView: NSScrollView {
         super.layout()
         guard let window else { return }
         let overlap = max(0, convert(bounds, to: nil).maxY - window.contentLayoutRect.maxY)
-        guard abs(contentInsets.top - overlap) > 0.5 else { return }
-        contentInsets = NSEdgeInsets(top: overlap, left: 0, bottom: 0, right: 0)
+        if abs(contentInsets.top - overlap) > 0.5 {
+            contentInsets = NSEdgeInsets(top: overlap, left: 0, bottom: 0, right: 0)
+        }
+        if let outline = documentView as? NSOutlineView {
+            outline.autoresizesOutlineColumn = false
+            outline.sizeLastColumnToFit()
+        }
     }
 }
 
@@ -268,7 +279,11 @@ final class ActionsScrollView: NSScrollView {
 struct ActionsOutlineView: NSViewRepresentable {
     @ObservedObject var coordinator: ActionCoordinator
     @ObservedObject var customizationManager: ActionCustomizationManager
+    var searchQuery: String = ""
+    @Binding var disabledActionIDs: Set<String>
+    @Binding var disabledPackages: Set<String>
     @Binding var selectedRowIDs: Set<String>
+    var onAliasMessage: (String?) -> Void = { _ in }
     let onEditGroup: (String) -> Void
     let onCreateGroupFromSelection: () -> Void
     /// Double-click on a row: opens that row's settings page.
@@ -296,12 +311,15 @@ struct ActionsOutlineView: NSViewRepresentable {
         outlineView.headerView = nil
         outlineView.selectionHighlightStyle = .regular
         outlineView.style = .inset
-        outlineView.rowHeight = 32
-        outlineView.intercellSpacing = NSSize(width: 0, height: 2)
+        outlineView.rowHeight = 40
+        outlineView.intercellSpacing = NSSize(width: 0, height: 3)
         outlineView.backgroundColor = .clear
         outlineView.focusRingType = .none
         outlineView.allowsMultipleSelection = true
         outlineView.indentationPerLevel = 18
+        outlineView.autoresizingMask = [.width]
+        outlineView.autoresizesOutlineColumn = false
+        outlineView.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
 
         outlineView.dataSource = context.coordinator
         outlineView.delegate = context.coordinator
@@ -369,12 +387,37 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 self?.syncWithParent()
             }
             .store(in: &cancellables)
+
+        ActionBindingStore.shared.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncWithParent()
+            }
+            .store(in: &cancellables)
+
+        AIServiceManager.shared.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncWithParent()
+            }
+            .store(in: &cancellables)
     }
 
     @discardableResult
     func rebuildTree() -> Bool {
         let actions = parent.coordinator.actions
         let groupDefs = parent.coordinator.actionGroupDefs
+
+        let needle = parent.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        func matchesAction(_ action: any Action) -> Bool {
+            guard !needle.isEmpty else { return true }
+            let title = parent.customizationManager.presented(action, surface: .table).title.lowercased()
+            if title.contains(needle) { return true }
+            if let alias = ActionBindingStore.shared.alias(for: action.id)?.lowercased(), alias.contains(needle) {
+                return true
+            }
+            return action.keywords.contains { $0.lowercased().contains(needle) }
+        }
 
         let groupPackageIDs = Set(
             actions
@@ -399,20 +442,24 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             // Custom Group parent
             if let def = groupDefs.first(where: { $0.id == action.id }) {
                 seenCustomGroups.insert(def.id)
+                let groupMatches = needle.isEmpty || def.title.lowercased().contains(needle)
                 let memberNodes: [OutlineNode] = def.memberActionIDs.compactMap { memberID in
                     guard let memberAction = actions.first(where: { $0.id == memberID }) else { return nil }
+                    if !needle.isEmpty && !groupMatches && !matchesAction(memberAction) { return nil }
                     return OutlineNode(
                         id: memberID,
                         kind: .groupMember(action: memberAction, parentGroupID: def.id),
                         customization: parent.customizationManager
                     )
                 }
-                newRoots.append(OutlineNode(
-                    id: def.id,
-                    kind: .customGroup(def, action),
-                    children: memberNodes,
-                    customization: parent.customizationManager
-                ))
+                if needle.isEmpty || groupMatches || !memberNodes.isEmpty {
+                    newRoots.append(OutlineNode(
+                        id: def.id,
+                        kind: .customGroup(def, action),
+                        children: memberNodes,
+                        customization: parent.customizationManager
+                    ))
+                }
                 continue
             }
 
@@ -423,20 +470,24 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
 
             // Extension Group parent
             if action.chrome.popupBehavior == .showSubActions {
+                let groupMatches = needle.isEmpty || matchesAction(action)
                 let subActionNodes: [OutlineNode] = actions.compactMap { sub in
                     guard sub.id != action.id && sub.id.hasPrefix(action.id + ".") else { return nil }
+                    if !needle.isEmpty && !groupMatches && !matchesAction(sub) { return nil }
                     return OutlineNode(
                         id: sub.id,
                         kind: .extensionSubAction(action: sub, parentGroupID: action.id),
                         customization: parent.customizationManager
                     )
                 }
-                newRoots.append(OutlineNode(
-                    id: action.id,
-                    kind: .extensionGroup(action),
-                    children: subActionNodes,
-                    customization: parent.customizationManager
-                ))
+                if needle.isEmpty || groupMatches || !subActionNodes.isEmpty {
+                    newRoots.append(OutlineNode(
+                        id: action.id,
+                        kind: .extensionGroup(action),
+                        children: subActionNodes,
+                        customization: parent.customizationManager
+                    ))
+                }
                 continue
             }
 
@@ -447,36 +498,71 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
 
             // Non-group multi-action package header
             if let pkgID = ActionIdentity.extensionPackageID(of: action) {
-                let count = actions.filter { ActionIdentity.extensionPackageID(of: $0) == pkgID }.count
-                if count >= 2 && !seenPackages.contains(pkgID) {
-                    seenPackages.insert(pkgID)
-                    let title: String
-                    if case .extensionPkg(let name) = action.chrome.badge {
-                        title = name
-                    } else {
-                        title = pkgID
+                let pkgActions = actions.filter { ActionIdentity.extensionPackageID(of: $0) == pkgID }
+                if pkgActions.count >= 2 && !seenPackages.contains(pkgID) {
+                    let anyMatches = needle.isEmpty || pkgActions.contains { matchesAction($0) }
+                    if anyMatches {
+                        seenPackages.insert(pkgID)
+                        let title: String
+                        if case .extensionPkg(let name) = action.chrome.badge {
+                            title = name
+                        } else {
+                            title = pkgID
+                        }
+                        let gatedReason = (action as? GatedExtensionAction)?.reason
+                        newRoots.append(OutlineNode(
+                            id: "pkg.\(pkgID)",
+                            kind: .packageHeader(packageID: pkgID, title: title, gatedReason: gatedReason),
+                            customization: parent.customizationManager
+                        ))
                     }
-                    let gatedReason = (action as? GatedExtensionAction)?.reason
-                    newRoots.append(OutlineNode(
-                        id: "pkg.\(pkgID)",
-                        kind: .packageHeader(packageID: pkgID, title: title, gatedReason: gatedReason),
-                        customization: parent.customizationManager
-                    ))
                 }
             }
 
+            // AI Tools Group parent
+            if action.chrome.launchesAI {
+                var aiPresets = actions.filter { ActionIdentity.isAIPreset($0) }
+                if aiPresets.isEmpty {
+                    aiPresets = AIServiceManager.shared.presets.map { preset in
+                        AIAction(presetID: preset.id, title: preset.title)
+                    }
+                }
+                let groupMatches = needle.isEmpty || matchesAction(action)
+                let subActionNodes: [OutlineNode] = aiPresets.compactMap { preset in
+                    if !needle.isEmpty && !groupMatches && !matchesAction(preset) { return nil }
+                    return OutlineNode(
+                        id: preset.id,
+                        kind: .groupMember(action: preset, parentGroupID: action.id),
+                        customization: parent.customizationManager
+                    )
+                }
+                if needle.isEmpty || groupMatches || !subActionNodes.isEmpty {
+                    newRoots.append(OutlineNode(
+                        id: action.id,
+                        kind: .extensionGroup(action),
+                        children: subActionNodes,
+                        customization: parent.customizationManager
+                    ))
+                }
+                continue
+            }
+
             // Standalone action
-            newRoots.append(OutlineNode(
-                id: action.id,
-                kind: .standaloneAction(action),
-                customization: parent.customizationManager
-            ))
+            if needle.isEmpty || matchesAction(action) {
+                newRoots.append(OutlineNode(
+                    id: action.id,
+                    kind: .standaloneAction(action),
+                    customization: parent.customizationManager
+                ))
+            }
         }
 
         // Catch custom groups not yet matched in actions
         for def in groupDefs where !seenCustomGroups.contains(def.id) {
+            let groupMatches = needle.isEmpty || def.title.lowercased().contains(needle)
             let memberNodes: [OutlineNode] = def.memberActionIDs.compactMap { memberID in
                 guard let memberAction = actions.first(where: { $0.id == memberID }) else { return nil }
+                if !needle.isEmpty && !groupMatches && !matchesAction(memberAction) { return nil }
                 return OutlineNode(
                     id: memberID,
                     kind: .groupMember(action: memberAction, parentGroupID: def.id),
@@ -484,12 +570,14 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 )
             }
             if let dummyAction = actions.first(where: { $0.id == def.id }) {
-                newRoots.append(OutlineNode(
-                    id: def.id,
-                    kind: .customGroup(def, dummyAction),
-                    children: memberNodes,
-                    customization: parent.customizationManager
-                ))
+                if needle.isEmpty || groupMatches || !memberNodes.isEmpty {
+                    newRoots.append(OutlineNode(
+                        id: def.id,
+                        kind: .customGroup(def, dummyAction),
+                        children: memberNodes,
+                        customization: parent.customizationManager
+                    ))
+                }
             }
         }
 
@@ -506,9 +594,15 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         if changed {
             outlineView.reloadData()
 
-            // Restore expansion state
-            for node in rootNodes where expandedNodeIDs.contains(node.id) {
-                outlineView.expandItem(node)
+            // Restore expansion state, or expand all groups when filtering
+            if !parent.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                for node in rootNodes where node.isGroup {
+                    outlineView.expandItem(node)
+                }
+            } else {
+                for node in rootNodes where expandedNodeIDs.contains(node.id) {
+                    outlineView.expandItem(node)
+                }
             }
         }
 
@@ -569,9 +663,14 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         }
 
         switch node.kind {
-        case .packageHeader(_, let title, let gatedReason):
+        case .packageHeader(let packageID, let title, let gatedReason):
             cellView.setContent(
-                PackageHeaderRowView(title: title, gatedReason: gatedReason)
+                PackageHeaderRowView(
+                    title: title,
+                    packageID: packageID,
+                    gatedReason: gatedReason,
+                    disabledPackages: parent.$disabledPackages
+                )
             )
 
         case .customGroup(_, let action), .extensionGroup(let action),
@@ -580,7 +679,13 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             let presentation = parent.customizationManager.presented(action, surface: .table)
 
             cellView.setContent(
-                ActionRowView(action: action, presentationModel: presentation)
+                ActionRowView(
+                    action: action,
+                    presentationModel: presentation,
+                    disabledActionIDs: parent.$disabledActionIDs,
+                    disabledPackages: parent.$disabledPackages,
+                    onAliasMessage: parent.onAliasMessage
+                )
             )
         }
 
@@ -629,6 +734,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     // MARK: - Drag and Drop
 
     func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> (any NSPasteboardWriting)? {
+        guard parent.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         guard let node = item as? OutlineNode else { return nil }
         switch node.kind {
         case .packageHeader:
@@ -656,6 +762,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         proposedItem item: Any?,
         proposedChildIndex index: Int
     ) -> NSDragOperation {
+        guard parent.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
         guard let draggedID = info.draggingPasteboard.string(forType: actionPasteboardType) else {
             return []
         }

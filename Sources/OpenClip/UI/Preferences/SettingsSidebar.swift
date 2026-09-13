@@ -239,6 +239,8 @@ struct SettingsSidebar: View {
     let systemRows: [SettingsSidebarRow]
     let extensionRows: [SettingsSidebarRow]
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var filteredSystemRows: [SettingsSidebarRow] {
         SettingsSidebarFilter.filter(systemRows, query: query)
     }
@@ -252,13 +254,17 @@ struct SettingsSidebar: View {
     }
 
     var body: some View {
-        // The field is stacked above the list rather than laid over it as a safe-area inset: an
-        // inset lets the rows scroll *under* the field, so a row passed behind it while the
-        // scroller stopped below it. Stacked, the field owns its strip and nothing crosses it.
-        VStack(spacing: 0) {
-            searchField
-
+        ZStack(alignment: .top) {
             List(selection: $selection) {
+                Section {
+                    Color.clear
+                        .frame(height: 70)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .selectionDisabled()
+                }
+
                 if !filteredSystemRows.isEmpty {
                     Section {
                         ForEach(filteredSystemRows) { row in
@@ -298,7 +304,10 @@ struct SettingsSidebar: View {
                 }
             }
             .listStyle(.sidebar)
+
+            searchHeader
         }
+        .ignoresSafeArea(.container, edges: .top)
     }
 
     private func rowView(_ row: SettingsSidebarRow) -> some View {
@@ -318,17 +327,44 @@ struct SettingsSidebar: View {
         .accessibilityLabel(row.title)
     }
 
-    /// A real `NSSearchField`, the control System Settings uses in the same spot.
-    private var searchField: some View {
-        NativeSearchField(
-            text: $query,
-            placeholder: String(localized: "Search"),
-            controlSize: .regular
+    /// A real `NSSearchField`, the control System Settings uses in the same spot,
+    /// with its background blurred into the upper window title bar.
+    private var searchHeader: some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: 44)
+
+            NativeSearchField(
+                text: $query,
+                placeholder: String(localized: "Search"),
+                controlSize: .regular,
+                focusRingType: .none
+            )
+            .frame(maxWidth: .infinity)
+            .frame(height: 28)
+            .padding(.horizontal, 8)
+            .padding(.bottom, 12)
+        }
+        .frame(maxWidth: .infinity)
+        .background(
+            ZStack {
+                Rectangle()
+                    .fill(.ultraThickMaterial)
+                Rectangle()
+                    .fill(Color(nsColor: .windowBackgroundColor).opacity(colorScheme == .dark ? 0.96 : 0.92))
+            }
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0.0),
+                        .init(color: .black, location: 0.85),
+                        .init(color: .clear, location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
         )
-        .frame(height: 24)
-        .padding(.horizontal, 10)
-        .padding(.top, 2)
-        .padding(.bottom, 8)
         .accessibilityLabel(String(localized: "Search settings"))
     }
 }

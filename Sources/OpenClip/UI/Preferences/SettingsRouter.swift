@@ -79,7 +79,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
 
     /// The sidebar's first group, in order.
     public static let systemPages: [SettingsPage] = [
-        .general, .appearance, .customize, .shortcuts, .appRules, .store, .about
+        .general, .appearance, .customize, .appRules, .store, .about
     ]
 
     /// True for pages the sidebar lists; false for pages reached from one of them.
@@ -160,7 +160,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         switch self {
         case .general: return ["startup", "launch", "login", "menu bar", "trigger", "hotkey", "permission", "accessibility", "paste", "copy", "preview"]
         case .appearance: return ["theme", "dark", "light", "glass", "popup", "preview"]
-        case .customize: return ["actions", "popup bar", "order", "reorder", "arrange", "group", "groups", "layout", "install"]
+        case .customize: return ["actions", "popup bar", "order", "reorder", "arrange", "group", "groups", "layout", "install", "shortcuts", "hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .shortcuts: return ["hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .appRules: return ["apps", "exclude", "allow", "block", "rules", "disable", "per-app"]
         case .store: return ["extensions", "install", "catalog", "browse", "download"]

@@ -632,7 +632,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         // would be drawn beside it (see PreferencesToolbar).
         window.title = ""
         window.setAccessibilityTitle(tab.windowTitle)
-        window.setContentSize(NSSize(width: 820, height: 640))
+        window.setContentSize(NSSize(width: 860, height: 650))
         // Both, not just contentMinSize: the hosting view publishes no minimum of
         // its own (sizingOptions is empty), and a window dragged narrower than the
         // sidebar plus the detail column leaves the split view with no solution.
