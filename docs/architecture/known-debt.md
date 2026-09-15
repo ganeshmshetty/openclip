@@ -375,3 +375,5 @@ areas; stale debt notes are worse than none.
 - **Level budget is conservative.** Most messages are `.notice`/`.error`; `.debug` is used for
   defensive parses and transient network hiccups (filtered out by default in Console).
 - **`chrome` category is reserved but unused** — no popup-window-chrome code logs yet.
+- **`RotatingFileLogSink` keeps all non-`Sendable` state on its serial queue**, including
+  its `DateFormatter`; its `@unchecked Sendable` depends on that rule (#45).

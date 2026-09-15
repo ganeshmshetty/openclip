@@ -25,6 +25,7 @@ public final class RotatingFileLogSink: LogSink, @unchecked Sendable {
     private var fileHandle: FileHandle?
     private var currentFileSize: UInt64 = 0
 
+    // Use this formatter only on queue. DateFormatter is not Sendable.
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -57,12 +58,12 @@ public final class RotatingFileLogSink: LogSink, @unchecked Sendable {
     }
 
     public func record(date: Date, category: String, level: LogLevel, message: String) {
-        let formattedDate = dateFormatter.string(from: date)
-        let line = "\(formattedDate) \(level.displayName) \(category) \(message)\n"
-        guard let data = line.data(using: .utf8) else { return }
-
         queue.async { [weak self] in
-            self?.write(data)
+            guard let self else { return }
+            let formattedDate = self.dateFormatter.string(from: date)
+            let line = "\(formattedDate) \(level.displayName) \(category) \(message)\n"
+            guard let data = line.data(using: .utf8) else { return }
+            self.write(data)
         }
     }
 

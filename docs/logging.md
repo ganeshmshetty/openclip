@@ -15,7 +15,7 @@ Whenever a log message is emitted via `Log.<category>.<level>(...)`, it is forma
    - Zero CPU polling overhead (eliminates background `OSLogStore` polling).
 3. **Sink 3: Rotating File Appender (`RotatingFileLogSink`)**
    - Automatically writes log entries to `~/Library/Logs/OpenClip/openclip.log`.
-   - Thread-safe writes via a serial background queue (`com.openclip.log.fileappender`, QoS `.utility`).
+   - Formats the timestamp and writes the line on a serial queue (`com.openclip.log.fileappender`, QoS `.utility`); `record` does no formatting on the caller's thread.
    - Rotates log files when reaching 5MB, maintaining up to 3 backup archives (`openclip.1.log`, `openclip.2.log`, `openclip.3.log`).
 
 ```text
