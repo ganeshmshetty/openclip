@@ -7,6 +7,7 @@
 // Selecting a row is the only thing the sidebar does; the router decides what that shows.
 
 import SwiftUI
+import AppKit
 import Core
 
 // MARK: - Rows
@@ -251,8 +252,6 @@ struct SettingsSidebar: View {
     let systemRows: [SettingsSidebarRow]
     let extensionRows: [SettingsSidebarRow]
 
-    @Environment(\.colorScheme) private var colorScheme
-
     private var filteredSystemRows: [SettingsSidebarRow] {
         SettingsSidebarFilter.filter(systemRows, query: query)
     }
@@ -266,8 +265,59 @@ struct SettingsSidebar: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            List(selection: $selection) {
+        ScrollViewReader { proxy in
+            sidebarChrome
+                .onAppear { scrollSelectionIntoView(proxy, animated: false) }
+                .onChange(of: selection) { _, _ in scrollSelectionIntoView(proxy, animated: true) }
+                .onChange(of: query) { _, newValue in
+                    // Rows come back when the search is cleared, so reveal the selection again.
+                    if newValue.isEmpty { scrollSelectionIntoView(proxy, animated: true) }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .openClipPreferencesWindowDidShow)) { _ in
+                    // A reused window never fires `onAppear` again, so this is what reveals the
+                    // selected row when Settings is reopened.
+                    scrollSelectionIntoView(proxy, animated: false)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var sidebarChrome: some View {
+        if #available(macOS 26.0, *) {
+            // macOS 26 owns this: the field is a real bar, and the system's soft scroll edge
+            // effect blurs the rows as they pass beneath it. No hand-rolled material or mask —
+            // that backing is what made the strip read as a foreign band.
+            sidebarList(includeTopSpacer: false)
+                .safeAreaBar(edge: .top) { searchFieldBar }
+                .scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            ZStack(alignment: .top) {
+                sidebarList(includeTopSpacer: true)
+                searchHeader
+            }
+            .ignoresSafeArea(.container, edges: .top)
+        }
+    }
+
+    /// Brings `selection` on screen. `scrollTo` with no anchor scrolls the minimum needed, so
+    /// clicking a row that is already visible does not recenter the list under the pointer.
+    private func scrollSelectionIntoView(_ proxy: ScrollViewProxy, animated: Bool) {
+        guard let page = selection else { return }
+        let scroll = { proxy.scrollTo(page.id) }
+        if animated {
+            withAnimation(.easeInOut(duration: 0.18)) { scroll() }
+        } else {
+            // Let the List lay out first: on first appearance the row may not exist yet.
+            DispatchQueue.main.async { scroll() }
+        }
+    }
+
+    /// The rows, shared by both presentations. The top spacer exists only for the pre-26 path,
+    /// where the field is overlaid and the rows must start below it; on macOS 26 the bar reserves
+    /// its own space.
+    private func sidebarList(includeTopSpacer: Bool) -> some View {
+        List(selection: $selection) {
+            if includeTopSpacer {
                 Section {
                     Color.clear
                         .frame(height: 70)
@@ -276,50 +326,63 @@ struct SettingsSidebar: View {
                         .listRowBackground(Color.clear)
                         .selectionDisabled()
                 }
+            }
 
-                if !filteredSystemRows.isEmpty {
-                    Section {
-                        ForEach(filteredSystemRows) { row in
-                            rowView(row)
-                        }
-                    }
-                }
-
-                // Two sections rather than one, so the gap that separates the settings from
-                // what OpenClip ships repeats between what OpenClip ships and what was installed.
-                let (bundled, installed) = SettingsSidebarOrder.split(filteredExtensionRows)
-
-                if !bundled.isEmpty {
-                    Section("Actions") {
-                        ForEach(bundled) { row in
-                            rowView(row)
-                        }
-                    }
-                }
-
-                if !installed.isEmpty {
-                    Section("Installed") {
-                        ForEach(installed) { row in
-                            rowView(row)
-                        }
-                    }
-                }
-
-                if !hasResults {
-                    Section {
-                        Text("No Results")
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 12)
-                            .selectionDisabled()
+            if !filteredSystemRows.isEmpty {
+                Section {
+                    ForEach(filteredSystemRows) { row in
+                        rowView(row)
                     }
                 }
             }
-            .listStyle(.sidebar)
 
-            searchHeader
+            // Two sections rather than one, so the gap that separates the settings from
+            // what OpenClip ships repeats between what OpenClip ships and what was installed.
+            let (bundled, installed) = SettingsSidebarOrder.split(filteredExtensionRows)
+
+            if !bundled.isEmpty {
+                Section("Actions") {
+                    ForEach(bundled) { row in
+                        rowView(row)
+                    }
+                }
+            }
+
+            if !installed.isEmpty {
+                Section("Installed") {
+                    ForEach(installed) { row in
+                        rowView(row)
+                    }
+                }
+            }
+
+            if !hasResults {
+                Section {
+                    Text("No Results")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 12)
+                        .selectionDisabled()
+                }
+            }
         }
-        .ignoresSafeArea(.container, edges: .top)
+        .listStyle(.sidebar)
+    }
+
+    /// The macOS 26 bar's content: just the field. The system draws the bar's blurred backing and
+    /// the soft edge effect that blurs content scrolling under it, so nothing is added here.
+    private var searchFieldBar: some View {
+        NativeSearchField(
+            text: $query,
+            placeholder: String(localized: "Search"),
+            controlSize: .regular,
+            focusRingType: .none
+        )
+        .frame(maxWidth: .infinity)
+        .frame(height: 28)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .accessibilityLabel(String(localized: "Search settings"))
     }
 
     private func rowView(_ row: SettingsSidebarRow) -> some View {
@@ -366,24 +429,37 @@ struct SettingsSidebar: View {
         }
         .frame(maxWidth: .infinity)
         .background(
-            ZStack {
-                Rectangle()
-                    .fill(.ultraThickMaterial)
-                Rectangle()
-                    .fill(Color(nsColor: .windowBackgroundColor).opacity(colorScheme == .dark ? 0.96 : 0.92))
-            }
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0.0),
-                        .init(color: .black, location: 0.85),
-                        .init(color: .clear, location: 1.0)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
+            SidebarVibrancyBackground()
+                .mask(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0.0),
+                            .init(color: .black, location: 0.85),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 )
-            )
         )
         .accessibilityLabel(String(localized: "Search settings"))
     }
+}
+
+/// The strip behind the search field draws the very material the `List`'s sidebar already draws,
+/// so the two read as one surface. Painting a separate `.ultraThickMaterial` on top of a
+/// near-opaque window-background layer produced a lighter band with a visible seam. The gradient
+/// mask fades its lower edge so rows dissolve under the field instead of clipping at a hard line.
+private struct SidebarVibrancyBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        // Behind-window, like the `NavigationSplitView` sidebar itself — in-window is for toolbars
+        // and composites over this window's content, which rendered lighter than the sidebar.
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }

@@ -29,4 +29,9 @@ extension Notification.Name {
 
     /// Posted to switch the active tab in the Preferences window. The target `PreferenceTab` travels in `object`.
     static let openClipSelectPreferencesTab = Notification.Name("OpenClipSelectPreferencesTab")
+
+    /// Posted every time the Settings window is brought to the front (created or reused). The
+    /// sidebar scrolls its selected row into view on this, because a reused window never sees
+    /// `onAppear` again and the selection itself may not change.
+    static let openClipPreferencesWindowDidShow = Notification.Name("OpenClipPreferencesWindowDidShow")
 }

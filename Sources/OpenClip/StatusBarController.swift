@@ -163,7 +163,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
 
         // Section 2: Core App Navigation
-        let prefsItem = menuItem(title: String(localized: "Settings…"), action: #selector(showPreferences), keyEquivalent: ",")
+        let prefsItem = menuItem(title: String(localized: "Settings…"), action: #selector(showPreferences as () -> Void), keyEquivalent: ",")
         menu.addItem(prefsItem)
 
         let actionsMenu = NSMenu(title: String(localized: "Actions"))
@@ -589,31 +589,44 @@ class StatusBarController: NSObject, NSMenuDelegate {
         }
     }
     
+    /// Opens Settings on whatever pane (and drill-down) was last shown. The menu item and the
+    /// Dock reopen use this: a reused window already holds the router's last path, and resetting
+    /// to General here is what used to throw the user back to the top on every reopen.
     @objc public func showPreferences() {
-        showPreferences(tab: .general)
+        presentPreferences(tab: nil)
     }
 
-    public func showPreferences(tab: PreferenceTab = .general) {
+    /// Opens Settings on a named pane, overriding wherever the window was — how a deep link
+    /// (the status menu's Actions item, an action asking to be configured) should behave.
+    public func showPreferences(tab: PreferenceTab) {
+        presentPreferences(tab: tab)
+    }
+
+    private func presentPreferences(tab: PreferenceTab?) {
         // Reuse the window whatever state it is in. `isVisible` is false for a
         // miniaturised window, so testing it here built a second Preferences
         // window every time the user minimised the first one and reopened
         // Settings from the menu — leaving a stack of them in the Dock.
         if let window = preferencesWindow {
-            notificationCenter.post(name: .openClipSelectPreferencesTab, object: tab)
+            if let tab {
+                notificationCenter.post(name: .openClipSelectPreferencesTab, object: tab)
+            }
             if window.isMiniaturized {
                 window.deminiaturize(nil)
             }
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            notificationCenter.post(name: .openClipPreferencesWindowDidShow, object: nil)
             return
         }
+        let startTab = tab ?? .general
         let toolbarModel = PreferencesToolbarModel()
-        toolbarModel.page = tab.page
-        toolbarModel.title = tab.windowTitle
+        toolbarModel.page = startTab.page
+        toolbarModel.title = startTab.windowTitle
         let toolbarController = PreferencesToolbarController(model: toolbarModel)
         preferencesToolbarController = toolbarController
         let controller = NSHostingController(
-            rootView: PreferencesView(initialTab: tab, toolbarModel: toolbarModel)
+            rootView: PreferencesView(initialTab: startTab, toolbarModel: toolbarModel)
         )
         // The window owns its size, not the SwiftUI content. With the default
         // sizing options the hosting controller republishes the current pane's
@@ -631,7 +644,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         // Empty on purpose: the pane's name is a toolbar item, and a window title
         // would be drawn beside it (see PreferencesToolbar).
         window.title = ""
-        window.setAccessibilityTitle(tab.windowTitle)
+        window.setAccessibilityTitle(startTab.windowTitle)
         window.setContentSize(NSSize(width: 860, height: 650))
         // Both, not just contentMinSize: the hosting view publishes no minimum of
         // its own (sizingOptions is empty), and a window dragged narrower than the
@@ -681,5 +694,6 @@ class StatusBarController: NSObject, NSMenuDelegate {
         self.preferencesWindow = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        notificationCenter.post(name: .openClipPreferencesWindowDidShow, object: nil)
     }
 }
