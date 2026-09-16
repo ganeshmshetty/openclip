@@ -123,9 +123,6 @@ public extension SettingKey where Value == String {
     static var primaryClickBehavior: SettingKey<String> { SettingKey<String>("resultDelivery.primary", defaultValue: "paste") }
     static var secondaryClickBehavior: SettingKey<String> { SettingKey<String>("resultDelivery.secondary", defaultValue: "copy") }
 
-    /// Default directory where action file outputs are saved. Defaults to empty string (which resolves to ~/Downloads).
-    static var fileSaveLocation: SettingKey<String> { SettingKey<String>("fileSaveLocation", defaultValue: "") }
-
     /// Popup theme ("classic"/"glass") and shared appearance ("system"/"light"/"dark").
     static var popupTheme: SettingKey<String> { SettingKey<String>("popupTheme", defaultValue: "classic") }
     static var popupThemeColor: SettingKey<String> { SettingKey<String>("popupThemeColor", defaultValue: "system") }

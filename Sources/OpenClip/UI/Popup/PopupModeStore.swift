@@ -82,11 +82,8 @@ public struct ResultCardPayload: Sendable, Equatable {
     public let isRefining: Bool
     /// True when the result supports AI follow-up refinement (AI results). False for extension/script results.
     public let canFollowUp: Bool
-    /// Native file output payload when the result is a file.
-    public let file: FileOutputPayload?
 
-    /// Creates the content presented by a result card, including an optional native file.
-    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true, file: FileOutputPayload? = nil) {
+    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true) {
         self.text = text
         self.isError = isError
         self.title = title
@@ -95,7 +92,6 @@ public struct ResultCardPayload: Sendable, Equatable {
         self.original = original
         self.isRefining = isRefining
         self.canFollowUp = canFollowUp
-        self.file = file
     }
 }
 

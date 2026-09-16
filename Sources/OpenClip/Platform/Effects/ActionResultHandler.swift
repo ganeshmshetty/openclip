@@ -227,41 +227,12 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         case .notify(let title, let body):
             try await postNotification(title: title, body: body)
 
-        case .copyFile(let url):
-            guard FileManager.default.fileExists(atPath: url.path) else {
-                throw NSError(domain: Constants.actionErrorDomain,
-                              code: Constants.actionErrorCode,
-                              userInfo: [NSLocalizedDescriptionKey: "File does not exist: \(url.lastPathComponent)"])
-            }
-            pendingRestoreTask?.cancel()
-            pendingRestoreTask = nil
-            let pasteboard = self.pasteboard
-            pasteboard.clearContents()
-            pasteboard.writeObjects([url as NSURL])
-
-        case .saveFile(let url):
-            guard FileManager.default.fileExists(atPath: url.path) else {
-                throw NSError(domain: Constants.actionErrorDomain,
-                              code: Constants.actionErrorCode,
-                              userInfo: [NSLocalizedDescriptionKey: "File does not exist: \(url.lastPathComponent)"])
-            }
-            let destinationDirectory = resolveSaveLocation()
-            let finalURL = try await Task.detached {
-                try FileManager.default.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
-                let targetURL = Self.uniqueFileURL(for: url.lastPathComponent, in: destinationDirectory)
-                if url.resolvingSymlinksInPath().path != targetURL.resolvingSymlinksInPath().path {
-                    try FileManager.default.copyItem(at: url, to: targetURL)
-                }
-                return targetURL
-            }.value
-            Log.resultHandler.info("Saved file \(url.lastPathComponent, privacy: .public) to \(finalURL.path, privacy: .public)")
-
         case .simulatePaste:
             postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
 
         // Presentation/flow results are presenter-owned (PopupWindowController). The handler treats
         // them as no-ops so the switch stays exhaustive without crashing when one is routed here.
-        case .toast, .openConfiguration, .sequence, .text, .file:
+        case .toast, .openConfiguration, .sequence, .text:
             break
 
         // Keyboard execution: keyPress posts a synthetic keystroke; runShortcut launches the
@@ -497,39 +468,6 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             }
         }
         return nil
-    }
-
-    /// Resolves the configured file-output directory, falling back to Downloads.
-    public func resolveSaveLocation() -> URL {
-        let savedPath = settingsStore.get(.fileSaveLocation).trimmingCharacters(in: .whitespacesAndNewlines)
-        if !savedPath.isEmpty {
-            let expanded = (savedPath as NSString).expandingTildeInPath
-            return URL(fileURLWithPath: expanded, isDirectory: true)
-        }
-        return FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser
-    }
-
-    /// Returns an available destination URL by appending a numeric suffix when needed.
-    public nonisolated static func uniqueFileURL(for filename: String, in directory: URL) -> URL {
-        let fileManager = FileManager.default
-        var targetURL = directory.appendingPathComponent(filename)
-        guard fileManager.fileExists(atPath: targetURL.path) else {
-            return targetURL
-        }
-
-        let ext = (filename as NSString).pathExtension
-        let baseName = (filename as NSString).deletingPathExtension
-        var counter = 1
-
-        while true {
-            let newName = ext.isEmpty ? "\(baseName) (\(counter))" : "\(baseName) (\(counter)).\(ext)"
-            targetURL = directory.appendingPathComponent(newName)
-            if !fileManager.fileExists(atPath: targetURL.path) {
-                return targetURL
-            }
-            counter += 1
-        }
     }
 }
 

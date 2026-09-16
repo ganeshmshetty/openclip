@@ -401,25 +401,9 @@ public struct PopupView: View {
                 isUserSized: modeStore.isSurfaceUserSized,
                 isPinned: modeStore.isCardPinned,
                 onExit: { onExitContent() },
-                onPaste: {
-                    if let file = payload.file {
-                        onCardEffect(.saveFile(file.url))
-                    } else {
-                        onCardEffect(.paste(payload.text))
-                    }
-                },
-                onCopy: {
-                    if let file = payload.file {
-                        onCardEffect(.copyFile(file.url))
-                    } else {
-                        onCardEffect(.copy(payload.text))
-                    }
-                },
-                onSave: {
-                    if let file = payload.file {
-                        onCardEffect(.saveFile(file.url))
-                    }
-                },
+                onDismiss: { onDismissContent() },
+                onPaste: { onCardEffect(.paste(payload.text)) },
+                onCopy: { onCardEffect(.copy(payload.text)) },
                 onDrag: { phase in onCardDrag?(phase) },
                 onResize: { edge, phase in onResize?(edge, phase) },
                 onPin: { onPinCard?() },

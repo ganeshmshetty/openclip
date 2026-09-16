@@ -42,8 +42,6 @@ public enum ActionResultDelivery {
     /// The default companion toast when a result is delivered as a copy (or a
     /// `.copyDefinition` is delivered) and no toast is declared for the click.
     private static let copiedToast = StatusFeedback(message: String(localized: "Copied"), style: .success, symbolName: "checkmark")
-    private static let copiedFileToast = StatusFeedback(message: String(localized: "Copied File"), style: .success, symbolName: "doc.on.doc")
-    private static let savedFileToast = StatusFeedback(message: String(localized: "File Saved"), style: .success, symbolName: "arrow.down.circle")
 
     /// Decides the final ActionResult for a raw runtime outcome and the companion toast.
     ///
@@ -103,10 +101,6 @@ public enum ActionResultDelivery {
             // Rich analogue: a secondary click on a rich-paste primary copies the payload.
             return .copyContent(payload)
         }
-        if clickIntent == .secondary, case .file(let payload) = raw {
-            // Secondary click on a file result copies the file.
-            return .copyFile(payload.url)
-        }
         return raw
     }
 
@@ -137,12 +131,6 @@ public enum ActionResultDelivery {
         }
         if case .copyDefinition = delivered {
             return copiedToast
-        }
-        if case .copyFile = delivered {
-            return copiedFileToast
-        }
-        if case .saveFile = delivered {
-            return savedFileToast
         }
         if deliveredIsCopyOutcome(delivered) {
             return copiedToast

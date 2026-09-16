@@ -13,20 +13,8 @@ You can open OpenClip Preferences in these ways:
 
 ## General
 
-The **General** page configures how OpenClip is summoned, how action outputs are handled, and system integration:
-
-- **Triggers**:
-  - **Appear Automatically**: Shows the popup bar as soon as text is selected.
-  - **Hold Mouse to Trigger**: Keeps the popup hidden until you hold the mouse button down briefly after selection.
-  - **Keyboard Shortcut**: Configures the global hotkey (default `⌥⌘C`) to toggle the popup and search palette.
-- **Action Results**:
-  - **Primary click** & **Secondary click**: Configures what happens when an action returns text — **Preview** (in the native result card), **Paste** (over active selection), or **Copy** (to pasteboard).
-  - **Save Location**: Destination directory where file outputs (`.saveFile` or Save button in file result cards) are written. Defaults to your user `~/Downloads` folder. Click **Choose…** to pick a custom directory, or the reset button to return to Downloads.
-- **App**:
-  - **Show Menu Bar Icon**: Displays OpenClip in the macOS menu bar. Turning it off removes the icon immediately without stopping OpenClip or its shortcut.
-  - **Start at Login**: Launches OpenClip automatically when you log in.
-- **Permissions**:
-  - **Accessibility Access**: Shows current macOS Accessibility authorization status (required to observe selections and paste).
+The **Show Menu Bar Icon** toggle is enabled by default. Turning it off removes the icon
+immediately without stopping OpenClip, its selection monitoring, or its global shortcut.
 
 ---
 

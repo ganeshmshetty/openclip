@@ -3837,34 +3837,6 @@
         }
       }
     },
-    "Copied File": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已拷贝文件"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已拷貝檔案"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fichier copié"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ファイルをコピーしました"
-          }
-        }
-      }
-    },
     "Copied — the app changed": {
       "localizations": {
         "zh-Hans": {
@@ -3973,34 +3945,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "応答をコピーして閉じる"
-          }
-        }
-      }
-    },
-    "Copy the file to the clipboard and close (⌘C)": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "将文件拷贝到剪贴板并关闭 (⌘C)"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "將檔案拷貝至剪貼簿並關閉 (⌘C)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copier le fichier dans le presse-papiers et fermer (⌘C)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ファイルをクリップボードにコピーして閉じる (⌘C)"
           }
         }
       }
@@ -5149,34 +5093,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "ダウンロード数"
-          }
-        }
-      }
-    },
-    "Downloads (Default)": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "下载 (默认)"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "下載 (預設)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Téléchargements (par défaut)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ダウンロード (デフォルト)"
           }
         }
       }
@@ -6577,62 +6493,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "ローカルのOllamaインスタンスからインストール済みモデルを取得"
-          }
-        }
-      }
-    },
-    "File Saved": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "文件已保存"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "檔案已儲存"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fichier enregistré"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ファイルを保存しました"
-          }
-        }
-      }
-    },
-    "File not found": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "文件未找到"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "找不到檔案"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fichier introuvable"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ファイルが見つかりません"
           }
         }
       }
@@ -9829,34 +9689,6 @@
         }
       }
     },
-    "Open": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "打开"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "開啟"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ouvrir"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "開く"
-          }
-        }
-      }
-    },
     "Open AI Settings": {
       "localizations": {
         "zh-Hans": {
@@ -10161,34 +9993,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "アクションを開くと名前、アイコン、ショートカット、動作を変更したり、削除したりできます。ポップアップバーに配置するには「カスタマイズ」を使います。"
-          }
-        }
-      }
-    },
-    "Open file (Space)": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "打开文件 (空格)"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "打開檔案 (空白鍵)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ouvrir le fichier (Espace)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ファイルを開く (スペース)"
           }
         }
       }
@@ -12629,34 +12433,6 @@
         }
       }
     },
-    "Reset to Downloads": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重置为下载目录"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重設為下載目錄"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Réinitialiser vers Téléchargements"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ダウンロードにリセット"
-          }
-        }
-      }
-    },
     "Resize result card": {
       "localizations": {
         "zh-Hans": {
@@ -13245,34 +13021,6 @@
         }
       }
     },
-    "Save Location": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存位置"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "儲存位置"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Emplacement d'enregistrement"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存場所"
-          }
-        }
-      }
-    },
     "Save as AI Tool": {
       "localizations": {
         "zh-Hans": {
@@ -13325,34 +13073,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "AIツールとして保存"
-          }
-        }
-      }
-    },
-    "Save the file to your configured save location and close (⏎)": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "将文件保存到配置的位置并关闭 (⏎)"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "將檔案儲存至設定的位置並關閉 (⏎)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enregistrer le fichier dans l'emplacement configuré et fermer (⏎)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "設定した保存場所にファイルを保存して閉じる (⏎)"
           }
         }
       }
@@ -13437,34 +13157,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "AIツールとして保存済み · 置換中…"
-          }
-        }
-      }
-    },
-    "Saved to %@": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已保存至 %@"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已儲存至 %@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enregistré dans %@"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ に保存しました"
           }
         }
       }
@@ -13969,34 +13661,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキストを選択するとOpenClipが表示されます"
-          }
-        }
-      }
-    },
-    "Select default folder for saved files": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择保存文件的默认文件夹"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選取儲存檔案的預設檔案夾"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sélectionnez le dossier par défaut pour les fichiers enregistrés"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存するファイルのデフォルトフォルダを選択"
           }
         }
       }
