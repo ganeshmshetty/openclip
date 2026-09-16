@@ -26,6 +26,9 @@ public struct GroupSubActionBarView: View {
     public let scale: CGFloat
     @Binding public var currentPage: Int
     private let hoverState: SubBarHoverState
+    /// Shared popup mode store: the sub-bar reads `inlineResults` from it so a child action with
+    /// `chrome.isInlineResult` shows its computed text in place of its icon, exactly like the main bar.
+    @ObservedObject private var modeStore: PopupModeStore
 
     @Setting(SettingKey.popupBarWidth) private var barWidthLevel
 
@@ -37,6 +40,7 @@ public struct GroupSubActionBarView: View {
         subActions: [any Action],
         currentPage: Binding<Int>,
         hoverState: SubBarHoverState = .shared,
+        modeStore: PopupModeStore = PopupModeStore(),
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onRunAI: @escaping @MainActor (String) -> Void,
         onRunLoadingAction: @escaping @MainActor (any Action) -> Void,
@@ -54,6 +58,7 @@ public struct GroupSubActionBarView: View {
         self.subActions = subActions
         self._currentPage = currentPage
         self.hoverState = hoverState
+        self._modeStore = ObservedObject(wrappedValue: modeStore)
         self.onResult = onResult
         self.onRunAI = onRunAI
         self.onRunLoadingAction = onRunLoadingAction
@@ -163,6 +168,36 @@ public struct GroupSubActionBarView: View {
     @ViewBuilder
     private func subActionButton(action: any Action, index: Int, isHovered: Bool) -> some View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
+        let foregroundColor: Color = isHovered ? .white : restForeground
+        let backgroundColor: Color = isHovered ? Color.accentColor : Color.clear
+
+        // Mirrors the main bar: an inline-result action swaps its icon for the computed text once
+        // `InlineResultEvaluator` publishes a result, truncating at the shared width cap.
+        let labelView = Group {
+            if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+                Text(resolved)
+                    .font(.system(size: 13 * scale, weight: .regular))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundColor(foregroundColor)
+                    .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
+                    .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
+                    .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
+                    .background(backgroundColor)
+                    .transition(.opacity)
+            } else {
+                ActionIconView(icon: action.displayIcon(using: presenter), size: 13.5, scale: scale)
+                    .foregroundColor(foregroundColor)
+                    .padding(.horizontal, {
+                        if case .text = action.displayIcon(using: presenter) { return 10.0 * scale }
+                        return 0.0
+                    }())
+                    .frame(minWidth: buttonWidth, maxWidth: 130 * scale, minHeight: barButtonHeight)
+                    .background(backgroundColor)
+                    .transition(.opacity)
+            }
+        }
+        .contentShape(Rectangle())
 
         Button {
             if ActionIdentity.isAIPreset(action) {
@@ -171,6 +206,13 @@ public struct GroupSubActionBarView: View {
             }
             if action.chrome.showsLoading {
                 onRunLoadingAction(action)
+                return
+            }
+            // An already-computed inline result is delivered directly instead of re-running the action.
+            if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+                onWillPerformAction(action)
+                onActionPerformed(action.id)
+                onResult(.text(resolved))
                 return
             }
             Task {
@@ -192,22 +234,24 @@ public struct GroupSubActionBarView: View {
                 }
             }
         } label: {
-            ActionIconView(icon: action.displayIcon(using: presenter), size: 13.5, scale: scale)
-                .foregroundColor(isHovered ? .white : restForeground)
-                .padding(.horizontal, {
-                    if case .text = action.displayIcon(using: presenter) { return 10.0 * scale }
-                    return 0.0
-                }())
-                .frame(minWidth: buttonWidth, maxWidth: 130 * scale, minHeight: barButtonHeight)
-                .background(isHovered ? Color.accentColor : Color.clear)
-                .contentShape(Rectangle())
+            labelView
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(action.displayTitle(using: presenter))
+        .accessibilityLabel({
+            let title = action.displayTitle(using: presenter)
+            if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+                return "\(title): \(resolved)"
+            }
+            return title
+        }())
         .popupHoverTarget(.subAction(index))
         .onHover { isHovering in
             useLocalHoverFallback(for: .subAction(index), isHovering: isHovering)
         }
+        .animation(
+            .spring(response: PopupMetrics.inlineSpringResponse, dampingFraction: PopupMetrics.inlineSpringDamping),
+            value: modeStore.inlineResults[action.id]
+        )
     }
 
     @ViewBuilder

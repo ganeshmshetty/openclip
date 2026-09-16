@@ -46,8 +46,8 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        MARKETING_VERSION: "1.6.0"
-        CURRENT_PROJECT_VERSION: "11"
+        MARKETING_VERSION: "1.6.1"
+        CURRENT_PROJECT_VERSION: "12"
         INFOPLIST_KEY_CFBundleShortVersionString: $(MARKETING_VERSION)
         INFOPLIST_KEY_CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -85,7 +85,7 @@ targets:
 packages:
   OpenSelection:
     url: https://github.com/ganeshmshetty/OpenSelection
-    from: 0.1.1
+    from: 0.1.2
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 2.0.0

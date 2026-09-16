@@ -607,5 +607,17 @@
   "Unpin — card will dismiss automatically": "ピン留め解除 — カードは自動的に閉じます",
   "%@ (Disabled)": "%@（無効）",
   "Drag to reorder. Drag actions onto the group in the Actions list to add more.": "ドラッグして並べ替えます。「アクション」リストのグループにアクションをドラッグすると追加できます。",
-  "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Actions to place it in the popup bar.": "アクションを開くと、名前、アイコン、ショートカット、動作の変更や削除ができます。「アクション」を使ってポップアップバーに配置します。"
+  "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Actions to place it in the popup bar.": "アクションを開くと、名前、アイコン、ショートカット、動作の変更や削除ができます。「アクション」を使ってポップアップバーに配置します。",
+  "Available": "利用可能",
+  "Requires macOS 26 or later": "macOS 26以降が必要です",
+  "Not supported on this Mac": "このMacではサポートされていません",
+  "Turn on in System Settings": "システム設定でオンにしてください",
+  "Model still downloading": "モデルをダウンロード中",
+  "Unavailable": "利用できません",
+  "Apple Intelligence is available.": "Apple Intelligenceは利用可能です。",
+  "This Mac doesn't support Apple Intelligence. Configure another provider in Preferences → AI.": "このMacはApple Intelligenceに対応していません。環境設定 → AI で別のプロバイダを設定してください。",
+  "Turn on Apple Intelligence in System Settings → Apple Intelligence & Siri, or configure another provider in Preferences → AI.": "システム設定 → Apple Intelligence と Siri でApple Intelligenceをオンにするか、環境設定 → AI で別のプロバイダを設定してください。",
+  "Apple Intelligence models are still downloading. Try again shortly, or configure another provider in Preferences → AI.": "Apple Intelligenceのモデルをまだダウンロード中です。しばらくして再試行するか、環境設定 → AI で別のプロバイダを設定してください。",
+  "Apple Intelligence is unavailable right now. Configure another provider in Preferences → AI.": "Apple Intelligenceは現在利用できません。環境設定 → AI で別のプロバイダを設定してください。",
+  "Apple Intelligence models are still preparing. Try again shortly.": "Apple Intelligenceのモデルを準備中です。しばらくして再試行してください。"
 }

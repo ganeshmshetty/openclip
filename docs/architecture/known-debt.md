@@ -190,6 +190,39 @@ areas; stale debt notes are worse than none.
   `SettingKey+MenuBar.swift`) because they are pure presentation. `Core/Selection/Constants.swift` keeps only
   domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 
+## AI Providers
+
+- **Apple Intelligence is gated by one availability source.** `AppleIntelligenceAvailability`
+  (`Sources/OpenClip/AI/AppleIntelligenceAvailability.swift`) folds the `#available(macOS 26.0, *)`
+  floor together with `SystemLanguageModel.default.availability` (`deviceNotEligible`,
+  `appleIntelligenceNotEnabled`, `modelNotReady`) into one `Status`, and owns the copy for each. The
+  Preferences status row (`AIConfigureForm`) and the provider's runtime errors both read it, so they
+  can't disagree about *why* the feature is off. The Apple picker segment is still selectable on
+  unsupported machines — it explains rather than disables.
+- **The Apple provider uses guided generation, not tag scraping.** `AppleIntelligenceResponse`
+  (`@Generable`, in `AppleIntelligenceProvider.swift`) declares `result`/`title`, so the framework
+  constrains the model's output; the provider re-emits those fields via
+  `AIRequestSupport.taggedResponse` into the `<result>`/`<title>` contract that the palette, result
+  card, and save-as-tool flows already parse. `systemPrompt(structuredResult:)` swaps the tag
+  instructions for schema-field wording, because asking for tags would make the model embed them
+  inside the fields; `taggedResponse` additionally runs values through `stripTagMarkup` for the same
+  reason, since the palette's text-shaped prompts still say "inside <title> tags".
+- **One name per response.** `<title>` carries the short name for the work — a task heading for the
+  answer card, or a reusable action name when saving a palette instruction as an AI tool. Which
+  style to produce is the flow's business and lives only in the prompt wording
+  (`PaletteAIPrompt.saveToolTaskPrompt`); one generated name serves both the preset title and the
+  card heading in the save flow.
+- **`tokenCount` is only used as a pre-flight guard.** The provider counts tokens (macOS 26.4+) and
+  compares against `contextSize` only when the input exceeds `tokenBudgetCheckThreshold` (2000
+  chars), throwing `requestTooLarge` before paying for a doomed generation. Oversized selections are
+  **not** auto-routed to another provider.
+- **macOS 27 APIs are not yet adopted.** `PrivateCloudComputeLanguageModel`, the new `LanguageModel`
+  protocol, and the Vision-backed tools (OCRTool/BarcodeReaderTool) are macOS 27 / Xcode 27 only and
+  are absent from the 26.5 SDK this repo builds against, so they cannot be referenced at all
+  (`#if canImport(FoundationModels)` is already true on 26.x, so a symbol reference breaks the
+  build rather than failing at runtime). Adding Private Cloud Compute and the model-abstraction
+  refactor is deferred until the toolchain is upgraded.
+
 ## Unused / Latent
 
 - **`ActionContext.modifiers` is currently unused.** No action reads it; `PopupWindowController`

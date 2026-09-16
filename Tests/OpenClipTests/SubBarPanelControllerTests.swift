@@ -657,5 +657,58 @@ final class SubBarPanelControllerTests: XCTestCase {
         XCTAssertLessThanOrEqual(contentMaxY, parentFrame.minY, "Sub-bar visual content should sit below parent button")
         controller.hide()
     }
+
+    private struct InlineTestAction: Action, Sendable {
+        let id: String
+        let title: String
+        let icon: ActionIcon
+        var chrome: ActionChrome {
+            ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin, isInlineResult: true)
+        }
+        @MainActor func isEnabled(for context: ActionContext) -> Bool { true }
+        @MainActor func perform(_ context: ActionContext) async throws -> ActionResult { .text("run") }
+    }
+
+    /// A child action declaring `chrome.isInlineResult` must show its computed text in the sub-bar
+    /// (replacing its icon), not stay on the icon. Reading `modeStore.inlineResults` makes the
+    /// expanded text widen the button past the icon-only width.
+    func testInlineResultReplacesSubActionIcon() {
+        let action = InlineTestAction(id: "sub.inline", title: "Calculate", icon: .symbol("equal.circle"))
+        let parent = TestAction(id: "group.test", title: "Test Group", icon: .symbol("folder"))
+        let parentFrame = NSRect(x: 200, y: 300, width: 40, height: 29)
+
+        func panelWidth(result: String?) -> CGFloat {
+            let store = PopupModeStore()
+            if let result { store.inlineResults[action.id] = result }
+            let controller = SubBarPanelController()
+            controller.show(
+                for: parent,
+                parentIndex: 0,
+                subActions: [action],
+                parentButtonScreenFrame: parentFrame,
+                isPinned: false,
+                searchResultsAbove: true,
+                effectiveTheme: "dark",
+                effectiveColorScheme: .dark,
+                scale: 1.0,
+                context: makeContext(),
+                presenter: ActionCustomizationManager.shared,
+                modeStore: store,
+                onResult: { _ in },
+                onRunAI: { _ in },
+                onRunLoadingAction: { _ in },
+                onWillPerformAction: { _ in },
+                onActionPerformed: { _ in },
+                onClickIntent: { .primary }
+            )
+            let width = controller.panelFrame.width
+            controller.hide()
+            return width
+        }
+
+        let iconOnly = panelWidth(result: nil)
+        let withResult = panelWidth(result: String(repeating: "8", count: 24))
+        XCTAssertGreaterThan(withResult, iconOnly, "Inline result must replace the icon and widen the button")
+    }
 }
 

@@ -606,5 +606,17 @@
   "Unpin — card will dismiss automatically": "Détacher — la carte se fermera automatiquement",
   "%@ (Disabled)": "%@ (désactivé)",
   "Drag to reorder. Drag actions onto the group in the Actions list to add more.": "Faites glisser pour réorganiser. Déposez des actions sur le groupe dans la liste Actions pour en ajouter.",
-  "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Actions to place it in the popup bar.": "Ouvrez une action pour modifier son nom, son icône, son raccourci ou son comportement, ou pour la supprimer. Utilisez Actions pour la placer dans la barre contextuelle."
+  "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Actions to place it in the popup bar.": "Ouvrez une action pour modifier son nom, son icône, son raccourci ou son comportement, ou pour la supprimer. Utilisez Actions pour la placer dans la barre contextuelle.",
+  "Available": "Disponible",
+  "Requires macOS 26 or later": "Nécessite macOS 26 ou version ultérieure",
+  "Not supported on this Mac": "Non pris en charge sur ce Mac",
+  "Turn on in System Settings": "Activez-le dans Réglages Système",
+  "Model still downloading": "Modèle en cours de téléchargement",
+  "Unavailable": "Indisponible",
+  "Apple Intelligence is available.": "Apple Intelligence est disponible.",
+  "This Mac doesn't support Apple Intelligence. Configure another provider in Preferences → AI.": "Ce Mac ne prend pas en charge Apple Intelligence. Configurez un autre fournisseur dans Préférences → IA.",
+  "Turn on Apple Intelligence in System Settings → Apple Intelligence & Siri, or configure another provider in Preferences → AI.": "Activez Apple Intelligence dans Réglages Système → Apple Intelligence et Siri, ou configurez un autre fournisseur dans Préférences → IA.",
+  "Apple Intelligence models are still downloading. Try again shortly, or configure another provider in Preferences → AI.": "Les modèles Apple Intelligence sont en cours de téléchargement. Réessayez bientôt, ou configurez un autre fournisseur dans Préférences → IA.",
+  "Apple Intelligence is unavailable right now. Configure another provider in Preferences → AI.": "Apple Intelligence est indisponible pour le moment. Configurez un autre fournisseur dans Préférences → IA.",
+  "Apple Intelligence models are still preparing. Try again shortly.": "Les modèles Apple Intelligence sont en cours de préparation. Réessayez bientôt."
 }

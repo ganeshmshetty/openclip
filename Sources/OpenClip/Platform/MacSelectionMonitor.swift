@@ -5,6 +5,7 @@
 // popup presentation. Every trigger passes the `isSuppressed` gate first (wired to the popup's
 // modal result card by AppDelegate), so while that card is open no selection is read at all.
 import AppKit
+import CoreGraphics
 import Core
 
 @MainActor
@@ -49,6 +50,16 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// retrieves nothing and delivers nothing, so no selection is even read. Defaults to never suppressed.
     internal var isSuppressed: @MainActor () -> Bool = { false }
     internal var isSuppressedForApp: @MainActor (String?) -> Bool = { _ in false }
+    /// Overlay gate: true when a *foreign* window (a screenshot/annotation tool's full-screen picker,
+    /// a non-activating HUD) sits above the frontmost app at `point`. The automatic path stands down
+    /// while one is up, because copy-based retrieval posts a real ⌘C that lands on that overlay's key
+    /// window — firing the overlay's own Copy shortcut and tearing it down — rather than on the app
+    /// OpenClip meant to read. The explicit hotkey path stays exempt: the user asked for that read.
+    internal var isOverlayPresent: @MainActor (CGPoint) -> Bool = { point in
+        // Headless tests must not depend on the live window server; the pure gate is unit-tested directly.
+        guard NSClassFromString("XCTestCase") == nil else { return false }
+        return CopyTriggerGate.isForeignOverlayPresent(at: point)
+    }
 
     internal func shouldSuppress(for bundleID: String? = nil) -> Bool {
         isSuppressed() || isSuppressedForApp(bundleID ?? frontmostAppProvider()?.bundleIdentifier)
@@ -372,11 +383,17 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
+            // Keep monitoring (so `latestSelection` stays warm for ⌥⌘C) but never post a synthetic
+            // ⌘C while a foreign overlay owns the key window: the copy would fire the overlay's own
+            // shortcut and tear down the capture instead of reaching the app being read. The mouse-up
+            // path used the cascade default (copy fallback allowed); an overlay forces AX-only.
+            let allowCopyFallback = !self.isOverlayPresent(cursor)
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
             let result = await retriever.retrieve(
                 for: appIdentity,
                 policy: policy,
-                cursor: CursorClassifier.current.asCore
+                cursor: CursorClassifier.current.asCore,
+                allowCopyFallback: allowCopyFallback
             )
             if Task.isCancelled { return }
             await self.deliverSelection(
@@ -419,11 +436,14 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
+            // Same overlay guard as the mouse-up path: keep caching, but never post a synthetic ⌘C
+            // into another app's key window (see the mouse-up comment for the mechanism).
             let result = await retriever.retrieve(
                 for: appIdentity,
                 policy: policy,
                 cursor: CursorClassifier.current.asCore,
-                isSelectAll: isSelectAll
+                isSelectAll: isSelectAll,
+                allowCopyFallback: !self.isOverlayPresent(NSEvent.mouseLocation)
             )
             if Task.isCancelled { return }
             let anchor = Self.keyboardAnchor(

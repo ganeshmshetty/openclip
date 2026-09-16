@@ -171,24 +171,20 @@ final class AIProviderTests: XCTestCase {
         // Plain text without tags
         XCTAssertEqual(AIRequestSupport.extractResultText("Simple raw response"), "Simple raw response")
 
-        // Title and tool_name tags are stripped from result text
+        // Title tags are stripped from result text
         let withTitle = "<title>Fix Spelling</title><result>Fixed text.</result>"
         XCTAssertEqual(AIRequestSupport.extractResultText(withTitle), "Fixed text.")
         XCTAssertEqual(AIRequestSupport.extractTitleText(withTitle), "Fix Spelling")
-
-        let withToolName = "<tool_name>Spelling Fixer</tool_name><result>Fixed text.</result>"
-        XCTAssertEqual(AIRequestSupport.extractResultText(withToolName), "Fixed text.")
-        XCTAssertEqual(AIRequestSupport.extractToolNameText(withToolName), "Spelling Fixer")
 
         // Incomplete/unclosed <title> suppresses output until result starts
         XCTAssertEqual(AIRequestSupport.extractResultText("<title>In progress title..."), "")
         XCTAssertEqual(AIRequestSupport.extractTitleText("<title>In progress title..."), nil)
     }
 
-    func testTitleAndToolNameSanitization() {
+    func testTitleSanitization() {
         XCTAssertEqual(AIRequestSupport.extractTitleText("<title>  \"Clean Title\"  </title>"), "Clean Title")
-        XCTAssertEqual(AIRequestSupport.extractToolNameText("<tool_name> “Smart Summarizer” </tool_name>"), "Smart Summarizer")
         XCTAssertEqual(AIRequestSupport.extractTitleText("<title>«French Translator»</title>"), "French Translator")
+        XCTAssertEqual(AIRequestSupport.extractTitleText("<title><title>Nested</title></title>"), "Nested")
     }
 
     func testCloudAPIEffectiveBaseURL() {
@@ -211,5 +207,66 @@ final class AIProviderTests: XCTestCase {
 
         let userContent = AIRequestSupport.userContent(for: "Hello World")
         XCTAssertEqual(userContent, "<text>\nHello World\n</text>")
+    }
+
+    // MARK: - Apple Intelligence availability
+
+    func testAppleIntelligenceAvailabilityMessagesAreActionable() {
+        let statuses: [AppleIntelligenceAvailability.Status] = [
+            .available, .unsupportedOS, .deviceNotEligible, .notEnabled, .modelNotReady, .unknown
+        ]
+        for status in statuses {
+            XCTAssertFalse(AppleIntelligenceAvailability.statusLabel(for: status).isEmpty)
+            XCTAssertFalse(AppleIntelligenceAvailability.unavailableExplanation(for: status).isEmpty)
+        }
+        XCTAssertTrue(AppleIntelligenceAvailability.Status.available.isAvailable)
+        XCTAssertFalse(AppleIntelligenceAvailability.Status.notEnabled.isAvailable)
+    }
+
+    // MARK: - Structured output contract
+
+    func testStructuredSystemPromptDropsTagInstructions() {
+        let structured = AIRequestSupport.systemPrompt(for: "Summarize", structuredResult: true)
+        XCTAssertFalse(structured.contains("<result>...</result>"))
+        XCTAssertTrue(structured.contains("`result` field"))
+        XCTAssertTrue(structured.contains("Task:\nSummarize"))
+
+        let tagged = AIRequestSupport.systemPrompt(for: "Summarize", structuredResult: false)
+        XCTAssertTrue(tagged.contains("<result>...</result>"))
+    }
+
+    func testTaggedResponseRoundTripsThroughExtractors() {
+        let tagged = AIRequestSupport.taggedResponse(result: "Fixed text.", title: "Fix Spelling")
+        XCTAssertEqual(AIRequestSupport.extractResultText(tagged), "Fixed text.")
+        XCTAssertEqual(AIRequestSupport.extractTitleText(tagged), "Fix Spelling")
+
+        let resultOnly = AIRequestSupport.taggedResponse(result: "Only result")
+        XCTAssertEqual(AIRequestSupport.extractResultText(resultOnly), "Only result")
+        XCTAssertNil(AIRequestSupport.extractTitleText(resultOnly))
+
+        let blankTitle = AIRequestSupport.taggedResponse(result: "Body", title: "   ")
+        XCTAssertFalse(blankTitle.contains("<title>"))
+        XCTAssertEqual(AIRequestSupport.extractResultText(blankTitle), "Body")
+    }
+
+    func testTaggedResponseWithEmptyResultIsNotDetectableByExtractor() {
+        // Regression: for an empty body `extractResultText` falls back to the raw `<result></result>`
+        // wrapper, so it cannot flag an empty guided result. AppleIntelligenceProvider must check the
+        // typed `result` field directly before re-emitting tags.
+        let empty = AIRequestSupport.taggedResponse(result: "")
+        XCTAssertEqual(empty, "<result></result>")
+        XCTAssertFalse(AIRequestSupport.extractResultText(empty).isEmpty)
+    }
+
+    func testTaggedResponseStripsLeakedTagMarkup() {
+        // A text-shaped prompt can still tell the model to emit tags; guided generation may then
+        // place that literal markup inside a field. It must not survive the round-trip.
+        let leaked = AIRequestSupport.taggedResponse(
+            result: "<result>Fixed text.</result>",
+            title: "<title>Fix Spelling</title>"
+        )
+        XCTAssertEqual(AIRequestSupport.extractResultText(leaked), "Fixed text.")
+        XCTAssertEqual(AIRequestSupport.extractTitleText(leaked), "Fix Spelling")
+        XCTAssertFalse(leaked.contains("<title><title>"))
     }
 }

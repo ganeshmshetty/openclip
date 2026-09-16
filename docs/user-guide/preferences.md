@@ -149,7 +149,7 @@ Select **AI** in the sidebar (the first row of the Extensions group) to turn AI 
 
 | Provider | Description | Setup Requirements |
 | :--- | :--- | :--- |
-| **Apple Intelligence** | On-device macOS intelligence framework | macOS 15.0+ with Apple Intelligence enabled |
+| **Apple Intelligence** | On-device macOS intelligence framework | macOS 26.0+ on Apple Silicon with Apple Intelligence enabled |
 | **Ollama (Local)** | Privacy-focused local LLM execution | Running Ollama instance (`http://localhost:11434`) |
 | **Cloud AI (OpenAI / Claude / Gemini / DeepSeek / Groq / OpenRouter / Custom)** | Cloud API language models | Valid API Key stored securely in `SecretStore` (`~/.openclip/secrets.json`) |
 | **Browser Redirect** | Opens AI query in browser | No API key required |

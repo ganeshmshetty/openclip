@@ -320,6 +320,7 @@ public class PopupWindowController {
             },
             onContentSizeChange: { [weak self] size in
                 self?.resizePanel(to: size)
+                self?.keepPanelOnScreen()
             },
             onAIStateChange: { [weak self] active, _ in
                 self?.setAIProcessing(active, session: aiSession)
@@ -1563,6 +1564,7 @@ public class PopupWindowController {
             scale: scale,
             context: context,
             presenter: ActionCustomizationManager.shared,
+            modeStore: modeStore,
             onResult: { [weak self] result in
                 self?.subBarController.hide()
                 self?.modeStore.isSubBarActive = false
@@ -1706,7 +1708,7 @@ public class PopupWindowController {
                         return
                     }
                     accumulated += chunk
-                    if let generated = AIRequestSupport.extractToolNameText(accumulated) ?? AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
+                    if let generated = AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
                         onGeneratedTitle?(generated)
                     }
                 }
@@ -1714,7 +1716,7 @@ public class PopupWindowController {
                     self.toastController.hide()
                     return
                 }
-                if let generated = AIRequestSupport.extractToolNameText(accumulated) ?? AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
+                if let generated = AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
                     onGeneratedTitle?(generated)
                 }
                 let answer = AIRequestSupport.extractResultText(accumulated)
@@ -1947,7 +1949,7 @@ public class PopupWindowController {
                         return
                     }
                     accumulated += chunk
-                    if let newTitle = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !newTitle.isEmpty {
+                    if let newTitle = AIRequestSupport.extractTitleText(accumulated), !newTitle.isEmpty {
                         activeTitle = newTitle
                         onGeneratedTitle?(newTitle)
                     }
@@ -1969,7 +1971,7 @@ public class PopupWindowController {
                     return
                 }
                 self.toastController.hide()
-                if let newTitle = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !newTitle.isEmpty {
+                if let newTitle = AIRequestSupport.extractTitleText(accumulated), !newTitle.isEmpty {
                     activeTitle = newTitle
                     onGeneratedTitle?(newTitle)
                 }

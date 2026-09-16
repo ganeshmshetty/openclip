@@ -75,11 +75,29 @@ public struct AIConfigureForm: View {
 
             Section(header: Text("Provider Settings")) {
                 if aiManager.activeProviderType == .apple {
-                    HStack(spacing: 8) {
-                        Image(systemName: "applelogo")
-                            .font(.system(size: 14, weight: .medium))
-                        Text("Apple Intelligence (On-Device)")
-                            .font(.system(size: 13, weight: .medium))
+                    let status = AppleIntelligenceAvailability.current
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "applelogo")
+                                .font(.system(size: 14, weight: .medium))
+                            Text("Apple Intelligence (On-Device)")
+                                .font(.system(size: 13, weight: .medium))
+                        }
+
+                        HStack(spacing: 6) {
+                            Image(systemName: status.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                .foregroundColor(status.isAvailable ? .green : .orange)
+                            Text(AppleIntelligenceAvailability.statusLabel(for: status))
+                                .foregroundColor(status.isAvailable ? .secondary : .orange)
+                        }
+                        .font(.caption)
+
+                        if !status.isAvailable {
+                            Text(AppleIntelligenceAvailability.unavailableExplanation(for: status))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                     .padding(.vertical, 4)
                 } else if aiManager.activeProviderType == .local {

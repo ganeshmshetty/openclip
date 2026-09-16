@@ -829,6 +829,105 @@ final class MacSelectionMonitorTests: XCTestCase {
         let cached = try XCTUnwrap(monitor.latestSelection)
         XCTAssertEqual(cached.context.text, "hotkey only selection")
     }
+
+    // MARK: - Foreign-overlay gate
+    // The window-list logic itself lives in OpenSelection's released `CopyTriggerGate`; these pin the
+    // macOS-facing decision the monitor relies on.
+
+    func testOverlayGateSuppressesWhenForeignWindowIsOnTop() {
+        let selfPID: pid_t = 100
+        let frontmost: pid_t = 200
+        let display = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let windows = [
+            OnScreenWindowInfo(ownerPID: 999, layer: 257, frame: display), // full-screen capture overlay
+            OnScreenWindowInfo(ownerPID: frontmost, layer: 0, frame: display)
+        ]
+        XCTAssertTrue(CopyTriggerGate.isForeignOverlay(
+            windows: windows, at: CGPoint(x: 500, y: 400),
+            frontmostPID: frontmost, selfPID: selfPID, displayBounds: display))
+    }
+
+    /// Regression (NotchNook): an elevated but partial panel from another app is not a capture
+    /// overlay and must not suppress the copy-based read.
+    func testOverlayGateAllowsWhenForeignWindowIsAPartialPanel() {
+        let selfPID: pid_t = 100
+        let frontmost: pid_t = 200
+        let display = CGRect(x: 0, y: 0, width: 1470, height: 956)
+        let windows = [
+            OnScreenWindowInfo(ownerPID: 999, layer: 25, frame: CGRect(x: 0, y: 707, width: 1470, height: 250)),
+            OnScreenWindowInfo(ownerPID: frontmost, layer: 0, frame: display)
+        ]
+        XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
+            windows: windows, at: CGPoint(x: 570, y: 734),
+            frontmostPID: frontmost, selfPID: selfPID, displayBounds: display))
+    }
+
+    func testOverlayGateAllowsWhenFrontmostOwnsTopWindow() {
+        let selfPID: pid_t = 100
+        let frontmost: pid_t = 200
+        let windows = [
+            OnScreenWindowInfo(ownerPID: frontmost, layer: 0, frame: CGRect(x: 0, y: 0, width: 1440, height: 900))
+        ]
+        XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
+            windows: windows, at: CGPoint(x: 500, y: 400), frontmostPID: frontmost, selfPID: selfPID))
+    }
+
+    /// Our own popup sits above the frontmost app while visible; it must never count as foreign.
+    func testOverlayGateIgnoresOwnPopupAboveFrontmostApp() {
+        let selfPID: pid_t = 100
+        let frontmost: pid_t = 200
+        let windows = [
+            OnScreenWindowInfo(ownerPID: selfPID, layer: 101, frame: CGRect(x: 0, y: 0, width: 1440, height: 900)),
+            OnScreenWindowInfo(ownerPID: frontmost, layer: 0, frame: CGRect(x: 0, y: 0, width: 1440, height: 900))
+        ]
+        XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
+            windows: windows, at: CGPoint(x: 500, y: 400), frontmostPID: frontmost, selfPID: selfPID))
+    }
+
+    func testOverlayGateAllowsOnUnknownInputs() {
+        let window = OnScreenWindowInfo(ownerPID: 999, layer: 257, frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+        XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
+            windows: [window], at: CGPoint(x: 500, y: 500), frontmostPID: 200, selfPID: 100), "no window under the point")
+        XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
+            windows: [window], at: CGPoint(x: 50, y: 50), frontmostPID: nil, selfPID: 100), "unknown frontmost app")
+        XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
+            windows: [], at: CGPoint(x: 50, y: 50), frontmostPID: 200, selfPID: 100), "no windows")
+    }
+
+    /// Regression (macshot / CleanShot): during a foreign capture overlay the automatic path must
+    /// still monitor (so ⌥⌘C stays warm) but must never post the copy retrieval's synthetic ⌘C — it
+    /// would land on the overlay's key window, fire its own Copy shortcut, and tear the capture down.
+    func testOverlayWithholdsCopyRetrievalButKeepsMonitoring() async throws {
+        // A web area with no AX text forces the cascade past AX into the (suppressed) copy tier.
+        func makeMonitor(overlay: Bool) -> MacSelectionMonitor {
+            let monitor = MacSelectionMonitor()
+            monitor.isExcludedBundle = { _ in false }
+            monitor.policyResolver = { _ in AppPolicyContext.default }
+            monitor.isOverlayPresent = { _ in overlay }
+            monitor.retriever = SelectionRetrievalCoordinator(
+                inspect: { Self.fixtureTarget(role: "AXWebArea", selectedText: nil) },
+                copyCapture: { _ in SelectionResult(text: "from copy", strategy: .keyboardCopy) }
+            )
+            return monitor
+        }
+
+        let app = MockTestApp(bundleID: "com.apple.TextEdit")
+
+        // Overlay present: the copy tier is withheld, so nothing is cached and no popup fires.
+        let gated = makeMonitor(overlay: true)
+        gated.onSelection = { _, _ in XCTFail("onSelection must not fire when the copy was withheld") }
+        gated.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        gated.handleMouseUp(app: app, cursor: CGPoint(x: 200, y: 100), clickCount: 1)
+        await gated.debounceTask?.value
+        XCTAssertNil(gated.latestSelection, "the synthetic copy must not run under a foreign overlay")
+
+        // No overlay: the same retrieval reaches the copy tier and caches as usual.
+        let ungated = makeMonitor(overlay: false)
+        ungated.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        ungated.handleMouseUp(app: app, cursor: CGPoint(x: 200, y: 100), clickCount: 1)
+        await ungated.debounceTask?.value
+        XCTAssertEqual(ungated.latestSelection?.context.text, "from copy")
+    }
 }
 
 private final class MockTestApp: NSRunningApplication {

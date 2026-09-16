@@ -1961,6 +1961,118 @@
         }
       }
     },
+    "Apple Intelligence is available.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 可用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 可用。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence est disponible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligenceは利用可能です。"
+          }
+        }
+      }
+    },
+    "Apple Intelligence is unavailable right now. Configure another provider in Preferences → AI.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 目前不可用。请在偏好设置 → AI 中配置其他提供方。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 目前無法使用。請至「偏好設定」→「AI」設定其他提供者。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence est indisponible pour le moment. Configurez un autre fournisseur dans Préférences → IA."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligenceは現在利用できません。環境設定 → AI で別のプロバイダを設定してください。"
+          }
+        }
+      }
+    },
+    "Apple Intelligence models are still downloading. Try again shortly, or configure another provider in Preferences → AI.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 模型仍在下载。请稍后重试，或在偏好设置 → AI 中配置其他提供方。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 模型仍在下載。請稍後再試，或至「偏好設定」→「AI」設定其他提供者。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les modèles Apple Intelligence sont en cours de téléchargement. Réessayez bientôt, ou configurez un autre fournisseur dans Préférences → IA."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligenceのモデルをまだダウンロード中です。しばらくして再試行するか、環境設定 → AI で別のプロバイダを設定してください。"
+          }
+        }
+      }
+    },
+    "Apple Intelligence models are still preparing. Try again shortly.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 模型仍在准备中。请稍后重试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 模型仍在準備中。請稍後再試。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les modèles Apple Intelligence sont en cours de préparation. Réessayez bientôt."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligenceのモデルを準備中です。しばらくして再試行してください。"
+          }
+        }
+      }
+    },
     "Apple Intelligence requires macOS 26.0+ with supported Apple Silicon hardware. Configure another provider in Preferences → AI.": {
       "localizations": {
         "zh-Hans": {
@@ -2237,6 +2349,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アップデートを自動的にダウンロード"
+          }
+        }
+      }
+    },
+    "Available": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disponible"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用可能"
           }
         }
       }
@@ -5097,34 +5237,6 @@
         }
       }
     },
-    "Drag": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "拖动"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "拖曳"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Glisser"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ドラッグ"
-          }
-        }
-      }
-    },
     "Drag icon to add to a group": {
       "localizations": {
         "zh-Hans": {
@@ -5149,34 +5261,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "アイコンをドラッグしてグループに追加"
-          }
-        }
-      }
-    },
-    "Drag image to export or share": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "拖动图像以导出或分享"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "拖曳影像以匯出或分享"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Faites glisser l'image pour l'exporter ou la partager"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "画像をドラッグして書き出しまたは共有"
           }
         }
       }
@@ -8569,6 +8653,34 @@
         }
       }
     },
+    "Model still downloading": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型仍在下载"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型仍在下載"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modèle en cours de téléchargement"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルをダウンロード中"
+          }
+        }
+      }
+    },
     "Model “%@” is not supported by the configured cloud endpoint.": {
       "localizations": {
         "zh-Hans": {
@@ -9489,6 +9601,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "選択したテキストに有効なURLが見つかりません。"
+          }
+        }
+      }
+    },
+    "Not supported on this Mac": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Mac 不支持"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Mac 不支援"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non pris en charge sur ce Mac"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このMacではサポートされていません"
           }
         }
       }
@@ -12349,6 +12489,34 @@
         }
       }
     },
+    "Requires macOS 26 or later": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要 macOS 26 或更高版本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要 macOS 26 或以上版本"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nécessite macOS 26 ou version ultérieure"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 26以降が必要です"
+          }
+        }
+      }
+    },
     "Reset Defaults": {
       "localizations": {
         "zh-Hans": {
@@ -15037,6 +15205,34 @@
         }
       }
     },
+    "This Mac doesn't support Apple Intelligence. Configure another provider in Preferences → AI.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Mac 不支持 Apple Intelligence。请在偏好设置 → AI 中配置其他提供方。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Mac 不支援 Apple Intelligence。請至「偏好設定」→「AI」設定其他提供者。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce Mac ne prend pas en charge Apple Intelligence. Configurez un autre fournisseur dans Préférences → IA."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このMacはApple Intelligenceに対応していません。環境設定 → AI で別のプロバイダを設定してください。"
+          }
+        }
+      }
+    },
     "This action is a standalone script file with no editable manifest. Re-create it as an extension package to customize its behavior.": {
       "localizations": {
         "zh-Hans": {
@@ -15485,6 +15681,62 @@
         }
       }
     },
+    "Turn on Apple Intelligence in System Settings → Apple Intelligence & Siri, or configure another provider in Preferences → AI.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在系统设置 → Apple Intelligence 与 Siri 中开启 Apple Intelligence，或在偏好设置 → AI 中配置其他提供方。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請在「系統設定」→「Apple Intelligence 與 Siri」中開啟 Apple Intelligence，或至「偏好設定」→「AI」設定其他提供者。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activez Apple Intelligence dans Réglages Système → Apple Intelligence et Siri, ou configurez un autre fournisseur dans Préférences → IA."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム設定 → Apple Intelligence と Siri でApple Intelligenceをオンにするか、環境設定 → AI で別のプロバイダを設定してください。"
+          }
+        }
+      }
+    },
+    "Turn on in System Settings": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在系统设置中开启"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請在「系統設定」中開啟"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activez-le dans Réglages Système"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム設定でオンにしてください"
+          }
+        }
+      }
+    },
     "Turn selected text in any app into instant contextual actions.": {
       "localizations": {
         "zh-Hans": {
@@ -15677,6 +15929,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アクティブなネットワーク接続がないと、拡張機能のおすすめを読み込めません。"
+          }
+        }
+      }
+    },
+    "Unavailable": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不可用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法使用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indisponible"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用できません"
           }
         }
       }

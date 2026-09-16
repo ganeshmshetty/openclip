@@ -128,7 +128,7 @@ final class PaletteAIReplaceTests: XCTestCase {
     func testSavingAPromptCreatesCustomPreset() async {
         let handler = RecordingHandler()
         let controller = makeController(handler: handler)
-        let provider = FixedProvider(reply: "<tool_name>Slovak Translator</tool_name><result>ahoj svet</result>")
+        let provider = FixedProvider(reply: "<title>Slovak Translator</title><result>ahoj svet</result>")
         AIServiceManager.shared.providerOverride = provider
         defer { AIServiceManager.shared.providerOverride = nil }
         let presetsBefore = AIServiceManager.shared.presets
@@ -141,7 +141,7 @@ final class PaletteAIReplaceTests: XCTestCase {
         _ = await controller.activeStreamingTask?.value
         let preset = AIServiceManager.shared.preset(matchingPrompt: "rewrite to slovak")
         XCTAssertNotNil(preset)
-        XCTAssertEqual(preset?.title, "Slovak Translator", "updates the preset title from <tool_name>")
+        XCTAssertEqual(preset?.title, "Slovak Translator", "updates the preset title from <title>")
         guard case .paste(let pasted)? = handler.results.last else { return XCTFail("Save with ⏎ still replaces in place") }
         XCTAssertEqual(pasted, "ahoj svet")
     }

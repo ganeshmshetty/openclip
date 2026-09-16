@@ -93,13 +93,15 @@ enum PaletteAIPrompt {
     }
 
     /// Prompt instruction wrapped with format requirements to generate a clean reusable tool name.
+    /// The name travels in the same `<title>` tag as the task-heading flows — it is one concept
+    /// ("the short name for this work"), and only the wording of what to name differs per flow.
     static func saveToolTaskPrompt(for query: String) -> String {
         let task = instruction(from: query)
         return """
         \(task)
 
         Format requirements:
-        1. Output a clean, concise 2-4 word action tool name for this reusable tool inside <tool_name>...</tool_name> tags (e.g. "Formal Email Rewriter", "Translate to Slovak").
+        1. Output a clean, concise 2-4 word action tool name for this reusable tool inside <title>...</title> tags (e.g. "Formal Email Rewriter", "Translate to Slovak").
         2. Output your transformed text inside <result>...</result> tags.
         """
     }

@@ -326,6 +326,7 @@
 		D3C8C3EA66019AC8C95C551C /* PasteAvailabilityProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07948B26DD33C5F462D65FAE /* PasteAvailabilityProbe.swift */; };
 		D431D52866EFE3E549C040DA /* ActionResultDelivery.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9AAC01C6AC9C779B9CD90F4 /* ActionResultDelivery.swift */; };
 		D6108981B89D6782D1F1583A /* AppUpdateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB483298675E80C088DA1A8B /* AppUpdateManager.swift */; };
+		D6AF7C565A52C2B7EF2C8078 /* AppleIntelligenceAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 799B9DB85114C7531350007E /* AppleIntelligenceAvailability.swift */; };
 		D6F88E415ABB12BB4050C88E /* OnboardingWindowControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E467628FCBF3B46387A7A43 /* OnboardingWindowControllerTests.swift */; };
 		D72FCA9FD303A157A2043950 /* ActionIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98F4DC2E8594188FBB4BF626 /* ActionIdentityTests.swift */; };
 		D7E40768967837E0BB3D1F89 /* CustomActionManifestWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9206ED1D9BA1DDBC6B15C384 /* CustomActionManifestWriterTests.swift */; };
@@ -605,6 +606,7 @@
 		75F48D14096F6030D7269BB3 /* SettingsHeroHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsHeroHeader.swift; sourceTree = "<group>"; };
 		7683646692AA6067DA5AA86D /* ActionCustomizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCustomizationManager.swift; sourceTree = "<group>"; };
 		7726769286BF1C3870E0A003 /* JSNativeFetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSNativeFetch.swift; sourceTree = "<group>"; };
+		799B9DB85114C7531350007E /* AppleIntelligenceAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleIntelligenceAvailability.swift; sourceTree = "<group>"; };
 		79D64C96408A09CB4C053E1E /* SettingKey+ResultCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingKey+ResultCard.swift"; sourceTree = "<group>"; };
 		7A37D90BFF87CB9EFE573551 /* ActionResultDeliveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionResultDeliveryTests.swift; sourceTree = "<group>"; };
 		7B1CAECD556B1DF6245E0DED /* PasteAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteAvailability.swift; sourceTree = "<group>"; };
@@ -899,6 +901,7 @@
 				5462DE3FBF349954799E6C00 /* AIProvider.swift */,
 				90B84517D03AB3D9A5BB0D1D /* AIServiceManager.swift */,
 				F3824097C85647BB0C202CB5 /* AIToolsAction.swift */,
+				799B9DB85114C7531350007E /* AppleIntelligenceAvailability.swift */,
 				0334C4BE1DC0DB7B6A7F6C57 /* Providers */,
 			);
 			path = AI;
@@ -1924,6 +1927,7 @@
 				7265AF347B73B7E61A597E30 /* AppRulesTab.swift in Sources */,
 				D6108981B89D6782D1F1583A /* AppUpdateManager.swift in Sources */,
 				C2E344F59CE4265FB2648377 /* AppearanceTabView.swift in Sources */,
+				D6AF7C565A52C2B7EF2C8078 /* AppleIntelligenceAvailability.swift in Sources */,
 				7EDDECF89D21D258E5A00C01 /* AppleIntelligenceProvider.swift in Sources */,
 				B4DA8361B40017E09D1FF51A /* AppleScriptAction.swift in Sources */,
 				5855A29EBF520A06EC21B4CE /* AppleScriptRunner.swift in Sources */,
@@ -2099,7 +2103,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -2112,7 +2116,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.6.0;
+				MARKETING_VERSION = 1.6.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openclip.OpenClip;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -2129,7 +2133,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -2142,7 +2146,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.6.0;
+				MARKETING_VERSION = 1.6.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openclip.OpenClip;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -2391,7 +2395,7 @@
 			repositoryURL = "https://github.com/ganeshmshetty/OpenSelection";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.1.1;
+				minimumVersion = 0.1.2;
 			};
 		};
 		0BBBF5D087479FC9C36D0D54 /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */ = {

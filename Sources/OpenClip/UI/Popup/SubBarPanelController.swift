@@ -47,6 +47,7 @@ public final class SubBarPanelController {
         scale: CGFloat,
         context: ActionContext,
         presenter: any ActionPresenting,
+        modeStore: PopupModeStore = PopupModeStore(),
         onResult: @escaping @MainActor @Sendable (ActionResult) -> Void,
         onRunAI: @escaping @MainActor @Sendable (String) -> Void,
         onRunLoadingAction: @escaping @MainActor @Sendable (any Action) -> Void,
@@ -81,6 +82,7 @@ public final class SubBarPanelController {
             scale: scale,
             context: context,
             presenter: presenter,
+            modeStore: modeStore,
             onResult: onResult,
             onRunAI: onRunAI,
             onRunLoadingAction: onRunLoadingAction,
@@ -345,6 +347,7 @@ private struct SubBarContentView: View {
     let scale: CGFloat
     let context: ActionContext
     let presenter: any ActionPresenting
+    let modeStore: PopupModeStore
     let onResult: @MainActor @Sendable (ActionResult) -> Void
     let onRunAI: @MainActor @Sendable (String) -> Void
     let onRunLoadingAction: @MainActor @Sendable (any Action) -> Void
@@ -373,6 +376,7 @@ private struct SubBarContentView: View {
             subActions: subActions,
             currentPage: $currentPage,
             hoverState: hoverState,
+            modeStore: modeStore,
             onResult: onResult,
             onRunAI: onRunAI,
             onRunLoadingAction: onRunLoadingAction,

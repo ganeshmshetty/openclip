@@ -607,5 +607,17 @@
   "Unpin — card will dismiss automatically": "取消固定 — 卡片将自动关闭",
   "%@ (Disabled)": "%@（已停用）",
   "Drag to reorder. Drag actions onto the group in the Actions list to add more.": "拖动以重新排序。将动作拖到“动作”列表中的分组上可添加更多。",
-  "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Actions to place it in the popup bar.": "打开动作可更改其名称、图标、快捷键或功能，也可将其删除。使用“动作”将其放入弹出栏。"
+  "Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Actions to place it in the popup bar.": "打开动作可更改其名称、图标、快捷键或功能，也可将其删除。使用“动作”将其放入弹出栏。",
+  "Available": "可用",
+  "Requires macOS 26 or later": "需要 macOS 26 或更高版本",
+  "Not supported on this Mac": "此 Mac 不支持",
+  "Turn on in System Settings": "请在系统设置中开启",
+  "Model still downloading": "模型仍在下载",
+  "Unavailable": "不可用",
+  "Apple Intelligence is available.": "Apple Intelligence 可用。",
+  "This Mac doesn't support Apple Intelligence. Configure another provider in Preferences → AI.": "此 Mac 不支持 Apple Intelligence。请在偏好设置 → AI 中配置其他提供方。",
+  "Turn on Apple Intelligence in System Settings → Apple Intelligence & Siri, or configure another provider in Preferences → AI.": "请在系统设置 → Apple Intelligence 与 Siri 中开启 Apple Intelligence，或在偏好设置 → AI 中配置其他提供方。",
+  "Apple Intelligence models are still downloading. Try again shortly, or configure another provider in Preferences → AI.": "Apple Intelligence 模型仍在下载。请稍后重试，或在偏好设置 → AI 中配置其他提供方。",
+  "Apple Intelligence is unavailable right now. Configure another provider in Preferences → AI.": "Apple Intelligence 目前不可用。请在偏好设置 → AI 中配置其他提供方。",
+  "Apple Intelligence models are still preparing. Try again shortly.": "Apple Intelligence 模型仍在准备中。请稍后重试。"
 }

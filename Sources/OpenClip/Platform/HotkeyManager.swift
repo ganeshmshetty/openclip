@@ -281,7 +281,8 @@ public final class HotkeyManager {
         if let result = await SelectionRetrievalCoordinator().retrieve(
             for: appIdentity,
             policy: policy,
-            cursor: CursorClassifier.current.asCore
+            cursor: CursorClassifier.current.asCore,
+            allowCopyFallback: !CopyTriggerGate.isForeignOverlayPresent(at: NSEvent.mouseLocation)
         ) {
             retrievedText = result.text
             selectionBounds = result.bounds

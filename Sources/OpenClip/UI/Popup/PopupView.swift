@@ -611,7 +611,7 @@ public struct PopupView: View {
                 for try await chunk in provider.processStream(prompt: prompt, text: selectionText) {
                     guard !Task.isCancelled else { return }
                     accumulated += chunk
-                    if let generated = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !generated.isEmpty {
+                    if let generated = AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
                         activeTitle = generated
                         onGeneratedTitle?(generated)
                     }
@@ -623,7 +623,7 @@ public struct PopupView: View {
                 }
 
                 guard !Task.isCancelled else { return }
-                if let generated = AIRequestSupport.extractTitleText(accumulated) ?? AIRequestSupport.extractToolNameText(accumulated), !generated.isEmpty {
+                if let generated = AIRequestSupport.extractTitleText(accumulated), !generated.isEmpty {
                     activeTitle = generated
                     onGeneratedTitle?(generated)
                 }

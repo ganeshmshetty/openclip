@@ -272,7 +272,7 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
   longer the selection's, `frontmostBundleIDProvider`); **⏎, click and ⌘-digits show the result
   card first** (`runAIPreset`, same streaming card as a preset, dynamically titled with `<title>` generated
   by the model). Save stores the instruction as a custom `AIActionPreset` (`AIServiceManager.addCustomPreset`,
-  or reuses an existing one via `preset(matchingPrompt:)`) with a clean action name (`<tool_name>`) and
+  or reuses an existing one via `preset(matchingPrompt:)`) with a clean action name (`<title>`) and
   runs it the same way. The rules live in `PaletteAIPrompt` (`rows(for:aiEnabled:results:)`, `instruction(from:)`,
   `toolTitle(for:)`, `hint(canPaste:)`); the palette reports through `onRunAIPrompt(instruction, replace)` /
   `onSaveAIPrompt` → `PopupView` → `PopupWindowController.runAIPrompt` / `saveAndRunAIPrompt`.
