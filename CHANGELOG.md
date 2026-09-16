@@ -3,7 +3,7 @@
 All notable user-facing changes, feature additions, and improvements to OpenClip are documented here.
 
 ---
-10000000000000000000000+1
+
 ## v1.6.1 - 2026-09-16
 
 ### Features & Improvements
