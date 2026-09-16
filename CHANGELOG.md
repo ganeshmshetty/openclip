@@ -16,6 +16,8 @@ All notable user-facing changes, feature additions, and improvements to OpenClip
 - **Overlay-safe selection reads**: the automatic path no longer posts a synthetic ⌘C while a foreign overlay (e.g. a screenshot tool) owns the key window; the explicit hotkey path still reads.
 - **Result card stays on screen**: the popup re-clamps itself as the card resizes.
 - **Empty-state hint**: custom actions now point to Actions for placing actions in the popup bar.
+- **Settings sidebar search**: the strip behind the search field now draws the sidebar's own vibrant material and fades into the list — or hands off to the system's soft scroll edge effect on macOS 26 — instead of sitting on a lighter, mismatched band with a hard edge.
+- **Settings remembers where you were**: reopening the window returns to the last pane (and any page you had drilled into) instead of always jumping back to General, and the sidebar scrolls the selected row into view. Deep links — the Actions status-menu item or an action asking to be configured — still open their own pane.
 
 ---
 
