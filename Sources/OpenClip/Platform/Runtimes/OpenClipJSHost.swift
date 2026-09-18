@@ -16,9 +16,12 @@
 // get a `fetch(url, options)` polyfill bridged to URLSession (GET/POST with JSON bodies; responses
 // expose `{ status, ok, text(), json() }`) and a promise bridge: the wrapped entry point attaches
 // `.then`/catch handlers that settle a PromiseState, and the host pumps the thread's runloop until
-// the promise settles. A JavaScriptCore VM execution limit interrupts synchronous JavaScript, while
-// a TimeoutFlag watchdog bounds idle promise waiting; both throw after `Constants.scriptTimeout`.
-// Synchronous extensions keep the exact legacy wrapped-script shape and immediate-result behavior.
+// the promise settles. A per-evaluation exceptionHandler assigns `context.exception` and rejects
+// the PromiseState if an exception escapes a native-to-JS callback after initial evaluation, so
+// the pump terminates promptly rather than waiting for the idle watchdog. A JavaScriptCore VM
+// execution limit interrupts synchronous JavaScript, while a TimeoutFlag watchdog bounds idle
+// promise waiting; both throw after `Constants.scriptTimeout`. Synchronous extensions keep the
+// exact legacy wrapped-script shape and immediate-result behavior.
 import Foundation
 import JavaScriptCore
 import Core
@@ -289,6 +292,19 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let effects = EffectsBox()
         let promiseState = request.isAsync ? PromiseState() : nil
 
+        // Per-evaluation exception handler, installed before any bridge script runs. JSContext does
+        // not assign `context.exception` when a handler is present, so we assign it ourselves to
+        // preserve the synchronous `evaluateScript` check. For async evaluations, also reject the
+        // promise bridge so a throw that escapes a native-to-JS callback (after initial evaluation)
+        // terminates the pump instead of waiting for the idle watchdog. Capture only PromiseState;
+        // the handler argument is the only JSContext reference used here.
+        jsContext.exceptionHandler = { [promiseState] context, exception in
+            guard let exception else { return }
+            context?.exception = exception
+            promiseState?.reject(exception)
+        }
+        defer { jsContext.exceptionHandler = nil }
+
         // Give scripts a global `console.log` before anything runs, so it routes to Log.js instead
         // of throwing a ReferenceError that breaks the action.
         installConsoleShim(in: jsContext, actionID: request.actionID)
@@ -512,6 +528,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
                     throw timeoutError(timeoutSeconds)
                 }
                 CFRunLoopRunInMode(.defaultMode, 0.05, true)
+            }
+            if let exception = jsContext.exception {
+                return EvaluationResult(collected: collected.value, effects: effects.value, exceptionMessage: exception.toString() ?? "JavaScript exception", asyncReturnValue: nil)
             }
             if let rejected = promiseState.rejectedValue {
                 let message = rejected.toString() ?? "JavaScript promise rejected"
