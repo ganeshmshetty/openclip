@@ -448,6 +448,62 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertTrue(feedback.message.contains("async-boom"))
     }
 
+    /// A throw after `await` rejects the action's returned promise through `__openclip_dispatch`.
+    func testThrowAfterAwaitSurfacesErrorToast() async throws {
+        let request = makeRequest(script: """
+            async function action() {
+                await Promise.resolve();
+                throw new Error('after-await-boom');
+            }
+            """, isAsync: true)
+        let result = try await host.run(request)
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
+        }
+        XCTAssertEqual(feedback.style, .error)
+        XCTAssertTrue(feedback.message.contains("after-await-boom"), feedback.message)
+    }
+
+    /// A top-level throw in an async script is still a synchronous `evaluateScript` exception.
+    func testAsyncTopLevelThrowSurfacesErrorToast() async throws {
+        let request = makeRequest(script: "throw new Error('async-top-level');", isAsync: true)
+        let result = try await host.run(request)
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
+        }
+        XCTAssertEqual(feedback.style, .error)
+        XCTAssertTrue(feedback.message.contains("async-top-level"), feedback.message)
+    }
+
+    /// A syntax error in an async script surfaces as an error toast, not a thrown Swift error.
+    func testAsyncSyntaxErrorSurfacesErrorToast() async throws {
+        let request = makeRequest(script: "function action() { return 'ok';", isAsync: true)
+        let result = try await host.run(request)
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
+        }
+        XCTAssertEqual(feedback.style, .error)
+        XCTAssertFalse(feedback.message.isEmpty)
+    }
+
+    /// A throw caught inside the action must not become a global failure.
+    func testCaughtThrowInsideAsyncActionStillSucceeds() async throws {
+        let request = makeRequest(script: """
+            async function action() {
+                try {
+                    throw new Error('handled-inside-action');
+                } catch (e) {
+                    return 'recovered';
+                }
+            }
+            """, isAsync: true)
+        let result = try await host.run(request)
+        guard case .text(let text) = result else {
+            return XCTFail("Expected .text, got \(result)")
+        }
+        XCTAssertEqual(text, "recovered")
+    }
+
     func testSyncModeIgnoresAsyncReturnValue() async throws {
         // Legacy mode can't await a promise; a promise-like return must not paste "[object Promise]".
         let result = try await host.run(makeRequest(script: "async function action() { return 'x'; }"))
@@ -547,6 +603,72 @@ final class OpenClipJSHostTests: XCTestCase {
             return XCTFail("Expected .text, got \(result)")
         }
         XCTAssertEqual(text, "caught")
+    }
+
+    /// Issue #48: a throw inside a native-to-JS fetch callback (after `evaluateScript` has
+    /// returned) must surface as an error toast promptly, not by waiting for the idle watchdog.
+    /// The callback is invoked via `openclip.__nativeFetch` so the throw crosses the native
+    /// boundary during the pump rather than through `__openclip_dispatch`'s rejection handler.
+    func testNativeFetchCallbackThrowSurfacesErrorToastWithoutTimeout() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("ok".utf8))
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let timeout: TimeInterval = 2
+        let script = """
+        function action() {
+            return new Promise(function(resolve, reject) {
+                openclip.__nativeFetch('https://example.com/ping', {}, function() {
+                    throw new Error('sentinel-callback-throw');
+                }, function(err) {
+                    reject(err);
+                });
+            });
+        }
+        """
+        let started = Date()
+        let result = try await makeMockedHost().run(makeRequest(script: script, isAsync: true, timeout: timeout))
+        let elapsed = Date().timeIntervalSince(started)
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected .toast, got \(result)")
+        }
+        XCTAssertEqual(feedback.style, .error)
+        XCTAssertTrue(feedback.message.contains("sentinel-callback-throw"), feedback.message)
+        XCTAssertFalse(feedback.message.localizedCaseInsensitiveContains("timed out"), feedback.message)
+        XCTAssertLessThan(elapsed, timeout * 0.5, "escaped callback exception must not wait for the \(timeout)s watchdog, took \(elapsed)s")
+    }
+
+    /// A throw caught inside the native fetch callback must still resolve successfully.
+    /// The exception handler must not turn handled errors into global failures.
+    func testCaughtThrowInsideNativeFetchCallbackStillSucceeds() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("ok".utf8))
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let script = """
+        function action() {
+            return new Promise(function(resolve, reject) {
+                openclip.__nativeFetch('https://example.com/ping', {}, function() {
+                    try {
+                        throw new Error('handled-in-callback');
+                    } catch (e) {
+                        resolve('recovered');
+                    }
+                }, function(err) {
+                    reject(err);
+                });
+            });
+        }
+        """
+        let result = try await makeMockedHost().run(makeRequest(script: script, isAsync: true, timeout: 2))
+        guard case .text(let text) = result else {
+            return XCTFail("Expected .text, got \(result)")
+        }
+        XCTAssertEqual(text, "recovered")
     }
 
     /// Non-http(s) schemes (e.g. `file://`) must be rejected before any network access, surfacing
@@ -865,6 +987,30 @@ final class OpenClipJSHostTests: XCTestCase {
             let nsError = error as NSError
             XCTAssertEqual(nsError.domain, Constants.actionErrorDomain)
             XCTAssertTrue(nsError.localizedDescription.contains("timed out"))
+        }
+    }
+
+    /// Cancelling a pending async evaluation must throw `CancellationError` rather than waiting
+    /// for the watchdog or treating cancellation as a JavaScript exception.
+    func testCancelledPendingPromiseThrowsCancellationError() async throws {
+        let host = self.host!
+        let request = makeRequest(
+            script: "function action() { return new Promise(function() {}); }",
+            isAsync: true,
+            timeout: 5
+        )
+        let task = Task {
+            try await host.run(request)
+        }
+        try await Task.sleep(nanoseconds: 80_000_000)
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("Expected CancellationError")
+        } catch is CancellationError {
+            // expected
+        } catch {
+            XCTFail("Expected CancellationError, got \(error)")
         }
     }
 
