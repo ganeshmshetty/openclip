@@ -149,6 +149,14 @@ for synchronous returns, via `.then`/catch for promises. A script with no `actio
 (top-level side effects only) still settles, so it never hangs. A rejected promise surfaces as
 `.toast(.error, message)`.
 
+Uncaught exceptions that escape a native-to-JS callback after the initial `evaluateScript` (for
+example a throw inside a `fetch` completion invoked via `openclip.__nativeFetch`) are captured by a
+per-evaluation `JSContext.exceptionHandler`. The handler assigns `context.exception` (preserving
+the synchronous exception check) and rejects the promise bridge so the runloop pump terminates
+promptly rather than waiting for the idle watchdog. Handled `try/catch` errors and ordinary
+returned-promise rejections are unchanged. Detached, never-awaited promise rejections are **not**
+detected by this handler.
+
 ### `fetch(url, options)`
 
 Async scripts get a global `fetch(url, options)` polyfill bridged to URLSession:
@@ -177,7 +185,9 @@ JavaScript VM access is confined to that single thread; URLSession completions h
 thread's CFRunLoop via `CFRunLoopPerformBlock` + `CFRunLoopWakeUp`, and the host pumps the runloop
 until the promise settles. A watchdog (`TimeoutFlag`, mirroring the `ShellProcessRunner` pattern)
 throws `Script timed out after N seconds` after `Constants.scriptTimeout` (60 s; tests override via
-`Request.timeout`). Running async tasks can also be cancelled immediately by clicking the loading toast, which cancels in-flight fetch requests. A fetch response that arrives after the evaluation ends is discarded; the host does not call the JavaScript VM for it. This holds on every exit path (success, JS exception, promise rejection, timeout, cancellation, thrown error), not only timeout.
+`Request.timeout`). An uncaught exception that escapes a native-to-JS callback rejects the promise
+bridge and exits the pump on the same path as a returned-promise rejection, so it does not wait for
+that watchdog. Running async tasks can also be cancelled immediately by clicking the loading toast, which cancels in-flight fetch requests. A fetch response that arrives after the evaluation ends is discarded; the host does not call the JavaScript VM for it. This holds on every exit path (success, JS exception, promise rejection, timeout, cancellation, thrown error), not only timeout.
 
 **Synchronous evaluations are capped.** A CPU-bound synchronous script cannot be interrupted
 (`JSVirtualMachine.invalidate` no longer exists), so a stuck sync script would permanently park a

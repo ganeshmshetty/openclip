@@ -84,7 +84,11 @@ areas; stale debt notes are worse than none.
   `evaluateScript` and releases its sync-evaluation gate slot. Idle promise waiting is bounded by
   the `TimeoutFlag` watchdog (60 s by default), and Swift task cancellation remains cooperative.
   A fetch response that arrives after the evaluation ends is discarded (`FetchTaskBox.isEnded`);
-  the host does not call the JavaScript VM for it (issue #40). Residual: retain cycles in
+  the host does not call the JavaScript VM for it (issue #40). Uncaught exceptions that escape
+  native-to-JS callbacks after initial evaluation (issue #48) reject the promise bridge via a
+  per-evaluation `exceptionHandler` and surface as `.toast(.error)` without waiting for the idle
+  watchdog. This does **not** detect detached unhandled promise rejections, and it does not change
+  the retain-cycle residual below. Residual: retain cycles in
   `JSNativeFetch` (`nativeFetchBlock` → `contextBox`/`context`; `jsonBlock` → `JSContextBox`) and
   `PromiseState` (`JSValue?` → `JSValue.context`) keep the finished `JSContext` alive — this is
   **line-cited analysis, not empirically probed**. `PolicySession` does not invalidate its
