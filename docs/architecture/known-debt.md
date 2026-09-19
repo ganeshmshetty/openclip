@@ -286,7 +286,8 @@ areas; stale debt notes are worse than none.
     app. The card's paste probe correctly targets the snapshotted app; only dismissal's
     reactivation is affected.
   - **Sequences resolve item by item.** `ActionResultDelivery` selects and probes each item of a
-    `.sequence`. The popup runs each item after the previous item is complete.
+    `.sequence`. A declared secondary replaces the whole sequence once before that walk. The popup
+    runs each remaining item after the previous item is complete.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 
