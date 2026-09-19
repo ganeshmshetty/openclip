@@ -1212,6 +1212,52 @@ final class ActionResultDeliveryTests: XCTestCase {
         assertCase(handler.results[1], .copy("b"))
     }
 
+    /// A declared secondary replaces a sequence once. Walking the leaves with the same
+    /// DeliveryContext would execute that secondary once per item.
+    @MainActor
+    func testDeclaredSecondaryOnSequenceExecutesOnce() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+
+        let url = URL(string: "https://alt")!
+        let stub = DeclaredDeliveryStub(
+            delivery: ActionDelivery(secondary: .openURL(url)),
+            performResult: .sequence([.paste("a"), .paste("b")])
+        )
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .openURL(url))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(handler.results.count, 1, "declared secondary must run once, not once per sequence leaf")
+    }
+
+    /// Same single-use rule on the loading settle path.
+    @MainActor
+    func testDeclaredSecondaryOnLoadingSequenceExecutesOnce() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        let url = URL(string: "https://alt")!
+        let stub = DeclaredDeliveryStub(
+            delivery: ActionDelivery(secondary: .openURL(url)),
+            performResult: .sequence([.paste("a"), .paste("b")]),
+            showsLoading: true
+        )
+        controller.runLoadingAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .openURL(url))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(handler.results.count, 1, "declared secondary must run once on the loading sequence path")
+    }
+
     // MARK: - Declared .paste secondary probes even on a secondary click
 
     /// A declared `.paste` secondary is pasted on a secondary click: the probe must still run (the
@@ -1487,14 +1533,16 @@ private final class DeclaredDeliveryStub: Action, @unchecked Sendable {
     let title = "Declared"
     let icon: ActionIcon = .symbol("arrow.turn.down.right")
     let recommendedResult: ActionResultDeliveryMode?
-    var chrome: ActionChrome { ActionChrome(source: .builtin, outputKind: .text, recommendedResult: recommendedResult) }
+    private let showsLoading: Bool
+    var chrome: ActionChrome { ActionChrome(source: .builtin, showsLoading: showsLoading, outputKind: .text, recommendedResult: recommendedResult) }
     var delivery: ActionDelivery? { declaredDelivery }
     private let declaredDelivery: ActionDelivery
     let performResult: ActionResult
-    init(delivery: ActionDelivery, performResult: ActionResult = .paste("hello"), recommendedResult: ActionResultDeliveryMode? = nil) {
+    init(delivery: ActionDelivery, performResult: ActionResult = .paste("hello"), recommendedResult: ActionResultDeliveryMode? = nil, showsLoading: Bool = false) {
         self.declaredDelivery = delivery
         self.performResult = performResult
         self.recommendedResult = recommendedResult
+        self.showsLoading = showsLoading
     }
     func isEnabled(for context: ActionContext) -> Bool { true }
     func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }

@@ -2141,6 +2141,10 @@ public class PopupWindowController {
             presentConfiguration(for: request)
             return nil
         case .sequence(let items):
+            // Declared secondary replaces the whole sequence once. Unwrapping first re-applies it per leaf.
+            if delivery?.clickIntent == .secondary, let declared = delivery?.delivery?.secondary {
+                return handleActionResult(declared, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
+            }
             return Task { @MainActor in
                 for item in items {
                     await self.handleActionResult(item, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)?.value
@@ -2447,6 +2451,10 @@ public class PopupWindowController {
             toastController.hide()
             presentConfiguration(for: request)
         case .sequence(let items):
+            if delivery.clickIntent == .secondary, let declared = delivery.delivery?.secondary {
+                await settleLoadingResult(declared, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
+                return
+            }
             for item in items { await settleLoadingResult(item, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast) }
         default:
             let effect = result
