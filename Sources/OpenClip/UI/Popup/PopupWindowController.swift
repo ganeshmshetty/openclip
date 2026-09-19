@@ -2118,16 +2118,24 @@ public class PopupWindowController {
     /// paste-vs-copy inputs; `nil` means the result is an explicit user request never re-decided.
     /// `suppressDeliveryToast` is true when the top-level result contains a `.toast`: every effect's
     /// delivery companion toast is skipped so the script toast wins (one toast per run).
-    func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil, suppressDeliveryToast: Bool = false) {
+    /// A `.sequence` runs item N+1 only after item N completes (nested sequences recurse).
+    @discardableResult
+    func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil, suppressDeliveryToast: Bool = false) -> Task<Void, Never>? {
         switch result {
         case .toast(let feedback):
             presentToast(feedback)
+            return nil
         case .openConfiguration(let request):
             presentConfiguration(for: request)
+            return nil
         case .sequence(let items):
-            for item in items { handleActionResult(item, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast) }
+            return Task { @MainActor in
+                for item in items {
+                    await self.handleActionResult(item, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)?.value
+                }
+            }
         default:
-            handleEffect(result, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
+            return handleEffect(result, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
         }
     }
 

@@ -15,7 +15,8 @@
 //     default "Copied" toast fires for any copy outcome (`.copy`, `.copyContent`, `.copyDefinition`).
 // Only paste outcomes are ever downgraded (`.paste`→`.copy`, `.pasteContent`→`.copyContent`); an
 // explicit copy stays a copy, and non-text results (openURL, notify, keyPress, ...) pass through
-// untouched. Pure Core — no AppKit, no UserDefaults; `canPaste` is the injected, already-unified
+// untouched. A `.sequence` is selected and probed item by item; the top-level toast is unchanged.
+// Pure Core — no AppKit, no UserDefaults; `canPaste` is the injected, already-unified
 // answer so this is unit-testable.
 import Foundation
 
@@ -79,10 +80,20 @@ public enum ActionResultDelivery {
     // MARK: - Decision pipeline
 
     /// Step 1 — Select: which result the delivery starts from.
+    /// A declared secondary replaces the whole result once (including a top-level `.sequence`).
+    /// Per-item rules then recurse into sequences.
     private static func select(raw: ActionResult, clickIntent: ClickIntent, delivery: ActionDelivery, preference: ResultDeliveryPreference?) -> ActionResult {
         if clickIntent == .secondary, let declared = delivery.secondary {
             // Declared outcomes always win over the picker.
             return declared
+        }
+        return selectItem(raw, clickIntent: clickIntent, preference: preference)
+    }
+
+    /// Per-item Select rules. Recurses into `.sequence`; has no declared-secondary check.
+    private static func selectItem(_ raw: ActionResult, clickIntent: ClickIntent, preference: ResultDeliveryPreference?) -> ActionResult {
+        if case .sequence(let items) = raw {
+            return .sequence(items.map { selectItem($0, clickIntent: clickIntent, preference: preference) })
         }
         if case .text(let text) = raw {
             // Implicit returned text is governed by the user's per-click preference; nil → the
@@ -112,12 +123,15 @@ public enum ActionResultDelivery {
 
     /// Step 2 — Apply probe: a chosen `.paste`/`.pasteContent` is never delivered to a target that
     /// cannot paste. Single choke point for the paste→copy downgrade (plain and rich alike).
+    /// Recurses into `.sequence` so wrapped pastes are probed too.
     private static func applyProbe(to selected: ActionResult, canPaste: Bool) -> ActionResult {
         switch selected {
         case .paste(let text):
             return canPaste ? .paste(text) : .copy(text)
         case .pasteContent(let payload):
             return canPaste ? .pasteContent(payload) : .copyContent(payload)
+        case .sequence(let items):
+            return .sequence(items.map { applyProbe(to: $0, canPaste: canPaste) })
         default:
             // `.copy`, `.copyContent`, `.cut`, and all non-text results are never downgraded.
             return selected
