@@ -106,6 +106,10 @@ The `secondary`/`toast`/`secondaryToast` keys map onto the per-action `Action.de
 [`Extensions/AGENTS.md` §5b](../../Extensions/AGENTS.md)); the delivery decision (Select → Probe →
 Toast) then applies the probe and resolves the companion toast.
 
+### Native File Output Results
+
+Actions implemented in JavaScript (`openclip.file`, `openclip.copyFile`, `openclip.saveFile`) or executable scripts (JSON `{"type": "file" | "copyFile" | "saveFile", ...}` or auto-detected regular file paths on stdout) can produce native file results. When returning a file, OpenClip renders an interactive file preview card in the popup panel (supporting inline image/SVG previews, system file icons, metadata inspection, drag-and-drop into other apps, and Open/Copy/Save shortcuts) or triggers direct clipboard copy / disk saving.
+
 ### `type: "canvas"` (removed)
 
 The former interactive-canvas kind `"canvas"` was removed; a `type: "canvas"` manifest is rejected

@@ -7,6 +7,7 @@ All notable user-facing changes to OpenClip.
 ## v1.6.2 - 2026-09-20
 
 ### Features & Improvements
+- **Native file output and interactive preview card**: JavaScript actions, shell scripts, and extensions can return files via `ActionResult.file`, `ActionResult.copyFile`, or `ActionResult.saveFile`, with interactive preview cards, Quick Look, drag-and-drop, and configurable save location.
 - **Inbound `openclip://` automation API**: other apps can read and write a curated set of settings and run app-level commands (`open-settings`, `pause`, `resume`, `reset-appearance`).
 - **Popup card chrome**: lit top rim, gradient hairline, and contact + ambient shadows; diff and pin controls hover-reveal.
 - **Popup bottom fade**: content fades at the bottom edge instead of a material band; inset Actions-list separators.
@@ -27,11 +28,7 @@ All notable user-facing changes to OpenClip.
 - **Action editor**: option labels show as field prompts.
 - **PowerPoint selection**: fixed via OpenSelection 0.2.3; KeyboardShortcuts 3.1.0.
 
-### Held for a later release
-- Native file output and interactive preview.
-
 ---
-
 ## v1.6.1 - 2026-09-16
 
 ### Features & Improvements

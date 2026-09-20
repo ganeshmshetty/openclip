@@ -657,7 +657,8 @@ public class PopupWindowController {
         session: UUID,
         originalText: String? = nil,
         overrideOriginal: Bool = false,
-        canFollowUp: Bool = true
+        canFollowUp: Bool = true,
+        file: FileOutputPayload? = nil
     ) {
         guard session == aiSessionID else { return }
         if toastController.isLoading {
@@ -673,7 +674,8 @@ public class PopupWindowController {
             icon: icon,
             isStreaming: isStreaming,
             original: original,
-            canFollowUp: canFollowUp
+            canFollowUp: canFollowUp,
+            file: file
         )
         if !isStreaming {
             // A settled card hands the keyboard to its instruction field so the next refinement
@@ -2163,8 +2165,43 @@ public class PopupWindowController {
                     showResultCard(text: text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID, canFollowUp: false)
                     return
                 }
+                if case .file(let filePayload) = resolved.result {
+                    showResultCard(
+                        text: filePayload.displayName,
+                        isError: false,
+                        title: delivery?.actionTitle ?? filePayload.displayName,
+                        icon: delivery?.actionIcon,
+                        session: aiSessionID,
+                        canFollowUp: false,
+                        file: filePayload
+                    )
+                    return
+                }
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
-                if let toast = resolved.toast, !suppressDeliveryToast {
+                let toastToShow: StatusFeedback? = {
+                    if let toast = resolved.toast {
+                        if case .saveFile = resolved.result {
+                            let saveDir = settingsStore.get(.fileSaveLocation)
+                            let folderName = !saveDir.isEmpty ? URL(fileURLWithPath: (saveDir as NSString).expandingTildeInPath).lastPathComponent : "Downloads"
+                            return StatusFeedback(message: String(localized: "Saved to \(folderName)"), style: .success, symbolName: "arrow.down.circle")
+                        }
+                        return toast
+                    }
+                    if delivery == nil {
+                        switch resolved.result {
+                        case .saveFile:
+                            let saveDir = settingsStore.get(.fileSaveLocation)
+                            let folderName = !saveDir.isEmpty ? URL(fileURLWithPath: (saveDir as NSString).expandingTildeInPath).lastPathComponent : "Downloads"
+                            return StatusFeedback(message: String(localized: "Saved to \(folderName)"), style: .success, symbolName: "arrow.down.circle")
+                        case .copyFile:
+                            return StatusFeedback(message: String(localized: "Copied File"), style: .success, symbolName: "doc.on.doc")
+                        default:
+                            return nil
+                        }
+                    }
+                    return nil
+                }()
+                if let toast = toastToShow, !suppressDeliveryToast {
                     toastController.show(toast, anchorFrame: panel?.frame ?? lastPopupFrame)
                 }
             } catch {
@@ -2455,8 +2492,36 @@ public class PopupWindowController {
                     }
                     return
                 }
+                if case .file(let filePayload) = resolved.result {
+                    toastController.hide()
+                    if let selection = delivery.selection {
+                        let canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
+                        show(for: selection, pasteAvailable: canPaste)
+                        showResultCard(
+                            text: filePayload.displayName,
+                            isError: false,
+                            title: delivery.actionTitle ?? filePayload.displayName,
+                            icon: delivery.actionIcon,
+                            session: aiSessionID,
+                            canFollowUp: false,
+                            file: filePayload
+                        )
+                    }
+                    return
+                }
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
-                if let toast = resolved.toast, !suppressDeliveryToast {
+                let toastToShow: StatusFeedback? = {
+                    if let toast = resolved.toast {
+                        if case .saveFile = resolved.result {
+                            let saveDir = settingsStore.get(.fileSaveLocation)
+                            let folderName = !saveDir.isEmpty ? URL(fileURLWithPath: (saveDir as NSString).expandingTildeInPath).lastPathComponent : "Downloads"
+                            return StatusFeedback(message: String(localized: "Saved to \(folderName)"), style: .success, symbolName: "arrow.down.circle")
+                        }
+                        return toast
+                    }
+                    return nil
+                }()
+                if let toast = toastToShow, !suppressDeliveryToast {
                     toastController.swapTo(toast)
                 } else if !suppressDeliveryToast {
                     toastController.hide()

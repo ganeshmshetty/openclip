@@ -14,11 +14,22 @@ import SwiftUI
 struct SettingsRowLabel: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?
+    var subtitleText: Text?
     var systemImage: String?
 
+    /// Creates a settings label with an optional localized subtitle.
     init(title: LocalizedStringKey, subtitle: LocalizedStringKey? = nil, systemImage: String? = nil) {
         self.title = title
         self.subtitle = subtitle
+        self.subtitleText = nil
+        self.systemImage = systemImage
+    }
+
+    /// Creates a settings label with an optional prebuilt subtitle view.
+    init(title: LocalizedStringKey, subtitleText: Text?, systemImage: String? = nil) {
+        self.title = title
+        self.subtitle = nil
+        self.subtitleText = subtitleText
         self.systemImage = systemImage
     }
 
@@ -33,7 +44,12 @@ struct SettingsRowLabel: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                if let subtitle {
+                if let subtitleText {
+                    subtitleText
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if let subtitle {
                     Text(subtitle)
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -49,9 +65,11 @@ struct SettingsRowLabel: View {
 struct SettingsRow<Trailing: View>: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?
+    var subtitleText: Text?
     var systemImage: String?
     @ViewBuilder var trailing: () -> Trailing
 
+    /// Creates a settings row with a localized subtitle and trailing control.
     init(
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey? = nil,
@@ -60,13 +78,32 @@ struct SettingsRow<Trailing: View>: View {
     ) {
         self.title = title
         self.subtitle = subtitle
+        self.subtitleText = nil
+        self.systemImage = systemImage
+        self.trailing = trailing
+    }
+
+    /// Creates a settings row with a prebuilt subtitle and trailing control.
+    init(
+        title: LocalizedStringKey,
+        subtitleText: Text?,
+        systemImage: String? = nil,
+        @ViewBuilder trailing: @escaping () -> Trailing
+    ) {
+        self.title = title
+        self.subtitle = nil
+        self.subtitleText = subtitleText
         self.systemImage = systemImage
         self.trailing = trailing
     }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            SettingsRowLabel(title: title, subtitle: subtitle, systemImage: systemImage)
+            if let subtitleText {
+                SettingsRowLabel(title: title, subtitleText: subtitleText, systemImage: systemImage)
+            } else {
+                SettingsRowLabel(title: title, subtitle: subtitle, systemImage: systemImage)
+            }
             Spacer(minLength: 12)
             trailing()
         }

@@ -75,18 +75,43 @@ Supported `type` values:
 - `"fail"` / `"failure"` / `"error"` → surfaces error toast (`message`/`reason`/`value`).
 - `"toast"` → `ActionResult.toast` (`message`, `style`: `"success"`/`"error"`/`"info"`, `keepVisible` optional, default `false`).
 - `"configure"` → `ActionResult.openConfiguration` (`reason`, `missing: [optionID]`).
+- `"file"` → `ActionResult.file(FileOutputPayload)` (renders native file preview card; fields: `path` to existing file or `data` containing base64 data safely saved to `~/.openclip/cache/outputs/`, optional `filename`, `mimeType`, and optional `action`: `"copy"`/`"save"` to bypass preview).
+- `"copyFile"` / `"copy-file"` → `ActionResult.copyFile(URL)` (copies file at `path` to pasteboard).
+- `"saveFile"` / `"save-file"` → `ActionResult.saveFile(URL)` (saves file at `path` to user's configured save location).
 
 `"showContent"` is **not** accepted — a decoded-but-unknown `type` maps to `.success`.
 
 ### Mode 2: Plain Text Output Fallback
 
-If `stdout` contains non-JSON plain text, `ScriptAction` treats the raw output as implicitly
-returned text and returns `ActionResult.text(stdoutString)` — delivered per the user's per-click
-preference (preview/paste/copy).
+If `stdout` contains non-JSON plain text:
+
+1. **File Detection**: If the action does not replace selection (`replaceSelection: false`), OpenClip checks if the trimmed output corresponds to an existing regular file path or `file://` URL on disk. If so, it returns `ActionResult.file(FileOutputPayload)` to render the native file card.
+2. **Text Fallback**: Otherwise, `ScriptAction` treats the raw output as implicitly returned text and returns `ActionResult.text(stdoutString)` — delivered per the user's per-click preference (preview/paste/copy).
 
 ---
 
 ## Practical Examples
+
+### Python Script Generating a File (`generate_chart.py`)
+
+```python
+#!/usr/bin/env python3
+import sys, json
+
+out_path = "/tmp/chart.png"
+# ... create chart file at out_path ...
+
+# Either output the path directly on stdout for auto-detection:
+# sys.stdout.write(out_path)
+
+# Or emit explicit JSON:
+print(json.dumps({
+    "type": "file",
+    "path": out_path,
+    "filename": "chart.png",
+    "mimeType": "image/png"
+}))
+```
 
 ### Python Script Example (`clean_markdown.py`)
 

@@ -66,7 +66,54 @@ public indirect enum ActionResult: Sendable {
     /// Run a registered shortcut by name with optional input.
     case runShortcut(name: String, input: String?)
 
+    // MARK: - Native File Outputs
+
+    /// Native file output from an action (e.g. generated image, exported file, downloaded media).
+    /// Kept open for in-card preview with quick actions to save to default location, copy file, or drag.
+    case file(FileOutputPayload)
+    /// Explicitly copy the specified file to the system clipboard (as file URL / NSURL).
+    case copyFile(URL)
+    /// Explicitly save the specified file to the settings-configured default save location.
+    case saveFile(URL)
+
     case none
+}
+
+/// Value payload representing a file output produced by an action.
+public struct FileOutputPayload: Sendable, Equatable {
+    public let url: URL
+    public let filename: String?
+    public let mimeType: String?
+    public let isTemporary: Bool
+
+    /// Creates a file payload and sanitizes any caller-provided display filename.
+    public init(url: URL, filename: String? = nil, mimeType: String? = nil, isTemporary: Bool = false) {
+        self.url = url
+        if let raw = filename {
+            let sanitized = (raw as NSString).lastPathComponent
+            self.filename = (sanitized.isEmpty || sanitized == "." || sanitized == "..") ? nil : sanitized
+        } else {
+            self.filename = nil
+        }
+        self.mimeType = mimeType
+        self.isTemporary = isTemporary
+    }
+
+    public var displayName: String {
+        filename ?? url.lastPathComponent
+    }
+
+    public var fileExtension: String {
+        (displayName as NSString).pathExtension.lowercased()
+    }
+
+    public var isImage: Bool {
+        if mimeType?.lowercased().hasPrefix("image/") == true {
+            return true
+        }
+        let ext = fileExtension
+        return ["png", "jpg", "jpeg", "gif", "webp", "svg", "icns", "bmp", "tiff", "heic"].contains(ext)
+    }
 }
 
 extension ActionResult {
@@ -78,14 +125,14 @@ extension ActionResult {
         switch self {
         case .toast(let feedback):
             return !feedback.keepVisible
-        case .text:
-            // Implicit returned text is a presentation result: dismissal is decided by the
-            // controller from the resolved outcome (preview keeps the popup open; paste/copy dismiss).
+        case .text, .file:
+            // Implicit returned text and file outputs are presentation results:
+            // kept open for in-card preview; explicit actions (save, copy) or Esc dismiss.
             return false
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)
         default:
-            return true // includes openConfiguration: hide bar, then open Preferences
+            return true // includes openConfiguration, copyFile, saveFile: hide bar, then execute
         }
     }
 
@@ -94,7 +141,7 @@ extension ActionResult {
     public var containsToast: Bool {
         switch self {
         case .toast: return true
-        case .text: return false
+        case .text, .file: return false
         case .sequence(let items): return items.contains(where: \.containsToast)
         default: return false
         }

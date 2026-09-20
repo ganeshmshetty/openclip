@@ -254,6 +254,7 @@ final class ActionGroupIntegrationTests: XCTestCase {
         XCTAssertEqual(presentation.icon, .symbol("sparkles"))
     }
 
+    /// Verifies that the outline renders cells for each supported row hierarchy.
     func testOutlineViewFrames() {
         let outlineView = ActionsOutlineTableView(frame: NSRect(x: 0, y: 0, width: 400, height: 400))
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("ActionColumn"))

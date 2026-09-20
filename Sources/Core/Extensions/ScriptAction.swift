@@ -44,6 +44,7 @@ public struct ScriptAction: ConfigurableAction {
         return rules.resolveVisibility(for: context).match
     }
     
+    /// Runs the extension script and converts its standard output into an action result.
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let text = context.selection.text
@@ -85,11 +86,14 @@ public struct ScriptAction: ConfigurableAction {
             stdinText: text
         ))
 
-        // Raw runtime result: JSON stdout wins, plain-text stdout is implicitly returned text
-        // (governed by the user's per-click preference), empty stdout succeeds.
+        // Raw runtime result: JSON stdout wins, plain-text stdout file detection wins if existing file,
+        // plain-text stdout is implicitly returned text (governed by the user's per-click preference),
+        // empty stdout succeeds.
         let raw: ActionResult
         if let jsonResult = ShellResultMapper.actionResult(from: output.stdout, actionID: id) {
             raw = jsonResult
+        } else if let fileResult = ShellResultMapper.detectFileResult(from: output.stdout) {
+            raw = fileResult
         } else if !output.stdout.isEmpty {
             raw = .text(output.stdout)
         } else {

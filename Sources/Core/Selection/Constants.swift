@@ -66,6 +66,10 @@ public enum Constants {
     public static let actionTypePasteContent: String = "pasteContent"
     public static let actionTypeCopyContent: String = "copyContent"
     public static let actionTypeOpenURL: String = "openURL"
+    public static let actionTypeFile: String = "file"
+    public static let actionTypeCopyFile: String = "copyFile"
+    public static let actionTypeSaveFile: String = "saveFile"
+    public static let outputsDirectory: URL = URL(fileURLWithPath: ("~/.openclip/cache/outputs" as NSString).expandingTildeInPath)
     
     public static let envVarText: String = "OPENCLIP_TEXT"
     public static let envVarHTML: String = "OPENCLIP_HTML"

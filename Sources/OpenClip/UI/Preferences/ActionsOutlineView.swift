@@ -360,6 +360,7 @@ struct ActionsOutlineView: NSViewRepresentable {
     /// Double-click on a row: opens that row's settings page.
     let onOpenNode: (OutlineNode) -> Void
 
+    /// Creates the AppKit outline bridge with its current filters, selection, and callbacks.
     init(
         coordinator: ActionCoordinator,
         customizationManager: ActionCustomizationManager,

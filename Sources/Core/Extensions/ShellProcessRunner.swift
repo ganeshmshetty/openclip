@@ -196,18 +196,155 @@ struct ScriptJSONOutput: Decodable {
     let keepVisible: Bool?
     let html: String?
     let rtf: String?
+    let path: String?
+    let url: String?
+    let data: String?
+    let filename: String?
+    let mimeType: String?
+    let action: String?
 }
 
 /// Maps shell stdout JSON into an `ActionResult` (plan §6 protocol). Returns nil when the output
 /// does not decode as a `ScriptJSONOutput`, so callers fall through to plain-text handling; a
 /// decoded but unknown `type` maps to `.success` (the current default path).
-enum ShellResultMapper {
-    static func actionResult(from stdout: String, actionID: String) -> ActionResult? {
+public enum ShellResultMapper {
+    /// Decodes structured script output, returning `nil` when stdout is not recognized JSON.
+    public static func actionResult(from stdout: String, actionID: String) -> ActionResult? {
         guard let data = stdout.data(using: .utf8),
               let decoded = try? JSONDecoder().decode(ScriptJSONOutput.self, from: data) else {
             return nil
         }
         return map(decoded, actionID: actionID)
+    }
+
+    /// Auto-detects whether plain-text stdout is a path to an existing regular file on disk.
+    public static func detectFileResult(from stdout: String) -> ActionResult? {
+        let trimmed = stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains("\n"), !trimmed.contains("\r") else {
+            return nil
+        }
+        guard trimmed.hasPrefix("/") || trimmed.hasPrefix("~") || trimmed.hasPrefix("file://") else {
+            return nil
+        }
+        guard let url = parseExistingFileURL(from: trimmed) else {
+            return nil
+        }
+        return .file(FileOutputPayload(url: url, filename: url.lastPathComponent, isTemporary: false))
+    }
+
+    /// Converts an absolute, tilde-prefixed, or file-URL path into a local file URL.
+    public static func parseFileURL(from rawPath: String) -> URL? {
+        let trimmed = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.hasPrefix("file://") {
+            if let url = URL(string: trimmed), url.isFileURL {
+                return url
+            }
+            let stripped = String(trimmed.dropFirst("file://".count))
+            let expanded = (stripped as NSString).expandingTildeInPath
+            return URL(fileURLWithPath: expanded)
+        }
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        return URL(fileURLWithPath: expanded)
+    }
+
+    /// Checks that the raw path exists as a regular file on disk.
+    public static func parseExistingFileURL(from rawPath: String) -> URL? {
+        guard let url = parseFileURL(from: rawPath) else { return nil }
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue else {
+            return nil
+        }
+        return url
+    }
+
+    /// Writes decoded action data to the output cache using a safe generated or supplied filename.
+    public static func writeTemporaryOutput(data: Data, filename: String?, mimeType: String?) -> URL? {
+        let dir = Constants.outputsDirectory
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        } catch {
+            return nil
+        }
+        let resolvedFilename: String
+        if let rawName = filename?.trimmingCharacters(in: .whitespacesAndNewlines), !rawName.isEmpty {
+            let sanitized = (rawName as NSString).lastPathComponent
+            if sanitized.isEmpty || sanitized == "." || sanitized == ".." {
+                let ext = extensionForMimeType(mimeType) ?? "bin"
+                resolvedFilename = "output-\(UUID().uuidString).\(ext)"
+            } else {
+                resolvedFilename = sanitized
+            }
+        } else {
+            let ext = extensionForMimeType(mimeType) ?? "bin"
+            resolvedFilename = "output-\(UUID().uuidString).\(ext)"
+        }
+        let fileURL = dir.appendingPathComponent(resolvedFilename)
+        guard Constants.isPathSafe(destinationURL: fileURL, baseDirectory: dir) else {
+            return nil
+        }
+        do {
+            try data.write(to: fileURL, options: .atomic)
+            return fileURL
+        } catch {
+            return nil
+        }
+    }
+
+    /// Returns the preferred filename extension for a supported MIME type.
+    private static func extensionForMimeType(_ mime: String?) -> String? {
+        guard let mime = mime?.lowercased() else { return nil }
+        switch mime {
+        case "image/png": return "png"
+        case "image/jpeg", "image/jpg": return "jpg"
+        case "image/gif": return "gif"
+        case "image/webp": return "webp"
+        case "image/svg+xml": return "svg"
+        case "application/pdf": return "pdf"
+        case "application/json": return "json"
+        case "text/plain": return "txt"
+        case "audio/mpeg", "audio/mp3": return "mp3"
+        case "video/mp4": return "mp4"
+        case "application/zip": return "zip"
+        default: return nil
+        }
+    }
+
+    /// Resolves either embedded base64 data or a referenced file from structured output.
+    private static func resolveFileURL(from output: ScriptJSONOutput) -> URL? {
+        if let base64String = output.data, let data = Data(base64Encoded: base64String) {
+            return writeTemporaryOutput(data: data, filename: output.filename, mimeType: output.mimeType)
+        }
+        let rawPath = output.path ?? output.url ?? output.value
+        guard let rawPath = rawPath?.trimmingCharacters(in: .whitespacesAndNewlines), !rawPath.isEmpty else {
+            return nil
+        }
+        return parseExistingFileURL(from: rawPath)
+    }
+
+    /// Maps structured file output to preview, copy, or save semantics.
+    private static func mapFileOutput(_ output: ScriptJSONOutput) -> ActionResult {
+        guard let targetURL = resolveFileURL(from: output) else {
+            return .toast(StatusFeedback(message: String(localized: "File not found"), style: .error))
+        }
+        let isTemp = output.data != nil
+        let payload = FileOutputPayload(
+            url: targetURL,
+            filename: output.filename ?? targetURL.lastPathComponent,
+            mimeType: output.mimeType,
+            isTemporary: isTemp
+        )
+        if let action = output.action?.lowercased() {
+            switch action {
+            case "copy", "copyfile":
+                return .copyFile(targetURL)
+            case "save", "savefile":
+                return .saveFile(targetURL)
+            default:
+                return .file(payload)
+            }
+        }
+        return .file(payload)
     }
 
     private static func mapModifiers(_ rawModifiers: [String]?) -> [KeyPressSpec.KeyModifier] {
@@ -223,6 +360,7 @@ enum ShellResultMapper {
         }
     }
 
+    /// Converts a decoded script result into the corresponding domain action result.
     private static func map(_ output: ScriptJSONOutput, actionID: String) -> ActionResult {
         switch output.type {
         case Constants.actionTypePaste:
@@ -242,6 +380,18 @@ enum ShellResultMapper {
         case Constants.actionTypeOpenURL, "url":
             guard let value = output.value, let url = URL(string: value) else { return .success }
             return .openURL(url)
+        case Constants.actionTypeFile, "file":
+            return mapFileOutput(output)
+        case Constants.actionTypeCopyFile, "copyFile", "copy-file":
+            if let targetURL = resolveFileURL(from: output) {
+                return .copyFile(targetURL)
+            }
+            return .toast(StatusFeedback(message: String(localized: "File not found"), style: .error))
+        case Constants.actionTypeSaveFile, "saveFile", "save-file":
+            if let targetURL = resolveFileURL(from: output) {
+                return .saveFile(targetURL)
+            }
+            return .toast(StatusFeedback(message: String(localized: "File not found"), style: .error))
         case "keyPress", "keypress":
             guard let key = output.key, !key.isEmpty else { return .success }
             let modifiers = mapModifiers(output.modifiers)

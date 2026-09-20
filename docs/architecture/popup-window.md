@@ -70,15 +70,15 @@ public static func placeNearReleasePoint(
 
 ---
 
-## Content Mode: Native AI Result Card
+## Content Mode: Native Result Cards (AI & File Outputs)
 
-Action and AI content render **inside** the single `PopupPanel` — there is no second
+Action, AI, and file output content render **inside** the single `PopupPanel` — there is no second
 floating panel; status feedback renders separately as a floating toast via `ToastPanelController`
 (see *Status* below). A `.content` mode on `PopupModeStore` (mirroring `.search`) transforms the panel:
 the bar is hidden and `PopupView.barContent` renders `ResultCardView`, a native SwiftUI card
 that replaced the former interactive canvas.
 
-### Content Mode
+### Content Mode (AI & Text Results)
 
 - **Entry**: AI presets stream results into the card via `PopupView.onAIResult(text:isError:title:)` →
   `PopupWindowController.showResultCard`; any other text-returning action (e.g. a shell/JS extension)
@@ -92,6 +92,21 @@ that replaced the former interactive canvas.
   (`Sources/OpenClip/UI/Popup/ResultCardView.swift`), with the back chevron wired to
   `PopupView.onExitContent` → `PopupWindowController.exitContent()`, and both the `✕` button and Esc wired to
   `PopupView.onDismissContent` → `hide()`.
+
+### File Output Results
+
+When an action produces a `.file(FileOutputPayload)` result (via `openclip.file()`, shell JSON, or plain-text file path detection), `PopupWindowController.showFileResultCard` switches the panel to `.content` mode with `filePayload` set:
+
+- **Card Layout & Previews**:
+  - **Image Files**: Image formats (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.icns`, `.bmp`, `.tiff`, `.heic` or MIME `image/*`) display an inline scaled preview. Vector SVGs are decoded and rendered natively via `SDWebImageSVGCoder`.
+  - **Non-Image Files**: Display the system file icon (`NSWorkspace.shared.icon(forFile:)`), filename, localized file type description, and formatted byte size.
+  - **Off-Main Processing**: Image rendering, file attributes, and MIME detection load asynchronously off the main thread to ensure smooth 60fps presentation.
+- **Drag-and-Drop**: The file preview/icon is directly draggable via `NSItemProvider(object: url as NSURL)`. Users can drag the file from the card straight into Finder folders, desktop, or other applications.
+- **Action Buttons & Keyboard Shortcuts**:
+  - **Open** (`Space`): Launches the file in its default system application via `NSWorkspace.shared.open(url)`.
+  - **Copy** (`⌘C`): Copies the file URL directly to the macOS clipboard pasteboard.
+  - **Save** (`Return` / `⌘S`): Copies the file into the user-configured destination folder (`SettingKey.fileSaveLocation`, defaulting to `~/Downloads`). Duplicate filenames are safely suffixed (e.g. `filename (1).ext`), followed by a `"Saved to <Folder>"` confirmation toast.
+  - Secondary clicks on the popup trigger action execute `.copyFile` directly.
 - **Card surface**: the card renders a scrollable body plus a compact Copy/Paste footer (or a Dismiss button when
   `isError`; Paste also hidden while `modeStore.canPaste == false`), sized by `PopupMetrics`
   (`aiCardMinWidth 220` / `aiCardIdealWidth 320` /

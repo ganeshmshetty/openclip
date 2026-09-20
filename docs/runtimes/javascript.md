@@ -64,6 +64,15 @@ interface OpenClipBridge {
   notify(title: string, body: string): void;
   toast(message: string, style?: string, options?: { keepVisible?: boolean }): void; // style: "success" | "error" | "info"
   requireConfiguration(payload: object): void; // { reason?: string, missing?: string[] }
+  file(payload: {
+    path?: string;        // Absolute path or file:// URL to an existing file
+    data?: string;        // Base64 encoded file content (written to ~/.openclip/cache/outputs/)
+    filename?: string;    // Custom display/saved filename (sanitized with lastPathComponent)
+    mimeType?: string;    // MIME type (e.g. "image/png")
+    action?: "copy" | "copyfile" | "save" | "savefile"; // Optional immediate copy or save bypass
+  }): void;
+  copyFile(path: string): void; // Copies file at path to clipboard
+  saveFile(path: string): void; // Saves file at path to configured save location
 }
 ```
 
@@ -189,13 +198,14 @@ script enters its promise pump loop, the sync gate is released while the watchdo
 1. A JavaScript exception → `.toast(.error, message)` (never thrown as a Swift error).
 2. `requireConfiguration(...)` → `.openConfiguration`.
 3. `toast(...)` — alone → `.toast`, or coexisting with effects → `.sequence([.toast, …effects])`.
-4. Effects (paste/copy/pasteContent/copyContent/cut/openURL/keyPress/runShortcut/notify) → single
+4. Effects (paste/copy/pasteContent/copyContent/cut/openURL/keyPress/runShortcut/notify/file/copyFile/saveFile) → single
    `.paste`/`.copy`/etc, or `.sequence` of them when multiple were called. `pasteContent`/
    `copyContent` payloads are read via either key style (`public.utf8-plain-text`/`public.html`/
    `public.rtf` or `text`/`html`/`rtf`); a payload with none of the three is ignored (no effect).
-5. String return value → `.text(string)` — implicitly returned text, delivered per the user's
+5. File / Object return value → returning an object with `type: "file"`, `type: "copyFile"`, or `type: "saveFile"` resolves directly to `.file(...)`, `.copyFile(...)`, or `.saveFile(...)`.
+6. String return value → `.text(string)` — implicitly returned text, delivered per the user's
    per-click preference (preview/paste/copy).
-6. Otherwise → `.success`.
+7. Otherwise → `.success`.
 
 A JavaScript exception produces `.toast(.error, message)` instead of throwing; the toast dismisses
 the popup by default (`keepVisible: true` keeps it open).
@@ -230,5 +240,18 @@ function action(selection) {
 ```javascript
 function action(selection) {
   openclip.paste(selection.toUpperCase());
+}
+```
+
+### Display File Preview Card (Image / Document)
+
+```javascript
+function action(selection) {
+  // Return an existing file or base64 data to display in the result card
+  openclip.file({
+    path: "/tmp/generated_qr.png",
+    filename: "QRCode.png",
+    mimeType: "image/png"
+  });
 }
 ```

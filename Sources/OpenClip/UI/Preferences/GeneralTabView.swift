@@ -20,15 +20,18 @@ struct GeneralTab: View {
     @State private var isMouseHoldEnabled: Bool
     @State private var primaryBehavior: String
     @State private var secondaryBehavior: String
+    @State private var fileSaveLocation: String
     @ObservedObject private var launchManager = LaunchAtLoginManager.shared
     @ObservedObject private var permissionManager = PermissionManager.shared
 
+    /// Initializes preference state from the shared settings store.
     init() {
         _isAppEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isAppEnabled))
         _showMenuBarIcon = State(initialValue: DefaultSettingsStore.shared.get(.showMenuBarIcon))
         _isMouseHoldEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isMouseHoldEnabled))
         _primaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.primaryClickBehavior))
         _secondaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.secondaryClickBehavior))
+        _fileSaveLocation = State(initialValue: DefaultSettingsStore.shared.get(.fileSaveLocation))
     }
     
     var body: some View {
@@ -91,6 +94,29 @@ struct GeneralTab: View {
                         .onChange(of: secondaryBehavior) { _, newValue in
                             DefaultSettingsStore.shared.set(.secondaryClickBehavior, value: newValue)
                         }
+                }
+
+                SettingsRow(
+                    title: "Save Location",
+                    subtitleText: saveLocationSubtitleText,
+                    systemImage: "folder"
+                ) {
+                    HStack(spacing: 8) {
+                        if !fileSaveLocation.isEmpty {
+                            Button {
+                                fileSaveLocation = ""
+                                DefaultSettingsStore.shared.set(.fileSaveLocation, value: "")
+                            } label: {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.system(size: 11))
+                            }
+                            .buttonStyle(.plain)
+                            .help(String(localized: "Reset to Downloads"))
+                        }
+                        Button(String(localized: "Choose…")) {
+                            chooseSaveLocation()
+                        }
+                    }
                 }
             }
 
@@ -161,5 +187,33 @@ struct GeneralTab: View {
         .pickerStyle(.segmented)
         .frame(width: 230)
         .accessibilityLabel(label)
+    }
+
+    private var saveLocationSubtitleText: Text {
+        if fileSaveLocation.isEmpty {
+            return Text("Downloads (Default)")
+        }
+        return Text(verbatim: (fileSaveLocation as NSString).abbreviatingWithTildeInPath)
+    }
+
+    /// Presents a directory picker and persists the selected file-output location.
+    private func chooseSaveLocation() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Select default folder for saved files")
+        if !fileSaveLocation.isEmpty {
+            let expanded = (fileSaveLocation as NSString).expandingTildeInPath
+            panel.directoryURL = URL(fileURLWithPath: expanded)
+        } else if let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first {
+            panel.directoryURL = downloads
+        }
+        if panel.runModal() == .OK, let chosenURL = panel.url {
+            fileSaveLocation = chosenURL.path
+            DefaultSettingsStore.shared.set(.fileSaveLocation, value: chosenURL.path)
+        }
     }
 }
