@@ -125,11 +125,6 @@ public extension SettingKey where Value == String {
     static var calendarProvider: SettingKey<String> { SettingKey<String>("action.calendar.provider", defaultValue: "native") }
     static var searchURL: SettingKey<String> { SettingKey<String>("action.search.url", defaultValue: "https://www.google.com/search?q={query}") }
 
-    /// The user's chosen behavior when an action returns text (General tab →
-    /// "Action Results"): "preview" | "paste" | "copy". The raw `ResultDeliveryPreference`
-    /// values; defaults preserve today's behavior (primary pastes, secondary copies).
-    static var primaryClickBehavior: SettingKey<String> { SettingKey<String>("resultDelivery.primary", defaultValue: "paste") }
-    static var secondaryClickBehavior: SettingKey<String> { SettingKey<String>("resultDelivery.secondary", defaultValue: "copy") }
 
     /// Default directory where action file outputs are saved. Defaults to empty string (which resolves to ~/Downloads).
     static var fileSaveLocation: SettingKey<String> { SettingKey<String>("fileSaveLocation", defaultValue: "") }

@@ -11,6 +11,9 @@ public struct DefineAction: ConfigurableAction {
     public var title: String { String(localized: "Define") }
     public let preferenceIconName = "character.book.closed"
     public let icon = ActionIcon.symbol("character.book.closed")
+    public var chrome: ActionChrome {
+        ActionChrome(outputKind: .text, recommendedResult: .preview)
+    }
 
     /// Option id for "open the word in Dictionary.app" instead of showing the definition card.
     static let openInDictionaryOptionID = "openInDictionaryApp"

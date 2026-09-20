@@ -50,8 +50,6 @@ public enum SettingsCatalog {
             SettingKey.popupThemeColor.erased,
             SettingKey.popupAlignment.erased,
             SettingKey.popupVerticalPosition.erased,
-            SettingKey.primaryClickBehavior.erased,
-            SettingKey.secondaryClickBehavior.erased,
 
             // Gesture / lifecycle
             SettingKey.mouseHoldDuration.erased,

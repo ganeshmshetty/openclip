@@ -196,6 +196,7 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         // A deleted action's palette alias must go with it, or it stays reserved and a new action
         // can never claim it ("That alias is already used").
         ActionBindingStore.shared.setAlias(nil, for: actionID)
+        ActionCustomizationManager.shared.resetOverride(for: actionID)
         syncGroupMemberOrder()
     }
 

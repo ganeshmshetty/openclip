@@ -263,6 +263,58 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             compiledExpression: compiledExpression(for: metadata, actionID: actionId)
         )
         
+        let declaredOutput = metadata.output
+        let declaredResult = metadata.result
+        let hasExplicitDeclaration = (declaredOutput != nil || declaredResult != nil || manifest.output != nil || manifest.result != nil || metadata.inline == true)
+
+        let resolvedOutputKind: ActionOutputKind
+        let resolvedResult: ActionResultDeliveryMode?
+
+        if hasExplicitDeclaration {
+            let resolved = ExtensionOutputContract.resolveEffective(
+                declaredOutput: declaredOutput,
+                declaredResult: declaredResult,
+                manifestOutput: manifest.output,
+                manifestResult: manifest.result,
+                inline: metadata.inline
+            )
+            resolvedOutputKind = resolved.output
+            resolvedResult = resolved.result
+        } else {
+            switch metadata.kind {
+            case .textSnippet:
+                resolvedOutputKind = .text
+                resolvedResult = .pasteOrCopy
+            case .url, .webSearch, .keyPress, .service, .shortcut, .group:
+                resolvedOutputKind = .none
+                resolvedResult = nil
+            case .applescript, .shellInline, .scriptFile, .js:
+                let code = scriptContent(for: metadata, directoryURL: directoryURL)
+                let producesText: Bool
+                if let code {
+                    switch metadata.kind {
+                    case .applescript:
+                        producesText = ScriptOutputSniffers.appleScriptProducesText(code: code)
+                    case .shellInline, .scriptFile:
+                        producesText = ScriptOutputSniffers.shellProducesText(code: code)
+                    case .js:
+                        producesText = ScriptOutputSniffers.jsProducesText(code: code)
+                    default:
+                        producesText = true
+                    }
+                } else {
+                    producesText = true
+                }
+                if producesText {
+                    resolvedOutputKind = .text
+                    resolvedResult = .pasteOrCopy
+                } else {
+                    resolvedOutputKind = .none
+                    resolvedResult = nil
+                }
+            }
+        }
+
         let extensionChrome = ActionChrome(
             badge: .extensionPkg(manifest.name),
             rowStyle: .standard,
@@ -270,7 +322,9 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             source: .extensionPkg(packageID: manifest.identifier),
             showsLoading: metadata.loading ?? false,
             loadingMessage: metadata.loadingMessage,
-            isInlineResult: metadata.inline == true
+            isInlineResult: metadata.inline == true,
+            outputKind: resolvedOutputKind,
+            recommendedResult: resolvedResult
         )
 
         // Phase 8 runtime kinds: keyPress / shortcut / service. Checked before the generic url and
@@ -436,5 +490,22 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 rules: rules
             )
         }
+    }
+
+    private func scriptContent(for metadata: ExtensionActionMetadata, directoryURL: URL) -> String? {
+        if let scriptCode = metadata.scriptCode, !scriptCode.isEmpty {
+            return scriptCode
+        }
+        if let scriptFile = metadata.script, !scriptFile.isEmpty {
+            let fileURL = directoryURL.appendingPathComponent(scriptFile)
+            guard !scriptFile.hasPrefix("/"),
+                  !scriptFile.hasPrefix("~"),
+                  !scriptFile.contains(":"),
+                  Constants.isPathSafe(destinationURL: fileURL, baseDirectory: directoryURL) else {
+                return nil
+            }
+            return try? String(contentsOf: fileURL, encoding: .utf8)
+        }
+        return nil
     }
 }

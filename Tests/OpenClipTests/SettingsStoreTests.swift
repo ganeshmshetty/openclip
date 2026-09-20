@@ -73,19 +73,6 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertFalse(store.get(.showMenuBarIcon))
     }
 
-    @MainActor
-    func testResultDeliveryDefaults() {
-        XCTAssertEqual(store.get(.primaryClickBehavior), "paste")
-        XCTAssertEqual(store.get(.secondaryClickBehavior), "copy")
-    }
-
-    @MainActor
-    func testResultDeliveryRoundTrip() {
-        store.set(.primaryClickBehavior, value: "preview")
-        store.set(.secondaryClickBehavior, value: "paste")
-        XCTAssertEqual(store.get(.primaryClickBehavior), "preview")
-        XCTAssertEqual(store.get(.secondaryClickBehavior), "paste")
-    }
 
     // MARK: - Safe fallbacks (issue #21)
 

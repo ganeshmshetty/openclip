@@ -61,6 +61,29 @@ extension ManifestValidationIssue: CustomStringConvertible {
     }
 }
 
+/// A non-fatal warning generated during manifest validation (e.g. incompatible output and result declarations).
+public struct ManifestValidationWarning: Sendable, Equatable, CustomStringConvertible {
+    public enum Kind: Sendable, Equatable {
+        case incompatibleOutputResult(output: ExtensionOutputKind, result: ExtensionResultDelivery)
+    }
+
+    public let kind: Kind
+    public let path: String
+
+    public init(kind: Kind, path: String) {
+        self.kind = kind
+        self.path = path
+    }
+
+    public var description: String {
+        switch kind {
+        case .incompatibleOutputResult(let output, let result):
+            let fallback = ExtensionOutputContract.defaultResult(for: output)?.rawValue ?? "none"
+            return "\(path): incompatible output \"\(output.rawValue)\" and result \"\(result.rawValue)\"; dropping result and defaulting to \(fallback)"
+        }
+    }
+}
+
 /// The outcome of validating one manifest: the host's supported schema version, the manifest's
 /// declared version when present, a content fingerprint of the manifest data, and any issues.
 public struct ManifestValidationRecord: Sendable, Equatable {
@@ -72,14 +95,22 @@ public struct ManifestValidationRecord: Sendable, Equatable {
     /// that were loaded.
     public let fingerprint: String
     public let issues: [ManifestValidationIssue]
+    public let warnings: [ManifestValidationWarning]
 
     public var isValid: Bool { issues.isEmpty }
 
-    public init(schemaVersion: String, declaredVersion: String?, fingerprint: String, issues: [ManifestValidationIssue]) {
+    public init(
+        schemaVersion: String,
+        declaredVersion: String?,
+        fingerprint: String,
+        issues: [ManifestValidationIssue],
+        warnings: [ManifestValidationWarning] = []
+    ) {
         self.schemaVersion = schemaVersion
         self.declaredVersion = declaredVersion
         self.fingerprint = fingerprint
         self.issues = issues
+        self.warnings = warnings
     }
 }
 
@@ -122,6 +153,10 @@ public struct ManifestValidator: Sendable {
         shared.validate(manifest)
     }
 
+    public static func validateWarnings(_ manifest: ExtensionMetadata) -> [ManifestValidationWarning] {
+        shared.validateWarnings(manifest)
+    }
+
     /// Validates `manifest`, returning every issue found (empty when it passes).
     public func validate(_ manifest: ExtensionMetadata) -> [ManifestValidationIssue] {
         var issues = capabilityGate.validate(manifest)
@@ -134,14 +169,47 @@ public struct ManifestValidator: Sendable {
         return issues
     }
 
+    /// Validates `manifest` for non-fatal warnings (such as incompatible output and result declarations).
+    public func validateWarnings(_ manifest: ExtensionMetadata) -> [ManifestValidationWarning] {
+        var warnings: [ManifestValidationWarning] = []
+        if let output = manifest.output, let result = manifest.result {
+            if !ExtensionOutputContract.isCompatible(output: output, result: result) {
+                warnings.append(ManifestValidationWarning(kind: .incompatibleOutputResult(output: output, result: result), path: "manifest"))
+            }
+        }
+        for (index, action) in manifest.actions.enumerated() {
+            warnings.append(contentsOf: validateActionWarnings(action, path: "actions[\(index)]", inheritedOutput: manifest.output))
+        }
+        return warnings
+    }
+
+    private func validateActionWarnings(_ action: ExtensionActionMetadata, path: String, inheritedOutput: ExtensionOutputKind?) -> [ManifestValidationWarning] {
+        var warnings: [ManifestValidationWarning] = []
+        let effectiveOutput = action.output ?? (action.inline == true ? .text : inheritedOutput)
+        if let output = effectiveOutput, let result = action.result {
+            if !ExtensionOutputContract.isCompatible(output: output, result: result) {
+                warnings.append(ManifestValidationWarning(kind: .incompatibleOutputResult(output: output, result: result), path: path))
+            }
+        }
+        if let subActions = action.subActions {
+            for (index, sub) in subActions.enumerated() {
+                warnings.append(contentsOf: validateActionWarnings(sub, path: "\(path).subActions[\(index)]", inheritedOutput: effectiveOutput))
+            }
+        }
+        return warnings
+    }
+
     /// Validates `manifest` against the manifest data, producing a record with the schema version,
     /// declared version, content fingerprint, and issues.
     public func validate(_ manifest: ExtensionMetadata, data: Data?) -> ManifestValidationRecord {
-        ManifestValidationRecord(
+        let issues = validate(manifest)
+        let warnings = validateWarnings(manifest)
+        return ManifestValidationRecord(
             schemaVersion: schemaVersion,
             declaredVersion: manifest.version,
             fingerprint: data.map(ContentFingerprint.sha256Hex) ?? "",
-            issues: validate(manifest)
+            issues: issues,
+            warnings: warnings
         )
     }
 

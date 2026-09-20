@@ -39,7 +39,14 @@ final class ExtensionResultCardResizeTests: XCTestCase {
             self.text = text
             self.loading = loading
         }
-        var chrome: ActionChrome { ActionChrome(source: .extensionPkg(packageID: "com.test.pkg"), showsLoading: loading) }
+        var chrome: ActionChrome {
+            ActionChrome(
+                source: .extensionPkg(packageID: "com.test.pkg"),
+                showsLoading: loading,
+                outputKind: .text,
+                recommendedResult: .preview
+            )
+        }
         func isEnabled(for context: ActionContext) -> Bool { true }
         func perform(_ context: ActionContext) async throws -> ActionResult {
             if loading { try await Task.sleep(nanoseconds: 30_000_000) }
@@ -57,11 +64,9 @@ final class ExtensionResultCardResizeTests: XCTestCase {
         )
     }
 
-    /// A shown popup with the "preview" preference (text results render in the card) and a
-    /// remembered card maximum.
+    /// A shown popup with a remembered card maximum.
     private func shownController(on screen: NSScreen) -> (PopupWindowController, MemorySettingsStore, ToastPanelController) {
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         store.set(SettingKey.resultCardWidth, value: Double(remembered.width))
         store.set(SettingKey.resultCardHeight, value: Double(remembered.height))
         let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
@@ -96,6 +101,8 @@ final class ExtensionResultCardResizeTests: XCTestCase {
 
         controller.pendingActionTitle = action.title
         controller.pendingActionIcon = action.icon
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
         controller.deliverResult(.text(longText))
         await waitForCard(controller)
 
@@ -128,6 +135,8 @@ final class ExtensionResultCardResizeTests: XCTestCase {
         let panel = try XCTUnwrap(controller.panel)
 
         controller.pendingActionTitle = "Grammar Check"
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
         controller.deliverResult(.text("Looks good."))
         await waitForCard(controller)
 

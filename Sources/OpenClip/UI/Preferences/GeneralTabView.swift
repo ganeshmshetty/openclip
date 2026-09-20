@@ -18,8 +18,6 @@ struct GeneralTab: View {
     @State private var isAppEnabled: Bool
     @State private var showMenuBarIcon: Bool
     @State private var isMouseHoldEnabled: Bool
-    @State private var primaryBehavior: String
-    @State private var secondaryBehavior: String
     @State private var fileSaveLocation: String
     @ObservedObject private var launchManager = LaunchAtLoginManager.shared
     @ObservedObject private var permissionManager = PermissionManager.shared
@@ -29,8 +27,6 @@ struct GeneralTab: View {
         _isAppEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isAppEnabled))
         _showMenuBarIcon = State(initialValue: DefaultSettingsStore.shared.get(.showMenuBarIcon))
         _isMouseHoldEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isMouseHoldEnabled))
-        _primaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.primaryClickBehavior))
-        _secondaryBehavior = State(initialValue: DefaultSettingsStore.shared.get(.secondaryClickBehavior))
         _fileSaveLocation = State(initialValue: DefaultSettingsStore.shared.get(.fileSaveLocation))
     }
     
@@ -73,29 +69,7 @@ struct GeneralTab: View {
                 }
             }
 
-            Section("Action Results") {
-                SettingsRow(
-                    title: "Primary click",
-                    subtitle: "Left click",
-                    systemImage: "cursorarrow.click"
-                ) {
-                    resultPicker(selection: $primaryBehavior, label: "Primary click")
-                        .onChange(of: primaryBehavior) { _, newValue in
-                            DefaultSettingsStore.shared.set(.primaryClickBehavior, value: newValue)
-                        }
-                }
-
-                SettingsRow(
-                    title: "Secondary click",
-                    subtitle: "Right click or ⇧-click",
-                    systemImage: "cursorarrow.click.2"
-                ) {
-                    resultPicker(selection: $secondaryBehavior, label: "Secondary click")
-                        .onChange(of: secondaryBehavior) { _, newValue in
-                            DefaultSettingsStore.shared.set(.secondaryClickBehavior, value: newValue)
-                        }
-                }
-
+            Section("Files") {
                 SettingsRow(
                     title: "Save Location",
                     subtitleText: saveLocationSubtitleText,
@@ -175,19 +149,6 @@ struct GeneralTab: View {
         .onDisappear { permissionManager.stopMonitoring() }
     }
 
-    /// Both click rows offer the same three outcomes, at a width that fits the
-    /// longest of them without stretching across the row.
-    private func resultPicker(selection: Binding<String>, label: LocalizedStringKey) -> some View {
-        Picker("", selection: selection) {
-            ForEach(ResultDeliveryPreference.allCases, id: \.self) { pref in
-                Text(LocalizedStringKey(pref.rawValue.capitalized)).tag(pref.rawValue)
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.segmented)
-        .frame(width: 230)
-        .accessibilityLabel(label)
-    }
 
     private var saveLocationSubtitleText: Text {
         if fileSaveLocation.isEmpty {

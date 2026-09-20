@@ -72,6 +72,8 @@ OpenClip decodes extension metadata via [`ExtensionMetadata`](../../Sources/Core
 | `keywords` | Array / String | — | Optional search keywords for the package actions in the action-search palette. |
 | `version` | String | — | Declared package version; recorded in the validation log line, not used for loading. |
 | `capabilities` | Array | — | Declared runtime capabilities. The known set is **empty** on day one, so any non-empty value rejects the manifest. Reserved. |
+| `output` | String | — | Optional default output contract kind (`"text"`, `"file"`, `"none"`, `"dynamic"`) inherited by actions in the package. |
+| `result` | String | — | Optional default delivery recommendation (`"preview"`, `"paste"`, `"copy"`, `"paste-or-copy"`, `"open"`, `"save"`) inherited by actions. |
 
 Manifests are **validated** on load (`ManifestValidator`): unknown action kinds, missing required
 fields (`keyPress`/`shortcutName`/`subActions`/executable payload), and any declared capability
@@ -98,6 +100,8 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `shortcutName` | String | Name of a macOS Shortcut to run (for `type: "shortcut"`). |
 | `serviceName` | String | Reserved for the macOS Services menu (for `type: "service"`). |
 | `subActions` | Array | Sub-action objects for `type: "group"`; rendered as a sub-menu with IDs `<groupID>.<subID>`. |
+| `output` | String | Optional declared output kind: `"text"`, `"file"`, `"none"`, `"dynamic"`. Inherits package-level `output` if omitted, or falls back to inference sniffing for legacy extensions. |
+| `result` | String | Optional recommended delivery: `"preview"` (result card), `"paste"`, `"copy"`, `"paste-or-copy"`, `"open"`, `"save"`. Defaults to package-level default or kind defaults (`paste-or-copy` for text, `preview` for file). |
 | `secondary` | Object | Optional. Secondary-click (right-click/⇧-click) outcome: `{ "type": "copy" | "paste" | "openURL" | "toast" | "success" | "none", "value"?, "message"? }`. **Non-JS kinds only** — rejected on `javascript` (JS authors branch on `openclip.input.isSecondaryClick` in-script instead). |
 | `toast` | Object | Optional. Primary-click companion toast `{ "message": string | object, "style"?: "success" | "error" | "info" }` (default style `success`). Valid on all kinds. Message can be localized dictionary. |
 | `secondaryToast` | Object | Optional. Secondary-click companion toast (same shape as `toast`). Valid on all kinds. Dash alias: `secondary-toast`. |
@@ -105,6 +109,14 @@ reject the package, which is then logged (category `extensions`) rather than sil
 The `secondary`/`toast`/`secondaryToast` keys map onto the per-action `Action.delivery` (see
 [`Extensions/AGENTS.md` §5b](../../Extensions/AGENTS.md)); the delivery decision (Select → Probe →
 Toast) then applies the probe and resolves the companion toast.
+
+### Extension Output Contract & Delivery Resolution
+
+OpenClip uses an **Author Output Contract** system (`output` and `result`) for extensions:
+- **`output` (`text` | `file` | `none` | `dynamic`)**: Declares what type of output the action produces. Non-output actions (`url`, `keyPress`, `shortcut`, `service`) default to `none`.
+- **`result` (`preview` | `paste` | `copy` | `paste-or-copy` | `open` | `save`)**: Declares the author's recommended default outcome. Text actions default to `paste-or-copy`; file actions default to `preview`.
+- **User Customization**: Users can override the delivery mode per-action in Settings (`Show in card`, `Paste`, `Copy`).
+- **Clipboard Invariant**: Secondary click (right-click or ⇧-click) always copies the result to the clipboard (or displays a preview card if the primary click was copy), unless the action explicitly declares a custom `secondary` outcome.
 
 ### Native File Output Results
 

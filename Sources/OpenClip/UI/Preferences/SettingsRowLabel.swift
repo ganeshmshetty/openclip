@@ -107,6 +107,7 @@ struct SettingsRow<Trailing: View>: View {
             Spacer(minLength: 12)
             trailing()
         }
+        .frame(minHeight: 24)
         .padding(.vertical, 2)
     }
 }

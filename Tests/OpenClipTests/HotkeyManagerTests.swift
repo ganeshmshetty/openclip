@@ -312,7 +312,8 @@ final class HotkeyManagerTests: XCTestCase {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
 
-        manager.handleTogglePopup()
+        let app = MockFrontmostApp(bundleID: "com.apple.TextEdit")
+        manager.handleTogglePopup(frontmostApp: app)
 
         XCTAssertFalse(controller.isVisible, "Search palette should not appear")
         XCTAssertTrue(controller.toastController.isShowing, "Toast feedback should appear")
@@ -337,7 +338,8 @@ final class HotkeyManagerTests: XCTestCase {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
 
-        manager.handleTogglePopup()
+        let app = MockFrontmostApp(bundleID: "com.apple.TextEdit")
+        manager.handleTogglePopup(frontmostApp: app)
 
         XCTAssertTrue(controller.isVisible, "Search palette should open when standalone actions are available")
         controller.hide()

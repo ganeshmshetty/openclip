@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Core
+import KeyboardShortcuts
 
 @MainActor
 struct CustomActionsPage: View {
@@ -59,6 +60,24 @@ struct CustomActionsPage: View {
                                 withAnimation(.easeInOut(duration: 0.18)) { aliasError = message }
                             }
                         )
+                        .contextMenu {
+                            Button(String(localized: "Configure…")) {
+                                SettingsDestination.open(action)
+                            }
+                            if ActionIdentity.canDuplicate(action) {
+                                Button(String(localized: "Duplicate")) {
+                                    Task {
+                                        _ = await ActionDuplicator.duplicate(actionID: action.id)
+                                    }
+                                }
+                            }
+                            Divider()
+                            Button(role: .destructive) {
+                                confirmDelete(action)
+                            } label: {
+                                Text("Delete Action…")
+                            }
+                        }
                     }
                 } header: {
                     Text("Actions")
@@ -170,6 +189,31 @@ struct CustomActionsPage: View {
         case .openURL: return String(localized: "Open URL")
         case .textSnippet: return String(localized: "Text Snippet")
         case .shellScript: return String(localized: "Shell Script")
+        }
+    }
+
+    private func confirmDelete(_ action: any Action) {
+        let id = action.id
+        router.confirmDestructive(
+            title: String(localized: "Delete?"),
+            message: "",
+            confirmTitle: String(localized: "Delete")
+        ) {
+            KeyboardShortcuts.reset(.actionHotkey(id))
+            coordinator.deleteCustomAction(actionID: id)
+            ActionCustomizationManager.shared.resetOverride(for: id)
+            router.clearConfigurationRequest(for: id)
+            Task {
+                do {
+                    try await ExtensionManager.shared.uninstallExtension(actionID: id)
+                    NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                } catch {
+                    let nsError = error as NSError
+                    if !(nsError.domain == "ExtensionManager" && nsError.code == 404) {
+                        Log.extensions.error("Failed to remove custom action on disk '\(id, privacy: .public)': \(error.localizedDescription)")
+                    }
+                }
+            }
         }
     }
 }

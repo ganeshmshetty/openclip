@@ -194,6 +194,10 @@ public struct ActionChrome: Codable, Sendable, Equatable {
     /// True when the action produces an inline result preview directly in the popup bar (e.g. Calculate
     /// or synchronous JavaScript inline extensions) rather than performing on click.
     public let isInlineResult: Bool
+    /// The kind of uncommitted result the action produces (.text, .file, .none, .dynamic).
+    public let outputKind: ActionOutputKind
+    /// The author-recommended delivery for uncommitted results (.preview, .paste, .copy, .pasteOrCopy, .open, .save).
+    public let recommendedResult: ActionResultDeliveryMode?
 
     public init(
         badge: Badge = .none,
@@ -204,7 +208,9 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         launchesAI: Bool = false,
         showsLoading: Bool = false,
         loadingMessage: String? = nil,
-        isInlineResult: Bool = false
+        isInlineResult: Bool = false,
+        outputKind: ActionOutputKind = .none,
+        recommendedResult: ActionResultDeliveryMode? = nil
     ) {
         self.badge = badge
         self.rowStyle = rowStyle
@@ -215,6 +221,8 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.showsLoading = showsLoading
         self.loadingMessage = loadingMessage
         self.isInlineResult = isInlineResult
+        self.outputKind = (outputKind == .none && isInlineResult) ? .text : outputKind
+        self.recommendedResult = recommendedResult
     }
 
     public init(from decoder: Decoder) throws {
@@ -227,7 +235,13 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.launchesAI = try container.decode(Bool.self, forKey: .launchesAI)
         self.showsLoading = try container.decode(Bool.self, forKey: .showsLoading)
         self.loadingMessage = try container.decodeIfPresent(String.self, forKey: .loadingMessage)
-        self.isInlineResult = try container.decodeIfPresent(Bool.self, forKey: .isInlineResult) ?? false
+        let inline = try container.decodeIfPresent(Bool.self, forKey: .isInlineResult) ?? false
+        self.isInlineResult = inline
+        let rawOutput = try? container.decodeIfPresent(String.self, forKey: .outputKind)
+        let decodedOutput = rawOutput.flatMap(ActionOutputKind.init(rawValue:)) ?? .none
+        self.outputKind = (decodedOutput == .none && inline) ? .text : decodedOutput
+        let rawResult = try? container.decodeIfPresent(String.self, forKey: .recommendedResult)
+        self.recommendedResult = rawResult.flatMap(ActionResultDeliveryMode.init(rawValue:))
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -241,6 +255,10 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         try container.encode(showsLoading, forKey: .showsLoading)
         try container.encodeIfPresent(loadingMessage, forKey: .loadingMessage)
         try container.encode(isInlineResult, forKey: .isInlineResult)
+        if outputKind != .none {
+            try container.encode(outputKind.rawValue, forKey: .outputKind)
+        }
+        try container.encodeIfPresent(recommendedResult?.rawValue, forKey: .recommendedResult)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -253,5 +271,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         case showsLoading
         case loadingMessage
         case isInlineResult
+        case outputKind
+        case recommendedResult
     }
 }

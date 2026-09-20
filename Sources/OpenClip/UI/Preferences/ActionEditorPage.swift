@@ -74,6 +74,7 @@ public struct ActionEditorPage: View {
     @State private var isLoaded = false
     @State private var deliveryPrefString: String = "default"
     @State private var isDuplicating = false
+    @State private var isDeleting = false
 
     public init(
         action: any Action,
@@ -84,10 +85,8 @@ public struct ActionEditorPage: View {
         let initialDelivery: String
         if let pref = ActionCustomizationManager.shared.override(for: action.id)?.deliveryPreference {
             initialDelivery = pref.rawValue
-        } else if action.id == "builtin.define" {
-            initialDelivery = "preview"
         } else {
-            initialDelivery = "default"
+            initialDelivery = Self.defaultDeliveryPrefString(for: action)
         }
         _deliveryPrefString = State(initialValue: initialDelivery)
     }
@@ -167,8 +166,28 @@ public struct ActionEditorPage: View {
         SettingsTint.openClip
     }
 
+    static func defaultDeliveryPrefString(for action: any Action) -> String {
+        if let rec = action.chrome.recommendedResult {
+            switch rec {
+            case .preview: return "preview"
+            case .paste, .pasteOrCopy: return "paste"
+            case .copy: return "copy"
+            case .open, .save: return "paste"
+            }
+        }
+        if action.chrome.outputKind == .text {
+            return "paste"
+        }
+        return "paste"
+    }
+
     private var canProduceTextOutput: Bool {
-        if action.id == "builtin.calculate" || action.id == "builtin.define" { return true }
+        if action.chrome.outputKind == .text || action.chrome.outputKind == .dynamic {
+            return true
+        }
+        if action.chrome.outputKind == .none || action.chrome.outputKind == .file {
+            return false
+        }
         if isBuiltin { return false }
         if ActionIdentity.isAIPreset(action) || action.chrome.launchesAI { return true }
         if action is CustomAction {
@@ -183,31 +202,31 @@ public struct ActionEditorPage: View {
                 return false
             case .applescript:
                 if let code = Self.scriptContent(for: meta, in: state) {
-                    return Self.appleScriptProducesText(code: code)
+                    return ScriptOutputSniffers.appleScriptProducesText(code: code)
                 }
                 return true
             case .shellInline, .scriptFile:
                 if let code = Self.scriptContent(for: meta, in: state) {
-                    return Self.shellProducesText(code: code)
+                    return ScriptOutputSniffers.shellProducesText(code: code)
                 }
                 return true
             case .js:
                 if let code = Self.scriptContent(for: meta, in: state) {
-                    return Self.jsProducesText(code: code)
+                    return ScriptOutputSniffers.jsProducesText(code: code)
                 }
                 return true
             }
         }
         let base = Self.unwrapBase(action)
         if let jsAction = base as? JavaScriptAction {
-            return Self.jsProducesText(code: jsAction.scriptCode)
+            return ScriptOutputSniffers.jsProducesText(code: jsAction.scriptCode)
         }
         if let asAction = base as? AppleScriptAction {
-            return Self.appleScriptProducesText(code: asAction.appleScriptCode)
+            return ScriptOutputSniffers.appleScriptProducesText(code: asAction.appleScriptCode)
         }
         if let scriptAction = base as? ScriptAction {
             if let content = try? String(contentsOf: scriptAction.scriptURL, encoding: .utf8) {
-                return Self.shellProducesText(code: content)
+                return ScriptOutputSniffers.shellProducesText(code: content)
             }
             return true
         }
@@ -414,8 +433,7 @@ public struct ActionEditorPage: View {
                 if canProduceTextOutput {
                     SettingsRow(title: "When finished") {
                         Picker("", selection: $deliveryPrefString) {
-                            Text("Default").tag("default")
-                            Text("Preview").tag("preview")
+                            Text("Show in card").tag("preview")
                             Text("Paste").tag("paste")
                             Text("Copy").tag("copy")
                         }
@@ -520,6 +538,19 @@ public struct ActionEditorPage: View {
                     }
                 }
             }
+            if isCustomAction {
+                Section {
+                    Button(role: .destructive) {
+                        confirmDelete()
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Text("Delete Action…")
+                            Spacer()
+                        }
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         // Centre the form at the shared measure while its scroll view runs the full width of the
@@ -532,59 +563,59 @@ public struct ActionEditorPage: View {
             }
         }
         .onDisappear {
-            if isLoaded {
+            if isLoaded && !isDeleting {
                 autoSave()
             }
             router.clearConfigurationRequest(for: action.id)
         }
         .task(id: customTitle) {
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             try? await Task.sleep(for: .milliseconds(350))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, !isDeleting else { return }
             autoSave()
         }
         .task(id: aliasText) {
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             try? await Task.sleep(for: .milliseconds(350))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, !isDeleting else { return }
             autoSave()
         }
         .onChange(of: displayMode) { _, _ in
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             autoSave()
         }
         .onChange(of: iconSymbol) { _, _ in
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             autoSave()
         }
         .onChange(of: deliveryPrefString) { _, _ in
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             autoSave()
         }
         .onChange(of: editKind) { _, _ in
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             autoSave()
         }
         .onChange(of: replaceSelection) { _, _ in
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             autoSave()
         }
         .task(id: customURLTemplate) {
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             try? await Task.sleep(for: .milliseconds(350))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, !isDeleting else { return }
             autoSave()
         }
         .task(id: customSnippetTemplate) {
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             try? await Task.sleep(for: .milliseconds(350))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, !isDeleting else { return }
             autoSave()
         }
         .task(id: customShellScript) {
-            guard isLoaded else { return }
+            guard isLoaded, !isDeleting else { return }
             try? await Task.sleep(for: .milliseconds(350))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, !isDeleting else { return }
             autoSave()
         }
         // The toolbar's ellipsis menu belongs to whichever page is on screen; levels underneath
@@ -614,30 +645,26 @@ public struct ActionEditorPage: View {
         }
     }
 
-    /// Removes a custom action the way the Customize list's trash used to: a store-backed one is
-    /// deleted from the store, a manifest-backed one has its package removed.
     private func deleteAction() {
+        isDeleting = true
+        isLoaded = false
         let id = action.id
+        KeyboardShortcuts.reset(.actionHotkey(id))
+        ActionCoordinator.shared.deleteCustomAction(actionID: id)
+        ActionCustomizationManager.shared.resetOverride(for: id)
+        router.clearConfigurationRequest(for: id)
+        router.pop()
+
         Task {
-            if case .custom = action.chrome.source {
-                ActionCoordinator.shared.deleteCustomAction(actionID: id)
-                ActionCustomizationManager.shared.resetOverride(for: id)
-            } else {
-                do {
-                    try await ExtensionManager.shared.uninstallExtension(actionID: id)
-                    ActionCustomizationManager.shared.resetOverride(for: id)
-                    NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
-                } catch {
-                    Log.extensions.error("Failed to remove custom action '\(id, privacy: .public)': \(error.localizedDescription)")
-                    router.notifyError(
-                        title: String(localized: "Remove Failed"),
-                        message: String(localized: "OpenClip could not remove extension: \(error.localizedDescription)")
-                    )
-                    return
+            do {
+                try await ExtensionManager.shared.uninstallExtension(actionID: id)
+                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+            } catch {
+                let nsError = error as NSError
+                if !(nsError.domain == "ExtensionManager" && nsError.code == 404) {
+                    Log.extensions.error("Failed to remove custom action on disk '\(id, privacy: .public)': \(error.localizedDescription)")
                 }
             }
-            router.clearConfigurationRequest(for: id)
-            router.pop()
         }
     }
 
@@ -712,84 +739,17 @@ public struct ActionEditorPage: View {
 
     /// Determines if a JavaScript extension produces text output governed by the delivery preference.
     static func jsProducesText(code: String) -> Bool {
-        let entryPattern = #"(?:(?:async\s+)?function\s+(?:action|main)\s*\([^)]*\)|(?:var|let|const\s+)?(?:action|main)\s*=\s*(?:async\s*)?(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[a-zA-Z0-9_]+\s*=>))\s*\{([\s\S]*)\}"#
-        let body: String
-        if let match = code.range(of: entryPattern, options: .regularExpression) {
-            body = String(code[match])
-        } else {
-            body = code
-        }
-
-        let hasReturnExpr = body.range(of: #"return\s+(?!(?:true|false|undefined|null)\b)[^;}\s]"#, options: .regularExpression) != nil
-        if !hasReturnExpr {
-            if code.range(of: #"=>\s*[^{\s]"#, options: .regularExpression) != nil {
-                return true
-            }
-            return false
-        }
-        return true
+        ScriptOutputSniffers.jsProducesText(code: code)
     }
 
     /// Determines if an AppleScript extension produces text output.
     static func appleScriptProducesText(code: String) -> Bool {
-        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return false }
-        if trimmed.hasPrefix("say ") { return false }
-        if trimmed.contains("tell application \"System Events\"") && trimmed.contains("keystroke") {
-            return false
-        }
-        if trimmed.contains("return \"\"") || trimmed.contains("return ''") {
-            return false
-        }
-        if trimmed.contains("do shell script") && trimmed.contains("main.sh") {
-            return false
-        }
-        return true
+        ScriptOutputSniffers.appleScriptProducesText(code: code)
     }
 
     /// Determines if a shell extension produces text output to stdout.
     static func shellProducesText(code: String) -> Bool {
-        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return false }
-
-        // QuickLook preview window (e.g. qlmanage -p in QR Code Generator)
-        if trimmed.contains("qlmanage") {
-            return false
-        }
-
-        // Background process with output redirected to /dev/null and no stdout
-        if (trimmed.contains(">/dev/null") || trimmed.contains("> /dev/null")) && trimmed.contains("&") {
-            if !trimmed.contains("echo ") && !trimmed.contains("printf ") && !trimmed.contains("cat ") {
-                return false
-            }
-        }
-
-        // Swift / Cocoa GUI runner or binary with no stdout (e.g. Large Type)
-        if (trimmed.contains("swift ") || trimmed.contains("main.swift") || trimmed.contains("largetype")) &&
-           (trimmed.contains(">/dev/null") || !trimmed.contains("echo ")) {
-            return false
-        }
-
-        // Piping into `open` (e.g. `printf ... | open -f -a TextEdit`) or bare `open -a`
-        if trimmed.contains("| open ") || trimmed.contains("| /usr/bin/open ") {
-            return false
-        }
-
-        // Opens an application without producing text
-        if trimmed.contains("open -a ") || trimmed.contains("open -f ") || trimmed.contains("open -g ") {
-            if !trimmed.contains("echo ") && !trimmed.contains("| implode") {
-                return false
-            }
-        }
-
-        // Emits only JSON toast effects (like Harper check/dictionary/forget)
-        if trimmed.contains("{\"type\":\"toast\"") || trimmed.contains("{type:\"toast\"") {
-            if !trimmed.contains("| implode") && !trimmed.contains("type:\"copy\"") {
-                return false
-            }
-        }
-
-        return true
+        ScriptOutputSniffers.shellProducesText(code: code)
     }
 
     private static func unwrapBase(_ action: any Action) -> any Action {
@@ -812,10 +772,8 @@ public struct ActionEditorPage: View {
         customTitle = override?.customTitle ?? action.title
         if let pref = override?.deliveryPreference {
             deliveryPrefString = pref.rawValue
-        } else if action.id == "builtin.define" {
-            deliveryPrefString = "preview"
         } else {
-            deliveryPrefString = "default"
+            deliveryPrefString = Self.defaultDeliveryPrefString(for: action)
         }
         initialStoredSymbol = Self.sanitizedStoredSymbol(override?.customIconSymbol, actionIcon: action.icon)
         seedBaseline(from: ActionCustomizationManager.shared.popupIcon(for: action))
@@ -909,7 +867,7 @@ public struct ActionEditorPage: View {
         ActionCustomizationManager.shared.resetOverride(for: action.id)
         appearanceResetPending = false
         initialStoredSymbol = nil
-        deliveryPrefString = (action.id == "builtin.define") ? "preview" : "default"
+        deliveryPrefString = Self.defaultDeliveryPrefString(for: action)
         seedBaseline(from: action.icon)
         if case .text = action.icon {
             displayMode = 1
@@ -951,7 +909,8 @@ public struct ActionEditorPage: View {
     }
 
     private func autoSave() {
-        guard isLoaded, !manifestMissing else { return }
+        guard isLoaded, !isDeleting, !manifestMissing else { return }
+        guard coordinator.actions.contains(where: { $0.id == action.id }) else { return }
         saveAlias()
         if appearanceResetPending {
             ActionCustomizationManager.shared.resetOverride(for: action.id)
@@ -1016,12 +975,10 @@ public struct ActionEditorPage: View {
             text: textOverride
         )
 
-        let pref: ResultDeliveryPreference? = switch deliveryPrefString {
-        case "preview": .preview
-        case "paste": .paste
-        case "copy": .copy
-        default: (action.id == "builtin.define") ? .preview : nil
-        }
+        let defaultPref = Self.defaultDeliveryPrefString(for: action)
+        let pref: ResultDeliveryPreference? = (deliveryPrefString == defaultPref)
+            ? nil
+            : ResultDeliveryPreference(rawValue: deliveryPrefString)
         ActionCustomizationManager.shared.setDeliveryPreference(pref, for: action.id)
     }
 
@@ -1148,7 +1105,9 @@ public struct ActionEditorPage: View {
             keywords: meta.keywords,
             inline: meta.inline,
             localizedTitle: (finalTitle.isEmpty || finalTitle == meta.title || finalTitle == meta.localizedTitle?.resolve()) ? meta.localizedTitle : nil,
-            localizedLoadingMessage: meta.localizedLoadingMessage
+            localizedLoadingMessage: meta.localizedLoadingMessage,
+            output: meta.output,
+            result: meta.result
         )
 
         var actions = state.manifest.actions
@@ -1165,7 +1124,9 @@ public struct ActionEditorPage: View {
             localizedName: state.manifest.localizedName,
             description: state.manifest.description,
             localizedDescription: state.manifest.localizedDescription,
-            author: state.manifest.author
+            author: state.manifest.author,
+            output: state.manifest.output,
+            result: state.manifest.result
         )
 
         do {

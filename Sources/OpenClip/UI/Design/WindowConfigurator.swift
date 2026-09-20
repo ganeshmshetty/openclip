@@ -74,7 +74,7 @@ extension View {
         background(
             WindowConfigurator { window in
                 window.titlebarSeparatorStyle = .none
-                for controller in WindowConfigurator.splitViewControllers(in: window.contentViewController) {
+                for controller in WindowConfigurator.splitViewControllers(in: window) {
                     for item in controller.splitViewItems where item.titlebarSeparatorStyle != .none {
                         item.titlebarSeparatorStyle = .none
                     }
@@ -85,6 +85,18 @@ extension View {
 }
 
 extension WindowConfigurator {
+    /// Every `NSSplitViewController` in `window`: checks the root controller hierarchy as well as
+    /// any `NSSplitView` whose delegate is an `NSSplitViewController` in the view hierarchy (such
+    /// as those created by SwiftUI's `NavigationSplitView`).
+    static func splitViewControllers(in window: NSWindow) -> [NSSplitViewController] {
+        var found = splitViewControllers(in: window.contentViewController)
+        if let contentView = window.contentView {
+            found.append(contentsOf: splitViewControllers(in: contentView))
+        }
+        var seen = Set<ObjectIdentifier>()
+        return found.filter { seen.insert(ObjectIdentifier($0)).inserted }
+    }
+
     /// Every `NSSplitViewController` under `root`, including nested ones: SwiftUI hosts a
     /// `NavigationSplitView` inside one, but how deep it sits is its own business.
     static func splitViewControllers(in root: NSViewController?) -> [NSSplitViewController] {
@@ -94,6 +106,19 @@ extension WindowConfigurator {
             found.append(controller)
         }
         for child in root.children {
+            found.append(contentsOf: splitViewControllers(in: child))
+        }
+        return found
+    }
+
+    /// Every `NSSplitViewController` whose split view lives in `view`'s subtree.
+    static func splitViewControllers(in view: NSView?) -> [NSSplitViewController] {
+        guard let view else { return [] }
+        var found: [NSSplitViewController] = []
+        if let splitView = view as? NSSplitView, let controller = splitView.delegate as? NSSplitViewController {
+            found.append(controller)
+        }
+        for child in view.subviews {
             found.append(contentsOf: splitViewControllers(in: child))
         }
         return found

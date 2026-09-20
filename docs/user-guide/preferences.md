@@ -13,14 +13,12 @@ You can open OpenClip Preferences in these ways:
 
 ## General
 
-The **General** page configures how OpenClip is summoned, how action outputs are handled, and system integration:
+The **General** page configures how OpenClip is summoned, launch options, and system integration:
 
 - **Triggers**:
   - **Appear Automatically**: Shows the popup bar as soon as text is selected.
   - **Hold Mouse to Trigger**: Summons the popup when you press and hold the mouse button without moving the pointer (drag-select does not count). Works independently of **Appear Automatically**.
   - **Keyboard Shortcut**: Configures the global hotkey (default `⌥⌘C`) to toggle the popup and search palette.
-- **Action Results**:
-  - **Primary click** & **Secondary click**: Configures what happens when an action returns text — **Preview** (in the native result card), **Paste** (over active selection), or **Copy** (to pasteboard).
 - **App**:
   - **Show Menu Bar Icon**: Displays OpenClip in the macOS menu bar. Turning it off removes the icon immediately without stopping OpenClip or its shortcut.
   - **Start at Login**: Launches OpenClip automatically when you log in.
@@ -135,6 +133,11 @@ OpenClip allows overriding the display title and icon for any action without edi
 - **Custom Text Icon**: Display a 1–2 character text icon instead of a symbol.
 
 All overrides are managed via [`ActionCustomizationManager`](../../Sources/Core/Actions/ActionCustomizationManager.swift) and stored persistently in `SettingsStore`.
+
+### Action Result Delivery & Click Behavior
+When an action produces text output (e.g. transformations, dictionary definitions, calculations):
+- **When finished**: Configurable per action in each action's settings page (**Show in card**, **Paste**, or **Copy**). By default, each action uses the author's recommended delivery mode (e.g. **Show in card** for Define, or **Paste or Copy** for text actions that use the standard default).
+- **Secondary click (Right-click / ⇧-click)**: Follows the universal **Clipboard Invariant** — a secondary click copies the result to the clipboard (or renders in a card if the primary action was copy), allowing you to copy output without changing the default paste behavior. Explicitly declared secondary outcomes continue to override.
 
 ---
 

@@ -414,7 +414,6 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testTextDeliversCopyWhenPreferenceIsCopy() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "copy")
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
@@ -423,6 +422,8 @@ final class ActionResultDeliveryTests: XCTestCase {
                                          settingsStore: store)
         defer { controller.hide(); toast.hide() }
 
+        controller.pendingActionRecommendedResult = .copy
+        controller.pendingActionOutputKind = .text
         controller.deliverResult(.text("hello"))
 
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
@@ -447,8 +448,8 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     // MARK: - Builtin explicit paste/copy never governed by the picker (controller level)
 
-    /// Builtins author explicit outcomes (Copy/Cut/Paste/Calculate/Completion). Even with the
-    /// primary picker set to `.preview`, an explicit `.paste` must be delivered as authored (probe
+    /// Builtins author explicit outcomes (Copy/Cut/Paste/Calculate/Completion). Even with
+    /// recommendedResult set to `.preview`, an explicit `.paste` must be delivered as authored (probe
     /// still applies) and dismiss — never routed to the AI result card. Guards the spec's "the
     /// picker never fights an explicit effect" contract at the controller seam, where the `.text`
     /// preview branch could otherwise shadow a future regression.
@@ -456,13 +457,14 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testExplicitPasteDeliversNotPreviewedWithPreviewPreference() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
                                          appPolicy: .default,
                                          settingsStore: store)
         defer { controller.hide() }
 
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
         controller.deliverResult(.paste("hello"))
 
         assertCase(try await awaitDelivery(from: handler), .paste("hello"))
@@ -476,7 +478,6 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testExplicitCopyDeliversNotPreviewedWithPreviewPreference() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
@@ -485,6 +486,8 @@ final class ActionResultDeliveryTests: XCTestCase {
                                          settingsStore: store)
         defer { controller.hide(); toast.hide() }
 
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
         controller.deliverResult(.copy("hello"))
 
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
@@ -501,13 +504,14 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testTextPreviewKeepsPopupOpenAndShowsCard() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
                                          appPolicy: .default,
                                          settingsStore: store)
         defer { controller.hide() }
         controller.pendingActionTitle = "My Action"
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
 
         controller.deliverResult(.text("hello"))
 
@@ -528,13 +532,14 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testTextPreviewHidesPasteWhenCannotPaste() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: false),
                                          appPolicy: .default,
                                          settingsStore: store)
         defer { controller.hide() }
         controller.pendingActionTitle = "My Action"
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
 
         controller.deliverResult(.text("hello"))
 
@@ -550,13 +555,14 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testTextPreviewKeepsPasteWhenCanPaste() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
                                          appPolicy: .default,
                                          settingsStore: store)
         defer { controller.hide() }
         controller.pendingActionTitle = "My Action"
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
 
         controller.deliverResult(.text("hello"))
 
@@ -573,13 +579,14 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testTextPreviewEscCollapsesToBar() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
                                          appPolicy: .default,
                                          settingsStore: store)
         defer { controller.hide() }
         controller.pendingActionTitle = "My Action"
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
 
         controller.deliverResult(.text("hello"))
 
@@ -605,7 +612,6 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testLoadingTextPreviewReshowsPopupAsCard() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
@@ -614,7 +620,7 @@ final class ActionResultDeliveryTests: XCTestCase {
                                          settingsStore: store)
         defer { controller.hide(); toast.hide() }
 
-        controller.runLoadingAction(SlowTextStubAction(text: "loaded"), with: controllerCurrentContext(controller), isSecondaryClick: false)
+        controller.runLoadingAction(SlowTextStubAction(text: "loaded", recommendedResult: .preview), with: controllerCurrentContext(controller), isSecondaryClick: false)
         XCTAssertTrue(toast.isLoading, "spinner should be visible immediately")
 
         let deadline = Date().addingTimeInterval(3.0)
@@ -654,7 +660,6 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testTextPreviewWithDeclaredSecondaryDismisses() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.secondaryClickBehavior, value: "preview")
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
                                          appPolicy: .default,
@@ -662,7 +667,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         defer { controller.hide() }
 
         let url = URL(string: "https://alt")!
-        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(secondary: .openURL(url)), performResult: .text("a"))
+        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(secondary: .openURL(url)), performResult: .text("a"), recommendedResult: .preview)
         controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
 
         assertCase(try await awaitDelivery(from: handler), .openURL(url))
@@ -677,7 +682,6 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testRunActionPreviewDoesNotLeakDeclaredDeliveryOntoCompletionPaste() async throws {
         let handler = RecordingHandler()
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
@@ -687,7 +691,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         defer { controller.hide(); toast.hide() }
 
         let declared = StatusFeedback(message: "Saved", style: .info)
-        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(primaryToast: declared), performResult: .text("a"))
+        let stub = DeclaredDeliveryStub(delivery: ActionDelivery(primaryToast: declared), performResult: .text("a"), recommendedResult: .preview)
         controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: false)
 
         let deadline = Date().addingTimeInterval(3.0)
@@ -1374,13 +1378,15 @@ private final class DeclaredDeliveryStub: Action, @unchecked Sendable {
     let id = "stub.declared"
     let title = "Declared"
     let icon: ActionIcon = .symbol("arrow.turn.down.right")
-    var chrome: ActionChrome { ActionChrome(source: .builtin) }
+    let recommendedResult: ActionResultDeliveryMode?
+    var chrome: ActionChrome { ActionChrome(source: .builtin, outputKind: .text, recommendedResult: recommendedResult) }
     var delivery: ActionDelivery? { declaredDelivery }
     private let declaredDelivery: ActionDelivery
     let performResult: ActionResult
-    init(delivery: ActionDelivery, performResult: ActionResult = .paste("hello")) {
+    init(delivery: ActionDelivery, performResult: ActionResult = .paste("hello"), recommendedResult: ActionResultDeliveryMode? = nil) {
         self.declaredDelivery = delivery
         self.performResult = performResult
+        self.recommendedResult = recommendedResult
     }
     func isEnabled(for context: ActionContext) -> Bool { true }
     func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
@@ -1406,9 +1412,13 @@ private final class SlowTextStubAction: Action, @unchecked Sendable {
     let id = "stub.slowtext"
     let title = "Slow Text"
     let icon: ActionIcon = .symbol("text.alignleft")
-    var chrome: ActionChrome { ActionChrome(source: .builtin, showsLoading: true) }
+    let recommendedResult: ActionResultDeliveryMode?
+    var chrome: ActionChrome { ActionChrome(source: .builtin, showsLoading: true, outputKind: .text, recommendedResult: recommendedResult) }
     private let text: String
-    init(text: String = "loaded") { self.text = text }
+    init(text: String = "loaded", recommendedResult: ActionResultDeliveryMode? = nil) {
+        self.text = text
+        self.recommendedResult = recommendedResult
+    }
     func isEnabled(for context: ActionContext) -> Bool { true }
     func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
     func perform(_ context: ActionContext) async throws -> ActionResult {

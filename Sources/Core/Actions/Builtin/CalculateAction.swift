@@ -9,7 +9,7 @@ public struct CalculateAction: ConfigurableAction {
     public var title: String { String(localized: "Calculate") }
     public let preferenceIconName = "equal.circle"
     public let icon = ActionIcon.symbol("equal.circle")
-    public var chrome: ActionChrome { ActionChrome(isInlineResult: true) }
+    public var chrome: ActionChrome { ActionChrome(isInlineResult: true, outputKind: .text, recommendedResult: .pasteOrCopy) }
 
     public init() {}
 

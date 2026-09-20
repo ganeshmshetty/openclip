@@ -85,14 +85,31 @@ public struct CustomAction: ConfigurableAction, Codable, Sendable, Equatable {
         title: String,
         iconName: String,
         type: CustomActionType,
-        chrome: ActionChrome = ActionChrome(badge: .custom, rowStyle: .standard, popupBehavior: .perform, source: .custom),
+        chrome: ActionChrome? = nil,
         rules: ExtensionActionRules? = nil
     ) {
         self.id = id
         self.title = title
         self.iconName = iconName
         self.type = type
-        self.chrome = chrome
+        if let chrome {
+            self.chrome = chrome
+        } else {
+            let (outputKind, rec): (ActionOutputKind, ActionResultDeliveryMode?) = switch type {
+            case .openURL: (.none, nil)
+            case .textSnippet: (.text, .pasteOrCopy)
+            case .shellScript(_, let replaceSelection):
+                replaceSelection ? (.text, .pasteOrCopy) : (.text, .copy)
+            }
+            self.chrome = ActionChrome(
+                badge: .custom,
+                rowStyle: .standard,
+                popupBehavior: .perform,
+                source: .custom,
+                outputKind: outputKind,
+                recommendedResult: rec
+            )
+        }
         self.rules = rules
     }
     

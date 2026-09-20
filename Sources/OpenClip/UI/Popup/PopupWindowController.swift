@@ -86,6 +86,12 @@ public class PopupWindowController {
     /// `pendingActionTitle`. Internal for tests.
     var pendingActionID: String? = nil
 
+    /// The most recent bar/palette action's recommended result. Lifecycle mirrors `pendingActionTitle`. Internal for tests.
+    var pendingActionRecommendedResult: ActionResultDeliveryMode? = nil
+
+    /// The most recent bar/palette action's output kind. Lifecycle mirrors `pendingActionTitle`. Internal for tests.
+    var pendingActionOutputKind: ActionOutputKind? = nil
+
     /// In-flight delivery context snapshotted before an action performs, preserved across hide()
     /// so an asynchronous action that finishes after popup dismissal or app-switching delivers with
     /// its original context. Internal for tests.
@@ -355,6 +361,8 @@ public class PopupWindowController {
                 self.pendingActionTitle = action.title
                 self.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
                 self.pendingActionID = action.id
+                self.pendingActionRecommendedResult = action.chrome.recommendedResult
+                self.pendingActionOutputKind = action.chrome.outputKind
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
             },
             onRunLoadingAction: { [weak self] action, clickIntent in
@@ -1056,6 +1064,8 @@ public class PopupWindowController {
         pendingActionTitle = nil
         pendingActionIcon = nil
         pendingActionID = nil
+        pendingActionRecommendedResult = nil
+        pendingActionOutputKind = nil
         accumulatedScrollDelta = 0
         isRightClickInProgress = false
         modeStore.isProcessingAI = false
@@ -1602,6 +1612,8 @@ public class PopupWindowController {
                 self.pendingActionTitle = action.title
                 self.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
                 self.pendingActionID = action.id
+                self.pendingActionRecommendedResult = action.chrome.recommendedResult
+                self.pendingActionOutputKind = action.chrome.outputKind
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
             },
             onActionPerformed: { [weak self] actionID in
@@ -2049,9 +2061,12 @@ public class PopupWindowController {
         /// `exitKeyMode()` reactivates exactly this app on hide — so the snapshot is the same app
         /// `pasteProbe` must inspect, without reading frontmost state after hide or an await.
         let application: NSRunningApplication?
-        /// The user's chosen behavior for this click (preview/paste/copy), resolved from the two
-        /// General-tab settings at snapshot time.
-        let preference: ResultDeliveryPreference
+        /// The user's per-action override if one was configured in Action Editor.
+        let userOverride: ResultDeliveryPreference?
+        /// The author's recommended delivery mode.
+        let recommendedResult: ActionResultDeliveryMode?
+        /// The action's uncommitted output kind.
+        let outputKind: ActionOutputKind?
         /// The performing action's title — the result card header. nil for explicit user requests.
         let actionTitle: String?
         /// The performing action's display icon (customization-resolved) — the result card header
@@ -2072,13 +2087,17 @@ public class PopupWindowController {
         let icon = action?.displayIcon(using: ActionCustomizationManager.shared) ?? pendingActionIcon
         let actionID = action?.id ?? pendingActionID
         let targetApp = previousFrontmostApp ?? (frontmostApplicationProvider()?.bundleIdentifier != Bundle.main.bundleIdentifier ? frontmostApplicationProvider() : previousFrontmostApp)
-        let effectivePref = preference(forActionID: actionID, clickIntent: intent)
+        let override = actionID.flatMap { ActionCustomizationManager.shared.override(for: $0)?.deliveryPreference }
+        let rec = action?.chrome.recommendedResult ?? pendingActionRecommendedResult
+        let outKind = action?.chrome.outputKind ?? pendingActionOutputKind
         return DeliveryContext(
             policy: currentActionContext?.selection.appPolicy ?? .default,
             clickIntent: intent,
             delivery: actionDelivery,
             application: targetApp,
-            preference: effectivePref,
+            userOverride: override,
+            recommendedResult: rec,
+            outputKind: outKind,
             actionTitle: title,
             actionIcon: icon,
             selection: currentActionContext?.selection
@@ -2112,6 +2131,8 @@ public class PopupWindowController {
         pendingActionTitle = nil
         pendingActionIcon = nil
         pendingActionID = nil
+        pendingActionRecommendedResult = nil
+        pendingActionOutputKind = nil
         if shouldDismiss(result, delivery: resolvedDelivery) {
             hide()
         }
@@ -2220,27 +2241,20 @@ public class PopupWindowController {
     /// any result.
     private func resolveDelivery(_ result: ActionResult, delivery: DeliveryContext?, suppressDeliveryToast: Bool = false) async -> (result: ActionResult, toast: StatusFeedback?) {
         guard let delivery else { return (result, nil) }
-        // A declared `.paste` secondary is pasted on a secondary click, so the probe must run for it
-        // too; likewise a `.text` result whose user preference is paste. The force-copy short-circuit
-        // below applies only when the click's outcome is a copy.
-        let declaredSecondaryIsPaste = delivery.clickIntent == .secondary && isPaste(delivery.delivery?.secondary)
-        let preference = delivery.preference
-        let declaredSecondaryOverrides = delivery.clickIntent == .secondary && delivery.delivery?.secondary != nil
-        let textPrefersPaste = isText(result) && preference == .paste && !declaredSecondaryOverrides
-        let couldPaste = isPaste(result) || declaredSecondaryIsPaste || textPrefersPaste
-        // The unified paste decision: per-app rules (assume/deny paste) answer definitively and
-        // skip the AX walk entirely (no Accessibility dependency for those apps); a force-copy click
-        // (a secondary click whose outcome is a copy — derived, or a non-paste declared secondary)
-        // also skips it (the outcome is a copy regardless). A declared `.paste` secondary or a
-        // `.text`+paste preference is the exception: the outcome is a paste, so the probe still runs.
-        // Otherwise probe the target app and treat unknown availability as cannot-paste — the safe
-        // default: never paste blindly when we cannot confirm the target supports it. The target is
-        // the snapshotted app captured before hide(), never frontmost state read after suspension.
+        let selected = ActionResultDelivery.select(
+            raw: result,
+            clickIntent: delivery.clickIntent,
+            delivery: delivery.delivery ?? .none,
+            preference: delivery.userOverride,
+            recommendedResult: delivery.recommendedResult,
+            outputKind: delivery.outputKind
+        )
+        let couldPaste = isPaste(selected)
         let isTargetActive = isTargetApplicationActive(delivery.application)
         let canPaste: Bool
         if !couldPaste || !isTargetActive {
-            canPaste = false // unused: `resolve` only consults it for a selected `.paste`, or target app inactive
-        } else if (delivery.clickIntent == .secondary && !(declaredSecondaryIsPaste || textPrefersPaste)) || !PasteAvailability.needsProbe(policy: delivery.policy) {
+            canPaste = false
+        } else if !PasteAvailability.needsProbe(policy: delivery.policy) {
             canPaste = PasteAvailability.effective(policy: delivery.policy, probe: nil) ?? false
         } else {
             canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
@@ -2250,37 +2264,21 @@ public class PopupWindowController {
             clickIntent: delivery.clickIntent,
             canPaste: canPaste,
             delivery: delivery.delivery ?? .none,
-            preference: preference
+            preference: delivery.userOverride,
+            recommendedResult: delivery.recommendedResult,
+            outputKind: delivery.outputKind
         )
         return (resolved.result, suppressDeliveryToast ? nil : resolved.toast)
     }
 
     private func isPaste(_ result: ActionResult?) -> Bool {
-        guard case .paste = result else { return false }
-        return true
-    }
-
-    /// Resolves the user's chosen behavior for a click from the two General-tab settings. Unknown
-    /// stored values fall back to the defaults (primary paste, secondary copy).
-    private func preference(for clickIntent: ActionResultDelivery.ClickIntent) -> ResultDeliveryPreference {
-        let key: SettingKey<String> = clickIntent == .primary ? .primaryClickBehavior : .secondaryClickBehavior
-        return ResultDeliveryPreference(rawValue: settingsStore.get(key))
-            ?? (clickIntent == .primary ? .paste : .copy)
-    }
-
-    /// Resolves the delivery preference for a specific action, honoring user customization overrides.
-    /// Actions without an explicit override fall back to their domain default (e.g. `builtin.define`
-    /// maps to `.preview` at default) or to the global General-tab setting.
-    private func preference(forActionID actionID: String?, clickIntent: ActionResultDelivery.ClickIntent) -> ResultDeliveryPreference {
-        if clickIntent == .primary,
-           let actionID,
-           let customPref = ActionCustomizationManager.shared.override(for: actionID)?.deliveryPreference {
-            return customPref
+        guard let result else { return false }
+        switch result {
+        case .paste, .pasteContent:
+            return true
+        default:
+            return false
         }
-        if actionID == "builtin.define" && clickIntent == .primary {
-            return .preview
-        }
-        return preference(for: clickIntent)
     }
 
     private func isText(_ result: ActionResult) -> Bool {
@@ -2289,7 +2287,7 @@ public class PopupWindowController {
     }
 
     /// Dismissal for a top-level result: the popup stays open exactly when the actual *resolved*
-    /// outcome is `.text` (preview) and dismisses otherwise. Mirroring the resolver's Select step
+    /// outcome is `.text` (preview) or `.file` and dismisses otherwise. Mirroring the resolver's Select step
     /// synchronously (before the delivery task runs) keeps dismissal consistent with the delivered
     /// outcome: a declared secondary beats the picker, so a `.text` raw result whose declared
     /// secondary dismisses still dismisses. `canPaste` is irrelevant here — every probe outcome
@@ -2300,9 +2298,12 @@ public class PopupWindowController {
             clickIntent: delivery.clickIntent,
             canPaste: false,
             delivery: delivery.delivery ?? .none,
-            preference: delivery.preference
+            preference: delivery.userOverride,
+            recommendedResult: delivery.recommendedResult,
+            outputKind: delivery.outputKind
         ).result
         if isText(resolved) { return false }
+        if case .file = resolved { return false }
         return resolved.dismissesPopup
     }
 
@@ -2340,18 +2341,7 @@ public class PopupWindowController {
         // precedes it, so `pendingDelivery`/`pendingActionTitle` must stay untouched: a later
         // `deliverResult` (e.g. a completion-paste from a preview card) must never reuse this
         // perform's declaration.
-        let preference = preference(forActionID: action.id, clickIntent: clickIntent)
-        let targetApp = previousFrontmostApp ?? (frontmostApplicationProvider()?.bundleIdentifier != Bundle.main.bundleIdentifier ? frontmostApplicationProvider() : previousFrontmostApp)
-        let delivery = DeliveryContext(
-            policy: context.selection.appPolicy,
-            clickIntent: clickIntent,
-            delivery: action.delivery,
-            application: targetApp,
-            preference: preference,
-            actionTitle: action.title,
-            actionIcon: action.displayIcon(using: ActionCustomizationManager.shared),
-            selection: context.selection
-        )
+        let delivery = deliverySnapshot(for: action, clickIntent: clickIntent)
         inFlightDeliveryContext = delivery
         usageStore.record(action.id)
         let match = action.matchInfo(for: context)
@@ -2401,17 +2391,7 @@ public class PopupWindowController {
         // perform path's only consumer. Unlike the bar/search path, no `onWillPerformAction`
         // precedes it, so `pendingDelivery`/`pendingActionTitle` must stay untouched: a later
         // `deliverResult` must never reuse this perform's declaration.
-        let targetApp = previousFrontmostApp ?? (frontmostApplicationProvider()?.bundleIdentifier != Bundle.main.bundleIdentifier ? frontmostApplicationProvider() : previousFrontmostApp)
-        let delivery = DeliveryContext(
-            policy: context.selection.appPolicy,
-            clickIntent: clickIntent,
-            delivery: action.delivery,
-            application: targetApp,
-            preference: preference(forActionID: action.id, clickIntent: clickIntent),
-            actionTitle: action.title,
-            actionIcon: action.displayIcon(using: ActionCustomizationManager.shared),
-            selection: context.selection
-        )
+        let delivery = deliverySnapshot(for: action, clickIntent: clickIntent)
         inFlightDeliveryContext = delivery
         usageStore.record(action.id)
         let match = action.matchInfo(for: context)

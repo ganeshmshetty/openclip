@@ -27,7 +27,7 @@ struct PopupThemeSelector: View {
     private struct AppearanceOption: Identifiable {
         let label: String
         let value: String
-        let icon: String
+        var icon: String? = nil
         var id: String { value }
     }
 
@@ -37,16 +37,10 @@ struct PopupThemeSelector: View {
 
     private var isGlassOn: Bool { category == .glass }
 
-    /// Shared tray geometry for both Theme and Mode rows.
-    private var trayHeight: CGFloat { 26 }
-    private var trayContentHeight: CGFloat { trayHeight - 4 }
-    private var segmentWidth: CGFloat { 56 }
-    private var modeSegmentWidth: CGFloat { 38 }
-
     private var themeOptions: [AppearanceOption] {
         [
-            AppearanceOption(label: "Classic", value: "classic", icon: ""),
-            AppearanceOption(label: "Glass", value: "glass", icon: "")
+            AppearanceOption(label: "Classic", value: "classic"),
+            AppearanceOption(label: "Glass", value: "glass")
         ]
     }
 
@@ -68,18 +62,10 @@ struct PopupThemeSelector: View {
 
     private var verticalPositionOptions: [AppearanceOption] {
         [
-            AppearanceOption(label: "Auto", value: "auto", icon: ""),
-            AppearanceOption(label: "Above", value: "above", icon: ""),
-            AppearanceOption(label: "Below", value: "below", icon: "")
+            AppearanceOption(label: "Auto", value: "auto"),
+            AppearanceOption(label: "Above", value: "above"),
+            AppearanceOption(label: "Below", value: "below")
         ]
-    }
-
-    private var activeAppearance: String {
-        themeColor
-    }
-
-    private func selectAppearance(_ value: String) {
-        themeColor = value
     }
 
     private var isAllDefault: Bool {
@@ -117,7 +103,7 @@ struct PopupThemeSelector: View {
                         selection: themeSelection,
                         options: themeOptions,
                         label: "Popup Theme",
-                        width: 150
+                        width: 140
                     )
                 }
 
@@ -125,7 +111,8 @@ struct PopupThemeSelector: View {
                     iconPicker(
                         selection: $themeColor,
                         options: appearanceOptions,
-                        label: "Color Mode"
+                        label: "Color Mode",
+                        width: 120
                     )
                 }
 
@@ -133,7 +120,8 @@ struct PopupThemeSelector: View {
                     iconPicker(
                         selection: $popupAlignment,
                         options: alignmentOptions,
-                        label: "Horizontal Position"
+                        label: "Horizontal Position",
+                        width: 120
                     )
                 }
 
@@ -142,7 +130,7 @@ struct PopupThemeSelector: View {
                         selection: $popupVerticalPosition,
                         options: verticalPositionOptions,
                         label: "Vertical Position",
-                        width: 200
+                        width: 190
                     )
                 }
 
@@ -192,26 +180,29 @@ struct PopupThemeSelector: View {
         }
         .labelsHidden()
         .pickerStyle(.segmented)
-        .frame(width: width)
+        .frame(width: width, height: 24)
         .accessibilityLabel(label)
     }
 
     private func iconPicker(
         selection: Binding<String>,
         options: [AppearanceOption],
-        label: LocalizedStringKey
+        label: LocalizedStringKey,
+        width: CGFloat = 120
     ) -> some View {
         Picker("", selection: selection) {
             ForEach(options) { option in
-                Image(systemName: option.icon)
-                    .help(LocalizedStringKey(option.label))
-                    .accessibilityLabel(LocalizedStringKey(option.label))
-                    .tag(option.value)
+                if let icon = option.icon {
+                    Image(systemName: icon)
+                        .help(LocalizedStringKey(option.label))
+                        .accessibilityLabel(LocalizedStringKey(option.label))
+                        .tag(option.value)
+                }
             }
         }
         .labelsHidden()
         .pickerStyle(.segmented)
-        .frame(width: 120)
+        .frame(width: width, height: 24)
         .accessibilityLabel(label)
     }
 
@@ -238,5 +229,6 @@ struct PopupThemeSelector: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 16, alignment: .trailing)
         }
+        .frame(height: 24)
     }
 }

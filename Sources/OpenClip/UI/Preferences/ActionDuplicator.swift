@@ -16,7 +16,7 @@ enum ActionDuplicator {
         guard let action = coordinator.actions.first(where: { $0.id == id }),
               ActionIdentity.canDuplicate(action) else { return nil }
 
-        if action.chrome.source == .custom {
+        if action.chrome.source == .custom || action is CustomAction || action.id.hasPrefix("custom.") {
             return coordinator.duplicateCustomAction(actionID: id)?.id
         }
 

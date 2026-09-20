@@ -48,29 +48,39 @@ public enum ActionResultDelivery {
     /// Decides the final ActionResult for a raw runtime outcome and the companion toast.
     ///
     /// The pipeline (Select → Probe → Toast):
-    /// 1. **Select**: a secondary click uses `delivery.secondary` when declared; otherwise the raw
-    ///    result wins, except a secondary click on a `.paste` primary derives `.copy` (the legacy
-    ///    default).
+    /// 1. **Select**: resolves the target delivery mode via User Override -> Author Recommendation ->
+    ///    Output Kind default (`paste-or-copy` for text, `preview` for file). Applies author's
+    ///    declared `delivery.secondary` if present; otherwise applies the Clipboard Invariant for
+    ///    secondary clicks.
     /// 2. **Apply probe**: a chosen `.paste` is downgraded to `.copy` when `canPaste` is false.
     /// 3. **Toast**: `delivery.primaryToast` / `delivery.secondaryToast` per click, else the default
-    ///    "Copied" toast when the delivered result is a copy outcome (`.copy`, `.copyContent`,
-    ///    `.copyDefinition`); else nil.
+    ///    "Copied" / "Copied File" / "File Saved" toast for copy/save outcomes.
     ///
     /// - Parameters:
     ///   - raw: the result a runtime/effect produced (the action's primary outcome).
     ///   - clickIntent: how the user triggered the action.
-    ///   - canPaste: the unified paste availability (rules + probe) for the target app; callers
-    ///     pre-resolve it via `PasteAvailability.effective`, treating unknown as cannot-paste.
+    ///   - canPaste: the unified paste availability (rules + probe) for the target app.
     ///   - delivery: the action's declared secondary outcome and per-click toasts.
-    ///   - preference: the user's result delivery preference for implicitly returned text (`.text`).
+    ///   - preference: optional user per-action override.
+    ///   - recommendedResult: optional author-declared delivery recommendation.
+    ///   - outputKind: optional author-declared or inferred output kind.
     public static func resolve(
         raw: ActionResult,
         clickIntent: ClickIntent,
         canPaste: Bool,
-        delivery: ActionDelivery,
-        preference: ResultDeliveryPreference? = nil
+        delivery: ActionDelivery = .none,
+        preference: ResultDeliveryPreference? = nil,
+        recommendedResult: ActionResultDeliveryMode? = nil,
+        outputKind: ActionOutputKind? = nil
     ) -> (result: ActionResult, toast: StatusFeedback?) {
-        let selected = select(raw: raw, clickIntent: clickIntent, delivery: delivery, preference: preference)
+        let selected = select(
+            raw: raw,
+            clickIntent: clickIntent,
+            delivery: delivery,
+            preference: preference,
+            recommendedResult: recommendedResult,
+            outputKind: outputKind
+        )
         let delivered = applyProbe(to: selected, canPaste: canPaste)
         let toast = toast(for: delivered, clickIntent: clickIntent, delivery: delivery)
         return (delivered, toast)
@@ -79,33 +89,104 @@ public enum ActionResultDelivery {
     // MARK: - Decision pipeline
 
     /// Step 1 — Select: which result the delivery starts from.
-    private static func select(raw: ActionResult, clickIntent: ClickIntent, delivery: ActionDelivery, preference: ResultDeliveryPreference?) -> ActionResult {
+    public static func select(
+        raw: ActionResult,
+        clickIntent: ClickIntent,
+        delivery: ActionDelivery,
+        preference: ResultDeliveryPreference? = nil,
+        recommendedResult: ActionResultDeliveryMode? = nil,
+        outputKind: ActionOutputKind? = nil
+    ) -> ActionResult {
         if clickIntent == .secondary, let declared = delivery.secondary {
-            // Declared outcomes always win over the picker.
+            // Declared outcomes always win over automatic conventions.
             return declared
         }
-        if case .text(let text) = raw {
-            // Implicit returned text is governed by the user's per-click preference; nil → the
-            // legacy default (primary pastes, secondary copies). `.preview` stays `.text` — a
-            // presentation marker the controller renders in the AI result card, never delivered.
-            let resolved = preference ?? (clickIntent == .secondary ? .copy : .paste)
-            switch resolved {
-            case .preview: return raw
-            case .paste: return .paste(text)
-            case .copy: return .copy(text)
+
+        let effectiveMode: ActionResultDeliveryMode
+        if let preference {
+            switch preference {
+            case .preview: effectiveMode = .preview
+            case .paste: effectiveMode = .paste
+            case .copy: effectiveMode = .copy
+            }
+        } else if let recommendedResult {
+            effectiveMode = recommendedResult
+        } else if let outputKind {
+            switch outputKind {
+            case .text: effectiveMode = .pasteOrCopy
+            case .file, .dynamic: effectiveMode = .preview
+            case .none: effectiveMode = .preview
+            }
+        } else {
+            if case .text = raw {
+                effectiveMode = .pasteOrCopy
+            } else if case .file = raw {
+                effectiveMode = .preview
+            } else {
+                effectiveMode = .preview
             }
         }
-        if clickIntent == .secondary, case .paste(let text) = raw {
-            // Legacy default: a secondary click on a paste primary copies.
-            return .copy(text)
+
+        if case .text(let text) = raw {
+            if clickIntent == .primary {
+                switch effectiveMode {
+                case .preview:
+                    return raw
+                case .paste, .pasteOrCopy:
+                    return .paste(text)
+                case .copy:
+                    return .copy(text)
+                case .open, .save:
+                    return .paste(text)
+                }
+            } else {
+                // Secondary click on text: Clipboard Invariant
+                switch effectiveMode {
+                case .paste, .pasteOrCopy, .preview, .open, .save:
+                    return .copy(text)
+                case .copy:
+                    // Primary copy -> Secondary preview
+                    return .text(text)
+                }
+            }
         }
-        if clickIntent == .secondary, case .pasteContent(let payload) = raw {
-            // Rich analogue: a secondary click on a rich-paste primary copies the payload.
-            return .copyContent(payload)
+
+        if case .file(let payload) = raw {
+            if clickIntent == .primary {
+                switch effectiveMode {
+                case .preview:
+                    return raw
+                case .save:
+                    return .saveFile(payload.url)
+                case .open:
+                    return .openURL(payload.url)
+                case .copy:
+                    return .copyFile(payload.url)
+                case .paste, .pasteOrCopy:
+                    return raw
+                }
+            } else {
+                // Secondary click on file: Clipboard Invariant
+                switch effectiveMode {
+                case .preview, .save, .open, .paste, .pasteOrCopy:
+                    return .copyFile(payload.url)
+                case .copy:
+                    // Primary copy -> Secondary preview
+                    return .file(payload)
+                }
+            }
         }
-        if clickIntent == .secondary, case .file(let payload) = raw {
-            // Secondary click on a file result copies the file.
-            return .copyFile(payload.url)
+
+        if clickIntent == .secondary {
+            if case .paste(let text) = raw {
+                return .copy(text)
+            }
+            if case .pasteContent(let payload) = raw {
+                return .copyContent(payload)
+            }
+            if case .file(let payload) = raw {
+                return .copyFile(payload.url)
+            }
         }
         return raw
     }

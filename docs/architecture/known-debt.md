@@ -75,10 +75,11 @@ areas; stale debt notes are worse than none.
   (`OpenClipJSHost.run`, `ShellResultMapper`, kind actions) return only raw results; implicitly
   returned text (JS string return, AppleScript output, shell stdout, text snippets) is emitted as
   `.text` and the paste-vs-copy/preview delivery decision (Select → Probe → Toast) is applied
-  downstream from the user's per-click preference (General-tab `primaryClickBehavior`/
-  `secondaryClickBehavior`) plus the action's declared `Action.delivery` (snapshotted per perform),
-  the click intent, and the unified paste
-  availability. The old `after` translator (the pre-refactor `after` orchestration step and its
+  downstream from the action's author-declared output contract (`output` and `result` in manifest /
+  `ActionChrome`), optional user per-action delivery override (`ActionCustomizationManager`),
+  the universal secondary-click Clipboard Invariant (secondary click copies; or previews if primary is copy),
+  and the unified paste availability. The flawed global settings (`primaryClickBehavior`/
+  `secondaryClickBehavior`) are **fully removed**. The old `after` translator (the pre-refactor `after` orchestration step and its
   adapter) is **fully removed**. Synchronous JavaScript (including the top-level synchronous phase
   of async actions) is bounded by JavaScriptCore's VM execution-time limit, so a timeout unwinds
   `evaluateScript` and releases its sync-evaluation gate slot. Idle promise waiting is bounded by
@@ -270,13 +271,14 @@ areas; stale debt notes are worse than none.
   so a prior non-dismissing action's declared delivery can never leak onto a completion paste. The
   force-copy probe short-circuit skips the AX walk for a secondary click whose outcome is a copy;
   a declared `.paste` secondary is the exception and still probes, so it is honored when the target
-  can paste (and downgrades to copy when it cannot). Since Task 3, implicitly returned text
-  (runtimes emit `.text`, never auto-dismissing) is resolved per the user's per-click preference
-  from the two General-tab settings (`preference(for:)`, unknown values fall back to primary-paste/
-  secondary-copy): a paste preference probes like any paste and downgrades to copy when the target
-  can't paste, a copy preference delivers a native copy with no toast, and a preview preference keeps
-  the popup open for the card render (Task 4) — dismissal for `.text` is decided by the controller's
-  `shouldDismiss`, not `dismissesPopup`. The loading re-show path (`settleLoadingResult`)
+  can paste (and downgrades to copy when it cannot). Implicitly returned text
+  (runtimes emit `.text`, never auto-dismissing) is resolved by `ActionResultDelivery.resolve`
+  using the action's author output contract (`output` and `result` in manifest / `ActionChrome`),
+  optional user per-action delivery override (`ActionCustomizationManager`), the universal secondary-click
+  Clipboard Invariant, and unified AX paste availability: a paste outcome probes like any paste
+  and downgrades to copy when the target can't paste, a copy outcome delivers a native copy with no toast,
+  and a preview outcome keeps the popup open for the card render — dismissal for `.text` is decided by
+  the controller's `shouldDismiss`, not `dismissesPopup`. The loading re-show path (`settleLoadingResult`)
   re-creates the popup from the pre-early-close selection snapshot to present the card.
   - **Target application and delivery context snapshotted before perform.** Asynchronous actions snapshot
     the target application, app policy, and declared delivery into an `inFlightDeliveryContext` (or local task

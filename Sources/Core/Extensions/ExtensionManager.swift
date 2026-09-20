@@ -451,7 +451,9 @@ public final class ExtensionManager: Sendable {
                                 keywords: oldMeta.keywords,
                                 inline: oldMeta.inline,
                                 localizedTitle: nil,
-                                localizedLoadingMessage: oldMeta.localizedLoadingMessage
+                                localizedLoadingMessage: oldMeta.localizedLoadingMessage,
+                                output: oldMeta.output,
+                                result: oldMeta.result
                             )
                         }
 
@@ -467,7 +469,9 @@ public final class ExtensionManager: Sendable {
                             localizedName: nil,
                             description: manifest.description,
                             localizedDescription: manifest.localizedDescription,
-                            author: manifest.author
+                            author: manifest.author,
+                            output: manifest.output,
+                            result: manifest.result
                         )
 
                         try ExtensionManifestStore.writeManifest(updatedManifest, to: destManifestURL)
@@ -640,6 +644,9 @@ public final class ExtensionManager: Sendable {
             let details = record.issues.map(\.description).joined(separator: "; ")
             Log.extensions.error("Extension manifest rejected at \(manifestURL.path, privacy: .public): \(details, privacy: .public)")
             return []
+        }
+        for warning in record.warnings {
+            Log.extensions.warning("Extension manifest warning at \(manifestURL.path, privacy: .public): \(warning.description, privacy: .public)")
         }
         Log.extensions.notice("Loaded extension manifest \(manifest.identifier, privacy: .public) (v\(record.declaredVersion ?? "-", privacy: .public), schema \(record.schemaVersion, privacy: .public), \(manifest.actions.count) action(s), sha256 \(record.fingerprint, privacy: .public))")
 

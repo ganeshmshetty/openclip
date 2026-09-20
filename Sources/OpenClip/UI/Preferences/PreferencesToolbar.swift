@@ -530,6 +530,11 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             return
         }
         trackingSplitView = splitView
+        if let controller = splitView.delegate as? NSSplitViewController {
+            for item in controller.splitViewItems where item.titlebarSeparatorStyle != .none {
+                item.titlebarSeparatorStyle = .none
+            }
+        }
         toolbar.insertItem(withItemIdentifier: .sidebarTrackingSeparator, at: 0)
     }
 

@@ -46,6 +46,10 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     /// When true and the action is a synchronous JavaScript action, the action runs inline in the
     /// popup bar, surfacing its return value as secondary preview text and mutating the selection on return.
     public let inline: Bool?
+    /// Declares the uncommitted result kind produced by this action ("text", "file", "none", "dynamic").
+    public let output: ExtensionOutputKind?
+    /// Declares the recommended delivery for an uncommitted result ("preview", "paste", "copy", "paste-or-copy", "open", "save").
+    public let result: ExtensionResultDelivery?
 
     public var kind: ExtensionActionKind {
         ExtensionActionKind(rawType: type ?? "url")
@@ -76,7 +80,9 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         keywords: [String]? = nil,
         inline: Bool? = nil,
         localizedTitle: LocalizedStringValue? = nil,
-        localizedLoadingMessage: LocalizedStringValue? = nil
+        localizedLoadingMessage: LocalizedStringValue? = nil,
+        output: ExtensionOutputKind? = nil,
+        result: ExtensionResultDelivery? = nil
     ) {
         self.id = id
         self.title = title ?? localizedTitle?.resolve()
@@ -103,6 +109,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.secondaryToast = secondaryToast
         self.keywords = keywords
         self.inline = inline
+        self.output = output
+        self.result = result
     }
 
     public init(
@@ -171,6 +179,16 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
             self.keywords = nil
         }
         self.inline = try container.decodeIfPresent(Bool.self, forKey: .inline)
+        if let raw = (try? container.decodeIfPresent(String.self, forKey: .output)) ?? (try? container.decodeIfPresent(String.self, forKey: .legacyOutput)) {
+            self.output = ExtensionOutputKind(rawValue: raw)
+        } else {
+            self.output = nil
+        }
+        if let raw = (try? container.decodeIfPresent(String.self, forKey: .result)) ?? (try? container.decodeIfPresent(String.self, forKey: .legacyResult)) {
+            self.result = ExtensionResultDelivery(rawValue: raw)
+        } else {
+            self.result = nil
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -206,6 +224,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(secondaryToast, forKey: .secondaryToast)
         try container.encodeIfPresent(keywords, forKey: .keywords)
         try container.encodeIfPresent(inline, forKey: .inline)
+        try container.encodeIfPresent(output?.rawValue, forKey: .output)
+        try container.encodeIfPresent(result?.rawValue, forKey: .result)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -243,6 +263,10 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case secondaryToastDash = "secondary-toast"
         case keywords = "keywords"
         case inline = "inline"
+        case output = "output"
+        case legacyOutput = "Output"
+        case result = "result"
+        case legacyResult = "Result"
     }
 }
 
@@ -401,6 +425,10 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
     public let minOpenClipVersion: String?
     /// Search keywords for the extension actions.
     public let keywords: [String]?
+    /// Package-level default for uncommitted result kind ("text", "file", "none", "dynamic").
+    public let output: ExtensionOutputKind?
+    /// Package-level default for result delivery recommendation ("preview", "paste", "copy", "paste-or-copy", "open", "save").
+    public let result: ExtensionResultDelivery?
     
     public init(
         identifier: String,
@@ -414,7 +442,9 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         localizedName: LocalizedStringValue? = nil,
         description: String? = nil,
         localizedDescription: LocalizedStringValue? = nil,
-        author: String? = nil
+        author: String? = nil,
+        output: ExtensionOutputKind? = nil,
+        result: ExtensionResultDelivery? = nil
     ) {
         self.identifier = identifier
         self.name = name
@@ -428,6 +458,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         self.capabilities = capabilities
         self.minOpenClipVersion = minOpenClipVersion
         self.keywords = keywords
+        self.output = output
+        self.result = result
     }
     
     public init(from decoder: Decoder) throws {
@@ -477,6 +509,16 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         } else {
             self.keywords = nil
         }
+        if let raw = (try? container.decodeIfPresent(String.self, forKey: .output)) ?? (try? container.decodeIfPresent(String.self, forKey: .legacyOutput)) {
+            self.output = ExtensionOutputKind(rawValue: raw)
+        } else {
+            self.output = nil
+        }
+        if let raw = (try? container.decodeIfPresent(String.self, forKey: .result)) ?? (try? container.decodeIfPresent(String.self, forKey: .legacyResult)) {
+            self.result = ExtensionResultDelivery(rawValue: raw)
+        } else {
+            self.result = nil
+        }
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -499,6 +541,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         try container.encodeIfPresent(capabilities, forKey: .capabilities)
         try container.encodeIfPresent(minOpenClipVersion, forKey: .minOpenClipVersion)
         try container.encodeIfPresent(keywords, forKey: .keywords)
+        try container.encodeIfPresent(output?.rawValue, forKey: .output)
+        try container.encodeIfPresent(result?.rawValue, forKey: .result)
     }
     
     enum CodingKeys: String, CodingKey {
@@ -523,6 +567,10 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         case capabilities = "capabilities"
         case minOpenClipVersion = "minOpenClipVersion"
         case keywords = "keywords"
+        case output = "output"
+        case legacyOutput = "Output"
+        case result = "result"
+        case legacyResult = "Result"
     }
 }
 

@@ -109,7 +109,6 @@ final class PopupPanelTests: XCTestCase {
     func testPreviewCardGrowsPanelThroughRealDeliveryPath() throws {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         let controller = PopupWindowController(
             resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
@@ -131,6 +130,8 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertGreaterThan(barFrame.height, 0)
 
         controller.pendingActionTitle = "Summarize"
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
         controller.deliverResult(.text((1...20).map { "line \($0) of a long response body" }.joined(separator: "\n")))
 
         let deadline = Date().addingTimeInterval(3.0)
@@ -150,7 +151,6 @@ final class PopupPanelTests: XCTestCase {
     func testPreviewCardBodyIsActuallyDrawn() throws {
         guard let screen = NSScreen.main else { throw XCTSkip("no screen") }
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         let controller = PopupWindowController(
             resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),
@@ -172,6 +172,8 @@ final class PopupPanelTests: XCTestCase {
         XCTAssertGreaterThan(barFrame.height, 0)
 
         controller.pendingActionTitle = "Summarize"
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
         let responseBody = (1...20).map { "line \($0) of a long response body" }.joined(separator: "\n")
         controller.deliverResult(.text(responseBody))
 
@@ -193,7 +195,6 @@ final class PopupPanelTests: XCTestCase {
     @MainActor
     func testContentModeInvalidatesWindowForDisplay() throws {
         let store = MemorySettingsStore()
-        store.set(.primaryClickBehavior, value: "preview")
         let isolatedPasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
         let controller = PopupWindowController(
             resultHandler: DefaultActionResultHandler(pasteboard: isolatedPasteboard),

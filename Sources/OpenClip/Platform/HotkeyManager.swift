@@ -73,7 +73,7 @@ public final class HotkeyManager {
         registerActionHotkeys(ActionCoordinator.shared.actions)
     }
 
-    public func handleTogglePopup() {
+    public func handleTogglePopup(frontmostApp: NSRunningApplication? = NSWorkspace.shared.frontmostApplication) {
         // Popup already visible: if in search mode, the hotkey dismisses the popup (toggle off);
         // if in actions bar mode, the hotkey transitions directly into search mode.
         if let popupController = self.popupController, popupController.isVisible {
@@ -85,7 +85,7 @@ public final class HotkeyManager {
             return
         }
 
-        guard let trigger = self.resolveSynchronousTrigger() else { return }
+        guard let trigger = self.resolveSynchronousTrigger(frontmostApp: frontmostApp) else { return }
 
         // When both the monitored selection and clipboard are empty, check whether there are any
         // standalone actions (e.g. extensions declaring `requiresSelection: false`) available to run.
