@@ -33,13 +33,17 @@ public struct LayeredGlassBackground: View {
     }
 
     private var scrimColor: Color {
-        colorScheme == .dark ? Color.black.opacity(0.32) : Color.white.opacity(0.38)
+        colorScheme == .dark ? Color.black.opacity(0.24) : Color.white.opacity(0.26)
     }
 
     public var body: some View {
-        ZStack {
-            shape.fill(.regularMaterial)
-            shape.fill(scrimColor)
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+            shape.fill(Color(nsColor: .windowBackgroundColor))
+        } else {
+            ZStack {
+                shape.fill(.ultraThinMaterial)
+                shape.fill(scrimColor)
+            }
         }
     }
 }
@@ -58,10 +62,25 @@ public struct LayeredGlassBorder: View {
     }
 
     public var strokeGradient: LinearGradient {
-        LinearGradient(
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+            return LinearGradient(
+                colors: [Color.primary.opacity(0.15), Color.primary.opacity(0.08)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        return LinearGradient(
             colors: colorScheme == .dark
-                ? [Color.white.opacity(0.28), Color.white.opacity(0.10)]
-                : [Color.black.opacity(0.16), Color.black.opacity(0.06)],
+                ? [
+                    Color.white.opacity(0.40),
+                    Color.white.opacity(0.14),
+                    Color.black.opacity(0.22)
+                ]
+                : [
+                    Color.white.opacity(0.70),
+                    Color.white.opacity(0.25),
+                    Color.black.opacity(0.16)
+                ],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -74,7 +93,7 @@ public struct LayeredGlassBorder: View {
 
 @MainActor
 public extension View {
-    /// Renders a layered frosted glass surface with backing scrim, regular material, and specular stroke.
+    /// Renders a layered frosted glass surface with backing scrim, liquid glass material, specular rim, and depth shadows.
     func layeredGlassSurface(
         cornerRadius: CGFloat = 14,
         colorScheme: ColorScheme
@@ -84,17 +103,97 @@ public extension View {
             .background(LayeredGlassBackground(cornerRadius: cornerRadius, colorScheme: colorScheme))
             .clipShape(shape)
             .overlay(LayeredGlassBorder(cornerRadius: cornerRadius, colorScheme: colorScheme))
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.16), radius: 6, x: 0, y: 3)
+            .overlay(
+                shape.inset(by: 0.5).stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.35 : 0.65),
+                            Color.white.opacity(0.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1.0
+                )
+                .allowsHitTesting(false)
+            )
+            .shadow(
+                color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.14),
+                radius: PopupMetrics.cardShadowContactRadius,
+                x: 0,
+                y: PopupMetrics.cardShadowContactYOffset
+            )
+            .shadow(
+                color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.16),
+                radius: PopupMetrics.cardShadowAmbientRadius,
+                x: 0,
+                y: PopupMetrics.cardShadowAmbientYOffset
+            )
     }
 
-    /// Renders the view as a glass surface using regular material for a frosted look.
+    /// Renders the view as a glass surface using Liquid Glass on macOS 26+ or thin material for a frosted look, or solid background when Reduce Transparency is enabled.
+    @ViewBuilder
     func glassSurface(
         _ variant: LiquidGlassVariant = .regular,
         cornerRadius: CGFloat = 14
     ) -> some View {
-        background(
-            .regularMaterial,
-            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        )
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+            background(
+                Color(nsColor: .windowBackgroundColor),
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
+        } else {
+            if #available(macOS 26.0, *) {
+                self.glassEffect(variant == .clear ? .clear : .regular, in: .rect(cornerRadius: cornerRadius))
+            } else {
+                background(
+                    variant == .clear ? .ultraThinMaterial : .thinMaterial,
+                    in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                )
+            }
+        }
     }
 }
+
+/// A SwiftUI wrapper around AppKit's `NSVisualEffectView` for behind-window frosted glass, falling back to solid window background under Reduce Transparency.
+@MainActor
+public struct VisualEffectView: NSViewRepresentable {
+    public var material: NSVisualEffectView.Material
+    public var blendingMode: NSVisualEffectView.BlendingMode
+    public var state: NSVisualEffectView.State
+
+    public init(
+        material: NSVisualEffectView.Material = .sidebar,
+        blendingMode: NSVisualEffectView.BlendingMode = .behindWindow,
+        state: NSVisualEffectView.State = .active
+    ) {
+        self.material = material
+        self.blendingMode = blendingMode
+        self.state = state
+    }
+
+    public func makeNSView(context: Context) -> NSView {
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+            let solidView = NSView()
+            solidView.wantsLayer = true
+            solidView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+            return solidView
+        }
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = state
+        return view
+    }
+
+    public func updateNSView(_ nsView: NSView, context: Context) {
+        if let ve = nsView as? NSVisualEffectView {
+            ve.material = material
+            ve.blendingMode = blendingMode
+            ve.state = state
+        } else {
+            nsView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        }
+    }
+}
+

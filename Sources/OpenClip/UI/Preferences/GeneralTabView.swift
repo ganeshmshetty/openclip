@@ -2,19 +2,17 @@
 // OpenClip
 //
 // The General preferences tab: app enable and menu bar toggles, trigger hotkey,
-// start-at-login, and system-permission status. Split out of PreferencesView.swift.
+// start-at-login, and system-permission status.
 //
-// Rows are stock grouped-`Form` controls: the system draws the card, the row
-// metrics and the label/control split, so the tab tracks System Settings across
-// appearance and accent changes without any local styling.
+// Styled with inset SettingsCards (outside headers, rounded cards, inset hairline dividers).
+
 import SwiftUI
 import Core
 import KeyboardShortcuts
 
 @MainActor
 struct GeneralTab: View {
-    /// Backed by the settings store — the single owner of `isAppEnabled`. Seeded at init and kept
-    /// in sync with external changes (status-bar toggle) via the shared state-changed notification.
+    /// Backed by the settings store — the single owner of `isAppEnabled`.
     @State private var isAppEnabled: Bool
     @State private var showMenuBarIcon: Bool
     @State private var isMouseHoldEnabled: Bool
@@ -29,126 +27,147 @@ struct GeneralTab: View {
         _isMouseHoldEnabled = State(initialValue: DefaultSettingsStore.shared.get(.isMouseHoldEnabled))
         _fileSaveLocation = State(initialValue: DefaultSettingsStore.shared.get(.fileSaveLocation))
     }
-    
+
     var body: some View {
-        Form {
-            // Everything that decides how the popup is summoned sits together,
-            // shortcut included — it used to be stranded between switches that
-            // had nothing to do with triggering.
-            Section("Triggers") {
-                SettingsToggleRow(
-                    title: "Appear Automatically",
-                    subtitle: "Show the popup as soon as text is selected.",
-                    systemImage: "cursorarrow",
-                    isOn: $isAppEnabled
-                )
-                .onChange(of: isAppEnabled) { _, newValue in
-                    DefaultSettingsStore.shared.set(.isAppEnabled, value: newValue)
-                    NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenClipEnabledStateChanged"))) { notification in
-                    isAppEnabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
-                }
-
-                SettingsToggleRow(
-                    title: "Hold Mouse to Trigger",
-                    subtitle: "Press and hold without moving the mouse to summon the popup.",
-                    systemImage: "hand.tap",
-                    isOn: $isMouseHoldEnabled
-                )
-                .onChange(of: isMouseHoldEnabled) { _, newValue in
-                    DefaultSettingsStore.shared.set(.isMouseHoldEnabled, value: newValue)
-                }
-
-                SettingsRow(
-                    title: "Keyboard Shortcut",
-                    subtitle: "Summon the popup for whatever is selected.",
-                    systemImage: "keyboard"
-                ) {
-                    KeyboardShortcuts.Recorder(for: .togglePopup)
-                }
-            }
-
-            Section("Files") {
-                SettingsRow(
-                    title: "Save Location",
-                    subtitleText: saveLocationSubtitleText,
-                    systemImage: "folder"
-                ) {
-                    HStack(spacing: 8) {
-                        if !fileSaveLocation.isEmpty {
-                            Button {
-                                fileSaveLocation = ""
-                                DefaultSettingsStore.shared.set(.fileSaveLocation, value: "")
-                            } label: {
-                                Image(systemName: "arrow.counterclockwise")
-                                    .font(.system(size: 11))
-                            }
-                            .buttonStyle(.plain)
-                            .help(String(localized: "Reset to Downloads"))
-                        }
-                        Button(String(localized: "Choose…")) {
-                            chooseSaveLocation()
-                        }
-                    }
-                }
-            }
-
-            Section("App") {
-                SettingsToggleRow(
-                    title: "Show Menu Bar Icon",
-                    systemImage: "menubar.rectangle",
-                    isOn: $showMenuBarIcon
-                )
-                .onChange(of: showMenuBarIcon) { _, newValue in
-                    DefaultSettingsStore.shared.set(.showMenuBarIcon, value: newValue)
-                    NotificationCenter.default.post(
-                        name: .openClipMenuBarVisibilityChanged,
-                        object: newValue
+        ScrollView {
+            VStack(spacing: 20) {
+                // Everything that decides how the popup is summoned sits together
+                SettingsCard("Triggers") {
+                    SettingsToggleRow(
+                        title: "Appear Automatically",
+                        subtitle: "Show the popup as soon as text is selected.",
+                        systemImage: "cursorarrow",
+                        isOn: $isAppEnabled
                     )
+                    .onChange(of: isAppEnabled) { _, newValue in
+                        DefaultSettingsStore.shared.set(.isAppEnabled, value: newValue)
+                        NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenClipEnabledStateChanged"))) { notification in
+                        isAppEnabled = (notification.object as? Bool) ?? DefaultSettingsStore.shared.get(.isAppEnabled)
+                    }
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        title: "Hold Mouse to Trigger",
+                        subtitle: "Press and hold without moving the mouse to summon the popup.",
+                        systemImage: "hand.tap",
+                        isOn: $isMouseHoldEnabled
+                    )
+                    .onChange(of: isMouseHoldEnabled) { _, newValue in
+                        DefaultSettingsStore.shared.set(.isMouseHoldEnabled, value: newValue)
+                    }
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        title: "Keyboard Shortcut",
+                        subtitle: "Summon the popup for whatever is selected.",
+                        systemImage: "keyboard"
+                    ) {
+                        Shortcut(for: .togglePopup)
+                    }
                 }
 
-                SettingsToggleRow(
-                    title: "Start at Login",
-                    systemImage: "arrow.clockwise.circle",
-                    isOn: $launchManager.isEnabled
-                )
-            }
-
-            Section("Permissions") {
-                SettingsRow(
-                    title: "Accessibility Access",
-                    subtitle: "Required to read the selected text.",
-                    systemImage: "lock.shield"
-                ) {
-                    HStack(spacing: 10) {
-                        Label {
-                            Text(permissionManager.isAccessibilityGranted
-                                 ? String(localized: "Granted")
-                                 : String(localized: "Access Required"))
-                        } icon: {
-                            Image(systemName: permissionManager.isAccessibilityGranted
-                                  ? "checkmark.circle.fill"
-                                  : "exclamationmark.triangle.fill")
+                SettingsCard("Files") {
+                    SettingsRow(
+                        title: "Save Location",
+                        subtitleText: saveLocationSubtitleText,
+                        systemImage: "folder"
+                    ) {
+                        HStack(spacing: 8) {
+                            if !fileSaveLocation.isEmpty {
+                                Button {
+                                    fileSaveLocation = ""
+                                    DefaultSettingsStore.shared.set(.fileSaveLocation, value: "")
+                                } label: {
+                                    Image(systemName: "arrow.counterclockwise")
+                                        .font(.system(size: 11))
+                                }
+                                .buttonStyle(.plain)
+                                .help(String(localized: "Reset to Downloads"))
+                            }
+                            Button(String(localized: "Choose…")) {
+                                chooseSaveLocation()
+                            }
                         }
-                        .font(.callout)
-                        .foregroundStyle(permissionManager.isAccessibilityGranted ? Color.green : Color.orange)
+                    }
+                }
 
-                        Button("Open Settings") {
-                            // Only proactively reset stale TCC when permission is missing.
-                            // Resetting while already granted would revoke the active entry.
-                            let shouldReset = !permissionManager.isAccessibilityGranted
-                            permissionManager.requestAccessibilityPermission(proactivelyResetStaleTCC: shouldReset)
+                SettingsCard("App") {
+                    SettingsToggleRow(
+                        title: "Show Menu Bar Icon",
+                        systemImage: "menubar.rectangle",
+                        isOn: $showMenuBarIcon
+                    )
+                    .onChange(of: showMenuBarIcon) { _, newValue in
+                        DefaultSettingsStore.shared.set(.showMenuBarIcon, value: newValue)
+                        NotificationCenter.default.post(
+                            name: .openClipMenuBarVisibilityChanged,
+                            object: newValue
+                        )
+                    }
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        title: "Start at Login",
+                        systemImage: "arrow.clockwise.circle",
+                        isOn: $launchManager.isEnabled
+                    )
+
+                    if launchManager.requiresApproval {
+                        SettingsDivider()
+                        SettingsRow(
+                            title: "Approval Required",
+                            subtitle: "Enable OpenClip under System Settings > General > Login Items & Extensions.",
+                            systemImage: "exclamationmark.triangle.fill"
+                        ) {
+                            Button(String(localized: "Open Settings")) {
+                                launchManager.openLoginItemsSettings()
+                            }
+                        }
+                    }
+                }
+
+                SettingsCard("Permissions") {
+                    SettingsRow(
+                        title: "Accessibility Access",
+                        subtitle: "Required to read the selected text.",
+                        systemImage: "lock.shield"
+                    ) {
+                        HStack(spacing: 10) {
+                            Label {
+                                Text(permissionManager.isAccessibilityGranted
+                                     ? String(localized: "Granted")
+                                     : String(localized: "Access Required"))
+                            } icon: {
+                                Image(systemName: permissionManager.isAccessibilityGranted
+                                      ? "checkmark.circle.fill"
+                                      : "exclamationmark.triangle.fill")
+                            }
+                            .font(.callout)
+                            .foregroundStyle(permissionManager.isAccessibilityGranted ? Color.green : Color.orange)
+
+                            Button("Open Settings") {
+                                let shouldReset = !permissionManager.isAccessibilityGranted
+                                permissionManager.requestAccessibilityPermission(proactivelyResetStaleTCC: shouldReset)
+                            }
                         }
                     }
                 }
             }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
         }
-        .formStyle(.grouped)
-        .onAppear { permissionManager.startMonitoring() }
+        .scrollIndicators(.hidden)
+        .onAppear {
+            permissionManager.startMonitoring()
+            launchManager.syncStatus()
+        }
         .onDisappear { permissionManager.stopMonitoring() }
     }
-
 
     private var saveLocationSubtitleText: Text {
         if fileSaveLocation.isEmpty {

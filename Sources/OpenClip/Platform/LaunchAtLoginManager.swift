@@ -16,8 +16,11 @@ public final class LaunchAtLoginManager: ObservableObject {
     @Published public var isEnabled: Bool {
         didSet {
             apply(isEnabled)
+            self.requiresApproval = LaunchAtLoginManager.readRequiresApproval()
         }
     }
+    
+    @Published public var requiresApproval: Bool
     
     /// Injectable login-item updater. The default registers/unregisters via SMAppService; tests
     /// inject a recording no-op so toggling never touches the real login-items registry. Assigned
@@ -26,33 +29,67 @@ public final class LaunchAtLoginManager: ObservableObject {
 
     private init() {
         self.apply = LaunchAtLoginManager.updateServiceStatus
+        self.requiresApproval = LaunchAtLoginManager.readRequiresApproval()
         self.isEnabled = LaunchAtLoginManager.readCurrentStatus()
     }
 
-    internal init(apply: @escaping (Bool) -> Void) {
+    internal init(apply: @escaping (Bool) -> Void,
+                  initialStatus: Bool = LaunchAtLoginManager.readCurrentStatus(),
+                  requiresApproval: Bool = LaunchAtLoginManager.readRequiresApproval()) {
         self.apply = apply
-        self.isEnabled = LaunchAtLoginManager.readCurrentStatus()
+        self.requiresApproval = requiresApproval
+        self.isEnabled = initialStatus
     }
     
     public func syncStatus() {
-        let actualStatus = (SMAppService.mainApp.status == .enabled)
+        #if !DEBUG
+        let status = SMAppService.mainApp.status
+        let actualStatus = (status == .enabled || status == .requiresApproval)
+        let actualRequiresApproval = (status == .requiresApproval)
         if isEnabled != actualStatus {
             isEnabled = actualStatus
         }
+        if requiresApproval != actualRequiresApproval {
+            requiresApproval = actualRequiresApproval
+        }
+        #else
+        let saved = DefaultSettingsStore.shared.get(.startAtLogin)
+        if isEnabled != saved {
+            isEnabled = saved
+        }
+        #endif
+    }
+
+    public func openLoginItemsSettings() {
+        SMAppService.openSystemSettingsLoginItems()
     }
     
     private static func readCurrentStatus() -> Bool {
-        (SMAppService.mainApp.status == .enabled)
+        #if !DEBUG
+        let status = SMAppService.mainApp.status
+        return status == .enabled || status == .requiresApproval
+        #else
+        return DefaultSettingsStore.shared.get(.startAtLogin)
+        #endif
+    }
+
+    private static func readRequiresApproval() -> Bool {
+        #if !DEBUG
+        return SMAppService.mainApp.status == .requiresApproval
+        #else
+        return false
+        #endif
     }
 
     private static func updateServiceStatus(_ enabled: Bool) {
+        #if !DEBUG
         do {
             if enabled {
                 if SMAppService.mainApp.status != .enabled {
                     try SMAppService.mainApp.register()
                 }
             } else {
-                if SMAppService.mainApp.status == .enabled {
+                if SMAppService.mainApp.status == .enabled || SMAppService.mainApp.status == .requiresApproval {
                     try SMAppService.mainApp.unregister()
                 }
             }
@@ -60,5 +97,9 @@ public final class LaunchAtLoginManager: ObservableObject {
         } catch {
             Log.settings.error("SMAppService failed to update launch at login status: \(error.localizedDescription)")
         }
+        #else
+        DefaultSettingsStore.shared.set(.startAtLogin, value: enabled)
+        Log.settings.info("DEBUG build: simulated SMAppService update to \(enabled)")
+        #endif
     }
 }

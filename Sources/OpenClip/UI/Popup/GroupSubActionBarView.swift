@@ -291,7 +291,7 @@ public struct GroupSubActionBarView: View {
             useLocalHoverFallback(for: .subAction(index), isHovering: isHovering)
         }
         .animation(
-            .spring(response: PopupMetrics.inlineSpringResponse, dampingFraction: PopupMetrics.inlineSpringDamping),
+            PopupMetrics.inlineSpring,
             value: modeStore.inlineResults[action.id]
         )
     }

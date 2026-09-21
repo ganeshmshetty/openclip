@@ -22,4 +22,12 @@ final class LaunchAtLoginManagerTests: XCTestCase {
         XCTAssertEqual(manager.isEnabled, initialStatus)
         XCTAssertEqual(applied.last, initialStatus)
     }
+
+    @MainActor
+    func testLaunchAtLoginManagerRequiresApproval() throws {
+        var applied: [Bool] = []
+        let manager = LaunchAtLoginManager(apply: { applied.append($0) }, initialStatus: true, requiresApproval: true)
+        XCTAssertTrue(manager.isEnabled)
+        XCTAssertTrue(manager.requiresApproval)
+    }
 }

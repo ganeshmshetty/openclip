@@ -26,22 +26,22 @@ struct SettingsHeroHeader: View {
     var subtitle: String?
     /// The quiet third line: "Version 1.0.0 · OpenClip Team".
     var footnote: String?
-    var tileSize: CGFloat = 64
+    var tileSize: CGFloat = 50
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             tile
 
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Text(title)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.subheadline)
+                        .font(.system(size: 12.5))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
@@ -70,10 +70,10 @@ struct SettingsHeroHeader: View {
         switch glyph {
         case .symbol(let name, let tint):
             SettingsIconTile(systemImage: name, tint: tint, size: tileSize)
-                .shadow(color: tint.opacity(0.28), radius: 8, y: 3)
+                .shadow(color: tint.opacity(0.24), radius: 6, y: 2)
         case .icon(let icon, let tint):
             ExtensionIconTile(icon: icon, tint: tint, size: tileSize)
-                .shadow(color: tint.opacity(0.28), radius: 8, y: 3)
+                .shadow(color: tint.opacity(0.24), radius: 6, y: 2)
         }
     }
 }

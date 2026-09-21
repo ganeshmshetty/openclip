@@ -9,25 +9,46 @@
 import AppKit
 import SwiftUI
 
+private final class ConfiguratorHostingView: NSView {
+    var configure: ((NSWindow) -> Void)?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        runConfigure()
+    }
+
+    func runConfigure() {
+        guard let window = self.window else { return }
+        configure?(window)
+        DispatchQueue.main.async { [weak window, weak self] in
+            guard let window else { return }
+            self?.configure?(window)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak window, weak self] in
+            guard let window else { return }
+            self?.configure?(window)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak window, weak self] in
+            guard let window else { return }
+            self?.configure?(window)
+        }
+    }
+}
+
 struct WindowConfigurator: NSViewRepresentable {
     let configure: (NSWindow) -> Void
 
     func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        apply(from: view)
+        let view = ConfiguratorHostingView(frame: .zero)
+        view.configure = configure
+        view.runConfigure()
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        // Re-applied on update: the window can be attached after the first
-        // layout, and SwiftUI resets some of these when the scene rebuilds.
-        apply(from: nsView)
-    }
-
-    private func apply(from view: NSView) {
-        DispatchQueue.main.async {
-            guard let window = view.window else { return }
-            configure(window)
+        if let configView = nsView as? ConfiguratorHostingView {
+            configView.configure = configure
+            configView.runConfigure()
         }
     }
 }
@@ -82,6 +103,15 @@ extension View {
             }
         )
     }
+
+    /// Clears opaque backgrounds on scroll views so the behind-window liquid glass blurs through.
+    func transparentScrollBackground() -> some View {
+        background(
+            WindowConfigurator { window in
+                WindowConfigurator.clearScrollViews(in: window.contentView)
+            }
+        )
+    }
 }
 
 extension WindowConfigurator {
@@ -123,4 +153,24 @@ extension WindowConfigurator {
         }
         return found
     }
+
+    static func clearScrollViews(in view: NSView?, depth: Int = 0) {
+        guard let view else { return }
+        if let sv = view as? NSScrollView {
+            sv.drawsBackground = false
+            sv.backgroundColor = .clear
+        }
+        if let cv = view as? NSClipView {
+            cv.drawsBackground = false
+            cv.backgroundColor = .clear
+        }
+        if let tv = view as? NSTableView {
+            tv.backgroundColor = .clear
+            tv.headerView?.layer?.backgroundColor = .clear
+        }
+        for child in view.subviews {
+            clearScrollViews(in: child, depth: depth + 1)
+        }
+    }
 }
+

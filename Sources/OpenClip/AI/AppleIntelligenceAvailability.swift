@@ -23,9 +23,25 @@ enum AppleIntelligenceAvailability {
         case unknown
 
         var isAvailable: Bool { self == .available }
+
+        /// Whether this status represents hardware and OS that can support Apple Intelligence.
+        var isSupported: Bool {
+            switch self {
+            case .unsupportedOS, .deviceNotEligible:
+                return false
+            default:
+                return true
+            }
+        }
     }
 
+    /// Test override for isolating behavior on unsupported hardware/OS.
+    nonisolated(unsafe) static var statusOverride: Status? = nil
+
     static var current: Status {
+        if let statusOverride {
+            return statusOverride
+        }
         #if canImport(FoundationModels)
         if #available(macOS 26.0, *) {
             switch SystemLanguageModel.default.availability {
@@ -51,6 +67,9 @@ enum AppleIntelligenceAvailability {
     }
 
     static var isAvailable: Bool { current.isAvailable }
+
+    /// `true` when this Mac hardware and OS version support Apple Intelligence.
+    static var isSupported: Bool { current.isSupported }
 
     /// Short label for the Preferences status row.
     static func statusLabel(for status: Status) -> String {

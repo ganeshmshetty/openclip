@@ -19,6 +19,7 @@ public struct GroupEditorPage: View {
     @State private var memberIconOverrides: [String: String] = [:]
     @State private var isConfirmingUngroup = false
     @State private var loaded = false
+    @State private var isIconPickerPresented = false
 
     public init(groupID: String) {
         self.groupID = groupID
@@ -43,7 +44,7 @@ public struct GroupEditorPage: View {
                 InsetGroupCard {
                     HStack(alignment: .center, spacing: 14) {
                         Button {
-                            router.pushIconPicker(writingTo: $iconName)
+                            isIconPickerPresented = true
                         } label: {
                             ZStack(alignment: .bottomTrailing) {
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -67,6 +68,11 @@ public struct GroupEditorPage: View {
                         .buttonStyle(.plain)
                         .help(String(localized: "Choose icon"))
                         .accessibilityLabel(String(localized: "Choose icon"))
+                        .popover(isPresented: $isIconPickerPresented, arrowEdge: .bottom) {
+                            IconPickerPopover(selectedSymbol: $iconName) {
+                                isIconPickerPresented = false
+                            }
+                        }
 
                         VStack(alignment: .leading, spacing: 6) {
                             TextField("Group Name", text: $title)
@@ -256,6 +262,7 @@ private struct GroupMemberRowView: View {
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     @ObservedObject private var router = SettingsRouter.shared
+    @State private var isIconPickerPresented = false
 
     private var resolvedAction: (any Action)? {
         coordinator.actions.first(where: { $0.id == actionID })
@@ -281,7 +288,7 @@ private struct GroupMemberRowView: View {
     var body: some View {
         HStack(spacing: 10) {
             Button {
-                router.pushIconPicker(writingTo: $customIconSymbol)
+                isIconPickerPresented = true
             } label: {
                 ZStack {
                     if let presentation {
@@ -296,6 +303,11 @@ private struct GroupMemberRowView: View {
             .buttonStyle(.plain)
             .help(String(localized: "Customize Icon"))
             .accessibilityLabel(String(localized: "Customize Icon"))
+            .popover(isPresented: $isIconPickerPresented, arrowEdge: .bottom) {
+                IconPickerPopover(selectedSymbol: $customIconSymbol) {
+                    isIconPickerPresented = false
+                }
+            }
 
             Text(presentation?.title ?? actionID)
                 .font(.system(size: 13))

@@ -18,7 +18,13 @@ import Core
 public final class ToastPanelController {
     public private(set) var currentFeedback: StatusFeedback?
     public private(set) var isLoading = false
-    public var isShowing: Bool { panel.isVisible }
+    private var _isShowing = false
+    public var isShowing: Bool {
+        if NSClassFromString("XCTestCase") != nil {
+            return _isShowing
+        }
+        return panel.isVisible
+    }
     /// The toast panel's current frame (screen coords). Internal for tests.
     var panelFrame: NSRect { panel.frame }
     /// The popup frame the toast last anchored to (screen coords); nil when none was ever given.
@@ -101,7 +107,10 @@ public final class ToastPanelController {
                                                        height: fit.height + inset * 2))
         place(at: fit, inset: inset)
         panel.ignoresMouseEvents = !isInteractive
-        panel.orderFrontRegardless()
+        _isShowing = true
+        if NSClassFromString("XCTestCase") == nil {
+            panel.orderFrontRegardless()
+        }
         if !feedback.isLoading && !feedback.keepVisible {
             startDismissal()
         }
@@ -126,6 +135,7 @@ public final class ToastPanelController {
         dismissTask = nil
         currentFeedback = nil
         isLoading = false
+        _isShowing = false
         panel.ignoresMouseEvents = true
         panel.orderOut(nil)
         hostingView.rootView = ToastView(feedback: StatusFeedback(message: "", style: .info))
@@ -147,7 +157,9 @@ public final class ToastPanelController {
             centerOnScreen(size: size, inset: inset)
             return
         }
-        let screen = NSScreen.screens.first { $0.frame.contains(anchor.origin) || $0.frame.intersects(anchor) } ?? NSScreen.main
+        let mouseLocation = NSEvent.mouseLocation
+        let fallbackScreen = NSScreen.screens.first { $0.frame.contains(mouseLocation) } ?? NSScreen.main
+        let screen = NSScreen.screens.first { $0.frame.contains(anchor.origin) || $0.frame.intersects(anchor) } ?? fallbackScreen
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         var origin = CGPoint(x: anchor.midX - size.width / 2,
                              y: anchor.midY - size.height / 2)
@@ -157,7 +169,9 @@ public final class ToastPanelController {
     }
 
     private func centerOnScreen(size: CGSize, inset: CGFloat) {
-        let visible = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+        let mouseLocation = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { $0.frame.contains(mouseLocation) } ?? NSScreen.main
+        let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let origin = CGPoint(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2)
         setPanelFrame(contentOrigin: origin, contentSize: size, inset: inset)
     }

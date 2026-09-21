@@ -82,6 +82,15 @@ public struct IconPickerView: View {
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     Spacer()
+                    Button {
+                        selectedSymbol = ""
+                        onSelect?()
+                    } label: {
+                        Text(String(localized: "Reset"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.top, 2)
             }
@@ -137,6 +146,7 @@ public struct IconPickerView: View {
                     }
                     .padding(2)
                 }
+                .scrollContentBackground(.hidden)
                 .frame(maxHeight: gridMaxHeight)
             }
         }
@@ -212,6 +222,7 @@ public struct IconPickerView: View {
                         }
                         .padding(2)
                     }
+                    .scrollContentBackground(.hidden)
                     .frame(maxHeight: gridMaxHeight)
                 }
             }
@@ -349,6 +360,7 @@ public struct IconPickerView: View {
                         }
                         .padding(2)
                     }
+                    .scrollContentBackground(.hidden)
                     .frame(maxHeight: savedGridMaxHeight)
                 }
             }
@@ -502,4 +514,27 @@ fileprivate actor IconSVGCache {
     private var store: [String: IconImageBox] = [:]
     func get(_ key: String) -> IconImageBox? { store[key] }
     func set(_ key: String, box: IconImageBox) { store[key] = box }
+}
+
+// MARK: - Minimalistic Popover Wrapper
+
+/// Compact popover container for choosing icons inline without navigating away from the current settings page.
+public struct IconPickerPopover: View {
+    @Binding public var selectedSymbol: String
+    public var onSelect: (() -> Void)?
+
+    public init(selectedSymbol: Binding<String>, onSelect: (() -> Void)? = nil) {
+        self._selectedSymbol = selectedSymbol
+        self.onSelect = onSelect
+    }
+
+    public var body: some View {
+        IconPickerView(
+            selectedSymbol: $selectedSymbol,
+            fillsAvailableHeight: false,
+            onSelect: onSelect
+        )
+        .padding(12)
+        .frame(width: 320, height: 320)
+    }
 }

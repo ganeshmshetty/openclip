@@ -117,6 +117,7 @@ public enum IconOpticalCategory: Sendable {
         "equal.circle": .thinLine,
         "character.book.closed": .thinLine,
         "pencil": .thinLine,
+        "plus": .thinLine,
         "wand.and.stars": .thinLine,
         "command": .thinLine,
         "shield.checkered": .thinLine,

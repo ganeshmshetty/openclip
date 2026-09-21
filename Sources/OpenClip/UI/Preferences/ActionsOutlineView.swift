@@ -236,9 +236,6 @@ final class OutlineTableRowView: NSTableRowView {
         let path = NSBezierPath(roundedRect: rect, xRadius: Self.cornerRadius, yRadius: Self.cornerRadius)
         NSColor.controlAccentColor.withAlphaComponent(0.16).setFill()
         path.fill()
-        NSColor.controlAccentColor.withAlphaComponent(0.75).setStroke()
-        path.lineWidth = 1.5
-        path.stroke()
     }
 
     override var isEmphasized: Bool {

@@ -23,7 +23,7 @@ public final class TooltipPanel: NSPanel {
             defer: false
         )
         self.level = Self.windowLevel
-        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = false   // SwiftUI draws its own shadow inside the inset ring

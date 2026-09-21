@@ -394,6 +394,7 @@ public class PopupWindowController {
                 self?.tooltipController.hide()
             }
         )
+        syncPanelAppearance(panel)
         panel.contentView = PopupPanel.ContentView(rootView: rootView)
         panel.contentView?.layoutSubtreeIfNeeded()
         let size = sanitizedPopupSize(panel.contentView?.fittingSize)
@@ -414,7 +415,9 @@ public class PopupWindowController {
         // placed at its size; its later changes (the list shrinking as a query narrows) must keep
         // the field at the top fixed, so it is not pinned.
         panel.pinBottomEdgeOnResize = initialMode == .search ? false : cardAbove
-        panel.orderFront(nil)
+        if NSClassFromString("XCTestCase") == nil {
+            panel.orderFront(nil)
+        }
         
         setupMonitors()
 
@@ -468,7 +471,9 @@ public class PopupWindowController {
         guard let panel else { return }
         captureFrontmostAppIfNeeded()
         panel.allowsKey = true
-        panel.makeKeyAndOrderFront(nil)
+        if NSClassFromString("XCTestCase") == nil {
+            panel.makeKeyAndOrderFront(nil)
+        }
     }
 
     /// Restores the never-key invariant and hands keyboard focus back to the source app. Deliberately
@@ -846,24 +851,16 @@ public class PopupWindowController {
             cardDragAnchor = nil
             panel.endUserDrag()
             hasUserMovedCard = true
-            modeStore.isCardPinned = true
         }
     }
 
     /// Toggles the explicit pin state of the result card. Pinning makes the card modal — the same
     /// `hasUserMovedCard` gate that dragging the card sets — so the card suppresses auto-dismiss
-    /// (outside-click, scroll, cursor distance, app switch). Unpinning reverses both flags unless
-    /// the user also dragged the card this session (drag always wins: `hasUserMovedCard` stays set).
+    /// (outside-click, scroll, cursor distance, app switch). Unpinning restores non-modal behavior.
     func pinCard() {
         let nowPinned = !modeStore.isCardPinned
         modeStore.isCardPinned = nowPinned
-        // Pinning: make the card modal so it survives outside-clicks and app switches.
-        // Unpinning: restore non-modal behavior only when the card hasn't also been dragged,
-        // since a dragged card is already marked modal via the drag path and must stay so.
-        if nowPinned {
-            hasUserMovedCard = true
-        }
-        // (When unpinning, hasUserMovedCard stays true if it was set by a drag — no action needed.)
+        hasUserMovedCard = nowPinned
     }
 
     // MARK: - Resize
@@ -1009,6 +1006,13 @@ public class PopupWindowController {
         }
     }
 
+    private func syncPanelAppearance(_ targetPanel: NSPanel) {
+        let appearanceToken = settingsStore.get(SettingKey.popupThemeColor)
+        let systemIsDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let isDark = PopupThemeModel.effectiveScheme(appearance: appearanceToken, systemIsDark: systemIsDark) == .dark
+        targetPanel.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
+    }
+
     private func sanitizedPopupSize(_ raw: CGSize?) -> CGSize {
         var size = raw ?? CGSize(width: 300, height: 54)
         size.width = max(size.width, 100)
@@ -1137,6 +1141,7 @@ public class PopupWindowController {
         NotificationCenter.default.addObserver(self, selector: #selector(menuDidBeginTracking), name: NSMenu.didBeginTrackingNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(menuDidEndTracking), name: NSMenu.didEndTrackingNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(appDidDeactivate), name: NSApplication.didResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(windowDidResignKey(_:)), name: NSWindow.didResignKeyNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(workspaceDidActivateApp(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(workspaceActiveSpaceDidChange), name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
     }
@@ -1461,22 +1466,29 @@ public class PopupWindowController {
         }
     }
 
+    @objc private func windowDidResignKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === panel else { return }
+        // When the panel is key (search mode or content mode), clicking on another window
+        // causes it to resign key. Dismiss immediately unless modal.
+        if !cardIsModal {
+            hide()
+        }
+    }
+
     @objc private func workspaceDidActivateApp(_ notification: Notification) {
         guard let app = (notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)
             ?? NSWorkspace.shared.frontmostApplication else { return }
         if app.bundleIdentifier == Bundle.main.bundleIdentifier { return }
-        if let sourceBundleID = currentContext?.sourceApp.bundleIdentifier,
-           app.bundleIdentifier == sourceBundleID {
-            return
-        }
-        // Modal result cards survive focus changes (parity with appDidDeactivate).
-        if cardIsModal { return }
         // Grace period: when a clipboard manager (Paste, Raycast, Maccy) dismisses itself, macOS
         // delivers a queued didActivateApplication for the destination app. If the popup just
         // opened (< 300 ms ago) this is almost certainly a leftover transition notification —
         // not an intentional user focus switch — so suppress the dismissal.
         if sessionShowTime > 0,
-           (ProcessInfo.processInfo.systemUptime - sessionShowTime) < PopupMetrics.focusSwitchGracePeriod { return }
+           (ProcessInfo.processInfo.systemUptime - sessionShowTime) < PopupMetrics.focusSwitchGracePeriod {
+            return
+        }
+        // Modal result cards survive focus changes (parity with appDidDeactivate).
+        if cardIsModal { return }
         if !isRightClickInProgress {
             hide()
         }
@@ -1748,7 +1760,7 @@ public class PopupWindowController {
                 let message = pastes
                     ? String(localized: "Replaced with AI result")
                     : (stillInSourceApp ? String(localized: "Copied AI result") : String(localized: "Copied — the app changed"))
-                self.toastController.show(StatusFeedback(message: message, style: .success, symbolName: "sparkles"), anchorFrame: anchorFrame)
+                self.toastController.show(StatusFeedback(message: message, style: .success, symbolName: "sparkle"), anchorFrame: anchorFrame)
             } catch is CancellationError {
                 self.toastController.hide()
             } catch let error as AIError where error == .cancelled {

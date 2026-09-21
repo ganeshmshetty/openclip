@@ -627,5 +627,14 @@
   "Stable": "Stable",
   "Beta": "Bêta",
   "Beta builds include features that are still being tested.": "Les versions bêta incluent des fonctionnalités encore en cours de test.",
-  "Support": "Assistance"
+  "Support": "Assistance",
+  "Create your own quick actions using URL templates, snippet placeholders, or shell scripts.": "Créez vos propres actions rapides à l'aide de modèles d'URL, d'extraits de texte ou de scripts shell.",
+  "Search the web or open query URLs with selected text": "Recherchez sur le Web ou ouvrez des URL avec le texte sélectionné",
+  "Expand reusable text templates with dynamic placeholders": "Développez des modèles de texte réutilisables avec des espaces réservés dynamiques",
+  "Automate tasks by running custom bash or zsh scripts": "Automatisez des tâches en exécutant des scripts bash ou zsh personnalisés",
+  "Custom actions appear in your popup bar and search palette. Assign global hotkeys or search aliases to trigger them anytime.": "Les actions personnalisées apparaissent dans votre barre contextuelle et votre palette de recherche. Attribuez des raccourcis globaux ou des alias de recherche pour les déclencher à tout moment.",
+  "Open an action to customize its name, icon, shortcut, or behavior. Configure its appearance in the Actions tab.": "Ouvrez une action pour personnaliser son nom, son icône, son raccourci ou son comportement. Configurez son apparence dans l'onglet Actions.",
+  "Triggers & Output": "Déclencheurs et sortie",
+  "Triggers": "Déclencheurs",
+  "Output": "Sortie"
 }

@@ -277,7 +277,7 @@ public struct OnboardingView: View {
                         actionPill(icon: "doc.on.doc", label: "Copy")
                         actionPill(icon: "character.book.closed.fill", label: "Translate")
                         actionPill(icon: "speaker.wave.2.fill", label: "Speak")
-                        actionPill(icon: "sparkles", label: "AI")
+                        actionPill(icon: "sparkle", label: "AI")
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)

@@ -97,7 +97,7 @@ struct ExtensionPackagePage: View {
                 EmptyView()
             } header: {
                 SettingsHeroHeader(
-                    glyph: .icon(info.icon, tint: SettingsTint.openClip),
+                    glyph: .icon(info.icon, tint: SettingsTint.neutral),
                     title: info.name,
                     subtitle: manifest?.localizedDescription?.resolve() ?? manifest?.description,
                     footnote: byline
@@ -187,6 +187,7 @@ struct ExtensionPackagePage: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     /// The package identifier, quiet and selectable: the one thing on the page a bug report needs.

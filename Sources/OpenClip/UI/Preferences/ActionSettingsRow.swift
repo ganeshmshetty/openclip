@@ -102,7 +102,7 @@ struct ActionSettingsRow: View {
                     .frame(width: Self.aliasWidth)
                     .accessibilityLabel(String(localized: "Alias for \(presentation.title)"))
 
-                KeyboardShortcuts.Recorder(for: .actionHotkey(action.id))
+                Shortcut(for: .actionHotkey(action.id))
             }
 
             Button {

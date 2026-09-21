@@ -36,16 +36,39 @@ struct CustomActionsPage: View {
 
     var body: some View {
         Form {
-            // A section header rather than a view above the form, so the hero scrolls away with
-            // the rest of the page instead of staying pinned under the toolbar.
             Section {
-                EmptyView()
-            } header: {
-                SettingsHeroHeader(
-                    glyph: .symbol(SettingsPage.customActions.systemImage, tint: SettingsPage.customActions.tint),
-                    title: String(localized: "Custom Actions"),
-                    subtitle: String(localized: "Actions you made yourself: open a URL with the selection, paste a snippet built from it, or run a shell script on it.")
-                )
+                HStack(spacing: 14) {
+                    let size: CGFloat = 42
+                    let radius = SettingsDesignTokens.iconTileRadius(for: size)
+                    let squircle = RoundedRectangle(cornerRadius: radius, style: .continuous)
+
+                    ZStack {
+                        squircle
+                            .fill(SettingsTint.neutral)
+                            .shadow(color: Color.black.opacity(0.12), radius: 2, y: 1)
+
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .frame(width: size, height: size)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(String(localized: "Custom Actions"))
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(SettingsDesignTokens.primaryText)
+                            .lineLimit(1)
+
+                        Text(String(localized: "Create your own quick actions using URL templates, snippet placeholders, or shell scripts."))
+                            .font(.system(size: 12))
+                            .foregroundStyle(SettingsDesignTokens.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 12)
+                }
+                .padding(.vertical, 4)
             }
 
             if !customActions.isEmpty {
@@ -87,7 +110,7 @@ struct CustomActionsPage: View {
                             SettingsInlineError(message: aliasError)
                         }
 
-                        Text("Open an action to change its name, icon, shortcut or what it does, or to delete it. Use Actions to place it in the popup bar.")
+                        Text("Open an action to customize its name, icon, shortcut, or behavior. Configure its appearance in the Actions tab.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -98,81 +121,77 @@ struct CustomActionsPage: View {
                 quickCreateRow(
                     kind: "url",
                     title: "Open URL",
-                    subtitle: "Open a web URL or search engine query using the selected text",
-                    systemImage: "safari.fill",
-                    tint: .blue
+                    subtitle: "Search the web or open query URLs with selected text",
+                    systemImage: "safari.fill"
                 )
 
                 quickCreateRow(
                     kind: "snippet",
                     title: "Text Snippet",
-                    subtitle: "Transform or format the selection using template placeholders",
-                    systemImage: "text.quote",
-                    tint: .green
+                    subtitle: "Expand reusable text templates with dynamic placeholders",
+                    systemImage: "text.quote"
                 )
 
                 quickCreateRow(
                     kind: "shell",
                     title: "Shell Script",
-                    subtitle: "Execute a bash or zsh script with the selection in OPENCLIP_TEXT",
-                    systemImage: "terminal.fill",
-                    tint: .purple
+                    subtitle: "Automate tasks by running custom bash or zsh scripts",
+                    systemImage: "terminal.fill"
                 )
             } header: {
                 Text(customActions.isEmpty ? "Get Started" : "Create New Action")
             } footer: {
                 if customActions.isEmpty {
-                    Text("Custom actions appear in your popup bar and palette. You can trigger them anytime with hotkeys or aliases.")
+                    Text("Custom actions appear in your popup bar and search palette. Assign global hotkeys or search aliases to trigger them anytime.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     private func quickCreateRow(
         kind: String,
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey,
-        systemImage: String,
-        tint: Color
+        systemImage: String
     ) -> some View {
         Button {
             router.push(.newCustomAction(kind: kind))
         } label: {
             HStack(spacing: 12) {
+                let tint = SettingsDesignTokens.iconTileColor(forSystemImage: systemImage)
                 SettingsIconTile(systemImage: systemImage, tint: tint, size: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.body)
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(SettingsDesignTokens.primaryText)
 
                     Text(subtitle)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12))
+                        .foregroundStyle(SettingsDesignTokens.secondaryText)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: 8)
 
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 10.5, weight: .semibold))
                     Text("Create")
-                        .font(.caption.weight(.medium))
+                        .font(.system(size: 11.5, weight: .medium))
                 }
-                .foregroundStyle(tint)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 4)
+                .foregroundStyle(SettingsDesignTokens.primaryText)
+                .padding(.horizontal, 10)
+                .frame(height: 24)
                 .background(
-                    Capsule()
-                        .fill(tint.opacity(hoveredKind == kind ? 0.22 : 0.12))
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.primary.opacity(hoveredKind == kind ? 0.10 : 0.05))
                 )
-                .scaleEffect(hoveredKind == kind ? 1.04 : 1.0)
-                .animation(.easeInOut(duration: 0.15), value: hoveredKind == kind)
             }
             .contentShape(Rectangle())
             .padding(.vertical, 3)

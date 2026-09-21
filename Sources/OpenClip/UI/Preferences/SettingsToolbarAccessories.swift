@@ -136,10 +136,12 @@ public enum SettingsToolbarAccessories {
     public struct ActionMenuContext: Equatable, Sendable {
         public var canDuplicate: Bool
         public var canDelete: Bool
+        public var canUninstall: Bool
 
-        public init(canDuplicate: Bool, canDelete: Bool) {
+        public init(canDuplicate: Bool, canDelete: Bool, canUninstall: Bool = false) {
             self.canDuplicate = canDuplicate
             self.canDelete = canDelete
+            self.canUninstall = canUninstall
         }
     }
 
@@ -161,6 +163,17 @@ public enum SettingsToolbarAccessories {
             items.append(SettingsToolbarMenuItem(
                 id: SettingsToolbarCommand.actionDelete,
                 title: String(localized: "Delete Action"),
+                symbol: "trash",
+                role: .destructive
+            ))
+        }
+        if context.canUninstall {
+            if !items.isEmpty {
+                items.append(.separator(id: "action.uninstall.separator"))
+            }
+            items.append(SettingsToolbarMenuItem(
+                id: SettingsToolbarCommand.extensionUninstall,
+                title: String(localized: "Uninstall Extension…"),
                 symbol: "trash",
                 role: .destructive
             ))

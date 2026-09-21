@@ -144,14 +144,15 @@ public struct PopupSearchView: View {
         return Self.bounded(needed, min: PopupMetrics.searchPaletteMinWidth, max: maxSize?.width ?? PopupMetrics.searchPanelContentWidth)
     }
 
-    /// The field's floating inset the rows scroll behind.
-    private static let fieldInset: CGFloat = 56.0
+    /// The search header height and bottom footer height.
+    static let searchHeaderHeight: CGFloat = 42.0
+    static let footerHeight: CGFloat = 32.0
     private static let rowSpacing: CGFloat = 2.0
-    private static let listBottomPadding: CGFloat = 8.0
+    private static let listBottomPadding: CGFloat = 6.0
 
     /// What the list needs to show every current row without scrolling.
     private var naturalHeight: CGFloat {
-        Self.height(forRows: rowCount) + (promptRows.isEmpty ? 0 : Self.footerOverlayHeight)
+        Self.height(forRows: rowCount)
     }
 
     /// The AI rows under the results for the current query: Ask + Save when nothing matched, none otherwise.
@@ -165,17 +166,15 @@ public struct PopupSearchView: View {
         results.count + promptRows.count
     }
 
-    private static let footerOverlayHeight: CGFloat = 28.0
-
     static func height(forRows rows: Int) -> CGFloat {
-        fieldInset + CGFloat(rows) * PopupMetrics.searchResultRowHeight
-            + CGFloat(max(0, rows - 1)) * rowSpacing + listBottomPadding
+        searchHeaderHeight + CGFloat(rows) * PopupMetrics.searchResultRowHeight
+            + CGFloat(max(0, rows - 1)) * rowSpacing + footerHeight + listBottomPadding
     }
 
     /// The palette's default maximum height: `searchMaxRows` rows behind the field. Internal for tests.
     static var defaultHeight: CGFloat {
         CGFloat(PopupMetrics.searchMaxRows) * PopupMetrics.searchResultRowHeight +
-        CGFloat(max(0, PopupMetrics.searchMaxRows - 1)) * rowSpacing + fieldInset
+        CGFloat(max(0, PopupMetrics.searchMaxRows - 1)) * rowSpacing + searchHeaderHeight + footerHeight + listBottomPadding
     }
 
     /// The widest row among the current results — icon column, title, spacer and shortcut hint
@@ -284,19 +283,6 @@ public struct PopupSearchView: View {
         ZStack(alignment: .top) {
             resultsList
 
-            topBlurOverlay
-                .frame(maxWidth: .infinity, alignment: .top)
-
-            searchFieldRow
-                .padding(.horizontal, 10)
-                .padding(.top, 8)
-                .frame(maxWidth: .infinity, alignment: .top)
-
-            if rowCount > 0 {
-                footerOverlay
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            }
-
             PopupResizeHandles(
                 tint: PopupThemeModel.restForeground(for: effectiveTheme),
                 accessibilityLabel: String(localized: "Resize search palette"),
@@ -346,46 +332,33 @@ public struct PopupSearchView: View {
         }
     }
 
-    private var cardBackgroundColor: Color {
-        if effectiveTheme == "glass" {
-            return colorScheme == .dark ? Color.black.opacity(0.40) : Color.white.opacity(0.45)
-        } else {
-            return Color(red: colorScheme == .dark ? 0.18 : 0.94,
-                         green: colorScheme == .dark ? 0.18 : 0.94,
-                         blue: colorScheme == .dark ? 0.20 : 0.96)
-        }
+
+
+    private var selectionHighlightFill: Color {
+        Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08)
     }
 
-    private var topBlurOverlay: some View {
-        PopupEdgeFade(
-            edge: .top,
-            effectiveTheme: effectiveTheme,
-            colorScheme: colorScheme,
-            height: 52,
-            cardColor: cardBackgroundColor
-        )
+    private var selectionHighlightBorder: Color {
+        Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05)
     }
 
     private var searchFieldRow: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             searchIcon
+                .frame(width: 20, alignment: .center)
+
             TextField(
                 scope == nil
-                    ? String(localized: "Search all actions")
-                    : String(localized: "Search within \(scope?.parent.displayTitle(using: presenter) ?? "")"),
+                    ? String(localized: "Search all actions…")
+                    : String(localized: "Search within \(scope?.parent.displayTitle(using: presenter) ?? "")…"),
                 text: $query
             )
             .textFieldStyle(.plain)
-            .font(.system(size: 13, weight: .regular))
+            .font(.system(size: 14, weight: .regular))
             .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
             .focused($isFocused)
             .onSubmit { runSelected(replace: NSEvent.modifierFlags.contains(.shift)) }
             .onKeyPress { press in
-                // Attached to the focused field: Escape drops the scope (or exits search),
-                // up/down move the result selection, Return runs the row (⇧ asks for the in-place
-                // replacement instead of the result card on AI rows). ⌘-digits never arrive
-                // here — a command-modified key is dispatched through `performKeyEquivalent` and
-                // never reaches `keyDown:` — so those live in `CommandDigitCatcher` below.
                 if press.key == .escape {
                     exitSearch()
                     return .handled
@@ -405,46 +378,48 @@ public struct PopupSearchView: View {
                 return .ignored
             }
 
-            let isEscHovered = hoveredTarget == .esc
-            Button(action: exitSearch) {
-                Text("esc")
-                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                    .foregroundColor(isEscHovered ? PopupThemeModel.restForeground(for: effectiveTheme) : PopupThemeModel.restSecondary(for: effectiveTheme))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2.5)
-                    .background(
-                        isEscHovered ? Color.primary.opacity(0.12) : Color.clear,
-                        in: RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .stroke(isEscHovered ? Color.primary.opacity(0.25) : Color.secondary.opacity(colorScheme == .dark ? 0.35 : 0.22), lineWidth: 0.5)
-                    )
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Exit search")
-            .searchHoverTarget(.esc)
-            .onHover { hovering in
-                useLocalHoverFallback(for: .esc, isHovering: hovering)
+            Spacer(minLength: 4)
+
+            if !query.isEmpty {
+                Button {
+                    query = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme).opacity(0.8))
+                }
+                .buttonStyle(.plain)
+            } else {
+                let isEscHovered = hoveredTarget == .esc
+                Button(action: exitSearch) {
+                    Text("esc")
+                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                        .foregroundColor(isEscHovered ? PopupThemeModel.restForeground(for: effectiveTheme) : PopupThemeModel.restSecondary(for: effectiveTheme))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2.5)
+                        .background(
+                            isEscHovered ? Color.primary.opacity(0.12) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .stroke(isEscHovered ? Color.primary.opacity(0.25) : Color.secondary.opacity(colorScheme == .dark ? 0.35 : 0.22), lineWidth: 0.5)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Exit search")
+                .searchHoverTarget(.esc)
+                .onHover { hovering in
+                    useLocalHoverFallback(for: .esc, isHovering: hovering)
+                }
             }
         }
-        .padding(.leading, 10)
-        .padding(.trailing, 6)
-        .frame(height: 34)
-        .background(searchFieldChrome)
-    }
-
-    /// The search field's own chrome. Over glass the blurred top fade is already the field's
-    /// backdrop, so a second material here stacks into a visible rounded overlay; classic keeps
-    /// the frosted field on its opaque card.
-    @ViewBuilder
-    private var searchFieldChrome: some View {
-        if effectiveTheme == "glass" {
-            Color.clear
-        } else {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(.ultraThinMaterial)
+        .padding(.horizontal, 14)
+        .frame(height: Self.searchHeaderHeight)
+        .searchHoverTarget(.searchBar)
+        .onHover { hovering in
+            useLocalHoverFallback(for: .searchBar, isHovering: hovering)
         }
     }
 
@@ -454,23 +429,22 @@ public struct PopupSearchView: View {
         if scope != nil { onExitScope() } else { onExit() }
     }
 
-    /// Leading field icon: the scope parent's icon when scoped, otherwise the palette's ⌘ glyph.
+    /// Leading field icon: the scope parent's icon when scoped, otherwise a native magnifying glass.
     private var searchIcon: some View {
-        let iconColor = colorScheme == .dark ? Color.white : Color.black
         if let parent = scope?.parent {
-            return AnyView(actionIcon(parent).foregroundColor(iconColor))
+            return AnyView(actionIcon(parent).foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme)))
         } else {
             return AnyView(
-                Image(systemName: "command")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(iconColor)
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
             )
         }
     }
 
     /// Render an action's icon (symbol / iconify / url / local / text) at field size.
     private func actionIcon(_ action: any Action) -> some View {
-        ActionIconView(icon: rowIcon(for: action), size: 14)
+        ActionIconView(icon: rowIcon(for: action), size: 16)
     }
 
     private var resultsList: some View {
@@ -490,9 +464,8 @@ public struct PopupSearchView: View {
                         Spacer()
                     }
                     .accessibilityElement(children: .combine)
-                    .frame(maxWidth: .infinity, minHeight: cardHeight - 56)
-                    .padding(.top, 48)
-                    .padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, minHeight: max(0, cardHeight - (Self.searchHeaderHeight + Self.footerHeight) - 16))
+                    .padding(.vertical, 4)
                 } else {
                     LazyVStack(spacing: 2) {
                         ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
@@ -506,12 +479,19 @@ public struct PopupSearchView: View {
                         }
                     }
                     .padding(.horizontal, 8)
-                    .padding(.top, 48)
-                    .padding(.bottom, 38)
+                    .padding(.vertical, 4)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .paletteSafeAreaBar(edge: .top, spacing: 0) {
+                searchFieldRow
+                    .padding(.horizontal, 10)
+                    .padding(.top, 4)
+            }
+            .paletteSafeAreaBar(edge: .bottom, spacing: 0) {
+                bottomBarRow
+            }
             .frame(height: cardHeight)
-            .popupBottomDissolve(height: 38)
             .onChange(of: selectedIndex) { _, newValue in
                 guard scrollSelectionOnKeyboard else { return }
                 scrollSelectionOnKeyboard = false
@@ -521,45 +501,26 @@ public struct PopupSearchView: View {
         }
     }
 
-    private var selectionHighlightFill: Color {
-        Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08)
-    }
-
-    private var selectionHighlightBorder: Color {
-        Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05)
-    }
-
     @ViewBuilder
     private func resultRow(item: ActionSearchIndex, index: Int) -> some View {
-        // Hover moves the selection (Spotlight-style), so exactly one row is highlighted:
-        // `selectedIndex` is updated by the hover path before this is recomputed.
         let isSelected = index == selectedIndex
-        let isHovered = hoveredTarget == .row(index)
         let rowShape = RoundedRectangle(cornerRadius: PopupMetrics.searchRowCornerRadius, style: .continuous)
 
         Button {
             selectedIndex = index
             runSelected(replace: NSEvent.modifierFlags.contains(.shift))
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 iconView(for: rowIcon(for: item.action))
                     .font(.system(size: 13, weight: .regular))
-                    .frame(width: 18, alignment: .center)
-                    .foregroundColor(
-                        isSelected
-                            ? .primary
-                            : PopupThemeModel.restForeground(for: effectiveTheme)
-                    )
+                    .frame(width: 20, alignment: .center)
+                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
 
                 Text(item.title)
                     .font(.system(size: 13, weight: .regular))
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .foregroundColor(
-                        isSelected
-                            ? .primary
-                            : PopupThemeModel.restForeground(for: effectiveTheme)
-                    )
+                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
 
                 Spacer(minLength: 8)
 
@@ -594,6 +555,12 @@ public struct PopupSearchView: View {
                                 ? PopupThemeModel.restForeground(for: effectiveTheme)
                                 : PopupThemeModel.restSecondary(for: effectiveTheme)
                         )
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(
+                            Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05),
+                            in: RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        )
                         .transition(.opacity)
                         .accessibilityLabel("Command \(index + 1)")
                 }
@@ -609,9 +576,6 @@ public struct PopupSearchView: View {
                             .overlay(
                                 rowShape.stroke(selectionHighlightBorder, lineWidth: 0.5)
                             )
-                    } else if isHovered {
-                        rowShape
-                            .fill(Color.primary.opacity(0.06))
                     } else {
                         Color.clear
                     }
@@ -631,19 +595,18 @@ public struct PopupSearchView: View {
     @ViewBuilder
     private func promptRow(_ row: PaletteAIPromptRow, index: Int) -> some View {
         let isSelected = index == selectedIndex
-        let isHovered = hoveredTarget == .row(index)
         let rowShape = RoundedRectangle(cornerRadius: PopupMetrics.searchRowCornerRadius, style: .continuous)
-        let foreground = isSelected ? Color.primary : PopupThemeModel.restForeground(for: effectiveTheme)
+        let foreground = PopupThemeModel.restForeground(for: effectiveTheme)
         let title = PaletteAIPrompt.rowTitle(row, query: query)
 
         Button {
             selectedIndex = index
             runSelected(replace: NSEvent.modifierFlags.contains(.shift))
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Image(systemName: PaletteAIPrompt.rowSymbol(row))
                     .font(.system(size: 13, weight: .regular))
-                    .frame(width: 18, alignment: .center)
+                    .frame(width: 20, alignment: .center)
                     .foregroundColor(foreground)
 
                 Text(title)
@@ -663,6 +626,12 @@ public struct PopupSearchView: View {
                                 ? PopupThemeModel.restForeground(for: effectiveTheme)
                                 : PopupThemeModel.restSecondary(for: effectiveTheme)
                         )
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(
+                            Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05),
+                            in: RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        )
                         .accessibilityLabel("Command \(index + 1)")
                 }
             }
@@ -674,8 +643,6 @@ public struct PopupSearchView: View {
                         rowShape
                             .fill(selectionHighlightFill)
                             .overlay(rowShape.stroke(selectionHighlightBorder, lineWidth: 0.5))
-                    } else if isHovered {
-                        rowShape.fill(Color.primary.opacity(0.06))
                     } else {
                         Color.clear
                     }
@@ -699,12 +666,41 @@ public struct PopupSearchView: View {
         return ActionIdentity.isAIPreset(results[selectedIndex].action)
     }
 
-    /// The action badges overlay at the bottom of the palette.
-    private var footerOverlay: some View {
-        HStack(spacing: 6) {
-            Spacer(minLength: 0)
+    /// The plain, borderless bottom bar matching the top search field.
+    private var bottomBarRow: some View {
+        HStack(spacing: 8) {
+            statusLabel
+                .padding(.leading, 14)
 
-            if rowCount > 0 {
+            Spacer(minLength: 8)
+
+            footerActionButtons
+                .padding(.trailing, 14)
+        }
+        .frame(height: Self.footerHeight)
+        .searchHoverTarget(.bottomDock)
+        .onHover { hovering in
+            useLocalHoverFallback(for: .bottomDock, isHovering: hovering)
+        }
+    }
+
+    @ViewBuilder
+    private var statusLabel: some View {
+        if rowCount > 0 {
+            Text(rowCount == 1 ? String(localized: "1 action") : String(localized: "\(rowCount) actions"))
+                .font(.system(size: 11, weight: .regular))
+                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme).opacity(0.85))
+        } else {
+            Text(String(localized: "No matches"))
+                .font(.system(size: 11, weight: .regular))
+                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme).opacity(0.7))
+        }
+    }
+
+    @ViewBuilder
+    private var footerActionButtons: some View {
+        if rowCount > 0 {
+            HStack(spacing: 6) {
                 if isSelectedAI {
                     hintBadge(
                         title: PaletteAIPrompt.secondaryActionTitle(canPaste: modeStore.canPaste),
@@ -739,12 +735,8 @@ public struct PopupSearchView: View {
                     }
                 }
             }
+            .animation(.easeInOut(duration: 0.15), value: isSelectedAI)
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
-        .frame(height: Self.footerOverlayHeight)
-        .animation(.easeInOut(duration: 0.15), value: isSelectedAI)
-        .accessibilityHidden(true)
     }
 
     @ViewBuilder
@@ -753,23 +745,41 @@ public struct PopupSearchView: View {
             HStack(spacing: 4) {
                 if !title.isEmpty {
                     Text(title)
-                        .font(.system(size: 11, weight: isAccent ? .semibold : .medium))
-                        .foregroundColor(isAccent ? .white : PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                        .font(.system(size: 11.5, weight: isAccent ? .semibold : .medium))
+                        .foregroundColor(
+                            isAccent
+                                ? Color.white
+                                : PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85)
+                        )
                 }
                 Text(shortcut)
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundColor(isAccent ? .white.opacity(0.9) : PopupThemeModel.restSecondary(for: effectiveTheme))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(
+                        isAccent
+                            ? Color.white.opacity(0.95)
+                            : PopupThemeModel.restSecondary(for: effectiveTheme)
+                    )
             }
-            .padding(.horizontal, title.isEmpty ? 7 : 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, title.isEmpty ? 8 : 10)
+            .padding(.vertical, 5)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isAccent ? Color.accentColor : Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05))
+                    .fill(
+                        isAccent
+                            ? Color.accentColor
+                            : Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.07)
+                    )
                     .overlay(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .stroke(isAccent ? Color.white.opacity(0.18) : (colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08)), lineWidth: 0.5)
+                            .stroke(
+                                isAccent
+                                    ? Color.white.opacity(0.20)
+                                    : (colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08)),
+                                lineWidth: 0.5
+                            )
                     )
             )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -1003,7 +1013,7 @@ public struct PopupSearchView: View {
         switch action.chrome.badge {
         case .script: return "script"
         case .url: return "url"
-        case .custom: return "custom"
+        case .custom: return nil
         case .extensionPkg: return nil
         case .none:
             if ActionIdentity.isExtension(action) { return "extension" }
@@ -1016,10 +1026,41 @@ public struct PopupSearchView: View {
     /// The hovered target is derived from the shared mouse location, hit-tested against the
     /// frames each row/esc registers in the popup's named coordinate space. Hovering a row
     /// moves the keyboard selection to it so the highlight follows the mouse.
+    /// Crucially: hovering over the search bar or bottom bar NEVER shifts selection or focuses a list row!
     private func updateHoveredTarget(for location: CGPoint?) {
-        let target = location.flatMap { point in
-            hoverFrames.first(where: { $0.value.contains(point) })?.key
+        guard let point = location else {
+            hoveredTarget = nil
+            return
         }
+
+        // 1. If cursor is inside the search header (top area):
+        if point.y <= Self.searchHeaderHeight {
+            if let escFrame = hoverFrames[.esc], escFrame.contains(point) {
+                hoveredTarget = .esc
+            } else {
+                hoveredTarget = .searchBar
+            }
+            // NEVER select a list row when mouse is over the search bar
+            return
+        }
+
+        // 2. If cursor is inside the bottom dock:
+        if point.y >= (cardHeight - Self.footerHeight) {
+            hoveredTarget = .bottomDock
+            // NEVER select a list row when mouse is over the bottom dock
+            return
+        }
+
+        // 3. In the visible list zone: hit-test rows only
+        let target = hoverFrames.first(where: { key, frame in
+            switch key {
+            case .row:
+                return frame.contains(point)
+            default:
+                return false
+            }
+        })?.key
+
         guard target != hoveredTarget else { return }
         hoveredTarget = target
         if case .row(let index) = target, index < rowCount {
@@ -1091,3 +1132,4 @@ struct CommandDigitCatcher: NSViewRepresentable {
         }
     }
 }
+

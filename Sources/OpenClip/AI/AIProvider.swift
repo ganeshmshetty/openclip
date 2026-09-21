@@ -25,6 +25,15 @@ public enum AIProviderType: String, CaseIterable, Identifiable, Sendable {
 
 extension AIProviderType {
     public static var ollama: AIProviderType { .local }
+
+    /// The list of AI providers supported on this Mac's hardware and OS version.
+    public static var supportedCases: [AIProviderType] {
+        if AppleIntelligenceAvailability.isSupported {
+            return [.apple, .local, .cli, .cloud]
+        } else {
+            return [.local, .cli, .cloud]
+        }
+    }
 }
 
 public enum AIError: Error, LocalizedError, Sendable, Equatable {

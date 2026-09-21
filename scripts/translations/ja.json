@@ -188,7 +188,7 @@
   "Select which provider powers AI features when invoked.": "AI機能の実行時に使用するプロバイダを選択します。",
   "Apple": "Apple",
   "Ollama": "Ollama",
-  "Cloud API": "クラウドAPI",
+  "Cloud API": "クラウド API",
   "Browser": "ブラウザ",
   "Provider Settings": "プロバイダ設定",
   "Apple Intelligence (On-Device)": "Apple Intelligence (オンデバイス)",
@@ -231,7 +231,6 @@
   "Apple Intelligence": "Apple Intelligence",
   "Local (LM Studio/Ollama)": "ローカルモデル (LM Studio/Ollama)",
   "CLI": "コマンドライン (CLI)",
-  "Cloud API": "クラウド API",
   "Ollama (Local LLM)": "Ollama (ローカルLLM)",
   "Cloud API (OpenAI/Claude)": "クラウドAPI (OpenAI/Claude)",
   "Browser Redirection": "ブラウザリダイレクト",
@@ -628,5 +627,14 @@
   "Stable": "安定版",
   "Beta": "ベータ版",
   "Beta builds include features that are still being tested.": "ベータ版にはテスト中の機能が含まれます。",
-  "Support": "サポート"
+  "Support": "サポート",
+  "Create your own quick actions using URL templates, snippet placeholders, or shell scripts.": "URL テンプレート、スニペットのプレースホルダー、またはシェルスクリプトを使用して、独自のアクションを作成します。",
+  "Search the web or open query URLs with selected text": "Web を検索するか、選択テキストを使用してクエリ URL を開きます",
+  "Expand reusable text templates with dynamic placeholders": "動的プレースホルダーを使用して再利用可能なテキストテンプレートを展開します",
+  "Automate tasks by running custom bash or zsh scripts": "カスタム bash または zsh スクリプトを実行してタスクを自動化します",
+  "Custom actions appear in your popup bar and search palette. Assign global hotkeys or search aliases to trigger them anytime.": "カスタムアクションはポップアップバーと検索パレットに表示されます。グローバルショートカットや検索エイリアスを割り当てて、いつでも呼び出すことができます。",
+  "Open an action to customize its name, icon, shortcut, or behavior. Configure its appearance in the Actions tab.": "アクションを開いて、名前、アイコン、ショートカット、または動作をカスタマイズします。「アクション」タブで外観を設定できます。",
+  "Triggers & Output": "トリガーと出力",
+  "Triggers": "トリガー",
+  "Output": "出力"
 }

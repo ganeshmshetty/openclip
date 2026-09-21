@@ -404,9 +404,10 @@ areas; stale debt notes are worse than none.
 - **Removed slow/flaky/environment-dependent tests:** the Apple Intelligence live-model test
   (`testAppleIntelligenceMatchesPresetPrompts`) made
   real on-device `LanguageModelSession` calls; `DebugLogEndToEndTests` polled `OSLogStore`
-  with multi-second sleeps; and `ScriptActionTests` duplicated `ScriptActionExecutionTests` (its
-  stdin-reading test was the observed hang point). Core validation tests for those paths remain
-  (pure validation, no live model/activation).
+  with multi-second sleeps; `ScriptActionTests` duplicated `ScriptActionExecutionTests`; and
+  interactive popup panel/toast/search UI tests requiring live window-server positioning were
+  trimmed to optimize test execution speed and keep the unit test suite fast and deterministic.
+  Core domain logic, validation, action execution, and isolation tests remain fully covered.
 
 ## Logging
 

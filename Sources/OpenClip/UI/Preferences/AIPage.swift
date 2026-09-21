@@ -19,16 +19,44 @@ struct AIPage: View {
 
     var body: some View {
         Form {
-            // A section header rather than a view above the form, so the hero scrolls away with
-            // the rest of the page instead of staying pinned under the toolbar.
             Section {
-                EmptyView()
-            } header: {
-                SettingsHeroHeader(
-                    glyph: .symbol(SettingsPage.ai.systemImage, tint: SettingsPage.ai.tint),
-                    title: String(localized: "AI Tools"),
-                    subtitle: String(localized: "Rewrite, summarize, translate or ask about the selected text.")
-                )
+                HStack(spacing: 14) {
+                    let size: CGFloat = 42
+                    let radius = SettingsDesignTokens.iconTileRadius(for: size)
+                    let squircle = RoundedRectangle(cornerRadius: radius, style: .continuous)
+
+                    ZStack {
+                        squircle
+                            .fill(SettingsTint.neutral)
+                            .shadow(color: Color.black.opacity(0.12), radius: 2, y: 1)
+
+                        Image(systemName: SettingsPage.ai.systemImage)
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
+                    .frame(width: size, height: size)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(String(localized: "AI Tools"))
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(SettingsDesignTokens.primaryText)
+                            .lineLimit(1)
+
+                        Text(String(localized: "Rewrite, summarize, translate or ask about the selected text."))
+                            .font(.system(size: 12))
+                            .foregroundStyle(SettingsDesignTokens.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    Toggle("", isOn: $aiManager.isAIEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.regular)
+                }
+                .padding(.vertical, 4)
             }
 
             AIConfigureForm(embedded: true)
@@ -36,6 +64,7 @@ struct AIPage: View {
             AIActionsSection()
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 }
 

@@ -8,6 +8,8 @@ import Core
 
 /// Hover targets within the action-search palette (result rows + Esc keycap).
 enum SearchHoverTarget: Hashable {
+    case searchBar
+    case bottomDock
     case row(Int)
     case esc
 }

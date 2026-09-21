@@ -87,7 +87,18 @@ public struct ResultCardView: View {
     public let onCancelFollowUp: (@MainActor () -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.popupEffectiveTheme) private var effectiveTheme
+    @Environment(\.popupEffectiveTheme) private var environmentEffectiveTheme
+    @Setting(SettingKey.popupTheme) private var selectedTheme
+    @Setting(SettingKey.popupThemeColor) private var themeColor
+
+    private var effectiveTheme: String {
+        if !environmentEffectiveTheme.isEmpty {
+            return environmentEffectiveTheme
+        }
+        let category = PopupThemeModel.category(fromStored: selectedTheme)
+        if category == .glass { return "glass" }
+        return PopupThemeModel.classicToken(appearance: themeColor, systemIsDark: colorScheme == .dark)
+    }
     @FocusState private var isCardFocused: Bool
     @FocusState private var isFollowUpFocused: Bool
     @State private var followUp = ""
@@ -161,6 +172,7 @@ public struct ResultCardView: View {
         } else if !followUp.isEmpty {
             followUp = ""
         } else {
+            QuickLookPresenter.shared.close()
             onDismiss()
         }
     }
@@ -179,16 +191,7 @@ public struct ResultCardView: View {
     public var body: some View {
         cardChrome {
             ZStack(alignment: .top) {
-                bodyScroll
-
-                topBlurOverlay
-                    .frame(maxWidth: .infinity, alignment: .top)
-
-                header
-                    .frame(maxWidth: .infinity, alignment: .top)
-
-                footer
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                cardContent
 
                 PopupResizeHandles(
                     tint: PopupThemeModel.restForeground(for: effectiveTheme),
@@ -224,9 +227,17 @@ public struct ResultCardView: View {
             return .handled
         }
         .onKeyPress(.space, phases: .down) { press in
-            guard let file = payload.file else { return .ignored }
-            NSWorkspace.shared.open(file.url)
-            return .handled
+            if isFollowUpFocused && !followUp.isEmpty {
+                return .ignored
+            }
+            if let file = payload.file {
+                QuickLookPresenter.shared.toggle(url: file.url)
+                return .handled
+            } else if !payload.isError && !payload.text.isEmpty && !payload.isStreaming {
+                QuickLookPresenter.shared.previewText(payload.text, title: payload.title)
+                return .handled
+            }
+            return .ignored
         }
         .onKeyPress(keys: ["c"], phases: .down) { press in
             guard press.modifiers.contains(.command) else { return .ignored }
@@ -252,6 +263,9 @@ public struct ResultCardView: View {
                 onPaste()
             }
             return .handled
+        }
+        .onDisappear {
+            QuickLookPresenter.shared.close()
         }
     }
 
@@ -323,7 +337,7 @@ public struct ResultCardView: View {
     // MARK: - Chrome
 
     private static let cardCornerRadius: CGFloat = PopupMetrics.cardCornerRadius
-    private static let buttonCornerRadius: CGFloat = 8.0
+    private static let buttonCornerRadius: CGFloat = 6.0
 
     private func cardChrome<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
@@ -361,7 +375,7 @@ public struct ResultCardView: View {
                     ActionIconView(icon: icon, size: 13)
                         .foregroundColor(.accentColor)
                 } else {
-                    Image(systemName: "sparkles")
+                    Image(systemName: "sparkle")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.accentColor)
                 }
@@ -392,34 +406,10 @@ public struct ResultCardView: View {
                 closeButton
             }
         }
-        // No bar behind the header: it sits on the card itself, so the card reads as one surface
-        // with the title on it rather than a chrome bar stuck to the top.
-        .padding(.horizontal, 8)
-        .frame(height: Self.headerHeight)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.top, Self.headerTopPadding)
-    }
-
-    // MARK: - Blur Overlays
-
-    private var cardBackgroundColor: Color {
-        if effectiveTheme == "glass" {
-            return colorScheme == .dark ? Color.black.opacity(0.35) : Color.white.opacity(0.40)
-        } else {
-            return Color(red: colorScheme == .dark ? 0.18 : 0.94,
-                         green: colorScheme == .dark ? 0.18 : 0.94,
-                         blue: colorScheme == .dark ? 0.20 : 0.96)
-        }
-    }
-
-    private var topBlurOverlay: some View {
-        PopupEdgeFade(
-            edge: .top,
-            effectiveTheme: effectiveTheme,
-            colorScheme: colorScheme,
-            height: Self.topInset,
-            cardColor: cardBackgroundColor
-        )
+        .padding(.bottom, 4)
+        .frame(height: Self.headerTotalHeight)
     }
 
     private var closeButton: some View {
@@ -560,6 +550,24 @@ public struct ResultCardView: View {
         return ceil(rect.width) + 2 * Self.horizontalTextInset + 1
     }
 
+    /// The width required by the header chrome (back chevron, action/sparkle icon, title, diff toggle,
+    /// pin button, close button, and horizontal paddings) so the title is never truncated.
+    private var naturalHeaderWidth: CGFloat {
+        let titleToMeasure = payload.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !titleToMeasure.isEmpty else { return PopupMetrics.aiCardMinWidth }
+        let font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        let rect = (titleToMeasure as NSString).boundingRect(
+            with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin],
+            attributes: [.font: font]
+        )
+        // Padding (14*2=28) + Back (22) + gap (8) + Icon (13) + gap (7) + minSpacer (8)
+        let baseChrome: CGFloat = 28 + 22 + 8 + 13 + 7 + 8
+        // Right controls: diff (22) + gap (4) + pin (22) + gap (4) + close (22) = 74 with diff; 48 without diff
+        let controlsWidth: CGFloat = (hasDiff && payload.file == nil) ? 74 : 48
+        return ceil(rect.width) + baseChrome + controlsWidth
+    }
+
     /// Content-driven sizing for image results: balances width and height based on the image's
     /// aspect ratio (so tall screenshots don't become thin slivers and wide banners don't letterbox).
     /// Once the user manually drags the resize handles, the dragged size is honored verbatim.
@@ -636,8 +644,9 @@ public struct ResultCardView: View {
             }
             return 370.0
         }
+        let neededWidth = isUserSized ? naturalTextWidth : max(naturalTextWidth, naturalHeaderWidth)
         return Self.cardWidth(
-            naturalTextWidth: naturalTextWidth,
+            naturalTextWidth: neededWidth,
             showsFollowUp: showsFollowUp,
             isUserSized: isUserSized,
             userWidth: maxSize?.width
@@ -648,16 +657,10 @@ public struct ResultCardView: View {
         min(max(value, minimum), max(maximum, minimum))
     }
 
-    private static let headerHeight: CGFloat = 32.0
     private static let headerTopPadding: CGFloat = 8.0
-    private static let gapAfterHeader: CGFloat = 14.0
-    private static let topInset: CGFloat = headerTopPadding + headerHeight + gapAfterHeader
+    private static let headerTotalHeight: CGFloat = 44.0
     private static let baseBottomInset: CGFloat = 46.0
-    private static let followUpFieldHeight: CGFloat = 30.0
-    /// Room under the body for the footer.
-    private var bottomInset: CGFloat {
-        Self.baseBottomInset
-    }
+    private static let followUpFieldHeight: CGFloat = 28.0
 
     /// The height the body needs when wrapped at the card's actual width.
     private var naturalContentHeight: CGFloat {
@@ -669,7 +672,7 @@ public struct ResultCardView: View {
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
         )
-        return ceil(rect.height) + Self.topInset + bottomInset
+        return ceil(rect.height) + Self.headerTotalHeight + Self.baseBottomInset + 16.0
     }
 
     /// The card is as tall as its text needs, never shorter than the minimum and never taller
@@ -692,24 +695,35 @@ public struct ResultCardView: View {
     // MARK: - Body
 
     @ViewBuilder
-    private var bodyScroll: some View {
-        if let file = payload.file {
-            filePreviewContent(file)
-        } else {
-            ScrollView {
-                bodyText
-                    .font(.system(size: 13.5, weight: .regular))
-                    .lineSpacing(3.5)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .textSelection(.enabled)
-                    .padding(.horizontal, Self.horizontalTextInset)
-                    .padding(.top, Self.topInset)
-                    .padding(.bottom, bottomInset)
+    private var cardContent: some View {
+        Group {
+            if let file = payload.file {
+                ScrollView {
+                    filePreviewContent(file)
+                        .frame(maxWidth: .infinity)
+                }
+            } else {
+                ScrollView {
+                    bodyText
+                        .font(.system(size: 13.5, weight: .regular))
+                        .lineSpacing(3.5)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, Self.horizontalTextInset)
+                        .padding(.vertical, 8)
+                        .draggable(payload.text)
+                }
             }
-            .frame(height: dynamicCardHeight)
-            .popupBottomDissolve(height: bottomInset)
         }
+        .scrollContentBackground(.hidden)
+        .paletteSafeAreaBar(edge: .top, spacing: 0) {
+            header
+        }
+        .paletteSafeAreaBar(edge: .bottom, spacing: 0) {
+            footer
+        }
+        .frame(height: dynamicCardHeight)
     }
 
     @ViewBuilder
@@ -726,28 +740,21 @@ public struct ResultCardView: View {
 
     private func glassButtonBackground(isHovered: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous)
-        let strokeColor = colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.10)
-        let primaryOpacity: Double = isHovered ? 0.10 : 0.06
-        let shadow1 = Color.black.opacity(colorScheme == .dark ? 0.20 : 0.12)
-        let shadow2 = Color.black.opacity(colorScheme == .dark ? 0.10 : 0.05)
+        let strokeColor = colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08)
+        let fillOpacity: Double = isHovered
+            ? (colorScheme == .dark ? 0.18 : 0.12)
+            : (colorScheme == .dark ? 0.12 : 0.07)
 
         return shape
-            .fill(.ultraThinMaterial)
-            .overlay(shape.fill(Color.primary.opacity(primaryOpacity)))
+            .fill(Color.primary.opacity(fillOpacity))
             .overlay(shape.stroke(strokeColor, lineWidth: 0.5))
-            .shadow(color: shadow1, radius: 4, x: 0, y: 2)
-            .shadow(color: shadow2, radius: 1, x: 0, y: 0.5)
     }
 
     private func pasteButtonBackground(isHovered: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous)
-        let accentShadow = Color.accentColor.opacity(colorScheme == .dark ? 0.35 : 0.28)
-        let blackShadow = Color.black.opacity(colorScheme == .dark ? 0.20 : 0.10)
-
         return shape
-            .fill(Color.accentColor.opacity(isHovered ? 0.9 : 1.0))
-            .shadow(color: accentShadow, radius: 5, x: 0, y: 2)
-            .shadow(color: blackShadow, radius: 2, x: 0, y: 1)
+            .fill(Color.accentColor.opacity(isHovered ? 0.85 : 1.0))
+            .overlay(shape.stroke(Color.white.opacity(0.20), lineWidth: 0.5))
     }
 
     static func isTyping(text: String) -> Bool {
@@ -776,10 +783,11 @@ public struct ResultCardView: View {
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isTypingFollowUp)
+        .animation(PopupMetrics.springOrImmediate(response: 0.28, dampingFraction: 0.82), value: isTypingFollowUp)
         .animation(.easeInOut(duration: 0.15), value: showsResultButtons)
         .padding(.horizontal, 14)
-        .padding(.bottom, 10)
+        .padding(.bottom, 6)
+        .frame(height: Self.baseBottomInset)
     }
 
     private var showsResultButtons: Bool {
@@ -794,8 +802,8 @@ public struct ResultCardView: View {
     /// The instruction field: ⏎ with text runs a follow-up on the card's current text; ⏎ on an
     /// empty field keeps the card's normal meaning (paste, or copy when paste is unavailable).
     private var followUpField: some View {
-        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
-        let strokeColor = colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.10)
+        let shape = RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous)
+        let strokeColor = colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08)
         return HStack(spacing: 6) {
             if payload.isStreaming {
                 // A follow-up in flight: spinner on the left.
@@ -854,11 +862,10 @@ public struct ResultCardView: View {
         .frame(height: Self.followUpFieldHeight)
         .background(
             shape
-                .fill(.ultraThinMaterial)
-                .overlay(shape.fill(Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.04)))
+                .fill(Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05))
                 .overlay(shape.stroke(strokeColor, lineWidth: 0.5))
         )
-        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isTypingFollowUp)
+        .animation(PopupMetrics.springOrImmediate(response: 0.25, dampingFraction: 0.8), value: isTypingFollowUp)
         .accessibilityLabel(String(localized: "Follow-up instruction"))
     }
 
@@ -904,7 +911,7 @@ public struct ResultCardView: View {
     }
 
     private var footerButtons: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             if payload.file != nil {
                 fileButtons
             } else if !payload.isError {
@@ -913,12 +920,12 @@ public struct ResultCardView: View {
                 Button {
                     onDismiss()
                 } label: {
-                    Text("Dismiss")
-                        .font(.system(size: 12, weight: .medium))
+                    Text(String(localized: "Dismiss"))
+                        .font(.system(size: 11.5, weight: .medium))
                         .lineLimit(1)
                         .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
                         .background(glassButtonBackground(isHovered: isDismissHovered))
                         .contentShape(RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous))
                 }
@@ -934,20 +941,20 @@ public struct ResultCardView: View {
         Button {
             onCopy()
         } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 4) {
                 Image(systemName: "doc.on.doc")
-                    .font(.system(size: 11, weight: .medium))
-                Text("Copy File")
+                    .font(.system(size: 10.5, weight: .medium))
+                Text(String(localized: "Copy File"))
+                    .font(.system(size: 11.5, weight: .medium))
                 Text("⌘C")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .opacity(0.7)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
             }
-            .font(.system(size: 12, weight: .medium))
             .lineLimit(1)
             .fixedSize()
-            .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
             .background(glassButtonBackground(isHovered: isCopyHovered))
             .contentShape(RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous))
         }
@@ -959,20 +966,20 @@ public struct ResultCardView: View {
         Button {
             (onSave ?? onPaste)()
         } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 4) {
                 Image(systemName: "arrow.down.circle")
                     .font(.system(size: 11, weight: .semibold))
-                Text("Save")
+                Text(String(localized: "Save"))
+                    .font(.system(size: 11.5, weight: .semibold))
                 Image(systemName: "return")
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .opacity(0.85)
+                    .opacity(0.9)
             }
-            .font(.system(size: 12, weight: .semibold))
             .lineLimit(1)
             .fixedSize()
             .foregroundColor(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
             .background(pasteButtonBackground(isHovered: isSaveHovered))
             .contentShape(RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous))
         }
@@ -990,7 +997,7 @@ public struct ResultCardView: View {
             if file.isImage && (previewImage != nil || !hasAttemptedImageLoad) {
                 if let nsImage = previewImage {
                     VStack(spacing: 8) {
-                        let maxAllowedH = max(80, dynamicCardHeight - Self.topInset - bottomInset - 42)
+                        let maxAllowedH = max(80, dynamicCardHeight - Self.headerTotalHeight - Self.baseBottomInset - 32)
                         let maxAllowedW = max(100, dynamicCardWidth - 2 * Self.horizontalTextInset)
                         let isSmall = nsImage.size.width <= 160 && nsImage.size.height <= 160
 
@@ -1086,16 +1093,16 @@ public struct ResultCardView: View {
                     }
 
                     Button {
-                        NSWorkspace.shared.open(file.url)
+                        QuickLookPresenter.shared.toggle(url: file.url)
                     } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "arrow.up.right.square")
+                        HStack(spacing: 4) {
+                            Image(systemName: "eye")
                                 .font(.system(size: 10.5, weight: .semibold))
-                            Text("Open")
-                                .font(.system(size: 11, weight: .medium))
+                            Text(String(localized: "Preview"))
+                                .font(.system(size: 11.5, weight: .medium))
                             Text("␣")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                .opacity(0.7)
+                                .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
                         }
                         .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
                         .padding(.horizontal, 10)
@@ -1104,7 +1111,7 @@ public struct ResultCardView: View {
                         .contentShape(RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .help(String(localized: "Open file (Space)"))
+                    .help(String(localized: "Preview file with Quick Look (Space)"))
                     .onHover { isQuickLookHovered = $0 }
                 }
                 .frame(maxWidth: .infinity)
@@ -1112,10 +1119,10 @@ public struct ResultCardView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, Self.horizontalTextInset)
-        .padding(.top, Self.topInset)
-        .padding(.bottom, bottomInset)
-        .frame(width: dynamicCardWidth, height: dynamicCardHeight)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
+        .draggable(file.url)
         .onDrag {
             NSItemProvider(contentsOf: file.url) ?? NSItemProvider()
         }
@@ -1185,24 +1192,24 @@ public struct ResultCardView: View {
             Button {
                 onCopy()
             } label: {
-                HStack(spacing: 5) {
-                    Text("Copy")
+                HStack(spacing: 4) {
+                    Text(String(localized: "Copy"))
+                        .font(.system(size: 11.5, weight: isCopyPrimary ? .semibold : .medium))
                     if isCopyPrimary {
                         Image(systemName: "return")
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .opacity(0.85)
+                            .opacity(0.9)
                     } else {
                         Text("⌘C")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .opacity(0.7)
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
                     }
                 }
-                .font(.system(size: 12, weight: isCopyPrimary ? .semibold : .medium))
                 .lineLimit(1)
                 .fixedSize()
-                .foregroundColor(isCopyPrimary ? .white : PopupThemeModel.restForeground(for: effectiveTheme))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
+                .foregroundColor(isCopyPrimary ? Color.white : PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 .background(copyButtonBackground(isHovered: isCopyHovered))
                 .contentShape(RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous))
             }
@@ -1215,18 +1222,18 @@ public struct ResultCardView: View {
                 Button {
                     onPaste()
                 } label: {
-                    HStack(spacing: 5) {
-                        Text("Paste")
+                    HStack(spacing: 4) {
+                        Text(String(localized: "Paste"))
+                            .font(.system(size: 11.5, weight: .semibold))
                         Image(systemName: "return")
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .opacity(0.85)
+                            .opacity(0.9)
                     }
-                    .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                     .fixedSize()
                     .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
                     .background(pasteButtonBackground(isHovered: isPasteHovered))
                     .contentShape(RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous))
                 }

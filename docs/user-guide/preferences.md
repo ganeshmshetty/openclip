@@ -29,23 +29,15 @@ The **General** page configures how OpenClip is summoned, launch options, and sy
 
 ## Finding your way around
 
-The settings window is laid out like System Settings:
+The settings window is designed with a modern macOS Liquid Glass layout:
 
-- **Search** at the top of the sidebar filters the pages by name and by what they contain — type
-  `hotkey` to find Shortcuts, `api key` to find AI, `sum` to find Calculate, or an action's name
-  to find the extension that provides it.
-- The sidebar has two groups: OpenClip's own pages (General, Appearance, Customize, Shortcuts,
-  App Rules, Store, About), then a page for everything that provides actions — **AI, then the
-  built-in actions, then your Custom Actions, then every installed extension**. What shipped with
-  OpenClip comes before what you installed, and names sort alphabetically inside each of those.
-- **About** carries app identity and version, the software-update controls — including an **Update
-  Channel** picker with **Stable** and **Beta** — and every outward link: Website, Documentation,
-  Support, GitHub and Report an Issue. Beta builds are pre-releases: they include features still being
-  tested and update from a separate feed, so being on Beta never changes what Stable users receive.
-- Anything you drill into — an action's settings, the icon chooser, a prompt — opens as a page in
-  the same column. The **‹ ›** arrows in the toolbar (or `⌘[` / `⌘]`) move back and forward
-  through the pages you visited, exactly like System Settings. Nothing opens in a popover or a
-  sheet, and problems are reported inline at the top of the page rather than in an alert.
+- **Translucent Backdrop & Clean Sidebar**: The window features a dark blurred Liquid Glass surface with a fixed-width, borderless sidebar sitting directly on the window background beneath native window controls.
+- **Capsule Search**: A capsule search field at the top of the sidebar filters pages and actions by name, alias, keyword, or internal settings in real time.
+- **Distinctive Icon Tiles**: Every page and action is represented with distinct, colored rounded-square icon tiles for instant visual navigation.
+- **Inset Detail Card**: Settings details render within an inset rounded glass card featuring an integrated header with frosted back/forward navigation controls (`⌘[` / `⌘]`), breadcrumbs, and contextual action buttons.
+- **Interactive Shortcut Recorder**: Global and action shortcuts can be recorded via a popover with live modifier visualization, dashed key placeholder, and direct key-combination listening.
+- **Sidebar Organization**: The sidebar presents core settings pages (General, Appearance, Customize, Shortcuts, App Rules, Store, About), followed by AI, built-in actions, custom actions, and installed extensions.
+- **About Page**: Houses version information, links, and update controls, including an **Update Channel** picker for **Stable** and **Beta** feeds.
 
 ---
 

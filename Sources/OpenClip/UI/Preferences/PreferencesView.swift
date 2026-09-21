@@ -1,15 +1,14 @@
 // PreferencesView.swift
 // OpenClip
 //
-// The Settings window: a System Settings style sidebar — search field, OpenClip's pages, then
-// AI, every built-in action, every installed extension and the user's custom actions — and a
-// detail column that shows whatever the router's path says, with the toolbar's back and forward
-// arrows as the way around.
-//
-// The chrome is deliberately stock AppKit/SwiftUI — a sidebar `List` and a system toolbar — so
-// the window inherits System Settings' look, vibrancy and dark-mode behaviour instead of
-// re-implementing them. What the window shows is decided by `SettingsRouter`, not by which layer
-// was opened last: nothing here floats over anything else.
+// The Settings window: a modern Liquid Glass window layout:
+// - Near-black window background with native traffic lights top-left over the sidebar.
+// - Fixed-width sidebar sitting directly on the window background (no card/border/shadow).
+// - Capsule search field below traffic lights.
+// - Colored rounded-square icon tiles for all pages.
+// - Subtle translucent row selection highlight (not accent color).
+// - Inset rounded detail card with back/forward glass capsule, page title, and trailing pill actions.
+
 import SwiftUI
 import Combine
 import Core
@@ -52,36 +51,31 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
 
 @MainActor
 public struct PreferencesView: View {
-    /// The Actions list now reads at the same measure as every other pane.
+    /// The Actions list measure.
     private static let customizeListMaxWidth: CGFloat = SettingsLayout.contentMaxWidth
 
     @State private var disabledActionIDs: Set<String> = []
     @State private var disabledPackages: Set<String> = []
     /// The Customize list's selection, kept here so the toolbar's New Group can seed a group with it.
     @State private var selectedRowIDs: Set<String> = []
-    /// The Customize list's toolbar search text, kept here because the field lives in the toolbar.
+    /// The Customize list's search text.
     @State private var customizeQuery = ""
     @State private var sidebarQuery = ""
-    /// The folder, manifest and README of the extension whose page is on screen. Read once, off
-    /// the main thread, and used by both the page's hero and the toolbar's ellipsis menu.
+    /// The folder, manifest and README of the extension whose page is on screen.
     @State private var packageDetails: ExtensionPackageDetails?
-    /// Bumped when extensions change, so the details above are read again.
+    /// Bumped when extensions change.
     @State private var packageReloadToken = 0
-    /// Bumped when system settings (such as accent color) change, refreshing sidebar tiles.
+    /// Bumped when system settings change.
     @State private var systemColorsToken = 0
+    @State private var isStoreSearchExpanded = false
+    @FocusState private var isStoreSearchFocused: Bool
     @StateObject private var storeViewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     @ObservedObject private var aiManager = AIServiceManager.shared
     @ObservedObject private var router = SettingsRouter.shared
-    /// Owned by the window (StatusBarController) so the AppKit toolbar and these
-    /// panes talk to the same object; the fallback instance is only for the
-    /// SwiftUI `Settings` scene, which has no toolbar of its own.
     @ObservedObject private var toolbarModel: PreferencesToolbarModel
 
-    /// Page to select the first time this view appears. Applied in `onAppear`, not in `init`:
-    /// SwiftUI re-evaluates a scene's body freely, and writing the router from an initializer would
-    /// throw the user back to General at arbitrary moments.
     private let initialPage: SettingsPage
     @State private var didApplyInitialPage = false
 
@@ -93,20 +87,28 @@ public struct PreferencesView: View {
         _toolbarModel = ObservedObject(wrappedValue: toolbarModel)
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+
     public var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             sidebar
-        } detail: {
+                .frame(width: SettingsDesignTokens.sidebarWidth)
+
             detail
         }
-        .minimumWindowContentSize(width: 760, height: 480)
-        .hidesTitlebarSeparator()
-        // Left at the system default: `.balanced` lets the detail column push
-        // into the sidebar's width, which is the case that runs out of room
-        // first when the window is dragged narrow.
-        .navigationSplitViewStyle(.automatic)
-        // No frame here on purpose: the window owns its size (see
-        // StatusBarController.showPreferences).
+        .frame(minWidth: 760, minHeight: 560)
+        .background {
+            ZStack {
+                VisualEffectView(
+                    material: .sidebar,
+                    blendingMode: .behindWindow,
+                    state: .active
+                )
+                SettingsDesignTokens.windowScrim
+            }
+        }
+        .transparentScrollBackground()
+        .ignoresSafeArea()
         .onAppear {
             if !didApplyInitialPage {
                 didApplyInitialPage = true
@@ -137,13 +139,9 @@ public struct PreferencesView: View {
                 }
             }
         }
-        // The title of an action's or extension's page follows the data it is named after.
         .onReceive(coordinator.objectWillChange.receive(on: RunLoop.main)) { _ in syncToolbar() }
         .onReceive(customizationManager.objectWillChange.receive(on: RunLoop.main)) { _ in syncToolbar() }
         .onReceive(aiManager.objectWillChange.receive(on: RunLoop.main)) { _ in syncToolbar() }
-        // Toolbar <-> panes. The toolbar owns the Store's filter and the shared search box,
-        // so those travel through the model in both directions; the search routes to the
-        // pane that is on screen.
         .onReceive(toolbarModel.actions) { action in
             switch action {
             case .newGroup:
@@ -175,7 +173,10 @@ public struct PreferencesView: View {
         }
         .onChange(of: storeViewModel.searchQuery) { _, query in
             guard toolbarModel.page == .store else { return }
-            toolbarModel.searchQuery = query
+            if toolbarModel.searchQuery != query {
+                toolbarModel.searchQuery = query
+            }
+            storeViewModel.queryDidChange()
         }
         .onChange(of: customizeQuery) { _, query in
             guard toolbarModel.page == .customize || toolbarModel.page == .shortcuts else { return }
@@ -187,7 +188,6 @@ public struct PreferencesView: View {
         }
         .onChange(of: storeViewModel.isLoading) { _, isLoading in
             toolbarModel.isRefreshing = isLoading
-            // The menu's Refresh greys out while one is running.
             syncToolbar()
         }
         .onChange(of: disabledActionIDs) { _, _ in
@@ -202,9 +202,6 @@ public struct PreferencesView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openClipOpenActionConfiguration)) { notification in
             guard let request = notification.userInfo?["request"] as? ConfigurationRequest,
                   let action = ActionCoordinator.shared.actions.first(where: { $0.id == request.actionID }) else { return }
-            // Everything is a route, so a request to configure an action navigates to its page
-            // — with the request kept so the page can explain what is missing — instead of
-            // stacking a modal on the window.
             router.openConfiguration(for: action, request: request)
         }
         .onReceive(NotificationCenter.default.publisher(for: .openClipSelectPreferencesTab)) { notification in
@@ -214,19 +211,16 @@ public struct PreferencesView: View {
         }
     }
 
-    // MARK: - Toolbar
+    // MARK: - Toolbar Sync
 
     private func syncToolbar() {
         toolbarModel.page = router.currentPage
         toolbarModel.title = title(for: router.currentPage)
         toolbarModel.pageToggle = pageToggle(for: router.currentPage)
         toolbarModel.pageMenuItems = pageMenuItems(for: router.currentPage)
-        // The shared search box shows the active page's query, so switching between the
-        // Store and the Actions list brings each pane's own search back with it.
         toolbarModel.searchQuery = searchQuery(for: router.currentPage)
     }
 
-    /// The search text the page on screen owns; empty for pages without a toolbar search.
     private func searchQuery(for page: SettingsPage) -> String {
         switch page {
         case .store: return storeViewModel.searchQuery
@@ -235,7 +229,6 @@ public struct PreferencesView: View {
         }
     }
 
-    /// The action a page is about, when it is about one: an action's editor, or a built-in's page.
     private func subjectAction(of page: SettingsPage) -> (any Action)? {
         switch page {
         case .action(let id), .builtinAction(let id):
@@ -245,35 +238,24 @@ public struct PreferencesView: View {
         }
     }
 
-    /// The switch the toolbar shows, trailing, on a page that is about something switchable.
     private func pageToggle(for page: SettingsPage) -> SettingsToolbarToggle? {
         switch page {
         case .ai:
-            return SettingsToolbarToggle(
-                isOn: aiManager.isAIEnabled,
-                label: String(localized: "Enable AI Tools")
-            )
+            return nil
         case .extensionPackage(let id):
             guard let info = InstalledExtensionInfo.info(for: id, in: coordinator.actions) else { return nil }
+            if info.commands.count == 1 && !info.isGroup {
+                return nil
+            }
             return SettingsToolbarToggle(
                 isOn: info.gatedReason == nil && !disabledPackages.contains(id),
                 label: String(localized: "Enable \(info.name)")
             )
         default:
-            guard let action = subjectAction(of: page) else { return nil }
-            let presentation = customizationManager.presented(action, surface: .table)
-            return SettingsToolbarToggle(
-                isOn: ActionEnablement.binding(
-                    for: action,
-                    disabledActionIDs: $disabledActionIDs,
-                    disabledPackages: $disabledPackages
-                ).wrappedValue,
-                label: String(localized: "Enable \(presentation.title)")
-            )
+            return nil
         }
     }
 
-    /// Moving the toolbar's switch means whatever it means for the page on screen.
     private func setPageToggle(_ isOn: Bool) {
         switch router.currentPage {
         case .ai:
@@ -308,17 +290,17 @@ public struct PreferencesView: View {
             )
         default:
             guard let action = subjectAction(of: page) else { return [] }
+            let isExt = ActionIdentity.extensionPackageID(of: action) != nil
             return SettingsToolbarAccessories.actionMenuItems(
                 .init(
                     canDuplicate: ActionIdentity.canDuplicate(action),
-                    canDelete: SettingsDestination.isCustomAction(action)
+                    canDelete: SettingsDestination.isCustomAction(action),
+                    canUninstall: isExt
                 )
             )
         }
     }
 
-    /// The window handles what it owns (an extension's files); anything that belongs to a page's
-    /// own state is forwarded to it.
     private func runPageMenuItem(_ id: String) {
         switch id {
         case SettingsToolbarCommand.storeInstallFile:
@@ -341,10 +323,18 @@ public struct PreferencesView: View {
     }
 
     private func confirmUninstall() {
-        guard case .extensionPackage(let id) = router.currentPage,
-              let info = InstalledExtensionInfo.info(for: id, in: coordinator.actions) else { return }
+        let packageID: String?
+        if case .extensionPackage(let id) = router.currentPage {
+            packageID = id
+        } else if let action = subjectAction(of: router.currentPage) {
+            packageID = ActionIdentity.extensionPackageID(of: action)
+        } else {
+            packageID = nil
+        }
+        guard let packageID,
+              let info = InstalledExtensionInfo.info(for: packageID, in: coordinator.actions) else { return }
         router.confirmDestructive(
-            title: String(localized: "Uninstall?"),
+            title: String(localized: "Uninstall \(info.name)?"),
             message: "",
             confirmTitle: String(localized: "Uninstall")
         ) {
@@ -369,10 +359,6 @@ public struct PreferencesView: View {
         }
     }
 
-    // MARK: - Extension package details
-
-    /// Identity of what `packageDetails` should hold: the extension on screen, and the reload
-    /// token so an install or removal re-reads the folder.
     private var packageDetailsKey: String {
         guard case .extensionPackage(let id) = router.currentPage else { return "none#\(packageReloadToken)" }
         return "\(id)#\(packageReloadToken)"
@@ -386,7 +372,6 @@ public struct PreferencesView: View {
         packageDetails = await ExtensionPackageDetails.load(packageID: id)
     }
 
-    /// A page's title: fixed for most, taken from the data for an action, an extension or a prompt.
     private func title(for page: SettingsPage) -> String {
         if let title = page.staticTitle { return title }
         switch page {
@@ -410,11 +395,6 @@ public struct PreferencesView: View {
         SettingsPage.systemPages.map { SettingsSidebarRow(systemPage: $0) }
     }
 
-    /// The second group: everything that provides actions, one row each — the way Raycast lists
-    /// Calculator and Calendar next to third-party extensions. What OpenClip ships comes first
-    /// (AI, then the built-in actions, then the user's own), and installed extensions follow; see
-    /// `SettingsSidebarOrder`. A row answers a search for any of its actions' names or keywords,
-    /// so "verify" finds the JWT extension and "sum" finds Calculate.
     private var secondGroupRows: [SettingsSidebarRow] {
         var rows: [SettingsSidebarRow] = [
             SettingsSidebarRow(
@@ -469,8 +449,6 @@ public struct PreferencesView: View {
         return SettingsSidebarOrder.sorted(rows)
     }
 
-    /// A glyph that reads at sidebar size. An icon shipped as text renders as a word, which is
-    /// wider than a row's glyph slot, so those fall back to the extension mark.
     private static func plainGlyph(_ icon: ActionIcon) -> ActionIcon {
         if case .text(let text) = icon, text.count > 2 {
             return .symbol("puzzlepiece.extension")
@@ -478,9 +456,6 @@ public struct PreferencesView: View {
         return icon
     }
 
-    /// `List` selection is optional by contract; the page never is, so a nil write (Escape,
-    /// clicking empty space) keeps the current page. Selecting the page already shown returns to
-    /// its top level, the way clicking a System Settings pane does.
     private var sidebarSelection: Binding<SettingsPage?> {
         Binding(
             get: { router.sidebarPage },
@@ -498,36 +473,350 @@ public struct PreferencesView: View {
             extensionRows: secondGroupRows
         )
         .id(systemColorsToken)
-        .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
     }
 
-    // MARK: - Detail
+    // MARK: - Detail Card
 
     private var detail: some View {
-        ZStack(alignment: .top) {
-            SettingsNavigationStack(path: router.path) { page in
-                content(for: page)
-            }
+        VStack(spacing: 0) {
+            detailTopBar
 
-            if let notice = router.notice {
-                SettingsNoticeBanner(
-                    notice: notice,
-                    onDismiss: { router.dismissNotice() },
-                    onConfirm: { router.confirmNotice() }
-                )
-                .id(notice.id)
-                .zIndex(10)
+            ZStack(alignment: .top) {
+                SettingsNavigationStack(path: router.path) { page in
+                    content(for: page)
+                }
+
+                if let notice = router.notice {
+                    SettingsNoticeBanner(
+                        notice: notice,
+                        onDismiss: { router.dismissNotice() },
+                        onConfirm: { router.confirmNotice() }
+                    )
+                    .id(notice.id)
+                    .zIndex(10)
+                }
             }
+            .scrollContentBackground(.hidden)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        // The detail column's floor, which is what stops the window shrinking:
-        // the split view happily collapses the sidebar, so the minimum the
-        // window inherits is whatever the content insists on.
-        .frame(minWidth: 540, minHeight: 460)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(SettingsDesignTokens.detailCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: SettingsDesignTokens.detailCardRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SettingsDesignTokens.detailCardRadius, style: .continuous)
+                .strokeBorder(SettingsDesignTokens.detailCardBorder, lineWidth: 0.5)
+        )
+        .padding(.top, SettingsDesignTokens.detailCardInset)
+        .padding(.trailing, SettingsDesignTokens.detailCardInset)
+        .padding(.bottom, SettingsDesignTokens.detailCardInset)
         .background(navigationShortcuts)
     }
 
-    /// ⌘[ and ⌘] for back and forward, the keys Finder, Safari and System Settings use.
+    private var detailTopBar: some View {
+        HStack(spacing: 12) {
+            // Glass capsule with < | >
+            HStack(spacing: 0) {
+                Button {
+                    router.goBack()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                        .opacity(router.canGoBack ? 0.9 : 0.28)
+                        .frame(width: 30, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!router.canGoBack)
+
+                Rectangle()
+                    .fill(SettingsDesignTokens.rowDivider)
+                    .frame(width: 1, height: 14)
+
+                Button {
+                    router.goForward()
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                        .opacity(router.canGoForward ? 0.9 : 0.28)
+                        .frame(width: 30, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!router.canGoForward)
+            }
+            .background(
+                Capsule()
+                    .fill(SettingsDesignTokens.navPillBackground)
+            )
+            .overlay(
+                Capsule()
+                    .strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5)
+            )
+
+            // Current sub-page title next to chevrons when drilled in
+            if router.path.count > 1 {
+                Text(title(for: router.currentPage))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(SettingsDesignTokens.primaryText)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            trailingTopBarControls
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+        .frame(height: 48)
+    }
+
+    @ViewBuilder
+    private var trailingTopBarControls: some View {
+        HStack(spacing: 8) {
+            if let toggle = toolbarModel.pageToggle {
+                HStack(spacing: 8) {
+                    Text(toggle.label)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(SettingsDesignTokens.primaryText)
+                    Toggle("", isOn: Binding(
+                        get: { toggle.isOn },
+                        set: { setPageToggle($0) }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
+                .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+            }
+
+            let plusItems = PreferencesPlusMenu.items(for: router.currentPage)
+            if !plusItems.isEmpty {
+                if plusItems.count == 1, let only = plusItems.first {
+                    Button {
+                        toolbarModel.actions.send(only.action)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: only.symbol)
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(only.title)
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                        .padding(.horizontal, 10)
+                        .frame(height: 28)
+                        .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
+                        .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Menu {
+                        ForEach(plusItems, id: \.title) { item in
+                            if item.startsGroup {
+                                Divider()
+                            }
+                            Button {
+                                toolbarModel.actions.send(item.action)
+                            } label: {
+                                Label(item.title, systemImage: item.symbol)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(String(localized: "Add"))
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                        .padding(.horizontal, 10)
+                        .frame(height: 28)
+                        .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
+                        .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                }
+            }
+
+            if router.currentPage == .store {
+                storeSearchField
+
+                Menu {
+                    ForEach(StoreSort.allCases) { sort in
+                        Button {
+                            storeViewModel.selectedSort = sort
+                        } label: {
+                            if storeViewModel.selectedSort == sort {
+                                Label(sort.title, systemImage: "checkmark")
+                            } else {
+                                Text(sort.title)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(storeViewModel.selectedSort.title)
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                    .padding(.horizontal, 10)
+                    .frame(height: 28)
+                    .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
+                    .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+
+                Button {
+                    Task { await storeViewModel.refreshCatalog() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(SettingsDesignTokens.navPillBackground))
+                        .overlay(Circle().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                }
+                .buttonStyle(.plain)
+                .disabled(storeViewModel.isLoading)
+            }
+
+            if !toolbarModel.pageMenuItems.isEmpty {
+                Menu {
+                    ForEach(toolbarModel.pageMenuItems) { item in
+                        if item.isSeparator {
+                            Divider()
+                        } else {
+                            Button(role: item.role == .destructive ? .destructive : nil) {
+                                runPageMenuItem(item.id)
+                            } label: {
+                                if !item.symbol.isEmpty {
+                                    Label(item.title, systemImage: item.symbol)
+                                } else {
+                                    Text(item.title)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(SettingsDesignTokens.navPillBackground))
+                        .overlay(Circle().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var storeSearchField: some View {
+        if isStoreSearchExpanded || !storeViewModel.searchQuery.isEmpty {
+            HStack(spacing: 6) {
+                if storeViewModel.isLoading && !storeViewModel.searchQuery.isEmpty {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .padding(.leading, 8)
+                } else {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(SettingsDesignTokens.sidebarSearchPlaceholder)
+                        .padding(.leading, 8)
+                }
+
+                TextField(String(localized: "Search extensions..."), text: $storeViewModel.searchQuery)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .foregroundStyle(SettingsDesignTokens.primaryText)
+                    .focused($isStoreSearchFocused)
+                    .onSubmit {
+                        Task {
+                            await storeViewModel.resetAndFetch(limit: 100, keepPrevious: true)
+                        }
+                    }
+                    .onKeyPress(.escape) {
+                        if !storeViewModel.searchQuery.isEmpty {
+                            storeViewModel.searchQuery = ""
+                            return .handled
+                        } else {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                                isStoreSearchExpanded = false
+                                isStoreSearchFocused = false
+                            }
+                            return .handled
+                        }
+                    }
+
+                if !storeViewModel.searchQuery.isEmpty {
+                    Button {
+                        storeViewModel.searchQuery = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(SettingsDesignTokens.sidebarSearchPlaceholder)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 6)
+                } else {
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                            isStoreSearchExpanded = false
+                            isStoreSearchFocused = false
+                        }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(SettingsDesignTokens.sidebarSearchPlaceholder)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 6)
+                }
+            }
+            .frame(width: 180, height: 28)
+            .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
+            .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+            .onChange(of: isStoreSearchFocused) { _, focused in
+                if !focused && storeViewModel.searchQuery.isEmpty {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                        isStoreSearchExpanded = false
+                    }
+                }
+            }
+            .transition(.asymmetric(
+                insertion: .opacity.combined(with: .scale(scale: 0.95, anchor: .trailing)),
+                removal: .opacity.combined(with: .scale(scale: 0.95, anchor: .trailing))
+            ))
+        } else {
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                    isStoreSearchExpanded = true
+                    isStoreSearchFocused = true
+                }
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(SettingsDesignTokens.navPillBackground))
+                    .overlay(Circle().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+            }
+            .buttonStyle(.plain)
+            .help(String(localized: "Search Extensions"))
+            .transition(.opacity)
+        }
+    }
+
+    /// ⌘[ and ⌘] for back and forward.
     private var navigationShortcuts: some View {
         Group {
             Button("") { router.goBack() }
@@ -541,6 +830,8 @@ public struct PreferencesView: View {
         .opacity(0)
         .accessibilityHidden(true)
     }
+
+    // MARK: - Detail Content
 
     @ViewBuilder
     private func content(for page: SettingsPage) -> some View {
@@ -616,9 +907,6 @@ public struct PreferencesView: View {
         }
     }
 
-    /// An action's editor, or a group's when the id names a group. A subject that went away while
-    /// its page was open (uninstalled extension, ungrouped group) sends the window back rather
-    /// than showing an empty page.
     @ViewBuilder
     private func actionEditor(for id: String) -> some View {
         if let action = coordinator.actions.first(where: { $0.id == id }) {

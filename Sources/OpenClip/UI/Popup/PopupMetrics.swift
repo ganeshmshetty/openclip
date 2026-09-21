@@ -7,6 +7,8 @@
 // popup reads from here.
 import CoreGraphics
 import Foundation
+import SwiftUI
+import AppKit
 
 public enum PopupMetrics {
     /// Standard width and height of an action button in the popup bar and sub-bar (normalized baseline at 1.0 scale).
@@ -29,6 +31,19 @@ public enum PopupMetrics {
     /// Benchmark (Tier 3 medium JS p95=297ms): slight overshoot (0.72) signals
     /// liveness for results that arrive after a noticeable pause. (was 0.82)
     public static let inlineSpringDamping: Double = 0.72
+
+    /// Resolved spring animation or immediate cut respecting macOS Reduce Motion accessibility setting.
+    public static func springOrImmediate(response: Double = 0.28, dampingFraction: Double = 0.8) -> Animation {
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            return .linear(duration: 0.05)
+        }
+        return .spring(response: response, dampingFraction: dampingFraction)
+    }
+
+    /// Default spring for inline expansions, falling back to an immediate linear cut under Reduce Motion.
+    public static var inlineSpring: Animation {
+        springOrImmediate(response: inlineSpringResponse, dampingFraction: inlineSpringDamping)
+    }
     /// Hard execution timeout for inline action evaluation.
     /// Benchmark (Tier 3 heavy JS p99=737ms × 1.20 safety = 884ms → ceil 0.90s).
     /// Previous 0.50s cut off heavy JS at the p50; 0.90s covers p99 with margin. (was 0.50s)
@@ -92,17 +107,16 @@ public enum PopupMetrics {
     /// above the action bar instead of below (numerically equals `popupDismissalDistance`).
     public static let cardAboveThreshold: CGFloat = 280.0
     /// Action-search palette sizing: content width, total panel width, visible result rows and result row height.
-    public static let searchPanelContentWidth: CGFloat = 300.0
+    public static let searchPanelContentWidth: CGFloat = 340.0
     public static var searchPanelWidth: CGFloat { searchPanelContentWidth + 2 * popupShadowInset }
     public static let searchMaxRows: Int = 6
-    public static let searchResultRowHeight: CGFloat = 32
+    public static let searchResultRowHeight: CGFloat = 31
     /// Fraction of an extra result row shown beyond `searchMaxRows` so the next action peeks,
     /// hinting that the list scrolls.
     public static let searchPeekRowFraction: CGFloat = 0.0
-    /// Smallest size the palette's resize handles allow: compacts to the default search bar
-    /// content width (300 pt) and default visible rows height (258 pt) that it has at first.
+    /// Smallest size the palette allows: compacts to default width (340 pt) and visible rows height.
     public static let searchPaletteMinWidth: CGFloat = searchPanelContentWidth
-    public static let searchPaletteMinHeight: CGFloat = 258.0
+    public static let searchPaletteMinHeight: CGFloat = 276.0
     /// Shared height cap for the popup panel (search palette field + result rows and content cards).
     /// Lifted per session via `PopupPanel.heightCap` while a resizable surface shows.
     public static let popupMaxHeight: CGFloat = 312

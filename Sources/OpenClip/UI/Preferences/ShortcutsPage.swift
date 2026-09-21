@@ -1,17 +1,8 @@
 // ShortcutsPage.swift
 // OpenClip
 //
-// Every action's switch, alias and hotkey in one table, grouped the way System Settings groups
-// keyboard shortcuts by app: built-ins, AI prompts, the user's custom actions, then one group per
-// installed extension. It is the page for questions like "what is ⌥⌘T bound to?" and "which of
-// these are actually on?", and every row is one click from the action's own page.
-//
-// The switch and the alias/hotkey pair also appear on each action's page; a binding is
-// legitimately part of the action *and* part of the keyboard map, and System Settings duplicates
-// settings across panes for the same reason.
-//
-// The rows are `ActionSettingsRow`, the same component an extension's page and Custom Actions use,
-// so every list of actions in the window is one table.
+// The Shortcuts page: per-action hotkeys and palette aliases.
+// Styled with inset SettingsCards.
 
 import SwiftUI
 import Core
@@ -20,18 +11,22 @@ import Core
 struct ShortcutsPage: View {
     @Binding var disabledActionIDs: Set<String>
     @Binding var disabledPackages: Set<String>
+    @Binding var query: String
 
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     @ObservedObject private var bindingStore = ActionBindingStore.shared
-    @ObservedObject private var aiManager = AIServiceManager.shared
 
-    @State private var query = ""
     @State private var aliasError: String?
 
-    init(disabledActionIDs: Binding<Set<String>>, disabledPackages: Binding<Set<String>>) {
+    init(
+        disabledActionIDs: Binding<Set<String>>,
+        disabledPackages: Binding<Set<String>>,
+        query: Binding<String>
+    ) {
         _disabledActionIDs = disabledActionIDs
         _disabledPackages = disabledPackages
+        _query = query
     }
 
     private struct ShortcutGroup: Identifiable {
@@ -40,7 +35,6 @@ struct ShortcutsPage: View {
         let actions: [any Action]
     }
 
-    /// Bindable actions that answer the search, grouped by where they come from.
     private var groups: [ShortcutGroup] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         func matches(_ action: any Action) -> Bool {
@@ -93,26 +87,31 @@ struct ShortcutsPage: View {
                 ContentUnavailableView.search(text: query)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                Form {
-                    ForEach(groups) { group in
-                        // No explicit dividers: a `Form` section already separates its rows, and
-                        // adding them made every row a double-height cell with a gap under it.
-                        Section(group.title) {
-                            ForEach(group.actions, id: \.id) { action in
-                                row(for: action)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        ForEach(groups) { group in
+                            SettingsCard(LocalizedStringKey(group.title)) {
+                                ForEach(Array(group.actions.enumerated()), id: \.element.id) { index, action in
+                                    if index > 0 {
+                                        SettingsDivider(insetLeading: 16)
+                                    }
+                                    row(for: action)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 4)
+                                }
                             }
                         }
-                    }
 
-                    Section {
-                        EmptyView()
-                    } footer: {
                         Text("Switch an action off to hide it from the popup bar and the palette. An alias jumps straight to an action when you type it in the palette; a hotkey runs it from anywhere.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.bottom, 12)
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
                 }
-                .formStyle(.grouped)
+                .scrollIndicators(.hidden)
             }
         }
     }
@@ -130,7 +129,7 @@ struct ShortcutsPage: View {
                 SettingsInlineError(message: aliasError)
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 24)
         .padding(.top, 12)
         .padding(.bottom, 4)
     }

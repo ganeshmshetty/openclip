@@ -27,6 +27,8 @@ public struct ActionEditorPage: View {
     @ObservedObject private var router = SettingsRouter.shared
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
+    @Setting(SettingKey.disabledActionIDs) private var disabledActionIDs: Set<String>
+    @Setting(SettingKey.disabledPackages) private var disabledPackages: Set<String>
 
     @State private var customTitle: String = ""
     @State private var iconSymbol: String = ""
@@ -43,6 +45,7 @@ public struct ActionEditorPage: View {
     @State private var appearanceResetPending = false
     @State private var displayMode: Int = 0 // 0 = Icon, 1 = Text
     @State private var isIconHovered = false
+    @State private var isIconPickerPresented = false
 
     // Custom Action State. The Type picker selects a plain kind — the payload values live in the
     // field state below — so the segment highlight stays stable while the user edits text (a
@@ -75,6 +78,18 @@ public struct ActionEditorPage: View {
     @State private var deliveryPrefString: String = "default"
     @State private var isDuplicating = false
     @State private var isDeleting = false
+    @ObservedObject private var updateManager = ExtensionUpdateManager.shared
+    @State private var isUpdating = false
+    @State private var showUninstallConfirmation = false
+    @State private var updateCheckState: UpdateCheckState = .idle
+    @State private var isHoveringUpdate = false
+    @State private var isHoveringUninstall = false
+
+    private enum UpdateCheckState: Equatable {
+        case idle
+        case checking
+        case upToDate
+    }
 
     public init(
         action: any Action,
@@ -160,10 +175,12 @@ public struct ActionEditorPage: View {
         return ""
     }
 
-    /// The hero tile is the same everywhere: the system accent colour, so an action's page reads
-    /// as OpenClip regardless of which package the action came from.
+    /// The hero tile uses the action or extension's meaningful semantic color.
     private var heroTint: Color {
-        SettingsTint.openClip
+        if let packageID = ActionIdentity.extensionPackageID(of: action) {
+            return SettingsTint.extensionTint(for: packageID)
+        }
+        return SettingsDesignTokens.iconTileColor(forActionID: action.id)
     }
 
     static func defaultDeliveryPrefString(for action: any Action) -> String {
@@ -235,7 +252,7 @@ public struct ActionEditorPage: View {
 
     private var previewIcon: ActionIcon {
         ActionAppearanceFields.resolvedPreviewIcon(
-            displayMode: displayMode,
+            displayMode: 0,
             title: customTitle,
             displayTextFallback: action.title,
             iconSymbol: iconSymbol,
@@ -307,76 +324,239 @@ public struct ActionEditorPage: View {
         return ""
     }
 
-    @ViewBuilder
-    private var heroSection: some View {
-        VStack(spacing: 12) {
-            Button {
-                router.pushIconPicker(writingTo: $iconSymbol)
-            } label: {
-                ZStack(alignment: .bottomTrailing) {
-                    ExtensionIconTile(icon: previewIcon, tint: heroTint, size: 64)
-                        .shadow(color: heroTint.opacity(0.28), radius: 8, y: 3)
+    private var actionEnabledBinding: Binding<Bool> {
+        ActionEnablement.binding(
+            for: action,
+            disabledActionIDs: $disabledActionIDs,
+            disabledPackages: $disabledPackages
+        )
+    }
 
-                    Image(systemName: "pencil.circle.fill")
-                        .font(.system(size: 20))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(Color.secondary)
-                        .background(Circle().fill(Color(nsColor: .windowBackgroundColor)).padding(2))
-                        .offset(x: 4, y: 4)
-                        .opacity(isIconHovered ? 1.0 : 0.7)
+    private var extensionPackageID: String? {
+        ActionIdentity.extensionPackageID(of: action)
+    }
+
+    private var manifest: ExtensionMetadata? {
+        manifestState?.manifest ?? Self.locateManifest(for: action)?.manifest
+    }
+
+    private var manifestVersion: String? {
+        manifest?.version
+    }
+
+    private var manifestAuthor: String? {
+        manifest?.author
+    }
+
+    @ViewBuilder
+    private var headerIconTile: some View {
+        let size: CGFloat = 42
+        let radius = SettingsDesignTokens.iconTileRadius(for: size)
+        let squircle = RoundedRectangle(cornerRadius: radius, style: .continuous)
+
+        ZStack {
+            squircle
+                .fill(SettingsTint.neutral)
+                .shadow(color: Color.black.opacity(0.12), radius: 2, y: 1)
+
+            if case .text(let text) = previewIcon {
+                Text(String(text.trimmingCharacters(in: .whitespaces).prefix(3)))
+                    .font(.system(size: size * 0.44, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            } else {
+                ActionIconView(icon: previewIcon, size: size * 0.56)
+                    .foregroundStyle(.white)
+                    .frame(width: size * 0.72, height: size * 0.72)
+            }
+        }
+        .frame(width: size, height: size)
+    }
+
+    @ViewBuilder
+    private func extensionUpdateStatusView(for packageID: String) -> some View {
+        if isUpdating {
+            HStack(spacing: 5) {
+                ProgressView()
+                    .controlSize(.mini)
+                Text(String(localized: "Updating…"))
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(SettingsDesignTokens.secondaryText)
+            }
+            .padding(.horizontal, 9)
+            .frame(height: 24)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+        } else if updateManager.updatablePackageIDs.contains(packageID) {
+            Button {
+                updateExtension(packageID)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(String(localized: "Update"))
+                        .font(.system(size: 11.5, weight: .semibold))
                 }
-                .scaleEffect(isIconHovered ? 1.04 : 1.0)
-                .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isIconHovered)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .frame(height: 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.accentColor)
+                )
             }
             .buttonStyle(.plain)
-            .help(iconButtonHelp)
-            .onHover { isIconHovered = $0 }
-            .accessibilityLabel(String(localized: "Choose icon"))
-            .disabled(manifestMissing)
+        } else if updateCheckState == .checking || updateManager.isChecking {
+            HStack(spacing: 5) {
+                ProgressView()
+                    .controlSize(.mini)
+                Text(String(localized: "Checking…"))
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(SettingsDesignTokens.secondaryText)
+            }
+            .padding(.horizontal, 9)
+            .frame(height: 24)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+        } else if updateCheckState == .upToDate {
+            HStack(spacing: 5) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.green)
+                Text(String(localized: "Up to date"))
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(SettingsDesignTokens.secondaryText)
+            }
+            .padding(.horizontal, 9)
+            .frame(height: 24)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.green.opacity(0.12))
+            )
+            .transition(.opacity)
+        } else {
+            Button {
+                runCheckForUpdates(packageID: packageID)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 10.5, weight: .medium))
+                    Text(String(localized: "Check for Updates"))
+                        .font(.system(size: 11.5, weight: .medium))
+                }
+                .foregroundStyle(isHoveringUpdate ? SettingsDesignTokens.primaryText : SettingsDesignTokens.secondaryText)
+                .padding(.horizontal, 9)
+                .frame(height: 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.primary.opacity(isHoveringUpdate ? 0.10 : 0.06))
+                )
+            }
+            .buttonStyle(.plain)
+            .onHover { isHoveringUpdate = $0 }
+        }
+    }
 
-            VStack(spacing: 4) {
-                let displayTitle = customTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                Text(displayTitle.isEmpty ? action.title : displayTitle)
-                    .font(.system(size: 22, weight: .bold))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+    @ViewBuilder
+    private var upperHeroCard: some View {
+        SettingsCard {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .center, spacing: 14) {
+                    headerIconTile
 
-                if !actionDescription.isEmpty {
-                    Text(actionDescription)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        let displayTitle = customTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                        HStack(alignment: .center, spacing: 8) {
+                            Text(displayTitle.isEmpty ? action.title : displayTitle)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(SettingsDesignTokens.primaryText)
+                                .lineLimit(1)
+
+                            if let version = manifestVersion, !version.isEmpty {
+                                Text("v\(version)")
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(SettingsDesignTokens.secondaryText)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 1.5)
+                                    .background(Capsule().fill(Color(white: 1.0, opacity: 0.08)))
+                            }
+                        }
+
+                        if !actionDescription.isEmpty {
+                            Text(actionDescription)
+                                .font(.system(size: 12))
+                                .foregroundStyle(SettingsDesignTokens.secondaryText)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    Spacer(minLength: 12)
+
+                    Toggle("", isOn: actionEnabledBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.regular)
                 }
 
-                if !heroFootnote.isEmpty && heroFootnote != actionDescription && heroFootnote != displayTitle && heroFootnote != action.title {
-                    Text(heroFootnote)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 1)
+                if let packageID = extensionPackageID {
+                    Divider()
+                        .opacity(0.3)
+                        .padding(.vertical, 10)
+
+                    HStack(alignment: .center) {
+                        if let author = manifestAuthor, !author.isEmpty {
+                            Text("by \(author)")
+                                .font(.system(size: 12))
+                                .foregroundStyle(SettingsDesignTokens.tertiaryText)
+                                .lineLimit(1)
+                        }
+
+                        Spacer(minLength: 12)
+
+                        HStack(alignment: .center, spacing: 8) {
+                            extensionUpdateStatusView(for: packageID)
+
+                            Button {
+                                showUninstallConfirmation = true
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 10.5))
+                                    Text(String(localized: "Uninstall"))
+                                        .font(.system(size: 11.5, weight: .medium))
+                                }
+                                .foregroundStyle(isHoveringUninstall ? Color.red : Color.red.opacity(0.85))
+                                .padding(.horizontal, 9)
+                                .frame(height: 24)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(isHoveringUninstall ? Color.red.opacity(0.15) : Color.primary.opacity(0.06))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .onHover { isHoveringUninstall = $0 }
+                        }
+                        .fixedSize(horizontal: true, vertical: false)
+                    }
                 }
             }
-            .frame(maxWidth: 440)
+            .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
+            .padding(.vertical, 12)
         }
-        .textCase(nil)
-        .frame(maxWidth: .infinity)
-        .padding(.top, 4)
-        .padding(.bottom, 6)
     }
 
     public var body: some View {
-        Form {
-            Section {
-                EmptyView()
-            } header: {
-                heroSection
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                upperHeroCard
 
-            if let bannerText = configurationBannerText {
-                Section {
+                if let bannerText = configurationBannerText {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
@@ -386,146 +566,235 @@ public struct ActionEditorPage: View {
                             .foregroundStyle(.primary)
                         Spacer(minLength: 0)
                     }
-                }
-            }
-
-            Section {
-                SettingsRow(title: "Name") {
-                    TextField(action.title, text: $customTitle, prompt: Text(action.title))
-                        .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 240)
-                        .disabled(manifestMissing)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.orange.opacity(0.12))
+                    )
                 }
 
-                SettingsRow(title: "Show as") {
-                    Picker("", selection: $displayMode) {
-                        Text("Icon").tag(0)
-                        Text("Text").tag(1)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 140)
-                    .disabled(manifestMissing)
-                }
-
-                if ActionIdentity.isBindable(action) {
-                    SettingsRow(title: "Shortcut") {
-                        KeyboardShortcuts.Recorder(for: .actionHotkey(action.id))
-                    }
-
-                    SettingsRow(title: "Alias") {
-                        HStack(spacing: 8) {
-                            if let aliasError {
-                                Text(aliasError)
-                                    .font(.caption2)
-                                    .foregroundStyle(.red)
+                SettingsCard("Appearance") {
+                    SettingsRow(
+                        title: "Icon",
+                        subtitle: "Choose a custom symbol for the popup bar.",
+                        systemImage: "app.dashed"
+                    ) {
+                        Button {
+                            isIconPickerPresented = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                ActionIconView(icon: previewIcon, size: 14)
+                                    .foregroundStyle(SettingsDesignTokens.primaryText)
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(SettingsDesignTokens.secondaryText)
                             }
-                            TextField("Alias", text: $aliasText, prompt: Text("e.g. tr"))
-                                .labelsHidden()
-                                .textFieldStyle(.roundedBorder)
-                                .frame(maxWidth: 120)
-                                .disabled(manifestMissing)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(Color(white: 1.0, opacity: 0.08))
+                            )
                         }
+                        .buttonStyle(.plain)
+                        .disabled(manifestMissing)
+                        .popover(isPresented: $isIconPickerPresented, arrowEdge: .bottom) {
+                            IconPickerPopover(selectedSymbol: $iconSymbol) {
+                                isIconPickerPresented = false
+                            }
+                        }
+                    }
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        title: "Name",
+                        subtitle: "Custom title shown in search and the popup bar.",
+                        systemImage: "textformat"
+                    ) {
+                        TextField(action.title, text: $customTitle, prompt: Text(action.title))
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 13))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(Color(white: 1.0, opacity: 0.08))
+                            )
+                            .frame(maxWidth: 220)
+                            .disabled(manifestMissing)
+                    }
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        title: "Show as",
+                        subtitle: "Display as an icon or as text in the popup bar.",
+                        systemImage: "rectangle.split.2x1"
+                    ) {
+                        Picker("", selection: $displayMode) {
+                            Text("Icon").tag(0)
+                            Text("Text").tag(1)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .frame(width: 140)
+                        .disabled(manifestMissing)
                     }
                 }
 
-                if canProduceTextOutput {
-                    SettingsRow(title: "When finished") {
-                        Picker("", selection: $deliveryPrefString) {
-                            Text("Show in card").tag("preview")
-                            Text("Paste").tag("paste")
-                            Text("Copy").tag("copy")
+                let hasTriggers = ActionIdentity.isBindable(action)
+                let hasOutput = canProduceTextOutput
+                if hasTriggers || hasOutput {
+                    let cardTitle: LocalizedStringKey = (hasTriggers && hasOutput)
+                        ? "Triggers & Output"
+                        : (hasTriggers ? "Triggers" : "Output")
+
+                    SettingsCard(cardTitle) {
+                        if hasTriggers {
+                            SettingsRow(
+                                title: "Keyboard Shortcut",
+                                subtitle: "Global hotkey to run this action directly.",
+                                systemImage: "keyboard"
+                            ) {
+                                Shortcut(for: .actionHotkey(action.id))
+                            }
+
+                            SettingsDivider()
+
+                            SettingsRow(
+                                title: "Search Alias",
+                                subtitle: "Keyword to jump to this action in the search palette.",
+                                systemImage: "magnifyingglass"
+                            ) {
+                                HStack(spacing: 8) {
+                                    if let aliasError {
+                                        Text(aliasError)
+                                            .font(.caption2)
+                                            .foregroundStyle(.red)
+                                    }
+                                    TextField("Alias", text: $aliasText, prompt: Text("e.g. tr"))
+                                        .textFieldStyle(.plain)
+                                        .font(.system(size: 13))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 5)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                .fill(Color(white: 1.0, opacity: 0.08))
+                                        )
+                                        .frame(maxWidth: 100)
+                                        .disabled(manifestMissing)
+                                }
+                            }
                         }
-                        .labelsHidden()
-                        .pickerStyle(.segmented)
-                        .frame(width: 250)
+
+                        if hasTriggers && hasOutput {
+                            SettingsDivider()
+                        }
+
+                        if hasOutput {
+                            SettingsRow(
+                                title: "When finished",
+                                subtitle: "Where to send the output of this action.",
+                                systemImage: "arrow.turn.down.right"
+                            ) {
+                                Picker("", selection: $deliveryPrefString) {
+                                    Text("Show in card").tag("preview")
+                                    Text("Paste").tag("paste")
+                                    Text("Copy").tag("copy")
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.segmented)
+                                .frame(width: 250)
+                            }
+                        }
                     }
                 }
 
                 if !action.actionOptions.isEmpty {
-                    DynamicActionConfigView(
-                        actionID: action.id,
-                        options: action.actionOptions,
-                        optionStore: SecretActionOptionStore(),
-                        missingOptionIDs: Set(configurationRequest?.missingOptionIDs ?? [])
-                    )
-                }
-            } header: {
-                Text("Configuration")
-            } footer: {
-                HStack {
-                    Button("Reset to Default") {
-                        resetAppearance()
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                    .disabled(manifestMissing)
-                    Spacer()
-                }
-                .padding(.top, 4)
-            }
-
-            if logicEditable {
-                Section {
-                    SettingsRow(title: "Type") {
-                        Picker("Type", selection: $editKind) {
-                            Text("Open URL").tag(EditKind.openURL)
-                            Text("Text Snippet").tag(EditKind.textSnippet)
-                            Text("Shell Script").tag(EditKind.shellScript)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                    }
-
-                    Group {
-                        switch editKind {
-                        case .openURL:
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("URL Template").font(.caption).foregroundStyle(.secondary)
-                                TextField("https://example.com/search?q={text}", text: $customURLTemplate)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                        case .textSnippet:
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Snippet Template").font(.caption).foregroundStyle(.secondary)
-                                TextEditor(text: $customSnippetTemplate)
-                                    .font(.system(.body, design: .monospaced))
-                                    .frame(height: 90)
-                                    .scrollContentBackground(.hidden)
-                                    .padding(6)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                            .fill(Color.primary.opacity(0.04))
-                                            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color.primary.opacity(0.12)))
-                                    )
-                            }
-                        case .shellScript:
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Shell Script (Zsh)").font(.caption).foregroundStyle(.secondary)
-                                TextEditor(text: $customShellScript)
-                                    .font(.system(.body, design: .monospaced))
-                                    .frame(height: 110)
-                                    .scrollContentBackground(.hidden)
-                                    .padding(6)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                            .fill(Color.primary.opacity(0.04))
-                                            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color.primary.opacity(0.12)))
-                                    )
-
-                                Toggle("Replace selected text with output", isOn: $replaceSelection)
-                                    .font(.subheadline)
+                    SettingsCard("Options") {
+                        VStack(spacing: 0) {
+                            ForEach(Array(action.actionOptions.enumerated()), id: \.element.id) { index, option in
+                                if index > 0 {
+                                    SettingsDivider(insetLeading: SettingsDesignTokens.sectionCardPaddingH)
+                                }
+                                DynamicOptionRowView(
+                                    actionID: action.id,
+                                    option: option,
+                                    optionStore: SecretActionOptionStore(),
+                                    missingOptionIDs: Set(configurationRequest?.missingOptionIDs ?? [])
+                                )
+                                .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
+                                .padding(.vertical, SettingsDesignTokens.sectionCardPaddingV)
                             }
                         }
                     }
-                    .padding(.vertical, 4)
-                } header: {
-                    Text("Execution Logic")
                 }
-            } else if manifestMissing {
-                Section {
+
+                if logicEditable {
+                    SettingsCard("Execution Logic") {
+                        VStack(spacing: 12) {
+                            SettingsRow(title: "Type") {
+                                Picker("Type", selection: $editKind) {
+                                    Text("Open URL").tag(EditKind.openURL)
+                                    Text("Text Snippet").tag(EditKind.textSnippet)
+                                    Text("Shell Script").tag(EditKind.shellScript)
+                                }
+                                .pickerStyle(.segmented)
+                                .labelsHidden()
+                            }
+
+                            SettingsDivider(insetLeading: SettingsDesignTokens.sectionCardPaddingH)
+
+                            Group {
+                                switch editKind {
+                                case .openURL:
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("URL Template").font(.caption).foregroundStyle(.secondary)
+                                        TextField("https://example.com/search?q={text}", text: $customURLTemplate)
+                                            .textFieldStyle(.plain)
+                                            .padding(8)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                    .fill(Color(white: 1.0, opacity: 0.08))
+                                            )
+                                    }
+                                case .textSnippet:
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("Snippet Template").font(.caption).foregroundStyle(.secondary)
+                                        TextEditor(text: $customSnippetTemplate)
+                                            .font(.system(.body, design: .monospaced))
+                                            .frame(height: 90)
+                                            .scrollContentBackground(.hidden)
+                                            .padding(6)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                    .fill(Color(white: 1.0, opacity: 0.08))
+                                            )
+                                    }
+                                case .shellScript:
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Shell Script (Zsh)").font(.caption).foregroundStyle(.secondary)
+                                        TextEditor(text: $customShellScript)
+                                            .font(.system(.body, design: .monospaced))
+                                            .frame(height: 110)
+                                            .scrollContentBackground(.hidden)
+                                            .padding(6)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                    .fill(Color(white: 1.0, opacity: 0.08))
+                                            )
+
+                                        Toggle("Replace selected text with output", isOn: $replaceSelection)
+                                            .font(.subheadline)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
+                            .padding(.bottom, SettingsDesignTokens.sectionCardPaddingV)
+                        }
+                    }
+                } else if manifestMissing {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "exclamationmark.triangle")
                             .foregroundStyle(.secondary)
@@ -536,23 +805,49 @@ public struct ActionEditorPage: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.primary.opacity(0.04))
+                    )
                 }
-            }
-            if isCustomAction {
-                Section {
-                    Button(role: .destructive) {
-                        confirmDelete()
-                    } label: {
-                        HStack {
-                            Spacer()
-                            Text("Delete Action…")
-                            Spacer()
+
+                if !isCustomAction {
+                    HStack {
+                        Button(String(localized: "Reset to Default")) {
+                            resetAppearance()
                         }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                        .disabled(manifestMissing)
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 4)
+                }
+
+                if isCustomAction {
+                    SettingsCard {
+                        Button(role: .destructive) {
+                            confirmDelete()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Delete Action…")
+                                    .foregroundStyle(.red)
+                                Spacer()
+                            }
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
         }
-        .formStyle(.grouped)
+        .scrollIndicators(.hidden)
         // Centre the form at the shared measure while its scroll view runs the full width of the
         // detail column, so the scroll indicator stays at the window edge.
         .settingsPaneWidth()
@@ -618,14 +913,78 @@ public struct ActionEditorPage: View {
             guard !Task.isCancelled, !isDeleting else { return }
             autoSave()
         }
-        // The toolbar's ellipsis menu belongs to whichever page is on screen; levels underneath
-        // stay mounted, so each one answers only for itself.
         .onReceive(router.pageCommands) { command in
             guard isCurrent else { return }
             switch command {
             case SettingsToolbarCommand.actionDuplicate: duplicate()
             case SettingsToolbarCommand.actionDelete: confirmDelete()
             default: break
+            }
+        }
+        .alert(String(localized: "Uninstall \(customTitle.isEmpty ? action.title : customTitle)?"), isPresented: $showUninstallConfirmation) {
+            Button(String(localized: "Uninstall"), role: .destructive) {
+                if let packageID = extensionPackageID {
+                    uninstallPackage(packageID)
+                }
+            }
+            Button(String(localized: "Cancel"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "This will remove the extension and all of its commands from OpenClip."))
+        }
+    }
+
+    // MARK: - Extension Updates & Uninstall
+
+    private func runCheckForUpdates(packageID: String) {
+        updateCheckState = .checking
+        Task {
+            await updateManager.checkForUpdates()
+            if updateManager.updatablePackageIDs.contains(packageID) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    updateCheckState = .idle
+                }
+            } else {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    updateCheckState = .upToDate
+                }
+                try? await Task.sleep(for: .seconds(4))
+                if updateCheckState == .upToDate {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        updateCheckState = .idle
+                    }
+                }
+            }
+        }
+    }
+
+    private func updateExtension(_ packageID: String) {
+        isUpdating = true
+        Task {
+            defer { isUpdating = false }
+            do {
+                try await updateManager.update(packageID: packageID)
+                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+            } catch {
+                router.notifyError(
+                    title: String(localized: "Update Failed"),
+                    message: error.localizedDescription
+                )
+            }
+        }
+    }
+
+    private func uninstallPackage(_ packageID: String) {
+        let actionID = InstalledExtensionInfo.info(for: packageID, in: coordinator.actions)?.uninstallActionID ?? packageID
+        Task {
+            do {
+                try await ExtensionManager.shared.uninstallExtension(actionID: actionID)
+                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                router.pop()
+            } catch {
+                router.notifyError(
+                    title: String(localized: "Uninstall Failed"),
+                    message: error.localizedDescription
+                )
             }
         }
     }

@@ -322,16 +322,25 @@ public final class AIServiceManager: ObservableObject {
            let legacyModel = defaults.string(forKey: "aiOllamaModel"), !legacyModel.isEmpty {
             localModel = legacyModel
         }
+
+        if !AppleIntelligenceAvailability.isSupported && activeProviderRaw == "apple" {
+            activeProviderRaw = AIProviderType.local.rawValue
+        }
     }
 
     public var activeProviderType: AIProviderType {
         get {
             switch activeProviderRaw {
-            case "apple": return .apple
-            case "local", "ollama": return .local
-            case "cli": return .cli
-            case "cloud": return .cloud
-            default: return .apple
+            case "apple":
+                return AppleIntelligenceAvailability.isSupported ? .apple : .local
+            case "local", "ollama":
+                return .local
+            case "cli":
+                return .cli
+            case "cloud":
+                return .cloud
+            default:
+                return AppleIntelligenceAvailability.isSupported ? .apple : .local
             }
         }
         set { activeProviderRaw = newValue.rawValue }

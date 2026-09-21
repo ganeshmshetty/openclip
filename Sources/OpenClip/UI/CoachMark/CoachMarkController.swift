@@ -109,7 +109,7 @@ final class CoachMarkController {
 
 /// Borderless, non-activating status-level panel. Never becomes key — the two buttons track
 /// clicks without activating OpenClip, matching the popup/toast surface behavior.
-private final class CoachPanel: NSPanel {
+final class CoachPanel: NSPanel {
     init() {
         super.init(contentRect: .zero,
                    styleMask: [.borderless, .nonactivatingPanel],
@@ -118,7 +118,7 @@ private final class CoachPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         level = .statusBar
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         isReleasedWhenClosed = false
     }
 }

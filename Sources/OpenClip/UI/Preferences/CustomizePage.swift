@@ -156,11 +156,11 @@ struct ActionRowView: View {
 
         HStack(alignment: .center, spacing: 10) {
             ActionIconView(icon: presentationModel.icon, size: 16)
-                .frame(width: 22, height: 22, alignment: .center)
+                .frame(width: 20, height: 20, alignment: .center)
                 .foregroundStyle(.secondary)
 
             Text(presentationModel.title)
-                .font(.system(size: 13.5, weight: .medium))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(isEnabled.wrappedValue ? .primary : .secondary)
                 .lineLimit(1)
 
@@ -212,12 +212,12 @@ struct PackageHeaderRowView: View {
 
         HStack(alignment: .center, spacing: 10) {
             Image(systemName: "shippingbox")
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .foregroundStyle(.secondary)
-                .frame(width: 22, height: 22, alignment: .center)
+                .frame(width: 20, height: 20, alignment: .center)
 
             Text(title)
-                .font(.system(size: 13.5, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
 
             if let gatedReason, let tooltip = extensionGateDescription(for: gatedReason) {

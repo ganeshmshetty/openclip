@@ -2297,6 +2297,34 @@
         }
       }
     },
+    "Automate tasks by running custom bash or zsh scripts": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通过运行自定义 Bash 或 Zsh 脚本自动执行任务"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "透過執行自訂 Bash 或 Zsh 指令碼自動執行任務"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisez des tâches en exécutant des scripts bash ou zsh personnalisés"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタム bash または zsh スクリプトを実行してタスクを自動化します"
+          }
+        }
+      }
+    },
     "Automatically Check for Updates": {
       "localizations": {
         "zh-Hans": {
@@ -4341,6 +4369,34 @@
         }
       }
     },
+    "Create your own quick actions using URL templates, snippet placeholders, or shell scripts.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 URL 模板、片段占位符或 Shell 脚本创建你自己的快捷操作。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 URL 範本、片段預留位置或 Shell 指令碼建立你自己的快速操作。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Créez vos propres actions rapides à l'aide de modèles d'URL, d'extraits de texte ou de scripts shell."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL テンプレート、スニペットのプレースホルダー、またはシェルスクリプトを使用して、独自のアクションを作成します。"
+          }
+        }
+      }
+    },
     "Current App": {
       "localizations": {
         "zh-Hans": {
@@ -4533,6 +4589,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "カスタムWeb URL"
+          }
+        }
+      }
+    },
+    "Custom actions appear in your popup bar and search palette. Assign global hotkeys or search aliases to trigger them anytime.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义操作会显示在弹出栏和搜索面板中。分配全局快捷键或搜索别名即可随时触发它们。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自訂操作會顯示在彈出列和搜尋面板中。指定全域快速鍵或搜尋別名即可隨時觸發它們。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les actions personnalisées apparaissent dans votre barre contextuelle et votre palette de recherche. Attribuez des raccourcis globaux ou des alias de recherche pour les déclencher à tout moment."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムアクションはポップアップバーと検索パレットに表示されます。グローバルショートカットや検索エイリアスを割り当てて、いつでも呼び出すことができます。"
           }
         }
       }
@@ -6297,6 +6381,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@を展開"
+          }
+        }
+      }
+    },
+    "Expand reusable text templates with dynamic placeholders": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用动态占位符展开可重用的文本模板"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用動態預留位置展開可重複使用的文字範本"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Développez des modèles de texte réutilisables avec des espaces réservés dynamiques"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動的プレースホルダーを使用して再利用可能なテキストテンプレートを展開します"
           }
         }
       }
@@ -10249,6 +10361,34 @@
         }
       }
     },
+    "Open an action to customize its name, icon, shortcut, or behavior. Configure its appearance in the Actions tab.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开操作以自定义其名称、图标、快捷键或行为。可在“操作”标签页中配置其外观。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打開操作以自訂其名稱、圖示、快速鍵或行為。可在「操作」標籤頁中設定其外觀。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrez une action pour personnaliser son nom, son icône, son raccourci ou son comportement. Configurez son apparence dans l'onglet Actions."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションを開いて、名前、アイコン、ショートカット、または動作をカスタマイズします。「アクション」タブで外観を設定できます。"
+          }
+        }
+      }
+    },
     "Open in Dictionary app": {
       "localizations": {
         "zh-Hans": {
@@ -10805,6 +10945,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@を開いています…"
+          }
+        }
+      }
+    },
+    "Output": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输出"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輸出"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sortie"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力"
           }
         }
       }
@@ -13777,6 +13945,34 @@
         }
       }
     },
+    "Search the web or open query URLs with selected text": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用选中文本搜索网页或打开查询 URL"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用選取文字搜尋網頁或打開查詢 URL"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherchez sur le Web ou ouvrez des URL avec le texte sélectionné"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web を検索するか、選択テキストを使用してクエリ URL を開きます"
+          }
+        }
+      }
+    },
     "Search the web with your chosen engine.": {
       "localizations": {
         "zh-Hans": {
@@ -15789,6 +15985,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "ポップアップ表示ショートカット"
+          }
+        }
+      }
+    },
+    "Triggers": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "触发方式"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觸發方式"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déclencheurs"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリガー"
+          }
+        }
+      }
+    },
+    "Triggers & Output": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "触发方式与输出"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觸發方式與輸出"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déclencheurs et sortie"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリガーと出力"
           }
         }
       }

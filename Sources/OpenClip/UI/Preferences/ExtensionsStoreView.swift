@@ -405,7 +405,7 @@ public struct ExtensionStoreView: View {
                     Image(systemName: "sparkles")
                         .font(.system(size: 36))
                         .foregroundColor(.secondary)
-                    Text("No extensions found")
+                    Text(isSearching ? String(localized: "No extensions found") : String(localized: "No clips found"))
                         .font(.headline)
                         .foregroundColor(.secondary)
                     Spacer()

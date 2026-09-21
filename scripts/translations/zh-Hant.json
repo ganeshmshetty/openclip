@@ -231,7 +231,6 @@
   "Apple Intelligence": "Apple Intelligence",
   "Local (LM Studio/Ollama)": "本機模型（LM Studio/Ollama）",
   "CLI": "命令列（CLI）",
-  "Cloud API": "雲端 API",
   "Ollama (Local LLM)": "Ollama（本機 LLM）",
   "Cloud API (OpenAI/Claude)": "雲端 API（OpenAI/Claude）",
   "Browser Redirection": "瀏覽器重新導向",
@@ -628,5 +627,14 @@
   "Stable": "穩定版",
   "Beta": "測試版",
   "Beta builds include features that are still being tested.": "測試版包含仍在測試中的功能。",
-  "Support": "支援"
+  "Support": "支援",
+  "Create your own quick actions using URL templates, snippet placeholders, or shell scripts.": "使用 URL 範本、片段預留位置或 Shell 指令碼建立你自己的快速操作。",
+  "Search the web or open query URLs with selected text": "使用選取文字搜尋網頁或打開查詢 URL",
+  "Expand reusable text templates with dynamic placeholders": "使用動態預留位置展開可重複使用的文字範本",
+  "Automate tasks by running custom bash or zsh scripts": "透過執行自訂 Bash 或 Zsh 指令碼自動執行任務",
+  "Custom actions appear in your popup bar and search palette. Assign global hotkeys or search aliases to trigger them anytime.": "自訂操作會顯示在彈出列和搜尋面板中。指定全域快速鍵或搜尋別名即可隨時觸發它們。",
+  "Open an action to customize its name, icon, shortcut, or behavior. Configure its appearance in the Actions tab.": "打開操作以自訂其名稱、圖示、快速鍵或行為。可在「操作」標籤頁中設定其外觀。",
+  "Triggers & Output": "觸發方式與輸出",
+  "Triggers": "觸發方式",
+  "Output": "輸出"
 }

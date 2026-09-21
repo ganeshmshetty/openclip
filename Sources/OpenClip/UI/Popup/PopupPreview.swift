@@ -141,7 +141,7 @@ struct PopupPreview: View {
 
     private var documentCard: some View {
         HStack(spacing: 0) {
-            Text("OpenClip turns ")
+            Text("Transform ")
                 .foregroundStyle(.primary.opacity(0.75))
 
             HStack(spacing: 1.5) {
@@ -163,7 +163,7 @@ struct PopupPreview: View {
                     .fill(Color.accentColor)
             )
 
-            Text(" into actions.")
+            Text(" instantly.")
                 .foregroundStyle(.primary.opacity(0.75))
         }
         .font(.system(size: 13, weight: .regular))

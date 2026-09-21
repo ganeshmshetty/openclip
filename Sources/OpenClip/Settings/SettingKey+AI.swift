@@ -8,7 +8,10 @@ import Core
 
 extension SettingKey where Value == String {
     static var aiActiveProvider: SettingKey<String> {
-        SettingKey<String>("aiActiveProvider", defaultValue: AIProviderType.apple.rawValue)
+        SettingKey<String>(
+            "aiActiveProvider",
+            defaultValue: AppleIntelligenceAvailability.isSupported ? AIProviderType.apple.rawValue : AIProviderType.local.rawValue
+        )
     }
 
     static var aiCloudService: SettingKey<String> {

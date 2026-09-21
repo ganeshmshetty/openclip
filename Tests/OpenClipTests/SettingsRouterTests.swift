@@ -200,7 +200,7 @@ final class SettingsRouterTests: XCTestCase {
         let rows = [
             SettingsSidebarRow(page: .extensionPackage(id: "com.a.appwrite"), title: "Appwrite", tile: .symbol("puzzlepiece.extension.fill", tint: .gray)),
             SettingsSidebarRow(page: .builtinAction(id: "builtin.paste"), title: "Paste", tile: .symbol("bolt.fill", tint: .gray)),
-            SettingsSidebarRow(page: .customActions, title: "Custom Actions", tile: .symbol("wand.and.stars", tint: .mint)),
+            SettingsSidebarRow(page: .customActions, title: "Custom Actions", tile: .symbol("plus", tint: .mint)),
             SettingsSidebarRow(page: .extensionPackage(id: "com.z.jwt"), title: "JWT", tile: .symbol("puzzlepiece.extension.fill", tint: .gray)),
             SettingsSidebarRow(page: .builtinAction(id: "builtin.copy"), title: "Copy", tile: .symbol("bolt.fill", tint: .gray)),
             SettingsSidebarRow(systemPage: .ai),
@@ -218,7 +218,7 @@ final class SettingsRouterTests: XCTestCase {
         let rows = SettingsSidebarOrder.sorted([
             SettingsSidebarRow(page: .extensionPackage(id: "com.a.appwrite"), title: "Appwrite", tile: .symbol("puzzlepiece.extension.fill", tint: .gray)),
             SettingsSidebarRow(page: .builtinAction(id: "builtin.copy"), title: "Copy", tile: .symbol("bolt.fill", tint: .gray)),
-            SettingsSidebarRow(page: .customActions, title: "Custom Actions", tile: .symbol("wand.and.stars", tint: .mint)),
+            SettingsSidebarRow(page: .customActions, title: "Custom Actions", tile: .symbol("plus", tint: .mint)),
             SettingsSidebarRow(page: .extensionPackage(id: "com.z.jwt"), title: "JWT", tile: .symbol("puzzlepiece.extension.fill", tint: .gray)),
             SettingsSidebarRow(systemPage: .ai),
         ])
@@ -233,7 +233,7 @@ final class SettingsRouterTests: XCTestCase {
     func testSplittingASidebarWithNothingInstalledLeavesTheSecondSectionEmpty() {
         let rows = [
             SettingsSidebarRow(systemPage: .ai),
-            SettingsSidebarRow(page: .customActions, title: "Custom Actions", tile: .symbol("wand.and.stars", tint: .mint)),
+            SettingsSidebarRow(page: .customActions, title: "Custom Actions", tile: .symbol("plus", tint: .mint)),
         ]
 
         let (bundled, installed) = SettingsSidebarOrder.split(rows)
@@ -446,6 +446,10 @@ final class SettingsRouterTests: XCTestCase {
 
         let deleteOnly = SettingsToolbarAccessories.actionMenuItems(.init(canDuplicate: false, canDelete: true))
         XCTAssertEqual(deleteOnly.map(\.id), [SettingsToolbarCommand.actionDelete])
+
+        let extAction = SettingsToolbarAccessories.actionMenuItems(.init(canDuplicate: false, canDelete: false, canUninstall: true))
+        XCTAssertEqual(extAction.map(\.id), [SettingsToolbarCommand.extensionUninstall])
+        XCTAssertEqual(extAction.last?.role, .destructive)
     }
 
     func testADestructiveConfirmationWaitsForTheRedButton() throws {

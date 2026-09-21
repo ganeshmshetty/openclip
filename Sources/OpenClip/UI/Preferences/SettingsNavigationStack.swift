@@ -20,6 +20,8 @@ struct SettingsNavigationStack<Content: View>: View {
             ForEach(Array(path.enumerated()), id: \.element.id) { index, page in
                 let isTop = index == path.count - 1
                 content(page)
+                    .scrollContentBackground(.hidden)
+                    .transparentScrollBackground()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .offset(x: isTop ? 0 : -40)
                     .opacity(isTop ? 1 : 0)
@@ -71,6 +73,7 @@ private struct SettingsPaneWidth: ViewModifier {
     func body(content: Content) -> some View {
         GeometryReader { proxy in
             content
+                .scrollContentBackground(.hidden)
                 .contentMargins(
                     .horizontal,
                     max(0, (proxy.size.width - maxWidth) / 2),
@@ -91,22 +94,18 @@ struct SettingsEditorPage<Content: View, Footer: View>: View {
     @ViewBuilder let footer: () -> Footer
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
+        ScrollView {
+            VStack(spacing: 20) {
                 content()
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 18)
-                    .frame(maxWidth: contentMaxWidth)
-                    .frame(maxWidth: .infinity)
+
+                footer()
             }
-
-            Divider()
-
-            footer()
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(.bar)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
+            .frame(maxWidth: contentMaxWidth)
+            .frame(maxWidth: .infinity)
         }
+        .scrollContentBackground(.hidden)
     }
 }
 

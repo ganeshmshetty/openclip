@@ -38,15 +38,6 @@ struct ToastView: View {
         PopupThemeModel.effectiveScheme(appearance: themeColor, systemIsDark: colorScheme == .dark)
     }
 
-
-    private var opaqueBackground: Color {
-        effectiveTheme == "dark" ? Color(red: 0.20, green: 0.20, blue: 0.22) : Color(red: 0.91, green: 0.91, blue: 0.93)
-    }
-
-    private var opaqueBorder: Color {
-        effectiveTheme == "light" ? Color.black.opacity(0.18) : Color.white.opacity(0.18)
-    }
-
     private var textColor: Color {
         switch feedback.style {
         case .error:
@@ -119,14 +110,53 @@ struct ToastView: View {
                     )
                     .shadow(color: Color.black.opacity(effectiveColorScheme == .dark ? 0.25 : 0.15), radius: 4, x: 0, y: 1)
             } else {
+                let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 content
-                    .background((isInteractive && isHovered) ? Color.accentColor : opaqueBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke((isInteractive && isHovered) ? Color.accentColor : opaqueBorder, lineWidth: 1.0)
+                    .background(
+                        Group {
+                            if isInteractive && isHovered {
+                                shape.fill(Color.accentColor)
+                            } else {
+                                PopupThemeModel.classicSurfaceBackground(for: effectiveColorScheme, in: shape)
+                            }
+                        }
                     )
-                    .shadow(color: Color.black.opacity(effectiveTheme == "light" ? 0.10 : 0.20), radius: 4, x: 0, y: 1)
+                    .clipShape(shape)
+                    .overlay(
+                        shape.stroke(
+                            (isInteractive && isHovered)
+                                ? AnyShapeStyle(Color.accentColor)
+                                : AnyShapeStyle(
+                                    LinearGradient(
+                                        colors: effectiveColorScheme == .dark
+                                            ? [Color.white.opacity(0.20), Color.white.opacity(0.08)]
+                                            : [Color.black.opacity(0.18), Color.black.opacity(0.08)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                ),
+                            lineWidth: 1.0
+                        )
+                    )
+                    .overlay(
+                        Group {
+                            if !(isInteractive && isHovered) {
+                                shape.inset(by: 0.5).stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(effectiveColorScheme == .dark ? 0.32 : 0.65),
+                                            Color.white.opacity(0.0)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    ),
+                                    lineWidth: 1.0
+                                )
+                                .allowsHitTesting(false)
+                            }
+                        }
+                    )
+                    .shadow(color: Color.black.opacity(effectiveColorScheme == .dark ? 0.28 : 0.12), radius: 4, x: 0, y: 1.5)
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))

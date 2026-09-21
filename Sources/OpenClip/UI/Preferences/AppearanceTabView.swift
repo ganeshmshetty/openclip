@@ -2,25 +2,25 @@
 // OpenClip
 //
 // The Appearance preferences tab: popup preview + theme selector.
-// Split out of PreferencesView.swift.
+// Styled to match the modern settings cards.
+
 import SwiftUI
 import Core
 
 @MainActor
 struct AppearanceTab: View {
     var body: some View {
-        VStack(spacing: 0) {
-            // The preview is a fixed-size stage, so it sits above the form
-            // rather than inside it — a grouped row would stretch it.
-            PopupPreview()
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
+        ScrollView {
+            VStack(spacing: 20) {
+                // The preview is a fixed-size stage, so it sits above the cards
+                PopupPreview()
 
-            PopupThemeSelector()
+                PopupThemeSelector()
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
         }
-        // Fill the detail pane rather than settling at the content's own height:
-        // a pane that only claims what it needs leaves the window sizing itself
-        // differently per tab.
+        .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }

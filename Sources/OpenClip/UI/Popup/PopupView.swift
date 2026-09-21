@@ -445,23 +445,12 @@ public struct PopupView: View {
 
     @ViewBuilder
     private var mainBarStyled: some View {
-        let styledBar = Group {
-            if effectiveTheme == "glass" {
-                barStack
-                    .layeredGlassSurface(cornerRadius: cornerRadius, colorScheme: effectiveColorScheme)
-            } else {
-                barStack
-                    .background(opaqueBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(opaqueBorder, lineWidth: 1.0)
-                    )
-                    .shadow(color: Color.black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 6, x: 0, y: 3)
-            }
-        }
-
-        styledBar
+        barStack
+            .popupCardChrome(
+                cornerRadius: cornerRadius,
+                effectiveTheme: effectiveTheme,
+                colorScheme: effectiveColorScheme
+            )
             .environment(\.colorScheme, effectiveColorScheme)
             .overlay(processingGlowBorder)
     }
@@ -983,7 +972,7 @@ public struct PopupView: View {
                 }
             }
         }
-        .animation(.spring(response: PopupMetrics.inlineSpringResponse, dampingFraction: PopupMetrics.inlineSpringDamping), value: modeStore.inlineResults[action.id])
+        .animation(PopupMetrics.inlineSpring, value: modeStore.inlineResults[action.id])
     }
 
     @ViewBuilder
@@ -1007,24 +996,6 @@ public struct PopupView: View {
         .onHover { isHovering in
             useLocalHoverFallback(for: target, isHovering: isHovering)
         }
-    }
-
-    // MARK: - Opaque Background Helpers
-
-    @ViewBuilder
-    private var opaqueBackground: some View {
-        switch effectiveTheme {
-        case "dark":
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color(red: 0.20, green: 0.20, blue: 0.22))
-        default:
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color(red: 0.91, green: 0.91, blue: 0.93))
-        }
-    }
-
-    private var opaqueBorder: Color {
-        effectiveTheme == "light" ? Color.black.opacity(0.20) : Color.white.opacity(0.22)
     }
 
     private func updateHoveredTarget(for location: CGPoint?) {

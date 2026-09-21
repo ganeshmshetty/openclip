@@ -113,6 +113,7 @@ public final class SubBarPanelController {
 
         let hosting = SubBarPanel.ContentView(rootView: AnyView(contentView))
         self.hostingView = hosting
+        panel.appearance = NSAppearance(named: effectiveColorScheme == .dark ? .darkAqua : .aqua)
         panel.contentView = hosting
         hosting.layoutSubtreeIfNeeded()
 
@@ -398,24 +399,12 @@ private struct SubBarContentView: View {
             scale: scale
         )
 
-        let styledSubBar = Group {
-            if effectiveTheme == "glass" {
-                subBar
-                    .layeredGlassSurface(cornerRadius: cornerRadius, colorScheme: effectiveColorScheme)
-            } else {
-                subBar
-                    .background(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(effectiveTheme == "dark" ? Color(red: 0.20, green: 0.20, blue: 0.22) : Color(red: 0.91, green: 0.91, blue: 0.93))
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(effectiveTheme == "light" ? Color.black.opacity(0.20) : Color.white.opacity(0.22), lineWidth: 1.0)
-                    )
-                    .shadow(color: Color.black.opacity(effectiveTheme == "light" ? 0.16 : 0.32), radius: 6, x: 0, y: 3)
-            }
-        }
+        let styledSubBar = subBar
+            .popupCardChrome(
+                cornerRadius: cornerRadius,
+                effectiveTheme: effectiveTheme,
+                colorScheme: effectiveColorScheme
+            )
 
         styledSubBar
             .environment(\.colorScheme, effectiveColorScheme)

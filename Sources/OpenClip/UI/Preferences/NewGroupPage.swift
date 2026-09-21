@@ -14,6 +14,7 @@ public struct NewGroupPage: View {
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     @State private var title: String = ""
     @State private var iconName: String = "folder"
+    @State private var isIconPickerPresented = false
 
     public init(memberActionIDs: [String]) {
         self.memberActionIDs = memberActionIDs
@@ -29,7 +30,7 @@ public struct NewGroupPage: View {
                 InsetGroupCard {
                     HStack(alignment: .center, spacing: 14) {
                         Button {
-                            router.pushIconPicker(writingTo: $iconName)
+                            isIconPickerPresented = true
                         } label: {
                             ZStack(alignment: .bottomTrailing) {
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -53,6 +54,11 @@ public struct NewGroupPage: View {
                         .buttonStyle(.plain)
                         .help(String(localized: "Choose icon"))
                         .accessibilityLabel(String(localized: "Choose icon"))
+                        .popover(isPresented: $isIconPickerPresented, arrowEdge: .bottom) {
+                            IconPickerPopover(selectedSymbol: $iconName) {
+                                isIconPickerPresented = false
+                            }
+                        }
 
                         VStack(alignment: .leading, spacing: 6) {
                             TextField("Group Name", text: $title)

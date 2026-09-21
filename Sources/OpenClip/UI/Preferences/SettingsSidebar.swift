@@ -1,10 +1,14 @@
 // SettingsSidebar.swift
 // OpenClip
 //
-// The window's table of contents, laid out the way System Settings lays out its own: a search
-// field at the top, then three groups of rows with coloured glyph tiles — OpenClip's own pages,
-// then what it ships that provides actions, then what the user installed, one row each.
-// Selecting a row is the only thing the sidebar does; the router decides what that shows.
+// The window's table of contents:
+// - Sits directly on the window background (no card, border or shadow).
+// - Top-left traffic lights space, then a translucent capsule search field.
+// - Fixed width (~216pt), ~30pt pitch rows.
+// - Every row has a ~20pt rounded-square icon tile with a white glyph on a colored fill.
+// - Selection: subtle translucent rounded highlight (~11% opacity, ~10pt radius), NOT accent color.
+// - Dim, unobtrusive "Actions" group label with extra vertical spacing.
+// - Hidden scroll indicators, no separator lines.
 
 import SwiftUI
 import AppKit
@@ -42,7 +46,7 @@ struct SettingsSidebarRow: Identifiable {
             page: page,
             title: page.staticTitle ?? page.id,
             keywords: page.searchKeywords,
-            tile: .symbol(page.systemImage, tint: page.tint),
+            tile: .symbol(page.systemImage, tint: SettingsDesignTokens.iconTileColor(for: page)),
             isDisabled: isDisabled
         )
     }
@@ -81,8 +85,7 @@ enum SettingsSidebarOrder {
     }
 
     /// Whether a row is a package the user installed, which is where the second gap goes: what
-    /// OpenClip ships reads as one block, what was installed as another. It is the same line the
-    /// tint colours draw — blue above it, a generated colour below.
+    /// OpenClip ships reads as one block, what was installed as another.
     static func isInstalledExtension(_ page: SettingsPage) -> Bool {
         if case .extensionPackage = page { return true }
         return false
@@ -112,40 +115,33 @@ enum SettingsSidebarFilter {
     }
 }
 
-/// What colour a sidebar tile is.
-///
-/// The app's own settings are drawn the way System Settings draws its rows: a vivid, recognisable
-/// colour each — grey for General, black for Appearance, purple for Customize, orange for App
-/// Rules, blue for Store. Everything below that group is an action or an extension, and those rows
-/// carry no tile at all: they are plain glyphs, the way Finder, Mail and Xcode list their items.
+/// Stable palette and hash-based tints for extensions.
 enum SettingsTint {
-    /// The settings sections themselves: vivid and distinct, mirroring the reference sidebar.
     static let general = Color(nsColor: .systemGray)
-    static let appearance = Color(white: 0.15)
-    static let customize = Color.purple
-    static let shortcuts = Color.purple
-    static let appRules = Color.orange
-    static let store = Color.blue
-    static let about = Color(nsColor: .systemGray)
+    static let appearance = Color(red: 0.95, green: 0.35, blue: 0.60)
+    static let customize = Color(red: 0.65, green: 0.35, blue: 0.95)
+    static let shortcuts = Color(red: 0.68, green: 0.35, blue: 0.98)
+    static let appRules = Color(red: 0.98, green: 0.52, blue: 0.12)
+    static let store = Color(red: 0.05, green: 0.52, blue: 0.98)
+    static let about = Color(red: 0.20, green: 0.78, blue: 0.42)
+    static let neutral = Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+        if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+            return NSColor(red: 0.22, green: 0.22, blue: 0.25, alpha: 1.0)
+        } else {
+            return NSColor(red: 0.55, green: 0.55, blue: 0.58, alpha: 1.0)
+        }
+    }))
 
-    /// Everything OpenClip ships, tracking the system accent color so it matches macOS settings.
     static var openClip: Color {
         Color.accentColor
     }
 
-    /// Hues that read as blue, from cyan through indigo. Reserved.
     static let reservedBlueHues: Range<Int> = 190..<270
 
-    /// A stable colour for an extension's tile, so the same package always gets the same tint —
-    /// and never a blue one. Saturated and bright, so an installed package's hero tile reads as
-    /// vivid as the system tiles next to it instead of turning muddy.
     static func extensionTint(for packageID: String) -> Color {
         Color(hue: Double(hue(for: packageID)) / 360.0, saturation: 0.74, brightness: 0.88)
     }
 
-    /// The hue an identifier maps to, in degrees, with the reserved band skipped rather than
-    /// clamped — clamping would pile every id that hashed into the band onto its two edges.
-    /// Pure, so "never blue" is pinned by tests.
     static func hue(for packageID: String) -> Int {
         var hash = 0
         for byte in packageID.utf8 {
@@ -162,32 +158,30 @@ enum SettingsTint {
 
 // MARK: - Tiles
 
-/// The coloured rounded square with a white glyph that System Settings puts in front of every
-/// sidebar row.
+/// The ~20pt coloured rounded square with a white glyph on front of every sidebar row.
 struct SettingsIconTile: View {
     let systemImage: String
     let tint: Color
-    var size: CGFloat = 20
+    var size: CGFloat = SettingsDesignTokens.iconTileSize
 
     var body: some View {
         SettingsTileBackground(tint: tint, size: size)
             .overlay {
                 Image(systemName: systemImage)
-                    .font(.system(size: size * 0.58, weight: .semibold))
+                    .font(.system(size: size * 0.56, weight: .semibold))
                     .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.18), radius: 0.5, y: 0.5)
+                    .shadow(color: .black.opacity(0.2), radius: 0.5, y: 0.5)
             }
             .frame(width: size, height: size)
             .accessibilityHidden(true)
     }
 }
 
-/// The same tile for an extension, drawing whatever icon the package ships: a symbol, a template
-/// SVG, a favicon, or a text glyph.
+/// The same tile for an extension, drawing whatever icon the package ships.
 struct ExtensionIconTile: View {
     let icon: ActionIcon
     let tint: Color
-    var size: CGFloat = 20
+    var size: CGFloat = SettingsDesignTokens.iconTileSize
 
     var body: some View {
         SettingsTileBackground(tint: tint, size: size)
@@ -216,14 +210,14 @@ private struct SettingsTileBackground: View {
     let size: CGFloat
 
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: size * 0.27, style: .continuous)
+        RoundedRectangle(cornerRadius: SettingsDesignTokens.iconTileRadius(for: size), style: .continuous)
     }
 
     var body: some View {
         shape
             .fill(
                 LinearGradient(
-                    colors: [tint.opacity(0.92), tint],
+                    colors: [tint.opacity(0.96), tint],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -231,14 +225,11 @@ private struct SettingsTileBackground: View {
             .overlay {
                 shape.fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.28), Color.white.opacity(0.0)],
+                        colors: [Color.white.opacity(0.18), Color.white.opacity(0.0)],
                         startPoint: .top,
                         endPoint: .center
                     )
                 )
-            }
-            .overlay {
-                shape.strokeBorder(Color.white.opacity(0.22), lineWidth: 0.5)
             }
     }
 }
@@ -251,6 +242,7 @@ struct SettingsSidebar: View {
     @Binding var query: String
     let systemRows: [SettingsSidebarRow]
     let extensionRows: [SettingsSidebarRow]
+    @State private var hoveredRowID: String? = nil
 
     private var filteredSystemRows: [SettingsSidebarRow] {
         SettingsSidebarFilter.filter(systemRows, query: query)
@@ -266,200 +258,177 @@ struct SettingsSidebar: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            sidebarChrome
-                .onAppear { scrollSelectionIntoView(proxy, animated: false) }
-                .onChange(of: selection) { _, _ in scrollSelectionIntoView(proxy, animated: true) }
-                .onChange(of: query) { _, newValue in
-                    // Rows come back when the search is cleared, so reveal the selection again.
-                    if newValue.isEmpty { scrollSelectionIntoView(proxy, animated: true) }
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .openClipPreferencesWindowDidShow)) { _ in
-                    // A reused window never fires `onAppear` again, so this is what reveals the
-                    // selected row when Settings is reopened.
-                    scrollSelectionIntoView(proxy, animated: false)
-                }
-        }
-    }
+            VStack(spacing: 0) {
+                // Top area: space for traffic lights + capsule search field
+                VStack(spacing: 12) {
+                    Color.clear
+                        .frame(height: 38)
 
-    @ViewBuilder
-    private var sidebarChrome: some View {
-        if #available(macOS 26.0, *) {
-            // macOS 26 owns this: the field is a real bar, and the system's soft scroll edge
-            // effect blurs the rows as they pass beneath it. No hand-rolled material or mask —
-            // that backing is what made the strip read as a foreign band.
-            sidebarList(includeTopSpacer: false)
-                .safeAreaBar(edge: .top) { searchFieldBar }
-                .scrollEdgeEffectStyle(.soft, for: .top)
-        } else {
-            ZStack(alignment: .top) {
-                sidebarList(includeTopSpacer: true)
-                searchHeader
+                    searchField
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
+
+                // Scrollable rows with hidden indicators and no separator lines
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if !filteredSystemRows.isEmpty {
+                            ForEach(filteredSystemRows) { row in
+                                rowView(row)
+                                    .id(row.page.id)
+                            }
+                        }
+
+                        let (bundled, installed) = SettingsSidebarOrder.split(filteredExtensionRows)
+
+                        if !bundled.isEmpty {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "Actions"))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(SettingsDesignTokens.secondaryText.opacity(0.7))
+                                    .padding(.leading, 10)
+                                    .padding(.top, SettingsDesignTokens.sidebarGroupSpacing)
+                                    .padding(.bottom, 4)
+
+                                ForEach(bundled) { row in
+                                    rowView(row)
+                                        .id(row.page.id)
+                                }
+                            }
+                        }
+
+                        if !installed.isEmpty {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "Installed"))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(SettingsDesignTokens.secondaryText.opacity(0.7))
+                                    .padding(.leading, 10)
+                                    .padding(.top, SettingsDesignTokens.sidebarGroupSpacing)
+                                    .padding(.bottom, 4)
+
+                                ForEach(installed) { row in
+                                    rowView(row)
+                                        .id(row.page.id)
+                                }
+                            }
+                        }
+
+                        if !hasResults {
+                            Text(String(localized: "No Results"))
+                                .font(.callout)
+                                .foregroundStyle(SettingsDesignTokens.secondaryText)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 24)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                }
+                .scrollIndicators(.hidden)
+                .scrollContentBackground(.hidden)
             }
-            .ignoresSafeArea(.container, edges: .top)
+            .frame(width: SettingsDesignTokens.sidebarWidth)
+            .background(Color.clear)
+            .onAppear { scrollSelectionIntoView(proxy, animated: false) }
+            .onChange(of: query) { _, newValue in
+                if newValue.isEmpty { scrollSelectionIntoView(proxy, animated: true) }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openClipPreferencesWindowDidShow)) { _ in
+                scrollSelectionIntoView(proxy, animated: false)
+            }
         }
     }
 
-    /// Brings `selection` on screen. `scrollTo` with no anchor scrolls the minimum needed, so
-    /// clicking a row that is already visible does not recenter the list under the pointer.
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(SettingsDesignTokens.sidebarSearchPlaceholder)
+                .padding(.leading, 8)
+
+            TextField(String(localized: "Search"), text: $query)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .foregroundStyle(SettingsDesignTokens.primaryText)
+
+            if !query.isEmpty {
+                Button {
+                    query = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(SettingsDesignTokens.sidebarSearchPlaceholder)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 8)
+            }
+        }
+        .frame(height: 26)
+        .background(
+            Capsule()
+                .fill(SettingsDesignTokens.sidebarSearchBackground)
+        )
+        .overlay(
+            Capsule()
+                .strokeBorder(SettingsDesignTokens.sidebarSearchBorder, lineWidth: 0.5)
+        )
+    }
+
+    private func rowView(_ row: SettingsSidebarRow) -> some View {
+        let isSelected = selection == row.page
+        let isHovered = hoveredRowID == row.id && !isSelected
+
+        return Button {
+            selection = row.page
+        } label: {
+            HStack(spacing: 10) {
+                switch row.tile {
+                case .symbol(let name, let tint):
+                    SettingsIconTile(systemImage: name, tint: tint, size: SettingsDesignTokens.iconTileSize)
+                case .icon(let icon, let tint):
+                    ExtensionIconTile(icon: icon, tint: tint, size: SettingsDesignTokens.iconTileSize)
+                case .bare(let icon):
+                    ActionIconView(icon: icon, size: 14)
+                        .foregroundStyle(isSelected ? SettingsDesignTokens.primaryText : SettingsDesignTokens.secondaryText)
+                        .frame(width: SettingsDesignTokens.iconTileSize, height: SettingsDesignTokens.iconTileSize, alignment: .center)
+                }
+
+                Text(row.title)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(SettingsDesignTokens.primaryText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .frame(height: SettingsDesignTokens.sidebarRowPitch)
+            .background(
+                RoundedRectangle(cornerRadius: SettingsDesignTokens.sidebarSelectionRadius, style: .continuous)
+                    .fill(isSelected ? SettingsDesignTokens.selectedRowBackground : (isHovered ? SettingsDesignTokens.hoveredRowBackground : Color.clear))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            if hovering {
+                hoveredRowID = row.id
+            } else if hoveredRowID == row.id {
+                hoveredRowID = nil
+            }
+        }
+        .opacity(row.isDisabled ? 0.45 : 1.0)
+        .saturation(row.isDisabled ? 0.5 : 1.0)
+        .tag(row.page)
+    }
+
     private func scrollSelectionIntoView(_ proxy: ScrollViewProxy, animated: Bool) {
         guard let page = selection else { return }
         let scroll = { proxy.scrollTo(page.id) }
         if animated {
             withAnimation(.easeInOut(duration: 0.18)) { scroll() }
         } else {
-            // Let the List lay out first: on first appearance the row may not exist yet.
             DispatchQueue.main.async { scroll() }
         }
     }
-
-    /// The rows, shared by both presentations. The top spacer exists only for the pre-26 path,
-    /// where the field is overlaid and the rows must start below it; on macOS 26 the bar reserves
-    /// its own space.
-    private func sidebarList(includeTopSpacer: Bool) -> some View {
-        List(selection: $selection) {
-            if includeTopSpacer {
-                Section {
-                    Color.clear
-                        .frame(height: 70)
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .selectionDisabled()
-                }
-            }
-
-            if !filteredSystemRows.isEmpty {
-                Section {
-                    ForEach(filteredSystemRows) { row in
-                        rowView(row)
-                    }
-                }
-            }
-
-            // Two sections rather than one, so the gap that separates the settings from
-            // what OpenClip ships repeats between what OpenClip ships and what was installed.
-            let (bundled, installed) = SettingsSidebarOrder.split(filteredExtensionRows)
-
-            if !bundled.isEmpty {
-                Section("Actions") {
-                    ForEach(bundled) { row in
-                        rowView(row)
-                    }
-                }
-            }
-
-            if !installed.isEmpty {
-                Section("Installed") {
-                    ForEach(installed) { row in
-                        rowView(row)
-                    }
-                }
-            }
-
-            if !hasResults {
-                Section {
-                    Text("No Results")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 12)
-                        .selectionDisabled()
-                }
-            }
-        }
-        .listStyle(.sidebar)
-    }
-
-    /// The macOS 26 bar's content: just the field. The system draws the bar's blurred backing and
-    /// the soft edge effect that blurs content scrolling under it, so nothing is added here.
-    private var searchFieldBar: some View {
-        NativeSearchField(
-            text: $query,
-            placeholder: String(localized: "Search"),
-            controlSize: .regular,
-            focusRingType: .none
-        )
-        .frame(maxWidth: .infinity)
-        .frame(height: 28)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .accessibilityLabel(String(localized: "Search settings"))
-    }
-
-    private func rowView(_ row: SettingsSidebarRow) -> some View {
-        HStack(spacing: 9) {
-            switch row.tile {
-            case .symbol(let name, let tint):
-                SettingsIconTile(systemImage: name, tint: tint, size: 20)
-            case .icon(let icon, let tint):
-                ExtensionIconTile(icon: icon, tint: tint, size: 20)
-            case .bare(let icon):
-                ActionIconView(icon: icon, size: 14)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20, height: 20, alignment: .center)
-            }
-            Text(row.title)
-                .lineLimit(1)
-                .truncationMode(.tail)
-        }
-        .opacity(row.isDisabled ? 0.45 : 1.0)
-        .saturation(row.isDisabled ? 0.5 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: row.isDisabled)
-        .padding(.vertical, 2)
-        .tag(row.page)
-        .accessibilityLabel(row.isDisabled ? String(localized: "\(row.title) (Disabled)") : row.title)
-    }
-
-    /// A real `NSSearchField`, the control System Settings uses in the same spot,
-    /// with its background blurred into the upper window title bar.
-    private var searchHeader: some View {
-        VStack(spacing: 0) {
-            Color.clear
-                .frame(height: 44)
-
-            NativeSearchField(
-                text: $query,
-                placeholder: String(localized: "Search"),
-                controlSize: .regular,
-                focusRingType: .none
-            )
-            .frame(maxWidth: .infinity)
-            .frame(height: 28)
-            .padding(.horizontal, 8)
-            .padding(.bottom, 12)
-        }
-        .frame(maxWidth: .infinity)
-        .background(
-            SidebarVibrancyBackground()
-                .mask(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .black, location: 0.0),
-                            .init(color: .black, location: 0.85),
-                            .init(color: .clear, location: 1.0)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-        )
-        .accessibilityLabel(String(localized: "Search settings"))
-    }
-}
-
-/// The strip behind the search field draws the very material the `List`'s sidebar already draws,
-/// so the two read as one surface. Painting a separate `.ultraThickMaterial` on top of a
-/// near-opaque window-background layer produced a lighter band with a visible seam. The gradient
-/// mask fades its lower edge so rows dissolve under the field instead of clipping at a hard line.
-private struct SidebarVibrancyBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .sidebar
-        // Behind-window, like the `NavigationSplitView` sidebar itself — in-window is for toolbars
-        // and composites over this window's content, which rendered lighter than the sidebar.
-        view.blendingMode = .behindWindow
-        view.state = .followsWindowActiveState
-        return view
-    }
-
-    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }

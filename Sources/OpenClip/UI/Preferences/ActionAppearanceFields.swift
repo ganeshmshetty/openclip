@@ -25,16 +25,16 @@ struct ActionAppearanceFields: View {
     /// Symbol Show Icon mode resolves to for text-glyph builtins (Copy/Cut/Paste) while no
     /// replacement has been picked; nil for actions whose icon is already symbol-representable.
     var textGlyphFallbackSymbol: String? = nil
-    /// Opens the icon chooser. The chooser is a page the router pushes rather than a popover, so
-    /// the field only asks for it — it does not own its presentation.
-    var onPickIcon: () -> Void
+    /// Optional callback when the icon chooser opens.
+    var onPickIcon: (() -> Void)? = nil
 
+    @State private var isIconPickerPresented = false
     @State private var isIconHovered = false
 
     /// What the icon preview should render right now (same resolution the popup bar applies).
     private var previewIcon: ActionIcon {
         Self.resolvedPreviewIcon(
-            displayMode: displayMode,
+            displayMode: 0,
             title: title,
             displayTextFallback: displayTextFallback,
             iconSymbol: iconSymbol,
@@ -109,7 +109,8 @@ struct ActionAppearanceFields: View {
         HStack(alignment: .center, spacing: 14) {
             // Hero Icon Button
             Button {
-                onPickIcon()
+                isIconPickerPresented = true
+                onPickIcon?()
             } label: {
                 ZStack(alignment: .bottomTrailing) {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -135,6 +136,11 @@ struct ActionAppearanceFields: View {
             .help(iconButtonHelp)
             .onHover { isIconHovered = $0 }
             .accessibilityLabel(String(localized: "Choose icon"))
+            .popover(isPresented: $isIconPickerPresented, arrowEdge: .bottom) {
+                IconPickerPopover(selectedSymbol: $iconSymbol) {
+                    isIconPickerPresented = false
+                }
+            }
 
             // Title & Display Mode Controls
             VStack(alignment: .leading, spacing: 8) {
@@ -209,27 +215,11 @@ struct IconPickerPage: View {
 
     var body: some View {
         if let target = router.iconTarget {
-            VStack(spacing: 0) {
-                IconPickerView(selectedSymbol: target, fillsAvailableHeight: true) {
-                    router.pop()
-                }
-                .padding(20)
-                .settingsPaneWidth()
-
-                Divider()
-
-                HStack {
-                    Text("Choosing an icon returns to the action.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Done") { router.pop() }
-                        .keyboardShortcut(.defaultAction)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(.bar)
+            IconPickerView(selectedSymbol: target, fillsAvailableHeight: true) {
+                router.pop()
             }
+            .padding(20)
+            .settingsPaneWidth()
         } else {
             // Nothing to write to: the chooser was reached without an editor underneath it.
             Color.clear.onAppear { router.pop() }

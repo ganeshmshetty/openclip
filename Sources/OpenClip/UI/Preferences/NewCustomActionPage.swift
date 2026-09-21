@@ -13,8 +13,8 @@ public struct NewCustomActionPage: View {
 
     // Appearance State (matching ActionEditorPage's Hero Header Card)
     @State private var customTitle: String = ""
-    @State private var iconSymbol: String = "wand.and.stars"
-    private let initialIconSymbol: String = "wand.and.stars"
+    @State private var iconSymbol: String = "plus"
+    private let initialIconSymbol: String = "plus"
     @State private var displayMode: Int = 0 // 0 = Show Icon, 1 = Show Text
 
     // Execution Logic State
@@ -59,10 +59,7 @@ public struct NewCustomActionPage: View {
                         iconSymbol: $iconSymbol,
                         initialIconSymbol: initialIconSymbol,
                         baseIcon: nil,
-                        displayMode: $displayMode,
-                        onPickIcon: {
-                            router.pushIconPicker(writingTo: $iconSymbol)
-                        }
+                        displayMode: $displayMode
                     )
                 }
 
@@ -191,7 +188,7 @@ public struct NewCustomActionPage: View {
         }
 
         let id = "custom.\(UUID().uuidString.prefix(8).lowercased())"
-        let resolvedIcon = iconSymbol.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "wand.and.stars" : iconSymbol
+        let resolvedIcon = iconSymbol.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "plus" : iconSymbol
         let newAction = CustomAction(
             id: id,
             title: trimmedTitle,

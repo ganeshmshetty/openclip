@@ -2,9 +2,8 @@
 // OpenClip
 //
 // The About preferences tab: app identity, version, software updates, links, and diagnostics.
-// It is where every outward link lives — the sidebar used to carry two icon buttons in its footer,
-// which sat on top of the scrolling rows once the list grew past the window.
-// Split out of PreferencesView.swift.
+// Styled with inset SettingsCards (outside headers, rounded cards, inset hairline dividers).
+
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
@@ -20,126 +19,123 @@ struct AboutTab: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                if let newVersion = updateManager.availableUpdateVersion {
-                    updateAvailableRow(version: newVersion)
+        ScrollView {
+            VStack(spacing: 20) {
+                // Identity block
+                identityBlock
 
-                    if let notes = updateManager.availableUpdateReleaseNotes, !notes.isEmpty {
-                        DisclosureGroup("Release Notes") {
-                            ScrollView {
-                                Text(LocalizedStringKey(notes))
-                                    .font(.callout)
-                                    .textSelection(.enabled)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.vertical, 4)
+                // Software updates
+                SettingsCard("Software Updates") {
+                    if let newVersion = updateManager.availableUpdateVersion {
+                        updateAvailableRow(version: newVersion)
+                        SettingsDivider()
+
+                        if let notes = updateManager.availableUpdateReleaseNotes, !notes.isEmpty {
+                            DisclosureGroup("Release Notes") {
+                                ScrollView {
+                                    Text(LocalizedStringKey(notes))
+                                        .font(.callout)
+                                        .textSelection(.enabled)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.vertical, 4)
+                                }
+                                .frame(maxHeight: 140)
                             }
-                            .frame(maxHeight: 140)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            SettingsDivider()
+                        }
+                    }
+
+                    SettingsToggleRow(
+                        title: "Automatically Download Updates",
+                        systemImage: "arrow.down.circle",
+                        isOn: $updateManager.automaticallyDownloadsUpdates
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        title: "Notify on Update",
+                        systemImage: "bell.badge",
+                        isOn: $updateManager.notifyOnUpdate
+                    )
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        title: "Check for Updates",
+                        subtitle: updateChannelSubtitle ?? lastCheckedSubtitle,
+                        systemImage: "arrow.triangle.2.circlepath"
+                    ) {
+                        HStack(spacing: 10) {
+                            Picker("", selection: $updateManager.updateChannel) {
+                                Text("Stable").tag(UpdateChannel.stable)
+                                Text("Beta").tag(UpdateChannel.beta)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                            .frame(width: 150)
+                            .accessibilityLabel("Update Channel")
+
+                            Button {
+                                updateManager.checkForUpdates()
+                            } label: {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                            }
+                            .buttonStyle(.bordered)
+                            .buttonBorderShape(.roundedRectangle)
+                            .disabled(!updateManager.canCheckForUpdates)
+                            .accessibilityLabel("Check Now")
+                            .help("Check Now")
                         }
                     }
                 }
 
-                SettingsToggleRow(
-                    title: "Automatically Download Updates",
-                    systemImage: "arrow.down.circle",
-                    isOn: $updateManager.automaticallyDownloadsUpdates
-                )
-
-                SettingsToggleRow(
-                    title: "Notify on Update",
-                    systemImage: "bell.badge",
-                    isOn: $updateManager.notifyOnUpdate
-                )
-
-                SettingsRow(
-                    title: "Check for Updates",
-                    subtitle: updateChannelSubtitle ?? lastCheckedSubtitle,
-                    systemImage: "arrow.triangle.2.circlepath"
-                ) {
-                    HStack(spacing: 10) {
-                        Picker("", selection: $updateManager.updateChannel) {
-                            Text("Stable").tag(UpdateChannel.stable)
-                            Text("Beta").tag(UpdateChannel.beta)
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.segmented)
-                        .frame(width: 150)
-                        .accessibilityLabel("Update Channel")
-
-                        Button {
-                            updateManager.checkForUpdates()
-                        } label: {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.roundedRectangle)
-                        .disabled(!updateManager.canCheckForUpdates)
-                        .accessibilityLabel("Check Now")
-                        .help("Check Now")
-                    }
+                // Links
+                SettingsCard("Links") {
+                    linkRow("Website", systemImage: "globe", url: "https://www.getopenclip.app")
+                    SettingsDivider()
+                    linkRow("Documentation", systemImage: "book", url: "https://www.getopenclip.app/docs")
+                    SettingsDivider()
+                    linkRow("Support", systemImage: "questionmark.circle", url: "https://www.getopenclip.app/support")
+                    SettingsDivider()
+                    linkRow("GitHub", systemImage: "chevron.left.forwardslash.chevron.right", url: "https://github.com/ganeshmshetty/openclip")
+                    SettingsDivider()
+                    linkRow("Report an Issue", systemImage: "ant", url: "https://github.com/ganeshmshetty/openclip/issues")
                 }
-            } header: {
-                // The identity block rides the first section's header: a header
-                // scrolls with the form and draws no card, where a pinned top
-                // inset let the rows slide underneath it.
-                VStack(spacing: 0) {
-                    identityBlock
-                    Text("Software Updates")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
 
-            Section("Links") {
-                linkRow("Website", systemImage: "globe", url: "https://www.getopenclip.app")
-                linkRow(
-                    "Documentation",
-                    systemImage: "book",
-                    url: "https://www.getopenclip.app/docs"
-                )
-                linkRow(
-                    "Support",
-                    systemImage: "questionmark.circle",
-                    url: "https://www.getopenclip.app/support"
-                )
-                linkRow(
-                    "GitHub",
-                    systemImage: "chevron.left.forwardslash.chevron.right",
-                    url: "https://github.com/ganeshmshetty/openclip"
-                )
-                linkRow(
-                    "Report an Issue",
-                    systemImage: "ant",
-                    url: "https://github.com/ganeshmshetty/openclip/issues"
-                )
-            }
+                // Diagnostics
+                SettingsCard("Diagnostics") {
+                    SettingsRow(
+                        title: "Logs",
+                        subtitle: "Attach these when reporting a problem.",
+                        systemImage: "doc.text"
+                    ) {
+                        HStack(spacing: 10) {
+                            Button(isExporting ? "Exporting…" : "Export…") {
+                                exportLogs()
+                            }
+                            .disabled(isExporting)
 
-            Section("Diagnostics") {
-                SettingsRow(
-                    title: "Logs",
-                    subtitle: "Attach these when reporting a problem.",
-                    systemImage: "doc.text"
-                ) {
-                    HStack(spacing: 10) {
-                        Button(isExporting ? "Exporting…" : "Export…") {
-                            exportLogs()
-                        }
-                        .disabled(isExporting)
-
-                        Button("Reveal") {
-                            LogExporter.showLogsInFinder()
+                            Button("Reveal") {
+                                LogExporter.showLogsInFinder()
+                            }
                         }
                     }
                 }
-            }
 
-            Section {
                 Text("Open source under MIT License")
                     .font(.footnote)
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 4)
+                    .padding(.bottom, 12)
             }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
         }
-        .formStyle(.grouped)
+        .scrollIndicators(.hidden)
     }
 
     // MARK: - Pieces
@@ -152,6 +148,7 @@ struct AboutTab: View {
 
             Text("OpenClip")
                 .font(.title2.weight(.semibold))
+                .foregroundStyle(SettingsDesignTokens.primaryText)
 
             Text("Version \(version)")
                 .font(.callout)
@@ -176,8 +173,8 @@ struct AboutTab: View {
             .padding(.top, 2)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 12)
-        .padding(.bottom, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
     }
 
     private func updateAvailableRow(version newVersion: String) -> some View {
@@ -212,9 +209,6 @@ struct AboutTab: View {
             : nil
     }
 
-    /// Secondary navigation, so the whole row is the target and the only
-    /// decoration is the outward arrow — a bordered button per link read as
-    /// three competing primary actions.
     private func linkRow(_ title: LocalizedStringKey, systemImage: String, url: String) -> some View {
         Button {
             openURL(url)
@@ -237,7 +231,6 @@ struct AboutTab: View {
         }
     }
 
-    /// Returns a short, static "time ago" string that doesn't live-tick.
     private static func shortTimeAgo(_ date: Date) -> String {
         let seconds = Int(-date.timeIntervalSinceNow)
         if seconds < 60 { return String(localized: "just now") }
@@ -275,7 +268,6 @@ struct AboutTab: View {
                     try fileManager.copyItem(at: tempZipURL, to: destinationURL)
                 }
             } catch {
-                // Inline, where the window shows every failure, rather than a modal alert.
                 SettingsRouter.shared.notifyError(
                     title: String(localized: "Export Logs Failed"),
                     message: error.localizedDescription

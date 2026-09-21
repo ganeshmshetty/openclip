@@ -77,6 +77,18 @@ enum PopupThemeModel {
         default: return .white.opacity(0.20)
         }
     }
+
+    /// The background fill for the classic (solid) popup surface.
+    @ViewBuilder
+    public static func classicSurfaceBackground(for colorScheme: ColorScheme, in shape: RoundedRectangle) -> some View {
+        shape.fill(
+            Color(
+                red: colorScheme == .dark ? 0.15 : 0.94,
+                green: colorScheme == .dark ? 0.15 : 0.94,
+                blue: colorScheme == .dark ? 0.165 : 0.96
+            )
+        )
+    }
 }
 
 // MARK: - Edge Fade
@@ -102,7 +114,7 @@ struct PopupEdgeFade: View {
 
     var body: some View {
         Group {
-            if effectiveTheme == "glass" {
+            if effectiveTheme == "glass" && !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
                 LayeredGlassBackground(cornerRadius: 0, colorScheme: colorScheme)
                     .mask(fadeMask)
             } else {
@@ -182,6 +194,22 @@ extension View {
     func popupBottomDissolve(height: CGFloat) -> some View {
         modifier(PopupBottomDissolve(height: height))
     }
+
+    @ViewBuilder
+    func paletteSafeAreaBar<Content: View>(
+        edge: VerticalEdge,
+        spacing: CGFloat? = 0,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        if #available(macOS 26.0, *), !ProcessInfo.processInfo.arguments.contains("-XCTest") && NSClassFromString("XCTestCase") == nil {
+            safeAreaBar(edge: edge, spacing: spacing, content: content)
+        } else {
+            safeAreaInset(edge: edge, spacing: spacing) {
+                content()
+                    .background(.ultraThinMaterial)
+            }
+        }
+    }
 }
 
 // MARK: - Effective Theme Environment Key
@@ -223,14 +251,10 @@ public struct PopupCardChromeModifier: ViewModifier {
         return content
             .background(
                 Group {
-                    if effectiveTheme == "glass" {
+                    if effectiveTheme == "glass" && !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
                         LayeredGlassBackground(cornerRadius: cornerRadius, colorScheme: colorScheme)
                     } else {
-                        shape.fill(
-                            Color(red: colorScheme == .dark ? 0.18 : 0.94,
-                                  green: colorScheme == .dark ? 0.18 : 0.94,
-                                  blue: colorScheme == .dark ? 0.20 : 0.96)
-                        )
+                        PopupThemeModel.classicSurfaceBackground(for: colorScheme, in: shape)
                     }
                 }
             )
@@ -241,21 +265,21 @@ public struct PopupCardChromeModifier: ViewModifier {
             // it. Geometry lives in `PopupMetrics` (`cardShadow*`) because `popupShadowInset` must
             // cover the ambient's full blur tail or the panel frame hard-clips it.
             .shadow(
-                color: .black.opacity(colorScheme == .dark ? 0.35 : 0.12),
+                color: .black.opacity(colorScheme == .dark ? 0.38 : 0.14),
                 radius: PopupMetrics.cardShadowContactRadius,
                 x: 0,
                 y: PopupMetrics.cardShadowContactYOffset
             )
             .shadow(
-                color: .black.opacity(colorScheme == .dark ? 0.30 : 0.14),
+                color: .black.opacity(colorScheme == .dark ? 0.32 : 0.16),
                 radius: PopupMetrics.cardShadowAmbientRadius,
                 x: 0,
                 y: PopupMetrics.cardShadowAmbientYOffset
             )
     }
 
-    /// The outer hairline. Glass keeps its lit gradient; classic now gets the same top-to-bottom
-    /// gradient instead of a flat stroke, so both categories read with the same edge lighting.
+    /// The outer hairline. Glass keeps its lit gradient; classic gets a top-to-bottom
+    /// gradient that is slightly brighter at the top where ambient light hits.
     @ViewBuilder
     private func outerBorder(_ shape: RoundedRectangle) -> some View {
         if effectiveTheme == "glass" {
@@ -264,7 +288,7 @@ public struct PopupCardChromeModifier: ViewModifier {
             shape.stroke(
                 LinearGradient(
                     colors: colorScheme == .dark
-                        ? [Color.white.opacity(0.22), Color.white.opacity(0.08)]
+                        ? [Color.white.opacity(0.20), Color.white.opacity(0.08)]
                         : [Color.black.opacity(0.16), Color.black.opacity(0.06)],
                     startPoint: .top,
                     endPoint: .bottom
@@ -281,7 +305,7 @@ public struct PopupCardChromeModifier: ViewModifier {
         shape.inset(by: 0.5).stroke(
             LinearGradient(
                 colors: [
-                    Color.white.opacity(colorScheme == .dark ? 0.28 : 0.55),
+                    Color.white.opacity(colorScheme == .dark ? 0.32 : 0.65),
                     Color.white.opacity(0.0)
                 ],
                 startPoint: .top,

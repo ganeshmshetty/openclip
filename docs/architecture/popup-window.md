@@ -107,6 +107,9 @@ When an action produces a `.file(FileOutputPayload)` result (via `openclip.file(
   - **Copy** (`⌘C`): Copies the file URL directly to the macOS clipboard pasteboard.
   - **Save** (`Return` / `⌘S`): Copies the file into the user-configured destination folder (`SettingKey.fileSaveLocation`, defaulting to `~/Downloads`). Duplicate filenames are safely suffixed (e.g. `filename (1).ext`), followed by a `"Saved to <Folder>"` confirmation toast.
   - Secondary clicks on the popup trigger action execute `.copyFile` directly.
+
+### Text and Diff Results
+
 - **Card surface**: the card renders a scrollable body plus a compact Copy/Paste footer (or a Dismiss button when
   `isError`; Paste also hidden while `modeStore.canPaste == false`), sized by `PopupMetrics`
   (`aiCardMinWidth 220` / `aiCardIdealWidth 320` /

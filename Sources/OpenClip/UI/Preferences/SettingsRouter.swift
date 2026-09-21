@@ -123,12 +123,12 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .customize: return "slider.horizontal.3"
         case .shortcuts: return "command"
         case .appRules: return "shield.checkered"
-        case .store: return "bag.fill"
+        case .store: return "archivebox.fill"
         case .about: return "info.circle.fill"
-        case .ai: return "sparkles"
+        case .ai: return "sparkle"
         case .extensionPackage: return "puzzlepiece.extension.fill"
         case .builtinAction: return "bolt.fill"
-        case .customActions: return "wand.and.stars"
+        case .customActions: return "plus"
         case .action: return "slider.horizontal.3"
         case .newCustomAction: return "plus.circle.fill"
         case .newGroup: return "folder.fill.badge.plus"
@@ -139,24 +139,9 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     }
 
     /// Sidebar tile colour. The app's own settings each wear a fixed, recognisable colour; a page
-    /// that belongs to an action or an extension is drawn as a plain glyph instead. See
-    /// `SettingsTint`.
+    /// that belongs to an action or an extension is drawn as a plain glyph instead. See `SettingsTint`.
     var tint: Color {
-        switch self {
-        case .general: return SettingsTint.general
-        case .appearance: return SettingsTint.appearance
-        case .customize: return SettingsTint.customize
-        case .shortcuts: return SettingsTint.shortcuts
-        case .appRules: return SettingsTint.appRules
-        case .store: return SettingsTint.store
-        case .about: return SettingsTint.about
-        case .ai, .customActions, .builtinAction:
-            return SettingsTint.openClip
-        case .extensionPackage(let id):
-            return SettingsTint.extensionTint(for: id)
-        case .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
-            return SettingsTint.openClip
-        }
+        SettingsDesignTokens.iconTileColor(for: self)
     }
 
     /// Terms the sidebar search matches besides the title, so "hotkey" finds Shortcuts and
@@ -168,9 +153,14 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .customize: return ["actions", "popup bar", "order", "reorder", "arrange", "group", "groups", "layout", "install", "shortcuts", "hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .shortcuts: return ["hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .appRules: return ["apps", "exclude", "allow", "block", "rules", "disable", "per-app"]
-        case .store: return ["extensions", "install", "catalog", "browse", "download"]
+        case .store: return ["extensions", "clips", "install", "catalog", "browse", "download"]
         case .about: return ["version", "update", "licence", "license", "logs", "diagnostics", "github"]
-        case .ai: return ["model", "api key", "prompt", "openai", "claude", "gemini", "ollama", "cli", "local", "cloud", "apple intelligence", "rewrite", "summarize"]
+        case .ai:
+            var keywords = ["model", "api key", "prompt", "openai", "claude", "gemini", "ollama", "cli", "local", "cloud", "rewrite", "summarize"]
+            if AppleIntelligenceAvailability.isSupported {
+                keywords.append("apple intelligence")
+            }
+            return keywords
         case .customActions: return ["custom", "snippet", "script", "shell", "url", "open url", "text snippet", "my actions"]
         case .extensionPackage, .builtinAction, .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
             return []

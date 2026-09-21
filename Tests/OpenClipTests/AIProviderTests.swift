@@ -223,6 +223,26 @@ final class AIProviderTests: XCTestCase {
         XCTAssertFalse(AppleIntelligenceAvailability.Status.notEnabled.isAvailable)
     }
 
+    func testAppleIntelligenceSupportCheckAndUnsupportedFallback() {
+        XCTAssertTrue(AppleIntelligenceAvailability.Status.available.isSupported)
+        XCTAssertTrue(AppleIntelligenceAvailability.Status.notEnabled.isSupported)
+        XCTAssertTrue(AppleIntelligenceAvailability.Status.modelNotReady.isSupported)
+        XCTAssertFalse(AppleIntelligenceAvailability.Status.unsupportedOS.isSupported)
+        XCTAssertFalse(AppleIntelligenceAvailability.Status.deviceNotEligible.isSupported)
+
+        // When device is not eligible (e.g. Intel or unsupported macOS):
+        AppleIntelligenceAvailability.statusOverride = .deviceNotEligible
+        defer { AppleIntelligenceAvailability.statusOverride = nil }
+
+        XCTAssertFalse(AppleIntelligenceAvailability.isSupported)
+        XCTAssertFalse(AIProviderType.supportedCases.contains(.apple))
+        XCTAssertEqual(AIProviderType.supportedCases, [.local, .cli, .cloud])
+
+        // AIServiceManager must fallback from .apple to .local on unsupported machines
+        AIServiceManager.shared.activeProviderRaw = "apple"
+        XCTAssertEqual(AIServiceManager.shared.activeProviderType, .local)
+    }
+
     // MARK: - Structured output contract
 
     func testStructuredSystemPromptDropsTagInstructions() {

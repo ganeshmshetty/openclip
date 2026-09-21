@@ -4,14 +4,10 @@
 // Lets the user pick the popup appearance as a grouped settings section (matching
 // the General tab's look). The Theme row picks the category — Classic (solid color
 // themes) or Glass (the material). The Mode row picks that category's appearance:
-// System/Light/Dark as square icon tiles, where System means follow the system
-// appearance (the historical Glass behavior). Choosing a forced appearance fixes
-// the low-contrast case where a light system renders near-white glass over a white
-// background.
+// System/Light/Dark as square icon tiles.
 //
-// Storage: "popupTheme" keeps the category ("classic"/"glass"); "popupThemeColor"
-// keeps the shared appearance ("system"/"light"/"dark") used by both categories.
-// Legacy values of "popupTheme" resolve via PopupThemeModel.category(fromStored:).
+// Styled with modern SettingsCard, icon tiles, and hairline dividers.
+
 import SwiftUI
 import Core
 
@@ -86,8 +82,6 @@ struct PopupThemeSelector: View {
         popupVerticalPosition = SettingKey.popupVerticalPosition.defaultValue
     }
 
-    /// The stored value carries legacy category names; the picker only ever
-    /// deals in the two current ones.
     private var themeSelection: Binding<String> {
         Binding(
             get: { isGlassOn ? "glass" : "classic" },
@@ -96,8 +90,8 @@ struct PopupThemeSelector: View {
     }
 
     var body: some View {
-        Form {
-            Section {
+        VStack(spacing: 12) {
+            SettingsCard {
                 SettingsRow(title: "Popup Theme", systemImage: "paintbrush.fill") {
                     segmentedPicker(
                         selection: themeSelection,
@@ -106,6 +100,8 @@ struct PopupThemeSelector: View {
                         width: 140
                     )
                 }
+
+                SettingsDivider()
 
                 SettingsRow(title: "Color Mode", systemImage: "circle.lefthalf.filled") {
                     iconPicker(
@@ -116,6 +112,8 @@ struct PopupThemeSelector: View {
                     )
                 }
 
+                SettingsDivider()
+
                 SettingsRow(title: "Horizontal Position", systemImage: "text.alignleft") {
                     iconPicker(
                         selection: $popupAlignment,
@@ -125,6 +123,8 @@ struct PopupThemeSelector: View {
                     )
                 }
 
+                SettingsDivider()
+
                 SettingsRow(title: "Vertical Position", systemImage: "arrow.up.and.down") {
                     segmentedPicker(
                         selection: $popupVerticalPosition,
@@ -133,6 +133,8 @@ struct PopupThemeSelector: View {
                         width: 190
                     )
                 }
+
+                SettingsDivider()
 
                 SettingsRow(title: "Popup Scale", systemImage: "arrow.up.left.and.arrow.down.right") {
                     stepSlider(
@@ -144,6 +146,8 @@ struct PopupThemeSelector: View {
                     )
                 }
 
+                SettingsDivider()
+
                 SettingsRow(title: "Popup Width", systemImage: "arrow.left.and.right") {
                     stepSlider(
                         value: Binding(
@@ -153,18 +157,30 @@ struct PopupThemeSelector: View {
                         accessibilityLabel: "Popup Width"
                     )
                 }
-            } footer: {
-                HStack {
-                    Spacer()
-                    Button("Reset to Defaults") {
-                        resetToDefaults()
-                    }
-                    .disabled(isAllDefault)
-                }
-                .padding(.top, 6)
             }
+
+            HStack {
+                Spacer()
+                Button("Reset to Defaults") {
+                    resetToDefaults()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 13, weight: .regular))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(SettingsDesignTokens.navPillBackground)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5)
+                )
+                .foregroundStyle(isAllDefault ? SettingsDesignTokens.tertiaryText : SettingsDesignTokens.primaryText)
+                .disabled(isAllDefault)
+            }
+            .padding(.top, 4)
         }
-        .formStyle(.grouped)
     }
 
     private func segmentedPicker(
@@ -206,7 +222,6 @@ struct PopupThemeSelector: View {
         .accessibilityLabel(label)
     }
 
-    /// Both size rows are the same 1-5 slider with its value parked at the end.
     private func stepSlider(
         value: Binding<Int>,
         accessibilityLabel: LocalizedStringKey

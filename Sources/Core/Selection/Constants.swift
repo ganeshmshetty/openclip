@@ -51,7 +51,7 @@ public enum Constants {
     public static let extKeyScript: String = "Script"
     
     public static let defaultScriptName: String = "script.sh"
-    public static let defaultIconSymbol: String = "wand.and.stars"
+    public static let defaultIconSymbol: String = "plus"
     public static let defaultAIIconSymbol: String = "sparkle"
     public static let customIdentifierPrefix: String = "com.custom."
     public static let titlePrefixHash: String = "# Title:"

@@ -68,7 +68,7 @@ public class PopupPanel: NSPanel {
             defer: false
         )
         self.level = .popUpMenu
-        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = false   // SwiftUI draws its own shadow; panel shadow causes double artifacts
@@ -112,6 +112,13 @@ public class PopupPanel: NSPanel {
 
         public override func isMousePoint(_ point: NSPoint, in rect: NSRect) -> Bool {
             Self.isInsideClickableRegion(point: point, bounds: bounds)
+        }
+
+        public override func hitTest(_ point: NSPoint) -> NSView? {
+            guard Self.isInsideClickableRegion(point: point, bounds: bounds) else {
+                return nil
+            }
+            return super.hitTest(point)
         }
 
         public override func updateTrackingAreas() {

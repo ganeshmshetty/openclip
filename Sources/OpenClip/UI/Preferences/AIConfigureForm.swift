@@ -54,27 +54,14 @@ public struct AIConfigureForm: View {
     private var sections: some View {
         Group {
             Section {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Active AI Engine")
-                        .font(.headline)
-                    Text("Select which provider powers AI features when invoked.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.bottom, 4)
-
-                Picker("", selection: $aiManager.activeProviderRaw) {
-                    Text("Apple").tag(AIProviderType.apple.rawValue)
-                    Text("Local").tag(AIProviderType.local.rawValue)
-                    Text("CLI").tag(AIProviderType.cli.rawValue)
-                    Text("Cloud").tag(AIProviderType.cloud.rawValue)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                EmptyView()
+            } header: {
+                enginePicker
+                    .padding(.bottom, 8)
             }
 
             Section(header: Text("Provider Settings")) {
-                if aiManager.activeProviderType == .apple {
+                if AppleIntelligenceAvailability.isSupported && aiManager.activeProviderType == .apple {
                     let status = AppleIntelligenceAvailability.current
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 8) {
@@ -139,9 +126,15 @@ public struct AIConfigureForm: View {
                     }
 
                     if let localFetchError {
-                        Text("Connection failed: \(localFetchError)")
-                            .font(.caption)
-                            .foregroundColor(.red)
+                        HStack(spacing: 4) {
+                            Text("Status:")
+                                .foregroundColor(.secondary)
+
+                            Text(localFetchError)
+                                .foregroundColor(.red)
+                        }
+                        .font(.caption)
+                        .padding(.vertical, 2)
                     }
                 } else if aiManager.activeProviderType == .cli {
                     Picker("CLI Tool", selection: $aiManager.cliPreset) {
@@ -526,5 +519,76 @@ public struct AIConfigureForm: View {
                 }
             }
         }
+    }
+
+    // MARK: - Full-Width Engine Segmented Control
+
+    private var enginePicker: some View {
+        HStack(spacing: 3) {
+            ForEach(availableProviders, id: \.1) { (label, value) in
+                EngineSegmentButton(
+                    title: label,
+                    isSelected: aiManager.activeProviderType.rawValue == value
+                ) {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        aiManager.activeProviderRaw = value
+                    }
+                }
+            }
+        }
+        .padding(3)
+        .frame(height: 32)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
+    }
+
+    private var availableProviders: [(String, String)] {
+        AIProviderType.supportedCases.map { type in
+            let label: String
+            switch type {
+            case .apple: label = String(localized: "Apple")
+            case .local: label = String(localized: "Local")
+            case .cli: label = String(localized: "CLI")
+            case .cloud: label = String(localized: "Cloud")
+            }
+            return (label, type.rawValue)
+        }
+    }
+}
+
+private struct EngineSegmentButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12.5, weight: isSelected ? .semibold : .medium))
+                .foregroundColor(isSelected ? .primary : (isHovered ? .primary : .secondary))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 7.5, style: .continuous)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.18) : Color.white)
+                            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.12), radius: 2, y: 1)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 7.5, style: .continuous)
+                                    .stroke(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06), lineWidth: 0.5)
+                            )
+                    } else if isHovered {
+                        RoundedRectangle(cornerRadius: 7.5, style: .continuous)
+                            .fill(Color.primary.opacity(0.04))
+                    }
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
 }
