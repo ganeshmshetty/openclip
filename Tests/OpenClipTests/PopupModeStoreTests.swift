@@ -30,7 +30,7 @@ final class PopupModeStoreTests: XCTestCase {
     // MARK: - Inline decision outcomes
 
     func testDecisionOutcomeClearsAfterItsDisplayDuration() async throws {
-        XCTAssertEqual(PopupModeStore.decisionOutcomeDisplayDuration, 5)
+        XCTAssertEqual(PopupModeStore.decisionOutcomeDisplayDuration, 3)
         let store = PopupModeStore()
         store.markDecisionRunning("decision.tool.edible")
         XCTAssertEqual(store.decisionStates["decision.tool.edible"], .running)

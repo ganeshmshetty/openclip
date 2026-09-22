@@ -4,9 +4,9 @@
 // What a Decision tool shows in place of its icon while and after it runs: a spinner, then a tick or
 // a cross for yes/no, a question mark when the model was not confident enough, the chosen label for
 // a choice or score, or a warning when the provider failed. The outcome is deliberately quiet: in
-// the sub-bar (`.bar`) the button itself takes a soft tint and the glyph is a muted colour on top
-// of it; in the palette (`.palette`) the icon slot shows a muted filled circle and the row appends
-// the label as its trailing accessory. `PopupModeStore` clears the outcome after a few seconds.
+// the sub-bar (`.bar`) the button takes a soft tint, in the palette (`.palette`) the whole row does,
+// and the glyph is a plain symbol in a muted colour on top of it; the palette row appends a choice
+// or score label as its trailing accessory. `PopupModeStore` clears the outcome after a few seconds.
 import SwiftUI
 import Core
 
@@ -84,13 +84,13 @@ struct DecisionInlineIndicator: View {
             ToastSpinnerView(color: foreground, scale: scale)
                 .accessibilityLabel(String(localized: "Deciding"))
         case .yes:
-            glyph(bar: "checkmark", palette: "checkmark.circle.fill", label: String(localized: "Yes"))
+            glyph("checkmark", label: String(localized: "Yes"))
         case .no:
-            glyph(bar: "xmark", palette: "xmark.circle.fill", label: String(localized: "No"))
+            glyph("xmark", label: String(localized: "No"))
         case .unsure:
-            glyph(bar: "questionmark", palette: "questionmark.circle.fill", label: String(localized: "Unsure"))
+            glyph("questionmark", label: String(localized: "Unsure"))
         case .failed:
-            glyph(bar: "exclamationmark.triangle", palette: "exclamationmark.triangle.fill", label: String(localized: "Failed"))
+            glyph("exclamationmark.triangle", label: String(localized: "Failed"))
         case .answer(let label):
             switch style {
             case .bar:
@@ -102,14 +102,14 @@ struct DecisionInlineIndicator: View {
                     .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
             case .palette:
-                glyph(bar: "checkmark", palette: "checkmark.circle.fill", label: label)
+                glyph("checkmark", label: label)
             }
         }
     }
 
-    private func glyph(bar: String, palette: String, label: String) -> some View {
-        Image(systemName: style == .bar ? bar : palette)
-            .font(.system(size: (style == .bar ? 13 : 14) * scale, weight: .semibold))
+    private func glyph(_ name: String, label: String) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 13 * scale, weight: .semibold))
             .foregroundStyle(state.glyphColor)
             .accessibilityLabel(label)
     }

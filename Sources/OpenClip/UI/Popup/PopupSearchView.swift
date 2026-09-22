@@ -625,9 +625,18 @@ public struct PopupSearchView: View {
             .padding(.horizontal, 10)
             .frame(height: PopupMetrics.searchResultRowHeight)
             .animation(.easeInOut(duration: PopupMetrics.inlineCrossFadeDuration), value: isCommandPressed)
+            .animation(.spring(response: PopupMetrics.inlineSpringResponse, dampingFraction: PopupMetrics.inlineSpringDamping), value: modeStore.decisionStates[item.action.id])
             .background(
                 Group {
-                    if isSelected {
+                    if let tint = modeStore.decisionStates[item.action.id]?.barTint {
+                        // A settled decision washes the whole row, like the sub-bar button, and
+                        // wins over the selection fill on the row that was just run.
+                        rowShape
+                            .fill(tint)
+                            .overlay(
+                                rowShape.stroke(isSelected ? selectionHighlightBorder : Color.clear, lineWidth: 0.5)
+                            )
+                    } else if isSelected {
                         rowShape
                             .fill(selectionHighlightFill)
                             .overlay(

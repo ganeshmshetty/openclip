@@ -33,7 +33,7 @@ public final class PopupModeStore: ObservableObject {
     /// `markDecisionRunning`, `settleDecision`, `clearDecision(s)` so the timers stay consistent.
     @Published public var decisionStates: [String: DecisionInlineState] = [:]
     /// How long a settled outcome stays on the icon before it returns to normal.
-    public static let decisionOutcomeDisplayDuration: TimeInterval = 5
+    public static let decisionOutcomeDisplayDuration: TimeInterval = 3
     private var decisionClearTasks: [String: Task<Void, Never>] = [:]
 
     /// The tool was clicked: spinner now, and any pending fade-out from its last run is dropped.
