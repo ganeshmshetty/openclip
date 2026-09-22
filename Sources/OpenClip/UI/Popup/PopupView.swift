@@ -404,16 +404,7 @@ public struct PopupView: View {
     /// the bar and Esc closes the card outright.
     @ViewBuilder
     private var resultCard: some View {
-        if let decision = modeStore.decisionCard {
-            DecisionCardView(
-                presentation: decision,
-                onConfirm: { onDismissContent() },
-                onDismiss: { onDismissContent() },
-                onPasteFiltered: { text in onCardEffect(.paste(text)) }
-            )
-            .environment(\.colorScheme, effectiveColorScheme)
-            .environment(\.popupEffectiveTheme, effectiveTheme)
-        } else if let payload = modeStore.resultCard {
+        if let payload = modeStore.resultCard {
             ResultCardView(
                 payload: payload,
                 canPaste: modeStore.canPaste,

@@ -11,7 +11,7 @@ Feature stack: **Decision Tools** as a first-class peer to AI Tools (judge selec
    - **Laya (local)** — press **Install Laya**: OpenClip creates `~/.openclip/laya/venv` (uv, else python3 ≥ 3.10), installs `laya` + PyTorch, downloads the checkpoint (~800 MB) and keeps `laya_bridge.py` resident. No key, nothing leaves the Mac.
    - **Jev** — set Base URL (`https://api.typesafe.ai/v1`) + API key (SecretStore).
 4. Enable default tools (Smart action, Triage, Reply as…, Send to…, Safe to share?, Fix path, Clean this list) or add/edit/duplicate/delete like AI tools.
-5. Select text → open the popup → **Decision Tools** bar entry (or palette search for a tool name) → see the **decision card** (chips + confidence), not an AI prose card.
+5. Select text → open the popup → **Decision Tools** bar entry (or palette search for a tool name). The tool's icon spins, then becomes a green tick / red cross (yes/no) or the chosen label — inline, no card.
 6. Optional: enable **Live assist** (off by default) on the Decisions page, or for 30 minutes / 1 hour / until tomorrow from the menu bar's **Live Assist** submenu; read the privacy blurb on the Decisions page.
 
 No real API keys are committed. Unit tests cover packing, parsing, tree stepping, bulk split/reduce, and mock provider evaluation (`./scripts/test.sh` on macOS).
@@ -28,7 +28,7 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 | Default tools CRUD (add/edit/duplicate/delete/reorder) + Defaults reset | Done |
 | Bar launcher `builtin.decisionTools` + palette presets (`chrome.source == .decision`) | Done |
 | Settings page **Decisions** (peer to AI) + toolbar enable toggle | Done |
-| Answer UI: `DecisionCardView` chips + confidence meter + confirm / paste-filtered | Done |
+| Answer UI: inline on the tool's icon (`DecisionInlineIndicator`: spinner → tick / cross / label) in bar + palette; bulk tools return text | Done |
 | `ActionResult.decision` + popup presentation path | Done |
 | Live assist engine: opt-in, debounce 100–300ms, cancel in-flight, prefer Laya, privacy copy | Done |
 | Unit tests (packer, parser, tree, bulk, actions/chrome) | Done |
@@ -65,7 +65,7 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 - `Sources/OpenClip/UI/Preferences/LayaRuntimeSection.swift`
 - `Sources/OpenClip/Settings/SettingKey+Decisions.swift`
 - `Sources/OpenClip/UI/Preferences/DecisionsPage.swift`
-- `Sources/OpenClip/UI/Popup/DecisionCardView.swift`
+- `Sources/OpenClip/UI/Popup/DecisionInlineIndicator.swift`
 
 ### Tests
 - `Tests/OpenClipTests/DecisionQuestionPackerTests.swift`

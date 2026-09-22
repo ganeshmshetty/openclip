@@ -42,6 +42,24 @@ final class DecisionActionTests: XCTestCase {
         XCTAssertEqual(moved.first?.id, "triage")
     }
 
+    func testDecisionActionIDsAreStable() {
+        XCTAssertEqual(DecisionAction.actionID(forToolID: "safe_to_share"), "decision.tool.safe_to_share")
+        XCTAssertEqual(DecisionAction(toolID: "triage", title: "Triage").id, DecisionAction.actionID(forToolID: "triage"))
+    }
+
+    func testInlineStateFollowsTheFirstAnswer() {
+        func presentation(_ answers: [DecisionAnswer]) -> DecisionPresentation {
+            DecisionPresentation(toolID: "t", toolTitle: "T", answers: answers)
+        }
+        XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .noul(true))])), .yes)
+        XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .noul(false))])), .no)
+        XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .choice(["billing"]))])), .answer("billing"))
+        XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .score(4))])), .answer("4"))
+        XCTAssertEqual(DecisionInlineState(presentation([])), .failed)
+        XCTAssertEqual(DecisionInlineState.answer("x").label, "x")
+        XCTAssertNil(DecisionInlineState.yes.label)
+    }
+
     func testProviderTypesAreJevAndLayaOnly() {
         XCTAssertEqual(DecisionProviderType.allCases, [.jev, .laya])
         // A setting left over from the removed OpenRouter provider falls back to the default.

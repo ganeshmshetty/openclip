@@ -186,7 +186,13 @@ public struct GroupSubActionBarView: View {
         // Mirrors the main bar: an inline-result action swaps its icon for the computed text once
         // `InlineResultEvaluator` publishes a result, truncating at the shared width cap.
         let labelView = Group {
-            if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+            if let state = modeStore.decisionStates[action.id] {
+                // A Decision tool shows its outcome where its icon was: spinner, then tick / cross / label.
+                DecisionInlineIndicator(state: state, style: .bar, foreground: foregroundColor, scale: scale)
+                    .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
+                    .background(backgroundColor)
+                    .transition(.opacity)
+            } else if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
                 Text(resolved)
                     .font(.system(size: 13 * scale, weight: .regular))
                     .lineLimit(1)
@@ -293,6 +299,10 @@ public struct GroupSubActionBarView: View {
         .animation(
             .spring(response: PopupMetrics.inlineSpringResponse, dampingFraction: PopupMetrics.inlineSpringDamping),
             value: modeStore.inlineResults[action.id]
+        )
+        .animation(
+            .spring(response: PopupMetrics.inlineSpringResponse, dampingFraction: PopupMetrics.inlineSpringDamping),
+            value: modeStore.decisionStates[action.id]
         )
     }
 

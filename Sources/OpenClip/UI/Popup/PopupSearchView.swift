@@ -542,14 +542,26 @@ public struct PopupSearchView: View {
             runSelected(replace: NSEvent.modifierFlags.contains(.shift))
         } label: {
             HStack(spacing: 10) {
-                iconView(for: rowIcon(for: item.action))
-                    .font(.system(size: 13, weight: .regular))
-                    .frame(width: 18, alignment: .center)
-                    .foregroundColor(
-                        isSelected
-                            ? .primary
-                            : PopupThemeModel.restForeground(for: effectiveTheme)
-                    )
+                Group {
+                    if let state = modeStore.decisionStates[item.action.id] {
+                        DecisionInlineIndicator(
+                            state: state,
+                            style: .palette,
+                            foreground: isSelected ? .primary : PopupThemeModel.restForeground(for: effectiveTheme),
+                            scale: 1
+                        )
+                    } else {
+                        iconView(for: rowIcon(for: item.action))
+                    }
+                }
+                .font(.system(size: 13, weight: .regular))
+                .frame(width: 18, alignment: .center)
+                .foregroundColor(
+                    isSelected
+                        ? .primary
+                        : PopupThemeModel.restForeground(for: effectiveTheme)
+                )
+                .animation(.spring(response: PopupMetrics.inlineSpringResponse, dampingFraction: PopupMetrics.inlineSpringDamping), value: modeStore.decisionStates[item.action.id])
 
                 Text(item.title)
                     .font(.system(size: 13, weight: .regular))
@@ -573,7 +585,19 @@ public struct PopupSearchView: View {
                         )
                 }
 
-                if item.action.chrome.isInlineResult, let result = modeStore.inlineResults[item.action.id], !isCommandPressed {
+                if case .answer(let label)? = modeStore.decisionStates[item.action.id], !isCommandPressed {
+                    Text(label)
+                        .font(.system(size: 11, weight: .regular))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: PopupMetrics.inlineSearchAccessoryMaxWidth, alignment: .trailing)
+                        .foregroundColor(
+                            isSelected
+                                ? PopupThemeModel.restForeground(for: effectiveTheme)
+                                : PopupThemeModel.restSecondary(for: effectiveTheme)
+                        )
+                        .transition(.opacity)
+                } else if item.action.chrome.isInlineResult, let result = modeStore.inlineResults[item.action.id], !isCommandPressed {
                     Text(result)
                         .font(.system(size: 11, weight: .regular))
                         .lineLimit(1)

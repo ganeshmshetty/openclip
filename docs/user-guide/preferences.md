@@ -206,7 +206,7 @@ AI settings are managed through `AIServiceManager` and isolated to ensure securi
 
 ## Decision Tools (experimental)
 
-Decision Tools are a **first-class peer to AI Tools**. AI rewrites text; Decisions **judge** the selection and return typed answers (yes/no, a choice from a list, or a score) with an optional confidence meter. The app then branches — chips, confirm, paste a *filtered* bulk result, or warn. Decision tools never paste generated essays.
+Decision Tools are a **first-class peer to AI Tools**. AI rewrites text; Decisions **judge** the selection and return a typed answer (yes/no, a choice from a list, or a score). The answer shows inline on the tool's own icon: a spinner while it runs, then a green tick or red cross, or the chosen label. Bulk tools return their filtered list as ordinary text. Decision tools never paste generated essays.
 
 Select **Decisions** in the sidebar (next to AI) to enable the feature and configure a provider:
 

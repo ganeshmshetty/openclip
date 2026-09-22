@@ -356,6 +356,9 @@ public class PopupWindowController {
                 self.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
                 self.pendingActionID = action.id
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
+                if ActionIdentity.isDecisionPreset(action) {
+                    self.modeStore.decisionStates[action.id] = .running
+                }
             },
             onRunLoadingAction: { [weak self] action, clickIntent in
                 guard let self, let context = self.currentActionContext else { return }
@@ -939,7 +942,7 @@ public class PopupWindowController {
         }
         cardConversation = nil
         modeStore.resultCard = nil
-        modeStore.decisionCard = nil
+        modeStore.decisionStates = [:]
         modeStore.resultCardSize = nil
         modeStore.isSurfaceUserSized = false
         modeStore.isCardPinned = false
@@ -1042,7 +1045,7 @@ public class PopupWindowController {
         tooltipController.hide()
         currentActions = nil
         modeStore.resultCard = nil
-        modeStore.decisionCard = nil
+        modeStore.decisionStates = [:]
         modeStore.resultCardSize = nil
         modeStore.searchPaletteSize = nil
         modeStore.isSurfaceUserSized = false
@@ -1603,6 +1606,9 @@ public class PopupWindowController {
                 self.pendingActionIcon = action.displayIcon(using: ActionCustomizationManager.shared)
                 self.pendingActionID = action.id
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
+                if ActionIdentity.isDecisionPreset(action) {
+                    self.modeStore.decisionStates[action.id] = .running
+                }
             },
             onActionPerformed: { [weak self] actionID in
                 self?.usageStore.record(actionID)
@@ -2107,15 +2113,38 @@ public class PopupWindowController {
     /// never reuse a prior action's declaration. Internal for tests.
     func deliverResult(_ result: ActionResult, delivery: DeliveryContext? = nil) {
         let resolvedDelivery = delivery ?? inFlightDeliveryContext ?? deliverySnapshot()
+        let performedActionID = pendingActionID
         inFlightDeliveryContext = nil
         pendingDelivery = nil
         pendingActionTitle = nil
         pendingActionIcon = nil
         pendingActionID = nil
+        settleDecisionState(for: performedActionID, result: result)
         if shouldDismiss(result, delivery: resolvedDelivery) {
             hide()
         }
         handleActionResult(result, delivery: resolvedDelivery, suppressDeliveryToast: result.containsToast)
+    }
+
+    /// A Decision tool that was spinning ends up in one of three places: a `.decision` result sets
+    /// its tick / cross / label in `handleActionResult`; an error toast marks it failed; anything
+    /// else (a bulk tool's text, for instance) simply restores its icon.
+    private func settleDecisionState(for actionID: String?, result: ActionResult) {
+        guard let actionID, modeStore.decisionStates[actionID] == .running else { return }
+        if containsDecision(result) { return }
+        if case .toast(let feedback) = result, feedback.style == .error {
+            modeStore.decisionStates[actionID] = .failed
+        } else {
+            modeStore.decisionStates.removeValue(forKey: actionID)
+        }
+    }
+
+    private func containsDecision(_ result: ActionResult) -> Bool {
+        switch result {
+        case .decision: return true
+        case .sequence(let items): return items.contains(where: containsDecision)
+        default: return false
+        }
     }
 
     /// Walks an ActionResult produced by a perform, rendering presentation results in the popup and
@@ -2131,7 +2160,7 @@ public class PopupWindowController {
         case .openConfiguration(let request):
             presentConfiguration(for: request)
         case .decision(let presentation):
-            showDecisionCard(presentation)
+            recordDecisionOutcome(presentation)
         case .sequence(let items):
             for item in items { handleActionResult(item, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast) }
         default:
@@ -2139,11 +2168,12 @@ public class PopupWindowController {
         }
     }
 
-    func showDecisionCard(_ presentation: DecisionPresentation) {
-        modeStore.resultCard = nil
-        modeStore.decisionCard = presentation
-        modeStore.mode = .content
-        Log.decisions.info("Showing decision card for \(presentation.toolID, privacy: .public)")
+    /// Shows a Decision tool's answer on its own icon in the sub-bar and the palette (tick, cross
+    /// or label); the popup stays where it is, in whatever mode it is in.
+    func recordDecisionOutcome(_ presentation: DecisionPresentation) {
+        let actionID = DecisionAction.actionID(forToolID: presentation.toolID)
+        modeStore.decisionStates[actionID] = DecisionInlineState(presentation)
+        Log.decisions.info("Decision \(presentation.toolID, privacy: .public) answered inline")
     }
 
     /// Routes a leaf effect to DefaultActionResultHandler and surfaces any thrown error uniformly

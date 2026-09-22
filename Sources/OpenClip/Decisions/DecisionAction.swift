@@ -10,7 +10,11 @@ public struct DecisionAction: Action {
     public let title: String
     public let symbolName: String?
 
-    public var id: String { "decision.tool.\(toolID)" }
+    public static let actionIDPrefix = "decision.tool."
+
+    public static func actionID(forToolID toolID: String) -> String { actionIDPrefix + toolID }
+
+    public var id: String { Self.actionID(forToolID: toolID) }
 
     public var icon: ActionIcon {
         .symbol(symbolName ?? Constants.defaultDecisionIconSymbol)
@@ -39,6 +43,12 @@ public struct DecisionAction: Action {
             tool: tool,
             text: context.selection.text
         )
+        // A bulk tool's filtered list is ordinary returned text: pasted, copied or previewed by
+        // the user's delivery preference like any other action. Everything else is shown inline
+        // on the tool's own icon (see PopupModeStore.decisionStates); there is no card.
+        if let payload = presentation.pastePayload, !payload.isEmpty {
+            return .text(payload)
+        }
         return .decision(presentation)
     }
 

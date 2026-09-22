@@ -23,3 +23,6 @@ skills-lock.json
 plans/
 keys/
 openselection/
+# Python bytecode from running the bundled Laya bridge in place
+__pycache__/
+*.pyc
