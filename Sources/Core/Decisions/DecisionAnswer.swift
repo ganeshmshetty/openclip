@@ -8,13 +8,11 @@ import Foundation
 public enum DecisionAnswerValue: Codable, Sendable, Equatable {
     case noul(Bool)
     case choice([String])
-    case score(Int)
 
     public var displayLabel: String {
         switch self {
         case .noul(let yes): return yes ? String(localized: "Yes") : String(localized: "No")
         case .choice(let labels): return labels.joined(separator: ", ")
-        case .score(let n): return String(n)
         }
     }
 }
@@ -155,7 +153,6 @@ public enum DecisionResponseParser {
         var noul: Bool?
         var choice: String?
         var choices: [String]?
-        var score: Int?
 
         enum WireValue: Codable {
             case bool(Bool)
@@ -195,15 +192,13 @@ public enum DecisionResponseParser {
             if let choice {
                 return DecisionAnswer(id: qid, value: .choice([choice]), confidence: confidence, probabilities: probs)
             }
-            if let score {
-                return DecisionAnswer(id: qid, value: .score(score), confidence: confidence, probabilities: probs)
-            }
             let raw = value ?? answer
             switch raw {
             case .bool(let b):
                 return DecisionAnswer(id: qid, value: .noul(b), confidence: confidence, probabilities: probs)
             case .int(let i):
-                return DecisionAnswer(id: qid, value: .score(i), confidence: confidence, probabilities: probs)
+                // Numbers are no longer a kind of their own; keep them readable as a label.
+                return DecisionAnswer(id: qid, value: .choice([String(i)]), confidence: confidence, probabilities: probs)
             case .string(let s):
                 return DecisionAnswer(id: qid, value: .choice([s]), confidence: confidence, probabilities: probs)
             case .strings(let a):

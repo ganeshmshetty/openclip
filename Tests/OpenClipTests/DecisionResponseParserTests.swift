@@ -27,17 +27,17 @@ final class DecisionResponseParserTests: XCTestCase {
         XCTAssertEqual(answer.probabilities["yes"], 0.9)
     }
 
-    func testParsesChoiceAndScoreShorthand() throws {
+    func testParsesChoiceShorthandAndNumbersAsLabels() throws {
         let json = """
         {"answers":[
           {"id":"a","choice":"Urgent"},
-          {"id":"b","score":4},
+          {"id":"b","value":4},
           {"id":"c","choices":["A","B"]}
         ]}
         """
         let response = try DecisionResponseParser.parse(jsonString: json)
         XCTAssertEqual(response.answers[0].value, .choice(["Urgent"]))
-        XCTAssertEqual(response.answers[1].value, .score(4))
+        XCTAssertEqual(response.answers[1].value, .choice(["4"]), "a bare number reads as a label now that score is gone")
         XCTAssertEqual(response.answers[2].value, .choice(["A", "B"]))
     }
 

@@ -17,9 +17,9 @@ Protocol (one JSON object per line):
   loading, then "ready" once decisions can be served.
 
 The request is OpenClip's `DecisionQuestionPacker` wire format (questions as a list with id, type,
-prompt, options, min, max) and the response is what `DecisionResponseParser` reads (answers as a
-list with id plus noul / choice / score, confidence and probabilities). Only this file knows Laya's
-own schema (questions keyed by id with instructions and criteria).
+prompt, options) and the response is what `DecisionResponseParser` reads (answers as a list with id
+plus noul / choice, confidence and probabilities). Only this file knows Laya's own schema
+(questions keyed by id with instructions and criteria). Unknown question types are judged as noul.
 
 Flags:
   --model english|multilingual|typed-decisions   checkpoint to load (default english)
@@ -44,7 +44,6 @@ MODELS = {
     "multilingual": ("convaiinnovations/laya", "multilingual"),
     "typed-decisions": ("convaiinnovations/laya", "typed-decisions"),
 }
-MAX_SCORE_LEVELS = 10  # System One score questions take 2-10 rubric levels.
 PLACEHOLDER_CHOICES = ["A", "B", "C"]
 
 
@@ -84,34 +83,10 @@ def to_laya_questions(questions):
                 "criteria": {label: label for label in options},
             }
             meta[qid] = {"type": "choice", "options": options}
-        elif kind == "score":
-            low = int(q.get("min", 1))
-            high = int(q.get("max", 5))
-            if high < low:
-                low, high = high, low
-            if high - low + 1 > MAX_SCORE_LEVELS:
-                high = low + MAX_SCORE_LEVELS - 1
-            if high == low:
-                high = low + 1
-            levels = list(range(low, high + 1))
-            laya_questions[qid] = {
-                "type": "score",
-                "instructions": prompt,
-                "criteria": [_score_label(n, low, high) for n in levels],
-            }
-            meta[qid] = {"type": "score", "levels": levels}
         else:
             laya_questions[qid] = {"type": "noul", "instructions": prompt}
             meta[qid] = {"type": "noul"}
     return laya_questions, meta
-
-
-def _score_label(n, low, high):
-    if n == low:
-        return "%d (lowest)" % n
-    if n == high:
-        return "%d (highest)" % n
-    return str(n)
 
 
 def from_laya_answers(result, meta):
@@ -128,28 +103,6 @@ def from_laya_answers(result, meta):
                 "choice": answer.get("choice"),
                 "confidence": confidence,
                 "probabilities": answer.get("probabilities") or {},
-            })
-        elif kind == "score":
-            levels = info.get("levels") or []
-            probabilities = answer.get("probabilities") or {}
-            if levels and probabilities:
-                best = max(range(len(levels)), key=lambda i: float(probabilities.get(str(i), 0.0)))
-            elif levels:
-                best = int(round(float(answer.get("score") or 0.0)))
-            else:
-                best = 0
-            best = max(0, min(len(levels) - 1, best)) if levels else best
-            value = levels[best] if levels else best
-            answers.append({
-                "id": qid,
-                "type": "score",
-                "score": int(value),
-                # Laya's expected value over the rubric, kept for callers that want the mean.
-                "expected": answer.get("score"),
-                "confidence": confidence,
-                "probabilities": {
-                    str(levels[i]): float(probabilities.get(str(i), 0.0)) for i in range(len(levels))
-                },
             })
         else:
             p_true = float(answer.get("noul") or 0.0)
@@ -261,10 +214,6 @@ class _FakeAgent:
                 keys = list(q["criteria"].keys())
                 answers[qid] = {"type": "choice", "choice": keys[-1], "confidence": 0.8,
                                 "probabilities": {k: (0.8 if k == keys[-1] else 0.2 / (len(keys) - 1)) for k in keys}}
-            elif q["type"] == "score":
-                k = len(q["criteria"])
-                answers[qid] = {"type": "score", "score": 1.4, "confidence": 0.6,
-                                "probabilities": {str(i): (0.55 if i == 1 else 0.45 / (k - 1)) for i in range(k)}}
             else:
                 answers[qid] = {"type": "noul", "noul": 0.91, "confidence": 0.91}
         return {"model": "fake", "answers": answers, "usage": {"input_tokens": 3, "output_tokens": 0}}
@@ -277,7 +226,7 @@ def selftest():
         "questions": [
             {"id": "safe", "type": "noul", "prompt": "Is this safe to share?"},
             {"id": "dept", "type": "choice", "prompt": "Which team?", "options": ["billing", "tech", "billing", " "]},
-            {"id": "tone", "type": "score", "prompt": "How urgent?", "min": 1, "max": 5},
+            {"id": "legacy", "type": "score", "prompt": "An old kind is judged as yes/no"},
             {"id": "empty_choice", "type": "choice", "prompt": "Pick", "options": []},
         ],
     }
@@ -286,10 +235,10 @@ def selftest():
     checks = [
         by_id["safe"]["noul"] is True and by_id["safe"]["probabilities"]["true"] == 0.91,
         by_id["dept"]["choice"] == "tech" and set(by_id["dept"]["probabilities"]) == {"billing", "tech"},
-        by_id["tone"]["score"] == 2 and set(by_id["tone"]["probabilities"]) == {"1", "2", "3", "4", "5"},
+        by_id["legacy"]["type"] == "noul" and by_id["legacy"]["noul"] is True,
         by_id["empty_choice"]["choice"] == PLACEHOLDER_CHOICES[-1],
-        response["confidence"] == 0.6,
-        to_laya_questions([{"id": "s", "type": "score", "min": 0, "max": 100}])[0]["s"]["criteria"].__len__() == MAX_SCORE_LEVELS,
+        response["confidence"] == 0.8,
+        to_laya_questions([{"id": "s", "type": "score", "prompt": "?"}])[0]["s"]["type"] == "noul",
     ]
     ok = all(checks)
     emit({"event": "selftest", "ok": ok, "checks": checks, "response": response})

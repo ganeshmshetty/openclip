@@ -1,7 +1,7 @@
 // DecisionQuestion.swift
 // OpenClip
 //
-// Typed decision questions (noul / choice / score) that Decision tools ask of a selection.
+// Typed decision questions (noul / choice) that Decision tools ask of a selection.
 // Inspired by TypeSafe System One / Laya schemas — pure Core, no AppKit/SwiftUI.
 import Foundation
 
@@ -11,8 +11,13 @@ public enum DecisionQuestionKind: String, Codable, Sendable, Equatable, CaseIter
     case noul
     /// Pick one (or more) from a closed list.
     case choice
-    /// Ordinal score on an inclusive integer range.
-    case score
+
+    /// Presets saved by an older build may carry a kind that no longer exists (score); it falls
+    /// back to yes/no instead of failing the whole preset list.
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = DecisionQuestionKind(rawValue: raw) ?? .noul
+    }
 }
 
 /// A single typed question packed into a provider request.
@@ -22,10 +27,6 @@ public struct DecisionQuestion: Codable, Sendable, Equatable, Identifiable {
     public var prompt: String
     /// Closed option labels for `.choice`. Ignored for other kinds.
     public var options: [String]
-    /// Inclusive lower bound for `.score`.
-    public var scoreMin: Int
-    /// Inclusive upper bound for `.score`.
-    public var scoreMax: Int
     /// When true, `.choice` may return multiple selected labels.
     public var allowsMultiple: Bool
 
@@ -34,16 +35,12 @@ public struct DecisionQuestion: Codable, Sendable, Equatable, Identifiable {
         kind: DecisionQuestionKind,
         prompt: String,
         options: [String] = [],
-        scoreMin: Int = 1,
-        scoreMax: Int = 5,
         allowsMultiple: Bool = false
     ) {
         self.id = id
         self.kind = kind
         self.prompt = prompt
         self.options = options
-        self.scoreMin = scoreMin
-        self.scoreMax = scoreMax
         self.allowsMultiple = allowsMultiple
     }
 
@@ -55,15 +52,21 @@ public struct DecisionQuestion: Codable, Sendable, Equatable, Identifiable {
         DecisionQuestion(id: id, kind: .choice, prompt: prompt, options: options, allowsMultiple: allowsMultiple)
     }
 
-    public static func score(id: String, prompt: String, min: Int = 1, max: Int = 5) -> DecisionQuestion {
-        DecisionQuestion(id: id, kind: .score, prompt: prompt, scoreMin: min, scoreMax: max)
-    }
-
     /// Placeholder labels for a `.choice` question created without options.
     public static let placeholderChoiceOptions = ["A", "B", "C"]
 
-    /// The same question asked as `kind`. Id, prompt, options and score range are kept, and a
-    /// `.choice` without options gets placeholder labels so the tool stays answerable until edited.
+    /// Splits the choices a user typed (one per line, or comma-separated) into trimmed labels,
+    /// dropping blanks and case-insensitive duplicates while keeping their order.
+    public static func parseChoiceOptions(_ text: String) -> [String] {
+        var seen = Set<String>()
+        return text
+            .split(whereSeparator: { $0 == "\n" || $0 == "," })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+    }
+
+    /// The same question asked as `kind`. Id, prompt and options are kept, and a `.choice`
+    /// without options gets placeholder labels so the tool stays answerable until edited.
     public func retyped(as kind: DecisionQuestionKind) -> DecisionQuestion {
         var copy = self
         copy.kind = kind
@@ -126,8 +129,6 @@ public enum DecisionQuestionPacker {
                     type: q.kind.rawValue,
                     prompt: q.prompt,
                     options: q.kind == .choice ? q.options : nil,
-                    min: q.kind == .score ? q.scoreMin : nil,
-                    max: q.kind == .score ? q.scoreMax : nil,
                     multiple: q.kind == .choice ? q.allowsMultiple : nil
                 )
             }
@@ -139,8 +140,6 @@ public enum DecisionQuestionPacker {
         var type: String
         var prompt: String
         var options: [String]?
-        var min: Int?
-        var max: Int?
         var multiple: Bool?
     }
 }

@@ -366,7 +366,6 @@ public final class DecisionServiceManager: ObservableObject {
             switch answer.value {
             case .noul(let yes): keep = yes
             case .choice(let labels): keep = !(labels.first?.lowercased().contains("ignore") ?? false)
-            case .score(let n): keep = n >= 3
             }
             judgments.append(DecisionBulkJudgment(unitID: unit.id, keep: keep, mark: keep ? nil : "drop", confidence: answer.confidence))
         }

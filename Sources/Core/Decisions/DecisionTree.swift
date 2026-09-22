@@ -72,7 +72,6 @@ public enum DecisionTreeStepper {
         switch value {
         case .noul(let yes): return yes ? "yes" : "no"
         case .choice(let labels): return (labels.first ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        case .score(let n): return String(n)
         }
     }
 

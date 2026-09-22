@@ -54,7 +54,6 @@ final class DecisionActionTests: XCTestCase {
         XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .noul(true))])), .yes)
         XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .noul(false))])), .no)
         XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .choice(["billing"]))])), .answer("billing"))
-        XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .score(4))])), .answer("4"))
         XCTAssertEqual(DecisionInlineState(presentation([])), .unsure)
         // Below the tool's confidence threshold the glyph is a question mark, whatever the answer.
         let unsure = DecisionPresentation(
@@ -85,8 +84,23 @@ final class DecisionActionTests: XCTestCase {
 
         let custom = DecisionQuestion.choice(id: "q", prompt: "Which?", options: ["x", "y"])
         XCTAssertEqual(custom.retyped(as: .noul).retyped(as: .choice).options, ["x", "y"])
-        XCTAssertEqual(custom.retyped(as: .score).kind, .score)
         XCTAssertEqual(noul.retyped(as: .noul), noul)
+    }
+
+    func testChoiceOptionsParseFromLinesOrCommas() {
+        XCTAssertEqual(DecisionQuestion.parseChoiceOptions("billing, engineering ,sales"), ["billing", "engineering", "sales"])
+        XCTAssertEqual(DecisionQuestion.parseChoiceOptions("Yes\n\nno\nyes, Maybe"), ["Yes", "no", "Maybe"])
+        XCTAssertEqual(DecisionQuestion.parseChoiceOptions("  ,\n "), [])
+        XCTAssertFalse(DecisionChoicesField.isValid(kind: .choice, text: "only one"))
+        XCTAssertTrue(DecisionChoicesField.isValid(kind: .choice, text: "a, b"))
+        XCTAssertTrue(DecisionChoicesField.isValid(kind: .noul, text: ""))
+    }
+
+    func testLegacyScoreKindDecodesAsYesNo() throws {
+        let json = Data(#"{"id":"q","kind":"score","prompt":"How urgent?","options":[],"allowsMultiple":false}"#.utf8)
+        let question = try JSONDecoder().decode(DecisionQuestion.self, from: json)
+        XCTAssertEqual(question.kind, .noul)
+        XCTAssertEqual(question.prompt, "How urgent?")
     }
 
     func testLiveAssistIsActiveDuringMenuBarWindow() {

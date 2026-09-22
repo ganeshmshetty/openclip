@@ -47,6 +47,5 @@ final class DecisionTreeStepperTests: XCTestCase {
         XCTAssertEqual(DecisionTreeStepper.normalizeLabel(.noul(true)), "yes")
         XCTAssertEqual(DecisionTreeStepper.normalizeLabel(.noul(false)), "no")
         XCTAssertEqual(DecisionTreeStepper.normalizeLabel(.choice(["Urgent"])), "urgent")
-        XCTAssertEqual(DecisionTreeStepper.normalizeLabel(.score(3)), "3")
     }
 }

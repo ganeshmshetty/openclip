@@ -126,7 +126,7 @@ final class LayaRuntimeTests: XCTestCase {
             questions: [
                 .noul(id: "urgent", prompt: "Does this message communicate time pressure?"),
                 .choice(id: "dept", prompt: "Which team should handle this?", options: options),
-                .score(id: "anger", prompt: "How upset does the sender sound?", min: 1, max: 5),
+                .noul(id: "polite", prompt: "Is the sender polite?"),
             ],
             toolID: "e2e"
         )
@@ -141,8 +141,7 @@ final class LayaRuntimeTests: XCTestCase {
             return XCTFail("dept should be a single choice")
         }
         XCTAssertTrue(options.contains(labels[0]), "choice \(labels[0]) must be one of the options")
-        guard case .score(let level)? = first.answer(for: "anger")?.value else { return XCTFail("anger should be a score") }
-        XCTAssertTrue((1...5).contains(level))
+        guard case .noul? = first.answer(for: "polite")?.value else { return XCTFail("polite should be a yes/no answer") }
         for answer in first.answers {
             let confidence = try XCTUnwrap(answer.confidence)
             XCTAssertTrue((0...1).contains(confidence))

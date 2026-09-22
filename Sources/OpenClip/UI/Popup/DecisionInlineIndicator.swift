@@ -3,10 +3,10 @@
 //
 // What a Decision tool shows in place of its icon while and after it runs: a spinner, then a tick or
 // a cross for yes/no, a question mark when the model was not confident enough, the chosen label for
-// a choice or score, or a warning when the provider failed. The outcome is deliberately quiet: in
+// a choice, or a warning when the provider failed. The outcome is deliberately quiet: in
 // the sub-bar (`.bar`) the button takes a soft tint, in the palette (`.palette`) the whole row does,
 // and the glyph is a plain symbol in a muted colour on top of it; the palette row appends a choice
-// or score label as its trailing accessory. `PopupModeStore` clears the outcome after a few seconds.
+// label as its trailing accessory. `PopupModeStore` clears the outcome after a few seconds.
 import SwiftUI
 import Core
 
@@ -17,7 +17,7 @@ public enum DecisionInlineState: Equatable, Sendable {
     case no
     /// Below the tool's confidence threshold, or no answer at all: a question mark.
     case unsure
-    /// A choice or score answer, already rendered as a short label.
+    /// A choice answer: the chosen label, shown as plain inline text (no tick or cross).
     case answer(String)
     case failed
 
@@ -30,7 +30,7 @@ public enum DecisionInlineState: Equatable, Sendable {
         }
         switch first.value {
         case .noul(let yes): self = yes ? .yes : .no
-        case .choice, .score: self = .answer(first.value.displayLabel)
+        case .choice: self = .answer(first.value.displayLabel)
         }
     }
 
@@ -49,7 +49,7 @@ public enum DecisionInlineState: Equatable, Sendable {
         case .no: return Color.red.opacity(0.16)
         case .unsure: return Color.gray.opacity(0.18)
         case .failed: return Color.orange.opacity(0.16)
-        case .answer: return Color.accentColor.opacity(0.12)
+        case .answer: return Color.primary.opacity(0.08)
         }
     }
 
@@ -57,11 +57,11 @@ public enum DecisionInlineState: Equatable, Sendable {
     /// on both light and dark bars.
     var glyphColor: Color {
         switch self {
-        case .yes, .answer: return Color(red: 0.20, green: 0.58, blue: 0.36)
+        case .yes: return Color(red: 0.20, green: 0.58, blue: 0.36)
         case .no: return Color(red: 0.78, green: 0.32, blue: 0.32)
         case .unsure: return Color.secondary
         case .failed: return Color(red: 0.84, green: 0.56, blue: 0.16)
-        case .running: return Color.primary
+        case .running, .answer: return Color.primary
         }
     }
 }
@@ -102,7 +102,8 @@ struct DecisionInlineIndicator: View {
                     .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
             case .palette:
-                glyph("checkmark", label: label)
+                // The palette keeps the tool's own icon and shows the label as the row's trailing text.
+                EmptyView()
             }
         }
     }

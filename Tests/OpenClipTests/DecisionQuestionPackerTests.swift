@@ -5,13 +5,12 @@ import XCTest
 @testable import Core
 
 final class DecisionQuestionPackerTests: XCTestCase {
-    func testPacksNoulChoiceAndScore() throws {
+    func testPacksNoulAndChoice() throws {
         let request = DecisionQuestionPacker.pack(
             state: "Ship Friday?",
             questions: [
                 .noul(id: "q1", prompt: "Safe to share?"),
-                .choice(id: "q2", prompt: "Bucket?", options: ["Urgent", "Later"]),
-                .score(id: "q3", prompt: "Priority?", min: 1, max: 5)
+                .choice(id: "q2", prompt: "Bucket?", options: ["Urgent", "Later"])
             ],
             toolID: "smart_action"
         )
@@ -20,7 +19,7 @@ final class DecisionQuestionPackerTests: XCTestCase {
         XCTAssertTrue(json.contains("\"state\":\"Ship Friday?\""))
         XCTAssertTrue(json.contains("\"type\":\"noul\""))
         XCTAssertTrue(json.contains("\"type\":\"choice\""))
-        XCTAssertTrue(json.contains("\"type\":\"score\""))
+        XCTAssertFalse(json.contains("\"min\""), "score bounds are gone from the wire format")
         XCTAssertTrue(json.contains("\"tool_id\":\"smart_action\""))
         XCTAssertTrue(json.contains("Urgent"))
     }

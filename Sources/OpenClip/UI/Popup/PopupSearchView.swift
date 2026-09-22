@@ -543,7 +543,7 @@ public struct PopupSearchView: View {
         } label: {
             HStack(spacing: 10) {
                 Group {
-                    if let state = modeStore.decisionStates[item.action.id] {
+                    if let state = modeStore.decisionStates[item.action.id], state.label == nil {
                         DecisionInlineIndicator(
                             state: state,
                             style: .palette,

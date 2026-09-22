@@ -19,7 +19,7 @@ struct DecisionsPage: View {
                 SettingsHeroHeader(
                     glyph: .symbol(SettingsPage.decisions.systemImage, tint: SettingsPage.decisions.tint),
                     title: String(localized: "Decision Tools"),
-                    subtitle: String(localized: "Judge selections with typed answers — yes/no, choices, scores — not rewritten essays.")
+                    subtitle: String(localized: "Judge selections with typed answers — yes/no or a choice — not rewritten essays.")
                 )
             }
 
@@ -198,6 +198,7 @@ struct DecisionToolPage: View {
     @State private var title: String = ""
     @State private var prompt: String = ""
     @State private var kind: DecisionQuestionKind = .noul
+    @State private var choicesText: String = ""
     @State private var loaded = false
     @State private var confirmingDelete = false
 
@@ -215,6 +216,9 @@ struct DecisionToolPage: View {
                 Form {
                     TextField(String(localized: "Title"), text: $title)
                     DecisionAnswerTypePicker(kind: $kind)
+                    if kind == .choice {
+                        DecisionChoicesField(text: $choicesText)
+                    }
                     TextField(String(localized: "Question prompt"), text: $prompt, axis: .vertical)
                         .lineLimit(3...8)
                 }
@@ -240,17 +244,18 @@ struct DecisionToolPage: View {
                         guard var updated = tool else { return }
                         updated.title = title.trimmingCharacters(in: .whitespaces)
                         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if var q = updated.questions.first {
-                            q.prompt = trimmedPrompt
-                            updated.questions[0] = q.retyped(as: kind)
-                        } else {
-                            updated.questions = [DecisionQuestion(id: "primary", kind: .noul, prompt: trimmedPrompt).retyped(as: kind)]
+                        var q = updated.questions.first ?? DecisionQuestion(id: "primary", kind: .noul, prompt: trimmedPrompt)
+                        q.prompt = trimmedPrompt
+                        q = q.retyped(as: kind)
+                        if kind == .choice {
+                            q.options = DecisionQuestion.parseChoiceOptions(choicesText)
                         }
+                        updated.questions = [q] + updated.questions.dropFirst()
                         manager.updateTool(updated)
                         router.pop()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || !DecisionChoicesField.isValid(kind: kind, text: choicesText))
                 }
             }
             .onAppear {
@@ -258,6 +263,7 @@ struct DecisionToolPage: View {
                 title = tool.title
                 prompt = tool.questions.first?.prompt ?? ""
                 kind = tool.questions.first?.kind ?? .noul
+                choicesText = (tool.questions.first?.options ?? []).joined(separator: "\n")
                 loaded = true
             }
         } else {
@@ -273,12 +279,16 @@ struct DecisionNewToolPage: View {
     @State private var title = ""
     @State private var prompt = ""
     @State private var kind: DecisionQuestionKind = .noul
+    @State private var choicesText = ""
 
     var body: some View {
         SettingsEditorPage {
             Form {
                 TextField(String(localized: "Title"), text: $title)
                 DecisionAnswerTypePicker(kind: $kind)
+                if kind == .choice {
+                    DecisionChoicesField(text: $choicesText)
+                }
                 TextField(String(localized: "Question prompt"), text: $prompt, axis: .vertical)
                     .lineLimit(3...8)
             }
@@ -287,14 +297,42 @@ struct DecisionNewToolPage: View {
                 Spacer()
                 Button("Cancel") { router.pop() }
                 Button("Add") {
-                    let question = DecisionQuestion(id: "primary", kind: .noul, prompt: prompt).retyped(as: kind)
+                    var question = DecisionQuestion(id: "primary", kind: .noul, prompt: prompt).retyped(as: kind)
+                    if kind == .choice {
+                        question.options = DecisionQuestion.parseChoiceOptions(choicesText)
+                    }
                     let tool = DecisionServiceManager.makeCustomTool(title: title, questions: [question])
                     manager.updateTool(tool)
                     router.pop()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || prompt.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || prompt.trimmingCharacters(in: .whitespaces).isEmpty || !DecisionChoicesField.isValid(kind: kind, text: choicesText))
             }
+        }
+    }
+}
+
+/// The list of choices for a `.choice` tool, shared by the New Decision Tool and edit pages:
+/// one per line or comma-separated, at least two.
+struct DecisionChoicesField: View {
+    @Binding var text: String
+
+    static func isValid(kind: DecisionQuestionKind, text: String) -> Bool {
+        kind != .choice || DecisionQuestion.parseChoiceOptions(text).count >= 2
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            TextField(
+                String(localized: "Choices"),
+                text: $text,
+                prompt: Text(String(localized: "billing, engineering, sales")),
+                axis: .vertical
+            )
+            .lineLimit(2...6)
+            Text(String(localized: "One per line or comma-separated; at least two. The model picks one and the tool shows it."))
+                .font(.caption)
+                .foregroundStyle(Self.isValid(kind: .choice, text: text) ? Color.secondary : Color.orange)
         }
     }
 }
@@ -307,7 +345,6 @@ struct DecisionAnswerTypePicker: View {
         Picker(String(localized: "Answer type"), selection: $kind) {
             Text("Yes / No").tag(DecisionQuestionKind.noul)
             Text("Choice").tag(DecisionQuestionKind.choice)
-            Text("Score").tag(DecisionQuestionKind.score)
         }
     }
 }
