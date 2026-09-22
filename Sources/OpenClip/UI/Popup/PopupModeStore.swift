@@ -28,8 +28,47 @@ public final class PopupModeStore: ObservableObject {
     @Published public var resultCard: ResultCardPayload? = nil
     /// Inline outcome of each Decision tool that ran this session, keyed by action id. The
     /// sub-bar and the palette draw it in place of the tool's icon: a spinner while it runs, then
-    /// a green tick / red cross (yes/no) or the chosen label. There is no decision card.
+    /// a tick / cross / question mark or the chosen label, which fades back to the icon after
+    /// `decisionOutcomeDisplayDuration`. There is no decision card. Mutate through
+    /// `markDecisionRunning`, `settleDecision`, `clearDecision(s)` so the timers stay consistent.
     @Published public var decisionStates: [String: DecisionInlineState] = [:]
+    /// How long a settled outcome stays on the icon before it returns to normal.
+    public static let decisionOutcomeDisplayDuration: TimeInterval = 5
+    private var decisionClearTasks: [String: Task<Void, Never>] = [:]
+
+    /// The tool was clicked: spinner now, and any pending fade-out from its last run is dropped.
+    public func markDecisionRunning(_ actionID: String) {
+        decisionClearTasks.removeValue(forKey: actionID)?.cancel()
+        decisionStates[actionID] = .running
+    }
+
+    /// The tool answered (or failed): show `state`, then clear it after `clearAfter` seconds
+    /// unless the tool ran again in the meantime.
+    public func settleDecision(_ actionID: String, state: DecisionInlineState, clearAfter: TimeInterval? = nil) {
+        decisionClearTasks.removeValue(forKey: actionID)?.cancel()
+        decisionStates[actionID] = state
+        let delay = clearAfter ?? Self.decisionOutcomeDisplayDuration
+        guard delay > 0 else { return }
+        decisionClearTasks[actionID] = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled, let self, self.decisionStates[actionID] == state else { return }
+            self.decisionStates.removeValue(forKey: actionID)
+            self.decisionClearTasks.removeValue(forKey: actionID)
+        }
+    }
+
+    /// Back to the plain icon now (a run that ended in ordinary text, for instance).
+    public func clearDecision(_ actionID: String) {
+        decisionClearTasks.removeValue(forKey: actionID)?.cancel()
+        decisionStates.removeValue(forKey: actionID)
+    }
+
+    /// Forgets every outcome and its timer (popup hidden or a new session).
+    public func clearDecisionStates() {
+        for task in decisionClearTasks.values { task.cancel() }
+        decisionClearTasks = [:]
+        if !decisionStates.isEmpty { decisionStates = [:] }
+    }
     /// The most room the result card may take — the user's remembered size, restored from
     /// preferences (`SettingKey.resultCardWidth` / `resultCardHeight`) when content mode is
     /// entered and updated live while a resize handle is dragged. The card renders at what its

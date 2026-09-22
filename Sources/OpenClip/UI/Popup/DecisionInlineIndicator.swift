@@ -1,10 +1,12 @@
 // DecisionInlineIndicator.swift
 // OpenClip
 //
-// What a Decision tool shows in place of its icon while and after it runs: a spinner, then a green
-// tick or a red cross for yes/no, a grey question mark when the model was not confident enough, the
-// chosen label for a choice or score, or a warning when the provider failed. Drawn by the sub-bar (`.bar`, label text replaces the icon) and the palette
-// (`.palette`, icon slot only; the row shows the label as its trailing accessory).
+// What a Decision tool shows in place of its icon while and after it runs: a spinner, then a tick or
+// a cross for yes/no, a question mark when the model was not confident enough, the chosen label for
+// a choice or score, or a warning when the provider failed. The outcome is deliberately quiet: in
+// the sub-bar (`.bar`) the button itself takes a soft tint and the glyph is a muted colour on top
+// of it; in the palette (`.palette`) the icon slot shows a muted filled circle and the row appends
+// the label as its trailing accessory. `PopupModeStore` clears the outcome after a few seconds.
 import SwiftUI
 import Core
 
@@ -13,7 +15,7 @@ public enum DecisionInlineState: Equatable, Sendable {
     case running
     case yes
     case no
-    /// Below the tool's confidence threshold, or no answer at all: a grey question mark.
+    /// Below the tool's confidence threshold, or no answer at all: a question mark.
     case unsure
     /// A choice or score answer, already rendered as a short label.
     case answer(String)
@@ -37,6 +39,31 @@ public enum DecisionInlineState: Equatable, Sendable {
         if case .answer(let text) = self { return text }
         return nil
     }
+
+    /// Soft wash behind a sub-bar button showing this outcome. `nil` while running so the button
+    /// keeps its normal rest / hover look under the spinner.
+    var barTint: Color? {
+        switch self {
+        case .running: return nil
+        case .yes: return Color.green.opacity(0.16)
+        case .no: return Color.red.opacity(0.16)
+        case .unsure: return Color.gray.opacity(0.18)
+        case .failed: return Color.orange.opacity(0.16)
+        case .answer: return Color.accentColor.opacity(0.12)
+        }
+    }
+
+    /// Glyph colour that reads on the tint without shouting: desaturated, mid-lightness so it works
+    /// on both light and dark bars.
+    var glyphColor: Color {
+        switch self {
+        case .yes, .answer: return Color(red: 0.20, green: 0.58, blue: 0.36)
+        case .no: return Color(red: 0.78, green: 0.32, blue: 0.32)
+        case .unsure: return Color.secondary
+        case .failed: return Color(red: 0.84, green: 0.56, blue: 0.16)
+        case .running: return Color.primary
+        }
+    }
 }
 
 @MainActor
@@ -57,33 +84,33 @@ struct DecisionInlineIndicator: View {
             ToastSpinnerView(color: foreground, scale: scale)
                 .accessibilityLabel(String(localized: "Deciding"))
         case .yes:
-            glyph("checkmark.circle.fill", .green, String(localized: "Yes"))
+            glyph(bar: "checkmark", palette: "checkmark.circle.fill", label: String(localized: "Yes"))
         case .no:
-            glyph("xmark.circle.fill", .red, String(localized: "No"))
+            glyph(bar: "xmark", palette: "xmark.circle.fill", label: String(localized: "No"))
         case .unsure:
-            glyph("questionmark.circle.fill", .gray, String(localized: "Unsure"))
+            glyph(bar: "questionmark", palette: "questionmark.circle.fill", label: String(localized: "Unsure"))
         case .failed:
-            glyph("exclamationmark.triangle.fill", .orange, String(localized: "Failed"))
+            glyph(bar: "exclamationmark.triangle", palette: "exclamationmark.triangle.fill", label: String(localized: "Failed"))
         case .answer(let label):
             switch style {
             case .bar:
                 Text(label)
-                    .font(.system(size: 13 * scale, weight: .regular))
+                    .font(.system(size: 13 * scale, weight: .medium))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .foregroundColor(foreground)
                     .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
             case .palette:
-                glyph("checkmark.circle.fill", .green, label)
+                glyph(bar: "checkmark", palette: "checkmark.circle.fill", label: label)
             }
         }
     }
 
-    private func glyph(_ name: String, _ color: Color, _ label: String) -> some View {
-        Image(systemName: name)
-            .font(.system(size: 14 * scale, weight: .semibold))
-            .foregroundStyle(color)
+    private func glyph(bar: String, palette: String, label: String) -> some View {
+        Image(systemName: style == .bar ? bar : palette)
+            .font(.system(size: (style == .bar ? 13 : 14) * scale, weight: .semibold))
+            .foregroundStyle(state.glyphColor)
             .accessibilityLabel(label)
     }
 }

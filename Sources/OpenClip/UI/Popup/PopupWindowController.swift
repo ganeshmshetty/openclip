@@ -357,7 +357,7 @@ public class PopupWindowController {
                 self.pendingActionID = action.id
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
                 if ActionIdentity.isDecisionPreset(action) {
-                    self.modeStore.decisionStates[action.id] = .running
+                    self.modeStore.markDecisionRunning(action.id)
                 }
             },
             onRunLoadingAction: { [weak self] action, clickIntent in
@@ -942,7 +942,7 @@ public class PopupWindowController {
         }
         cardConversation = nil
         modeStore.resultCard = nil
-        modeStore.decisionStates = [:]
+        modeStore.clearDecisionStates()
         modeStore.resultCardSize = nil
         modeStore.isSurfaceUserSized = false
         modeStore.isCardPinned = false
@@ -1045,7 +1045,7 @@ public class PopupWindowController {
         tooltipController.hide()
         currentActions = nil
         modeStore.resultCard = nil
-        modeStore.decisionStates = [:]
+        modeStore.clearDecisionStates()
         modeStore.resultCardSize = nil
         modeStore.searchPaletteSize = nil
         modeStore.isSurfaceUserSized = false
@@ -1612,7 +1612,7 @@ public class PopupWindowController {
                 self.pendingActionID = action.id
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
                 if ActionIdentity.isDecisionPreset(action) {
-                    self.modeStore.decisionStates[action.id] = .running
+                    self.modeStore.markDecisionRunning(action.id)
                 }
             },
             onActionPerformed: { [weak self] actionID in
@@ -2138,9 +2138,9 @@ public class PopupWindowController {
         guard let actionID, modeStore.decisionStates[actionID] == .running else { return }
         if containsDecision(result) { return }
         if case .toast(let feedback) = result, feedback.style == .error {
-            modeStore.decisionStates[actionID] = .failed
+            modeStore.settleDecision(actionID, state: .failed)
         } else {
-            modeStore.decisionStates.removeValue(forKey: actionID)
+            modeStore.clearDecision(actionID)
         }
     }
 
@@ -2183,7 +2183,7 @@ public class PopupWindowController {
     /// or label); the popup stays where it is, in whatever mode it is in.
     func recordDecisionOutcome(_ presentation: DecisionPresentation) {
         let actionID = DecisionAction.actionID(forToolID: presentation.toolID)
-        modeStore.decisionStates[actionID] = DecisionInlineState(presentation)
+        modeStore.settleDecision(actionID, state: DecisionInlineState(presentation))
         Log.decisions.info("Decision \(presentation.toolID, privacy: .public) answered inline")
     }
 
