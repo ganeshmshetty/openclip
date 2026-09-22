@@ -13,8 +13,9 @@ extension SettingKey where Value == String {
         SettingKey<String>("decisionJevBaseURL", defaultValue: "https://api.typesafe.ai/v1")
     }
 
-    static var decisionLayaCommand: SettingKey<String> {
-        SettingKey<String>("decisionLayaCommand", defaultValue: "laya")
+    /// Laya checkpoint run by the bundled bridge: "english" or "multilingual".
+    static var decisionLayaModel: SettingKey<String> {
+        SettingKey<String>("decisionLayaModel", defaultValue: "english")
     }
 
     static var decisionToolPresetsJSON: SettingKey<String> {

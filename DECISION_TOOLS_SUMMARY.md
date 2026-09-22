@@ -8,7 +8,7 @@ Feature stack: **Decision Tools** as a first-class peer to AI Tools (judge selec
 1. `cd` to this repo, `xcodegen generate`, then `./scripts/dev_run.sh` (or open `OpenClip.xcodeproj`).
 2. Open **Settings → Decisions** (sidebar, next to AI). Toggle **Enable Decision Tools**.
 3. Pick a provider:
-   - **Laya (local)** — preferred for Live assist; requires a `laya` binary (CLI invoke still stubbed until flags stabilize; use a test runner or Jev for real calls).
+   - **Laya (local)** — press **Install Laya**: OpenClip creates `~/.openclip/laya/venv` (uv, else python3 ≥ 3.10), installs `laya` + PyTorch, downloads the checkpoint (~800 MB) and keeps `laya_bridge.py` resident. No key, nothing leaves the Mac.
    - **Jev** — set Base URL (`https://api.typesafe.ai/v1`) + API key (SecretStore).
 4. Enable default tools (Smart action, Triage, Reply as…, Send to…, Safe to share?, Fix path, Clean this list) or add/edit/duplicate/delete like AI tools.
 5. Select text → open the popup → **Decision Tools** bar entry (or palette search for a tool name) → see the **decision card** (chips + confidence), not an AI prose card.
@@ -23,7 +23,7 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 | Core models (`DecisionQuestion` / `Answer` / `Presentation`, packer, response parser) | Done |
 | Decision trees (coarse→fine, fan-out, fail-closed, depth cap) + Triage builtin tree | Done |
 | Bulk map/reduce (line/row/word/span/paragraph, unit cap ~100, wall-clock budget) | Done |
-| Providers: Jev (System One POST), Laya CLI scaffolding | Done (see stubs) |
+| Providers: Jev (System One POST), Laya via managed Python runtime + bundled bridge | Done (Jev wire format still unverified against the real API) |
 | `DecisionServiceManager` + SecretStore keys + Settings keys / catalog | Done |
 | Default tools CRUD (add/edit/duplicate/delete/reorder) + Defaults reset | Done |
 | Bar launcher `builtin.decisionTools` + palette presets (`chrome.source == .decision`) | Done |
@@ -38,7 +38,6 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 
 | Gap | Notes |
 | :--- | :--- |
-| **Laya CLI real invoke** | Availability via `which`; `decide` throws a clear unavailable stub until a stable `laya decide` CLI is confirmed. Injectable `runner` for tests. |
 | **Full any-field AX focus monitoring** | Setting + debounce engine + privacy docs ship; `axFocusMonitoringAvailable == false` with Settings status. Live assist uses current OpenClip selection / explicit `schedule(selectionText:)`. |
 | **Live palette intent / Safe-to-share pill chrome** | Engine APIs (`DecisionLiveSuggestion.Kind`) exist; wiring into every palette/pill surface is minimal — call `DecisionLiveAssistEngine.shared.schedule(...)` from selection/palette hosts as follow-up. |
 | **Linux compile** | macOS AppKit/SwiftUI app; this environment cannot run `xcodebuild`. Files are under `Sources/` and `Tests/` so `xcodegen generate` picks them up from `project.yml` globs. |
@@ -61,6 +60,9 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 - `Sources/OpenClip/Decisions/DecisionLiveAssistEngine.swift`
 - `Sources/OpenClip/Decisions/Providers/JevDecisionProvider.swift`
 - `Sources/OpenClip/Decisions/Providers/LayaDecisionProvider.swift`
+- `Sources/OpenClip/Decisions/Laya/LayaRuntime.swift`
+- `Sources/OpenClip/Resources/laya_bridge.py`
+- `Sources/OpenClip/UI/Preferences/LayaRuntimeSection.swift`
 - `Sources/OpenClip/Settings/SettingKey+Decisions.swift`
 - `Sources/OpenClip/UI/Preferences/DecisionsPage.swift`
 - `Sources/OpenClip/UI/Popup/DecisionCardView.swift`

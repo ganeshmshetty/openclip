@@ -57,9 +57,9 @@ public final class DecisionServiceManager: ObservableObject {
         set { objectWillChange.send(); settingsStore.set(.decisionJevBaseURL, value: newValue) }
     }
 
-    public var layaCommand: String {
-        get { settingsStore.get(.decisionLayaCommand) }
-        set { objectWillChange.send(); settingsStore.set(.decisionLayaCommand, value: newValue) }
+    public var layaModel: String {
+        get { settingsStore.get(.decisionLayaModel) }
+        set { objectWillChange.send(); settingsStore.set(.decisionLayaModel, value: newValue) }
     }
 
     public var liveAssistDebounceMS: Int {
@@ -194,13 +194,13 @@ public final class DecisionServiceManager: ObservableObject {
         case .jev:
             return JevDecisionProvider(apiKey: jevAPIKey, baseURL: jevBaseURL)
         case .laya:
-            return LayaDecisionProvider(command: layaCommand)
+            return LayaDecisionProvider(model: layaModel)
         }
     }
 
-    /// Preferred provider for Live assist: Laya when available, else the active provider.
+    /// Preferred provider for Live assist: Laya when installed, else the active provider.
     public func liveAssistProvider() async -> any DecisionProvider {
-        let laya = LayaDecisionProvider(command: layaCommand)
+        let laya = LayaDecisionProvider(model: layaModel)
         if case .available = await laya.availability() {
             return laya
         }

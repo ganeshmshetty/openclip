@@ -212,7 +212,7 @@ Select **Decisions** in the sidebar (next to AI) to enable the feature and confi
 
 | Provider | Description | Setup |
 | :--- | :--- | :--- |
-| **Laya (local CLI)** | On-device / sidecar; preferred for Live assist | `laya` on PATH (or set the command) |
+| **Laya (local)** | Runs on this Mac in a Python environment OpenClip installs under `~/.openclip/laya` (about 1.5 GB with the model); preferred for Live assist, no key | **Install Laya** on the Decisions page, then pick English or Multilingual |
 | **Jev (TypeSafe System One)** | Cloud BYOK `POST …/systemone` | API key in SecretStore |
 
 ### Live assist

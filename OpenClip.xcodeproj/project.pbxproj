@@ -145,6 +145,7 @@
 		5177FD69CB1889103918E06A /* ValidateExpressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18AD4B01A699AB19272C3068 /* ValidateExpressionTests.swift */; };
 		51EC700EB7A803FD67BDE304 /* PopupResizeHandles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 304CDBC2F9749852072668D2 /* PopupResizeHandles.swift */; };
 		5217746177125684C4C0D562 /* AIConfigureForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0840C0956DCD2948A2E47F53 /* AIConfigureForm.swift */; };
+		52568343A478462E1A564712 /* LayaRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E97A6466F76F80AF5845652 /* LayaRuntime.swift */; };
 		525E21DA64B3EB439A493E1C /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 69201994E9CE6C7F2CDED2F0 /* KeyboardShortcuts */; };
 		52BEF3963FD28FB56E10A235 /* PopupThemeSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81EC3C5F8E4224A4395D314 /* PopupThemeSelector.swift */; };
 		57A9F680F5AF294AAB1B57B9 /* ActionCoordinatorStartupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F2DA7AE2DE334E1A769A2E /* ActionCoordinatorStartupTests.swift */; };
@@ -256,6 +257,7 @@
 		9A5AB557F078A06A470B696F /* OpenClipSnippetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0433AD358F1B636910C66094 /* OpenClipSnippetParser.swift */; };
 		9A7F163119972B733595F05C /* TextPlaceholderEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F4335DD4C3C026D8A6AEBA /* TextPlaceholderEngineTests.swift */; };
 		9B2C92B98C80BB5FCC596CC3 /* ExtensionsStoreIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA880751E87F795D5A87C8F /* ExtensionsStoreIntegrationTests.swift */; };
+		9C06EE821208D25F34D7CF1E /* LayaRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDF5DF8CDFED9B955D45FC8 /* LayaRuntimeTests.swift */; };
 		9C5C5A56EBFDFBB19A51A2A3 /* AddApplicationPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843B284D25AD62298BFCBCD8 /* AddApplicationPage.swift */; };
 		9CB33DC0C4D4EE40DBF182AF /* ManifestValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C647642DA3D59197DDF60F5 /* ManifestValidation.swift */; };
 		A0AFEE7C0160491BE2D7F44A /* SecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF33081FB4BA95A0DF2F7A87 /* SecretStore.swift */; };
@@ -266,6 +268,7 @@
 		A218CCDA9C0BB59FE30FFFD7 /* OpenClipJSHostSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38209FD5C0082BD05CC8718 /* OpenClipJSHostSupport.swift */; };
 		A255B2AD8EDA8F740EABEE0F /* SelectionGatePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8018BA605653ACD93A6A6BF6 /* SelectionGatePolicy.swift */; };
 		A301D330D05E4BA3B4CD1DC0 /* DeliveryDecoratedAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3B10512A0215F842296CC1 /* DeliveryDecoratedAction.swift */; };
+		A324C5F3F46F9FBA7964225A /* LayaRuntimeSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 463C3F7A1A526C4D221FD596 /* LayaRuntimeSection.swift */; };
 		A32E8105B852A0AF20AC8945 /* PopupPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFEE1DAE171FE965EB13F090 /* PopupPanelTests.swift */; };
 		A413C52D9CFDE290C784AB04 /* ExtensionResultCardResizeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F577BB792F73B05E72E5CB2 /* ExtensionResultCardResizeTests.swift */; };
 		A4B07F7C0AA32D61F32510D5 /* DynamicActionConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3675FDD7BC06CF3B3CBDA003 /* DynamicActionConfigView.swift */; };
@@ -361,6 +364,7 @@
 		DBDE2D2F95FE772C86C69056 /* ActionSearchKeywords.swift in Sources */ = {isa = PBXBuildFile; fileRef = 493FF0699565029ED4F5E07A /* ActionSearchKeywords.swift */; };
 		DC3970BFE885B81EDF1BE8FD /* DecisionToolPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE9531AE9DDEAFAAE8943E76 /* DecisionToolPreset.swift */; };
 		DCC694DC2D481C35063D62B4 /* IconPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC7C388035A937859369C48 /* IconPickerView.swift */; };
+		DCD4EC244A40CF0EF0F392FA /* laya_bridge.py in Resources */ = {isa = PBXBuildFile; fileRef = 433EE71B67EA0930C37472DF /* laya_bridge.py */; };
 		DCD4FF791D068C0135D4CC96 /* RichPasteboardPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8DAC3CA5CC8F7225B364CC /* RichPasteboardPayload.swift */; };
 		DD47C83E4F35DC8526655955 /* TooltipPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A05E91E92D5BB6757E52B4CE /* TooltipPanel.swift */; };
 		DEEE0BCFD9DB9C3754D01774 /* ModifierFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F4DAB73B13C780B669746CE /* ModifierFlags.swift */; };
@@ -580,12 +584,14 @@
 		425C2C7A5179A71762A40436 /* LocalizedStringValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizedStringValueTests.swift; sourceTree = "<group>"; };
 		4284E18DE06D8BB8FF933E15 /* ActionAppearanceFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionAppearanceFields.swift; sourceTree = "<group>"; };
 		43164B559184ADE5F08C1FDD /* NewCustomActionPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewCustomActionPage.swift; sourceTree = "<group>"; };
+		433EE71B67EA0930C37472DF /* laya_bridge.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = laya_bridge.py; sourceTree = "<group>"; };
 		43600D5250056CDB41C7FDF4 /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
 		4454ADFE0B327CA7F84F860F /* NamedServiceAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NamedServiceAction.swift; sourceTree = "<group>"; };
 		4584DE4382B6EBE7C2653643 /* DeepLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkTests.swift; sourceTree = "<group>"; };
 		459B709840D3A9F1DFD49761 /* ToastPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastPanel.swift; sourceTree = "<group>"; };
 		45D6782B9A944BF84F2CC1AE /* DecisionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionProvider.swift; sourceTree = "<group>"; };
 		45EDC48BB789417097D3B8A4 /* ExtensionUpdatePlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUpdatePlanner.swift; sourceTree = "<group>"; };
+		463C3F7A1A526C4D221FD596 /* LayaRuntimeSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayaRuntimeSection.swift; sourceTree = "<group>"; };
 		46F35FE3A8EA5549603E53B4 /* PermissionRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionRecoveryView.swift; sourceTree = "<group>"; };
 		472E7385DBCBD7C2443AC1B9 /* WindowConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowConfigurator.swift; sourceTree = "<group>"; };
 		47E51843D196C894F4B98910 /* SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStoreTests.swift; sourceTree = "<group>"; };
@@ -633,6 +639,7 @@
 		6D2717804C4DC26A77E2F50F /* ExtensionPackageResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionPackageResolverTests.swift; sourceTree = "<group>"; };
 		6D2CD73334B7B4D222062C30 /* ActionVisibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionVisibilityTests.swift; sourceTree = "<group>"; };
 		6E15ACA717AFB2E02C6D8982 /* ShortcutsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsPage.swift; sourceTree = "<group>"; };
+		6E97A6466F76F80AF5845652 /* LayaRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayaRuntime.swift; sourceTree = "<group>"; };
 		6F5F732ABDD64A71D06D8F69 /* FollowUpInCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowUpInCardTests.swift; sourceTree = "<group>"; };
 		6FF3B12A16763A7B975022F1 /* AXWebAreaStrategyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXWebAreaStrategyTests.swift; sourceTree = "<group>"; };
 		704D6BE45F2AF94603F2FA07 /* ExtensionManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionManifest.swift; sourceTree = "<group>"; };
@@ -653,6 +660,7 @@
 		7A37D90BFF87CB9EFE573551 /* ActionResultDeliveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionResultDeliveryTests.swift; sourceTree = "<group>"; };
 		7B1CAECD556B1DF6245E0DED /* PasteAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteAvailability.swift; sourceTree = "<group>"; };
 		7BBCBD7E4F5F0D1015061E8D /* ActionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCoordinatorTests.swift; sourceTree = "<group>"; };
+		7CDF5DF8CDFED9B955D45FC8 /* LayaRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayaRuntimeTests.swift; sourceTree = "<group>"; };
 		7F0E732D2DCAF53EDEB6653D /* LocalizedStringValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizedStringValue.swift; sourceTree = "<group>"; };
 		7F26242B60606C743CBBA169 /* PreferencesToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesToolbar.swift; sourceTree = "<group>"; };
 		7F86844851929D68343D9230 /* PopupPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPreview.swift; sourceTree = "<group>"; };
@@ -1285,6 +1293,7 @@
 		89EBAA0C096DFE2140D364CF /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				433EE71B67EA0930C37472DF /* laya_bridge.py */,
 				4B24E324403AA01B89814FF7 /* Localizable.xcstrings */,
 			);
 			path = Resources;
@@ -1345,6 +1354,14 @@
 			path = Providers;
 			sourceTree = "<group>";
 		};
+		98AA2C693934E1598FA7A8DF /* Laya */ = {
+			isa = PBXGroup;
+			children = (
+				6E97A6466F76F80AF5845652 /* LayaRuntime.swift */,
+			);
+			path = Laya;
+			sourceTree = "<group>";
+		};
 		9DA9E12BE0F361EEDE0E34B7 /* Preferences */ = {
 			isa = PBXGroup;
 			children = (
@@ -1373,6 +1390,7 @@
 				5CF590B61F0C97749C6628A1 /* GroupEditorPage.swift */,
 				0AC7C388035A937859369C48 /* IconPickerView.swift */,
 				569412EFC877FF5E34F89619 /* InstalledExtensionInfo.swift */,
+				463C3F7A1A526C4D221FD596 /* LayaRuntimeSection.swift */,
 				43164B559184ADE5F08C1FDD /* NewCustomActionPage.swift */,
 				C48F2C371E4126CE67142FC0 /* NewGroupPage.swift */,
 				7F26242B60606C743CBBA169 /* PreferencesToolbar.swift */,
@@ -1446,6 +1464,7 @@
 				45D6782B9A944BF84F2CC1AE /* DecisionProvider.swift */,
 				DE09CD194913F451844C295B /* DecisionServiceManager.swift */,
 				E1B8C3C5E53AD00801FE3545 /* DecisionToolsAction.swift */,
+				98AA2C693934E1598FA7A8DF /* Laya */,
 				9793D54DB1A739599E73719B /* Providers */,
 			);
 			path = Decisions;
@@ -1555,6 +1574,7 @@
 				74377A23CADC86774742A0BD /* InstalledAppsScannerTests.swift */,
 				3E3C2CC225FB45B3C4F3FC55 /* IntegrationSettingsBridgeTests.swift */,
 				B603C28D161A795066B85A89 /* LaunchAtLoginManagerTests.swift */,
+				7CDF5DF8CDFED9B955D45FC8 /* LayaRuntimeTests.swift */,
 				E64E77AACA56DB3C341E5044 /* LocalIconCacheTests.swift */,
 				425C2C7A5179A71762A40436 /* LocalizedStringValueTests.swift */,
 				382F45A3CA8BFDC01E3132BD /* LogCoreTests.swift */,
@@ -1765,6 +1785,7 @@
 			files = (
 				701B65DCD6E9E9A69A6C7C13 /* Assets.xcassets in Resources */,
 				6EB7274B6001EBEA959A65C2 /* Localizable.xcstrings in Resources */,
+				DCD4EC244A40CF0EF0F392FA /* laya_bridge.py in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1854,6 +1875,7 @@
 				28866ECB981E609DE49A0446 /* InstalledAppsScannerTests.swift in Sources */,
 				B183ED2FCAC73B5128619CCB /* IntegrationSettingsBridgeTests.swift in Sources */,
 				1C03F28FAA913021C9CA39D2 /* LaunchAtLoginManagerTests.swift in Sources */,
+				9C06EE821208D25F34D7CF1E /* LayaRuntimeTests.swift in Sources */,
 				FD4AAED6B52C78979F10227E /* LocalIconCacheTests.swift in Sources */,
 				D29E43E1033FBB6C4B2621F1 /* LocalizedStringValueTests.swift in Sources */,
 				EBDE5DA75D4148EBBD2BEE05 /* LogCoreTests.swift in Sources */,
@@ -2114,6 +2136,8 @@
 				CCC401E40B61E07FFAEFC9AF /* KeyPressAction.swift in Sources */,
 				DF8D4D6ADC91E929BB3F3920 /* LaunchAtLoginManager.swift in Sources */,
 				C2B17BFF351E10398F97D8C7 /* LayaDecisionProvider.swift in Sources */,
+				52568343A478462E1A564712 /* LayaRuntime.swift in Sources */,
+				A324C5F3F46F9FBA7964225A /* LayaRuntimeSection.swift in Sources */,
 				33956B07A3C1A2972BEEC22E /* LiquidGlass.swift in Sources */,
 				F90A545EAD5C3F1F1578C757 /* LocalIconCache.swift in Sources */,
 				ACCD0DDEFEB27D40BA433024 /* LocalLLMProvider.swift in Sources */,

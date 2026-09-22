@@ -1,40 +1,39 @@
 // LayaDecisionProvider.swift
 // OpenClip
 //
-// Local Laya CLI / sidecar Decision provider. Prefers on-device judgment for Live assist.
+// Local Laya Decision provider. Laya has no CLI, so decisions go through `LayaRuntime`: the Python
+// environment OpenClip installs under ~/.openclip/laya and the bundled bridge it keeps resident.
+// Preferred for Live assist because nothing leaves the Mac.
 import Foundation
 import Core
 
 @MainActor
 public final class LayaDecisionProvider: DecisionProvider {
     public let type: DecisionProviderType = .laya
-    public var command: String
-    /// Injected runner for tests; defaults to a real Process launch.
+    /// Checkpoint to run: see `LayaRuntime.models`.
+    public var model: String
+    /// Injected runner for tests, called with (model, request payload); replaces the runtime.
     public var runner: (@Sendable (String, Data) async throws -> Data)?
+    private let runtime: LayaRuntime
 
-    public init(command: String = "laya") {
-        self.command = command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "laya" : command
+    public init(model: String = LayaRuntime.defaultModel, runtime: LayaRuntime = .shared) {
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.model = trimmed.isEmpty ? LayaRuntime.defaultModel : trimmed
+        self.runtime = runtime
     }
 
     public func availability() async -> DecisionProviderAvailability {
         if runner != nil { return .available }
-        // Check PATH for the binary without executing a decision.
-        let which = Process()
-        which.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        which.arguments = [command]
-        let pipe = Pipe()
-        which.standardOutput = pipe
-        which.standardError = Pipe()
-        do {
-            try which.run()
-            which.waitUntilExit()
-            if which.terminationStatus == 0 {
-                return .available
-            }
-        } catch {
-            // fall through
+        switch runtime.status {
+        case .notInstalled:
+            return .unavailable(reason: LayaRuntime.notInstalledMessage)
+        case .installing(let step):
+            return .unavailable(reason: String(localized: "Laya is installing: \(step)"))
+        case .failed(let message):
+            return .unavailable(reason: message)
+        case .installed, .starting, .running:
+            return runtime.isInstalled ? .available : .unavailable(reason: LayaRuntime.notInstalledMessage)
         }
-        return .unavailable(reason: String(localized: "Laya CLI (“\(command)”) not found on PATH. Install a local Laya build or point Preferences → Decisions at your binary."))
     }
 
     public func decide(_ request: DecisionRequest) async throws -> DecisionResponse {
@@ -47,12 +46,12 @@ public final class LayaDecisionProvider: DecisionProvider {
             throw DecisionError.emptyInput
         }
         let payload = try DecisionQuestionPacker.encodeRequest(request)
+        let data: Data
         if let runner {
-            let data = try await runner(command, payload)
-            return try DecisionResponseParser.parse(data)
+            data = try await runner(model, payload)
+        } else {
+            data = try await runtime.decide(payload, model: model)
         }
-        // Real CLI: `laya decide --json` reading request JSON from stdin.
-        // TODO: wire through ShellProcessRunner when Laya's CLI flag set stabilizes.
-        throw DecisionError.providerUnavailable(String(localized: "Laya CLI invoke is stubbed until a stable `laya decide` interface is confirmed. Set a test runner or use Jev."))
+        return try DecisionResponseParser.parse(data)
     }
 }

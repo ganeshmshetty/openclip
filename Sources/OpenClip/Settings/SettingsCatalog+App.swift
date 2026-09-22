@@ -34,7 +34,7 @@ extension SettingsCatalog {
 
             SettingKey.decisionActiveProvider.erased,
             SettingKey.decisionJevBaseURL.erased,
-            SettingKey.decisionLayaCommand.erased,
+            SettingKey.decisionLayaModel.erased,
             SettingKey.decisionToolPresetsJSON.erased,
             SettingKey.decisionLiveAssistDebounceMS.erased
         ]

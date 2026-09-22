@@ -120,7 +120,8 @@ Sources/
 │   │   ├── DecisionServiceManager.swift
 │   │   ├── DecisionAction.swift / DecisionToolsAction.swift / DecisionActionSync.swift
 │   │   ├── DecisionLiveAssistEngine.swift
-│   │   └── Providers/                      # Jev, Laya CLI
+│   │   ├── Laya/LayaRuntime.swift            # Installs ~/.openclip/laya and keeps Resources/laya_bridge.py resident
+│   │   └── Providers/                      # Jev, Laya (via LayaRuntime)
     │   ├── AIConversation.swift              # A card session (selection + instructions + results) rendered as labelled context for follow-ups
     │   └── Providers/                        # Apple Intelligence, Local LLMs, CLI Subscriptions, Cloud API
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner

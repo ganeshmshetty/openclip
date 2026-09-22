@@ -98,18 +98,15 @@ struct DecisionConfigureForm: View {
                 ))
                 SecureField(String(localized: "Jev API key"), text: $manager.jevAPIKey)
             case .laya:
-                TextField(String(localized: "Laya command"), text: Binding(
-                    get: { manager.layaCommand },
-                    set: { manager.layaCommand = $0 }
+                LayaRuntimeSection(model: Binding(
+                    get: { manager.layaModel },
+                    set: { manager.layaModel = $0 }
                 ))
-                Text("Local CLI / sidecar. Preferred for Live assist when available.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         } header: {
             Text("Provider")
         } footer: {
-            Text("Keys are stored in SecretStore (~/.openclip/secrets.json). Decision tools never paste generated essays.")
+            Text("Keys are stored in SecretStore (~/.openclip/secrets.json); Laya runs locally with no key. Decision tools never paste generated essays.")
                 .font(.caption)
         }
         .disabled(!manager.isDecisionsEnabled)
