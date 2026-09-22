@@ -22,7 +22,7 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 | :--- | :--- |
 | Core models (`DecisionQuestion` / `Answer` / `Presentation`, packer, response parser) | Done |
 | Decision trees (coarse→fine, fan-out, fail-closed, depth cap) + Triage builtin tree | Done |
-| Bulk map/reduce (line/row/word/span/paragraph, unit cap ~100, wall-clock budget) | Done |
+| Bulk decisions: **Bulk…** entry → card with live item count, Row/Word mode, tool picker, progress, categorised results, per-category + copy-all | Done |
 | Providers: Jev (System One POST), Laya via managed Python runtime + bundled bridge | Done (Jev wire format still unverified against the real API) |
 | `DecisionServiceManager` + SecretStore keys + Settings keys / catalog | Done |
 | Default tools CRUD (add/edit/duplicate/delete/reorder) + Defaults reset | Done |
@@ -68,6 +68,9 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 - `Sources/OpenClip/Settings/SettingKey+Decisions.swift`
 - `Sources/OpenClip/UI/Preferences/DecisionsPage.swift`
 - `Sources/OpenClip/UI/Popup/DecisionInlineIndicator.swift`
+- `Sources/OpenClip/UI/Popup/DecisionBulkCardView.swift`
+- `Sources/OpenClip/Decisions/DecisionBulkAction.swift`
+- `Sources/OpenClip/Decisions/DecisionBulkSession.swift`
 
 ### Tests
 - `Tests/OpenClipTests/DecisionQuestionPackerTests.swift`

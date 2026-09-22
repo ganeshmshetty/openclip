@@ -32,6 +32,8 @@ public final class PopupModeStore: ObservableObject {
     /// `decisionOutcomeDisplayDuration`. There is no decision card. Mutate through
     /// `markDecisionRunning`, `settleDecision`, `clearDecision(s)` so the timers stay consistent.
     @Published public var decisionStates: [String: DecisionInlineState] = [:]
+    /// The bulk decision run currently on screen (content mode), or nil.
+    @Published public var bulkSession: DecisionBulkSession? = nil
     /// How long a settled outcome stays on the icon before it returns to normal.
     public static let decisionOutcomeDisplayDuration: TimeInterval = 3
     private var decisionClearTasks: [String: Task<Void, Never>] = [:]

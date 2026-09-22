@@ -31,6 +31,10 @@ public struct DecisionBulkLimits: Sendable, Equatable {
 
     public static let `default` = DecisionBulkLimits(maxUnits: 100, budgetSeconds: 8)
 
+    /// The bulk card runs in front of the user with a progress bar and a Stop button, so it
+    /// takes a much higher unit cap and no wall-clock budget.
+    public static let interactive = DecisionBulkLimits(maxUnits: 500, budgetSeconds: .greatestFiniteMagnitude)
+
     public init(maxUnits: Int = 100, budgetSeconds: TimeInterval = 8) {
         self.maxUnits = max(1, maxUnits)
         self.budgetSeconds = max(0.1, budgetSeconds)

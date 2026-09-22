@@ -942,6 +942,8 @@ public class PopupWindowController {
         }
         cardConversation = nil
         modeStore.resultCard = nil
+        modeStore.bulkSession?.cancel()
+        modeStore.bulkSession = nil
         modeStore.clearDecisionStates()
         modeStore.resultCardSize = nil
         modeStore.isSurfaceUserSized = false
@@ -1045,6 +1047,8 @@ public class PopupWindowController {
         tooltipController.hide()
         currentActions = nil
         modeStore.resultCard = nil
+        modeStore.bulkSession?.cancel()
+        modeStore.bulkSession = nil
         modeStore.clearDecisionStates()
         modeStore.resultCardSize = nil
         modeStore.searchPaletteSize = nil
@@ -2172,11 +2176,23 @@ public class PopupWindowController {
             presentConfiguration(for: request)
         case .decision(let presentation):
             recordDecisionOutcome(presentation)
+        case .decisionBulk(let text):
+            showBulkCard(for: text)
         case .sequence(let items):
             for item in items { handleActionResult(item, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast) }
         default:
             handleEffect(result, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
         }
+    }
+
+    /// Opens the bulk decision card on `text`, in place of the bar: the unit count, the row/word
+    /// mode, the tool, progress and the per-category copy buttons all live there.
+    func showBulkCard(for text: String) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        modeStore.resultCard = nil
+        modeStore.bulkSession = DecisionBulkSession(text: text)
+        modeStore.mode = .content
+        Log.decisions.info("Opened the bulk decision card")
     }
 
     /// Shows a Decision tool's answer on its own icon in the sub-bar and the palette (tick, cross

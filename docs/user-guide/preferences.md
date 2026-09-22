@@ -215,6 +215,17 @@ Select **Decisions** in the sidebar (next to AI) to enable the feature and confi
 | **Laya (local)** | Runs on this Mac in a Python environment OpenClip installs under `~/.openclip/laya` (about 1.5 GB with the model); preferred for Live assist, no key | **Install Laya** on the Decisions page, then pick English or Multilingual; **Load** keeps the model resident ahead of the first decision |
 | **Jev (TypeSafe System One)** | Cloud BYOK `POST …/systemone` | API key in SecretStore |
 
+### Bulk decisions
+
+**Bulk…** sits at the end of the Decision Tools group (and in the command palette). It judges a selection **item by item** instead of as one piece of text:
+
+1. It reports how many items the selection makes.
+2. Choose **Row** or **Word** — the count updates with the choice — and which decision to apply.
+3. **Run**. A progress bar tracks it, and the categories fill up as it goes.
+4. Copy one category, or **Copy All** for every category with headings.
+
+Categories are Yes / No / Unsure for a yes-no tool, or one per option (plus Unsure) for a choice tool. An item the model is not confident enough about lands in Unsure rather than being guessed. Runs are capped at 500 items and **Stop** keeps whatever has been judged so far.
+
 ### Live assist and Quick Assist
 
 Off by default. The menu bar icon's **Live Assist** submenu turns it on for 30 minutes, 1 hour, or until tomorrow (like **Pause**); **Always On** there is the same switch as this toggle.

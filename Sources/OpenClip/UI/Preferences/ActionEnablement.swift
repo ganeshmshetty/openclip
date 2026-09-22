@@ -38,6 +38,13 @@ enum ActionEnablement {
                 }
             )
         }
+        if action.id == DecisionBulkAction.actionID {
+            // Not a preset: the bulk entry lives or dies with Decision Tools.
+            return Binding(
+                get: { DecisionServiceManager.shared.isDecisionsEnabled },
+                set: { DecisionServiceManager.shared.isDecisionsEnabled = $0 }
+            )
+        }
         if ActionIdentity.isDecisionPreset(action) {
             return Binding(
                 get: { DecisionServiceManager.shared.tool(forActionID: action.id)?.isEnabled ?? false },

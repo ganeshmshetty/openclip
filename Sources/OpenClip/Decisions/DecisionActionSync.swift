@@ -33,10 +33,14 @@ public final class DecisionActionSync {
         let fingerprint = tools.map { "\($0.id)|\($0.title)|\($0.isEnabled)|\($0.questions.count)" }
         guard fingerprint != lastFingerprint else { return }
 
+        // "Bulk…" is a Decision-group member too, always last: it is the one entry that judges a
+        // selection item by item rather than as a whole.
         let currentOrder = tools.map { DecisionAction(toolID: $0.id, title: $0.title, symbolName: $0.symbolName).id }
+            + [DecisionBulkAction.actionID]
 
         if currentOrder != registeredOrder {
-            let newActions = tools.map { DecisionAction(toolID: $0.id, title: $0.title, symbolName: $0.symbolName) }
+            let newActions: [any Action] = tools.map { DecisionAction(toolID: $0.id, title: $0.title, symbolName: $0.symbolName) }
+                + [DecisionBulkAction()]
             coordinator.replaceActions(
                 matching: { ActionIdentity.isDecisionPreset($0) },
                 with: newActions
@@ -45,6 +49,7 @@ public final class DecisionActionSync {
             for tool in tools {
                 coordinator.register(action: DecisionAction(toolID: tool.id, title: tool.title, symbolName: tool.symbolName))
             }
+            coordinator.register(action: DecisionBulkAction())
         }
 
         registeredOrder = currentOrder
