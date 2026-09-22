@@ -59,7 +59,7 @@ Select any text in any app, and OpenClip appears with contextual actions — cop
 ### Homebrew (Recommended)
 
 ```bash
-brew install --cask ganeshmshetty/tap/openclip
+brew install --cask openclip
 ```
 
 ### Direct Download
