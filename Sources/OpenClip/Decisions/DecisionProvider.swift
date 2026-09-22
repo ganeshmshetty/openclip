@@ -1,13 +1,12 @@
 // DecisionProvider.swift
 // OpenClip
 //
-// Protocol and errors for Decision backends (Jev / OpenRouter adapter / Laya).
+// Protocol and errors for Decision backends (Jev / Laya).
 import Foundation
 import Core
 
 public enum DecisionProviderType: String, CaseIterable, Identifiable, Sendable {
     case jev = "jev"
-    case openRouter = "openrouter"
     case laya = "laya"
 
     public var id: String { rawValue }
@@ -15,7 +14,6 @@ public enum DecisionProviderType: String, CaseIterable, Identifiable, Sendable {
     public var title: String {
         switch self {
         case .jev: return String(localized: "Jev (TypeSafe System One)")
-        case .openRouter: return String(localized: "OpenRouter (structured decision)")
         case .laya: return String(localized: "Laya (local CLI)")
         }
     }

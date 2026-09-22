@@ -214,9 +214,8 @@ Select **Decisions** in the sidebar (next to AI) to enable the feature and confi
 | :--- | :--- | :--- |
 | **Laya (local CLI)** | On-device / sidecar; preferred for Live assist | `laya` on PATH (or set the command) |
 | **Jev (TypeSafe System One)** | Cloud BYOK `POST …/systemone` | API key in SecretStore |
-| **OpenRouter (structured)** | OpenAI-compatible JSON decision adapter | API key + model |
 
 ### Live assist
 
-Off by default. When enabled, OpenClip debounces selection changes (100–300 ms), cancels in-flight requests, and prefers local Laya. It only **suggests** chips (Smart hint / Safe-to-share pill / palette intent) — it never rewrites. Full monitoring of arbitrary focused fields via Accessibility is not enabled yet; Settings shows that status.
+Off by default. The menu bar icon's **Live Assist** submenu turns it on for 30 minutes, 1 hour, or until tomorrow (like **Pause**); **Always On** there is the same switch as this toggle. When enabled, OpenClip debounces selection changes (100–300 ms), cancels in-flight requests, and prefers local Laya. It only **suggests** chips (Smart hint / Safe-to-share pill / palette intent) — it never rewrites. Full monitoring of arbitrary focused fields via Accessibility is not enabled yet; Settings shows that status.
 

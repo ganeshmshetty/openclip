@@ -13,14 +13,6 @@ extension SettingKey where Value == String {
         SettingKey<String>("decisionJevBaseURL", defaultValue: "https://api.typesafe.ai/v1")
     }
 
-    static var decisionOpenRouterBaseURL: SettingKey<String> {
-        SettingKey<String>("decisionOpenRouterBaseURL", defaultValue: "https://openrouter.ai/api/v1")
-    }
-
-    static var decisionOpenRouterModel: SettingKey<String> {
-        SettingKey<String>("decisionOpenRouterModel", defaultValue: "openai/gpt-4o-mini")
-    }
-
     static var decisionLayaCommand: SettingKey<String> {
         SettingKey<String>("decisionLayaCommand", defaultValue: "laya")
     }

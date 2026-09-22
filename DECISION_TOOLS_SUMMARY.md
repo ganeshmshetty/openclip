@@ -8,12 +8,11 @@ Feature stack: **Decision Tools** as a first-class peer to AI Tools (judge selec
 1. `cd` to this repo, `xcodegen generate`, then `./scripts/dev_run.sh` (or open `OpenClip.xcodeproj`).
 2. Open **Settings → Decisions** (sidebar, next to AI). Toggle **Enable Decision Tools**.
 3. Pick a provider:
-   - **Laya (local)** — preferred for Live assist; requires a `laya` binary (CLI invoke still stubbed until flags stabilize; use a test runner or cloud provider for real calls).
+   - **Laya (local)** — preferred for Live assist; requires a `laya` binary (CLI invoke still stubbed until flags stabilize; use a test runner or Jev for real calls).
    - **Jev** — set Base URL (`https://api.typesafe.ai/v1`) + API key (SecretStore).
-   - **OpenRouter** — set key + model for structured JSON decisions.
 4. Enable default tools (Smart action, Triage, Reply as…, Send to…, Safe to share?, Fix path, Clean this list) or add/edit/duplicate/delete like AI tools.
 5. Select text → open the popup → **Decision Tools** bar entry (or palette search for a tool name) → see the **decision card** (chips + confidence), not an AI prose card.
-6. Optional: enable **Live assist** (off by default); read the privacy blurb on the Decisions page.
+6. Optional: enable **Live assist** (off by default) on the Decisions page, or for 30 minutes / 1 hour / until tomorrow from the menu bar's **Live Assist** submenu; read the privacy blurb on the Decisions page.
 
 No real API keys are committed. Unit tests cover packing, parsing, tree stepping, bulk split/reduce, and mock provider evaluation (`./scripts/test.sh` on macOS).
 
@@ -24,7 +23,7 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 | Core models (`DecisionQuestion` / `Answer` / `Presentation`, packer, response parser) | Done |
 | Decision trees (coarse→fine, fan-out, fail-closed, depth cap) + Triage builtin tree | Done |
 | Bulk map/reduce (line/row/word/span/paragraph, unit cap ~100, wall-clock budget) | Done |
-| Providers: Jev (System One POST), OpenRouter structured adapter, Laya CLI scaffolding | Done (see stubs) |
+| Providers: Jev (System One POST), Laya CLI scaffolding | Done (see stubs) |
 | `DecisionServiceManager` + SecretStore keys + Settings keys / catalog | Done |
 | Default tools CRUD (add/edit/duplicate/delete/reorder) + Defaults reset | Done |
 | Bar launcher `builtin.decisionTools` + palette presets (`chrome.source == .decision`) | Done |
@@ -61,7 +60,6 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 - `Sources/OpenClip/Decisions/DecisionActionSync.swift`
 - `Sources/OpenClip/Decisions/DecisionLiveAssistEngine.swift`
 - `Sources/OpenClip/Decisions/Providers/JevDecisionProvider.swift`
-- `Sources/OpenClip/Decisions/Providers/OpenRouterDecisionProvider.swift`
 - `Sources/OpenClip/Decisions/Providers/LayaDecisionProvider.swift`
 - `Sources/OpenClip/Settings/SettingKey+Decisions.swift`
 - `Sources/OpenClip/UI/Preferences/DecisionsPage.swift`

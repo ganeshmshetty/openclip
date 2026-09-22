@@ -115,6 +115,8 @@ public extension SettingKey where Value == Double {
     static var mouseHoldDuration: SettingKey<Double> { SettingKey<Double>("mouseHoldDuration", defaultValue: 0.3) }
     /// Timestamp (seconds since 1970) until which OpenClip is temporarily paused (0.0 = not paused).
     static var pauseUntilTimestamp: SettingKey<Double> { SettingKey<Double>("pauseUntilTimestamp", defaultValue: 0.0) }
+    /// Timestamp (seconds since 1970) until which Decision Live assist is on from the menu bar (0.0 = no timed window).
+    static var decisionLiveAssistUntilTimestamp: SettingKey<Double> { SettingKey<Double>("decisionLiveAssistUntilTimestamp", defaultValue: 0.0) }
 }
 
 public extension SettingKey where Value == Data? {

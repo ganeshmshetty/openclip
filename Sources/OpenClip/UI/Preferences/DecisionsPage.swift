@@ -32,6 +32,12 @@ struct DecisionsPage: View {
                     get: { manager.liveAssistEnabled },
                     set: { manager.liveAssistEnabled = $0 }
                 ))
+                if manager.liveAssistRemainingSeconds > 0 {
+                    let minutes = max(1, Int((manager.liveAssistRemainingSeconds / 60).rounded(.up)))
+                    Text(String(localized: "On from the menu bar for \(minutes) more min."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Stepper(
                     String(localized: "Debounce: \(manager.liveAssistDebounceMS) ms"),
                     value: Binding(
@@ -91,16 +97,6 @@ struct DecisionConfigureForm: View {
                     set: { manager.jevBaseURL = $0 }
                 ))
                 SecureField(String(localized: "Jev API key"), text: $manager.jevAPIKey)
-            case .openRouter:
-                TextField(String(localized: "Base URL"), text: Binding(
-                    get: { manager.openRouterBaseURL },
-                    set: { manager.openRouterBaseURL = $0 }
-                ))
-                TextField(String(localized: "Model"), text: Binding(
-                    get: { manager.openRouterModel },
-                    set: { manager.openRouterModel = $0 }
-                ))
-                SecureField(String(localized: "OpenRouter API key"), text: $manager.openRouterAPIKey)
             case .laya:
                 TextField(String(localized: "Laya command"), text: Binding(
                     get: { manager.layaCommand },
@@ -204,6 +200,7 @@ struct DecisionToolPage: View {
     @ObservedObject private var router = SettingsRouter.shared
     @State private var title: String = ""
     @State private var prompt: String = ""
+    @State private var kind: DecisionQuestionKind = .noul
     @State private var loaded = false
     @State private var confirmingDelete = false
 
@@ -220,6 +217,7 @@ struct DecisionToolPage: View {
             SettingsEditorPage {
                 Form {
                     TextField(String(localized: "Title"), text: $title)
+                    DecisionAnswerTypePicker(kind: $kind)
                     TextField(String(localized: "Question prompt"), text: $prompt, axis: .vertical)
                         .lineLimit(3...8)
                 }
@@ -244,9 +242,12 @@ struct DecisionToolPage: View {
                     Button("Save") {
                         guard var updated = tool else { return }
                         updated.title = title.trimmingCharacters(in: .whitespaces)
+                        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
                         if var q = updated.questions.first {
-                            q.prompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-                            updated.questions[0] = q
+                            q.prompt = trimmedPrompt
+                            updated.questions[0] = q.retyped(as: kind)
+                        } else {
+                            updated.questions = [DecisionQuestion(id: "primary", kind: .noul, prompt: trimmedPrompt).retyped(as: kind)]
                         }
                         manager.updateTool(updated)
                         router.pop()
@@ -259,6 +260,7 @@ struct DecisionToolPage: View {
                 guard !loaded, let tool else { return }
                 title = tool.title
                 prompt = tool.questions.first?.prompt ?? ""
+                kind = tool.questions.first?.kind ?? .noul
                 loaded = true
             }
         } else {
@@ -279,11 +281,7 @@ struct DecisionNewToolPage: View {
         SettingsEditorPage {
             Form {
                 TextField(String(localized: "Title"), text: $title)
-                Picker(String(localized: "Answer type"), selection: $kind) {
-                    Text("Yes / No").tag(DecisionQuestionKind.noul)
-                    Text("Choice").tag(DecisionQuestionKind.choice)
-                    Text("Score").tag(DecisionQuestionKind.score)
-                }
+                DecisionAnswerTypePicker(kind: $kind)
                 TextField(String(localized: "Question prompt"), text: $prompt, axis: .vertical)
                     .lineLimit(3...8)
             }
@@ -292,15 +290,7 @@ struct DecisionNewToolPage: View {
                 Spacer()
                 Button("Cancel") { router.pop() }
                 Button("Add") {
-                    let question: DecisionQuestion
-                    switch kind {
-                    case .noul:
-                        question = .noul(id: "primary", prompt: prompt)
-                    case .choice:
-                        question = .choice(id: "primary", prompt: prompt, options: ["A", "B", "C"])
-                    case .score:
-                        question = .score(id: "primary", prompt: prompt)
-                    }
+                    let question = DecisionQuestion(id: "primary", kind: .noul, prompt: prompt).retyped(as: kind)
                     let tool = DecisionServiceManager.makeCustomTool(title: title, questions: [question])
                     manager.updateTool(tool)
                     router.pop()
@@ -308,6 +298,19 @@ struct DecisionNewToolPage: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || prompt.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+        }
+    }
+}
+
+/// The answer-type picker shared by the New Decision Tool and edit pages.
+struct DecisionAnswerTypePicker: View {
+    @Binding var kind: DecisionQuestionKind
+
+    var body: some View {
+        Picker(String(localized: "Answer type"), selection: $kind) {
+            Text("Yes / No").tag(DecisionQuestionKind.noul)
+            Text("Choice").tag(DecisionQuestionKind.choice)
+            Text("Score").tag(DecisionQuestionKind.score)
         }
     }
 }

@@ -497,6 +497,13 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 self?.syncWithParent()
             }
             .store(in: &cancellables)
+
+        DecisionServiceManager.shared.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncWithParent()
+            }
+            .store(in: &cancellables)
     }
 
     @discardableResult
@@ -533,7 +540,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         var seenPackages = Set<String>()
 
         for action in actions {
-            if ActionIdentity.isAIPreset(action) { continue }
+            if ActionIdentity.isAIPreset(action) || ActionIdentity.isDecisionPreset(action) { continue }
 
             // Custom Group parent
             if let def = groupDefs.first(where: { $0.id == action.id }) {
@@ -625,6 +632,34 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 }
                 let groupMatches = needle.isEmpty || matchesAction(action)
                 let subActionNodes: [OutlineNode] = aiPresets.compactMap { preset in
+                    if !needle.isEmpty && !groupMatches && !matchesAction(preset) { return nil }
+                    return OutlineNode(
+                        id: preset.id,
+                        kind: .groupMember(action: preset, parentGroupID: action.id),
+                        customization: parent.customizationManager
+                    )
+                }
+                if needle.isEmpty || groupMatches || !subActionNodes.isEmpty {
+                    newRoots.append(OutlineNode(
+                        id: action.id,
+                        kind: .extensionGroup(action),
+                        children: subActionNodes,
+                        customization: parent.customizationManager
+                    ))
+                }
+                continue
+            }
+
+            // Decision Tools Group parent (same shape as AI Tools: the tools nest under the launcher)
+            if action.chrome.launchesDecisions {
+                var decisionPresets = actions.filter { ActionIdentity.isDecisionPreset($0) }
+                if decisionPresets.isEmpty {
+                    decisionPresets = DecisionServiceManager.shared.tools.map { tool in
+                        DecisionAction(toolID: tool.id, title: tool.title, symbolName: tool.symbolName)
+                    }
+                }
+                let groupMatches = needle.isEmpty || matchesAction(action)
+                let subActionNodes: [OutlineNode] = decisionPresets.compactMap { preset in
                     if !needle.isEmpty && !groupMatches && !matchesAction(preset) { return nil }
                     return OutlineNode(
                         id: preset.id,

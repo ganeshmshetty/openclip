@@ -58,6 +58,20 @@ public struct DecisionQuestion: Codable, Sendable, Equatable, Identifiable {
     public static func score(id: String, prompt: String, min: Int = 1, max: Int = 5) -> DecisionQuestion {
         DecisionQuestion(id: id, kind: .score, prompt: prompt, scoreMin: min, scoreMax: max)
     }
+
+    /// Placeholder labels for a `.choice` question created without options.
+    public static let placeholderChoiceOptions = ["A", "B", "C"]
+
+    /// The same question asked as `kind`. Id, prompt, options and score range are kept, and a
+    /// `.choice` without options gets placeholder labels so the tool stays answerable until edited.
+    public func retyped(as kind: DecisionQuestionKind) -> DecisionQuestion {
+        var copy = self
+        copy.kind = kind
+        if kind == .choice && copy.options.isEmpty {
+            copy.options = Self.placeholderChoiceOptions
+        }
+        return copy
+    }
 }
 
 /// Request body packed for System One / Laya-compatible providers.

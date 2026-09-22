@@ -116,6 +116,104 @@ final class StatusBarControllerTests: XCTestCase {
         XCTAssertEqual(controller.resumeItem?.isHidden, true)
     }
 
+    // MARK: - Live Assist (timed, like Pause)
+
+    func testLiveAssistEnableForSetsDeadlineAndShowsTurnOff() {
+        let store = MemorySettingsStore()
+        let controller = StatusBarController(
+            settingsStore: store,
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+
+        XCTAssertEqual(store.get(.decisionLiveAssistUntilTimestamp), 0.0)
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(controller.liveAssistParentItem?.isHidden, false)
+        XCTAssertEqual(controller.liveAssistParentItem?.title, "Live Assist")
+        XCTAssertEqual(controller.liveAssistTurnOffItem?.isHidden, true)
+        XCTAssertEqual(controller.liveAssistTurnOffSeparator?.isHidden, true)
+
+        controller.liveAssist30Minutes()
+        XCTAssertGreaterThan(store.get(.decisionLiveAssistUntilTimestamp), Date().timeIntervalSince1970 + 1700)
+        XCTAssertEqual(controller.liveAssistTurnOffItem?.isHidden, false)
+        XCTAssertEqual(controller.liveAssistTurnOffSeparator?.isHidden, false)
+        XCTAssertTrue(controller.liveAssistParentItem?.title.contains("m left") == true)
+        XCTAssertTrue(controller.liveAssistTurnOffItem?.title.contains("m left") == true)
+        // The timed window is separate from the permanent Settings toggle.
+        XCTAssertFalse(store.get(.decisionLiveAssistEnabled))
+    }
+
+    func testLiveAssistTimerClearsDeadlineWhenFired() async throws {
+        let store = MemorySettingsStore()
+        let controller = StatusBarController(
+            settingsStore: store,
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+
+        controller.enableLiveAssist(for: 0.1)
+        XCTAssertGreaterThan(store.get(.decisionLiveAssistUntilTimestamp), 0.0)
+
+        try await Task.sleep(nanoseconds: 150_000_000)
+        XCTAssertEqual(store.get(.decisionLiveAssistUntilTimestamp), 0.0)
+        XCTAssertEqual(controller.liveAssistTurnOffItem?.isHidden, true)
+    }
+
+    func testTurnOffLiveAssistClearsDeadlineAndHidesTurnOff() {
+        let store = MemorySettingsStore()
+        let controller = StatusBarController(
+            settingsStore: store,
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+
+        store.set(.decisionLiveAssistUntilTimestamp, value: Date().timeIntervalSince1970 + 1800)
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(controller.liveAssistTurnOffItem?.isHidden, false)
+
+        controller.turnOffLiveAssist()
+        XCTAssertEqual(store.get(.decisionLiveAssistUntilTimestamp), 0.0)
+        XCTAssertEqual(controller.liveAssistTurnOffItem?.isHidden, true)
+        XCTAssertEqual(controller.liveAssistParentItem?.title, "Live Assist")
+    }
+
+    func testLiveAssistAlwaysOnMirrorsSettingsToggle() {
+        let store = MemorySettingsStore()
+        let controller = StatusBarController(
+            settingsStore: store,
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+
+        XCTAssertFalse(store.get(.decisionLiveAssistEnabled))
+        XCTAssertEqual(controller.liveAssistAlwaysOnItem?.state, .off)
+
+        controller.toggleLiveAssistAlwaysOn()
+        XCTAssertTrue(store.get(.decisionLiveAssistEnabled))
+        XCTAssertEqual(controller.liveAssistAlwaysOnItem?.state, .on)
+
+        store.set(.decisionLiveAssistEnabled, value: false)
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(controller.liveAssistAlwaysOnItem?.state, .off)
+    }
+
+    func testLiveAssistMenuIsHiddenWhileDecisionToolsAreOff() {
+        let store = MemorySettingsStore()
+        let controller = StatusBarController(
+            settingsStore: store,
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+
+        store.set(.isDecisionsEnabled, value: false)
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(controller.liveAssistParentItem?.isHidden, true)
+
+        store.set(.isDecisionsEnabled, value: true)
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(controller.liveAssistParentItem?.isHidden, false)
+    }
+
     func testToggleCurrentAppPauseAddsAndRemovesDisabledRule() {
         let store = MemorySettingsStore()
         let notificationCenter = NotificationCenter()

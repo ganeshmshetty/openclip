@@ -58,6 +58,7 @@ public enum SettingsCatalog {
             // Gesture / lifecycle
             SettingKey.mouseHoldDuration.erased,
             SettingKey.pauseUntilTimestamp.erased,
+            SettingKey.decisionLiveAssistUntilTimestamp.erased,
             SettingKey.lastRunVersion.erased,
             SettingKey.lastRunBuild.erased,
 

@@ -42,6 +42,53 @@ final class DecisionActionTests: XCTestCase {
         XCTAssertEqual(moved.first?.id, "triage")
     }
 
+    func testProviderTypesAreJevAndLayaOnly() {
+        XCTAssertEqual(DecisionProviderType.allCases, [.jev, .laya])
+        // A setting left over from the removed OpenRouter provider falls back to the default.
+        XCTAssertNil(DecisionProviderType(rawValue: "openrouter"))
+    }
+
+    func testRetypedQuestionKeepsIdentityAndFillsChoiceOptions() {
+        let noul = DecisionQuestion.noul(id: "primary", prompt: "Safe to share?")
+        let choice = noul.retyped(as: .choice)
+        XCTAssertEqual(choice.id, "primary")
+        XCTAssertEqual(choice.prompt, "Safe to share?")
+        XCTAssertEqual(choice.kind, .choice)
+        XCTAssertEqual(choice.options, DecisionQuestion.placeholderChoiceOptions)
+
+        let custom = DecisionQuestion.choice(id: "q", prompt: "Which?", options: ["x", "y"])
+        XCTAssertEqual(custom.retyped(as: .noul).retyped(as: .choice).options, ["x", "y"])
+        XCTAssertEqual(custom.retyped(as: .score).kind, .score)
+        XCTAssertEqual(noul.retyped(as: .noul), noul)
+    }
+
+    func testLiveAssistIsActiveDuringMenuBarWindow() {
+        let manager = DecisionServiceManager.shared
+        let store = DefaultSettingsStore.shared
+        let previousEnabled = store.get(.decisionLiveAssistEnabled)
+        let previousUntil = store.get(.decisionLiveAssistUntilTimestamp)
+        defer {
+            store.set(.decisionLiveAssistEnabled, value: previousEnabled)
+            store.set(.decisionLiveAssistUntilTimestamp, value: previousUntil)
+        }
+
+        store.set(.decisionLiveAssistEnabled, value: false)
+        store.set(.decisionLiveAssistUntilTimestamp, value: 0.0)
+        XCTAssertFalse(manager.isLiveAssistActive)
+        XCTAssertEqual(manager.liveAssistRemainingSeconds, 0)
+
+        store.set(.decisionLiveAssistUntilTimestamp, value: Date().timeIntervalSince1970 + 600)
+        XCTAssertTrue(manager.isLiveAssistActive)
+        XCTAssertGreaterThan(manager.liveAssistRemainingSeconds, 500)
+
+        store.set(.decisionLiveAssistUntilTimestamp, value: Date().timeIntervalSince1970 - 1)
+        XCTAssertFalse(manager.isLiveAssistActive)
+        XCTAssertEqual(manager.liveAssistRemainingSeconds, 0)
+
+        store.set(.decisionLiveAssistEnabled, value: true)
+        XCTAssertTrue(manager.isLiveAssistActive)
+    }
+
     func testMockProviderEvaluateNoul() async throws {
         let mock = MockDecisionProvider(response: DecisionResponse(
             answers: [DecisionAnswer(id: "share.safe", value: .noul(true), confidence: 0.95)],

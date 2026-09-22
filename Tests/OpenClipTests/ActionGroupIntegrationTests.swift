@@ -254,6 +254,43 @@ final class ActionGroupIntegrationTests: XCTestCase {
         XCTAssertEqual(presentation.icon, .symbol("sparkles"))
     }
 
+    func testDecisionToolsNestUnderTheirLauncherLikeAITools() {
+        let aiLauncher = AIToolsAction()
+        let aiPreset = AIAction(presetID: "summarize", title: "Summarize")
+        let decisionLauncher = DecisionToolsAction()
+        let triage = DecisionAction(toolID: "triage", title: "Triage", symbolName: "tray.full")
+        let safeToShare = DecisionAction(toolID: "safe_to_share", title: "Safe to share?", symbolName: "lock.shield")
+        let plain = DummyAction(id: "action.plain", title: "Plain")
+        let registered: [any Action] = [aiLauncher, aiPreset, decisionLauncher, triage, safeToShare, plain]
+        for action in registered {
+            coordinator.register(action: action)
+        }
+
+        let parentView = ActionsOutlineView(
+            coordinator: coordinator,
+            customizationManager: ActionCustomizationManager(settingsStore: settingsStore),
+            selectedRowIDs: .constant([]),
+            onEditGroup: { _ in },
+            onCreateGroupFromSelection: { },
+            onOpenNode: { _ in }
+        )
+        let coord = ActionsOutlineCoordinator(parentView)
+        coord.rebuildTree()
+
+        // Presets are never top-level rows; each launcher is a group holding its own tools.
+        XCTAssertEqual(Set(coord.rootNodes.map(\.id)), ["builtin.aiTools", "builtin.decisionTools", "action.plain"])
+        let decisionGroup = coord.rootNodes.first { $0.id == "builtin.decisionTools" }
+        XCTAssertEqual(decisionGroup?.isGroup, true)
+        XCTAssertEqual(decisionGroup?.children.map(\.id), ["decision.tool.triage", "decision.tool.safe_to_share"])
+        if case .groupMember(_, let parentGroupID)? = decisionGroup?.children.first?.kind {
+            XCTAssertEqual(parentGroupID, "builtin.decisionTools")
+        } else {
+            XCTFail("decision tools should be group members of their launcher")
+        }
+        let aiGroup = coord.rootNodes.first { $0.id == "builtin.aiTools" }
+        XCTAssertEqual(aiGroup?.children.map(\.id), [aiPreset.id])
+    }
+
     func testOutlineViewFrames() {
         let outlineView = ActionsOutlineTableView(frame: NSRect(x: 0, y: 0, width: 400, height: 400))
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("ActionColumn"))

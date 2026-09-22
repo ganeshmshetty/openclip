@@ -48,12 +48,13 @@ public final class DecisionLiveAssistEngine: ObservableObject {
     }
 
     public var isEnabled: Bool {
-        DecisionServiceManager.shared.liveAssistEnabled && DecisionServiceManager.shared.isDecisionsEnabled
+        DecisionServiceManager.shared.isLiveAssistActive && DecisionServiceManager.shared.isDecisionsEnabled
     }
 
     /// Privacy copy for Preferences.
     public static let privacyBlurb = String(localized: """
-    Live assist is off by default. When enabled it sends only the current selection (or palette query) \
+    Live assist is off by default. Turn it on here, or for 30 minutes, an hour, or until tomorrow from the \
+    menu bar's Live Assist submenu. When enabled it sends only the current selection (or palette query) \
     to your configured Decision provider — preferring local Laya when available. It never rewrites text; \
     it only suggests chips (Smart hint, Safe-to-share pill, palette intent). Keys stay in SecretStore. \
     Full monitoring of arbitrary focused fields via Accessibility APIs is not enabled yet.
@@ -64,6 +65,13 @@ public final class DecisionLiveAssistEngine: ObservableObject {
         debounceWorkItem = nil
         inFlight?.cancel()
         inFlight = nil
+    }
+
+    /// Stops pending and in-flight work and drops the last suggestion, e.g. when the menu bar's
+    /// timed window ends or Live assist is switched off.
+    public func deactivate() {
+        cancel()
+        latestSuggestion = nil
     }
 
     /// Schedule a suggestion for the given selection text.

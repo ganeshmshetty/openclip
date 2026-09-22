@@ -53,6 +53,6 @@ public final class LayaDecisionProvider: DecisionProvider {
         }
         // Real CLI: `laya decide --json` reading request JSON from stdin.
         // TODO: wire through ShellProcessRunner when Laya's CLI flag set stabilizes.
-        throw DecisionError.providerUnavailable(String(localized: "Laya CLI invoke is stubbed until a stable `laya decide` interface is confirmed. Set a test runner or use Jev/OpenRouter."))
+        throw DecisionError.providerUnavailable(String(localized: "Laya CLI invoke is stubbed until a stable `laya decide` interface is confirmed. Set a test runner or use Jev."))
     }
 }

@@ -17,7 +17,8 @@ public final class DecisionServiceManager: ObservableObject {
 
     private let settingsStore = DefaultSettingsStore.shared
     private static let jevAPIKeyAccount = "decisionJevAPIKey"
-    private static let openRouterAPIKeyAccount = "decisionOpenRouterAPIKey"
+    /// The OpenRouter decision provider was removed; a key it stored is cleared once at launch.
+    private static let legacyOpenRouterAPIKeyAccount = "decisionOpenRouterAPIKey"
     private static let presetDecodeFailureLogged = OSAllocatedUnfairLock(initialState: false)
 
     public var isDecisionsEnabled: Bool {
@@ -30,6 +31,22 @@ public final class DecisionServiceManager: ObservableObject {
         set { objectWillChange.send(); settingsStore.set(.decisionLiveAssistEnabled, value: newValue) }
     }
 
+    /// Seconds since 1970 until which Live assist is on from the menu bar (0 = no timed window).
+    public var liveAssistUntilTimestamp: Double {
+        get { settingsStore.get(.decisionLiveAssistUntilTimestamp) }
+        set { objectWillChange.send(); settingsStore.set(.decisionLiveAssistUntilTimestamp, value: newValue) }
+    }
+
+    /// Seconds left in the menu bar's timed Live assist window, 0 when none is running.
+    public var liveAssistRemainingSeconds: TimeInterval {
+        max(0, liveAssistUntilTimestamp - Date().timeIntervalSince1970)
+    }
+
+    /// Live assist runs while the Settings toggle is on or a timed window from the menu bar is open.
+    public var isLiveAssistActive: Bool {
+        liveAssistEnabled || liveAssistRemainingSeconds > 0
+    }
+
     public var activeProviderRaw: String {
         get { settingsStore.get(.decisionActiveProvider) }
         set { objectWillChange.send(); settingsStore.set(.decisionActiveProvider, value: newValue) }
@@ -38,16 +55,6 @@ public final class DecisionServiceManager: ObservableObject {
     public var jevBaseURL: String {
         get { settingsStore.get(.decisionJevBaseURL) }
         set { objectWillChange.send(); settingsStore.set(.decisionJevBaseURL, value: newValue) }
-    }
-
-    public var openRouterBaseURL: String {
-        get { settingsStore.get(.decisionOpenRouterBaseURL) }
-        set { objectWillChange.send(); settingsStore.set(.decisionOpenRouterBaseURL, value: newValue) }
-    }
-
-    public var openRouterModel: String {
-        get { settingsStore.get(.decisionOpenRouterModel) }
-        set { objectWillChange.send(); settingsStore.set(.decisionOpenRouterModel, value: newValue) }
     }
 
     public var layaCommand: String {
@@ -76,17 +83,6 @@ public final class DecisionServiceManager: ObservableObject {
             } else if !SecretStore.set(jevAPIKey, account: Self.jevAPIKeyAccount) {
                 Log.decisions.error("Failed to persist Jev API key; reverting.")
                 jevAPIKey = oldValue
-            }
-        }
-    }
-
-    @Published public var openRouterAPIKey: String {
-        didSet {
-            if openRouterAPIKey.isEmpty {
-                SecretStore.delete(account: Self.openRouterAPIKeyAccount)
-            } else if !SecretStore.set(openRouterAPIKey, account: Self.openRouterAPIKeyAccount) {
-                Log.decisions.error("Failed to persist OpenRouter decision API key; reverting.")
-                openRouterAPIKey = oldValue
             }
         }
     }
@@ -131,7 +127,7 @@ public final class DecisionServiceManager: ObservableObject {
 
     private init() {
         self.jevAPIKey = SecretStore.get(account: Self.jevAPIKeyAccount) ?? ""
-        self.openRouterAPIKey = SecretStore.get(account: Self.openRouterAPIKeyAccount) ?? ""
+        SecretStore.delete(account: Self.legacyOpenRouterAPIKeyAccount)
     }
 
     public func updateTool(_ updated: DecisionToolPreset) {
@@ -197,8 +193,6 @@ public final class DecisionServiceManager: ObservableObject {
         switch activeProviderType {
         case .jev:
             return JevDecisionProvider(apiKey: jevAPIKey, baseURL: jevBaseURL)
-        case .openRouter:
-            return OpenRouterDecisionProvider(apiKey: openRouterAPIKey, baseURL: openRouterBaseURL, model: openRouterModel)
         case .laya:
             return LayaDecisionProvider(command: layaCommand)
         }
