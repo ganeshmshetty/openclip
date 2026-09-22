@@ -166,14 +166,6 @@ final class DecisionActionTests: XCTestCase {
         XCTAssertEqual(DecisionInlineState(presentation), .unsure)
     }
 
-    /// A tree walk that cannot settle (fail-closed branch) also ends unsure rather than throwing.
-    func testTreeThatFailsClosedEndsUnsure() {
-        let tool = DecisionToolPreset(id: "t", title: "T", questions: [.noul(id: "q", prompt: "?")])
-        let presentation = DecisionServiceManager.unsurePresentation(tool: tool, answers: [], confidence: 0.2)
-        XCTAssertTrue(presentation.requiresConfirmation)
-        XCTAssertEqual(presentation.chips, ["Unsure"])
-        XCTAssertEqual(DecisionInlineState(presentation), .unsure)
-    }
 }
 
 @MainActor

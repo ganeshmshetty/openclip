@@ -2,7 +2,8 @@
 // OpenClip
 //
 // Preferences → Decisions → Provider rows for Laya: model choice, runtime status, and the
-// Install / Load / Unload / Remove actions backed by `LayaRuntime`.
+// two steps behind it: Download / Delete puts the environment and model on the Mac, Start / Stop
+// runs the model. Backed by `LayaRuntime`.
 import SwiftUI
 import Core
 
@@ -21,7 +22,7 @@ struct LayaRuntimeSection: View {
         .disabled(runtime.status.isBusy)
         .onChange(of: model) { _, _ in
             // The next decision (or Prepare Model) loads the newly chosen checkpoint.
-            runtime.stopBridge()
+            runtime.stop()
         }
 
         LabeledContent(String(localized: "Runtime")) {
@@ -45,30 +46,30 @@ struct LayaRuntimeSection: View {
 
         HStack {
             switch runtime.status {
-            case .notInstalled, .failed:
-                Button(String(localized: "Install Laya")) {
-                    Task { await runtime.install(model: model) }
+            case .notDownloaded, .failed:
+                Button(String(localized: "Download")) {
+                    Task { await runtime.download(model: model) }
                 }
                 if FileManager.default.fileExists(atPath: runtime.directory.path) {
                     Spacer()
                     removeButtons
                 }
-            case .installing, .starting:
+            case .downloading, .starting:
                 EmptyView()
-            case .installed:
-                Button(String(localized: "Load")) {
-                    Task { await runtime.load(model: model) }
+            case .downloaded:
+                Button(String(localized: "Start")) {
+                    Task { await runtime.start(model: model) }
                 }
                 Spacer()
                 removeButtons
             case .running:
-                Button(String(localized: "Unload")) { runtime.stopBridge() }
+                Button(String(localized: "Stop")) { runtime.stop() }
                 Spacer()
                 removeButtons
             }
         }
 
-        Text(String(localized: "Runs on this Mac; nothing leaves it. Install downloads PyTorch and the model (about 1.5 GB) into ~/.openclip/laya. The model stays loaded for 10 minutes after the last decision."))
+        Text(String(localized: "Runs on this Mac; nothing leaves it. Download fetches PyTorch and the model (about 1.5 GB) into ~/.openclip/laya. Once started, the model stops on its own 10 minutes after the last decision."))
             .font(.caption)
             .foregroundStyle(.secondary)
     }
@@ -77,12 +78,12 @@ struct LayaRuntimeSection: View {
     private var removeButtons: some View {
         if confirmingRemove {
             Button(String(localized: "Cancel")) { confirmingRemove = false }
-            Button(String(localized: "Remove"), role: .destructive) {
-                runtime.uninstall()
+            Button(String(localized: "Delete"), role: .destructive) {
+                runtime.delete()
                 confirmingRemove = false
             }
         } else {
-            Button(String(localized: "Remove…"), role: .destructive) { confirmingRemove = true }
+            Button(String(localized: "Delete…"), role: .destructive) { confirmingRemove = true }
         }
     }
 
@@ -93,12 +94,12 @@ struct LayaRuntimeSection: View {
 
     private var statusText: String {
         switch runtime.status {
-        case .notInstalled:
-            return String(localized: "Not installed")
-        case .installing(let step):
+        case .notDownloaded:
+            return String(localized: "Not downloaded")
+        case .downloading(let step):
             return step
-        case .installed:
-            return String(localized: "Installed; model not loaded")
+        case .downloaded:
+            return String(localized: "Downloaded; not running")
         case .starting(let phase):
             return phase
         case .running(let model, let device):

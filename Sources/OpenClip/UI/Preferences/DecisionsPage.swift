@@ -341,15 +341,15 @@ struct DecisionNewToolPage: View {
     }
 }
 
-/// "Show in Quick Assist" for a tool. Trees and bulk tools cannot answer as you type — they are
-/// deliberate multi-request runs — so the toggle is off and disabled for them.
+/// "Show in Quick Assist" for a tool. A bulk tool cannot answer as you type — it is a
+/// deliberate, many-request run — so the toggle is off and disabled for it.
 struct DecisionQuickAssistToggle: View {
     @Binding var isOn: Bool
     let tool: DecisionToolPreset?
 
     private var isSupported: Bool {
         guard let tool else { return true }
-        return tool.treeID == nil && tool.bulkMode == .none
+        return tool.bulkMode == .none
     }
 
     var body: some View {
@@ -358,7 +358,7 @@ struct DecisionQuickAssistToggle: View {
                 .disabled(!isSupported)
             Text(isSupported
                  ? String(localized: "Answers continuously in the floating window while Live assist is on.")
-                 : String(localized: "Multi-step and bulk tools run only when you pick them."))
+                 : String(localized: "Bulk tools run only when you pick them."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

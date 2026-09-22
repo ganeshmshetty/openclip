@@ -211,7 +211,7 @@ public final class DecisionServiceManager: ObservableObject {
         await currentProvider.availability()
     }
 
-    /// Evaluate a tool against selection text, including optional tree walk and bulk map/reduce.
+    /// Evaluate a tool against selection text, including bulk map/reduce.
     public func evaluate(tool: DecisionToolPreset, text: String) async throws -> DecisionPresentation {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw DecisionError.emptyInput }
@@ -224,10 +224,6 @@ public final class DecisionServiceManager: ObservableObject {
         let primaryQuestions = tool.questions
         guard let first = primaryQuestions.first else {
             throw DecisionError.invalidResponse
-        }
-
-        if let tree = DecisionBuiltinTrees.tree(id: tool.treeID) {
-            return try await evaluateTree(tool: tool, text: trimmed, tree: tree, provider: provider)
         }
 
         let request = DecisionQuestionPacker.pack(state: trimmed, questions: primaryQuestions, toolID: tool.id)
@@ -244,98 +240,6 @@ public final class DecisionServiceManager: ObservableObject {
             answers: response.answers.isEmpty ? [answer] : response.answers,
             confidence: confidence,
             requiresConfirmation: (confidence ?? 1) < tool.confirmBelowConfidence
-        )
-    }
-
-    private func evaluateTree(
-        tool: DecisionToolPreset,
-        text: String,
-        tree: DecisionTree,
-        provider: any DecisionProvider
-    ) async throws -> DecisionPresentation {
-        var currentID = tree.rootID
-        var depth = 0
-        var collected: [DecisionAnswer] = []
-        var lastConfidence: Double?
-
-        while depth <= tree.depthCap {
-            guard let node = tree.node(currentID) else { throw DecisionError.invalidResponse }
-            if node.isTerminal {
-                return DecisionPresentation(
-                    toolID: tool.id,
-                    toolTitle: tool.title,
-                    answers: collected,
-                    confidence: lastConfidence,
-                    requiresConfirmation: (lastConfidence ?? 1) < tool.confirmBelowConfidence,
-                    chips: [node.terminalLabel ?? collected.last?.value.displayLabel ?? tool.title]
-                )
-            }
-            let request = DecisionQuestionPacker.pack(state: text, questions: [node.question], toolID: tool.id)
-            let response = try await provider.decide(request)
-            guard let answer = response.answers.first else { throw DecisionError.invalidResponse }
-            collected.append(answer)
-            lastConfidence = response.effectiveConfidence(for: answer.id) ?? response.confidence
-            let outcome = DecisionTreeStepper.step(tree: tree, currentNodeID: currentID, answer: answer, depth: depth)
-            switch outcome {
-            case .continueTo(let next):
-                currentID = next
-                depth += 1
-            case .fanOut(let children):
-                // Fan-out before reveal: evaluate children, keep highest-confidence terminal path.
-                var best: (label: String, confidence: Double, answers: [DecisionAnswer])?
-                for childID in children {
-                    guard let child = tree.node(childID) else { continue }
-                    let childReq = DecisionQuestionPacker.pack(state: text, questions: [child.question], toolID: tool.id)
-                    let childResp = try await provider.decide(childReq)
-                    guard let childAnswer = childResp.answers.first else { continue }
-                    let conf = childResp.effectiveConfidence(for: childAnswer.id) ?? 0
-                    if child.isTerminal {
-                        if best == nil || conf > (best?.confidence ?? -1) {
-                            best = (child.terminalLabel ?? childAnswer.value.displayLabel, conf, collected + [childAnswer])
-                        }
-                    } else {
-                        let stepped = DecisionTreeStepper.step(tree: tree, currentNodeID: childID, answer: childAnswer, depth: depth + 1)
-                        if case .terminal(let label) = stepped, best == nil || conf > (best?.confidence ?? -1) {
-                            best = (label, conf, collected + [childAnswer])
-                        }
-                    }
-                }
-                guard let best else {
-                    return Self.unsurePresentation(tool: tool, answers: collected, confidence: lastConfidence)
-                }
-                return DecisionPresentation(
-                    toolID: tool.id,
-                    toolTitle: tool.title,
-                    answers: best.answers,
-                    confidence: best.confidence,
-                    requiresConfirmation: best.confidence < tool.confirmBelowConfidence,
-                    chips: [best.label]
-                )
-            case .terminal(let label):
-                return DecisionPresentation(
-                    toolID: tool.id,
-                    toolTitle: tool.title,
-                    answers: collected,
-                    confidence: lastConfidence,
-                    requiresConfirmation: (lastConfidence ?? 1) < tool.confirmBelowConfidence,
-                    chips: [label]
-                )
-            case .failClosed:
-                return Self.unsurePresentation(tool: tool, answers: collected, confidence: lastConfidence)
-            }
-        }
-        return Self.unsurePresentation(tool: tool, answers: collected, confidence: lastConfidence)
-    }
-
-    /// The outcome when a tool could not settle on an answer: shown as a grey question mark.
-    static func unsurePresentation(tool: DecisionToolPreset, answers: [DecisionAnswer], confidence: Double?) -> DecisionPresentation {
-        DecisionPresentation(
-            toolID: tool.id,
-            toolTitle: tool.title,
-            answers: answers,
-            confidence: confidence,
-            requiresConfirmation: true,
-            chips: [String(localized: "Unsure")]
         )
     }
 

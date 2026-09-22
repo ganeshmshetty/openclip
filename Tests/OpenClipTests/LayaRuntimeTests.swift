@@ -1,8 +1,8 @@
 // LayaRuntimeTests.swift
 // OpenClipTests
 //
-// The bridge protocol, the not-installed path, the provider's runner seam, the bridge's own
-// self-test, and (opt-in) a real decision through the installed runtime.
+// The bridge protocol, the not-downloaded path, the provider's runner seam, the bridge's own
+// self-test, and (opt-in) a real decision through the downloaded runtime.
 import XCTest
 @testable import Core
 @testable import OpenClip
@@ -40,25 +40,25 @@ final class LayaRuntimeTests: XCTestCase {
     func testRuntimeWithoutEnvironmentIsNotInstalledAndRefusesDecisions() async {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("laya-\(UUID().uuidString)")
         let runtime = LayaRuntime(directory: directory, idleTimeout: 1)
-        XCTAssertFalse(runtime.isInstalled)
-        XCTAssertEqual(runtime.status, .notInstalled)
+        XCTAssertFalse(runtime.isDownloaded)
+        XCTAssertEqual(runtime.status, .notDownloaded)
 
         do {
             _ = try await runtime.decide(Data("{}".utf8), model: "english")
             XCTFail("expected providerUnavailable")
         } catch let error as DecisionError {
-            XCTAssertEqual(error, .providerUnavailable(LayaRuntime.notInstalledMessage))
+            XCTAssertEqual(error, .providerUnavailable(LayaRuntime.notDownloadedMessage))
         } catch {
             XCTFail("unexpected error \(error)")
         }
 
         let provider = LayaDecisionProvider(model: "english", runtime: runtime)
         let availability = await provider.availability()
-        XCTAssertEqual(availability, .unavailable(reason: LayaRuntime.notInstalledMessage))
+        XCTAssertEqual(availability, .unavailable(reason: LayaRuntime.notDownloadedMessage))
 
         // Load is a no-op until the environment exists.
-        await runtime.load(model: "english")
-        XCTAssertEqual(runtime.status, .notInstalled)
+        await runtime.start(model: "english")
+        XCTAssertEqual(runtime.status, .notDownloaded)
     }
 
     func testProviderUsesInjectedRunnerAndParsesBridgeShapedReply() async throws {
@@ -111,13 +111,13 @@ final class LayaRuntimeTests: XCTestCase {
     /// (TEST_RUNNER_OPENCLIP_LAYA_E2E=1 for xcodebuild); loads the model, so it takes a while.
     func testRealBridgeDecidesThroughInstalledRuntime() async throws {
         guard ProcessInfo.processInfo.environment["OPENCLIP_LAYA_E2E"] == "1" else {
-            throw XCTSkip("set OPENCLIP_LAYA_E2E=1 to decide through the installed Laya runtime")
+            throw XCTSkip("set OPENCLIP_LAYA_E2E=1 to decide through the downloaded Laya runtime")
         }
         let runtime = LayaRuntime(directory: Constants.layaDirectory, idleTimeout: 0)
-        guard runtime.isInstalled, LayaRuntime.bridgeScriptURL != nil else {
-            throw XCTSkip("Laya runtime is not installed on this machine")
+        guard runtime.isDownloaded, LayaRuntime.bridgeScriptURL != nil else {
+            throw XCTSkip("Laya runtime is not downloaded on this machine")
         }
-        defer { runtime.stopBridge() }
+        defer { runtime.stop() }
 
         let provider = LayaDecisionProvider(model: "english", runtime: runtime)
         let options = ["billing", "engineering", "sales"]

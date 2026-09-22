@@ -212,7 +212,7 @@ Select **Decisions** in the sidebar (next to AI) to enable the feature and confi
 
 | Provider | Description | Setup |
 | :--- | :--- | :--- |
-| **Laya (local)** | Runs on this Mac in a Python environment OpenClip installs under `~/.openclip/laya` (about 1.5 GB with the model); preferred for Live assist, no key | **Install Laya** on the Decisions page, then pick English or Multilingual; **Load** keeps the model resident ahead of the first decision |
+| **Laya (local)** | Runs on this Mac in a Python environment OpenClip installs under `~/.openclip/laya` (about 1.5 GB with the model); preferred for Live assist, no key | **Download** on the Decisions page, then pick English or Multilingual; **Start** keeps the model resident ahead of the first decision |
 | **Jev (TypeSafe System One)** | Cloud BYOK `POST …/systemone` | API key in SecretStore |
 
 ### Bulk decisions
@@ -232,9 +232,15 @@ Off by default. The menu bar icon's **Live Assist** submenu turns it on for 30 m
 
 While it is on, OpenClip reads the text of the field you are typing in (any app, via Accessibility) and answers the tools you marked **Show in Quick Assist** — the per-tool switch on a tool's page — in a small floating window. Drag the window anywhere; it opens in the bottom-right corner the first time and reappears where you left it. Close it with its ✕ to turn Live assist off.
 
+The window shows the text it is judging, so the answers are never a mystery:
+
+- Typing **replaces** that text, so only the latest thing you are writing is judged.
+- **+** adds whatever is selected in the app to it, on top of what you type.
+- **Eraser** clears it, and it clears itself automatically 10 seconds after you stop typing.
+
 - All Quick Assist tools are asked in **one** request, so a System One model answers them in a single forward pass.
 - Typing is debounced (100–300 ms) and a new keystroke cancels the request in flight.
 - Yes/no tools show a tick, cross, or a grey question mark when confidence is below the tool's threshold; choice tools show the chosen label.
-- Multi-step (tree) and bulk tools cannot join Quick Assist: they are deliberate, multi-request runs.
+- Bulk tools cannot join Quick Assist: they are deliberate, many-request runs.
 - **Password fields are never read**, OpenClip's own windows are skipped, nothing is stored, and with Laya as the provider the text never leaves the Mac.
 

@@ -190,6 +190,18 @@ public final class FocusedTextMonitor: ObservableObject {
         return (value as! AXUIElement)
     }
 
+    /// The text currently selected in the focused field, for the Quick Assist + button. Nil when
+    /// nothing is selected or the field is a password. Read on demand, never polled.
+    public func selectedText() -> String? {
+        guard let element = Self.systemFocusedElement() else { return nil }
+        if let subrole = Self.copyString(element, kAXSubroleAttribute), subrole == kAXSecureTextFieldSubrole as String {
+            return nil
+        }
+        guard let selection = Self.copyString(element, kAXSelectedTextAttribute) else { return nil }
+        let trimmed = selection.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     /// The text of an editable, non-secure text element; nil for anything else.
     static func editableText(of element: AXUIElement) -> String? {
         guard let role = copyString(element, kAXRoleAttribute) else { return nil }
@@ -202,7 +214,7 @@ public final class FocusedTextMonitor: ObservableObject {
         return copyString(element, kAXValueAttribute)
     }
 
-    private static func copyString(_ element: AXUIElement, _ attribute: String) -> String? {
+    static func copyString(_ element: AXUIElement, _ attribute: String) -> String? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }
         return value as? String

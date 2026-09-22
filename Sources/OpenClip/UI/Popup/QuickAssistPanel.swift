@@ -52,6 +52,9 @@ public final class QuickAssistPanelController {
         self.panel = panel
         self.settingsStore = settingsStore
         self.hostingView = NSHostingView(rootView: QuickAssistView(model: .init(rows: [], statusLine: nil), onClose: {}))
+        // The window has to keep a real height while SwiftUI measures, or the first show
+        // collapses it to nothing.
+        hostingView.frame = NSRect(x: 0, y: 0, width: QuickAssistView.panelWidth, height: 120)
         panel.contentView = hostingView
         moveObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didMoveNotification,
@@ -70,8 +73,18 @@ public final class QuickAssistPanelController {
 
     /// Shows the window (placing it where the user last left it, else bottom-right) and renders
     /// `model`. Called on every update, so it doubles as the refresh path.
-    public func show(model: QuickAssistViewModel, onClose: @escaping () -> Void) {
-        hostingView.rootView = QuickAssistView(model: model, onClose: onClose)
+    public func show(
+        model: QuickAssistViewModel,
+        onClose: @escaping () -> Void,
+        onAddSelection: @escaping () -> Void = {},
+        onClearContext: @escaping () -> Void = {}
+    ) {
+        hostingView.rootView = QuickAssistView(
+            model: model,
+            onClose: onClose,
+            onAddSelection: onAddSelection,
+            onClearContext: onClearContext
+        )
         hostingView.layoutSubtreeIfNeeded()
         let fit = hostingView.fittingSize
         let size = NSSize(width: QuickAssistView.panelWidth, height: max(60, fit.height))

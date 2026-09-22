@@ -62,12 +62,9 @@ public final class DecisionBulkSession: ObservableObject {
 
     // MARK: - Tools and units
 
-    /// Tools a bulk run can use: enabled, single-question, not themselves a tree (a tree needs
-    /// several round trips per unit) and not already a bulk preset.
+    /// Tools a bulk run can use: enabled, with a question to ask.
     public static func eligibleTools() -> [DecisionToolPreset] {
-        DecisionServiceManager.shared.tools.filter {
-            $0.isEnabled && $0.treeID == nil && !$0.questions.isEmpty
-        }
+        DecisionServiceManager.shared.tools.filter { $0.isEnabled && !$0.questions.isEmpty }
     }
 
     public var availableTools: [DecisionToolPreset] { Self.eligibleTools() }

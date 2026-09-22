@@ -5,9 +5,10 @@
 // only as a Python library, so OpenClip owns the runtime: a Python environment it creates under
 // ~/.openclip/laya, the bundled `laya_bridge.py` kept resident as a child process, and JSON lines
 // over stdin/stdout so a decision is one forward pass (tens of milliseconds on Apple silicon)
-// rather than a model load. Install creates the environment (uv when available, else python3 -m
-// venv), installs the `laya` package, then runs the bridge once with --warmup so the checkpoint
-// (about 800 MB) lands in the same folder; Remove deletes that one directory.
+// rather than a model load. Two steps, matching Settings: Download creates the environment (uv
+// when available, else python3 -m venv), adds the `laya` package and runs the bridge once with
+// --warmup so the checkpoint (about 800 MB) lands in the same folder; Start runs the model.
+// Delete removes that one directory.
 import Foundation
 import Core
 
@@ -16,16 +17,16 @@ public final class LayaRuntime: ObservableObject {
     public static let shared = LayaRuntime()
 
     public enum Status: Equatable, Sendable {
-        case notInstalled
-        case installing(step: String)
-        case installed
+        case notDownloaded
+        case downloading(step: String)
+        case downloaded
         case starting(phase: String)
         case running(model: String, device: String)
         case failed(String)
 
         public var isBusy: Bool {
             switch self {
-            case .installing, .starting: return true
+            case .downloading, .starting: return true
             default: return false
             }
         }
@@ -60,11 +61,11 @@ public final class LayaRuntime: ObservableObject {
     public init(directory: URL = Constants.layaDirectory, idleTimeout: TimeInterval = 10 * 60) {
         self.directory = directory
         self.idleTimeout = idleTimeout
-        let installed = FileManager.default.isExecutableFile(atPath: directory.appendingPathComponent("venv/bin/python").path)
-        self.status = installed ? .installed : .notInstalled
+        let downloaded = FileManager.default.isExecutableFile(atPath: directory.appendingPathComponent("venv/bin/python").path)
+        self.status = downloaded ? .downloaded : .notDownloaded
     }
 
-    public var isInstalled: Bool {
+    public var isDownloaded: Bool {
         FileManager.default.isExecutableFile(atPath: pythonURL.path)
     }
 
@@ -73,26 +74,26 @@ public final class LayaRuntime: ObservableObject {
         Bundle(for: LayaRuntime.self).url(forResource: "laya_bridge", withExtension: "py")
     }
 
-    // MARK: - Install / remove
+    // MARK: - Download / delete
 
-    /// Creates the environment, installs `laya`, and warms the chosen model. Safe to call again
-    /// after a failure: every step is idempotent.
-    public func install(model: String) async {
+    /// Step one: creates the environment, adds `laya`, and fetches the chosen model. Safe to
+    /// call again after a failure: every step is idempotent.
+    public func download(model: String) async {
         guard !status.isBusy else { return }
         guard let script = Self.bridgeScriptURL else {
             fail(String(localized: "The Laya bridge script is missing from this build."))
             return
         }
-        stopBridge()
+        stop()
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try? FileManager.default.removeItem(at: logURL)
-            appendLog("== install \(Date()) model=\(model)")
+            appendLog("== download \(Date()) model=\(model)")
 
             step(String(localized: "Looking for uv or Python 3.10+…"))
             let toolchain = try await Toolchain.locate(runner: run)
 
-            if !isInstalled {
+            if !isDownloaded {
                 step(String(localized: "Creating the Python environment…"))
                 switch toolchain {
                 case .uv(let uv):
@@ -102,27 +103,27 @@ public final class LayaRuntime: ObservableObject {
                 }
             }
 
-            step(String(localized: "Installing Laya, PyTorch and Transformers…"))
+            step(String(localized: "Downloading Laya, PyTorch and Transformers…"))
             switch toolchain {
             case .uv(let uv):
-                try await runOrThrow(uv, ["pip", "install", "--python", pythonURL.path, "--quiet", "laya"], step: "uv pip install")
+                try await runOrThrow(uv, ["pip", "download", "--python", pythonURL.path, "--quiet", "laya"], step: "uv pip download")
             case .python:
-                try await runOrThrow(pythonURL, ["-m", "pip", "install", "--quiet", "--upgrade", "pip", "laya"], step: "pip install")
+                try await runOrThrow(pythonURL, ["-m", "pip", "download", "--quiet", "--upgrade", "pip", "laya"], step: "pip download")
             }
 
             try await warm(model: model, script: script)
-            status = .installed
-            lastLogLine = String(localized: "Laya is ready.")
-            Log.decisions.info("Laya runtime installed (model \(model, privacy: .public))")
+            status = .downloaded
+            lastLogLine = String(localized: "Laya is downloaded and ready to start.")
+            Log.decisions.info("Laya runtime downloaded (model \(model, privacy: .public))")
         } catch {
             fail(error.localizedDescription)
         }
     }
 
     /// Starts the resident bridge now (downloading the checkpoint first if needed) so the next
-    /// decision does not wait for the model. Settings "Load"; the idle timeout still applies.
-    public func load(model: String) async {
-        guard isInstalled, !status.isBusy else { return }
+    /// decision does not wait for the model. Settings "Start"; the idle timeout still applies.
+    public func start(model: String) async {
+        guard isDownloaded, !status.isBusy else { return }
         do {
             _ = try await bridge(for: model)
             scheduleIdleStop()
@@ -131,11 +132,11 @@ public final class LayaRuntime: ObservableObject {
         }
     }
 
-    /// Stops the bridge and deletes the environment, cache and log.
-    public func uninstall() {
-        stopBridge()
+    /// Deletes the environment, model cache and log, stopping the model first.
+    public func delete() {
+        stop()
         try? FileManager.default.removeItem(at: directory)
-        status = .notInstalled
+        status = .notDownloaded
         lastLogLine = ""
         Log.decisions.info("Laya runtime removed")
     }
@@ -166,11 +167,11 @@ public final class LayaRuntime: ObservableObject {
     /// `payload` is `DecisionQuestionPacker.encodeRequest` output; the reply is what
     /// `DecisionResponseParser.parse` reads.
     public func decide(_ payload: Data, model: String) async throws -> Data {
-        guard isInstalled else {
-            throw DecisionError.providerUnavailable(Self.notInstalledMessage)
+        guard isDownloaded else {
+            throw DecisionError.providerUnavailable(Self.notDownloadedMessage)
         }
-        if case .installing(let step) = status {
-            throw DecisionError.providerUnavailable(String(localized: "Laya is still installing: \(step)"))
+        if case .downloading(let step) = status {
+            throw DecisionError.providerUnavailable(String(localized: "Laya is still downloading: \(step)"))
         }
         let bridge = try await bridge(for: model)
         inFlight += 1
@@ -181,26 +182,26 @@ public final class LayaRuntime: ObservableObject {
         do {
             return try await bridge.send(payload, timeout: decideTimeout)
         } catch let error as LayaRuntimeError {
-            if case .bridgeExited = error { stopBridge() }
+            if case .bridgeExited = error { stop() }
             throw DecisionError.providerUnavailable(error.localizedDescription)
         }
     }
 
-    /// Unloads the model now (Settings "Unload", idle timeout, model switch, remove).
-    public func stopBridge() {
+    /// Stops the model now (Settings "Stop", the idle timeout, a model switch, or Delete).
+    public func stop() {
         idleTask?.cancel()
         idleTask = nil
         bridge?.shutdown()
         bridge = nil
-        if case .running = status { status = .installed }
-        if case .starting = status { status = .installed }
+        if case .running = status { status = .downloaded }
+        if case .starting = status { status = .downloaded }
     }
 
     private func bridge(for model: String) async throws -> LayaBridgeProcess {
         if let bridge, bridge.isRunning, bridge.model == model {
             return bridge
         }
-        stopBridge()
+        stop()
         guard let script = Self.bridgeScriptURL else {
             throw DecisionError.providerUnavailable(String(localized: "The Laya bridge script is missing from this build."))
         }
@@ -226,7 +227,7 @@ public final class LayaRuntime: ObservableObject {
                     self.status = .failed(String(localized: "Laya stopped unexpectedly (exit \(code)). \(detail)"))
                     Log.decisions.error("Laya bridge exited with \(code, privacy: .public)")
                 } else {
-                    self.status = .installed
+                    self.status = .downloaded
                 }
             }
         }
@@ -236,7 +237,7 @@ public final class LayaRuntime: ObservableObject {
             try process.start()
             let ready = try await process.waitUntilReady(timeout: startTimeout)
             status = .running(model: ready.model, device: ready.device)
-            lastLogLine = String(localized: "Loaded \(ready.model) on \(ready.device) in \(ready.loadMS / 1000) s.")
+            lastLogLine = String(localized: "Started \(ready.model) on \(ready.device) in \(ready.loadMS / 1000) s.")
             Log.decisions.info("Laya bridge ready: \(ready.model, privacy: .public) on \(ready.device, privacy: .public)")
             return process
         } catch {
@@ -255,14 +256,14 @@ public final class LayaRuntime: ObservableObject {
             try? await Task.sleep(nanoseconds: UInt64(self?.idleTimeout ?? 0) * 1_000_000_000)
             guard let self, !Task.isCancelled, self.inFlight == 0 else { return }
             Log.decisions.info("Laya bridge idle; unloading")
-            self.stopBridge()
+            self.stop()
         }
     }
 
     // MARK: - Helpers
 
-    public nonisolated static var notInstalledMessage: String {
-        String(localized: "Laya is not installed. Open Settings → Decisions and choose Install Laya.")
+    public nonisolated static var notDownloadedMessage: String {
+        String(localized: "Laya is not downloaded. Open Settings → Decisions and choose Download.")
     }
 
     nonisolated static func describe(phase: String) -> String {
@@ -290,7 +291,7 @@ public final class LayaRuntime: ObservableObject {
     }
 
     private func step(_ text: String) {
-        status = .installing(step: text)
+        status = .downloading(step: text)
         lastLogLine = text
         appendLog("-- \(text)")
     }
@@ -379,9 +380,9 @@ public enum LayaRuntimeError: Error, LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .toolchainMissing:
-            return String(localized: "Laya needs uv or Python 3.10 or newer. Install uv (https://docs.astral.sh/uv) or Python (brew install python) and try again.")
+            return String(localized: "Laya needs uv or Python 3.10 or newer. Install uv (https://docs.astral.sh/uv) or Python (brew download python) and try again.")
         case .stepFailed(let step, let detail):
-            return String(localized: "Laya install failed at \(step): \(detail)")
+            return String(localized: "Laya download failed at \(step): \(detail)")
         case .bridgeExited(let code, let detail):
             return String(localized: "Laya stopped (exit \(code)). \(detail)")
         case .timeout(let what):
@@ -715,7 +716,7 @@ final class LayaBridgeProcess: @unchecked Sendable {
 // MARK: - One-shot streaming process
 
 /// Runs a process to completion, delivering stdout and stderr line by line as they arrive, with a
-/// watchdog that kills the process group on timeout. Used for the install steps.
+/// watchdog that kills the process group on timeout. Used for the download steps.
 enum StreamingProcess {
     static func run(
         executable: URL,

@@ -66,7 +66,6 @@ final class DecisionBulkSessionTests: XCTestCase {
     func testOnlyUsableToolsAreOfferedAndTheFirstIsSelected() {
         DecisionServiceManager.shared.tools = [
             DecisionToolPreset(id: "off", title: "Disabled", questions: [.noul(id: "q", prompt: "?")], isEnabled: false),
-            DecisionToolPreset(id: "tree", title: "Tree", questions: [.noul(id: "q", prompt: "?")], treeID: "t"),
             DecisionToolPreset(id: "empty", title: "No question", questions: []),
             yesNoTool,
         ]

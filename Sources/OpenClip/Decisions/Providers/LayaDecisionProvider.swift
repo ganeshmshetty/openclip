@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Local Laya Decision provider. Laya has no CLI, so decisions go through `LayaRuntime`: the Python
-// environment OpenClip installs under ~/.openclip/laya and the bundled bridge it keeps resident.
+// environment OpenClip downloads into ~/.openclip/laya and the bundled bridge it keeps resident.
 // Preferred for Live assist because nothing leaves the Mac.
 import Foundation
 import Core
@@ -25,14 +25,14 @@ public final class LayaDecisionProvider: DecisionProvider {
     public func availability() async -> DecisionProviderAvailability {
         if runner != nil { return .available }
         switch runtime.status {
-        case .notInstalled:
-            return .unavailable(reason: LayaRuntime.notInstalledMessage)
-        case .installing(let step):
-            return .unavailable(reason: String(localized: "Laya is installing: \(step)"))
+        case .notDownloaded:
+            return .unavailable(reason: LayaRuntime.notDownloadedMessage)
+        case .downloading(let step):
+            return .unavailable(reason: String(localized: "Laya is downloading: \(step)"))
         case .failed(let message):
             return .unavailable(reason: message)
-        case .installed, .starting, .running:
-            return runtime.isInstalled ? .available : .unavailable(reason: LayaRuntime.notInstalledMessage)
+        case .downloaded, .starting, .running:
+            return runtime.isDownloaded ? .available : .unavailable(reason: LayaRuntime.notDownloadedMessage)
         }
     }
 

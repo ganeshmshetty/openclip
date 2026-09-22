@@ -10,6 +10,11 @@
 //
 // Typing is debounced, and a new keystroke cancels the request in flight, so only the text the user
 // has settled on is ever judged.
+//
+// What is being judged is always visible in the window as the "context": the field being typed in,
+// plus any selections added with the + button. It clears itself `contextIdleTimeout` after the last
+// keystroke so a stale sentence is never left on screen being re-judged, and the ✕ next to it
+// clears it immediately.
 import Foundation
 import Core
 
@@ -26,9 +31,23 @@ public final class DecisionLiveAssistEngine: ObservableObject {
     /// True when the Accessibility permission needed to read the focused field has been granted.
     public var axFocusMonitoringAvailable: Bool { monitor.isAvailable }
 
+    /// Selections added with the + button. They stay until the context is cleared.
+    @Published public private(set) var pinnedContext: [String] = []
+    /// The text of the field being typed in right now.
+    @Published public private(set) var typedText: String = ""
+
+    /// Everything Quick Assist is judging, exactly as the window shows it.
+    public var context: String {
+        (pinnedContext + [typedText]).filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    /// The context clears itself this long after the last keystroke or added selection.
+    public var contextIdleTimeout: TimeInterval = 10
+
     private let monitor: FocusedTextMonitor
     private var inFlight: Task<Void, Never>?
     private var debounceTask: Task<Void, Never>?
+    private var idleTask: Task<Void, Never>?
     private var lastJudgedText: String?
 
     /// Question id prefix that namespaces a tool's question inside the batched request.
@@ -54,10 +73,10 @@ public final class DecisionLiveAssistEngine: ObservableObject {
     """)
 
     /// The tools that answer in the Quick Assist window: enabled, marked for Quick Assist, and
-    /// simple enough to answer in one pass (a tree or a bulk tool is a deliberate, explicit run).
+    /// answerable in one pass (a bulk tool is a deliberate, explicit run).
     public var quickAssistTools: [DecisionToolPreset] {
         DecisionServiceManager.shared.tools.filter {
-            $0.isEnabled && $0.showsInQuickAssist && $0.treeID == nil && $0.bulkMode == .none && !$0.questions.isEmpty
+            $0.isEnabled && $0.showsInQuickAssist && $0.bulkMode == .none && !$0.questions.isEmpty
         }
     }
 
@@ -74,13 +93,62 @@ public final class DecisionLiveAssistEngine: ObservableObject {
     /// ends or Live assist is switched off.
     public func deactivate() {
         cancel()
+        idleTask?.cancel()
+        idleTask = nil
+        pinnedContext = []
+        typedText = ""
         rows = []
         statusLine = nil
         lastJudgedText = nil
     }
 
-    /// Debounced entry point: the focused field's text changed.
-    public func schedule(text: String) {
+    /// The focused field's text changed. It replaces the typed part of the context, so only the
+    /// latest thing being written is judged.
+    public func updateTyped(_ text: String) {
+        typedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        contextDidChange()
+    }
+
+    /// The + button: judge this selection alongside whatever is being typed.
+    public func addSelection(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !pinnedContext.contains(trimmed) else { return }
+        pinnedContext.append(trimmed)
+        contextDidChange()
+    }
+
+    /// The ✕ next to the context, and the idle reset: forget everything and wait for new text.
+    public func clearContext() {
+        cancel()
+        idleTask?.cancel()
+        idleTask = nil
+        pinnedContext = []
+        typedText = ""
+        rows = []
+        lastJudgedText = nil
+        statusLine = isEnabled ? Self.waitingStatus : nil
+    }
+
+    private func contextDidChange() {
+        restartIdleTimer()
+        judge()
+    }
+
+    /// Restarts the countdown that clears the context when the user stops typing.
+    private func restartIdleTimer() {
+        idleTask?.cancel()
+        idleTask = nil
+        guard contextIdleTimeout > 0, !context.isEmpty else { return }
+        let timeout = contextIdleTimeout
+        idleTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+            guard !Task.isCancelled, let self else { return }
+            self.clearContext()
+        }
+    }
+
+    /// Debounced run over the current context.
+    private func judge() {
         cancel()
         guard isEnabled else {
             rows = []
@@ -92,14 +160,14 @@ public final class DecisionLiveAssistEngine: ObservableObject {
             statusLine = String(localized: "No tools yet. Turn on “Show in Quick Assist” for a tool in Settings → Decisions.")
             return
         }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= Self.minimumCharacters else {
+        let text = context
+        guard text.count >= Self.minimumCharacters else {
             rows = []
-            statusLine = String(localized: "Start typing and answers appear here.")
+            statusLine = Self.waitingStatus
             lastJudgedText = nil
             return
         }
-        guard trimmed != lastJudgedText else { return }
+        guard text != lastJudgedText else { return }
 
         statusLine = nil
         rows = tools.map { QuickAssistRow(id: $0.id, title: $0.title, state: .running) }
@@ -108,9 +176,11 @@ public final class DecisionLiveAssistEngine: ObservableObject {
         debounceTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
             guard !Task.isCancelled, let self else { return }
-            self.run(text: trimmed, tools: tools)
+            self.run(text: text, tools: tools)
         }
     }
+
+    static let waitingStatus = String(localized: "Start typing, or add a selection with +.")
 
     private func run(text: String, tools: [DecisionToolPreset]) {
         inFlight?.cancel()

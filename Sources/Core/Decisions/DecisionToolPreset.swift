@@ -31,8 +31,6 @@ public struct DecisionToolPreset: Identifiable, Codable, Equatable, Sendable {
     public var isEnabled: Bool
     /// Primary questions asked of the selection (usually one).
     public var questions: [DecisionQuestion]
-    /// Optional multi-step tree id referencing a built-in or user tree.
-    public var treeID: String?
     public var bulkMode: DecisionBulkMode
     /// Confidence at or above this may auto-act; below requires confirm.
     public var confirmBelowConfidence: Double
@@ -50,7 +48,6 @@ public struct DecisionToolPreset: Identifiable, Codable, Equatable, Sendable {
         title: String,
         questions: [DecisionQuestion],
         isEnabled: Bool = true,
-        treeID: String? = nil,
         bulkMode: DecisionBulkMode = .none,
         confirmBelowConfidence: Double = 0.72,
         failBelowConfidence: Double = 0.40,
@@ -61,7 +58,6 @@ public struct DecisionToolPreset: Identifiable, Codable, Equatable, Sendable {
         self.title = title
         self.questions = questions
         self.isEnabled = isEnabled
-        self.treeID = treeID
         self.bulkMode = bulkMode
         self.confirmBelowConfidence = confirmBelowConfidence
         self.failBelowConfidence = failBelowConfidence
@@ -78,96 +74,11 @@ public struct DecisionToolPreset: Identifiable, Codable, Equatable, Sendable {
         title = try container.decodeIfPresent(String.self, forKey: .title) ?? id
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         questions = try container.decodeIfPresent([DecisionQuestion].self, forKey: .questions) ?? []
-        treeID = try container.decodeIfPresent(String.self, forKey: .treeID)
         bulkMode = try container.decodeIfPresent(DecisionBulkMode.self, forKey: .bulkMode) ?? .none
         confirmBelowConfidence = try container.decodeIfPresent(Double.self, forKey: .confirmBelowConfidence) ?? 0.72
         failBelowConfidence = try container.decodeIfPresent(Double.self, forKey: .failBelowConfidence) ?? 0.40
         symbolName = try container.decodeIfPresent(String.self, forKey: .symbolName)
         showsInQuickAssist = try container.decodeIfPresent(Bool.self, forKey: .showsInQuickAssist) ?? false
-    }
-}
-
-/// Built-in Decision trees shipped with defaults.
-public enum DecisionBuiltinTrees {
-    public static let triageID = "tree.triage"
-
-    public static var triage: DecisionTree {
-        let coarse = DecisionTreeNode(
-            id: "triage.root",
-            question: .choice(
-                id: "triage.bucket",
-                prompt: String(localized: "Which triage bucket fits this selection?"),
-                options: [
-                    String(localized: "Urgent"),
-                    String(localized: "Important"),
-                    String(localized: "Later"),
-                    String(localized: "Ignore")
-                ]
-            ),
-            edges: [
-                "urgent": "triage.urgent_detail",
-                "important": "triage.important_detail",
-                "later": "triage.later_done",
-                "ignore": "triage.ignore_done"
-            ]
-        )
-        let urgentDetail = DecisionTreeNode(
-            id: "triage.urgent_detail",
-            question: .noul(
-                id: "triage.needs_reply",
-                prompt: String(localized: "Does this need a same-day reply?")
-            ),
-            edges: [
-                "yes": "triage.urgent_reply",
-                "no": "triage.urgent_act"
-            ]
-        )
-        let terminals: [DecisionTreeNode] = [
-            DecisionTreeNode(
-                id: "triage.urgent_reply",
-                question: .noul(id: "noop", prompt: ""),
-                isTerminal: true,
-                terminalLabel: String(localized: "Urgent — reply today")
-            ),
-            DecisionTreeNode(
-                id: "triage.urgent_act",
-                question: .noul(id: "noop", prompt: ""),
-                isTerminal: true,
-                terminalLabel: String(localized: "Urgent — act, no reply")
-            ),
-            DecisionTreeNode(
-                id: "triage.important_detail",
-                question: .noul(id: "noop", prompt: ""),
-                isTerminal: true,
-                terminalLabel: String(localized: "Important")
-            ),
-            DecisionTreeNode(
-                id: "triage.later_done",
-                question: .noul(id: "noop", prompt: ""),
-                isTerminal: true,
-                terminalLabel: String(localized: "Later")
-            ),
-            DecisionTreeNode(
-                id: "triage.ignore_done",
-                question: .noul(id: "noop", prompt: ""),
-                isTerminal: true,
-                terminalLabel: String(localized: "Ignore")
-            )
-        ]
-        return DecisionTree(
-            id: triageID,
-            rootID: coarse.id,
-            nodes: [coarse, urgentDetail] + terminals,
-            depthCap: 3,
-            failClosedConfidence: 0.45
-        )
-    }
-
-    public static func tree(id: String?) -> DecisionTree? {
-        switch id {
-        case triageID: return triage
-        default: return nil
-        }
     }
 }
 
@@ -206,7 +117,6 @@ public enum DecisionDefaultPresets {
                     ]
                 )
             ],
-            treeID: DecisionBuiltinTrees.triageID,
             symbolName: "tray.full"
         ),
         DecisionToolPreset(

@@ -67,10 +67,10 @@ public final class QuickAssistController {
         }
         isActive = true
         monitor.onText = { [weak self] text in
-            self?.engine.schedule(text: text)
+            self?.engine.updateTyped(text)
         }
         monitor.start()
-        engine.schedule(text: "")
+        engine.clearContext()
         refreshWindow()
         Log.decisions.info("Quick Assist active")
     }
@@ -93,11 +93,19 @@ public final class QuickAssistController {
         stop()
     }
 
+    /// The + button: whatever is selected in the app being typed in joins the context.
+    public func addSelectionToContext() {
+        guard let selection = monitor.selectedText() else { return }
+        engine.addSelection(selection)
+    }
+
     private func refreshWindow() {
         guard isActive else { return }
         panelController.show(
-            model: QuickAssistViewModel(rows: engine.rows, statusLine: engine.statusLine),
-            onClose: { [weak self] in self?.closeFromWindow() }
+            model: QuickAssistViewModel(context: engine.context, rows: engine.rows, statusLine: engine.statusLine),
+            onClose: { [weak self] in self?.closeFromWindow() },
+            onAddSelection: { [weak self] in self?.addSelectionToContext() },
+            onClearContext: { [weak self] in self?.engine.clearContext() }
         )
     }
 }

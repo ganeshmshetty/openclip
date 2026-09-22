@@ -1,9 +1,9 @@
 // QuickAssistView.swift
 // OpenClip
 //
-// Contents of the floating Quick Assist window: a compact header you can drag by, then one row per
-// Decision tool that is marked for Quick Assist, each showing its current answer for the text in
-// the focused field.
+// Contents of the floating Quick Assist window: a compact header you can drag by, the text it is
+// currently judging (with buttons to add the current selection to it or clear it), then one row per
+// Decision tool that is marked for Quick Assist.
 import SwiftUI
 import Core
 
@@ -20,36 +20,41 @@ public struct QuickAssistRow: Identifiable, Equatable, Sendable {
     }
 }
 
-/// Everything the window renders: the rows plus an optional status line (no tools configured,
-/// waiting for typing, provider unavailable).
+/// Everything the window renders: the text being judged, the rows, and an optional status line
+/// (no tools configured, waiting for typing, provider unavailable).
 public struct QuickAssistViewModel: Equatable, Sendable {
+    public var context: String
     public var rows: [QuickAssistRow]
     public var statusLine: String?
 
-    public init(rows: [QuickAssistRow], statusLine: String?) {
+    public init(context: String = "", rows: [QuickAssistRow], statusLine: String?) {
+        self.context = context
         self.rows = rows
         self.statusLine = statusLine
     }
 }
 
 struct QuickAssistView: View {
-    static let panelWidth: CGFloat = 248
+    static let panelWidth: CGFloat = 268
 
     let model: QuickAssistViewModel
     let onClose: () -> Void
+    var onAddSelection: () -> Void = {}
+    var onClearContext: () -> Void = {}
 
-    @State private var isHoveringClose = false
+    @State private var hoveredButton: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+            context
             if let status = model.statusLine {
                 Text(status)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.bottom, 8)
             }
             if !model.rows.isEmpty {
                 VStack(spacing: 0) {
@@ -81,20 +86,47 @@ struct QuickAssistView: View {
             Text("Quick Assist")
                 .font(.system(size: 12, weight: .semibold))
             Spacer(minLength: 4)
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(isHoveringClose ? Color.primary : Color.secondary)
-                    .frame(width: 16, height: 16)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .onHover { isHoveringClose = $0 }
-            .help(String(localized: "Turn off Quick Assist"))
+            iconButton("plus", id: "add", help: String(localized: "Add the selected text to the context"), action: onAddSelection)
+            iconButton("eraser", id: "clear", help: String(localized: "Clear the context"), action: onClearContext)
+                .disabled(model.context.isEmpty)
+                .opacity(model.context.isEmpty ? 0.35 : 1)
+            iconButton("xmark", id: "close", help: String(localized: "Turn off Quick Assist"), action: onClose)
         }
         .padding(.horizontal, 12)
         .padding(.top, 10)
-        .padding(.bottom, model.rows.isEmpty && model.statusLine == nil ? 10 : 6)
+        .padding(.bottom, 6)
+    }
+
+    /// The text being judged, so it is never a mystery what the answers below refer to.
+    private var context: some View {
+        Text(model.context.isEmpty ? String(localized: "Nothing yet") : model.context)
+            .font(.system(size: 11))
+            .foregroundStyle(model.context.isEmpty ? .tertiary : .secondary)
+            .lineLimit(3)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.primary.opacity(0.05))
+            )
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+            .animation(.easeOut(duration: 0.15), value: model.context)
+    }
+
+    private func iconButton(_ symbol: String, id: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(hoveredButton == id ? Color.primary : Color.secondary)
+                .frame(width: 16, height: 16)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hoveredButton = $0 ? id : nil }
+        .help(help)
     }
 }
 

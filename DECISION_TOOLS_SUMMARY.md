@@ -8,20 +8,19 @@ Feature stack: **Decision Tools** as a first-class peer to AI Tools (judge selec
 1. `cd` to this repo, `xcodegen generate`, then `./scripts/dev_run.sh` (or open `OpenClip.xcodeproj`).
 2. Open **Settings → Decisions** (sidebar, next to AI). Toggle **Enable Decision Tools**.
 3. Pick a provider:
-   - **Laya (local)** — press **Install Laya**: OpenClip creates `~/.openclip/laya/venv` (uv, else python3 ≥ 3.10), installs `laya` + PyTorch, downloads the checkpoint (~800 MB) and keeps `laya_bridge.py` resident. No key, nothing leaves the Mac.
+   - **Laya (local)** — press **Download**: OpenClip creates `~/.openclip/laya/venv` (uv, else python3 ≥ 3.10), adds `laya` + PyTorch and fetches the checkpoint (~800 MB). Then **Start** runs it, keeping `laya_bridge.py` resident. No key, nothing leaves the Mac.
    - **Jev** — set Base URL (`https://api.typesafe.ai/v1`) + API key (SecretStore).
 4. Enable default tools (Smart action, Triage, Reply as…, Send to…, Safe to share?, Fix path, Clean this list) or add/edit/duplicate/delete like AI tools.
 5. Select text → open the popup → **Decision Tools** bar entry (or palette search for a tool name). The tool's icon spins, then becomes a green tick / red cross (yes/no) or the chosen label — inline, no card.
 6. Optional: enable **Live assist** (off by default) on the Decisions page, or for 30 minutes / 1 hour / until tomorrow from the menu bar's **Live Assist** submenu. Mark a tool **Show in Quick Assist** on its page, then type in any app: the floating Quick Assist window answers those tools as you type. Read the privacy blurb on the Decisions page.
 
-No real API keys are committed. Unit tests cover packing, parsing, tree stepping, bulk split/reduce, and mock provider evaluation (`./scripts/test.sh` on macOS).
+No real API keys are committed. Unit tests cover packing, parsing, bulk split/categorise, Quick Assist batching, and mock provider evaluation (`./scripts/test.sh` on macOS).
 
 ## Implemented
 
 | Area | Status |
 | :--- | :--- |
 | Core models (`DecisionQuestion` / `Answer` / `Presentation`, packer, response parser) | Done |
-| Decision trees (coarse→fine, fan-out, fail-closed, depth cap) + Triage builtin tree | Done |
 | Bulk decisions: **Bulk…** entry → card with live item count, Row/Word mode, tool picker, progress, categorised results, per-category + copy-all | Done |
 | Providers: Jev (System One POST), Laya via managed Python runtime + bundled bridge | Done (Jev wire format still unverified against the real API) |
 | `DecisionServiceManager` + SecretStore keys + Settings keys / catalog | Done |
@@ -31,7 +30,7 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 | Answer UI: inline on the tool's icon (`DecisionInlineIndicator`: spinner → tick / cross / label) in bar + palette; bulk tools return text | Done |
 | `ActionResult.decision` + popup presentation path | Done |
 | Quick Assist: AX focused-field monitor, batched one-pass request, floating draggable window, per-tool opt-in | Done |
-| Unit tests (packer, parser, tree, bulk, actions/chrome) | Done |
+| Unit tests (packer, parser, bulk, Quick Assist, actions/chrome) | Done |
 | CHANGELOG Unreleased + user-guide / logging / directory-structure notes | Done |
 
 ## Stubbed / partial (clear TODOs)
@@ -45,7 +44,6 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 ### Core
 - `Sources/Core/Decisions/DecisionQuestion.swift`
 - `Sources/Core/Decisions/DecisionAnswer.swift`
-- `Sources/Core/Decisions/DecisionTree.swift`
 - `Sources/Core/Decisions/DecisionBulk.swift`
 - `Sources/Core/Decisions/DecisionToolPreset.swift`
 
@@ -75,7 +73,6 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 ### Tests
 - `Tests/OpenClipTests/DecisionQuestionPackerTests.swift`
 - `Tests/OpenClipTests/DecisionResponseParserTests.swift`
-- `Tests/OpenClipTests/DecisionTreeStepperTests.swift`
 - `Tests/OpenClipTests/DecisionBulkTests.swift`
 - `Tests/OpenClipTests/DecisionActionTests.swift`
 - `Tests/OpenClipTests/ActionChromeDecisionTests.swift`

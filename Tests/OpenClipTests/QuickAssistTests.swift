@@ -32,13 +32,13 @@ final class QuickAssistTests: XCTestCase {
         XCTAssertTrue(roundTripped.showsInQuickAssist)
     }
 
-    func testSafeToShareShipsInQuickAssistAndTreeBulkToolsDoNot() throws {
+    func testSafeToShareShipsInQuickAssistAndBulkToolsDoNot() throws {
         let defaults = DecisionDefaultPresets.all
         let safeToShare = try XCTUnwrap(defaults.first { $0.id == "safe_to_share" })
         XCTAssertTrue(safeToShare.showsInQuickAssist, "the as-you-type default should answer out of the box")
 
-        for tool in defaults where tool.treeID != nil || tool.bulkMode != .none {
-            XCTAssertFalse(tool.showsInQuickAssist, "\(tool.id) is multi-request and cannot answer as you type")
+        for tool in defaults where tool.bulkMode != .none {
+            XCTAssertFalse(tool.showsInQuickAssist, "\(tool.id) is many-request and cannot answer as you type")
         }
     }
 
@@ -52,7 +52,6 @@ final class QuickAssistTests: XCTestCase {
             DecisionToolPreset(id: "yes", title: "Yes tool", questions: [.noul(id: "q", prompt: "?")], showsInQuickAssist: true),
             DecisionToolPreset(id: "off", title: "Not marked", questions: [.noul(id: "q", prompt: "?")], showsInQuickAssist: false),
             DecisionToolPreset(id: "disabled", title: "Disabled", questions: [.noul(id: "q", prompt: "?")], isEnabled: false, showsInQuickAssist: true),
-            DecisionToolPreset(id: "tree", title: "Tree", questions: [.noul(id: "q", prompt: "?")], treeID: "t", showsInQuickAssist: true),
             DecisionToolPreset(id: "bulk", title: "Bulk", questions: [.noul(id: "q", prompt: "?")], bulkMode: .line, showsInQuickAssist: true),
             DecisionToolPreset(id: "empty", title: "No questions", questions: [], showsInQuickAssist: true),
         ]
@@ -139,20 +138,82 @@ final class QuickAssistTests: XCTestCase {
         store.set(.decisionLiveAssistEnabled, value: true)
 
         manager.tools = [DecisionToolPreset(id: "none", title: "Not in quick assist", questions: [.noul(id: "q", prompt: "?")])]
-        engine.schedule(text: "a long enough sentence to judge")
+        engine.updateTyped("a long enough sentence to judge")
         XCTAssertTrue(engine.rows.isEmpty)
         XCTAssertEqual(engine.statusLine, String(localized: "No tools yet. Turn on “Show in Quick Assist” for a tool in Settings → Decisions."))
 
         manager.tools = [DecisionToolPreset(id: "qa", title: "QA", questions: [.noul(id: "q", prompt: "?")], showsInQuickAssist: true)]
-        engine.schedule(text: "short")
+        engine.updateTyped("short")
         XCTAssertTrue(engine.rows.isEmpty, "a few characters are not worth judging")
-        XCTAssertEqual(engine.statusLine, String(localized: "Start typing and answers appear here."))
+        XCTAssertEqual(engine.statusLine, DecisionLiveAssistEngine.waitingStatus)
 
         // Enough text: the rows appear immediately as spinners, before the provider answers.
-        engine.schedule(text: "this is long enough to be judged")
+        engine.updateTyped("this is long enough to be judged")
         XCTAssertEqual(engine.rows.map(\.state), [.running])
         XCTAssertNil(engine.statusLine)
         engine.deactivate()
+        XCTAssertTrue(engine.rows.isEmpty)
+    }
+
+    // MARK: - The context
+
+    func testContextShowsTypedTextPlusAddedSelectionsAndClears() {
+        let engine = DecisionLiveAssistEngine()
+        let manager = DecisionServiceManager.shared
+        let previousTools = manager.tools
+        let store = DefaultSettingsStore.shared
+        let previousEnabled = store.get(.decisionLiveAssistEnabled)
+        defer {
+            manager.tools = previousTools
+            store.set(.decisionLiveAssistEnabled, value: previousEnabled)
+        }
+        store.set(.decisionLiveAssistEnabled, value: true)
+        manager.tools = [DecisionToolPreset(id: "qa", title: "QA", questions: [.noul(id: "q", prompt: "?")], showsInQuickAssist: true)]
+
+        engine.updateTyped("the invoice is overdue")
+        XCTAssertEqual(engine.context, "the invoice is overdue")
+
+        // Typing replaces the typed part: only the latest thing being written is judged.
+        engine.updateTyped("the invoice is overdue by a month")
+        XCTAssertEqual(engine.context, "the invoice is overdue by a month")
+
+        // An added selection sits above it and survives further typing.
+        engine.addSelection("Account: ACME Ltd")
+        XCTAssertEqual(engine.context, "Account: ACME Ltd\nthe invoice is overdue by a month")
+        engine.addSelection("Account: ACME Ltd")
+        XCTAssertEqual(engine.pinnedContext.count, 1, "the same selection twice is added once")
+        engine.addSelection("   ")
+        XCTAssertEqual(engine.pinnedContext.count, 1, "blank selections are ignored")
+        engine.updateTyped("chase it today")
+        XCTAssertEqual(engine.context, "Account: ACME Ltd\nchase it today")
+
+        engine.clearContext()
+        XCTAssertEqual(engine.context, "")
+        XCTAssertTrue(engine.pinnedContext.isEmpty)
+        XCTAssertTrue(engine.rows.isEmpty)
+        XCTAssertEqual(engine.statusLine, DecisionLiveAssistEngine.waitingStatus)
+    }
+
+    func testContextClearsItselfWhenTypingStops() async throws {
+        let engine = DecisionLiveAssistEngine()
+        let manager = DecisionServiceManager.shared
+        let previousTools = manager.tools
+        let store = DefaultSettingsStore.shared
+        let previousEnabled = store.get(.decisionLiveAssistEnabled)
+        defer {
+            manager.tools = previousTools
+            store.set(.decisionLiveAssistEnabled, value: previousEnabled)
+        }
+        store.set(.decisionLiveAssistEnabled, value: true)
+        manager.tools = [DecisionToolPreset(id: "qa", title: "QA", questions: [.noul(id: "q", prompt: "?")], showsInQuickAssist: true)]
+
+        XCTAssertEqual(engine.contextIdleTimeout, 10, "ten seconds after the last keystroke by default")
+        engine.contextIdleTimeout = 0.15
+        engine.updateTyped("something worth judging")
+        XCTAssertFalse(engine.context.isEmpty)
+
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual(engine.context, "", "a stale context must not stay on screen")
         XCTAssertTrue(engine.rows.isEmpty)
     }
 }
