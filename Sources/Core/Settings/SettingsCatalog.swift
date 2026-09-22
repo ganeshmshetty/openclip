@@ -59,6 +59,8 @@ public enum SettingsCatalog {
             SettingKey.mouseHoldDuration.erased,
             SettingKey.pauseUntilTimestamp.erased,
             SettingKey.decisionLiveAssistUntilTimestamp.erased,
+            SettingKey.quickAssistOriginX.erased,
+            SettingKey.quickAssistOriginY.erased,
             SettingKey.lastRunVersion.erased,
             SettingKey.lastRunBuild.erased,
 

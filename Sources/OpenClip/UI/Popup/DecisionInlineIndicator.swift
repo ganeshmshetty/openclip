@@ -53,6 +53,17 @@ public enum DecisionInlineState: Equatable, Sendable {
         }
     }
 
+    /// SF Symbol for this outcome; nil when the surface draws text (a choice) or a spinner.
+    var symbolName: String? {
+        switch self {
+        case .yes: return "checkmark"
+        case .no: return "xmark"
+        case .unsure: return "questionmark"
+        case .failed: return "exclamationmark.triangle"
+        case .running, .answer: return nil
+        }
+    }
+
     /// Glyph colour that reads on the tint without shouting: desaturated, mid-lightness so it works
     /// on both light and dark bars.
     var glyphColor: Color {
@@ -84,13 +95,13 @@ struct DecisionInlineIndicator: View {
             ToastSpinnerView(color: foreground, scale: scale)
                 .accessibilityLabel(String(localized: "Deciding"))
         case .yes:
-            glyph("checkmark", label: String(localized: "Yes"))
+            glyph(label: String(localized: "Yes"))
         case .no:
-            glyph("xmark", label: String(localized: "No"))
+            glyph(label: String(localized: "No"))
         case .unsure:
-            glyph("questionmark", label: String(localized: "Unsure"))
+            glyph(label: String(localized: "Unsure"))
         case .failed:
-            glyph("exclamationmark.triangle", label: String(localized: "Failed"))
+            glyph(label: String(localized: "Failed"))
         case .answer(let label):
             switch style {
             case .bar:
@@ -108,10 +119,13 @@ struct DecisionInlineIndicator: View {
         }
     }
 
-    private func glyph(_ name: String, label: String) -> some View {
-        Image(systemName: name)
-            .font(.system(size: 13 * scale, weight: .semibold))
-            .foregroundStyle(state.glyphColor)
-            .accessibilityLabel(label)
+    @ViewBuilder
+    private func glyph(label: String) -> some View {
+        if let name = state.symbolName {
+            Image(systemName: name)
+                .font(.system(size: 13 * scale, weight: .semibold))
+                .foregroundStyle(state.glyphColor)
+                .accessibilityLabel(label)
+        }
     }
 }

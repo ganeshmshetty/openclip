@@ -537,6 +537,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         updateLiveAssistMenuItems()
         // The Decisions settings page observes the manager, not the settings store.
         DecisionServiceManager.shared.objectWillChange.send()
+        QuickAssistController.shared.syncWithSettings()
     }
 
     @objc internal func resumeFromPause() {

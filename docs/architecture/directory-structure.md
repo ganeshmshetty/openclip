@@ -121,6 +121,7 @@ Sources/
 │   │   ├── DecisionAction.swift / DecisionToolsAction.swift / DecisionActionSync.swift
 │   │   ├── DecisionLiveAssistEngine.swift
 │   │   ├── Laya/LayaRuntime.swift            # Installs ~/.openclip/laya and keeps Resources/laya_bridge.py resident
+│   │   ├── QuickAssist/                      # AX focused-field monitor + the floating Quick Assist window's controller
 │   │   └── Providers/                      # Jev, Laya (via LayaRuntime)
     │   ├── AIConversation.swift              # A card session (selection + instructions + results) rendered as labelled context for follow-ups
     │   └── Providers/                        # Apple Intelligence, Local LLMs, CLI Subscriptions, Cloud API

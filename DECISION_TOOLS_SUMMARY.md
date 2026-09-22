@@ -12,7 +12,7 @@ Feature stack: **Decision Tools** as a first-class peer to AI Tools (judge selec
    - **Jev** — set Base URL (`https://api.typesafe.ai/v1`) + API key (SecretStore).
 4. Enable default tools (Smart action, Triage, Reply as…, Send to…, Safe to share?, Fix path, Clean this list) or add/edit/duplicate/delete like AI tools.
 5. Select text → open the popup → **Decision Tools** bar entry (or palette search for a tool name). The tool's icon spins, then becomes a green tick / red cross (yes/no) or the chosen label — inline, no card.
-6. Optional: enable **Live assist** (off by default) on the Decisions page, or for 30 minutes / 1 hour / until tomorrow from the menu bar's **Live Assist** submenu; read the privacy blurb on the Decisions page.
+6. Optional: enable **Live assist** (off by default) on the Decisions page, or for 30 minutes / 1 hour / until tomorrow from the menu bar's **Live Assist** submenu. Mark a tool **Show in Quick Assist** on its page, then type in any app: the floating Quick Assist window answers those tools as you type. Read the privacy blurb on the Decisions page.
 
 No real API keys are committed. Unit tests cover packing, parsing, tree stepping, bulk split/reduce, and mock provider evaluation (`./scripts/test.sh` on macOS).
 
@@ -30,7 +30,7 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 | Settings page **Decisions** (peer to AI) + toolbar enable toggle | Done |
 | Answer UI: inline on the tool's icon (`DecisionInlineIndicator`: spinner → tick / cross / label) in bar + palette; bulk tools return text | Done |
 | `ActionResult.decision` + popup presentation path | Done |
-| Live assist engine: opt-in, debounce 100–300ms, cancel in-flight, prefer Laya, privacy copy | Done |
+| Quick Assist: AX focused-field monitor, batched one-pass request, floating draggable window, per-tool opt-in | Done |
 | Unit tests (packer, parser, tree, bulk, actions/chrome) | Done |
 | CHANGELOG Unreleased + user-guide / logging / directory-structure notes | Done |
 
@@ -38,8 +38,6 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 
 | Gap | Notes |
 | :--- | :--- |
-| **Full any-field AX focus monitoring** | Setting + debounce engine + privacy docs ship; `axFocusMonitoringAvailable == false` with Settings status. Live assist uses current OpenClip selection / explicit `schedule(selectionText:)`. |
-| **Live palette intent / Safe-to-share pill chrome** | Engine APIs (`DecisionLiveSuggestion.Kind`) exist; wiring into every palette/pill surface is minimal — call `DecisionLiveAssistEngine.shared.schedule(...)` from selection/palette hosts as follow-up. |
 | **Linux compile** | macOS AppKit/SwiftUI app; this environment cannot run `xcodebuild`. Files are under `Sources/` and `Tests/` so `xcodegen generate` picks them up from `project.yml` globs. |
 
 ## Major new files
@@ -58,6 +56,10 @@ No real API keys are committed. Unit tests cover packing, parsing, tree stepping
 - `Sources/OpenClip/Decisions/DecisionToolsAction.swift`
 - `Sources/OpenClip/Decisions/DecisionActionSync.swift`
 - `Sources/OpenClip/Decisions/DecisionLiveAssistEngine.swift`
+- `Sources/OpenClip/Decisions/QuickAssist/FocusedTextMonitor.swift`
+- `Sources/OpenClip/Decisions/QuickAssist/QuickAssistController.swift`
+- `Sources/OpenClip/UI/Popup/QuickAssistPanel.swift`
+- `Sources/OpenClip/UI/Popup/QuickAssistView.swift`
 - `Sources/OpenClip/Decisions/Providers/JevDecisionProvider.swift`
 - `Sources/OpenClip/Decisions/Providers/LayaDecisionProvider.swift`
 - `Sources/OpenClip/Decisions/Laya/LayaRuntime.swift`

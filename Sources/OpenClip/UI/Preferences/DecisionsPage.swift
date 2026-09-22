@@ -47,11 +47,17 @@ struct DecisionsPage: View {
                     in: 100...300,
                     step: 50
                 )
-                LabeledContent(String(localized: "AX focus monitoring")) {
-                    Text(live.axFocusMonitoringAvailable
-                         ? String(localized: "Available")
-                         : String(localized: "Not enabled yet"))
-                        .foregroundStyle(.secondary)
+                LabeledContent(String(localized: "Accessibility")) {
+                    if live.axFocusMonitoringAvailable {
+                        Text("Granted").foregroundStyle(.secondary)
+                    } else {
+                        Button(String(localized: "Grant…")) {
+                            PermissionManager.shared.requestAccessibilityPermission()
+                        }
+                    }
+                }
+                LabeledContent(String(localized: "Tools in Quick Assist")) {
+                    Text(quickAssistSummary).foregroundStyle(.secondary)
                 }
             } header: {
                 Text("Live assist")
@@ -63,6 +69,9 @@ struct DecisionsPage: View {
             .disabled(!manager.isDecisionsEnabled)
         }
         .formStyle(.grouped)
+        .onChange(of: manager.isLiveAssistActive) { _, _ in
+            QuickAssistController.shared.syncWithSettings()
+        }
         .task {
             let status = await manager.providerStatus()
             switch status {
@@ -72,6 +81,14 @@ struct DecisionsPage: View {
                 providerStatus = reason
             }
         }
+    }
+}
+
+extension DecisionsPage {
+    /// "Safe to share?, Triage" — the tools that answer as you type, for the Live assist section.
+    var quickAssistSummary: String {
+        let titles = live.quickAssistTools.map(\.title)
+        return titles.isEmpty ? String(localized: "None") : titles.joined(separator: ", ")
     }
 }
 
@@ -174,9 +191,14 @@ struct DecisionActionsSection: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(tool.title)
-                        Text(tool.questions.first?.kind.rawValue ?? "")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 4) {
+                            Text(tool.questions.first?.kind.rawValue ?? "")
+                            if tool.showsInQuickAssist {
+                                Text("· Quick Assist")
+                            }
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -199,6 +221,7 @@ struct DecisionToolPage: View {
     @State private var prompt: String = ""
     @State private var kind: DecisionQuestionKind = .noul
     @State private var choicesText: String = ""
+    @State private var showsInQuickAssist = false
     @State private var loaded = false
     @State private var confirmingDelete = false
 
@@ -221,6 +244,7 @@ struct DecisionToolPage: View {
                     }
                     TextField(String(localized: "Question prompt"), text: $prompt, axis: .vertical)
                         .lineLimit(3...8)
+                    DecisionQuickAssistToggle(isOn: $showsInQuickAssist, tool: tool)
                 }
             } footer: {
                 HStack {
@@ -251,6 +275,7 @@ struct DecisionToolPage: View {
                             q.options = DecisionQuestion.parseChoiceOptions(choicesText)
                         }
                         updated.questions = [q] + updated.questions.dropFirst()
+                        updated.showsInQuickAssist = showsInQuickAssist
                         manager.updateTool(updated)
                         router.pop()
                     }
@@ -264,6 +289,7 @@ struct DecisionToolPage: View {
                 prompt = tool.questions.first?.prompt ?? ""
                 kind = tool.questions.first?.kind ?? .noul
                 choicesText = (tool.questions.first?.options ?? []).joined(separator: "\n")
+                showsInQuickAssist = tool.showsInQuickAssist
                 loaded = true
             }
         } else {
@@ -280,6 +306,7 @@ struct DecisionNewToolPage: View {
     @State private var prompt = ""
     @State private var kind: DecisionQuestionKind = .noul
     @State private var choicesText = ""
+    @State private var showsInQuickAssist = false
 
     var body: some View {
         SettingsEditorPage {
@@ -291,6 +318,7 @@ struct DecisionNewToolPage: View {
                 }
                 TextField(String(localized: "Question prompt"), text: $prompt, axis: .vertical)
                     .lineLimit(3...8)
+                DecisionQuickAssistToggle(isOn: $showsInQuickAssist, tool: nil)
             }
         } footer: {
             HStack {
@@ -301,13 +329,38 @@ struct DecisionNewToolPage: View {
                     if kind == .choice {
                         question.options = DecisionQuestion.parseChoiceOptions(choicesText)
                     }
-                    let tool = DecisionServiceManager.makeCustomTool(title: title, questions: [question])
+                    var tool = DecisionServiceManager.makeCustomTool(title: title, questions: [question])
+                    tool.showsInQuickAssist = showsInQuickAssist
                     manager.updateTool(tool)
                     router.pop()
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || prompt.trimmingCharacters(in: .whitespaces).isEmpty || !DecisionChoicesField.isValid(kind: kind, text: choicesText))
             }
+        }
+    }
+}
+
+/// "Show in Quick Assist" for a tool. Trees and bulk tools cannot answer as you type — they are
+/// deliberate multi-request runs — so the toggle is off and disabled for them.
+struct DecisionQuickAssistToggle: View {
+    @Binding var isOn: Bool
+    let tool: DecisionToolPreset?
+
+    private var isSupported: Bool {
+        guard let tool else { return true }
+        return tool.treeID == nil && tool.bulkMode == .none
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(String(localized: "Show in Quick Assist"), isOn: $isOn)
+                .disabled(!isSupported)
+            Text(isSupported
+                 ? String(localized: "Answers continuously in the floating window while Live assist is on.")
+                 : String(localized: "Multi-step and bulk tools run only when you pick them."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }

@@ -1,52 +1,45 @@
 // DecisionLiveAssistEngine.swift
 // OpenClip
 //
-// Opt-in Live assist: debounce 100–300ms, cancel in-flight, prefer local Laya, suggest-not-rewrite.
-// Full any-field AX focus-value monitoring is partially stubbed (see Settings status).
+// Runs the Decision tools marked "Show in Quick Assist" against whatever the user is typing, and
+// publishes one row per tool for the floating Quick Assist window.
+//
+// Every tool's primary question goes into a single provider request: a System One model answers N
+// typed questions in one forward pass, so five tools cost what one costs (tens of milliseconds on
+// Laya). Question ids are namespaced per tool on the way out and matched back on the way in.
+//
+// Typing is debounced, and a new keystroke cancels the request in flight, so only the text the user
+// has settled on is ever judged.
 import Foundation
 import Core
 
-public struct DecisionLiveSuggestion: Sendable, Equatable {
-    public var toolID: String
-    public var title: String
-    public var chips: [String]
-    public var confidence: Double?
-    public var kind: Kind
-
-    public enum Kind: String, Sendable, Equatable {
-        case smartHint
-        case safeToSharePill
-        case paletteIntent
-    }
-
-    public init(toolID: String, title: String, chips: [String], confidence: Double? = nil, kind: Kind) {
-        self.toolID = toolID
-        self.title = title
-        self.chips = chips
-        self.confidence = confidence
-        self.kind = kind
-    }
-}
-
-/// Debounced Live assist runner. Privacy: off by default; prefers local Laya; never rewrites text.
 @MainActor
 public final class DecisionLiveAssistEngine: ObservableObject {
     public static let shared = DecisionLiveAssistEngine()
 
-    @Published public private(set) var latestSuggestion: DecisionLiveSuggestion?
-    @Published public private(set) var statusMessage: String = ""
-    @Published public private(set) var axFocusMonitoringAvailable: Bool = false
+    /// One row per Quick Assist tool, in the order they appear in Settings.
+    @Published public private(set) var rows: [QuickAssistRow] = []
+    /// Status line for the window when there is nothing to show: no tools, no text, or a provider
+    /// that cannot answer.
+    @Published public private(set) var statusLine: String?
 
+    /// True when the Accessibility permission needed to read the focused field has been granted.
+    public var axFocusMonitoringAvailable: Bool { monitor.isAvailable }
+
+    private let monitor: FocusedTextMonitor
     private var inFlight: Task<Void, Never>?
-    private var debounceWorkItem: DispatchWorkItem?
+    private var debounceTask: Task<Void, Never>?
+    private var lastJudgedText: String?
 
-    private init() {
-        // TODO: Wire AX focused UI element value observer when a stable focus-value path is ready.
-        // Until then the setting + debounce engine ship; Settings shows this status.
-        axFocusMonitoringAvailable = false
-        statusMessage = String(localized: "Live assist watches the current OpenClip selection only. Full any-field AX focus monitoring is not enabled yet.")
+    /// Question id prefix that namespaces a tool's question inside the batched request.
+    static let questionPrefix = "qa."
+
+    public init(monitor: FocusedTextMonitor = .shared) {
+        self.monitor = monitor
     }
 
+    /// Live assist is on when the Settings toggle is on or the menu bar opened a timed window, and
+    /// Decision Tools themselves are enabled.
     public var isEnabled: Bool {
         DecisionServiceManager.shared.isLiveAssistActive && DecisionServiceManager.shared.isDecisionsEnabled
     }
@@ -54,84 +47,127 @@ public final class DecisionLiveAssistEngine: ObservableObject {
     /// Privacy copy for Preferences.
     public static let privacyBlurb = String(localized: """
     Live assist is off by default. Turn it on here, or for 30 minutes, an hour, or until tomorrow from the \
-    menu bar's Live Assist submenu. When enabled it sends only the current selection (or palette query) \
-    to your configured Decision provider — preferring local Laya when available. It never rewrites text; \
-    it only suggests chips (Smart hint, Safe-to-share pill, palette intent). Keys stay in SecretStore. \
-    Full monitoring of arbitrary focused fields via Accessibility APIs is not enabled yet.
+    menu bar's Live Assist submenu. When enabled, OpenClip reads the text of the field you are typing in \
+    through Accessibility and sends it to your configured Decision provider — staying on this Mac when that \
+    provider is Laya. Password fields are never read, nothing is stored, and it only ever shows answers in \
+    the Quick Assist window; it never rewrites or types anything.
     """)
 
+    /// The tools that answer in the Quick Assist window: enabled, marked for Quick Assist, and
+    /// simple enough to answer in one pass (a tree or a bulk tool is a deliberate, explicit run).
+    public var quickAssistTools: [DecisionToolPreset] {
+        DecisionServiceManager.shared.tools.filter {
+            $0.isEnabled && $0.showsInQuickAssist && $0.treeID == nil && $0.bulkMode == .none && !$0.questions.isEmpty
+        }
+    }
+
+    // MARK: - Running
+
     public func cancel() {
-        debounceWorkItem?.cancel()
-        debounceWorkItem = nil
+        debounceTask?.cancel()
+        debounceTask = nil
         inFlight?.cancel()
         inFlight = nil
     }
 
-    /// Stops pending and in-flight work and drops the last suggestion, e.g. when the menu bar's
-    /// timed window ends or Live assist is switched off.
+    /// Stops pending and in-flight work and drops every row, e.g. when the menu bar's timed window
+    /// ends or Live assist is switched off.
     public func deactivate() {
         cancel()
-        latestSuggestion = nil
+        rows = []
+        statusLine = nil
+        lastJudgedText = nil
     }
 
-    /// Schedule a suggestion for the given selection text.
-    public func schedule(selectionText: String, kind: DecisionLiveSuggestion.Kind = .smartHint) {
+    /// Debounced entry point: the focused field's text changed.
+    public func schedule(text: String) {
         cancel()
         guard isEnabled else {
-            latestSuggestion = nil
+            rows = []
             return
         }
-        let ms = DecisionServiceManager.shared.liveAssistDebounceMS
-        let work = DispatchWorkItem { [weak self] in
-            Task { @MainActor in
-                await self?.run(selectionText: selectionText, kind: kind)
-            }
+        let tools = quickAssistTools
+        guard !tools.isEmpty else {
+            rows = []
+            statusLine = String(localized: "No tools yet. Turn on “Show in Quick Assist” for a tool in Settings → Decisions.")
+            return
         }
-        debounceWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(ms), execute: work)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= Self.minimumCharacters else {
+            rows = []
+            statusLine = String(localized: "Start typing and answers appear here.")
+            lastJudgedText = nil
+            return
+        }
+        guard trimmed != lastJudgedText else { return }
+
+        statusLine = nil
+        rows = tools.map { QuickAssistRow(id: $0.id, title: $0.title, state: .running) }
+
+        let ms = DecisionServiceManager.shared.liveAssistDebounceMS
+        debounceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
+            guard !Task.isCancelled, let self else { return }
+            self.run(text: trimmed, tools: tools)
+        }
     }
 
-    private func run(selectionText: String, kind: DecisionLiveSuggestion.Kind) async {
-        let trimmed = selectionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            latestSuggestion = nil
-            return
-        }
-        let toolID: String
-        switch kind {
-        case .safeToSharePill: toolID = "safe_to_share"
-        case .paletteIntent, .smartHint: toolID = "smart_action"
-        }
-        guard let tool = DecisionServiceManager.shared.tools.first(where: { $0.id == toolID && $0.isEnabled }) else {
-            return
-        }
-        let task = Task { @MainActor in
+    private func run(text: String, tools: [DecisionToolPreset]) {
+        inFlight?.cancel()
+        inFlight = Task { @MainActor [weak self] in
+            guard let self else { return }
             do {
                 let provider = await DecisionServiceManager.shared.liveAssistProvider()
                 let request = DecisionQuestionPacker.pack(
-                    state: trimmed,
-                    questions: Array(tool.questions.prefix(1)),
-                    toolID: tool.id
+                    state: text,
+                    questions: Self.batchedQuestions(for: tools),
+                    toolID: "quick_assist"
                 )
                 let response = try await provider.decide(request)
                 guard !Task.isCancelled else { return }
-                let chips = response.answers.map(\.value.displayLabel)
-                latestSuggestion = DecisionLiveSuggestion(
-                    toolID: tool.id,
-                    title: tool.title,
-                    chips: chips,
-                    confidence: response.confidence ?? response.answers.first?.confidence,
-                    kind: kind
-                )
-                Log.decisions.info("Live assist suggestion ready for \(tool.id, privacy: .public)")
+                self.lastJudgedText = text
+                self.rows = Self.rows(from: response, tools: tools)
+                self.statusLine = nil
+                Log.decisions.info("Quick Assist answered \(tools.count, privacy: .public) tool(s)")
             } catch is CancellationError {
-                // ignore
+                // A newer keystroke won; its own run publishes the rows.
             } catch {
-                Log.decisions.notice("Live assist skipped: \(error.localizedDescription)")
-                latestSuggestion = nil
+                guard !Task.isCancelled else { return }
+                self.rows = []
+                self.statusLine = error.localizedDescription
+                Log.decisions.notice("Quick Assist skipped: \(error.localizedDescription)")
             }
         }
-        inFlight = task
-        await task.value
     }
+
+    /// Each tool's primary question, id-namespaced so one request can carry them all.
+    static func batchedQuestions(for tools: [DecisionToolPreset]) -> [DecisionQuestion] {
+        tools.compactMap { tool in
+            guard var question = tool.questions.first else { return nil }
+            question.id = questionPrefix + tool.id
+            return question
+        }
+    }
+
+    /// Maps a batched response back onto one row per tool, honouring each tool's own confidence
+    /// threshold so an unsure answer reads as a question mark rather than a wrong yes/no.
+    static func rows(from response: DecisionResponse, tools: [DecisionToolPreset]) -> [QuickAssistRow] {
+        tools.map { tool in
+            guard let answer = response.answer(for: questionPrefix + tool.id) else {
+                return QuickAssistRow(id: tool.id, title: tool.title, state: .unsure)
+            }
+            let confidence = answer.confidence ?? response.confidence
+            let presentation = DecisionPresentation(
+                toolID: tool.id,
+                toolTitle: tool.title,
+                answers: [answer],
+                confidence: confidence,
+                requiresConfirmation: (confidence ?? 1) < tool.confirmBelowConfidence
+            )
+            return QuickAssistRow(id: tool.id, title: tool.title, state: DecisionInlineState(presentation))
+        }
+    }
+
+    /// Below this many characters there is nothing worth judging yet.
+    static let minimumCharacters = 12
 }

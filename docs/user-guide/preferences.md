@@ -215,7 +215,15 @@ Select **Decisions** in the sidebar (next to AI) to enable the feature and confi
 | **Laya (local)** | Runs on this Mac in a Python environment OpenClip installs under `~/.openclip/laya` (about 1.5 GB with the model); preferred for Live assist, no key | **Install Laya** on the Decisions page, then pick English or Multilingual; **Load** keeps the model resident ahead of the first decision |
 | **Jev (TypeSafe System One)** | Cloud BYOK `POST …/systemone` | API key in SecretStore |
 
-### Live assist
+### Live assist and Quick Assist
 
-Off by default. The menu bar icon's **Live Assist** submenu turns it on for 30 minutes, 1 hour, or until tomorrow (like **Pause**); **Always On** there is the same switch as this toggle. When enabled, OpenClip debounces selection changes (100–300 ms), cancels in-flight requests, and prefers local Laya. It only **suggests** chips (Smart hint / Safe-to-share pill / palette intent) — it never rewrites. Full monitoring of arbitrary focused fields via Accessibility is not enabled yet; Settings shows that status.
+Off by default. The menu bar icon's **Live Assist** submenu turns it on for 30 minutes, 1 hour, or until tomorrow (like **Pause**); **Always On** there is the same switch as this toggle.
+
+While it is on, OpenClip reads the text of the field you are typing in (any app, via Accessibility) and answers the tools you marked **Show in Quick Assist** — the per-tool switch on a tool's page — in a small floating window. Drag the window anywhere; it opens in the bottom-right corner the first time and reappears where you left it. Close it with its ✕ to turn Live assist off.
+
+- All Quick Assist tools are asked in **one** request, so a System One model answers them in a single forward pass.
+- Typing is debounced (100–300 ms) and a new keystroke cancels the request in flight.
+- Yes/no tools show a tick, cross, or a grey question mark when confidence is below the tool's threshold; choice tools show the chosen label.
+- Multi-step (tree) and bulk tools cannot join Quick Assist: they are deliberate, multi-request runs.
+- **Password fields are never read**, OpenClip's own windows are skipped, nothing is stored, and with Laya as the provider the text never leaves the Mac.
 

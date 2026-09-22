@@ -40,6 +40,10 @@ public struct DecisionToolPreset: Identifiable, Codable, Equatable, Sendable {
     public var failBelowConfidence: Double
     /// SF Symbol hint for chrome (optional).
     public var symbolName: String?
+    /// Answers continuously in the floating Quick Assist window as the user types, instead of
+    /// only when the tool is clicked. Trees and bulk tools are excluded there: they are
+    /// deliberate, multi-request runs.
+    public var showsInQuickAssist: Bool
 
     public init(
         id: String,
@@ -50,7 +54,8 @@ public struct DecisionToolPreset: Identifiable, Codable, Equatable, Sendable {
         bulkMode: DecisionBulkMode = .none,
         confirmBelowConfidence: Double = 0.72,
         failBelowConfidence: Double = 0.40,
-        symbolName: String? = nil
+        symbolName: String? = nil,
+        showsInQuickAssist: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -61,6 +66,24 @@ public struct DecisionToolPreset: Identifiable, Codable, Equatable, Sendable {
         self.confirmBelowConfidence = confirmBelowConfidence
         self.failBelowConfidence = failBelowConfidence
         self.symbolName = symbolName
+        self.showsInQuickAssist = showsInQuickAssist
+    }
+
+    /// Tolerant decoding: presets are persisted as JSON, so one saved by an older build is
+    /// missing every key added since. Defaulting each field keeps the user's custom tools
+    /// instead of failing the whole list back to the shipped defaults.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? id
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+        questions = try container.decodeIfPresent([DecisionQuestion].self, forKey: .questions) ?? []
+        treeID = try container.decodeIfPresent(String.self, forKey: .treeID)
+        bulkMode = try container.decodeIfPresent(DecisionBulkMode.self, forKey: .bulkMode) ?? .none
+        confirmBelowConfidence = try container.decodeIfPresent(Double.self, forKey: .confirmBelowConfidence) ?? 0.72
+        failBelowConfidence = try container.decodeIfPresent(Double.self, forKey: .failBelowConfidence) ?? 0.40
+        symbolName = try container.decodeIfPresent(String.self, forKey: .symbolName)
+        showsInQuickAssist = try container.decodeIfPresent(Bool.self, forKey: .showsInQuickAssist) ?? false
     }
 }
 
@@ -232,7 +255,8 @@ public enum DecisionDefaultPresets {
             ],
             confirmBelowConfidence: 0.85,
             failBelowConfidence: 0.50,
-            symbolName: "lock.shield"
+            symbolName: "lock.shield",
+            showsInQuickAssist: true
         ),
         DecisionToolPreset(
             id: "fix_path",

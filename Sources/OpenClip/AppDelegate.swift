@@ -136,6 +136,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             // Register each AI preset as an individual action (palette + Preferences → Actions).
             aiActionSync = AIActionSync.shared
             decisionActionSync = DecisionActionSync.shared
+            // Quick Assist follows the Live assist setting, including a timed window that
+            // survived a relaunch.
+            QuickAssistController.shared.syncWithSettings()
 
             // Watch ~/.openclip/extensions and reload on changes so extensions installed or
             // edited outside the app (store installs, install_extension.sh, manifest edits)

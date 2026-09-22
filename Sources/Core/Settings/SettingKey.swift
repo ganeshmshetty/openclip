@@ -117,6 +117,9 @@ public extension SettingKey where Value == Double {
     static var pauseUntilTimestamp: SettingKey<Double> { SettingKey<Double>("pauseUntilTimestamp", defaultValue: 0.0) }
     /// Timestamp (seconds since 1970) until which Decision Live assist is on from the menu bar (0.0 = no timed window).
     static var decisionLiveAssistUntilTimestamp: SettingKey<Double> { SettingKey<Double>("decisionLiveAssistUntilTimestamp", defaultValue: 0.0) }
+    /// Screen origin the user last dragged the Quick Assist window to (0,0 = never moved).
+    static var quickAssistOriginX: SettingKey<Double> { SettingKey<Double>("quickAssistOriginX", defaultValue: 0.0) }
+    static var quickAssistOriginY: SettingKey<Double> { SettingKey<Double>("quickAssistOriginY", defaultValue: 0.0) }
 }
 
 public extension SettingKey where Value == Data? {
