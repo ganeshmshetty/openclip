@@ -85,6 +85,8 @@ public extension SettingKey where Value == [String: String] {
 public extension SettingKey where Value == Bool {
     static var isAppEnabled: SettingKey<Bool> { SettingKey<Bool>("isAppEnabled", defaultValue: true) }
     static var isAIEnabled: SettingKey<Bool> { SettingKey<Bool>("aiEnabled", defaultValue: true) }
+    static var isDecisionsEnabled: SettingKey<Bool> { SettingKey<Bool>("decisionsEnabled", defaultValue: true) }
+    static var decisionLiveAssistEnabled: SettingKey<Bool> { SettingKey<Bool>("decisionLiveAssistEnabled", defaultValue: false) }
     static var isMouseHoldEnabled: SettingKey<Bool> { SettingKey<Bool>("isMouseHoldEnabled", defaultValue: true) }
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
     /// True once the one-time post-onboarding coach-mark ("select any text" / "finish setup")
@@ -113,6 +115,11 @@ public extension SettingKey where Value == Double {
     static var mouseHoldDuration: SettingKey<Double> { SettingKey<Double>("mouseHoldDuration", defaultValue: 0.3) }
     /// Timestamp (seconds since 1970) until which OpenClip is temporarily paused (0.0 = not paused).
     static var pauseUntilTimestamp: SettingKey<Double> { SettingKey<Double>("pauseUntilTimestamp", defaultValue: 0.0) }
+    /// Timestamp (seconds since 1970) until which Decision Live assist is on from the menu bar (0.0 = no timed window).
+    static var decisionLiveAssistUntilTimestamp: SettingKey<Double> { SettingKey<Double>("decisionLiveAssistUntilTimestamp", defaultValue: 0.0) }
+    /// Screen origin the user last dragged the Quick Assist window to (0,0 = never moved).
+    static var quickAssistOriginX: SettingKey<Double> { SettingKey<Double>("quickAssistOriginX", defaultValue: 0.0) }
+    static var quickAssistOriginY: SettingKey<Double> { SettingKey<Double>("quickAssistOriginY", defaultValue: 0.0) }
 }
 
 public extension SettingKey where Value == Data? {

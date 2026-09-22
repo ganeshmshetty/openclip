@@ -89,7 +89,7 @@ struct InstalledExtensionInfo: Identifiable {
         var buckets: [String: [any Action]] = [:]
         for action in actions {
             guard case .extensionPkg(let packageID) = action.chrome.source else { continue }
-            guard !ActionIdentity.isAIPreset(action), !isCustomPackage(packageID) else { continue }
+            guard !ActionIdentity.isAIPreset(action), !ActionIdentity.isDecisionPreset(action), !isCustomPackage(packageID) else { continue }
             if buckets[packageID] == nil {
                 order.append(packageID)
             }
@@ -103,7 +103,7 @@ struct InstalledExtensionInfo: Identifiable {
     static func info(for packageID: String, in actions: [any Action]) -> InstalledExtensionInfo? {
         let members = actions.filter { action in
             guard case .extensionPkg(let id) = action.chrome.source else { return false }
-            return id == packageID && !ActionIdentity.isAIPreset(action)
+            return id == packageID && !ActionIdentity.isAIPreset(action) && !ActionIdentity.isDecisionPreset(action)
         }
         return make(packageID: packageID, actions: members)
     }

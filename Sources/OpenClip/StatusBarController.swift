@@ -22,6 +22,11 @@ class StatusBarController: NSObject, NSMenuDelegate {
     internal var toggleEnabledItem: NSMenuItem?
     internal var pauseAppItem: NSMenuItem?
     internal var pauseSubmenu: NSMenu?
+    internal var liveAssistParentItem: NSMenuItem?
+    internal var liveAssistSubmenu: NSMenu?
+    internal var liveAssistTurnOffItem: NSMenuItem?
+    internal var liveAssistTurnOffSeparator: NSMenuItem?
+    internal var liveAssistAlwaysOnItem: NSMenuItem?
     internal var updateMenuItem: NSMenuItem?
     internal var actionsSubmenu: NSMenu?
     internal var targetAppOverride: NSRunningApplication?
@@ -36,6 +41,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
     
     private let rulesSaveURL: URL
     private var pauseTask: Task<Void, Never>?
+    private var liveAssistTask: Task<Void, Never>?
 
     /// Initializes a new status bar controller.
     init(
@@ -99,6 +105,11 @@ class StatusBarController: NSObject, NSMenuDelegate {
         if remaining > 0 {
             schedulePauseTask(seconds: remaining)
         }
+
+        let liveAssistRemaining = settingsStore.get(.decisionLiveAssistUntilTimestamp) - Date().timeIntervalSince1970
+        if liveAssistRemaining > 0 {
+            scheduleLiveAssistTask(seconds: liveAssistRemaining)
+        }
     }
 
     deinit {
@@ -159,6 +170,31 @@ class StatusBarController: NSObject, NSMenuDelegate {
         let pauseParent = NSMenuItem(title: String(localized: "Pause"), action: nil, keyEquivalent: "")
         pauseParent.submenu = pauseMenu
         menu.addItem(pauseParent)
+
+        // Live Assist Submenu: timed like Pause, plus "Always On" mirroring the Settings toggle
+        let liveAssistMenu = NSMenu(title: String(localized: "Live Assist"))
+        let liveAssistOff = menuItem(title: String(localized: "Turn Off"), action: #selector(turnOffLiveAssist))
+        liveAssistOff.isHidden = true
+        liveAssistMenu.addItem(liveAssistOff)
+        self.liveAssistTurnOffItem = liveAssistOff
+        let liveAssistOffSeparator = NSMenuItem.separator()
+        liveAssistOffSeparator.isHidden = true
+        liveAssistMenu.addItem(liveAssistOffSeparator)
+        self.liveAssistTurnOffSeparator = liveAssistOffSeparator
+        liveAssistMenu.addItem(menuItem(title: String(localized: "Enable for 30 Minutes"), action: #selector(liveAssist30Minutes)))
+        liveAssistMenu.addItem(menuItem(title: String(localized: "Enable for 1 Hour"), action: #selector(liveAssist1Hour)))
+        liveAssistMenu.addItem(menuItem(title: String(localized: "Enable Until Tomorrow"), action: #selector(liveAssistUntilTomorrow)))
+        liveAssistMenu.addItem(NSMenuItem.separator())
+        let liveAssistAlwaysOn = menuItem(title: String(localized: "Always On"), action: #selector(toggleLiveAssistAlwaysOn))
+        liveAssistMenu.addItem(liveAssistAlwaysOn)
+        self.liveAssistAlwaysOnItem = liveAssistAlwaysOn
+        self.liveAssistSubmenu = liveAssistMenu
+
+        let liveAssistParent = NSMenuItem(title: String(localized: "Live Assist"), action: nil, keyEquivalent: "")
+        liveAssistParent.submenu = liveAssistMenu
+        menu.addItem(liveAssistParent)
+        self.liveAssistParentItem = liveAssistParent
+        updateLiveAssistMenuItems()
         
         menu.addItem(NSMenuItem.separator())
 
@@ -270,12 +306,14 @@ class StatusBarController: NSObject, NSMenuDelegate {
         let customGroupMemberIDs = Set(ActionCoordinator.shared.actionGroupDefs.flatMap(\.memberActionIDs))
         let disabledActionIDs = settingsStore.get(.disabledActionIDs)
         let isAIEnabled = settingsStore.get(.isAIEnabled)
+        let isDecisionsEnabled = settingsStore.get(.isDecisionsEnabled)
 
         let items = TopLevelActionResolver.resolveTopLevelItems(
             from: actions,
             customGroupMemberIDs: customGroupMemberIDs,
             disabledActionIDs: disabledActionIDs,
             isAIEnabled: isAIEnabled,
+            isDecisionsEnabled: isDecisionsEnabled,
             presentationProvider: { action in
                 ActionCustomizationManager.shared.presented(action, surface: .table)
             }
@@ -365,7 +403,31 @@ class StatusBarController: NSObject, NSMenuDelegate {
             pauseAppItem?.isHidden = true
         }
 
+        updateLiveAssistMenuItems()
         updateStatusIcon(isEnabled: isEnabled)
+    }
+
+    /// Reflects Live assist in the menu: hidden while Decision Tools are off, the parent shows the
+    /// minutes left in a timed window with a Turn Off item, and "Always On" checks the Settings toggle.
+    internal func updateLiveAssistMenuItems() {
+        let decisionsEnabled = settingsStore.get(.isDecisionsEnabled)
+        liveAssistParentItem?.isHidden = !decisionsEnabled
+        guard decisionsEnabled else { return }
+
+        liveAssistAlwaysOnItem?.state = settingsStore.get(.decisionLiveAssistEnabled) ? .on : .off
+
+        let remaining = settingsStore.get(.decisionLiveAssistUntilTimestamp) - Date().timeIntervalSince1970
+        if remaining > 0 {
+            let mins = max(1, Int(ceil(remaining / 60.0)))
+            liveAssistParentItem?.title = String(localized: "Live Assist (\(mins)m left)")
+            liveAssistTurnOffItem?.title = String(localized: "Turn Off (\(mins)m left)")
+            liveAssistTurnOffItem?.isHidden = false
+            liveAssistTurnOffSeparator?.isHidden = false
+        } else {
+            liveAssistParentItem?.title = String(localized: "Live Assist")
+            liveAssistTurnOffItem?.isHidden = true
+            liveAssistTurnOffSeparator?.isHidden = true
+        }
     }
 
     @objc private func handleWorkspaceAppActivated(_ notification: Notification) {
@@ -403,11 +465,79 @@ class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc internal func pauseUntilTomorrow() {
+        pauseFor(seconds: Self.secondsUntilTomorrow())
+    }
+
+    /// Seconds from `now` until the next local midnight.
+    private static func secondsUntilTomorrow(from now: Date = Date()) -> TimeInterval {
         let calendar = Calendar.current
-        let now = Date()
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now.addingTimeInterval(86400)
-        let seconds = tomorrow.timeIntervalSince(now)
-        pauseFor(seconds: seconds)
+        return tomorrow.timeIntervalSince(now)
+    }
+
+    @objc internal func liveAssist30Minutes() {
+        enableLiveAssist(for: 1800)
+    }
+
+    @objc internal func liveAssist1Hour() {
+        enableLiveAssist(for: 3600)
+    }
+
+    @objc internal func liveAssistUntilTomorrow() {
+        enableLiveAssist(for: Self.secondsUntilTomorrow())
+    }
+
+    /// "Always On" is the same switch as Settings → Decisions → Enable Live assist.
+    @objc internal func toggleLiveAssistAlwaysOn() {
+        let next = !settingsStore.get(.decisionLiveAssistEnabled)
+        settingsStore.set(.decisionLiveAssistEnabled, value: next)
+        if !next && settingsStore.get(.decisionLiveAssistUntilTimestamp) <= Date().timeIntervalSince1970 {
+            DecisionLiveAssistEngine.shared.deactivate()
+        }
+        liveAssistStateDidChange()
+    }
+
+    @objc internal func turnOffLiveAssist() {
+        liveAssistTask?.cancel()
+        liveAssistTask = nil
+        settingsStore.set(.decisionLiveAssistUntilTimestamp, value: 0.0)
+        if !settingsStore.get(.decisionLiveAssistEnabled) {
+            DecisionLiveAssistEngine.shared.deactivate()
+        }
+        liveAssistStateDidChange()
+    }
+
+    /// Turns Live assist on for `seconds`, like `pauseFor`: the deadline is persisted so it survives
+    /// a relaunch, and a task clears it when it passes.
+    internal func enableLiveAssist(for seconds: TimeInterval) {
+        settingsStore.set(.decisionLiveAssistUntilTimestamp, value: Date().timeIntervalSince1970 + seconds)
+        scheduleLiveAssistTask(seconds: seconds)
+        liveAssistStateDidChange()
+    }
+
+    private func scheduleLiveAssistTask(seconds: TimeInterval) {
+        liveAssistTask?.cancel()
+        liveAssistTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: UInt64(max(0.1, seconds) * 1_000_000_000))
+            } catch {
+                return
+            }
+            guard let self, !Task.isCancelled else { return }
+            self.settingsStore.set(.decisionLiveAssistUntilTimestamp, value: 0.0)
+            self.liveAssistTask = nil
+            if !self.settingsStore.get(.decisionLiveAssistEnabled) {
+                DecisionLiveAssistEngine.shared.deactivate()
+            }
+            self.liveAssistStateDidChange()
+        }
+    }
+
+    private func liveAssistStateDidChange() {
+        updateLiveAssistMenuItems()
+        // The Decisions settings page observes the manager, not the settings store.
+        DecisionServiceManager.shared.objectWillChange.send()
+        QuickAssistController.shared.syncWithSettings()
     }
 
     @objc internal func resumeFromPause() {

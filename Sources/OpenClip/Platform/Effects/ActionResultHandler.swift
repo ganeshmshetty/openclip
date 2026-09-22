@@ -214,7 +214,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
 
         // Presentation/flow results are presenter-owned (PopupWindowController). The handler treats
         // them as no-ops so the switch stays exhaustive without crashing when one is routed here.
-        case .toast, .openConfiguration, .sequence, .text:
+        case .toast, .openConfiguration, .sequence, .text, .decision, .decisionBulk:
             break
 
         // Keyboard execution: keyPress posts a synthetic keystroke; runShortcut launches the

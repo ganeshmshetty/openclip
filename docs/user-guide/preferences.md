@@ -200,3 +200,47 @@ over the selection. ⏎ on an empty field pastes as before.
 
 ### AI Settings Channel
 AI settings are managed through `AIServiceManager` and isolated to ensure security and privacy.
+
+
+---
+
+## Decision Tools (experimental)
+
+Decision Tools are a **first-class peer to AI Tools**. AI rewrites text; Decisions **judge** the selection and return a typed answer (yes/no, or a choice from a list you define when editing the tool). The answer shows inline on the tool's own icon: a spinner while it runs, then a green tick or red cross, a grey question mark when the model is not confident enough, or, for a choice tool, the chosen label as text. Bulk tools return their filtered list as ordinary text. Decision tools never paste generated essays.
+
+Select **Decisions** in the sidebar (next to AI) to enable the feature and configure a provider:
+
+| Provider | Description | Setup |
+| :--- | :--- | :--- |
+| **Laya (local)** | Runs on this Mac in a Python environment OpenClip installs under `~/.openclip/laya` (about 1.5 GB with the model); preferred for Live assist, no key | **Download** on the Decisions page, then pick English or Multilingual; **Start** keeps the model resident ahead of the first decision |
+| **Jev (TypeSafe System One)** | Cloud BYOK `POST …/systemone` | API key in SecretStore |
+
+### Bulk decisions
+
+**Bulk…** sits at the end of the Decision Tools group (and in the command palette). It judges a selection **item by item** instead of as one piece of text:
+
+1. It reports how many items the selection makes.
+2. Choose **Row** or **Word** — the count updates with the choice — and which decision to apply.
+3. **Run**. A progress bar tracks it, and the categories fill up as it goes.
+4. Copy one category, or **Copy All** for every category with headings.
+
+Categories are Yes / No / Unsure for a yes-no tool, or one per option (plus Unsure) for a choice tool. An item the model is not confident enough about lands in Unsure rather than being guessed. Runs are capped at 500 items and **Stop** keeps whatever has been judged so far.
+
+### Live assist and Quick Assist
+
+Off by default. The menu bar icon's **Live Assist** submenu turns it on for 30 minutes, 1 hour, or until tomorrow (like **Pause**); **Always On** there is the same switch as this toggle.
+
+While it is on, OpenClip reads the text of the field you are typing in (any app, via Accessibility) and answers the tools you marked **Show in Quick Assist** — the per-tool switch on a tool's page — in a small floating window. Drag the window anywhere; it opens in the bottom-right corner the first time and reappears where you left it. Close it with its ✕ to turn Live assist off.
+
+The window shows the text it is judging, so the answers are never a mystery:
+
+- Typing **replaces** that text, so only the latest thing you are writing is judged.
+- **+** adds whatever is selected in the app to it, on top of what you type.
+- **Eraser** clears it, and it clears itself automatically 10 seconds after you stop typing.
+
+- All Quick Assist tools are asked in **one** request, so a System One model answers them in a single forward pass.
+- Typing is debounced (100–300 ms) and a new keystroke cancels the request in flight.
+- Yes/no tools show a tick, cross, or a grey question mark when confidence is below the tool's threshold; choice tools show the chosen label.
+- Bulk tools cannot join Quick Assist: they are deliberate, many-request runs.
+- **Password fields are never read**, OpenClip's own windows are skipped, nothing is stored, and with Laya as the provider the text never leaves the Mac.
+

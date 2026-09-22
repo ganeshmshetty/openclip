@@ -30,6 +30,8 @@ public enum SettingsCatalog {
             // App / behavior toggles
             SettingKey.isAppEnabled.erased,
             SettingKey.isAIEnabled.erased,
+            SettingKey.isDecisionsEnabled.erased,
+            SettingKey.decisionLiveAssistEnabled.erased,
             SettingKey.isMouseHoldEnabled.erased,
             SettingKey.hasCompletedOnboarding.erased,
             SettingKey.hasDismissedPostOnboardingCoachMark.erased,
@@ -56,6 +58,9 @@ public enum SettingsCatalog {
             // Gesture / lifecycle
             SettingKey.mouseHoldDuration.erased,
             SettingKey.pauseUntilTimestamp.erased,
+            SettingKey.decisionLiveAssistUntilTimestamp.erased,
+            SettingKey.quickAssistOriginX.erased,
+            SettingKey.quickAssistOriginY.erased,
             SettingKey.lastRunVersion.erased,
             SettingKey.lastRunBuild.erased,
 

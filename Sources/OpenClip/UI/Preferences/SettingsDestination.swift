@@ -41,6 +41,15 @@ enum SettingsDestination {
             }
             return [.ai]
         }
+        if action.chrome.launchesDecisions {
+            return [.decisions]
+        }
+        if ActionIdentity.isDecisionPreset(action) {
+            if let tool = DecisionServiceManager.shared.tool(forActionID: action.id) {
+                return [.decisions, .decisionTool(id: tool.id)]
+            }
+            return [.decisions]
+        }
         if let gated = action as? GatedExtensionAction {
             return [.extensionPackage(id: gated.packageID)]
         }

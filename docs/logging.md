@@ -62,7 +62,8 @@ Each subsystem owns a dedicated `LogChannel` property on `Log` under the `com.op
 | `js`             | `OpenClipJSHost` runtime                                    |
 | `selection`      | `SelectionRetrievalCoordinator` + strategies / `MacSelectionMonitor` (gate decisions, mode routing, AX + pasteboard + keyboard retrieval); `PasteAvailabilityProbe` limit and time-limit results |
 | `extensions`     | `ExtensionManager`, remote installer, extension store/onboarding install & uninstall, **manifest decode/validation rejections** |
-| `ai`             | AI providers and preset persistence                         |
+| `ai` |
+| `decisions`             | AI providers and preset persistence                         |
 | `permissions`    | TCC / accessibility permission management                   |
 | `icons`          | icon fetching/caching (`UnifiedIconProvider`, icon picker)  |
 | `updates`        | Sparkle software updates, background check events, update notifications |
@@ -129,3 +130,6 @@ OpenClip provides a fast, built-in CLI log reader powered directly by `DebugLogS
 - **Zero Polling Overhead**: Normal app operation has zero polling timers or `OSLogService.xpc` CPU usage.
 - **Flags**: `--category=`, `--level=`, `--count=`, `--collect=` (seconds, default 4), `--help`.
 - It cold-launches the app, runs extension loading (so load/reject lines are produced), waits for collection, prints matching lines to stdout, and exits 0 (`2` on usage errors). This is the quickest agent check for "did my extension load or reject?".
+
+
+Additional category: `decisions` (`Log.decisions`) for Decision Tools providers, Live assist, and decision-card presentation.

@@ -186,6 +186,7 @@ public enum Log: Sendable {
     public static let selection = LogChannel(category: "selection")
     public static let extensions = LogChannel(category: "extensions")
     public static let ai = LogChannel(category: "ai")
+    public static let decisions = LogChannel(category: "decisions")
     public static let permissions = LogChannel(category: "permissions")
     public static let icons = LogChannel(category: "icons")
     public static let updates = LogChannel(category: "updates")

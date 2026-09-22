@@ -103,12 +103,16 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         /// action-search palette and Preferences → Actions, never through the popup bar
         /// (the reorderable `builtin.aiTools` action is the bar's entry point to AI).
         case ai
+        /// Decision tool preset — typed yes/no/choice/score judgments. Reachable via the palette
+        /// and Preferences; the reorderable `builtin.decisionTools` launcher is the bar entry.
+        case decision
 
         private enum CodingKeys: String, CodingKey {
             case builtin
             case custom
             case extensionPkg
             case ai
+            case decision
             case packageID
             case _0
         }
@@ -120,6 +124,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
                 case "builtin": self = .builtin
                 case "custom": self = .custom
                 case "ai": self = .ai
+                case "decision": self = .decision
                 default:
                     if str.hasPrefix("extensionPkg:") {
                         self = .extensionPkg(packageID: String(str.dropFirst("extensionPkg:".count)))
@@ -136,6 +141,8 @@ public struct ActionChrome: Codable, Sendable, Equatable {
                 self = .custom
             } else if container.allKeys.contains(.ai) {
                 self = .ai
+            } else if container.allKeys.contains(.decision) {
+                self = .decision
             } else if container.allKeys.contains(.extensionPkg) {
                 if let nested = try? container.nestedContainer(keyedBy: CodingKeys.self, forKey: .extensionPkg) {
                     if let val = try? nested.decode(String.self, forKey: .packageID) {
@@ -166,6 +173,9 @@ public struct ActionChrome: Codable, Sendable, Equatable {
             case .ai:
                 var container = encoder.singleValueContainer()
                 try container.encode("ai")
+            case .decision:
+                var container = encoder.singleValueContainer()
+                try container.encode("decision")
             case .extensionPkg(let packageID):
                 var container = encoder.container(keyedBy: CodingKeys.self)
                 var nested = container.nestedContainer(keyedBy: CodingKeys.self, forKey: .extensionPkg)
@@ -185,6 +195,9 @@ public struct ActionChrome: Codable, Sendable, Equatable {
     /// routes its click into AI mode instead of `perform`, and the search palette excludes it
     /// (AI presets are already searchable there).
     public let launchesAI: Bool
+    /// True when the action is a Decision Tools launcher. The popup bar opens the Decision
+    /// sub-bar; the search palette excludes the launcher (presets are searchable there).
+    public let launchesDecisions: Bool
     /// True when the action is slow (e.g. an AppleScript that activates an app) and the popup
     /// should close immediately on click with a spinner toast until the result lands.
     public let showsLoading: Bool
@@ -202,6 +215,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         source: Source = .builtin,
         requiresLiveSelection: Bool = false,
         launchesAI: Bool = false,
+        launchesDecisions: Bool = false,
         showsLoading: Bool = false,
         loadingMessage: String? = nil,
         isInlineResult: Bool = false
@@ -212,6 +226,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.source = source
         self.requiresLiveSelection = requiresLiveSelection
         self.launchesAI = launchesAI
+        self.launchesDecisions = launchesDecisions
         self.showsLoading = showsLoading
         self.loadingMessage = loadingMessage
         self.isInlineResult = isInlineResult
@@ -225,6 +240,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.source = try container.decode(Source.self, forKey: .source)
         self.requiresLiveSelection = try container.decode(Bool.self, forKey: .requiresLiveSelection)
         self.launchesAI = try container.decode(Bool.self, forKey: .launchesAI)
+        self.launchesDecisions = try container.decodeIfPresent(Bool.self, forKey: .launchesDecisions) ?? false
         self.showsLoading = try container.decode(Bool.self, forKey: .showsLoading)
         self.loadingMessage = try container.decodeIfPresent(String.self, forKey: .loadingMessage)
         self.isInlineResult = try container.decodeIfPresent(Bool.self, forKey: .isInlineResult) ?? false
@@ -238,6 +254,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         try container.encode(source, forKey: .source)
         try container.encode(requiresLiveSelection, forKey: .requiresLiveSelection)
         try container.encode(launchesAI, forKey: .launchesAI)
+        try container.encode(launchesDecisions, forKey: .launchesDecisions)
         try container.encode(showsLoading, forKey: .showsLoading)
         try container.encodeIfPresent(loadingMessage, forKey: .loadingMessage)
         try container.encode(isInlineResult, forKey: .isInlineResult)
@@ -250,6 +267,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         case source
         case requiresLiveSelection
         case launchesAI
+        case launchesDecisions
         case showsLoading
         case loadingMessage
         case isInlineResult

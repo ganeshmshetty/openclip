@@ -72,7 +72,7 @@ enum SettingsSidebarOrder {
     /// installed extensions come last, because they are the part that changes.
     static func rank(of page: SettingsPage) -> Int {
         switch page {
-        case .ai: return 0
+        case .ai, .decisions: return 0
         case .builtinAction: return 1
         case .customActions: return 2
         case .extensionPackage: return 3

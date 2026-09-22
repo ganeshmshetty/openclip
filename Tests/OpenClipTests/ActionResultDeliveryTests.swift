@@ -374,6 +374,88 @@ final class ActionResultDeliveryTests: XCTestCase {
         assertCase(try await awaitDelivery(from: handler), .paste("hello"))
     }
 
+    // MARK: - Decision tools answer inline (no card)
+
+    /// A `.decision` result never opens a card: it sets the tool's inline state (tick / cross /
+    /// label) and leaves the popup open in whatever mode it was in.
+    @MainActor
+    func testDecisionResultSetsInlineStateAndKeepsPopupOpen() async throws {
+        let controller = shownController(resultHandler: RecordingHandler(),
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+        let id = DecisionAction.actionID(forToolID: "safe_to_share")
+        controller.pendingActionID = id
+        controller.modeStore.decisionStates[id] = .running
+
+        controller.deliverResult(.decision(DecisionPresentation(
+            toolID: "safe_to_share",
+            toolTitle: "Safe to share?",
+            answers: [DecisionAnswer(id: "share.safe", value: .noul(false), confidence: 0.9)]
+        )))
+
+        XCTAssertEqual(controller.modeStore.decisionStates[id], .no)
+        XCTAssertTrue(controller.isVisible, "an inline decision must not dismiss the popup")
+        XCTAssertNil(controller.modeStore.resultCard)
+        XCTAssertEqual(controller.modeStore.mode, .actions)
+
+        controller.handleActionResult(.decision(DecisionPresentation(
+            toolID: "send_to",
+            toolTitle: "Send to…",
+            answers: [DecisionAnswer(id: "dept", value: .choice(["billing"]))]
+        )))
+        XCTAssertEqual(controller.modeStore.decisionStates[DecisionAction.actionID(forToolID: "send_to")], .answer("billing"))
+    }
+
+    /// A spinning Decision tool whose run ends in ordinary text (a bulk tool's filtered list) goes
+    /// back to its icon; the text itself is delivered like any other action's.
+    @MainActor
+    func testDecisionTextResultRestoresIconAndDeliversText() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+        let id = DecisionAction.actionID(forToolID: "clean_this_list")
+        controller.pendingActionID = id
+        controller.modeStore.decisionStates[id] = .running
+
+        controller.deliverResult(.text("a\nb"))
+
+        assertCase(try await awaitDelivery(from: handler), .paste("a\nb"))
+        XCTAssertNil(controller.modeStore.decisionStates[id])
+    }
+
+    /// Closing the popup forgets every inline decision outcome.
+    @MainActor
+    func testHideClearsInlineDecisionStates() {
+        let controller = shownController(resultHandler: RecordingHandler(),
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        controller.modeStore.decisionStates["decision.tool.triage"] = .yes
+        controller.hide()
+        XCTAssertTrue(controller.modeStore.decisionStates.isEmpty)
+    }
+
+    /// The group sub-bar must survive an inline decision (its button shows the answer) and close
+    /// on everything else, exactly as before.
+    @MainActor
+    func testSubBarStaysOpenOnlyForInlineDecisions() {
+        let controller = shownController(resultHandler: RecordingHandler(),
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+        let decision = ActionResult.decision(DecisionPresentation(
+            toolID: "edible", toolTitle: "Edible?", answers: [DecisionAnswer(id: "q", value: .noul(false))]
+        ))
+        XCTAssertTrue(controller.subBarStaysOpen(after: decision))
+        XCTAssertTrue(controller.subBarStaysOpen(after: .sequence([decision, .none])))
+        XCTAssertFalse(controller.subBarStaysOpen(after: .text("list")))
+        XCTAssertFalse(controller.subBarStaysOpen(after: .paste("x")))
+        XCTAssertFalse(controller.subBarStaysOpen(after: .toast(StatusFeedback(error: DecisionError.lowConfidence))))
+        XCTAssertFalse(controller.subBarStaysOpen(after: .success))
+    }
+
     // MARK: - Implicit .text delivery wiring (defaults preserved)
 
     /// Default settings (primary = paste): an implicit `.text` result delivers a paste and dismisses

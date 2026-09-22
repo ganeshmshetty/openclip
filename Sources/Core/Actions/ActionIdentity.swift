@@ -41,6 +41,12 @@ public enum ActionIdentity {
         return false
     }
 
+    /// True for Decision-tool presets (`.decision` source) — palette + Preferences, not bar rows.
+    public static func isDecisionPreset(_ action: any Action) -> Bool {
+        if case .decision = action.chrome.source { return true }
+        return false
+    }
+
     /// True for the inline word-completion pseudo-action. It is registered in the catalog only so
     /// the popup can render its suggestions, and must never surface as a bar row or palette entry.
     public static func isCompletionPseudoAction(_ action: any Action) -> Bool {
@@ -52,8 +58,11 @@ public enum ActionIdentity {
     /// and other action groups (no nested groups).
     public static func isEligibleForGrouping(_ action: any Action) -> Bool {
         !isAIPreset(action) &&
+        !isDecisionPreset(action) &&
         !action.chrome.launchesAI &&
+        !action.chrome.launchesDecisions &&
         action.id != "builtin.ai_tools" &&
+        action.id != "builtin.decisionTools" &&
         !isCompletionPseudoAction(action) &&
         action.id != "builtin.completion" &&
         action.chrome.popupBehavior != .showSubActions &&
@@ -66,6 +75,7 @@ public enum ActionIdentity {
     /// are containers or non-palette rows.
     public static func isBindable(_ action: any Action) -> Bool {
         !action.chrome.launchesAI &&
+        !action.chrome.launchesDecisions &&
         !isCompletionPseudoAction(action) &&
         action.chrome.popupBehavior != .showSubActions &&
         action.chrome.rowStyle != .actionGroup
@@ -75,7 +85,7 @@ public enum ActionIdentity {
     /// Custom actions and installed extension actions can be duplicated.
     /// Builtins, AI presets, AI launchers, and word completion pseudo-actions cannot.
     public static func canDuplicate(_ action: any Action) -> Bool {
-        if isAIPreset(action) || action.chrome.launchesAI || isCompletionPseudoAction(action) {
+        if isAIPreset(action) || isDecisionPreset(action) || action.chrome.launchesAI || action.chrome.launchesDecisions || isCompletionPseudoAction(action) {
             return false
         }
         if isBuiltin(action) {

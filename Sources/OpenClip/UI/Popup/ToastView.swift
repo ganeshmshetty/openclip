@@ -145,7 +145,7 @@ struct ToastView: View {
 /// A smoothly rotating, color-adaptive spinner that respects foreground styling and scales with the popup.
 /// Replaces AppKit-backed `ProgressView`, whose native CoreUI blades ignore `.foregroundColor`,
 /// `.tint`, and `.colorMultiply` on macOS.
-private struct ToastSpinnerView: View {
+struct ToastSpinnerView: View {
     let color: Color
     let scale: CGFloat
 
