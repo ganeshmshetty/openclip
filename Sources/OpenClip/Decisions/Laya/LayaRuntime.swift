@@ -119,17 +119,15 @@ public final class LayaRuntime: ObservableObject {
         }
     }
 
-    /// Downloads and loads `model` once so the first decision does not pay for it. Used after the
-    /// user switches models in Settings.
-    public func prepare(model: String) async {
-        guard isInstalled, !status.isBusy, let script = Self.bridgeScriptURL else { return }
-        stopBridge()
+    /// Starts the resident bridge now (downloading the checkpoint first if needed) so the next
+    /// decision does not wait for the model. Settings "Load"; the idle timeout still applies.
+    public func load(model: String) async {
+        guard isInstalled, !status.isBusy else { return }
         do {
-            try await warm(model: model, script: script)
-            status = .installed
-            lastLogLine = String(localized: "Model ready.")
+            _ = try await bridge(for: model)
+            scheduleIdleStop()
         } catch {
-            fail(error.localizedDescription)
+            // bridge(for:) already recorded the failure in `status`.
         }
     }
 

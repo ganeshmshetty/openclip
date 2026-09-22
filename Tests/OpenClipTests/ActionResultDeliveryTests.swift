@@ -437,6 +437,25 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertTrue(controller.modeStore.decisionStates.isEmpty)
     }
 
+    /// The group sub-bar must survive an inline decision (its button shows the answer) and close
+    /// on everything else, exactly as before.
+    @MainActor
+    func testSubBarStaysOpenOnlyForInlineDecisions() {
+        let controller = shownController(resultHandler: RecordingHandler(),
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+        let decision = ActionResult.decision(DecisionPresentation(
+            toolID: "edible", toolTitle: "Edible?", answers: [DecisionAnswer(id: "q", value: .noul(false))]
+        ))
+        XCTAssertTrue(controller.subBarStaysOpen(after: decision))
+        XCTAssertTrue(controller.subBarStaysOpen(after: .sequence([decision, .none])))
+        XCTAssertFalse(controller.subBarStaysOpen(after: .text("list")))
+        XCTAssertFalse(controller.subBarStaysOpen(after: .paste("x")))
+        XCTAssertFalse(controller.subBarStaysOpen(after: .toast(StatusFeedback(error: DecisionError.lowConfidence))))
+        XCTAssertFalse(controller.subBarStaysOpen(after: .success))
+    }
+
     // MARK: - Implicit .text delivery wiring (defaults preserved)
 
     /// Default settings (primary = paste): an implicit `.text` result delivers a paste and dismisses

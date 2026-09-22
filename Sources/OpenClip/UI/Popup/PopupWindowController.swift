@@ -1578,10 +1578,15 @@ public class PopupWindowController {
             presenter: ActionCustomizationManager.shared,
             modeStore: modeStore,
             onResult: { [weak self] result in
-                self?.subBarController.hide()
-                self?.modeStore.isSubBarActive = false
-                self?.modeStore.activeSubGroupID = nil
-                self?.deliverResult(result)
+                guard let self else { return }
+                // An inline decision answers on the sub-bar's own button, so the sub-bar stays
+                // open for the tick / cross to be seen; every other result closes it as before.
+                if !self.subBarStaysOpen(after: result) {
+                    self.subBarController.hide()
+                    self.modeStore.isSubBarActive = false
+                    self.modeStore.activeSubGroupID = nil
+                }
+                self.deliverResult(result)
             },
             onRunAI: { [weak self] actionID in
                 self?.usageStore.record(actionID)
@@ -2137,6 +2142,12 @@ public class PopupWindowController {
         } else {
             modeStore.decisionStates.removeValue(forKey: actionID)
         }
+    }
+
+    /// The group sub-bar closes on every result except an inline decision, whose answer is drawn on
+    /// the sub-bar button that was clicked. Internal for tests.
+    func subBarStaysOpen(after result: ActionResult) -> Bool {
+        containsDecision(result)
     }
 
     private func containsDecision(_ result: ActionResult) -> Bool {

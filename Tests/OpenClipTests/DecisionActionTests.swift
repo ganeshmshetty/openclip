@@ -55,9 +55,18 @@ final class DecisionActionTests: XCTestCase {
         XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .noul(false))])), .no)
         XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .choice(["billing"]))])), .answer("billing"))
         XCTAssertEqual(DecisionInlineState(presentation([DecisionAnswer(id: "a", value: .score(4))])), .answer("4"))
-        XCTAssertEqual(DecisionInlineState(presentation([])), .failed)
+        XCTAssertEqual(DecisionInlineState(presentation([])), .unsure)
+        // Below the tool's confidence threshold the glyph is a question mark, whatever the answer.
+        let unsure = DecisionPresentation(
+            toolID: "t", toolTitle: "T",
+            answers: [DecisionAnswer(id: "a", value: .noul(true), confidence: 0.4)],
+            confidence: 0.4,
+            requiresConfirmation: true
+        )
+        XCTAssertEqual(DecisionInlineState(unsure), .unsure)
         XCTAssertEqual(DecisionInlineState.answer("x").label, "x")
         XCTAssertNil(DecisionInlineState.yes.label)
+        XCTAssertNil(DecisionInlineState.unsure.label)
     }
 
     func testProviderTypesAreJevAndLayaOnly() {
@@ -124,7 +133,9 @@ final class DecisionActionTests: XCTestCase {
         XCTAssertEqual(presentation.answers.first?.value, .noul(true))
     }
 
-    func testLowConfidenceFailClosed() async {
+    /// Low confidence is not an error: the answer comes back flagged unsure, which the popup draws
+    /// as a grey question mark instead of a tick or cross.
+    func testLowConfidenceIsUnsureNotAnError() async throws {
         let mock = MockDecisionProvider(response: DecisionResponse(
             answers: [DecisionAnswer(id: "share.safe", value: .noul(true), confidence: 0.1)],
             confidence: 0.1
@@ -134,15 +145,20 @@ final class DecisionActionTests: XCTestCase {
         manager.providerOverride = mock
         defer { manager.providerOverride = previous }
 
-        let tool = DecisionDefaultPresets.all.first { $0.id == "safe_to_share" }!
-        do {
-            _ = try await manager.evaluate(tool: tool, text: "secrets")
-            XCTFail("Expected lowConfidence")
-        } catch let error as DecisionError {
-            XCTAssertEqual(error, .lowConfidence)
-        } catch {
-            XCTFail("Unexpected \(error)")
-        }
+        let tool = try XCTUnwrap(DecisionDefaultPresets.all.first { $0.id == "safe_to_share" })
+        let presentation = try await manager.evaluate(tool: tool, text: "secrets")
+        XCTAssertTrue(presentation.requiresConfirmation)
+        XCTAssertEqual(presentation.confidence, 0.1)
+        XCTAssertEqual(DecisionInlineState(presentation), .unsure)
+    }
+
+    /// A tree walk that cannot settle (fail-closed branch) also ends unsure rather than throwing.
+    func testTreeThatFailsClosedEndsUnsure() {
+        let tool = DecisionToolPreset(id: "t", title: "T", questions: [.noul(id: "q", prompt: "?")])
+        let presentation = DecisionServiceManager.unsurePresentation(tool: tool, answers: [], confidence: 0.2)
+        XCTAssertTrue(presentation.requiresConfirmation)
+        XCTAssertEqual(presentation.chips, ["Unsure"])
+        XCTAssertEqual(DecisionInlineState(presentation), .unsure)
     }
 }
 

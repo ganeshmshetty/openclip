@@ -236,16 +236,14 @@ public final class DecisionServiceManager: ObservableObject {
             throw DecisionError.invalidResponse
         }
         let confidence = response.effectiveConfidence(for: answer.id) ?? response.confidence
-        if let confidence, confidence < tool.failBelowConfidence {
-            throw DecisionError.lowConfidence
-        }
-        let needsConfirm = (confidence ?? 1) < tool.confirmBelowConfidence
+        // Below the tool's confidence threshold the answer is shown as "unsure" (a grey question
+        // mark on the tool's icon) rather than as a yes/no; it is never an error.
         return DecisionPresentation(
             toolID: tool.id,
             toolTitle: tool.title,
             answers: response.answers.isEmpty ? [answer] : response.answers,
             confidence: confidence,
-            requiresConfirmation: needsConfirm
+            requiresConfirmation: (confidence ?? 1) < tool.confirmBelowConfidence
         )
     }
 
@@ -302,7 +300,9 @@ public final class DecisionServiceManager: ObservableObject {
                         }
                     }
                 }
-                guard let best else { throw DecisionError.lowConfidence }
+                guard let best else {
+                    return Self.unsurePresentation(tool: tool, answers: collected, confidence: lastConfidence)
+                }
                 return DecisionPresentation(
                     toolID: tool.id,
                     toolTitle: tool.title,
@@ -321,10 +321,22 @@ public final class DecisionServiceManager: ObservableObject {
                     chips: [label]
                 )
             case .failClosed:
-                throw DecisionError.lowConfidence
+                return Self.unsurePresentation(tool: tool, answers: collected, confidence: lastConfidence)
             }
         }
-        throw DecisionError.lowConfidence
+        return Self.unsurePresentation(tool: tool, answers: collected, confidence: lastConfidence)
+    }
+
+    /// The outcome when a tool could not settle on an answer: shown as a grey question mark.
+    static func unsurePresentation(tool: DecisionToolPreset, answers: [DecisionAnswer], confidence: Double?) -> DecisionPresentation {
+        DecisionPresentation(
+            toolID: tool.id,
+            toolTitle: tool.title,
+            answers: answers,
+            confidence: confidence,
+            requiresConfirmation: true,
+            chips: [String(localized: "Unsure")]
+        )
     }
 
     private func evaluateBulk(

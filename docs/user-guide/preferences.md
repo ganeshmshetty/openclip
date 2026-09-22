@@ -206,13 +206,13 @@ AI settings are managed through `AIServiceManager` and isolated to ensure securi
 
 ## Decision Tools (experimental)
 
-Decision Tools are a **first-class peer to AI Tools**. AI rewrites text; Decisions **judge** the selection and return a typed answer (yes/no, a choice from a list, or a score). The answer shows inline on the tool's own icon: a spinner while it runs, then a green tick or red cross, or the chosen label. Bulk tools return their filtered list as ordinary text. Decision tools never paste generated essays.
+Decision Tools are a **first-class peer to AI Tools**. AI rewrites text; Decisions **judge** the selection and return a typed answer (yes/no, a choice from a list, or a score). The answer shows inline on the tool's own icon: a spinner while it runs, then a green tick or red cross, a grey question mark when the model is not confident enough, or the chosen label. Bulk tools return their filtered list as ordinary text. Decision tools never paste generated essays.
 
 Select **Decisions** in the sidebar (next to AI) to enable the feature and configure a provider:
 
 | Provider | Description | Setup |
 | :--- | :--- | :--- |
-| **Laya (local)** | Runs on this Mac in a Python environment OpenClip installs under `~/.openclip/laya` (about 1.5 GB with the model); preferred for Live assist, no key | **Install Laya** on the Decisions page, then pick English or Multilingual |
+| **Laya (local)** | Runs on this Mac in a Python environment OpenClip installs under `~/.openclip/laya` (about 1.5 GB with the model); preferred for Live assist, no key | **Install Laya** on the Decisions page, then pick English or Multilingual; **Load** keeps the model resident ahead of the first decision |
 | **Jev (TypeSafe System One)** | Cloud BYOK `POST …/systemone` | API key in SecretStore |
 
 ### Live assist

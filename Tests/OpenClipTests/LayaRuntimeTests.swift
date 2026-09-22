@@ -55,6 +55,10 @@ final class LayaRuntimeTests: XCTestCase {
         let provider = LayaDecisionProvider(model: "english", runtime: runtime)
         let availability = await provider.availability()
         XCTAssertEqual(availability, .unavailable(reason: LayaRuntime.notInstalledMessage))
+
+        // Load is a no-op until the environment exists.
+        await runtime.load(model: "english")
+        XCTAssertEqual(runtime.status, .notInstalled)
     }
 
     func testProviderUsesInjectedRunnerAndParsesBridgeShapedReply() async throws {

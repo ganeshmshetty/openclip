@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Preferences → Decisions → Provider rows for Laya: model choice, runtime status, and the
-// Install / Prepare / Unload / Remove actions backed by `LayaRuntime`.
+// Install / Load / Unload / Remove actions backed by `LayaRuntime`.
 import SwiftUI
 import Core
 
@@ -55,13 +55,14 @@ struct LayaRuntimeSection: View {
                 }
             case .installing, .starting:
                 EmptyView()
-            case .installed, .running:
-                Button(String(localized: "Prepare Model")) {
-                    Task { await runtime.prepare(model: model) }
+            case .installed:
+                Button(String(localized: "Load")) {
+                    Task { await runtime.load(model: model) }
                 }
-                if case .running = runtime.status {
-                    Button(String(localized: "Unload")) { runtime.stopBridge() }
-                }
+                Spacer()
+                removeButtons
+            case .running:
+                Button(String(localized: "Unload")) { runtime.stopBridge() }
                 Spacer()
                 removeButtons
             }
@@ -97,7 +98,7 @@ struct LayaRuntimeSection: View {
         case .installing(let step):
             return step
         case .installed:
-            return String(localized: "Installed; the model loads on first use")
+            return String(localized: "Installed; model not loaded")
         case .starting(let phase):
             return phase
         case .running(let model, let device):
