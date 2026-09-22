@@ -85,6 +85,8 @@ public extension SettingKey where Value == [String: String] {
 public extension SettingKey where Value == Bool {
     static var isAppEnabled: SettingKey<Bool> { SettingKey<Bool>("isAppEnabled", defaultValue: true) }
     static var isAIEnabled: SettingKey<Bool> { SettingKey<Bool>("aiEnabled", defaultValue: true) }
+    static var isDecisionsEnabled: SettingKey<Bool> { SettingKey<Bool>("decisionsEnabled", defaultValue: true) }
+    static var decisionLiveAssistEnabled: SettingKey<Bool> { SettingKey<Bool>("decisionLiveAssistEnabled", defaultValue: false) }
     static var isMouseHoldEnabled: SettingKey<Bool> { SettingKey<Bool>("isMouseHoldEnabled", defaultValue: true) }
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
     /// True once the one-time post-onboarding coach-mark ("select any text" / "finish setup")

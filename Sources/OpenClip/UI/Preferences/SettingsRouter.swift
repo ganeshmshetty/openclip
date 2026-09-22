@@ -36,6 +36,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     // Sidebar — the second group. AI first, then every built-in action, every installed
     /// extension and the user's custom actions, one row each, by name.
     case ai
+    case decisions
     case extensionPackage(id: String)
     /// A built-in action's settings (Copy, Search, Calculate, …), as its own sidebar row.
     case builtinAction(id: String)
@@ -52,6 +53,8 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     case iconPicker(token: Int)
     case aiPreset(id: String)
     case aiNewPreset
+    case decisionTool(id: String)
+    case decisionNewTool
     case addApplication
 
     public var id: String {
@@ -64,6 +67,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .store: return "store"
         case .about: return "about"
         case .ai: return "ai"
+        case .decisions: return "decisions"
         case .extensionPackage(let id): return "extension:\(id)"
         case .builtinAction(let id): return "builtin:\(id)"
         case .customActions: return "customActions"
@@ -73,6 +77,8 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .iconPicker(let token): return "iconPicker:\(token)"
         case .aiPreset(let id): return "aiPreset:\(id)"
         case .aiNewPreset: return "aiNewPreset"
+        case .decisionTool(let id): return "decisionTool:\(id)"
+        case .decisionNewTool: return "decisionNewTool"
         case .addApplication: return "addApplication"
         }
     }
@@ -85,10 +91,10 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     /// True for pages the sidebar lists; false for pages reached from one of them.
     public var isSidebarPage: Bool {
         switch self {
-        case .general, .appearance, .customize, .shortcuts, .appRules, .store, .about, .ai, .extensionPackage,
+        case .general, .appearance, .customize, .shortcuts, .appRules, .store, .about, .ai, .decisions, .extensionPackage,
              .builtinAction, .customActions:
             return true
-        case .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
+        case .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .decisionTool, .decisionNewTool, .addApplication:
             return false
         }
     }
@@ -105,13 +111,15 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .store: return String(localized: "Store")
         case .about: return String(localized: "About")
         case .ai: return String(localized: "AI")
+        case .decisions: return String(localized: "Decisions")
         case .newCustomAction: return String(localized: "New Custom Action")
         case .newGroup: return String(localized: "New Group")
         case .iconPicker: return String(localized: "Choose Icon")
         case .aiNewPreset: return String(localized: "New AI Action")
+        case .decisionNewTool: return String(localized: "New Decision Tool")
         case .addApplication: return String(localized: "Add Application")
         case .customActions: return String(localized: "Custom Actions")
-        case .extensionPackage, .builtinAction, .action, .aiPreset: return nil
+        case .extensionPackage, .builtinAction, .action, .aiPreset, .decisionTool: return nil
         }
     }
 
@@ -126,6 +134,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .store: return "bag.fill"
         case .about: return "info.circle.fill"
         case .ai: return "sparkles"
+        case .decisions: return "checkmark.seal.fill"
         case .extensionPackage: return "puzzlepiece.extension.fill"
         case .builtinAction: return "bolt.fill"
         case .customActions: return "wand.and.stars"
@@ -134,6 +143,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .newGroup: return "folder.fill.badge.plus"
         case .iconPicker: return "photo.on.rectangle"
         case .aiPreset, .aiNewPreset: return "text.bubble.fill"
+        case .decisionTool, .decisionNewTool: return "checkmark.seal"
         case .addApplication: return "app.badge.checkmark"
         }
     }
@@ -150,11 +160,11 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .appRules: return SettingsTint.appRules
         case .store: return SettingsTint.store
         case .about: return SettingsTint.about
-        case .ai, .customActions, .builtinAction:
+        case .ai, .decisions, .customActions, .builtinAction:
             return SettingsTint.openClip
         case .extensionPackage(let id):
             return SettingsTint.extensionTint(for: id)
-        case .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
+        case .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .decisionTool, .decisionNewTool, .addApplication:
             return SettingsTint.openClip
         }
     }
@@ -171,8 +181,9 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .store: return ["extensions", "install", "catalog", "browse", "download"]
         case .about: return ["version", "update", "licence", "license", "logs", "diagnostics", "github"]
         case .ai: return ["model", "api key", "prompt", "openai", "claude", "gemini", "ollama", "cli", "local", "cloud", "apple intelligence", "rewrite", "summarize"]
+        case .decisions: return ["decision", "judge", "triage", "noul", "choice", "score", "confidence", "jev", "laya", "typesafe", "safe to share", "live assist"]
         case .customActions: return ["custom", "snippet", "script", "shell", "url", "open url", "text snippet", "my actions"]
-        case .extensionPackage, .builtinAction, .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
+        case .extensionPackage, .builtinAction, .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .decisionTool, .decisionNewTool, .addApplication:
             return []
         }
     }

@@ -54,6 +54,11 @@ public indirect enum ActionResult: Sendable {
     /// Hide the popup and ask the user to configure the named action (opens Preferences → ActionEditorPage).
     case openConfiguration(ConfigurationRequest)
 
+    /// Typed Decision tool outcome (noul / choice / score chips + confidence). Presenter-owned —
+    /// never paste a generated essay from a Decision tool. Optional `pastePayload` is only for
+    /// bulk reduce/filter results.
+    case decision(DecisionPresentation)
+
     // MARK: - Flow combinators
 
     /// Perform multiple results in order; the popup hides only if every item dismisses it.
@@ -82,6 +87,9 @@ extension ActionResult {
             // Implicit returned text is a presentation result: dismissal is decided by the
             // controller from the resolved outcome (preview keeps the popup open; paste/copy dismiss).
             return false
+        case .decision:
+            // Decision cards stay open so the user can confirm chips / thresholds.
+            return false
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)
         default:
@@ -94,7 +102,7 @@ extension ActionResult {
     public var containsToast: Bool {
         switch self {
         case .toast: return true
-        case .text: return false
+        case .text, .decision: return false
         case .sequence(let items): return items.contains(where: \.containsToast)
         default: return false
         }

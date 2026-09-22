@@ -939,6 +939,7 @@ public class PopupWindowController {
         }
         cardConversation = nil
         modeStore.resultCard = nil
+        modeStore.decisionCard = nil
         modeStore.resultCardSize = nil
         modeStore.isSurfaceUserSized = false
         modeStore.isCardPinned = false
@@ -1041,6 +1042,7 @@ public class PopupWindowController {
         tooltipController.hide()
         currentActions = nil
         modeStore.resultCard = nil
+        modeStore.decisionCard = nil
         modeStore.resultCardSize = nil
         modeStore.searchPaletteSize = nil
         modeStore.isSurfaceUserSized = false
@@ -1247,7 +1249,7 @@ public class PopupWindowController {
             let clickLoc = NSEvent.mouseLocation
             let inBar = isOverPanelContent(clickLoc)
             if inBar, let hoveredAction, let actionContext = currentActionContext, modeStore.mode == .actions {
-                let isGroup = hoveredAction.gesturePolicy.singleClick == .openSubActions || hoveredAction.chrome.launchesAI
+                let isGroup = hoveredAction.gesturePolicy.singleClick == .openSubActions || hoveredAction.chrome.launchesAI || hoveredAction.chrome.launchesDecisions
                 if isGroup {
                     enterScopedSearch(for: hoveredAction)
                 } else {
@@ -2128,11 +2130,20 @@ public class PopupWindowController {
             presentToast(feedback)
         case .openConfiguration(let request):
             presentConfiguration(for: request)
+        case .decision(let presentation):
+            showDecisionCard(presentation)
         case .sequence(let items):
             for item in items { handleActionResult(item, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast) }
         default:
             handleEffect(result, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
         }
+    }
+
+    func showDecisionCard(_ presentation: DecisionPresentation) {
+        modeStore.resultCard = nil
+        modeStore.decisionCard = presentation
+        modeStore.mode = .content
+        Log.decisions.info("Showing decision card for \(presentation.toolID, privacy: .public)")
     }
 
     /// Routes a leaf effect to DefaultActionResultHandler and surfaces any thrown error uniformly
@@ -2283,6 +2294,7 @@ public class PopupWindowController {
             runAIPreset(prompt: AIServiceManager.shared.promptForPreset(preset), title: preset.title)
             return
         }
+        // Decision presets run through perform → .decision presentation (no essay streaming).
         runAction(action, with: context, isSecondaryClick: false)
     }
 

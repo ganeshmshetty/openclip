@@ -115,6 +115,12 @@ Sources/
     │   ├── AIProvider.swift                  # AIProvider protocol & prompt formatting
     │   ├── AIServiceManager.swift            # cloudAPIKey is SecretStore-backed (@Published), other prefs via @AppStorage
     │   ├── AIToolsAction.swift               # AI Tools group launcher action
+│   ├── Decisions/                          # Experimental Decision tools (peer to AI)
+│   │   ├── DecisionProvider.swift
+│   │   ├── DecisionServiceManager.swift
+│   │   ├── DecisionAction.swift / DecisionToolsAction.swift / DecisionActionSync.swift
+│   │   ├── DecisionLiveAssistEngine.swift
+│   │   └── Providers/                      # Jev, OpenRouter adapter, Laya CLI
     │   ├── AIConversation.swift              # A card session (selection + instructions + results) rendered as labelled context for follow-ups
     │   └── Providers/                        # Apple Intelligence, Local LLMs, CLI Subscriptions, Cloud API
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner

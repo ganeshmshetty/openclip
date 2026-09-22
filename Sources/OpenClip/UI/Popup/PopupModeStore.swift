@@ -26,6 +26,8 @@ public final class PopupModeStore: ObservableObject {
     /// The native result card currently shown (only meaningful while `mode == .content`). Any
     /// action whose resolved outcome is text renders here, not just AI presets.
     @Published public var resultCard: ResultCardPayload? = nil
+    /// Compact Decision tools card (chips + confidence). Mutually exclusive with `resultCard` in practice.
+    @Published public var decisionCard: DecisionPresentation? = nil
     /// The most room the result card may take — the user's remembered size, restored from
     /// preferences (`SettingKey.resultCardWidth` / `resultCardHeight`) when content mode is
     /// entered and updated live while a resize handle is dragged. The card renders at what its

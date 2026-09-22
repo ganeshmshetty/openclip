@@ -21,6 +21,7 @@ enum IntegrationSettings {
             SettingKey.startAtLogin.erased,
             // AI on/off only — provider, model and the API key stay in the app.
             SettingKey.isAIEnabled.erased,
+            SettingKey.isDecisionsEnabled.erased,
             // Appearance
             SettingKey.popupTheme.erased,
             SettingKey.popupThemeColor.erased,

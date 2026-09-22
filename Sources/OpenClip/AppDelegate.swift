@@ -17,6 +17,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private var selectionMonitor: (any SelectionMonitoring)?
     private var popupController: PopupWindowController?
     private var aiActionSync: AIActionSync?
+    private var decisionActionSync: DecisionActionSync?
     private var extensionsWatcher: ExtensionsDirectoryWatcher?
 
     private var onboardingWindowController: OnboardingWindowController?
@@ -134,6 +135,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ActionCoordinator.shared.register(action: CompletionAction())
             // Register each AI preset as an individual action (palette + Preferences → Actions).
             aiActionSync = AIActionSync.shared
+            decisionActionSync = DecisionActionSync.shared
 
             // Watch ~/.openclip/extensions and reload on changes so extensions installed or
             // edited outside the app (store installs, install_extension.sh, manifest edits)

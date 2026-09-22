@@ -33,6 +33,7 @@ public enum TopLevelActionResolver {
         customGroupMemberIDs: Set<String>,
         disabledActionIDs: Set<String>,
         isAIEnabled: Bool,
+        isDecisionsEnabled: Bool = true,
         presentationProvider: ((any Action) -> ActionPresentationModel)? = nil
     ) -> [TopLevelActionItem] {
         let groupPackages = Set(
@@ -43,8 +44,8 @@ public enum TopLevelActionResolver {
 
         var items: [TopLevelActionItem] = []
         for action in actions {
-            // Omit AI presets
-            if ActionIdentity.isAIPreset(action) {
+            // Omit AI / Decision presets (launchers are the bar entry points)
+            if ActionIdentity.isAIPreset(action) || ActionIdentity.isDecisionPreset(action) {
                 continue
             }
             let presentation = presentationProvider?(action) ?? ActionPresentationModel(title: action.title, icon: action.icon)
@@ -71,7 +72,15 @@ public enum TopLevelActionResolver {
             }
             // Standalone action
             let isAI = action.chrome.launchesAI
-            let isEnabled = isAI ? isAIEnabled : !disabledActionIDs.contains(action.id)
+            let isDecision = action.chrome.launchesDecisions
+            let isEnabled: Bool
+            if isAI {
+                isEnabled = isAIEnabled
+            } else if isDecision {
+                isEnabled = isDecisionsEnabled
+            } else {
+                isEnabled = !disabledActionIDs.contains(action.id)
+            }
             items.append(TopLevelActionItem(
                 id: action.id,
                 title: presentation.title,

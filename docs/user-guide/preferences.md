@@ -200,3 +200,23 @@ over the selection. ⏎ on an empty field pastes as before.
 
 ### AI Settings Channel
 AI settings are managed through `AIServiceManager` and isolated to ensure security and privacy.
+
+
+---
+
+## Decision Tools (experimental)
+
+Decision Tools are a **first-class peer to AI Tools**. AI rewrites text; Decisions **judge** the selection and return typed answers (yes/no, a choice from a list, or a score) with an optional confidence meter. The app then branches — chips, confirm, paste a *filtered* bulk result, or warn. Decision tools never paste generated essays.
+
+Select **Decisions** in the sidebar (next to AI) to enable the feature and configure a provider:
+
+| Provider | Description | Setup |
+| :--- | :--- | :--- |
+| **Laya (local CLI)** | On-device / sidecar; preferred for Live assist | `laya` on PATH (or set the command) |
+| **Jev (TypeSafe System One)** | Cloud BYOK `POST …/systemone` | API key in SecretStore |
+| **OpenRouter (structured)** | OpenAI-compatible JSON decision adapter | API key + model |
+
+### Live assist
+
+Off by default. When enabled, OpenClip debounces selection changes (100–300 ms), cancels in-flight requests, and prefers local Laya. It only **suggests** chips (Smart hint / Safe-to-share pill / palette intent) — it never rewrites. Full monitoring of arbitrary focused fields via Accessibility is not enabled yet; Settings shows that status.
+

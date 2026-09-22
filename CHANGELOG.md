@@ -4,6 +4,16 @@ All notable user-facing changes to OpenClip.
 
 ---
 
+## Unreleased
+
+### Features & Improvements
+- **Decision Tools (experimental)**: first-class peer to AI Tools for judging selections with typed answers (yes/no, choices, ordinal scores) plus confidence — never paste generated essays. Preferences → **Decisions** configures Jev (TypeSafe System One), OpenRouter structured-decision adapter, or local Laya CLI; keys stay in SecretStore.
+- **Default Decision tools**: Smart action, Triage (multi-step tree), Reply as…, Send to…, Safe to share?, Fix path, and bulk **Clean this list**.
+- **Decision card**: compact chips + confidence meter with confirm-vs-auto-act thresholds; bulk tools can paste a filtered list.
+- **Opt-in Live assist** (off by default): debounced suggestions preferring local Laya; privacy documented in Settings. Full any-field AX focus monitoring remains a documented stub.
+
+---
+
 ## v1.6.2 - 2026-09-20
 
 ### Features & Improvements

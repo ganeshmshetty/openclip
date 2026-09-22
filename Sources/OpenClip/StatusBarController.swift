@@ -270,12 +270,14 @@ class StatusBarController: NSObject, NSMenuDelegate {
         let customGroupMemberIDs = Set(ActionCoordinator.shared.actionGroupDefs.flatMap(\.memberActionIDs))
         let disabledActionIDs = settingsStore.get(.disabledActionIDs)
         let isAIEnabled = settingsStore.get(.isAIEnabled)
+        let isDecisionsEnabled = settingsStore.get(.isDecisionsEnabled)
 
         let items = TopLevelActionResolver.resolveTopLevelItems(
             from: actions,
             customGroupMemberIDs: customGroupMemberIDs,
             disabledActionIDs: disabledActionIDs,
             isAIEnabled: isAIEnabled,
+            isDecisionsEnabled: isDecisionsEnabled,
             presentationProvider: { action in
                 ActionCustomizationManager.shared.presented(action, surface: .table)
             }

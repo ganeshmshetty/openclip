@@ -53,6 +53,7 @@ public enum Constants {
     public static let defaultScriptName: String = "script.sh"
     public static let defaultIconSymbol: String = "wand.and.stars"
     public static let defaultAIIconSymbol: String = "sparkle"
+    public static let defaultDecisionIconSymbol: String = "checkmark.seal"
     public static let customIdentifierPrefix: String = "com.custom."
     public static let titlePrefixHash: String = "# Title:"
     public static let titlePrefixSlash: String = "// Title:"

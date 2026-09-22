@@ -22,6 +22,12 @@ enum ActionEnablement {
                 set: { AIServiceManager.shared.isAIEnabled = $0 }
             )
         }
+        if action.chrome.launchesDecisions {
+            return Binding(
+                get: { DecisionServiceManager.shared.isDecisionsEnabled },
+                set: { DecisionServiceManager.shared.isDecisionsEnabled = $0 }
+            )
+        }
         if ActionIdentity.isAIPreset(action) {
             return Binding(
                 get: { AIServiceManager.shared.preset(forActionID: action.id)?.isEnabled ?? false },
@@ -29,6 +35,16 @@ enum ActionEnablement {
                     guard var preset = AIServiceManager.shared.preset(forActionID: action.id) else { return }
                     preset.isEnabled = enabled
                     AIServiceManager.shared.updatePreset(preset)
+                }
+            )
+        }
+        if ActionIdentity.isDecisionPreset(action) {
+            return Binding(
+                get: { DecisionServiceManager.shared.tool(forActionID: action.id)?.isEnabled ?? false },
+                set: { enabled in
+                    guard var tool = DecisionServiceManager.shared.tool(forActionID: action.id) else { return }
+                    tool.isEnabled = enabled
+                    DecisionServiceManager.shared.updateTool(tool)
                 }
             )
         }

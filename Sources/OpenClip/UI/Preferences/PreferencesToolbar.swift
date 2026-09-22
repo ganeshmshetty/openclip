@@ -40,6 +40,7 @@ public enum PreferencesToolbarAction: Sendable, Equatable {
     case addCustomAction
     case addApplication
     case addAIAction
+    case addDecisionTool
     case installExtensionFile
     /// Leaves the Actions list for the Custom Actions page.
     case openCustomActions
@@ -103,6 +104,12 @@ enum PreferencesPlusMenu {
                 title: String(localized: "New AI Action"),
                 symbol: "plus",
                 action: .addAIAction
+            )]
+        case .decisions:
+            return [PreferencesPlusMenuItem(
+                title: String(localized: "New Decision Tool"),
+                symbol: "plus",
+                action: .addDecisionTool
             )]
         default:
             return []
@@ -270,6 +277,8 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Application"))
         case .ai:
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Custom AI Action"))
+        case .decisions:
+            configureActionButton(symbol: "plus", tooltip: String(localized: "Add Decision Tool"))
         default:
             setHidden(actionItem, true)
         }

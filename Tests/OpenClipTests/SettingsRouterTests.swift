@@ -416,6 +416,7 @@ final class SettingsRouterTests: XCTestCase {
             (.customActions, .addCustomAction),
             (.appRules, .addApplication),
             (.ai, .addAIAction),
+            (.decisions, .addDecisionTool),
         ] {
             let items = PreferencesPlusMenu.items(for: page)
             XCTAssertEqual(items.map(\.action), [action], "\(page) adds exactly one thing")

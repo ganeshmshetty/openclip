@@ -404,7 +404,16 @@ public struct PopupView: View {
     /// the bar and Esc closes the card outright.
     @ViewBuilder
     private var resultCard: some View {
-        if let payload = modeStore.resultCard {
+        if let decision = modeStore.decisionCard {
+            DecisionCardView(
+                presentation: decision,
+                onConfirm: { onDismissContent() },
+                onDismiss: { onDismissContent() },
+                onPasteFiltered: { text in onCardEffect(.paste(text)) }
+            )
+            .environment(\.colorScheme, effectiveColorScheme)
+            .environment(\.popupEffectiveTheme, effectiveTheme)
+        } else if let payload = modeStore.resultCard {
             ResultCardView(
                 payload: payload,
                 canPaste: modeStore.canPaste,
@@ -804,7 +813,7 @@ public struct PopupView: View {
 
         let foregroundColor: Color = isHovered ? .white : restForeground
 
-        let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI
+        let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI || action.chrome.launchesDecisions
         let subBarAbove = modeStore.subBarAbove
 
         let labelView = Group {
@@ -871,8 +880,8 @@ public struct PopupView: View {
                     }
                 }
             case .perform:
-                if action.chrome.launchesAI {
-                    // AI Tools launcher opens scoped search palette on click; sub-bar opens on hover dwell
+                if action.chrome.launchesAI || action.chrome.launchesDecisions {
+                    // AI / Decision Tools launcher opens scoped search palette on click; sub-bar opens on hover dwell
                     Button {
                         onCancelSubBarDwell?()
                         let frame = hoverFrames[.action(index)]
@@ -1023,7 +1032,7 @@ public struct PopupView: View {
 
         if case .action(let index) = target, index < pagedActions.count {
             let action = pagedActions[index]
-            let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI
+            let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI || action.chrome.launchesDecisions
             if isGroup {
                 let frame = hoverFrames[.action(index)] ?? .zero
                 onRequestSubBarDwell?(action, index, frame)

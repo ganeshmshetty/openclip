@@ -170,7 +170,7 @@ public struct ActionEditorPage: View {
     private var canProduceTextOutput: Bool {
         if action.id == "builtin.calculate" || action.id == "builtin.define" { return true }
         if isBuiltin { return false }
-        if ActionIdentity.isAIPreset(action) || action.chrome.launchesAI { return true }
+        if ActionIdentity.isAIPreset(action) || ActionIdentity.isDecisionPreset(action) || action.chrome.launchesAI || action.chrome.launchesDecisions { return true }
         if action is CustomAction {
             return editKind != .openURL
         }
@@ -275,7 +275,7 @@ public struct ActionEditorPage: View {
         default:
             break
         }
-        if ActionIdentity.isAIPreset(action) || action.chrome.launchesAI {
+        if ActionIdentity.isAIPreset(action) || ActionIdentity.isDecisionPreset(action) || action.chrome.launchesAI || action.chrome.launchesDecisions {
             return String(localized: "Run the selected text through AI.")
         }
         if isCustomAction {

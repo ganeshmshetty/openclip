@@ -23,6 +23,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
     case actions = "Actions"
     case shortcuts = "Shortcuts"
     case ai = "AI"
+    case decisions = "Decisions"
     case store = "Store"
     case appRules = "App Rules"
     case about = "About"
@@ -43,6 +44,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
         case .appearance: return .appearance
         case .actions, .shortcuts: return .customize
         case .ai: return .ai
+        case .decisions: return .decisions
         case .store: return .store
         case .appRules: return .appRules
         case .about: return .about
@@ -73,6 +75,7 @@ public struct PreferencesView: View {
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
     @ObservedObject private var aiManager = AIServiceManager.shared
+    @ObservedObject private var decisionManager = DecisionServiceManager.shared
     @ObservedObject private var router = SettingsRouter.shared
     /// Owned by the window (StatusBarController) so the AppKit toolbar and these
     /// panes talk to the same object; the fallback instance is only for the
@@ -141,6 +144,7 @@ public struct PreferencesView: View {
         .onReceive(coordinator.objectWillChange.receive(on: RunLoop.main)) { _ in syncToolbar() }
         .onReceive(customizationManager.objectWillChange.receive(on: RunLoop.main)) { _ in syncToolbar() }
         .onReceive(aiManager.objectWillChange.receive(on: RunLoop.main)) { _ in syncToolbar() }
+        .onReceive(decisionManager.objectWillChange.receive(on: RunLoop.main)) { _ in syncToolbar() }
         // Toolbar <-> panes. The toolbar owns the Store's filter and the shared search box,
         // so those travel through the model in both directions; the search routes to the
         // pane that is on screen.
@@ -154,6 +158,7 @@ public struct PreferencesView: View {
             case .openCustomActions: router.select(.customActions)
             case .addApplication: router.push(.addApplication)
             case .addAIAction: router.push(.aiNewPreset)
+            case .addDecisionTool: router.push(.decisionNewTool)
             case .installExtensionFile: presentInstallExtensionPanel()
             case .refreshStore: Task { await storeViewModel.refreshCatalog() }
             case .setStoreSort(let sort): storeViewModel.selectedSort = sort
@@ -253,6 +258,11 @@ public struct PreferencesView: View {
                 isOn: aiManager.isAIEnabled,
                 label: String(localized: "Enable AI Tools")
             )
+        case .decisions:
+            return SettingsToolbarToggle(
+                isOn: decisionManager.isDecisionsEnabled,
+                label: String(localized: "Enable Decision Tools")
+            )
         case .extensionPackage(let id):
             guard let info = InstalledExtensionInfo.info(for: id, in: coordinator.actions) else { return nil }
             return SettingsToolbarToggle(
@@ -278,6 +288,8 @@ public struct PreferencesView: View {
         switch router.currentPage {
         case .ai:
             aiManager.isAIEnabled = isOn
+        case .decisions:
+            decisionManager.isDecisionsEnabled = isOn
         case .extensionPackage(let id):
             guard let info = InstalledExtensionInfo.info(for: id, in: coordinator.actions) else { return }
             ActionEnablement.packageBinding(
@@ -399,6 +411,8 @@ public struct PreferencesView: View {
             return customizationManager.presented(action, surface: .table).title
         case .aiPreset(let id):
             return aiManager.presets.first(where: { $0.id == id })?.title ?? String(localized: "Edit AI Action")
+        case .decisionTool(let id):
+            return decisionManager.tools.first(where: { $0.id == id })?.title ?? String(localized: "Edit Decision Tool")
         default:
             return page.id
         }
@@ -423,11 +437,19 @@ public struct PreferencesView: View {
                 keywords: SettingsPage.ai.searchKeywords,
                 tile: .bare(.symbol(SettingsPage.ai.systemImage)),
                 isDisabled: !aiManager.isAIEnabled
+            ),
+            SettingsSidebarRow(
+                page: .decisions,
+                title: SettingsPage.decisions.staticTitle ?? "Decisions",
+                keywords: SettingsPage.decisions.searchKeywords,
+                tile: .bare(.symbol(SettingsPage.decisions.systemImage)),
+                isDisabled: !decisionManager.isDecisionsEnabled
             )
         ]
 
         for action in coordinator.actions where ActionIdentity.isBuiltin(action)
             && !action.chrome.launchesAI
+            && !action.chrome.launchesDecisions
             && action.chrome.rowStyle != .actionGroup {
             let presentation = customizationManager.presented(action, surface: .table)
             let isActionDisabled = disabledActionIDs.contains(action.id)
@@ -572,6 +594,9 @@ public struct PreferencesView: View {
         case .ai:
             AIPage()
                 .settingsPaneWidth()
+        case .decisions:
+            DecisionsPage()
+                .settingsPaneWidth()
         case .extensionPackage(let id):
             if let info = InstalledExtensionInfo.info(for: id, in: coordinator.actions),
                info.commands.count == 1,
@@ -611,6 +636,10 @@ public struct PreferencesView: View {
             AIPresetPage(presetID: id)
         case .aiNewPreset:
             AINewPresetPage()
+        case .decisionTool(let id):
+            DecisionToolPage(toolID: id)
+        case .decisionNewTool:
+            DecisionNewToolPage()
         case .addApplication:
             AddApplicationPage()
         }

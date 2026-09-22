@@ -335,7 +335,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
             // AI preset actions are never bar rows: the reorderable `builtin.aiTools` action
             // (chrome.launchesAI) is the popup's AI entry, so presets must not flood the
             // paginated bar even when enabled.
-            if ActionIdentity.isAIPreset(action) {
+            if ActionIdentity.isAIPreset(action) || ActionIdentity.isDecisionPreset(action) {
                 return false
             }
             if action is GatedExtensionAction {
@@ -379,7 +379,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         let customGroupMemberToGroupID = customGroupMembership()
 
         return actions.filter { action in
-            if action.chrome.launchesAI || ActionIdentity.isCompletionPseudoAction(action) || action is GatedExtensionAction {
+            if action.chrome.launchesAI || action.chrome.launchesDecisions || ActionIdentity.isCompletionPseudoAction(action) || action is GatedExtensionAction {
                 return false
             }
             if isDisabledInSettings(action, disabledIDs: disabledIDs, disabledPackages: disabledPackages) {

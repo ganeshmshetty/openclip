@@ -30,7 +30,15 @@ extension SettingsCatalog {
             SettingKey.aiCLIModel.erased,
             SettingKey.aiCLICustomModel.erased,
             SettingKey.aiCLICustomAuthCommand.erased,
-            SettingKey.aiActionPresetsJSON.erased
+            SettingKey.aiActionPresetsJSON.erased,
+
+            SettingKey.decisionActiveProvider.erased,
+            SettingKey.decisionJevBaseURL.erased,
+            SettingKey.decisionOpenRouterBaseURL.erased,
+            SettingKey.decisionOpenRouterModel.erased,
+            SettingKey.decisionLayaCommand.erased,
+            SettingKey.decisionToolPresetsJSON.erased,
+            SettingKey.decisionLiveAssistDebounceMS.erased
         ]
     }
 
