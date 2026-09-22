@@ -16,8 +16,10 @@ public struct DecisionAction: Action {
 
     public var id: String { Self.actionID(forToolID: toolID) }
 
+    /// Resolved like any other action icon, so a tool can use an SF Symbol, an Iconify icon or
+    /// a file the user added; an unset icon falls back to the Decision seal.
     public var icon: ActionIcon {
-        .symbol(symbolName ?? Constants.defaultDecisionIconSymbol)
+        ActionIcon.resolve(from: symbolName?.isEmpty == false ? symbolName : Constants.defaultDecisionIconSymbol)
     }
 
     public var chrome: ActionChrome {

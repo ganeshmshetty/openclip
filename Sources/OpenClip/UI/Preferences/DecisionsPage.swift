@@ -189,6 +189,8 @@ struct DecisionActionsSection: View {
                 router.push(.decisionTool(id: tool.id))
             } label: {
                 HStack {
+                    AnyIconView(iconId: tool.symbolName?.isEmpty == false ? tool.symbolName! : Constants.defaultDecisionIconSymbol)
+                        .frame(width: 18, height: 18)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(tool.title)
                         HStack(spacing: 4) {
@@ -222,6 +224,7 @@ struct DecisionToolPage: View {
     @State private var kind: DecisionQuestionKind = .noul
     @State private var choicesText: String = ""
     @State private var showsInQuickAssist = false
+    @State private var iconName = ""
     @State private var loaded = false
     @State private var confirmingDelete = false
 
@@ -238,6 +241,7 @@ struct DecisionToolPage: View {
             SettingsEditorPage {
                 Form {
                     TextField(String(localized: "Title"), text: $title)
+                    DecisionIconField(iconName: $iconName)
                     DecisionAnswerTypePicker(kind: $kind)
                     if kind == .choice {
                         DecisionChoicesField(text: $choicesText)
@@ -276,6 +280,7 @@ struct DecisionToolPage: View {
                         }
                         updated.questions = [q] + updated.questions.dropFirst()
                         updated.showsInQuickAssist = showsInQuickAssist
+                        updated.symbolName = iconName.isEmpty ? nil : iconName
                         manager.updateTool(updated)
                         router.pop()
                     }
@@ -290,6 +295,7 @@ struct DecisionToolPage: View {
                 kind = tool.questions.first?.kind ?? .noul
                 choicesText = (tool.questions.first?.options ?? []).joined(separator: "\n")
                 showsInQuickAssist = tool.showsInQuickAssist
+                iconName = tool.symbolName ?? ""
                 loaded = true
             }
         } else {
@@ -307,11 +313,13 @@ struct DecisionNewToolPage: View {
     @State private var kind: DecisionQuestionKind = .noul
     @State private var choicesText = ""
     @State private var showsInQuickAssist = false
+    @State private var iconName = ""
 
     var body: some View {
         SettingsEditorPage {
             Form {
                 TextField(String(localized: "Title"), text: $title)
+                DecisionIconField(iconName: $iconName)
                 DecisionAnswerTypePicker(kind: $kind)
                 if kind == .choice {
                     DecisionChoicesField(text: $choicesText)
@@ -331,11 +339,56 @@ struct DecisionNewToolPage: View {
                     }
                     var tool = DecisionServiceManager.makeCustomTool(title: title, questions: [question])
                     tool.showsInQuickAssist = showsInQuickAssist
+                    tool.symbolName = iconName.isEmpty ? nil : iconName
                     manager.updateTool(tool)
                     router.pop()
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || prompt.trimmingCharacters(in: .whitespaces).isEmpty || !DecisionChoicesField.isValid(kind: kind, text: choicesText))
+            }
+        }
+    }
+}
+
+/// A tool's icon: the same chooser the rest of Settings uses, so an SF Symbol, an Iconify icon
+/// or an added file all work. Empty means the Decision seal.
+struct DecisionIconField: View {
+    @Binding var iconName: String
+    @ObservedObject private var router = SettingsRouter.shared
+
+    var body: some View {
+        LabeledContent(String(localized: "Icon")) {
+            HStack(spacing: 8) {
+                Button {
+                    router.pushIconPicker(writingTo: $iconName)
+                } label: {
+                    ZStack(alignment: .bottomTrailing) {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(Color.primary.opacity(0.05))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+                            )
+                            .frame(width: 30, height: 30)
+                        AnyIconView(iconId: iconName.isEmpty ? Constants.defaultDecisionIconSymbol : iconName)
+                            .frame(width: 30, height: 30)
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .background(Circle().fill(Color(nsColor: .windowBackgroundColor)).padding(1))
+                            .offset(x: 2, y: 2)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "Choose icon"))
+                .accessibilityLabel(String(localized: "Choose icon"))
+
+                if !iconName.isEmpty {
+                    Button(String(localized: "Reset")) { iconName = "" }
+                        .buttonStyle(.plain)
+                        .font(.caption)
+                        .foregroundStyle(Color.accentColor)
+                }
             }
         }
     }

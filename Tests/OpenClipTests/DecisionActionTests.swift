@@ -42,6 +42,15 @@ final class DecisionActionTests: XCTestCase {
         XCTAssertEqual(moved.first?.id, "triage")
     }
 
+    func testToolIconResolvesAndFallsBackToTheDecisionSeal() {
+        // An unset icon uses the Decision seal, not the generic action default.
+        XCTAssertEqual(DecisionAction(toolID: "t", title: "T").icon, .symbol(Constants.defaultDecisionIconSymbol))
+        XCTAssertEqual(DecisionAction(toolID: "t", title: "T", symbolName: "").icon, .symbol(Constants.defaultDecisionIconSymbol))
+        // Anything the icon chooser can write is resolved like any other action's icon.
+        XCTAssertEqual(DecisionAction(toolID: "t", title: "T", symbolName: "lock.shield").icon, .symbol("lock.shield"))
+        XCTAssertEqual(DecisionAction(toolID: "t", title: "T", symbolName: "symbol(tray.full)").icon, .symbol("tray.full"))
+    }
+
     func testDecisionActionIDsAreStable() {
         XCTAssertEqual(DecisionAction.actionID(forToolID: "safe_to_share"), "decision.tool.safe_to_share")
         XCTAssertEqual(DecisionAction(toolID: "triage", title: "Triage").id, DecisionAction.actionID(forToolID: "triage"))

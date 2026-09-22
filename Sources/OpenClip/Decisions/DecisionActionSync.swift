@@ -30,7 +30,7 @@ public final class DecisionActionSync {
 
     public func sync() {
         let tools = DecisionServiceManager.shared.tools
-        let fingerprint = tools.map { "\($0.id)|\($0.title)|\($0.isEnabled)|\($0.questions.count)" }
+        let fingerprint = tools.map { "\($0.id)|\($0.title)|\($0.isEnabled)|\($0.questions.count)|\($0.symbolName ?? "")" }
         guard fingerprint != lastFingerprint else { return }
 
         // "Bulk…" is a Decision-group member too, always last: it is the one entry that judges a
