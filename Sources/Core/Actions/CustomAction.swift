@@ -159,7 +159,12 @@ public struct CustomAction: ConfigurableAction, ActionWithRules, Codable, Sendab
         case .openURL(let urlTemplate):
             let urlString = TextPlaceholderEngine.replacePlaceholders(in: urlTemplate, context: context, urlEncode: true)
             if let url = URL(string: urlString) {
-                raw = .openURL(url)
+                let sourceBundleID = context.selection.sourceApp.bundleIdentifier
+                if BrowserDetector.isBrowser(bundleIdentifier: sourceBundleID), let sourceBundleID {
+                    raw = .openURLInApp(url: url, appBundleIdentifier: sourceBundleID)
+                } else {
+                    raw = .openURL(url)
+                }
             } else {
                 raw = .none
             }

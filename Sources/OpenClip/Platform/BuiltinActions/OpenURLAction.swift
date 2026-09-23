@@ -23,6 +23,10 @@ public struct OpenURLAction: ConfigurableAction {
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         if let url = extractURL(from: context.selection.text) {
+            let sourceBundleID = context.selection.sourceApp.bundleIdentifier
+            if BrowserDetector.isBrowser(bundleIdentifier: sourceBundleID), let sourceBundleID {
+                return .openURLInApp(url: url, appBundleIdentifier: sourceBundleID)
+            }
             return .openURL(url)
         }
         return .failure(NSError(

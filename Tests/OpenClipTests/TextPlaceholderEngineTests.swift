@@ -93,5 +93,26 @@ final class TextPlaceholderEngineTests: XCTestCase {
             XCTFail("Expected .openURL result")
         }
     }
+
+    @MainActor
+    func testURLTemplateActionInBrowserRoutesToOpenURLInApp() async throws {
+        let action = URLTemplateAction(
+            id: "test.search",
+            title: "Search",
+            icon: .symbol("magnifyingglass"),
+            urlTemplate: "https://example.com/search?q={query}"
+        )
+        let browserApp = AppIdentity(bundleIdentifier: "com.brave.Browser", localizedName: "Brave Browser")
+        let selection = SelectionContext(text: "swift testing", sourceApp: browserApp, cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let context = ActionContext(selection: selection, modifiers: [])
+        
+        let result = try await action.perform(context)
+        if case .openURLInApp(let url, let appBundleIdentifier) = result {
+            XCTAssertEqual(url.absoluteString, "https://example.com/search?q=swift%20testing")
+            XCTAssertEqual(appBundleIdentifier, "com.brave.Browser")
+        } else {
+            XCTFail("Expected .openURLInApp result when triggered from browser")
+        }
+    }
 }
 

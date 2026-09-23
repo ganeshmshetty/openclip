@@ -59,15 +59,17 @@ public struct BrowserTabOpener {
     /// focus step differently from the Chromium family.
     static func appleScript(url: URL, bundleID: String) -> String {
         let escaped = escape(url.absoluteString)
-        if bundleID.hasPrefix("com.apple.Safari") {
+        if bundleID.hasPrefix("com.apple.Safari") || bundleID == "com.kagi.kagimacOS" {
             return """
             tell application id "\(bundleID)"
+                activate
                 tell front window to set current tab to (make new tab with properties {URL:"\(escaped)"})
             end tell
             """
         }
         return """
         tell application id "\(bundleID)"
+            activate
             tell front window to make new tab with properties {URL:"\(escaped)"}
             set active tab index of front window to (count of tabs of front window)
         end tell

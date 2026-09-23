@@ -219,6 +219,26 @@ final class BuiltinActionsTests: XCTestCase {
     }
     
     @MainActor
+    func testOpenURLActionInBrowserRoutesToOpenURLInApp() async throws {
+        let action = OpenURLAction()
+        let selection = SelectionContext(
+            text: "https://brave.com",
+            sourceApp: AppIdentity(bundleIdentifier: "com.brave.Browser", localizedName: "Brave Browser"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default
+        )
+        let context = ActionContext(selection: selection, modifiers: [])
+        let result = try await action.perform(context)
+        if case .openURLInApp(let url, let appBundleIdentifier) = result {
+            XCTAssertEqual(url.absoluteString, "https://brave.com")
+            XCTAssertEqual(appBundleIdentifier, "com.brave.Browser")
+        } else {
+            XCTFail("Expected .openURLInApp result when triggered from a browser")
+        }
+    }
+    
+    @MainActor
     func testCutAction() async throws {
         let action = CutAction()
         let context = createMockContext(with: "test cut")
