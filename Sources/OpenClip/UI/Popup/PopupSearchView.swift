@@ -415,7 +415,8 @@ public struct PopupSearchView: View {
                 }
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 18)
+        .offset(y: 2)
         .frame(height: Self.searchHeaderHeight)
         .searchHoverTarget(.searchBar)
         .onHover { hovering in
@@ -485,8 +486,6 @@ public struct PopupSearchView: View {
             .scrollContentBackground(.hidden)
             .paletteSafeAreaBar(edge: .top, spacing: 0) {
                 searchFieldRow
-                    .padding(.horizontal, 10)
-                    .padding(.top, 4)
             }
             .paletteSafeAreaBar(edge: .bottom, spacing: 0) {
                 bottomBarRow

@@ -126,6 +126,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.optionReader = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
+            CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )
@@ -308,6 +309,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.optionReader = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
+            CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )
@@ -336,6 +338,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.optionReader = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
+            CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )

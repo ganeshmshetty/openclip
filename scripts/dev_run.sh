@@ -28,6 +28,9 @@ fi
 
 echo "Terminating old instances & launching from DerivedData..."
 pkill -f OpenClip || true
-"$APP_PATH/Contents/MacOS/OpenClip" > /tmp/openclip.log 2>&1 &
+sleep 0.3
+/usr/bin/python3 -c "import subprocess, sys; subprocess.Popen([sys.argv[1]], stdout=open('/tmp/openclip.log', 'a'), stderr=subprocess.STDOUT, start_new_session=True)" "$APP_PATH/Contents/MacOS/OpenClip"
 
 echo "Running directly from: $APP_PATH (logs at /tmp/openclip.log)"
+
+

@@ -105,6 +105,28 @@ final class CustomActionManifestWriterTests: XCTestCase {
         XCTAssertEqual(loadedShell?.type, shell.type)
         XCTAssertEqual(loadedShell?.chrome.source, .extensionPkg(packageID: shell.id))
     }
+
+    @MainActor
+    func testWriterWritesAndLoadsJavaScriptCustomAction() async throws {
+        let jsAction = CustomAction(
+            id: "com.custom.js1",
+            title: "JS Action",
+            iconName: "curlybraces",
+            type: .javaScript(script: "function action(t) { return t.toUpperCase(); }", isAsync: false, replaceSelection: true)
+        )
+        try CustomActionManifestWriter.write(action: jsAction, to: tempDir)
+
+        let manager = ExtensionManager.shared
+        manager.actionFactory = DefaultActionFactory()
+        defer { manager.actionFactory = nil }
+
+        await manager.loadExtensions(from: tempDir)
+
+        let loaded = manager.loadedActions.first(where: { $0.id == jsAction.id })
+        XCTAssertNotNil(loaded, "Expected JavaScript action to be loaded from written manifest")
+        XCTAssertTrue(loaded is JavaScriptAction, "Manifest type 'javascript' should materialize as JavaScriptAction")
+        XCTAssertEqual(loaded?.title, "JS Action")
+    }
     
     @MainActor
     func testLocateManifestReturnsNilForStandaloneScriptFile() throws {

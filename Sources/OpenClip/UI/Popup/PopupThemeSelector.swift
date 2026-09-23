@@ -1,10 +1,8 @@
 // PopupThemeSelector.swift
 // OpenClip
 //
-// Lets the user pick the popup appearance as a grouped settings section (matching
-// the General tab's look). The Theme row picks the category — Classic (solid color
-// themes) or Glass (the material). The Mode row picks that category's appearance:
-// System/Light/Dark as square icon tiles.
+// Lets the user pick the popup appearance as grouped settings sections (matching
+// the General tab's look). Split into Theme & Style, and Position & Sizing cards.
 //
 // Styled with modern SettingsCard, icon tiles, and hairline dividers.
 
@@ -89,97 +87,141 @@ struct PopupThemeSelector: View {
         )
     }
 
+    private func scaleLabel(for level: Int) -> String {
+        switch level {
+        case 1: return "85%"
+        case 2: return "92%"
+        case 3: return "100%"
+        case 4: return "110%"
+        case 5: return "122%"
+        default: return "100%"
+        }
+    }
+
+    private func widthLabel(for level: Int) -> String {
+        switch level {
+        case 1: return "Compact"
+        case 2: return "Moderate"
+        case 3: return "Default"
+        case 4: return "Wide"
+        case 5: return "Maximum"
+        default: return "Default"
+        }
+    }
+
     var body: some View {
-        VStack(spacing: 12) {
-            SettingsCard {
-                SettingsRow(title: "Popup Theme", systemImage: "paintbrush.fill") {
+        VStack(spacing: 20) {
+            SettingsCard("Theme & Style") {
+                SettingsRow(
+                    title: "Popup Theme",
+                    systemImage: "paintbrush.fill",
+                    iconTileTint: Color(red: 0.93, green: 0.28, blue: 0.60)
+                ) {
                     segmentedPicker(
                         selection: themeSelection,
                         options: themeOptions,
                         label: "Popup Theme",
-                        width: 140
+                        width: 170
                     )
                 }
 
                 SettingsDivider()
 
-                SettingsRow(title: "Color Mode", systemImage: "circle.lefthalf.filled") {
+                SettingsRow(
+                    title: "Color Mode",
+                    systemImage: "sun.max.fill",
+                    iconTileTint: Color(red: 0.96, green: 0.62, blue: 0.05)
+                ) {
                     iconPicker(
                         selection: $themeColor,
                         options: appearanceOptions,
                         label: "Color Mode",
-                        width: 120
+                        width: 170
                     )
                 }
+            }
 
-                SettingsDivider()
-
-                SettingsRow(title: "Horizontal Position", systemImage: "text.alignleft") {
+            SettingsCard("Position & Sizing") {
+                SettingsRow(
+                    title: "Horizontal Position",
+                    systemImage: "text.aligncenter",
+                    iconTileTint: Color(red: 0.05, green: 0.72, blue: 0.85)
+                ) {
                     iconPicker(
                         selection: $popupAlignment,
                         options: alignmentOptions,
                         label: "Horizontal Position",
-                        width: 120
+                        width: 170
                     )
                 }
 
                 SettingsDivider()
 
-                SettingsRow(title: "Vertical Position", systemImage: "arrow.up.and.down") {
+                SettingsRow(
+                    title: "Vertical Position",
+                    systemImage: "arrow.up.and.down",
+                    iconTileTint: Color(red: 0.20, green: 0.78, blue: 0.42)
+                ) {
                     segmentedPicker(
                         selection: $popupVerticalPosition,
                         options: verticalPositionOptions,
                         label: "Vertical Position",
-                        width: 190
+                        width: 170
                     )
                 }
 
                 SettingsDivider()
 
-                SettingsRow(title: "Popup Scale", systemImage: "arrow.up.left.and.arrow.down.right") {
+                SettingsRow(
+                    title: "Popup Scale",
+                    systemImage: "arrow.up.left.and.arrow.down.right",
+                    iconTileTint: Color(red: 0.98, green: 0.52, blue: 0.12)
+                ) {
                     stepSlider(
                         value: Binding(
                             get: { popupScale },
                             set: { popupScale = $0 }
                         ),
-                        accessibilityLabel: "Popup Scale"
+                        accessibilityLabel: "Popup Scale",
+                        labelText: scaleLabel(for: popupScale)
                     )
                 }
 
                 SettingsDivider()
 
-                SettingsRow(title: "Popup Width", systemImage: "arrow.left.and.right") {
+                SettingsRow(
+                    title: "Popup Width",
+                    systemImage: "arrow.left.and.right",
+                    iconTileTint: Color(red: 0.68, green: 0.35, blue: 0.98)
+                ) {
                     stepSlider(
                         value: Binding(
                             get: { barWidthLevel },
                             set: { barWidthLevel = $0 }
                         ),
-                        accessibilityLabel: "Popup Width"
+                        accessibilityLabel: "Popup Width",
+                        labelText: widthLabel(for: barWidthLevel)
                     )
                 }
             }
 
             HStack {
                 Spacer()
-                Button("Reset to Defaults") {
+                Button {
                     resetToDefaults()
+                } label: {
+                    Text(String(localized: "Reset"))
+                        .font(.system(size: 11.5, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .frame(height: 24)
+                        .settingsGlassCapsule()
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .font(.system(size: 13, weight: .regular))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(SettingsDesignTokens.navPillBackground)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5)
-                )
-                .foregroundStyle(isAllDefault ? SettingsDesignTokens.tertiaryText : SettingsDesignTokens.primaryText)
+                .foregroundStyle(isAllDefault ? SettingsDesignTokens.tertiaryText : SettingsDesignTokens.secondaryText)
                 .disabled(isAllDefault)
             }
-            .padding(.top, 4)
+            .padding(.top, 2)
         }
     }
 
@@ -187,7 +229,7 @@ struct PopupThemeSelector: View {
         selection: Binding<String>,
         options: [AppearanceOption],
         label: LocalizedStringKey,
-        width: CGFloat
+        width: CGFloat = 170
     ) -> some View {
         Picker("", selection: selection) {
             ForEach(options) { option in
@@ -204,7 +246,7 @@ struct PopupThemeSelector: View {
         selection: Binding<String>,
         options: [AppearanceOption],
         label: LocalizedStringKey,
-        width: CGFloat = 120
+        width: CGFloat = 170
     ) -> some View {
         Picker("", selection: selection) {
             ForEach(options) { option in
@@ -224,7 +266,8 @@ struct PopupThemeSelector: View {
 
     private func stepSlider(
         value: Binding<Int>,
-        accessibilityLabel: LocalizedStringKey
+        accessibilityLabel: LocalizedStringKey,
+        labelText: String
     ) -> some View {
         HStack(spacing: 8) {
             Slider(
@@ -236,14 +279,15 @@ struct PopupThemeSelector: View {
                 step: 1
             )
             .accessibilityLabel(accessibilityLabel)
-            .accessibilityValue("\(value.wrappedValue)")
-            .frame(width: 140)
-            Text("\(value.wrappedValue)")
-                .font(.callout)
+            .accessibilityValue(labelText)
+            .frame(width: 110)
+
+            Text(labelText)
+                .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .frame(width: 16, alignment: .trailing)
+                .foregroundStyle(SettingsDesignTokens.secondaryText)
+                .frame(width: 52, alignment: .trailing)
         }
-        .frame(height: 24)
+        .frame(width: 170, height: 24, alignment: .trailing)
     }
 }

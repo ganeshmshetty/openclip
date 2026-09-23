@@ -449,6 +449,34 @@
         }
       }
     },
+    "AI is currently disabled.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 功能当前已禁用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 功能目前已停用。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'IA est actuellement désactivée."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在 AI は無効になっています。"
+          }
+        }
+      }
+    },
     "AI request failed (HTTP %lld).": {
       "localizations": {
         "zh-Hans": {
@@ -809,6 +837,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アクセシビリティのアクセス権が許可されました"
+          }
+        }
+      }
+    },
+    "Action Added": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已添加动作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已新增操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action ajoutée"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションを追加しました"
           }
         }
       }
@@ -2549,6 +2605,34 @@
         }
       }
     },
+    "Behavior": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行为"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行為"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comportement"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動作"
+          }
+        }
+      }
+    },
     "Below": {
       "localizations": {
         "zh-Hans": {
@@ -3473,6 +3557,34 @@
         }
       }
     },
+    "Clear": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effacer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリア"
+          }
+        }
+      }
+    },
     "Close": {
       "localizations": {
         "zh-Hans": {
@@ -3609,6 +3721,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "結果カードを閉じる"
+          }
+        }
+      }
+    },
+    "Cloud": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "云端"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "雲端"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloud"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クラウド"
           }
         }
       }
@@ -4117,6 +4257,34 @@
         }
       }
     },
+    "Copy Only": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅复制"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅複製"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier uniquement"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーのみ"
+          }
+        }
+      }
+    },
     "Copy Result Only": {
       "localizations": {
         "zh-Hans": {
@@ -4365,6 +4533,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "選択項目からグループを作成…"
+          }
+        }
+      }
+    },
+    "Create New Action": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建新动作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建立新操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Créer une nouvelle action"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいアクションを作成"
+          }
+        }
+      }
+    },
+    "Create with AI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 AI 创建"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 AI 建立"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Créer avec l'IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI で作成"
           }
         }
       }
@@ -5181,6 +5405,118 @@
         }
       }
     },
+    "Describe what to create (e.g. Format JSON)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述要创建的内容（例如：格式化 JSON）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述要建立的內容（例如：格式化 JSON）"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Décrivez ce que vous souhaitez créer (ex. Formater le JSON)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作成する内容を説明してください（例：JSON をフォーマット）"
+          }
+        }
+      }
+    },
+    "Describe what to create (e.g. Turn text into pirate speak)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述要创建的内容（例如：将文本转换为海盗腔）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述要建立的內容（例如：將文字轉換為海盜腔）"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Décrivez ce que vous souhaitez créer (ex. Parler comme un pirate)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作成する内容を説明してください（例：海賊風の言葉に変換）"
+          }
+        }
+      }
+    },
+    "Describe what to create (e.g. snake_case to camelCase)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述要创建的内容（例如：snake_case 转 camelCase）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述要建立的內容（例如：snake_case 轉 camelCase）"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Décrivez ce que vous souhaitez créer (ex. snake_case en camelCase)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作成する内容を説明してください（例：snake_case を camelCase に変換）"
+          }
+        }
+      }
+    },
+    "Describe what you want to create and AI will generate a custom action.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述您想要创建的内容，AI 将为您生成自定义动作。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述您想要建立的內容，AI 將為您生成自訂操作。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Décrivez ce que vous souhaitez créer et l'IA générera une action personnalisée."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作成したい内容を説明すると、AI がカスタムアクションを生成します。"
+          }
+        }
+      }
+    },
     "Disable in this app": {
       "localizations": {
         "zh-Hans": {
@@ -5205,6 +5541,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "このアプリで無効にする"
+          }
+        }
+      }
+    },
+    "Discard": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放弃"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "捨棄"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignorer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "破棄"
+          }
+        }
+      }
+    },
+    "Discover and install extensions for OpenClip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发现并安装适用于 OpenClip 的扩展"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "探索並安裝適用於 OpenClip 的擴充功能"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Découvrez et installez des extensions pour OpenClip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip の拡張機能を見つけてインストール"
           }
         }
       }
@@ -5937,6 +6329,34 @@
         }
       }
     },
+    "Edit Code ↗": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑代码 ↗"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編輯代碼 ↗"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier le code ↗"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コードを編集 ↗"
+          }
+        }
+      }
+    },
     "Edit Group": {
       "localizations": {
         "zh-Hans": {
@@ -6073,6 +6493,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "AI ツールを有効にする"
+          }
+        }
+      }
+    },
+    "Enable in AI Settings": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前往 AI 设置启用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前往 AI 設定啟用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer dans les réglages IA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 設定で有効化"
           }
         }
       }
@@ -6637,6 +7085,34 @@
         }
       }
     },
+    "Extract URLs": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提取网址"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "擷取網址"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extraire les URL"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL を抽出"
+          }
+        }
+      }
+    },
     "Failed to download favicon: %@": {
       "localizations": {
         "zh-Hans": {
@@ -7029,6 +7505,34 @@
         }
       }
     },
+    "Format JSON": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "格式化 JSON"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "格式化 JSON"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Formater le JSON"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON をフォーマット"
+          }
+        }
+      }
+    },
     "Forward": {
       "localizations": {
         "zh-Hans": {
@@ -7137,6 +7641,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "一般設定"
+          }
+        }
+      }
+    },
+    "Generate": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Générer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成"
           }
         }
       }
@@ -8289,6 +8821,90 @@
         }
       }
     },
+    "JavaScript": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript"
+          }
+        }
+      }
+    },
+    "JavaScript (JSC)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript (JSC)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript (JSC)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript (JSC)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript (JSC)"
+          }
+        }
+      }
+    },
+    "JavaScript runner unavailable": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript 运行环境不可用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript 執行環境無法使用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moteur JavaScript indisponible"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript ランナーを利用できません"
+          }
+        }
+      }
+    },
     "Kagi": {
       "localizations": {
         "zh-Hans": {
@@ -8621,6 +9237,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アプリケーションを読み込み中…"
+          }
+        }
+      }
+    },
+    "Local": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本地"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本機"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカル"
           }
         }
       }
@@ -8985,6 +9629,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "その他のアクション"
+          }
+        }
+      }
+    },
+    "Most Downloaded": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载最多"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下載最多"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les plus téléchargées"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最もダウンロードされた"
           }
         }
       }
@@ -11425,6 +12097,34 @@
         }
       }
     },
+    "Pirate speak": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海盗黑话"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海盜黑話"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parler pirate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海賊言葉"
+          }
+        }
+      }
+    },
     "Please enter a valid website URL or domain.": {
       "localizations": {
         "zh-Hans": {
@@ -12545,6 +13245,34 @@
         }
       }
     },
+    "Replace Selection": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换选中文本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取代選取文字"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remplacer la sélection"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択範囲を置換"
+          }
+        }
+      }
+    },
     "Replace selected text with output": {
       "localizations": {
         "zh-Hans": {
@@ -13105,6 +13833,34 @@
         }
       }
     },
+    "Return a value from **action(text)**, or use **openclip.copy()**, **openclip.paste()**, **openclip.fetch()**, etc.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从 **action(text)** 返回结果，或使用 **openclip.copy()**、**openclip.paste()**、**openclip.fetch()** 等。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從 **action(text)** 回傳結果，或使用 **openclip.copy()**、**openclip.paste()**、**openclip.fetch()** 等。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retournez une valeur depuis **action(text)**, ou utilisez **openclip.copy()**, **openclip.paste()**, **openclip.fetch()**, etc."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**action(text)** から値を返すか、**openclip.copy()**、**openclip.paste()**、**openclip.fetch()** などを利用します。"
+          }
+        }
+      }
+    },
     "Reveal Log File": {
       "localizations": {
         "zh-Hans": {
@@ -13441,6 +14197,34 @@
         }
       }
     },
+    "Run asynchronously (enable promises & fetch)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "异步运行（启用 Promise 与 fetch）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "非同步執行（啟用 Promise 與 fetch）"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exécuter de façon asynchrone (activer les promesses et fetch)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "非同期で実行（Promise と fetch を有効化）"
+          }
+        }
+      }
+    },
     "Run the selected text through AI.": {
       "localizations": {
         "zh-Hans": {
@@ -13745,6 +14529,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Iconifyを検索 (Enterキーを押す)…"
+          }
+        }
+      }
+    },
+    "Search Results": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索结果"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋結果"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résultats de recherche"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索結果"
           }
         }
       }
@@ -14137,6 +14949,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "インストールする拡張機能を選択"
+          }
+        }
+      }
+    },
+    "Select a Provider": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择提供方"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇提供者"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionner un fournisseur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダを選択"
           }
         }
       }
@@ -14729,6 +15569,34 @@
         }
       }
     },
+    "Show in Card": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在卡片中显示"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在卡片中顯示"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher dans la carte"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カードに表示"
+          }
+        }
+      }
+    },
     "Show in Finder": {
       "localizations": {
         "zh-Hans": {
@@ -15233,6 +16101,34 @@
         }
       }
     },
+    "Synthesizing action…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在生成动作…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在生成操作…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Création de l'action en cours…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションを生成中…"
+          }
+        }
+      }
+    },
     "System": {
       "localizations": {
         "zh-Hans": {
@@ -15481,6 +16377,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "AIプロバイダから空の応答、または読み取れない応答が返されました。"
+          }
+        }
+      }
+    },
+    "The Clip Store": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Clip Store"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Clip Store"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Clip Store"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Clip Store"
           }
         }
       }
@@ -15873,6 +16797,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "繁体字中国語 (繁體中文)"
+          }
+        }
+      }
+    },
+    "Transform text or call web APIs using JavaScriptCore": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 JavaScriptCore 转换文本或调用 Web API"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 JavaScriptCore 轉換文字或呼叫 Web API"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transformez du texte ou appelez des API web avec JavaScriptCore"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScriptCore を使用してテキストを変換または Web API を呼び出す"
           }
         }
       }
@@ -16349,6 +17301,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ストアに接続できません"
+          }
+        }
+      }
+    },
+    "Unable to Generate Action": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法生成动作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法生成操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de générer l'action"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションを生成できません"
           }
         }
       }
@@ -17777,6 +18757,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキスト選択の検出を継続するには、macOSでアクセシビリティを再度有効にする必要があります。"
+          }
+        }
+      }
+    },
+    "sPoNgEbOb cAsE": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海绵宝宝体"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海綿寶寶體"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Casse Bob l'éponge"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スポンジ・ボブ文字"
+          }
+        }
+      }
+    },
+    "snake_case to camelCase": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "snake_case 转 camelCase"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "snake_case 轉 camelCase"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "snake_case en camelCase"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "snake_case を camelCase に変換"
           }
         }
       }

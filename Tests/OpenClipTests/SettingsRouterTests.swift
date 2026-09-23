@@ -413,7 +413,6 @@ final class SettingsRouterTests: XCTestCase {
 
     func testASingleActionPageKeepsAWordlessPlus() {
         for (page, action): (SettingsPage, PreferencesToolbarAction) in [
-            (.customActions, .addCustomAction),
             (.appRules, .addApplication),
             (.ai, .addAIAction),
         ] {
@@ -424,7 +423,7 @@ final class SettingsRouterTests: XCTestCase {
     }
 
     func testPagesThatAddNothingShowNoMenu() {
-        for page in [SettingsPage.general, .appearance, .shortcuts, .store, .about] {
+        for page in [SettingsPage.general, .appearance, .shortcuts, .store, .about, .customActions] {
             XCTAssertTrue(PreferencesPlusMenu.items(for: page).isEmpty, "\(page) has no + menu")
         }
     }

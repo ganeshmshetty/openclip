@@ -27,6 +27,7 @@ enum TestIsolation {
         // leaks into the next and makes UI assertions order-dependent.
         InlineResultEvaluator.shared.clearPrewarmed()
         AIServiceManager.shared.providerOverride = nil
+        CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
     }
 
     /// Serializes tests accessing shared process-wide gates/locks (e.g. `OpenClipJSHost.syncEvaluationGate`).

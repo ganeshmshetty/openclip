@@ -38,6 +38,15 @@ public struct CustomActionManifestWriter: Sendable {
                 type: "shell",
                 scriptCode: script
             )
+        case .javaScript(let script, let isAsync, _):
+            actionMeta = ExtensionActionMetadata(
+                id: action.id,
+                title: action.title,
+                icon: action.iconName,
+                type: "javascript",
+                scriptCode: script,
+                isAsync: isAsync
+            )
         }
         return ExtensionMetadata(
             identifier: action.id,

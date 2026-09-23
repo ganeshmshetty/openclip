@@ -127,11 +127,36 @@ struct ExtensionPackagePage: View {
                         subtitle: "A newer version is in the Store.",
                         systemImage: "arrow.down.circle"
                     ) {
-                        Button(isUpdating ? String(localized: "Updating…") : String(localized: "Update")) {
-                            update()
+                        if #available(macOS 26.0, *) {
+                            Button {
+                                update()
+                            } label: {
+                                HStack(spacing: 5) {
+                                    if isUpdating {
+                                        ProgressView()
+                                            .controlSize(.mini)
+                                    } else {
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                            .font(.system(size: 10, weight: .semibold))
+                                    }
+                                    Text(isUpdating ? String(localized: "Updating…") : String(localized: "Update"))
+                                        .font(.system(size: 11.5, weight: .medium))
+                                }
+                                .foregroundStyle(SettingsDesignTokens.glassButtonBlue)
+                                .padding(.horizontal, 10)
+                                .frame(height: 24)
+                            }
+                            .buttonStyle(.plain)
+                            .settingsGlassCapsule(tint: SettingsDesignTokens.glassButtonBlue.opacity(0.16), interactive: true)
+                            .contentShape(Capsule())
+                            .disabled(isUpdating)
+                        } else {
+                            Button(isUpdating ? String(localized: "Updating…") : String(localized: "Update")) {
+                                update()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(isUpdating)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isUpdating)
                     }
                 } footer: {
                     identifierFooter(if: last == .update)

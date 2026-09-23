@@ -82,9 +82,13 @@ struct AboutTab: View {
                                 updateManager.checkForUpdates()
                             } label: {
                                 Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(SettingsDesignTokens.primaryText)
+                                    .frame(width: 24, height: 24)
                             }
-                            .buttonStyle(.bordered)
-                            .buttonBorderShape(.roundedRectangle)
+                            .buttonStyle(.plain)
+                            .settingsGlassCircle()
+                            .contentShape(Circle())
                             .disabled(!updateManager.canCheckForUpdates)
                             .accessibilityLabel("Check Now")
                             .help("Check Now")
@@ -113,14 +117,28 @@ struct AboutTab: View {
                         systemImage: "doc.text"
                     ) {
                         HStack(spacing: 10) {
-                            Button(isExporting ? "Exporting…" : "Export…") {
+                            Button(isExporting ? String(localized: "Exporting…") : String(localized: "Export…")) {
                                 exportLogs()
                             }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(SettingsDesignTokens.primaryText)
+                            .padding(.horizontal, 10)
+                            .frame(height: 24)
+                            .settingsGlassCapsule()
+                            .contentShape(Capsule())
                             .disabled(isExporting)
 
-                            Button("Reveal") {
+                            Button(String(localized: "Reveal")) {
                                 LogExporter.showLogsInFinder()
                             }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(SettingsDesignTokens.primaryText)
+                            .padding(.horizontal, 10)
+                            .frame(height: 24)
+                            .settingsGlassCapsule()
+                            .contentShape(Capsule())
                         }
                     }
                 }
@@ -163,9 +181,11 @@ struct AboutTab: View {
                 openURL("https://www.getopenclip.app/support")
             } label: {
                 HStack(spacing: 4) {
-                    Text("Support")
-                    Image(systemName: "arrow.up.right")
+                    Image(systemName: "heart.fill")
                         .font(.caption.weight(.semibold))
+                    Text(String(localized: "Donate"))
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption2.weight(.semibold))
                 }
             }
             .buttonStyle(.link)
@@ -186,13 +206,38 @@ struct AboutTab: View {
             systemImage: "sparkles"
         ) {
             HStack(spacing: 10) {
-                Button("Update Now") {
-                    updateManager.installUpdateNow()
-                }
-                .buttonStyle(.borderedProminent)
+                if #available(macOS 26.0, *) {
+                    Button(String(localized: "Update Now")) {
+                        updateManager.installUpdateNow()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(SettingsDesignTokens.glassButtonBlue)
+                    .padding(.horizontal, 10)
+                    .frame(height: 24)
+                    .background(.ultraThinMaterial, in: .capsule)
+                    .glassEffect(.regular.tint(SettingsDesignTokens.glassButtonBlue.opacity(0.18)).interactive(), in: .capsule)
+                    .contentShape(Capsule())
 
-                Button("On Quit") {
-                    updateManager.installUpdateOnQuit()
+                    Button(String(localized: "On Quit")) {
+                        updateManager.installUpdateOnQuit()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(SettingsDesignTokens.primaryText)
+                    .padding(.horizontal, 10)
+                    .frame(height: 24)
+                    .settingsGlassCapsule()
+                    .contentShape(Capsule())
+                } else {
+                    Button("Update Now") {
+                        updateManager.installUpdateNow()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("On Quit") {
+                        updateManager.installUpdateOnQuit()
+                    }
                 }
             }
         }

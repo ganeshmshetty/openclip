@@ -363,15 +363,8 @@ struct SettingsSidebar: View {
                 .padding(.trailing, 8)
             }
         }
-        .frame(height: 26)
-        .background(
-            Capsule()
-                .fill(SettingsDesignTokens.sidebarSearchBackground)
-        )
-        .overlay(
-            Capsule()
-                .strokeBorder(SettingsDesignTokens.sidebarSearchBorder, lineWidth: 0.5)
-        )
+        .frame(height: 28)
+        .settingsGlassCapsule(interactive: false)
     }
 
     private func rowView(_ row: SettingsSidebarRow) -> some View {

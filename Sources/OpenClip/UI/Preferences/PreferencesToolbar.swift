@@ -86,12 +86,6 @@ enum PreferencesPlusMenu {
                     action: .installExtensionFile
                 ),
             ]
-        case .customActions:
-            return [PreferencesPlusMenuItem(
-                title: String(localized: "New Custom Action"),
-                symbol: "plus",
-                action: .addCustomAction
-            )]
         case .appRules:
             return [PreferencesPlusMenuItem(
                 title: String(localized: "Add Application"),
@@ -264,8 +258,6 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
         switch page {
         case .customize:
             configureActionButton(symbol: "plus", tooltip: String(localized: "New Group"))
-        case .customActions:
-            configureActionButton(symbol: "plus", tooltip: String(localized: "Add Custom Action"))
         case .appRules:
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Application"))
         case .ai:

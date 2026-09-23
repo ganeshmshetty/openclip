@@ -545,14 +545,7 @@ public struct PreferencesView: View {
                 .buttonStyle(.plain)
                 .disabled(!router.canGoForward)
             }
-            .background(
-                Capsule()
-                    .fill(SettingsDesignTokens.navPillBackground)
-            )
-            .overlay(
-                Capsule()
-                    .strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5)
-            )
+            .settingsGlassCapsule()
 
             // Current sub-page title next to chevrons when drilled in
             if router.path.count > 1 {
@@ -590,8 +583,7 @@ public struct PreferencesView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
-                .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                .settingsGlassCapsule(interactive: false)
             }
 
             let plusItems = PreferencesPlusMenu.items(for: router.currentPage)
@@ -609,8 +601,7 @@ public struct PreferencesView: View {
                         .foregroundStyle(SettingsDesignTokens.navPillForeground)
                         .padding(.horizontal, 10)
                         .frame(height: 28)
-                        .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
-                        .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                        .settingsGlassCapsule()
                     }
                     .buttonStyle(.plain)
                 } else {
@@ -635,16 +626,28 @@ public struct PreferencesView: View {
                         .foregroundStyle(SettingsDesignTokens.navPillForeground)
                         .padding(.horizontal, 10)
                         .frame(height: 28)
-                        .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
-                        .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                        .settingsGlassCapsule()
+                        .contentShape(Capsule())
                     }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
+                    .buttonStyle(.plain)
                 }
             }
 
             if router.currentPage == .store {
                 storeSearchField
+
+                Button {
+                    Task { await storeViewModel.refreshCatalog() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                        .frame(width: 28, height: 28)
+                        .settingsGlassCircle()
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(storeViewModel.isLoading)
 
                 Menu {
                     ForEach(StoreSort.allCases) { sort in
@@ -668,24 +671,10 @@ public struct PreferencesView: View {
                     .foregroundStyle(SettingsDesignTokens.navPillForeground)
                     .padding(.horizontal, 10)
                     .frame(height: 28)
-                    .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
-                    .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-
-                Button {
-                    Task { await storeViewModel.refreshCatalog() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
-                        .frame(width: 28, height: 28)
-                        .background(Circle().fill(SettingsDesignTokens.navPillBackground))
-                        .overlay(Circle().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                    .settingsGlassCapsule()
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(storeViewModel.isLoading)
             }
 
             if !toolbarModel.pageMenuItems.isEmpty {
@@ -710,11 +699,10 @@ public struct PreferencesView: View {
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(SettingsDesignTokens.navPillForeground)
                         .frame(width: 28, height: 28)
-                        .background(Circle().fill(SettingsDesignTokens.navPillBackground))
-                        .overlay(Circle().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                        .settingsGlassCircle()
+                        .contentShape(Circle())
                 }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
+                .buttonStyle(.plain)
             }
         }
     }
@@ -783,8 +771,7 @@ public struct PreferencesView: View {
                 }
             }
             .frame(width: 180, height: 28)
-            .background(Capsule().fill(SettingsDesignTokens.navPillBackground))
-            .overlay(Capsule().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+            .settingsGlassCapsule(interactive: false)
             .onChange(of: isStoreSearchFocused) { _, focused in
                 if !focused && storeViewModel.searchQuery.isEmpty {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
@@ -807,8 +794,8 @@ public struct PreferencesView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(SettingsDesignTokens.navPillForeground)
                     .frame(width: 28, height: 28)
-                    .background(Circle().fill(SettingsDesignTokens.navPillBackground))
-                    .overlay(Circle().strokeBorder(SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+                    .settingsGlassCircle()
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .help(String(localized: "Search Extensions"))

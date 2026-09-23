@@ -14,6 +14,7 @@ public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
     case openURL(urlTemplate: String)
     case textSnippet(template: String)
     case shellScript(script: String, replaceSelection: Bool)
+    case javaScript(script: String, isAsync: Bool, replaceSelection: Bool)
 
     /// Backward compatibility helper for legacy call sites and tests.
     public static func webSearch(urlTemplate: String) -> CustomActionType {
@@ -25,6 +26,7 @@ public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
         case webSearch
         case textSnippet
         case shellScript
+        case javaScript
     }
 
     private struct URLParams: Codable {
@@ -37,6 +39,12 @@ public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
 
     private struct ShellParams: Codable {
         let script: String
+        let replaceSelection: Bool
+    }
+
+    private struct JSParams: Codable {
+        let script: String
+        let isAsync: Bool
         let replaceSelection: Bool
     }
 
@@ -54,6 +62,9 @@ public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
         } else if container.contains(.shellScript) {
             let params = try container.decode(ShellParams.self, forKey: .shellScript)
             self = .shellScript(script: params.script, replaceSelection: params.replaceSelection)
+        } else if container.contains(.javaScript) {
+            let params = try container.decode(JSParams.self, forKey: .javaScript)
+            self = .javaScript(script: params.script, isAsync: params.isAsync, replaceSelection: params.replaceSelection)
         } else {
             throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Unknown CustomActionType"))
         }
@@ -68,6 +79,8 @@ public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
             try container.encode(SnippetParams(template: template), forKey: .textSnippet)
         case .shellScript(let script, let replaceSelection):
             try container.encode(ShellParams(script: script, replaceSelection: replaceSelection), forKey: .shellScript)
+        case .javaScript(let script, let isAsync, let replaceSelection):
+            try container.encode(JSParams(script: script, isAsync: isAsync, replaceSelection: replaceSelection), forKey: .javaScript)
         }
     }
 }
@@ -99,6 +112,8 @@ public struct CustomAction: ConfigurableAction, Codable, Sendable, Equatable {
             case .openURL: (.none, nil)
             case .textSnippet: (.text, .pasteOrCopy)
             case .shellScript(_, let replaceSelection):
+                replaceSelection ? (.text, .pasteOrCopy) : (.text, .copy)
+            case .javaScript(_, _, let replaceSelection):
                 replaceSelection ? (.text, .pasteOrCopy) : (.text, .copy)
             }
             self.chrome = ActionChrome(
@@ -196,8 +211,40 @@ public struct CustomAction: ConfigurableAction, Codable, Sendable, Equatable {
             } else {
                 raw = .success
             }
+
+        case .javaScript(let script, let isAsync, let replaceSelection):
+            guard let runner = CustomActionJSRunnerRegistry.runner else {
+                raw = .toast(StatusFeedback(message: String(localized: "JavaScript runner unavailable"), style: .error))
+                break
+            }
+            raw = try await runner.run(
+                script: script,
+                isAsync: isAsync,
+                replaceSelection: replaceSelection,
+                context: context,
+                actionID: id
+            )
         }
 
         return raw
     }
+}
+
+/// Protocol for executing JavaScript CustomActions. Implemented in the application target
+/// (OpenClip) by wrapping OpenClipJSHost, keeping Core pure of JavaScriptCore runtime dependencies.
+@MainActor
+public protocol CustomActionJSRunning: Sendable {
+    func run(
+        script: String,
+        isAsync: Bool,
+        replaceSelection: Bool,
+        context: ActionContext,
+        actionID: String
+    ) async throws -> ActionResult
+}
+
+/// Registry holding the active CustomActionJSRunning implementation injected at app startup.
+@MainActor
+public enum CustomActionJSRunnerRegistry {
+    public static var runner: (any CustomActionJSRunning)?
 }

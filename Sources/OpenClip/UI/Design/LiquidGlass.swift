@@ -33,7 +33,7 @@ public struct LayeredGlassBackground: View {
     }
 
     private var scrimColor: Color {
-        colorScheme == .dark ? Color.black.opacity(0.24) : Color.white.opacity(0.26)
+        colorScheme == .dark ? Color.black.opacity(0.38) : Color.white.opacity(0.26)
     }
 
     public var body: some View {

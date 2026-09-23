@@ -22,6 +22,7 @@ public struct NewCustomActionPage: View {
         case openURL
         case textSnippet
         case shellScript
+        case javaScript
     }
     @State private var actionKind: ActionKind
     /// True when the page was opened from one of the quick-create cards, which already picked the
@@ -30,12 +31,15 @@ public struct NewCustomActionPage: View {
     @State private var customURLTemplate: String = "https://google.com/search?q={text}"
     @State private var customSnippetTemplate: String = "**{text}**"
     @State private var customShellScript: String = "echo \"$OPENCLIP_TEXT\" | tr '[:lower:]' '[:upper:]'"
+    @State private var customJavaScript: String = "function action(text) {\n    return text.toUpperCase();\n}"
+    @State private var customJSIsAsync: Bool = false
     @State private var replaceSelection: Bool = false
 
     public init(initialKind: String? = nil) {
         let kind: ActionKind = switch initialKind {
         case "snippet", "textSnippet": .textSnippet
         case "shell", "shellScript": .shellScript
+        case "js", "javascript": .javaScript
         default: .openURL
         }
         _actionKind = State(initialValue: kind)
@@ -44,8 +48,12 @@ public struct NewCustomActionPage: View {
         case .openURL: "safari.fill"
         case .textSnippet: "text.quote"
         case .shellScript: "terminal.fill"
+        case .javaScript: "curlybraces"
         }
         _iconSymbol = State(initialValue: icon)
+        if kind == .javaScript {
+            _replaceSelection = State(initialValue: true)
+        }
     }
 
     public var body: some View {
@@ -82,6 +90,7 @@ public struct NewCustomActionPage: View {
                                         Text("Open URL").tag(ActionKind.openURL)
                                         Text("Text Snippet").tag(ActionKind.textSnippet)
                                         Text("Shell Script").tag(ActionKind.shellScript)
+                                        Text("JavaScript").tag(ActionKind.javaScript)
                                     }
                                     .pickerStyle(.segmented)
                                     .labelsHidden()
@@ -152,6 +161,32 @@ public struct NewCustomActionPage: View {
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
+                                case .javaScript:
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("JavaScript (JSC)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        TextEditor(text: $customJavaScript)
+                                            .font(.system(.body, design: .monospaced))
+                                            .frame(height: 120)
+                                            .scrollContentBackground(.hidden)
+                                            .padding(6)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                    .fill(Color.primary.opacity(0.04))
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                            .stroke(Color.primary.opacity(0.12))
+                                                    )
+                                            )
+                                        Toggle("Replace selected text with output", isOn: $replaceSelection)
+                                            .font(.subheadline)
+                                        Toggle("Run asynchronously (enable promises & fetch)", isOn: $customJSIsAsync)
+                                            .font(.subheadline)
+                                        Text("Return a value from **action(text)**, or use **openclip.copy()**, **openclip.paste()**, **openclip.fetch()**, etc.")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
                             .padding(.horizontal, 12)
@@ -185,6 +220,8 @@ public struct NewCustomActionPage: View {
             actionType = .textSnippet(template: customSnippetTemplate)
         case .shellScript:
             actionType = .shellScript(script: customShellScript, replaceSelection: replaceSelection)
+        case .javaScript:
+            actionType = .javaScript(script: customJavaScript, isAsync: customJSIsAsync, replaceSelection: replaceSelection)
         }
 
         let id = "custom.\(UUID().uuidString.prefix(8).lowercased())"

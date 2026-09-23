@@ -68,36 +68,70 @@ public enum SettingsDesignTokens {
         }))
     }
 
+    /// Lighter, softer blue tone for glass action buttons (e.g. Generate, Check for Updates).
+    public static var glassButtonBlue: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                return NSColor(srgbRed: 0.44, green: 0.74, blue: 1.0, alpha: 1.0)
+            } else {
+                return NSColor(srgbRed: 0.12, green: 0.52, blue: 0.94, alpha: 1.0)
+            }
+        }))
+    }
+
+    /// Lighter, softer red/rose tone for destructive glass buttons (e.g. Delete).
+    public static var glassButtonRed: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                return NSColor(srgbRed: 1.0, green: 0.48, blue: 0.52, alpha: 1.0)
+            } else {
+                return NSColor(srgbRed: 0.90, green: 0.28, blue: 0.32, alpha: 1.0)
+            }
+        }))
+    }
+
     /// The fill for the inset detail card (translucent smoked glass matching the sidebar with balanced contrast).
     public static var detailCardBackground: Color {
         Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
             if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-                return NSColor(red: 0.07, green: 0.07, blue: 0.085, alpha: 0.45)
+                return NSColor(red: 0.086, green: 0.086, blue: 0.098, alpha: 0.52)
             } else {
-                return NSColor(white: 1.0, alpha: 0.65)
+                return NSColor(white: 1.0, alpha: 0.60)
             }
         }))
     }
 
-    /// Subtle border for the detail card (clear = no border).
+    /// Subtle border for the detail card.
     public static var detailCardBorder: Color {
-        .clear
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                return NSColor(white: 1.0, alpha: 0.08)
+            } else {
+                return NSColor(white: 0.0, alpha: 0.10)
+            }
+        }))
     }
 
-    /// The fill for individual section cards inside the detail pane (translucent glass with comfortable contrast).
+    /// The fill for individual section cards inside the detail pane (elevated glass with high contrast).
     public static var sectionCardBackground: Color {
         Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
             if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-                return NSColor(red: 0.13, green: 0.13, blue: 0.155, alpha: 0.50)
+                return NSColor(red: 0.125, green: 0.125, blue: 0.141, alpha: 0.68)
             } else {
-                return NSColor(white: 1.0, alpha: 0.70)
+                return NSColor(white: 0.97, alpha: 0.72)
             }
         }))
     }
 
-    /// Border for section cards inside the detail pane (clear = no border).
+    /// Border for section cards inside the detail pane.
     public static var sectionCardBorder: Color {
-        .clear
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                return NSColor(white: 1.0, alpha: 0.06)
+            } else {
+                return NSColor(white: 0.0, alpha: 0.08)
+            }
+        }))
     }
 
     /// Background for the sidebar search field.
@@ -396,3 +430,62 @@ public enum SettingsDesignTokens {
         return SettingsTint.openClip
     }
 }
+
+// MARK: - Liquid Glass Modifiers
+
+public extension View {
+    /// Renders a liquid glass capsule with frosted blur on macOS 26+, or nav pill background fallback.
+    @ViewBuilder
+    func settingsGlassCapsule(tint: Color? = nil, interactive: Bool = true) -> some View {
+        if #available(macOS 26.0, *) {
+            self
+                .background(
+                    Capsule()
+                        .fill(tint ?? SettingsDesignTokens.navPillBackground)
+                )
+                .background(.ultraThinMaterial, in: .capsule)
+                .glassEffect(
+                    tint != nil
+                        ? (interactive ? .regular.tint(tint!.opacity(0.4)).interactive() : .regular.tint(tint!.opacity(0.4)))
+                        : (interactive ? .regular.interactive() : .regular),
+                    in: .capsule
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(tint != nil ? tint!.opacity(0.3) : SettingsDesignTokens.navPillBorder, lineWidth: 0.5)
+                )
+        } else {
+            self
+                .background(Capsule().fill(tint ?? SettingsDesignTokens.navPillBackground))
+                .overlay(Capsule().strokeBorder(tint != nil ? tint!.opacity(0.3) : SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+        }
+    }
+
+    /// Renders a liquid glass circle with frosted blur on macOS 26+, or nav pill background fallback.
+    @ViewBuilder
+    func settingsGlassCircle(tint: Color? = nil, interactive: Bool = true) -> some View {
+        if #available(macOS 26.0, *) {
+            self
+                .background(
+                    Circle()
+                        .fill(tint ?? SettingsDesignTokens.navPillBackground)
+                )
+                .background(.ultraThinMaterial, in: .circle)
+                .glassEffect(
+                    tint != nil
+                        ? (interactive ? .regular.tint(tint!.opacity(0.4)).interactive() : .regular.tint(tint!.opacity(0.4)))
+                        : (interactive ? .regular.interactive() : .regular),
+                    in: .circle
+                )
+                .overlay(
+                    Circle()
+                        .strokeBorder(tint != nil ? tint!.opacity(0.3) : SettingsDesignTokens.navPillBorder, lineWidth: 0.5)
+                )
+        } else {
+            self
+                .background(Circle().fill(tint ?? SettingsDesignTokens.navPillBackground))
+                .overlay(Circle().strokeBorder(tint != nil ? tint!.opacity(0.3) : SettingsDesignTokens.navPillBorder, lineWidth: 0.5))
+        }
+    }
+}
+

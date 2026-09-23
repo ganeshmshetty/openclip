@@ -44,6 +44,7 @@ struct PopupPreview: View {
     @Setting(SettingKey.popupScale) private var popupScale
     @Setting(SettingKey.popupAlignment) private var popupAlignment
     @Setting(SettingKey.popupVerticalPosition) private var popupVerticalPosition
+    @Setting(SettingKey.popupBarWidth) private var barWidthLevel
 
     private var isPlacedAbove: Bool {
         let pos = PopupVerticalPosition(rawValue: popupVerticalPosition) ?? .auto
@@ -68,28 +69,28 @@ struct PopupPreview: View {
     }
 
     /// Horizontal offset aligning the popup with the text selection anchors:
-    /// - Left: First action button aligns with the left I-beam (-36pt).
-    /// - Center: Popup center aligns with selection center (+8pt).
-    /// - Right: Last action button aligns with the right I-beam (+52pt).
+    /// - Left: First action button aligns with the left I-beam (-40pt).
+    /// - Center: Popup center aligns with selection center (+10pt).
+    /// - Right: Last action button aligns with the right I-beam (+58pt).
     private var popupOffsetX: CGFloat {
         switch selectionAlignment {
         case .left:
-            return -36 + (popupBarWidth / 2) - buttonCenterInset
+            return -40 + (popupBarWidth / 2) - buttonCenterInset
 
         case .center:
-            return 8
+            return 10
 
         case .right:
-            return 52 - (popupBarWidth / 2) + buttonCenterInset
+            return 58 - (popupBarWidth / 2) + buttonCenterInset
         }
     }
 
     private var popupOffsetY: CGFloat {
-        isPlacedAbove ? -28 : 28
+        isPlacedAbove ? -23 : 23
     }
 
     private var cardOffsetY: CGFloat {
-        isPlacedAbove ? 26 : -26
+        isPlacedAbove ? 31 : -31
     }
 
     private var previewModeStore: PopupModeStore {
@@ -102,19 +103,18 @@ struct PopupPreview: View {
     private var iBeamView: some View {
         VStack(spacing: 0) {
             Capsule()
-                .fill(Color.white)
-                .frame(width: 8, height: 2.2)
+                .fill(Color.white.opacity(0.95))
+                .frame(width: 7, height: 1.8)
 
             Rectangle()
-                .fill(Color.white)
-                .frame(width: 2, height: 15.6)
+                .fill(Color.white.opacity(0.95))
+                .frame(width: 1.8, height: 16)
 
             Capsule()
-                .fill(Color.white)
-                .frame(width: 8, height: 2.2)
+                .fill(Color.white.opacity(0.95))
+                .frame(width: 7, height: 1.8)
         }
-        .shadow(color: Color.black.opacity(0.35), radius: 1, x: 0, y: 0.5)
-        .frame(width: 9, height: 20)
+        .frame(width: 8, height: 20)
     }
 
     @ViewBuilder
@@ -125,66 +125,54 @@ struct PopupPreview: View {
                 .aspectRatio(contentMode: .fill)
                 .scaleEffect(1.08)
                 .blur(radius: 6)
-                .overlay(Color.black.opacity(0.15))
+                .overlay(Color.black.opacity(0.28))
         } else {
             LinearGradient(
                 colors: [
-                    Color(red: 0.16, green: 0.20, blue: 0.32),
-                    Color(red: 0.10, green: 0.12, blue: 0.22)
+                    Color(red: 0.12, green: 0.15, blue: 0.25),
+                    Color(red: 0.07, green: 0.09, blue: 0.16)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .overlay(Color.white.opacity(0.04))
+            .overlay(Color.black.opacity(0.25))
         }
     }
 
-    private var documentCard: some View {
+    /// Floating text selection with a soft translucent highlight and no harsh shadows.
+    private var selectionTextView: some View {
         HStack(spacing: 0) {
             Text("Transform ")
-                .foregroundStyle(.primary.opacity(0.75))
 
-            HStack(spacing: 1.5) {
+            HStack(spacing: 2.5) {
                 if selectionAlignment == .left {
                     iBeamView
                 }
 
                 Text("selected text")
-                    .foregroundStyle(.white)
 
                 if selectionAlignment != .left {
                     iBeamView
                 }
             }
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
             .background(
-                RoundedRectangle(cornerRadius: 3.5, style: .continuous)
-                    .fill(Color.accentColor)
+                RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.45))
             )
 
             Text(" instantly.")
-                .foregroundStyle(.primary.opacity(0.75))
         }
-        .font(.system(size: 13, weight: .regular))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(.regularMaterial)
-                .shadow(color: Color.black.opacity(0.18), radius: 8, x: 0, y: 3)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-        )
+        .font(.system(size: 16, weight: .regular))
+        .foregroundStyle(Color.white.opacity(0.90))
     }
 
     var body: some View {
         ZStack {
             wallpaperBackground
 
-            documentCard
+            selectionTextView
                 .offset(y: cardOffsetY)
 
             PopupView(
@@ -216,5 +204,7 @@ struct PopupPreview: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: popupAlignment)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: popupVerticalPosition)
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: popupScale)
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: barWidthLevel)
     }
 }

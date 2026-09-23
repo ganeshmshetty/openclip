@@ -54,6 +54,7 @@ public struct ActionEditorPage: View {
         case openURL
         case textSnippet
         case shellScript
+        case javaScript
 
         static let webSearch: EditKind = .openURL
     }
@@ -61,6 +62,8 @@ public struct ActionEditorPage: View {
     @State private var customURLTemplate: String = "https://www.google.com/search?q={text}"
     @State private var customSnippetTemplate: String = "{text}"
     @State private var customShellScript: String = "echo $OPENCLIP_TEXT"
+    @State private var customJavaScript: String = "function action(text) {\n    return text.toUpperCase();\n}"
+    @State private var customJSIsAsync: Bool = false
     @State private var replaceSelection: Bool = true
 
     // Manifest-backed state: the target action lives in an extension manifest package.
@@ -82,8 +85,6 @@ public struct ActionEditorPage: View {
     @State private var isUpdating = false
     @State private var showUninstallConfirmation = false
     @State private var updateCheckState: UpdateCheckState = .idle
-    @State private var isHoveringUpdate = false
-    @State private var isHoveringUninstall = false
 
     private enum UpdateCheckState: Equatable {
         case idle
@@ -387,28 +388,34 @@ public struct ActionEditorPage: View {
             .padding(.horizontal, 9)
             .frame(height: 24)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                Capsule()
                     .fill(Color.primary.opacity(0.06))
             )
         } else if updateManager.updatablePackageIDs.contains(packageID) {
-            Button {
-                updateExtension(packageID)
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text(String(localized: "Update"))
-                        .font(.system(size: 11.5, weight: .semibold))
+            if #available(macOS 26.0, *) {
+                Button {
+                    updateExtension(packageID)
+                } label: {
+                    Label(String(localized: "Update"), systemImage: "arrow.down.circle.fill")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(SettingsDesignTokens.glassButtonBlue)
+                        .padding(.horizontal, 10)
+                        .frame(height: 24)
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .frame(height: 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.accentColor)
-                )
+                .buttonStyle(.plain)
+                .settingsGlassCapsule(tint: SettingsDesignTokens.glassButtonBlue.opacity(0.16), interactive: true)
+                .contentShape(Capsule())
+            } else {
+                Button {
+                    updateExtension(packageID)
+                } label: {
+                    Label(String(localized: "Update"), systemImage: "arrow.down.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.accentColor)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
             }
-            .buttonStyle(.plain)
         } else if updateCheckState == .checking || updateManager.isChecking {
             HStack(spacing: 5) {
                 ProgressView()
@@ -420,7 +427,7 @@ public struct ActionEditorPage: View {
             .padding(.horizontal, 9)
             .frame(height: 24)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                Capsule()
                     .fill(Color.primary.opacity(0.06))
             )
         } else if updateCheckState == .upToDate {
@@ -435,30 +442,35 @@ public struct ActionEditorPage: View {
             .padding(.horizontal, 9)
             .frame(height: 24)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                Capsule()
                     .fill(Color.green.opacity(0.12))
             )
             .transition(.opacity)
         } else {
-            Button {
-                runCheckForUpdates(packageID: packageID)
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 10.5, weight: .medium))
-                    Text(String(localized: "Check for Updates"))
+            if #available(macOS 26.0, *) {
+                Button {
+                    runCheckForUpdates(packageID: packageID)
+                } label: {
+                    Label(String(localized: "Check for Updates"), systemImage: "arrow.clockwise")
                         .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 10)
+                        .frame(height: 24)
                 }
-                .foregroundStyle(isHoveringUpdate ? SettingsDesignTokens.primaryText : SettingsDesignTokens.secondaryText)
-                .padding(.horizontal, 9)
-                .frame(height: 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.primary.opacity(isHoveringUpdate ? 0.10 : 0.06))
-                )
+                .buttonStyle(.plain)
+                .settingsGlassCapsule(interactive: true)
+                .contentShape(Capsule())
+            } else {
+                Button {
+                    runCheckForUpdates(packageID: packageID)
+                } label: {
+                    Label(String(localized: "Check for Updates"), systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .tint(Color.accentColor)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
             }
-            .buttonStyle(.plain)
-            .onHover { isHoveringUpdate = $0 }
         }
     }
 
@@ -522,25 +534,30 @@ public struct ActionEditorPage: View {
                         HStack(alignment: .center, spacing: 8) {
                             extensionUpdateStatusView(for: packageID)
 
-                            Button {
-                                showUninstallConfirmation = true
-                            } label: {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 10.5))
-                                    Text(String(localized: "Uninstall"))
+                            if #available(macOS 26.0, *) {
+                                Button(role: .destructive) {
+                                    showUninstallConfirmation = true
+                                } label: {
+                                    Label(String(localized: "Delete"), systemImage: "trash")
                                         .font(.system(size: 11.5, weight: .medium))
+                                        .foregroundStyle(SettingsDesignTokens.glassButtonRed)
+                                        .padding(.horizontal, 10)
+                                        .frame(height: 24)
                                 }
-                                .foregroundStyle(isHoveringUninstall ? Color.red : Color.red.opacity(0.85))
-                                .padding(.horizontal, 9)
-                                .frame(height: 24)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .fill(isHoveringUninstall ? Color.red.opacity(0.15) : Color.primary.opacity(0.06))
-                                )
+                                .buttonStyle(.plain)
+                                .settingsGlassCapsule(tint: SettingsDesignTokens.glassButtonRed.opacity(0.14), interactive: true)
+                                .contentShape(Capsule())
+                            } else {
+                                Button(role: .destructive) {
+                                    showUninstallConfirmation = true
+                                } label: {
+                                    Label(String(localized: "Delete"), systemImage: "trash")
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(Color.red)
+                                .buttonBorderShape(.capsule)
+                                .controlSize(.small)
                             }
-                            .buttonStyle(.plain)
-                            .onHover { isHoveringUninstall = $0 }
                         }
                         .fixedSize(horizontal: true, vertical: false)
                     }
@@ -590,11 +607,9 @@ public struct ActionEditorPage: View {
                                     .foregroundStyle(SettingsDesignTokens.secondaryText)
                             }
                             .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .fill(Color(white: 1.0, opacity: 0.08))
-                            )
+                            .frame(height: 24)
+                            .settingsGlassCapsule()
+                            .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
                         .disabled(manifestMissing)
@@ -739,6 +754,7 @@ public struct ActionEditorPage: View {
                                     Text("Open URL").tag(EditKind.openURL)
                                     Text("Text Snippet").tag(EditKind.textSnippet)
                                     Text("Shell Script").tag(EditKind.shellScript)
+                                    Text("JavaScript").tag(EditKind.javaScript)
                                 }
                                 .pickerStyle(.segmented)
                                 .labelsHidden()
@@ -786,6 +802,25 @@ public struct ActionEditorPage: View {
                                             )
 
                                         Toggle("Replace selected text with output", isOn: $replaceSelection)
+                                            .font(.subheadline)
+                                    }
+                                case .javaScript:
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("JavaScript (JSC)").font(.caption).foregroundStyle(.secondary)
+                                        TextEditor(text: $customJavaScript)
+                                            .font(.system(.body, design: .monospaced))
+                                            .frame(height: 120)
+                                            .scrollContentBackground(.hidden)
+                                            .padding(6)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                    .fill(Color(white: 1.0, opacity: 0.08))
+                                            )
+
+                                        Toggle("Replace selected text with output", isOn: $replaceSelection)
+                                            .font(.subheadline)
+
+                                        Toggle("Run asynchronously (enable promises & fetch)", isOn: $customJSIsAsync)
                                             .font(.subheadline)
                                     }
                                 }
@@ -895,6 +930,10 @@ public struct ActionEditorPage: View {
             guard isLoaded, !isDeleting else { return }
             autoSave()
         }
+        .onChange(of: customJSIsAsync) { _, _ in
+            guard isLoaded, !isDeleting else { return }
+            autoSave()
+        }
         .task(id: customURLTemplate) {
             guard isLoaded, !isDeleting else { return }
             try? await Task.sleep(for: .milliseconds(350))
@@ -908,6 +947,12 @@ public struct ActionEditorPage: View {
             autoSave()
         }
         .task(id: customShellScript) {
+            guard isLoaded, !isDeleting else { return }
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled, !isDeleting else { return }
+            autoSave()
+        }
+        .task(id: customJavaScript) {
             guard isLoaded, !isDeleting else { return }
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled, !isDeleting else { return }
@@ -1185,6 +1230,11 @@ public struct ActionEditorPage: View {
             customShellScript = meta.scriptCode ?? ""
             editKind = .shellScript
             logicEditable = true
+        case .js:
+            customJavaScript = meta.scriptCode ?? ""
+            customJSIsAsync = meta.isAsync ?? false
+            editKind = .javaScript
+            logicEditable = true
         default:
             logicEditable = false
         }
@@ -1218,6 +1268,11 @@ public struct ActionEditorPage: View {
         case .shellScript(let script, let replace):
             editKind = .shellScript
             customShellScript = script
+            replaceSelection = replace
+        case .javaScript(let script, let isAsync, let replace):
+            editKind = .javaScript
+            customJavaScript = script
+            customJSIsAsync = isAsync
             replaceSelection = replace
         }
     }
@@ -1301,6 +1356,8 @@ public struct ActionEditorPage: View {
             newType = .textSnippet(template: customSnippetTemplate)
         case .shellScript:
             newType = .shellScript(script: customShellScript, replaceSelection: replaceSelection)
+        case .javaScript:
+            newType = .javaScript(script: customJavaScript, isAsync: customJSIsAsync, replaceSelection: replaceSelection)
         }
 
         let updated = CustomAction(
@@ -1436,6 +1493,10 @@ public struct ActionEditorPage: View {
                 newURL = nil
                 newType = "shell"
                 newScriptCode = customShellScript
+            case .javaScript:
+                newURL = nil
+                newType = "javascript"
+                newScriptCode = customJavaScript
             }
         }
 
@@ -1449,7 +1510,7 @@ public struct ActionEditorPage: View {
             type: newType,
             scriptCode: newScriptCode,
             requirements: meta.requirements,
-            isAsync: meta.isAsync,
+            isAsync: editKind == .javaScript ? customJSIsAsync : meta.isAsync,
             options: meta.options,
             subActions: meta.subActions,
             keyPress: meta.keyPress,

@@ -449,6 +449,32 @@ public struct ExtensionStoreView: View {
         .padding(.horizontal, 24)
     }
 
+    private var storeHeroHeader: some View {
+        HStack(spacing: 14) {
+            Image("StoreIcon")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1.5)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(localized: "The Clip Store"))
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.primary)
+
+                Text(String(localized: "Discover and install extensions for OpenClip"))
+                    .font(.subheadline)
+                    .foregroundStyle(SettingsDesignTokens.secondaryText)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 16)
+        .padding(.bottom, 6)
+    }
+
     private func sectionHeader(_ title: String, count: Int? = nil) -> some View {
         HStack(spacing: 6) {
             Text(title)
@@ -468,6 +494,8 @@ public struct ExtensionStoreView: View {
     private var sectionedAllStoreContent: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
+                storeHeroHeader
+
                 if !viewModel.featuredSectionItems.isEmpty {
                     sectionHeader(String(localized: "Featured"))
                     ForEach(Array(viewModel.featuredSectionItems.enumerated()), id: \.element.id) { index, ext in
@@ -512,9 +540,29 @@ public struct ExtensionStoreView: View {
             }
     }
 
+    private var flatSectionTitle: String {
+        if isSearching {
+            return String(localized: "Search Results")
+        }
+        switch viewModel.selectedSort {
+        case .featured, .name:
+            return String(localized: "All Extensions")
+        case .downloads:
+            return String(localized: "Most Downloaded")
+        case .recentlyAdded:
+            return String(localized: "Recently Added")
+        }
+    }
+
     private var flatStoreContent: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
+                if !isSearching {
+                    storeHeroHeader
+                }
+
+                sectionHeader(flatSectionTitle, count: viewModel.displayedExtensions.count)
+
                 ForEach(Array(viewModel.displayedExtensions.enumerated()), id: \.element.id) { index, ext in
                     if index > 0 {
                         rowDivider

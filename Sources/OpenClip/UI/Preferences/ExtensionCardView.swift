@@ -168,24 +168,51 @@ struct ExtensionCardView: View {
             // Right Action Buttons
             HStack(spacing: 8) {
                 if isInstalled, updateManager.updatablePackageIDs.contains(item.id) {
-                    Button(action: {
-                        isUpdating = true
-                        installError = nil
-                        Task {
-                            do {
-                                try await updateManager.update(packageID: item.id)
-                            } catch {
-                                installError = error.localizedDescription
+                    if #available(macOS 26.0, *) {
+                        Button(action: {
+                            isUpdating = true
+                            installError = nil
+                            Task {
+                                do {
+                                    try await updateManager.update(packageID: item.id)
+                                } catch {
+                                    installError = error.localizedDescription
+                                }
+                                isUpdating = false
+                                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
                             }
-                            isUpdating = false
-                            NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                        }) {
+                            Label(isUpdating ? String(localized: "Updating…") : String(localized: "Update"), systemImage: "arrow.down.circle")
+                                .font(.system(size: 11.5, weight: .medium))
+                                .foregroundStyle(SettingsDesignTokens.glassButtonBlue)
+                                .padding(.horizontal, 8)
+                                .frame(height: 24)
                         }
-                    }) {
-                        Label(isUpdating ? String(localized: "Updating…") : String(localized: "Update"), systemImage: "arrow.down.circle")
+                        .buttonStyle(.plain)
+                        .background(.ultraThinMaterial, in: .capsule)
+                        .glassEffect(.regular.tint(SettingsDesignTokens.glassButtonBlue.opacity(0.18)).interactive(), in: .capsule)
+                        .contentShape(Capsule())
+                        .disabled(isUpdating)
+                    } else {
+                        Button(action: {
+                            isUpdating = true
+                            installError = nil
+                            Task {
+                                do {
+                                    try await updateManager.update(packageID: item.id)
+                                } catch {
+                                    installError = error.localizedDescription
+                                }
+                                isUpdating = false
+                                NotificationCenter.default.post(name: .openClipExtensionsDidChange, object: nil)
+                            }
+                        }) {
+                            Label(isUpdating ? String(localized: "Updating…") : String(localized: "Update"), systemImage: "arrow.down.circle")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(isUpdating)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(isUpdating)
                 }
 
                 StoreActionButton(
@@ -277,44 +304,99 @@ private struct StoreActionButton: View {
     }
 
     var body: some View {
-        Button {
-            if isInstalled {
-                onUninstall()
-            } else {
-                onInstall()
-            }
-        } label: {
-            ZStack {
-                if isInstalling {
-                    SpinningArc(color: .white)
-                        .transition(.opacity)
-                } else if isUninstalling {
-                    SpinningArc(color: .secondary)
-                        .transition(.opacity)
-                } else if isInstalled {
-                    Image(systemName: "trash")
-                        .font(.system(size: 11.5, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .transition(.opacity)
+        if #available(macOS 26.0, *) {
+            Group {
+                if isInstalled {
+                    Button {
+                        onUninstall()
+                    } label: {
+                        ZStack {
+                            if isUninstalling {
+                                SpinningArc(color: SettingsDesignTokens.glassButtonRed)
+                                    .transition(.opacity)
+                            } else {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 11.5, weight: .medium))
+                                    .foregroundStyle(SettingsDesignTokens.glassButtonRed)
+                                    .transition(.opacity)
+                            }
+                        }
+                        .frame(width: 28, height: 28)
+                        .settingsGlassCircle(tint: SettingsDesignTokens.glassButtonRed.opacity(0.14), interactive: true)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Circle())
+                    .help(String(localized: "Remove \(item.name)"))
+                    .accessibilityLabel(String(localized: "Remove \(item.name)"))
                 } else {
-                    Image(systemName: "arrow.down.to.line")
-                        .font(.system(size: 11.5, weight: .bold))
-                        .foregroundStyle(.white)
-                        .transition(.opacity)
+                    Button {
+                        onInstall()
+                    } label: {
+                        ZStack {
+                            if isInstalling {
+                                SpinningArc(color: .white)
+                                    .transition(.opacity)
+                            } else {
+                                Image(systemName: "arrow.down.to.line")
+                                    .font(.system(size: 11.5, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .transition(.opacity)
+                            }
+                        }
+                        .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.plain)
+                    .background(Color.accentColor.opacity(0.85), in: Circle())
+                    .background(.ultraThinMaterial, in: Circle())
+                    .glassEffect(.regular.tint(Color.accentColor.opacity(0.35)).interactive(), in: Circle())
+                    .contentShape(Circle())
+                    .help(String(localized: "Install \(item.name)"))
+                    .accessibilityLabel(String(localized: "Install \(item.name)"))
                 }
             }
-            .frame(width: 26, height: 26)
-            .background(
-                RoundedRectangle(cornerRadius: 6.5, style: .continuous)
-                    .fill(isInstalled ? Color.primary.opacity(0.06) : Color.accentColor)
-            )
+            .disabled(isLoading)
+            .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            .animation(.easeInOut(duration: 0.2), value: isLoading)
+        } else {
+            Button {
+                if isInstalled {
+                    onUninstall()
+                } else {
+                    onInstall()
+                }
+            } label: {
+                ZStack {
+                    if isInstalling {
+                        SpinningArc(color: .white)
+                            .transition(.opacity)
+                    } else if isUninstalling {
+                        SpinningArc(color: SettingsDesignTokens.glassButtonRed)
+                            .transition(.opacity)
+                    } else if isInstalled {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(SettingsDesignTokens.glassButtonRed)
+                            .transition(.opacity)
+                    } else {
+                        Image(systemName: "arrow.down.to.line")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundStyle(.white)
+                            .transition(.opacity)
+                    }
+                }
+                .frame(width: 28, height: 28)
+                .background(
+                    Circle()
+                        .fill(isInstalled ? SettingsDesignTokens.glassButtonRed.opacity(0.12) : Color.accentColor)
+                )
+            }
+            .buttonStyle(StoreActionButtonStyle())
+            .disabled(isLoading)
+            .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            .animation(.easeInOut(duration: 0.2), value: isLoading)
+            .help(isInstalled ? String(localized: "Remove \(item.name)") : String(localized: "Install \(item.name)"))
+            .accessibilityLabel(isInstalled ? String(localized: "Remove \(item.name)") : String(localized: "Install \(item.name)"))
         }
-        .buttonStyle(StoreActionButtonStyle())
-        .disabled(isLoading)
-        .animation(.easeInOut(duration: 0.2), value: isInstalled)
-        .animation(.easeInOut(duration: 0.2), value: isLoading)
-        .help(isInstalled ? String(localized: "Remove \(item.name)") : String(localized: "Install \(item.name)"))
-        .accessibilityLabel(isInstalled ? String(localized: "Remove \(item.name)") : String(localized: "Install \(item.name)"))
     }
 }
 

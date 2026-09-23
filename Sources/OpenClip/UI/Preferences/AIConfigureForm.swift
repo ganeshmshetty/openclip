@@ -53,14 +53,20 @@ public struct AIConfigureForm: View {
     @ViewBuilder
     private var sections: some View {
         Group {
-            Section {
-                EmptyView()
-            } header: {
-                enginePicker
-                    .padding(.bottom, 8)
-            }
-
             Section(header: Text("Provider Settings")) {
+                Picker("Select a Provider", selection: Binding(
+                    get: { aiManager.activeProviderRaw },
+                    set: { newValue in
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                            aiManager.activeProviderRaw = newValue
+                        }
+                    }
+                )) {
+                    ForEach(availableProviders, id: \.1) { (label, value) in
+                        Text(label).tag(value)
+                    }
+                }
+
                 if AppleIntelligenceAvailability.isSupported && aiManager.activeProviderType == .apple {
                     let status = AppleIntelligenceAvailability.current
                     VStack(alignment: .leading, spacing: 6) {
@@ -521,29 +527,6 @@ public struct AIConfigureForm: View {
         }
     }
 
-    // MARK: - Full-Width Engine Segmented Control
-
-    private var enginePicker: some View {
-        HStack(spacing: 3) {
-            ForEach(availableProviders, id: \.1) { (label, value) in
-                EngineSegmentButton(
-                    title: label,
-                    isSelected: aiManager.activeProviderType.rawValue == value
-                ) {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                        aiManager.activeProviderRaw = value
-                    }
-                }
-            }
-        }
-        .padding(3)
-        .frame(height: 32)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
-        )
-    }
-
     private var availableProviders: [(String, String)] {
         AIProviderType.supportedCases.map { type in
             let label: String
@@ -558,37 +541,3 @@ public struct AIConfigureForm: View {
     }
 }
 
-private struct EngineSegmentButton: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 12.5, weight: isSelected ? .semibold : .medium))
-                .foregroundColor(isSelected ? .primary : (isHovered ? .primary : .secondary))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 7.5, style: .continuous)
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.18) : Color.white)
-                            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.12), radius: 2, y: 1)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 7.5, style: .continuous)
-                                    .stroke(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06), lineWidth: 0.5)
-                            )
-                    } else if isHovered {
-                        RoundedRectangle(cornerRadius: 7.5, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
-                    }
-                }
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-    }
-}

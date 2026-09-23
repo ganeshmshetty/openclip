@@ -63,34 +63,22 @@ public struct Shortcut: View {
                 if let shortcut = effectiveShortcut {
                     Text(shortcut.description)
                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(SettingsDesignTokens.primaryText)
                         .lineLimit(1)
                 } else {
                     Text("Record Shortcut")
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(SettingsDesignTokens.secondaryText)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
             .frame(width: width, height: 24)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(.ultraThinMaterial)
+            .settingsGlassCapsule(
+                tint: isPopoverOpen ? Color.accentColor.opacity(0.18) : nil,
+                interactive: true
             )
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.35))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(
-                        glassBorder,
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.06), radius: 2, x: 0, y: 1)
-            .contentShape(Rectangle())
+            .contentShape(Capsule())
         }
         .buttonStyle(ShortcutButtonStyle())
         .onAppear {
@@ -113,22 +101,6 @@ public struct Shortcut: View {
         }
     }
 
-    private var glassBorder: LinearGradient {
-        if isPopoverOpen {
-            return LinearGradient(
-                colors: [Color.accentColor.opacity(0.9), Color.accentColor.opacity(0.5)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
-        return LinearGradient(
-            colors: colorScheme == .dark
-                ? [Color.white.opacity(0.25), Color.white.opacity(0.08)]
-                : [Color.white.opacity(0.85), Color.black.opacity(0.1)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
 
     private func saveShortcut(_ shortcut: KeyboardShortcuts.Shortcut?) {
         if let name {

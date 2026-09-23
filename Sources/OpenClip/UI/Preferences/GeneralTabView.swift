@@ -83,14 +83,25 @@ struct GeneralTab: View {
                                     DefaultSettingsStore.shared.set(.fileSaveLocation, value: "")
                                 } label: {
                                     Image(systemName: "arrow.counterclockwise")
-                                        .font(.system(size: 11))
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(SettingsDesignTokens.secondaryText)
+                                        .frame(width: 24, height: 24)
                                 }
                                 .buttonStyle(.plain)
+                                .settingsGlassCircle()
+                                .contentShape(Circle())
                                 .help(String(localized: "Reset to Downloads"))
                             }
                             Button(String(localized: "Choose…")) {
                                 chooseSaveLocation()
                             }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(SettingsDesignTokens.primaryText)
+                            .padding(.horizontal, 10)
+                            .frame(height: 24)
+                            .settingsGlassCapsule()
+                            .contentShape(Capsule())
                         }
                     }
                 }
@@ -127,6 +138,13 @@ struct GeneralTab: View {
                             Button(String(localized: "Open Settings")) {
                                 launchManager.openLoginItemsSettings()
                             }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(SettingsDesignTokens.primaryText)
+                            .padding(.horizontal, 10)
+                            .frame(height: 24)
+                            .settingsGlassCapsule()
+                            .contentShape(Capsule())
                         }
                     }
                 }
@@ -137,23 +155,27 @@ struct GeneralTab: View {
                         subtitle: "Required to read the selected text.",
                         systemImage: "lock.shield"
                     ) {
-                        HStack(spacing: 10) {
-                            Label {
-                                Text(permissionManager.isAccessibilityGranted
-                                     ? String(localized: "Granted")
-                                     : String(localized: "Access Required"))
-                            } icon: {
-                                Image(systemName: permissionManager.isAccessibilityGranted
-                                      ? "checkmark.circle.fill"
-                                      : "exclamationmark.triangle.fill")
-                            }
-                            .font(.callout)
-                            .foregroundStyle(permissionManager.isAccessibilityGranted ? Color.green : Color.orange)
+                        HStack(spacing: 8) {
+                            Image(systemName: permissionManager.isAccessibilityGranted
+                                  ? "checkmark.circle.fill"
+                                  : "exclamationmark.triangle.fill")
+                                .font(.callout)
+                                .foregroundStyle(permissionManager.isAccessibilityGranted ? Color.green : Color.orange)
+                                .accessibilityLabel(permissionManager.isAccessibilityGranted
+                                                    ? String(localized: "Granted")
+                                                    : String(localized: "Access Required"))
 
-                            Button("Open Settings") {
+                            Button(String(localized: "Open Settings")) {
                                 let shouldReset = !permissionManager.isAccessibilityGranted
                                 permissionManager.requestAccessibilityPermission(proactivelyResetStaleTCC: shouldReset)
                             }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(SettingsDesignTokens.primaryText)
+                            .padding(.horizontal, 10)
+                            .frame(height: 24)
+                            .settingsGlassCapsule()
+                            .contentShape(Capsule())
                         }
                     }
                 }
