@@ -82,6 +82,10 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     internal static func holdStationary(downPoint: CGPoint?, pointer: CGPoint, buttonPressed: Bool) -> Bool {
         OpenSelectionMonitor.holdStationary(downPoint: downPoint, pointer: pointer, buttonPressed: buttonPressed)
     }
+
+    internal static func isSystemChromeLocation(_ point: CGPoint) -> Bool {
+        OpenSelectionMonitor.isSystemChromeLocation(point)
+    }
     
     internal init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
         self.settingsStore = settingsStore
@@ -202,6 +206,10 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     // MARK: - Event handling
 
     internal func handleMouseDown(at point: CGPoint) {
+        guard !Self.isSystemChromeLocation(point) else {
+            mouseDownLocation = nil
+            return
+        }
         mouseDownLocation = point
         triggeredByHold = false
         mouseHoldTask?.cancel()
@@ -358,6 +366,15 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
         debounceTask?.cancel()
 
+        guard !Self.isSystemChromeLocation(cursor) else {
+            clearSelection()
+            return
+        }
+        if let downPoint, Self.isSystemChromeLocation(downPoint) {
+            clearSelection()
+            return
+        }
+
         guard settingsStore.get(.pauseUntilTimestamp) <= Date().timeIntervalSince1970 else { return }
         guard !shouldSuppress(for: app.bundleIdentifier) else { return }
 
@@ -387,10 +404,12 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
             // Keep monitoring (so `latestSelection` stays warm for ⌥⌘C) but never post a synthetic
-            // ⌘C while a foreign overlay owns the key window: the copy would fire the overlay's own
-            // shortcut and tear down the capture instead of reaching the app being read. The mouse-up
-            // path used the cascade default (copy fallback allowed); an overlay forces AX-only.
-            let allowCopyFallback = !self.isOverlayPresent(cursor)
+            // ⌘C when:
+            // 1. "Appear Automatically" is disabled (passive background caching must stay non-invasive)
+            // 2. The app has `hotkeyOnly` policy
+            // 3. A foreign overlay owns the key window
+            let isAutoEnabled = self.settingsStore.get(.isAppEnabled)
+            let allowCopyFallback = isAutoEnabled && !policy.hotkeyOnly && !self.isOverlayPresent(cursor)
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
             let result = await retriever.retrieve(
                 for: appIdentity,

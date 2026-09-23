@@ -16,6 +16,10 @@ public enum DefaultAppRules: Sendable {
             let prefix = String(pattern.dropLast(2))
             return bundleID == prefix || bundleID.hasPrefix(prefix + ".")
         }
+        if pattern.hasSuffix("*") {
+            let prefix = String(pattern.dropLast(1))
+            return bundleID.hasPrefix(prefix)
+        }
         return false
     }
 
@@ -140,7 +144,9 @@ public enum DefaultAppRules: Sendable {
         "ru.keepcoder.Telegram",
         "com.tdesktop.Telegram",
         "org.whispersystems.signal-desktop",
-        "net.whatsapp.WhatsApp",
+        "net.whatsapp.WhatsApp*",
+        "com.tencent.xinWeChat*",
+        "com.tencent.WeChat*",
         "com.microsoft.teams",
         "com.microsoft.teams2",
         "us.zoom.xos",
