@@ -61,6 +61,7 @@ public extension SettingKey where Value == [String] {
 public extension SettingKey where Value == Set<String> {
     static var disabledActionIDs: SettingKey<Set<String>> { SettingKey<Set<String>>("disabledActionIDs", defaultValue: []) }
     static var disabledPackages: SettingKey<Set<String>> { SettingKey<Set<String>>("disabledPackages", defaultValue: []) }
+    static var disabledContextualActionIDs: SettingKey<Set<String>> { SettingKey<Set<String>>("disabledContextualActionIDs", defaultValue: []) }
 }
 
 public extension SettingKey where Value == [String: Int] {
@@ -97,6 +98,7 @@ public extension SettingKey where Value == Bool {
     static var automaticallyChecksForUpdates: SettingKey<Bool> { SettingKey<Bool>("automaticallyChecksForUpdates", defaultValue: true) }
     static var automaticallyDownloadsUpdates: SettingKey<Bool> { SettingKey<Bool>("automaticallyDownloadsUpdates", defaultValue: true) }
     static var notifyOnUpdate: SettingKey<Bool> { SettingKey<Bool>("notifyOnUpdate", defaultValue: true) }
+    static var contextualActionsEnabled: SettingKey<Bool> { SettingKey<Bool>("contextualActionsEnabled", defaultValue: true) }
 }
 
 public extension SettingKey where Value == Int {

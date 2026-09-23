@@ -85,7 +85,7 @@ public enum CustomActionType: Codable, Sendable, Equatable, Hashable {
     }
 }
 
-public struct CustomAction: ConfigurableAction, Codable, Sendable, Equatable {
+public struct CustomAction: ConfigurableAction, ActionWithRules, Codable, Sendable, Equatable {
     public let id: String
     public let title: String
     public let iconName: String

@@ -368,7 +368,9 @@ public enum SettingsDesignTokens {
         } else if lower.contains("gear") {
             return SettingsTint.general // System Gray
         } else if lower.contains("slider") {
-            return SettingsTint.customize // Purple
+            return SettingsTint.appearance // Customize (Pink)
+        } else if lower.contains("square.stack") {
+            return SettingsTint.customize // Actions (Purple)
         } else if lower.contains("key") || lower.contains("command") || lower.contains("keyboard") {
             return Color(red: 0.98, green: 0.52, blue: 0.12) // System Orange
         } else if lower.contains("checklist") || lower.contains("rules") {
@@ -391,7 +393,7 @@ public enum SettingsDesignTokens {
             return Color(red: 0.30, green: 0.65, blue: 0.98) // Light Blue
         } else if lower.contains("clockwise") || lower.contains("update") || lower.contains("download") {
             return Color(red: 0.10, green: 0.74, blue: 0.66) // Teal
-        } else if lower.contains("bell") {
+        } else if lower.contains("bell") || lower.contains("lightbulb") {
             return Color(red: 0.96, green: 0.62, blue: 0.05) // Amber
         } else if lower.contains("globe") || lower.contains("link") || lower.contains("safari") {
             return Color(red: 0.12, green: 0.56, blue: 0.98) // Safari / Web Blue

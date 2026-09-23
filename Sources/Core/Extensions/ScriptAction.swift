@@ -10,7 +10,7 @@
 // returns the raw runtime result (secondary/delivery handling happens downstream).
 import Foundation
 
-public struct ScriptAction: ConfigurableAction {
+public struct ScriptAction: ConfigurableAction, ActionWithRules {
     public let id: String
     public let title: String
     public let icon: ActionIcon

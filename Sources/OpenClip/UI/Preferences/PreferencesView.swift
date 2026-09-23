@@ -18,6 +18,7 @@ import KeyboardShortcuts
 /// other parts of the app post). Maps onto the router's sidebar pages.
 public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
     case general = "General"
+    case customize = "Customize"
     case appearance = "Appearance"
     case actions = "Actions"
     case shortcuts = "Shortcuts"
@@ -39,7 +40,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
     public var page: SettingsPage {
         switch self {
         case .general: return .general
-        case .appearance: return .appearance
+        case .customize, .appearance: return .appearance
         case .actions, .shortcuts: return .customize
         case .ai: return .ai
         case .store: return .store

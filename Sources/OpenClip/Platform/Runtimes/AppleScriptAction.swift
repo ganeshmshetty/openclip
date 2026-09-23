@@ -10,7 +10,7 @@ import Foundation
 import Core
 
 @MainActor
-public struct AppleScriptAction: ConfigurableAction {
+public struct AppleScriptAction: ConfigurableAction, ActionWithRules {
     public let id: String
     public let title: String
     public let icon: ActionIcon

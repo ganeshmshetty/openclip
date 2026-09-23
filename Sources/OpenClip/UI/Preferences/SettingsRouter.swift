@@ -98,7 +98,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     public var staticTitle: String? {
         switch self {
         case .general: return String(localized: "General")
-        case .appearance: return String(localized: "Appearance")
+        case .appearance: return String(localized: "Customize")
         case .customize: return String(localized: "Actions")
         case .shortcuts: return String(localized: "Shortcuts")
         case .appRules: return String(localized: "App Rules")
@@ -119,8 +119,8 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     var systemImage: String {
         switch self {
         case .general: return "gearshape.fill"
-        case .appearance: return "paintbrush.fill"
-        case .customize: return "slider.horizontal.3"
+        case .appearance: return "slider.horizontal.3"
+        case .customize: return "square.stack.3d.up.fill"
         case .shortcuts: return "command"
         case .appRules: return "shield.checkered"
         case .store: return "archivebox.fill"
@@ -149,7 +149,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     var searchKeywords: [String] {
         switch self {
         case .general: return ["startup", "launch", "login", "menu bar", "trigger", "hotkey", "permission", "accessibility", "paste", "copy", "preview"]
-        case .appearance: return ["theme", "dark", "light", "glass", "popup", "preview"]
+        case .appearance: return ["theme", "dark", "light", "glass", "popup", "preview", "customize", "behavior", "scale", "position"]
         case .customize: return ["actions", "popup bar", "order", "reorder", "arrange", "group", "groups", "layout", "install", "shortcuts", "hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .shortcuts: return ["hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .appRules: return ["apps", "exclude", "allow", "block", "rules", "disable", "per-app"]

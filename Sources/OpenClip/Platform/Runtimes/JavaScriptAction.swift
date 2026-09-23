@@ -12,7 +12,7 @@ import JavaScriptCore
 import Core
 
 @MainActor
-public struct JavaScriptAction: ConfigurableAction {
+public struct JavaScriptAction: ConfigurableAction, ActionWithRules {
     public let id: String
     public let title: String
     public let icon: ActionIcon

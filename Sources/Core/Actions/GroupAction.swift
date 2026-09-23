@@ -8,7 +8,7 @@
 // group carries declarative rules; otherwise the default requires a non-blank selection.
 import Foundation
 
-public struct GroupAction: ConfigurableAction, SubActionProviding {
+public struct GroupAction: ConfigurableAction, SubActionProviding, ActionWithRules {
     public let id: String
     public let title: String
     public let icon: ActionIcon

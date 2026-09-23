@@ -17,6 +17,10 @@ struct PopupThemeSelector: View {
     @Setting(SettingKey.popupBarWidth) private var barWidthLevel
     @Setting(SettingKey.popupAlignment) private var popupAlignment
     @Setting(SettingKey.popupVerticalPosition) private var popupVerticalPosition
+    @Setting(SettingKey.contextualActionsEnabled) private var contextualActionsEnabled
+    @Setting(SettingKey.disabledContextualActionIDs) private var disabledContextualActionIDs
+
+    @State private var isShowingContextualPopover = false
 
     private struct AppearanceOption: Identifiable {
         let label: String
@@ -68,7 +72,9 @@ struct PopupThemeSelector: View {
         popupScale == SettingKey.popupScale.defaultValue &&
         barWidthLevel == SettingKey.popupBarWidth.defaultValue &&
         popupAlignment == SettingKey.popupAlignment.defaultValue &&
-        popupVerticalPosition == SettingKey.popupVerticalPosition.defaultValue
+        popupVerticalPosition == SettingKey.popupVerticalPosition.defaultValue &&
+        contextualActionsEnabled == SettingKey.contextualActionsEnabled.defaultValue &&
+        disabledContextualActionIDs == SettingKey.disabledContextualActionIDs.defaultValue
     }
 
     private func resetToDefaults() {
@@ -78,6 +84,8 @@ struct PopupThemeSelector: View {
         barWidthLevel = SettingKey.popupBarWidth.defaultValue
         popupAlignment = SettingKey.popupAlignment.defaultValue
         popupVerticalPosition = SettingKey.popupVerticalPosition.defaultValue
+        contextualActionsEnabled = SettingKey.contextualActionsEnabled.defaultValue
+        disabledContextualActionIDs = SettingKey.disabledContextualActionIDs.defaultValue
     }
 
     private var themeSelection: Binding<String> {
@@ -202,6 +210,39 @@ struct PopupThemeSelector: View {
                         accessibilityLabel: "Popup Width",
                         labelText: widthLabel(for: barWidthLevel)
                     )
+                }
+            }
+
+            SettingsCard("Behavior") {
+                SettingsRow(
+                    title: "Contextual Actions",
+                    subtitle: "Show relevant actions first based on what you select.",
+                    systemImage: "lightbulb.fill"
+                ) {
+                    HStack(spacing: 8) {
+                        Button {
+                            isShowingContextualPopover.toggle()
+                        } label: {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(contextualActionsEnabled ? SettingsDesignTokens.primaryText : SettingsDesignTokens.tertiaryText)
+                                .frame(width: 24, height: 24)
+                                .settingsGlassCircle()
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!contextualActionsEnabled)
+                        .help(String(localized: "Configure Contextual Actions"))
+                        .popover(isPresented: $isShowingContextualPopover, arrowEdge: .top) {
+                            ContextualActionsPopoverView()
+                        }
+
+                        Toggle("", isOn: $contextualActionsEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .accessibilityLabel(String(localized: "Enable Contextual Actions"))
+                    }
                 }
             }
 

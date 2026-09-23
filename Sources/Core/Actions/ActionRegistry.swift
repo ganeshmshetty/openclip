@@ -352,10 +352,29 @@ public final class ActionRegistry: ObservableObject, Sendable {
         let hiddenGroups = hiddenGroupIDs(isRowVisible: passes)
         let customGroupMemberToGroupID = customGroupMembership()
 
-        return actions.filter { action in
+        let available = actions.filter { action in
             guard passes(action) else { return false }
             return !belongsToHiddenGroup(action, hiddenGroupIDs: hiddenGroups, customGroupMemberToGroupID: customGroupMemberToGroupID)
         }
+
+        guard settingsStore.get(.contextualActionsEnabled) else {
+            return available
+        }
+
+        let disabledContextualIDs = settingsStore.get(.disabledContextualActionIDs)
+
+        var contextualMatches: [any Action] = []
+        var standardActions: [any Action] = []
+
+        for action in available {
+            if !disabledContextualIDs.contains(action.id) && action.isContextual {
+                contextualMatches.append(action)
+            } else {
+                standardActions.append(action)
+            }
+        }
+
+        return contextualMatches + standardActions
     }
 
     /// The registered catalog for the action-search palette: what the user can actually run right

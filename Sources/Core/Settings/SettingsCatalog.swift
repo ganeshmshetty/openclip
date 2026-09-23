@@ -17,6 +17,8 @@ public enum SettingsCatalog {
             SettingKey.actionOrder.erased,
             SettingKey.disabledActionIDs.erased,
             SettingKey.disabledPackages.erased,
+            SettingKey.disabledContextualActionIDs.erased,
+            SettingKey.contextualActionsEnabled.erased,
             SettingKey.actionUsageRecency.erased,
             SettingKey.extensionGroupMemberOrder.erased,
             SettingKey.actionAliases.erased,
