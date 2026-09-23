@@ -163,6 +163,8 @@ Select **AI** in the sidebar (the first row of the Extensions group) to turn AI 
 | **Cloud AI (OpenAI / Claude / Gemini / DeepSeek / Groq / OpenRouter / Custom)** | Cloud API language models | Valid API Key stored securely in `SecretStore` (`~/.openclip/secrets.json`) |
 | **Browser Redirect** | Opens AI query in browser | No API key required |
 
+With the Ollama preset, OpenClip asks reasoning models (e.g. Qwen 3.5, DeepSeek-R1) to skip their thinking pass, so results appear in seconds instead of minutes.
+
 ### Ask AI from the search palette
 
 Anything you type into the action-search palette (⌥⌘C, or the ⌘ button on the popup bar) that

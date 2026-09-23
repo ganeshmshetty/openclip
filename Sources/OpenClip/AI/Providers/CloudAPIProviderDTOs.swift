@@ -13,11 +13,20 @@ struct OpenAIChatRequest: Encodable, Sendable {
     let model: String
     let messages: [Message]
     let stream: Bool?
+    /// `"none"` asks reasoning models (Qwen 3.5, DeepSeek-R1, …) to answer without a thinking pass.
+    /// Omitted from the JSON when nil.
+    let reasoningEffort: String?
 
-    init(model: String, messages: [Message], stream: Bool? = nil) {
+    enum CodingKeys: String, CodingKey {
+        case model, messages, stream
+        case reasoningEffort = "reasoning_effort"
+    }
+
+    init(model: String, messages: [Message], stream: Bool? = nil, reasoningEffort: String? = nil) {
         self.model = model
         self.messages = messages
         self.stream = stream
+        self.reasoningEffort = reasoningEffort
     }
 }
 
