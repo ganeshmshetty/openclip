@@ -367,7 +367,7 @@ public final class AIServiceManager: ObservableObject {
         case .apple:
             return AppleIntelligenceProvider()
         case .local:
-            return LocalLLMProvider(baseURL: localURL, model: effectiveLocalModel)
+            return LocalLLMProvider(baseURL: localURL, model: effectiveLocalModel, disableThinking: localPreset.disablesThinking)
         case .cli:
             return CLIProvider(preset: cliPreset, customCommand: cliCustomCommand, modelOverride: effectiveCLIModel)
         case .cloud:

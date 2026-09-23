@@ -57,6 +57,31 @@ final class AIProviderTests: XCTestCase {
         }
     }
 
+    func testOnlyOllamaPresetDisablesThinking() {
+        for preset in LocalLLMPreset.allCases {
+            XCTAssertEqual(preset.disablesThinking, preset == .ollama, preset.rawValue)
+        }
+    }
+
+    func testLocalLLMKeepsThinkingByDefault() {
+        XCTAssertFalse(LocalLLMProvider(baseURL: "http://localhost:1234/v1", model: "default").disableThinking)
+        XCTAssertTrue(LocalLLMProvider(baseURL: "http://localhost:11434/v1", model: "qwen3.5:4b", disableThinking: true).disableThinking)
+    }
+
+    func testChatRequestOmitsReasoningEffortByDefault() throws {
+        let body = OpenAIChatRequest(model: "m", messages: [.init(role: "user", content: "hi")], stream: true)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(body)) as? [String: Any])
+        XCTAssertNil(json["reasoning_effort"])
+        XCTAssertEqual(json["stream"] as? Bool, true)
+    }
+
+    func testChatRequestEncodesReasoningEffort() throws {
+        let body = OpenAIChatRequest(model: "m", messages: [.init(role: "user", content: "hi")], stream: true, reasoningEffort: "none")
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(body)) as? [String: Any])
+        XCTAssertEqual(json["reasoning_effort"] as? String, "none")
+        XCTAssertEqual(json["model"] as? String, "m")
+    }
+
     // MARK: - CLI Provider
 
     func testCLIProviderInitialization() {

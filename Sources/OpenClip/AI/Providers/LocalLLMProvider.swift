@@ -54,6 +54,13 @@ public enum LocalLLMPreset: String, CaseIterable, Identifiable, Sendable {
         case .custom: return "default"
         }
     }
+
+    /// Whether requests ask reasoning models to skip their thinking pass. Ollama honors
+    /// `reasoning_effort: "none"` / `think: false`; without it Qwen 3.5 and similar models think for
+    /// minutes before the first visible token. Other runners are left untouched until verified.
+    public var disablesThinking: Bool {
+        self == .ollama
+    }
 }
 
 @MainActor
@@ -62,11 +69,13 @@ public final class LocalLLMProvider: AIProvider {
 
     public let baseURL: String
     public let model: String
+    public let disableThinking: Bool
 
-    public init(baseURL: String, model: String) {
+    public init(baseURL: String, model: String, disableThinking: Bool = false) {
         self.baseURL = AIRequestSupport.normalizedBaseURL(baseURL, fallback: "http://localhost:1234/v1")
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
         self.model = trimmedModel.isEmpty ? "default" : trimmedModel
+        self.disableThinking = disableThinking
     }
 
     public func processStream(prompt: String, text: String) -> AsyncThrowingStream<String, Error> {
@@ -92,7 +101,8 @@ public final class LocalLLMProvider: AIProvider {
                                     .init(role: "system", content: systemInstruction),
                                     .init(role: "user", content: userContent)
                                 ],
-                                stream: true
+                                stream: true,
+                                reasoningEffort: disableThinking ? "none" : nil
                             )
                             request.httpBody = try JSONEncoder().encode(body)
 
@@ -146,13 +156,19 @@ public final class LocalLLMProvider: AIProvider {
                         let model: String
                         let prompt: String
                         let stream: Bool
+                        let think: Bool?
                     }
                     struct OllamaGenerateResponse: Decodable {
                         let response: String?
                         let done: Bool?
                     }
 
-                    let body = OllamaGenerateRequest(model: model, prompt: fullPrompt, stream: true)
+                    let body = OllamaGenerateRequest(
+                        model: model,
+                        prompt: fullPrompt,
+                        stream: true,
+                        think: disableThinking ? false : nil
+                    )
                     request.httpBody = try JSONEncoder().encode(body)
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
