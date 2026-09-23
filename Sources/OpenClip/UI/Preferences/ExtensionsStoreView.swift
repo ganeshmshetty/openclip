@@ -450,29 +450,30 @@ public struct ExtensionStoreView: View {
     }
 
     private var storeHeroHeader: some View {
-        HStack(spacing: 14) {
+        VStack(spacing: 10) {
             Image("StoreIcon")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1.5)
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .shadow(color: Color.black.opacity(0.14), radius: 5, x: 0, y: 2.5)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(spacing: 3) {
                 Text(String(localized: "The Clip Store"))
                     .font(.title2.weight(.bold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(SettingsDesignTokens.primaryText)
+                    .multilineTextAlignment(.center)
 
                 Text(String(localized: "Discover and install extensions for OpenClip"))
                     .font(.subheadline)
                     .foregroundStyle(SettingsDesignTokens.secondaryText)
+                    .multilineTextAlignment(.center)
             }
-
-            Spacer()
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 16)
-        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+        .padding(.top, 20)
+        .padding(.bottom, 10)
     }
 
     private func sectionHeader(_ title: String, count: Int? = nil) -> some View {

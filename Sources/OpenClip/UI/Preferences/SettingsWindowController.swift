@@ -50,6 +50,13 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
             SettingsRouter.shared.select(tab.page)
         }
         guard let window else { return }
+        if window.frame.height < 640 {
+            var frame = window.frame
+            let delta: CGFloat = 640 - frame.height
+            frame.origin.y = max(window.screen?.visibleFrame.minY ?? 0, frame.origin.y - delta)
+            frame.size.height = 640
+            window.setFrame(frame, display: true)
+        }
 
         AppActivationPolicy.enter()
 
@@ -62,7 +69,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
     }
 
     private init() {
-        let initialSize = NSSize(width: 860, height: 740)
+        let initialSize = NSSize(width: 860, height: 640)
         let minimumContent = NSSize(width: 760, height: 560)
 
         let window = NSWindow(
