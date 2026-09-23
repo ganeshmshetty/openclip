@@ -99,6 +99,8 @@ public struct PopupView: View {
     @Setting(SettingKey.popupThemeColor) private var themeColor
     @Setting(SettingKey.popupScale) private var popupScale
     @Setting(SettingKey.popupBarWidth) private var barWidthLevel
+    @Setting(SettingKey.contextualActionsEnabled) private var contextualActionsEnabled
+    @Setting(SettingKey.disabledContextualActionIDs) private var disabledContextualIDs
     @Environment(\.colorScheme) private var colorScheme
 
     private var themeCategory: PopupThemeModel.Category {
@@ -160,6 +162,7 @@ public struct PopupView: View {
     private var chevronWidth: CGFloat { 29 * scale }
     private var barButtonHeight: CGFloat { PopupMetrics.barButtonHeight * scale }
     private var cornerRadius: CGFloat { PopupMetrics.popupCornerRadius * scale }
+    private var islandGap: CGFloat { PopupMetrics.splitIslandGap * scale }
 
     @MainActor
     public init(
@@ -298,17 +301,54 @@ public struct PopupView: View {
         PopupMetrics.barWidth(for: barWidthLevel) * scale
     }
 
+    /// Matching prioritized contextual actions (e.g. Calculate for math, Open Link for URLs, Calendar for dates).
+    private var contextualActions: [any Action] {
+        guard contextualActionsEnabled else { return [] }
+        return displayActions.filter { action in
+            !disabledContextualIDs.contains(action.id) && action.isContextual
+        }
+    }
+
+    /// Remaining non-contextual actions shown in the standard actions island.
+    private var standardActions: [any Action] {
+        if contextualActions.isEmpty {
+            return displayActions
+        }
+        return displayActions.filter { action in
+            disabledContextualIDs.contains(action.id) || !action.isContextual
+        }
+    }
+
+    private var contextualIslandWidth: CGFloat {
+        guard !contextualActions.isEmpty else { return 0 }
+        return contextualActions.reduce(CGFloat(0)) { sum, action in
+            sum + PopupPageLayout.estimatedItemWidth(
+                for: action,
+                inlineResult: modeStore.inlineResults[action.id],
+                scale: scale,
+                presenter: presenter
+            )
+        }
+    }
+
+    private var standardMaxBudget: CGFloat {
+        if contextualActions.isEmpty {
+            return maxBarBudget
+        }
+        return max(buttonWidth * 3, maxBarBudget - contextualIslandWidth - islandGap)
+    }
+
     private var pages: [[any Action]] {
         let leadingWidth = hasCompletions ? (chevronWidth) : 0
         let trailingWidth = buttonWidth // search button
         // Reads `inlineResults` so a preview arriving re-packs the page at the button's real width
         // instead of overflowing the budget (the published dictionary already drives a re-render).
         return PopupPageLayout.computePages(
-            actions: displayActions,
+            actions: standardActions,
             inlineResults: modeStore.inlineResults,
             leadingWidth: leadingWidth,
             trailingWidth: trailingWidth,
-            maxBudget: maxBarBudget,
+            maxBudget: standardMaxBudget,
             scale: scale,
             presenter: presenter
         )
@@ -318,11 +358,15 @@ public struct PopupView: View {
         max(1, pages.count)
     }
 
-    private var pagedActions: [any Action] {
+    private var pagedStandardActions: [any Action] {
         let p = pages
         let clamped = max(0, min(currentPage, p.count - 1))
         guard clamped < p.count else { return [] }
         return p[clamped]
+    }
+
+    private var visibleBarActions: [any Action] {
+        contextualActions + pagedStandardActions
     }
 
     private var hasLeftChevron: Bool { currentPage > 0 }
@@ -445,20 +489,26 @@ public struct PopupView: View {
 
     @ViewBuilder
     private var mainBarStyled: some View {
-        barStack
-            .popupCardChrome(
-                cornerRadius: cornerRadius,
-                effectiveTheme: effectiveTheme,
-                colorScheme: effectiveColorScheme
-            )
+        if inCompletionMode {
+            completionHStack
+                .popupCardChrome(
+                    cornerRadius: cornerRadius,
+                    effectiveTheme: effectiveTheme,
+                    colorScheme: effectiveColorScheme
+                )
+                .environment(\.colorScheme, effectiveColorScheme)
+        } else if contextualActions.isEmpty {
+            standardIsland
+                .overlay(processingGlowBorder)
+                .environment(\.colorScheme, effectiveColorScheme)
+        } else {
+            HStack(spacing: islandGap) {
+                contextualIsland
+                standardIsland
+                    .overlay(processingGlowBorder)
+            }
             .environment(\.colorScheme, effectiveColorScheme)
-            .overlay(processingGlowBorder)
-    }
-
-    /// The themed bar content.
-    @ViewBuilder
-    private var barStack: some View {
-        unifiedHStack
+        }
     }
 
     @ViewBuilder
@@ -489,24 +539,6 @@ public struct PopupView: View {
                     }
                 }
         }
-    }
-
-    // MARK: - Unified HStack Layout
-
-    @ViewBuilder
-    private var unifiedHStack: some View {
-        if inCompletionMode {
-            completionHStack
-        } else {
-            actionsStack
-        }
-    }
-
-    /// The plain actions bar — the hover preview strip is gone with the canvas feature, so the bar
-    /// is just the actions HStack (paged actions + pagination + search affordance).
-    @ViewBuilder
-    private var actionsStack: some View {
-        actionsHStack
     }
 
     /// The action-search palette: renders PopupSearchView with dedicated card chrome matching
@@ -700,7 +732,24 @@ public struct PopupView: View {
 
     // MARK: - Normal Actions Bar Layout
 
-    private var actionsHStack: some View {
+    private var contextualIsland: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(contextualActions.enumerated()), id: \.element.id) { index, action in
+                let isDirectlyHovered = hoveredTarget == .action(index)
+                let isActiveParent = modeStore.activeSubGroupID == action.id && !isDirectlyHovered
+                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent)
+            }
+        }
+        .fixedSize()
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .popupCardChrome(
+            cornerRadius: cornerRadius,
+            effectiveTheme: effectiveTheme,
+            colorScheme: effectiveColorScheme
+        )
+    }
+
+    private var standardIsland: some View {
         HStack(spacing: 0) {
             // Completion toggle lives on the far left; both pagination chevrons sit together on the
             // right (just before the command affordance) so next/previous are easy to reach.
@@ -711,12 +760,8 @@ public struct PopupView: View {
                 }
             }
 
-            // Identity by action id, not slot position. With `id: \.offset` a page turn keeps the
-            // row identity while swapping in a different action, so the per-row inline animation
-            // (keyed on `inlineResults[action.id]`) fired on pagination — cross-fading the label and
-            // morphing the button width, which bumped every icon after it. Paging should replace
-            // rows; only a result actually landing on a row should animate it.
-            ForEach(Array(pagedActions.enumerated()), id: \.element.id) { index, action in
+            ForEach(Array(pagedStandardActions.enumerated()), id: \.element.id) { offset, action in
+                let index = contextualActions.count + offset
                 let isDirectlyHovered = hoveredTarget == .action(index)
                 let isActiveParent = modeStore.activeSubGroupID == action.id && !isDirectlyHovered
                 actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent)
@@ -761,6 +806,11 @@ public struct PopupView: View {
         }
         .fixedSize()
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .popupCardChrome(
+            cornerRadius: cornerRadius,
+            effectiveTheme: effectiveTheme,
+            colorScheme: effectiveColorScheme
+        )
     }
 
     // MARK: - Completion Button
@@ -1008,8 +1058,8 @@ public struct PopupView: View {
         hoveredTarget = target
         reportHoveredAction()
 
-        if case .action(let index) = target, index < pagedActions.count {
-            let action = pagedActions[index]
+        if case .action(let index) = target, index < visibleBarActions.count {
+            let action = visibleBarActions[index]
             let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI
             if isGroup {
                 let frame = hoverFrames[.action(index)] ?? .zero
@@ -1029,8 +1079,8 @@ public struct PopupView: View {
             if inCompletionMode, case .completion(let index) = hoveredTarget, index < cachedCompletions.count {
                 return WordCompletionCandidateAction(word: cachedCompletions[index])
             }
-            guard case .action(let index) = hoveredTarget, index < pagedActions.count else { return nil }
-            return pagedActions[index]
+            guard case .action(let index) = hoveredTarget, index < visibleBarActions.count else { return nil }
+            return visibleBarActions[index]
         }()
         onHoveredActionChanged?(action)
     }
@@ -1052,8 +1102,8 @@ public struct PopupView: View {
     private func tooltipText(for target: PopupHoverTarget) -> String? {
         switch target {
         case .action(let index):
-            guard index < pagedActions.count else { return nil }
-            return pagedActions[index].displayTitle(using: presenter)
+            guard index < visibleBarActions.count else { return nil }
+            return visibleBarActions[index].displayTitle(using: presenter)
         case .subAction:
             return nil
         case .search:

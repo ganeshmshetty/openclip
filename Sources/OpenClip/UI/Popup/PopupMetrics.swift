@@ -71,6 +71,8 @@ public enum PopupMetrics {
     /// surface), so the ring can never swallow clicks.
     public static let toastShadowInset: CGFloat = 8.0
     public static let popupPadding: CGFloat = 8.0
+    /// Gap between the prioritized contextual actions island and the standard actions island in the split popup bar.
+    public static let splitIslandGap: CGFloat = 8.0
     /// Card drop-shadow geometry, mirrored by `PopupCardChromeModifier` (`PopupThemeModel.swift`).
     /// A tight contact shadow grounds the card and a low-alpha ambient lifts it. The ambient blur
     /// spreads beyond its nominal `radius` before fading out and its `y` offset pushes that spread
