@@ -430,6 +430,8 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.frontmostAppProvider = { Self.runnerApp() }
         monitor.currentMouseLocation = { point }
         monitor.currentCursorProvider = { .arrow }
+        // Press is over a non-text element.
+        monitor.isPressOverEditableText = { _ in false }
 
         // Retriever returns empty (no selection)
         let gate = DispatchSemaphore(value: 0)
@@ -461,6 +463,8 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.frontmostAppProvider = { Self.runnerApp() }
         monitor.currentMouseLocation = { point }
         monitor.currentCursorProvider = { .beam }
+        // Press is over the editable field.
+        monitor.isPressOverEditableText = { _ in true }
         monitor.preparePasteProbe = { _, _ in
             Task { true }
         }
@@ -496,6 +500,9 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.frontmostAppProvider = { Self.runnerApp() }
         monitor.currentMouseLocation = { point }
         monitor.currentCursorProvider = { .unknown }
+        // An unknown cursor over the editable field must still paste: the hit-test, not the cursor,
+        // decides.
+        monitor.isPressOverEditableText = { _ in true }
         monitor.preparePasteProbe = { _, _ in
             Task { true }
         }
@@ -531,6 +538,7 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.frontmostAppProvider = { Self.runnerApp() }
         monitor.currentMouseLocation = { point }
         monitor.currentCursorProvider = { .beam }
+        monitor.isPressOverEditableText = { _ in true }
         monitor.preparePasteProbe = { _, _ in
             Task { false }
         }
@@ -556,6 +564,42 @@ final class MacSelectionMonitorTests: XCTestCase {
         try await waitUntil { !monitor.triggeredByHold }
 
         XCTAssertNil(delivered, "Beam cursor when paste is denied must not fall back to clipboard on hold")
+    }
+
+    /// Regression: holding on a window background / toolbar in an app that has an editable field
+    /// focused used to paste the clipboard, because the fallback trusted the focused element rather
+    /// than the element under the press. The hit-test now anchors it to the press point.
+    @MainActor
+    func testHoldOnNonTextAreaDoesNotFallBackToClipboard() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 150, y: 150)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+        monitor.currentCursorProvider = { .arrow }
+        // A text field is focused, but the press is over a non-text area (arrow cursor).
+        monitor.isPressOverEditableText = { _ in false }
+        monitor.preparePasteProbe = { _, _ in Task { true } }
+
+        let gate = DispatchSemaphore(value: 0)
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            gate.wait()
+            return Self.fixtureTarget(role: "AXTextField", selectedText: nil)
+        }, copyCapture: { _ in nil })
+
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        pasteboard.declareTypes([.string], owner: nil)
+        pasteboard.setString("clipboard text", forType: .string)
+        monitor.fallbackPasteboard = pasteboard
+
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+
+        monitor.handleMouseDown(at: point)
+        try await waitUntil { monitor.triggeredByHold }
+        gate.signal()
+        try await waitUntil { !monitor.triggeredByHold }
+
+        XCTAssertNil(delivered, "A hold on non-text must not paste the clipboard")
     }
 
     @MainActor

@@ -57,6 +57,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// Whether `point` sits on on-screen system chrome (the menu bar or Dock). Injectable so tests
     /// can exercise the gesture gating against a fixed geometry.
     internal var isSystemChromeAt: @MainActor (CGPoint) -> Bool = { MacSelectionMonitor.isSystemChromeLocation($0) }
+    /// Whether the element under `point` is, or sits inside, an editable text control. Anchors the
+    /// hold's clipboard fallback to the field actually under the finger, rather than whichever
+    /// element happens to be focused — a hold on a window background must not inherit the clipboard
+    /// just because a text field elsewhere is focused. Inert under XCTest; inject for tests.
+    internal var isPressOverEditableText: @MainActor (CGPoint) -> Bool = { MacSelectionMonitor.hitTestIsEditableText(at: $0) }
     /// Overlay gate: true when a *foreign* window (a screenshot/annotation tool's full-screen picker,
     /// a non-activating HUD) sits above the frontmost app at `point`. The automatic path stands down
     /// while one is up, because copy-based retrieval posts a real ⌘C that lands on that overlay's key
@@ -92,6 +97,41 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
     internal static func isSystemChromeLocation(_ point: CGPoint) -> Bool {
         OpenSelectionMonitor.isSystemChromeLocation(point)
+    }
+
+    /// Roles that mean "the pointer is over an editable text field" for the hold's paste fallback.
+    private static let editableTextRoles: Set<String> = ["AXTextField", "AXTextArea", "AXSearchField", "AXComboBox"]
+
+    /// AX hit-test at `point` (Cocoa screen coordinates), walking a few ancestors for an editable
+    /// text-control role. A window background, toolbar, or static text resolves to something else,
+    /// so a hold there no longer inherits the clipboard from a focused field. Inert under XCTest so
+    /// tests drive the decision through the `isPressOverEditableText` seam. Best-effort: some web
+    /// editors (CodeMirror) do not resolve to a text control here, which is why the I-beam cursor
+    /// is checked alongside it.
+    internal static func hitTestIsEditableText(at point: CGPoint) -> Bool {
+        guard NSClassFromString("XCTestCase") == nil else { return false }
+        let primaryHeight = NSScreen.screens.first(where: { $0.frame.origin == .zero })?.frame.height
+            ?? NSScreen.screens.first?.frame.height
+            ?? 0
+        let axPoint = CGPoint(x: point.x, y: primaryHeight - point.y)
+        var element: AXUIElement?
+        guard AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(), Float(axPoint.x), Float(axPoint.y), &element) == .success,
+              let start = element else { return false }
+
+        var current: AXUIElement? = start
+        var depth = 0
+        while let el = current, depth < 6 {
+            var roleRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &roleRef) == .success,
+               let role = roleRef as? String, editableTextRoles.contains(role) {
+                return true
+            }
+            var parentRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(el, kAXParentAttribute as CFString, &parentRef)
+            current = parentRef.map { $0 as! AXUIElement }
+            depth += 1
+        }
+        return false
     }
     
     internal init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
@@ -297,17 +337,22 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
             let canPaste = await probeTask?.value
 
-            // If no text was actively selected, only inherit clipboard content in an editable text context (AX text control or I-beam cursor and paste allowed)
+            // If no text was actively selected, only inherit clipboard content when the press is
+            // actually over editable text: either an I-beam sits at the press point, or an AX
+            // hit-test resolves it to a text control. Trusting the *focused* element instead let a
+            // hold on a window background / toolbar / static text paste the clipboard just because
+            // a field elsewhere was focused. The I-beam is kept because some web editors
+            // (CodeMirror) do not resolve to a text control through the hit-test.
             if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let isEditableContext = isEditable || cursor == .beam
+                let isEditableContext = cursor == .beam || isPressOverEditableText(point)
                 if isEditableContext && canPaste != false,
                    let clipboard = fallbackPasteboard.string(forType: .string),
                    !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Log.selection.debug("monitor: hold falling back to clipboard for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public)")
+                    Log.selection.debug("monitor: hold falling back to clipboard for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public); cursor=\(cursor.rawValue, privacy: .public)")
                     retrievedText = clipboard
                     isClipboardFallback = true
                 } else {
-                    Log.selection.debug("monitor: hold clipboard fallback skipped for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public); isEditable=\(isEditable), cursor=\(cursor.rawValue, privacy: .public), canPaste=\(String(describing: canPaste))")
+                    Log.selection.debug("monitor: hold clipboard fallback skipped for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public); pressOverEditable=\(isEditableContext, privacy: .public), isEditable=\(isEditable, privacy: .public), cursor=\(cursor.rawValue, privacy: .public), canPaste=\(String(describing: canPaste), privacy: .public)")
                 }
             }
 
