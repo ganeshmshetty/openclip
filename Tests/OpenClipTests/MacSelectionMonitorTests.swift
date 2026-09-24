@@ -774,6 +774,54 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertNil(monitor.latestSelection, "Plain click must clear latestSelection")
     }
 
+    // MARK: - System chrome gating
+
+    /// Regression: a drag that starts in a window and overshoots onto the menu bar or Dock — the
+    /// normal way of selecting text against a screen edge — was discarded because the *release*
+    /// point tested as chrome. Only the press decides whether the interaction is chrome.
+    func testDragEndingOverSystemChromeStillSelects() async throws {
+        let monitor = MacSelectionMonitor()
+        monitor.isExcludedBundle = { _ in false }
+        monitor.policyResolver = { _ in AppPolicyContext.default }
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "edge selection")
+        }, copyCapture: { _ in nil })
+        // Only the release point (x > 150) would classify as chrome; the press at (100,100) does not.
+        monitor.isSystemChromeAt = { $0.x > 150 }
+
+        let app = MockTestApp(bundleID: "com.apple.TextEdit")
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        monitor.handleMouseUp(app: app, cursor: CGPoint(x: 200, y: 100), clickCount: 1)
+
+        try await waitUntil { monitor.latestSelection != nil }
+        XCTAssertEqual(monitor.latestSelection?.context.text, "edge selection")
+    }
+
+    /// An interaction that begins on the menu bar or Dock is not a selection and must not trigger.
+    func testPressOnSystemChromeIsIgnored() {
+        let monitor = MacSelectionMonitor()
+        monitor.isSystemChromeAt = { _ in true }
+
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        monitor.handleMouseUp(app: MockTestApp(bundleID: "com.apple.TextEdit"),
+                              cursor: CGPoint(x: 200, y: 100), clickCount: 1)
+
+        XCTAssertNil(monitor.debounceTask)
+        XCTAssertNil(monitor.mouseHoldTask)
+    }
+
+    /// A double-click on chrome (e.g. a menu bar item) must not slip past the click-count shortcut.
+    func testDoubleClickOnSystemChromeIsIgnored() {
+        let monitor = MacSelectionMonitor()
+        monitor.isSystemChromeAt = { _ in true }
+
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        monitor.handleMouseUp(app: MockTestApp(bundleID: "com.apple.TextEdit"),
+                              cursor: CGPoint(x: 100, y: 100), clickCount: 2)
+
+        XCTAssertNil(monitor.debounceTask)
+    }
+
     func testIsSelectionClearingKeyIdentifiesCaretMovementAndTyping() {
         // Navigation keys clear selection
         XCTAssertTrue(MacSelectionMonitor.isSelectionClearingKey(keyCode: 0x7B, flags: [])) // Left arrow
@@ -921,6 +969,22 @@ final class MacSelectionMonitorTests: XCTestCase {
         ]
         XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
             windows: windows, at: CGPoint(x: 570, y: 734),
+            frontmostPID: frontmost, selfPID: selfPID, displayBounds: display))
+    }
+
+    /// Regression: Control Center's invisible (alpha 0) full-height helper window must not count as
+    /// a foreign overlay, or copy-only reads on the right of the display would silently stop.
+    func testOverlayGateIgnoresInvisibleSystemUIHelper() {
+        let selfPID: pid_t = 100
+        let frontmost: pid_t = 200
+        let display = CGRect(x: 0, y: 0, width: 1470, height: 956)
+        let windows = [
+            OnScreenWindowInfo(ownerPID: 999, ownerBundleID: "com.apple.controlcenter", layer: 22,
+                               frame: CGRect(x: 990, y: -11, width: 656, height: 967), alpha: 0.0),
+            OnScreenWindowInfo(ownerPID: frontmost, ownerBundleID: "com.apple.Safari", layer: 0, frame: display)
+        ]
+        XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
+            windows: windows, at: CGPoint(x: 1200, y: 400),
             frontmostPID: frontmost, selfPID: selfPID, displayBounds: display))
     }
 

@@ -26,6 +26,10 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     private var mouseDragMonitor: Any?
     internal var mouseHoldTask: Task<Void, Never>?
     private var mouseDownLocation: CGPoint?
+    /// Whether the press that started the current gesture landed on system chrome. Gate on this
+    /// (the press), not on where the pointer is released: a drag that begins in a window and
+    /// overshoots onto the menu bar or Dock is still a selection, while one that begins on chrome is not.
+    internal var mouseDownWasSystemChrome: Bool = false
     internal var triggeredByHold: Bool = false
     private let settingsStore: SettingsStore
 
@@ -50,6 +54,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// retrieves nothing and delivers nothing, so no selection is even read. Defaults to never suppressed.
     internal var isSuppressed: @MainActor () -> Bool = { false }
     internal var isSuppressedForApp: @MainActor (String?) -> Bool = { _ in false }
+    /// Whether `point` sits on on-screen system chrome (the menu bar or Dock). Injectable so tests
+    /// can exercise the gesture gating against a fixed geometry.
+    internal var isSystemChromeAt: @MainActor (CGPoint) -> Bool = { MacSelectionMonitor.isSystemChromeLocation($0) }
     /// Overlay gate: true when a *foreign* window (a screenshot/annotation tool's full-screen picker,
     /// a non-activating HUD) sits above the frontmost app at `point`. The automatic path stands down
     /// while one is up, because copy-based retrieval posts a real ⌘C that lands on that overlay's key
@@ -206,10 +213,12 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     // MARK: - Event handling
 
     internal func handleMouseDown(at point: CGPoint) {
-        guard !Self.isSystemChromeLocation(point) else {
+        if isSystemChromeAt(point) {
             mouseDownLocation = nil
+            mouseDownWasSystemChrome = true
             return
         }
+        mouseDownWasSystemChrome = false
         mouseDownLocation = point
         triggeredByHold = false
         mouseHoldTask?.cancel()
@@ -354,6 +363,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         let wasHold = triggeredByHold
         triggeredByHold = false
 
+        let wasSystemChrome = mouseDownWasSystemChrome
+        mouseDownWasSystemChrome = false
+
         let downPoint = mouseDownLocation
         mouseDownLocation = nil
 
@@ -366,11 +378,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
         debounceTask?.cancel()
 
-        guard !Self.isSystemChromeLocation(cursor) else {
-            clearSelection()
-            return
-        }
-        if let downPoint, Self.isSystemChromeLocation(downPoint) {
+        // Gate on where the press landed, not where the pointer came up: a drag that begins inside
+        // a window and overshoots onto the menu bar or Dock (the usual way of selecting text that
+        // sits against a screen edge) is still a legitimate selection. An interaction that *begins*
+        // on chrome is not.
+        guard !wasSystemChrome else {
             clearSelection()
             return
         }
