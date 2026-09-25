@@ -122,5 +122,8 @@ it fairly and promptly when incidents are reported.
 
 ## License
 
-OpenClip is MIT-licensed. By contributing, you agree that your contributions are
-provided under the MIT License.
+OpenClip is AGPL-3.0 licensed. By submitting a contribution you agree that your
+contribution is provided under the GNU Affero General Public License v3.0, and
+you grant the project maintainer a perpetual, worldwide, royalty-free right to
+relicense your contribution under any license, so the project can be relicensed
+in the future without contacting every contributor.

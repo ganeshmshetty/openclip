@@ -30,7 +30,7 @@ targets:
             CFBundleURLSchemes:
               - openclip
         LSUIElement: true
-        NSHumanReadableCopyright: "Copyright © 2026 Ganesh M and OpenClip Contributors. MIT licensed."
+        NSHumanReadableCopyright: "Copyright © 2026 Ganesh M and OpenClip Contributors. AGPL-3.0 licensed."
         NSAppleEventsUsageDescription: "OpenClip needs to control other apps to run your AppleScript actions and to paste results back into the app you were using."
         SUFeedURL: https://github.com/ganeshmshetty/openclip/releases/latest/download/appcast.xml
         SUPublicEDKey: JbyKx5LUkYkM+ovsJ1NPDR2W+1ptfdsu6b51KBsKhWo=

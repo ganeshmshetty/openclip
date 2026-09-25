@@ -11453,30 +11453,30 @@
         }
       }
     },
-    "Open source under MIT License": {
+    "Open source under AGPL-3.0 License": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "以 MIT 许可证开源"
+            "value": "以 AGPL-3.0 许可证开源"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "以 MIT 授權條款開放原始碼"
+            "value": "以 AGPL-3.0 授權條款開放原始碼"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open source sous licence MIT"
+            "value": "Open source sous licence AGPL-3.0"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "MITライセンスに基づくオープンソース"
+            "value": "AGPL-3.0 ライセンスのオープンソース"
           }
         }
       }

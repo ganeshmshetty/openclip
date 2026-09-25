@@ -42,7 +42,7 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>OpenClip needs to control other apps to run your AppleScript actions and to paste results back into the app you were using.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026 Ganesh M and OpenClip Contributors. MIT licensed.</string>
+	<string>Copyright © 2026 Ganesh M and OpenClip Contributors. AGPL-3.0 licensed.</string>
 	<key>SUAutomaticallyUpdate</key>
 	<true/>
 	<key>SUEnableAutomaticChecks</key>

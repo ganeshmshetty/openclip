@@ -8,7 +8,7 @@
 
 [![macOS](https://img.shields.io/badge/macOS-14.0+-black?style=flat-square&logo=apple&logoColor=white)](https://support.apple.com/sonoma)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange?style=flat-square&logo=swift&logoColor=white)](https://www.swift.org)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](LICENSE)
 [![Homebrew](https://img.shields.io/badge/Homebrew-OpenClip-ffcc00?style=flat-square&logo=homebrew&logoColor=black)](https://github.com/ganeshmshetty/homebrew-tap)
 [![AlternativeTo](https://img.shields.io/badge/AlternativeTo-OpenClip-0081C6?style=flat-square&logo=alternativeto&logoColor=white)](https://alternativeto.net/software/openclip/about/?utm_source=badge&utm_medium=referral)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/sy4MeFxf8)
@@ -190,7 +190,9 @@ The full technical documentation lives in the [`docs/`](docs/index.md) hub:
 
 ## License
 
-OpenClip is released under the [MIT License](LICENSE). Copyright (c) 2026 Ganesh M and OpenClip Contributors.
+OpenClip is released under the [GNU Affero General Public License v3.0](LICENSE). Copyright (c) 2026 Ganesh M and OpenClip Contributors. See [NOTICE.md](NOTICE.md) for trademark and third-party notices.
+
+Earlier releases of OpenClip were distributed under the MIT License; copies obtained under MIT remain governed by the MIT License.
 
 ## Legal & Trademark Notice
 

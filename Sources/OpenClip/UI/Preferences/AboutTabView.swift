@@ -139,7 +139,7 @@ struct AboutTab: View {
                     }
                 }
 
-                Text("Open source under MIT License")
+                Text("Open source under AGPL-3.0 License")
                     .font(.footnote)
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .center)
