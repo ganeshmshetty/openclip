@@ -130,14 +130,11 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         curatedFeaturedIDs.contains(where: { $0.caseInsensitiveCompare(item.id) == .orderedSame })
     }
 
+    /// True only for a freshly added package still on its first release (`1.0.0`).
+    /// Anything past 1.0.0 has shipped an update, so it is "updated", not "new".
     public static func isNew(_ item: ExtensionItem) -> Bool {
-        if recentNewIDs.contains(where: { $0.caseInsensitiveCompare(item.id) == .orderedSame }) {
-            return true
-        }
-        if let v = item.version, v != "1.0.0", !v.hasPrefix("1.0.0") {
-            return true
-        }
-        return false
+        guard let v = item.version, !v.isEmpty else { return true }
+        return v == "1.0.0" || v.hasPrefix("1.0.0")
     }
 
     /// Curated featured/popular items (first few for the showcase section).
@@ -152,47 +149,35 @@ public final class ExtensionsStoreViewModel: ObservableObject {
         return Array(curated.prefix(4))
     }
 
-    /// Top new/updated items for the showcase section.
+    /// Top new items for the showcase section: freshly added packages still on
+    /// their first release. Updated packages (past 1.0.0) are excluded, so an
+    /// update is never presented as new. When nothing is on a first release the
+    /// section falls back to the most recently added/updated packages (newest
+    /// first), so it is never empty.
     public var newSectionItems: [ExtensionItem] {
         if !newItems.isEmpty {
             return Array(newItems.prefix(4))
         }
         let featuredIDs = Set(featuredSectionItems.map { $0.id.lowercased() })
-        let byID = Dictionary(extensions.map { ($0.id.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
-        let curatedNew = Self.recentNewIDs.compactMap { byID[$0.lowercased()] }
-        let updated = extensions.filter { ext in
-            Self.isNew(ext) && !featuredIDs.contains(ext.id.lowercased())
-        }
-        var chosen = Set<String>()
-        var result: [ExtensionItem] = []
-        for item in (curatedNew + updated) {
-            let id = item.id.lowercased()
-            if !featuredIDs.contains(id) && chosen.insert(id).inserted {
-                result.append(item)
-            }
-        }
-        return Array(result.prefix(4))
+        let pool = extensions.filter { !featuredIDs.contains($0.id.lowercased()) }
+        let fresh = pool.filter { Self.isNew($0) }
+        return Array((fresh.isEmpty ? Self.sorted(pool, by: .recentlyAdded) : fresh).prefix(4))
     }
 
-    /// The remaining catalog items for the "All Extensions" section when browsing "All",
+    /// The remaining catalog items for the "All Extensions" section,
     /// deduplicating items showcased in the featured and new sections above.
     public var remainingAllSectionItems: [ExtensionItem] {
         let showcased = Set(featuredSectionItems.map { $0.id.lowercased() } + newSectionItems.map { $0.id.lowercased() })
         return extensions.filter { !showcased.contains($0.id.lowercased()) }
     }
 
-    /// The storefront below the featured showcase: everything else, in catalog
-    /// order. New and updated items used to get a showcase of their own, which
-    /// meant three stacked lists competing for the first look; they are part of
-    /// the catalog now.
-    public var catalogSectionItems: [ExtensionItem] {
-        let featured = Set(featuredSectionItems.map { $0.id.lowercased() })
-        return extensions.filter { !featured.contains($0.id.lowercased()) }
-    }
-
     /// ID of the last item rendered across the sectioned storefront, used to trigger pagination.
+    /// The sections render Featured → New → All Extensions, so the last rendered row is the final
+    /// All item, falling back through an empty New or Featured section.
     public var lastRenderedSectionedItemID: String? {
-        catalogSectionItems.last?.id ?? featuredSectionItems.last?.id
+        remainingAllSectionItems.last?.id
+            ?? newSectionItems.last?.id
+            ?? featuredSectionItems.last?.id
     }
 
     /// True when the given item is the final rendered item in the sectioned storefront.
@@ -507,12 +492,22 @@ public struct ExtensionStoreView: View {
                     }
                 }
 
-                if !viewModel.catalogSectionItems.isEmpty {
+                if !viewModel.newSectionItems.isEmpty {
+                    sectionHeader(String(localized: "New"))
+                    ForEach(Array(viewModel.newSectionItems.enumerated()), id: \.element.id) { index, ext in
+                        if index > 0 {
+                            rowDivider
+                        }
+                        storeRow(ext)
+                    }
+                }
+
+                if !viewModel.remainingAllSectionItems.isEmpty {
                     sectionHeader(
                         String(localized: "All Extensions"),
-                        count: viewModel.catalogSectionItems.count
+                        count: viewModel.remainingAllSectionItems.count
                     )
-                    ForEach(Array(viewModel.catalogSectionItems.enumerated()), id: \.element.id) { index, ext in
+                    ForEach(Array(viewModel.remainingAllSectionItems.enumerated()), id: \.element.id) { index, ext in
                         if index > 0 {
                             rowDivider
                         }

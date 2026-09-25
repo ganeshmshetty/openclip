@@ -163,8 +163,9 @@ final class ExtensionsStoreViewTests: XCTestCase {
         XCTAssertEqual(viewModel.displayedExtensions.map(\.id),
                        ["com.openclip.quick-translate", "com.openclip.render-html", "com.openclip.basic-tool"])
         XCTAssertEqual(viewModel.featuredSectionItems.map(\.id), ["com.openclip.quick-translate"])
-        XCTAssertEqual(viewModel.newSectionItems.map(\.id), ["com.openclip.render-html"])
-        XCTAssertEqual(viewModel.remainingAllSectionItems.map(\.id), ["com.openclip.basic-tool"])
+        XCTAssertEqual(viewModel.newSectionItems.map(\.id), ["com.openclip.basic-tool"],
+                       "only the package still on its first release counts as new")
+        XCTAssertEqual(viewModel.remainingAllSectionItems.map(\.id), ["com.openclip.render-html"])
 
         viewModel.selectedSort = .name
         XCTAssertEqual(viewModel.displayedExtensions.map(\.name), ["Basic Tool", "Quick Translate", "Render HTML"])
@@ -177,7 +178,7 @@ final class ExtensionsStoreViewTests: XCTestCase {
 
         viewModel.selectedSort = .recentlyAdded
         let recent = viewModel.displayedExtensions.map(\.id)
-        XCTAssertEqual(recent.first, "com.openclip.render-html", "curated as recent, and past its first version")
+        XCTAssertEqual(recent.first, "com.openclip.render-html", "kept in the curated recent list")
         XCTAssertEqual(Set(recent), everything)
     }
 
@@ -266,16 +267,21 @@ final class ExtensionsStoreViewTests: XCTestCase {
         let api = GatedStoreAPI()
         let viewModel = ExtensionsStoreViewModel(api: api)
 
-        // Item 1: standard item (lives in remainingAllSectionItems)
+        // Item 1: standard item (lives in remainingAllSectionItems; past its first
+        // release, so it is not consumed by the New section)
         let basic = ExtensionItem(id: "com.openclip.basic-tool", name: "Basic Tool",
+                                  description: "", author: "openclip", icon: "", downloadCount: 0, downloadURL: "", version: "1.1.0")
+        // Item 2: a first-release item that fills the New section, so it does not
+        // fall back to the updated `basic`.
+        let fresh = ExtensionItem(id: "com.openclip.fresh-tool", name: "Fresh Tool",
                                   description: "", author: "openclip", icon: "", downloadCount: 0, downloadURL: "", version: "1.0.0")
-        // Item 2: curated featured item (lives in featuredSectionItems, absent from remainingAllSectionItems)
+        // Item 3: curated featured item (lives in featuredSectionItems, absent from remainingAllSectionItems)
         let featured = ExtensionItem(id: "com.openclip.quick-translate", name: "Quick Translate",
                                      description: "", author: "openclip", icon: "", downloadCount: 1500, downloadURL: "")
 
         let initial = Task { await viewModel.resetAndFetch() }
         try await waitUntil { await api.hasPending(query: "", page: 1) }
-        await api.release(query: "", page: 1, items: [basic, featured], totalPages: 2)
+        await api.release(query: "", page: 1, items: [basic, fresh, featured], totalPages: 2)
         await initial.value
 
         XCTAssertEqual(viewModel.currentPage, 2)
@@ -297,12 +303,12 @@ final class ExtensionsStoreViewTests: XCTestCase {
         await nextPage.value
 
         XCTAssertEqual(viewModel.currentPage, 3)
-        XCTAssertEqual(viewModel.extensions.map(\.id), ["com.openclip.basic-tool", "com.openclip.quick-translate", "com.openclip.extra-tool"])
+        XCTAssertEqual(viewModel.extensions.map(\.id), ["com.openclip.basic-tool", "com.openclip.fresh-tool", "com.openclip.quick-translate", "com.openclip.extra-tool"])
 
         // Also verify case where remainingAllSectionItems is empty (all items are featured/new):
         let showcaseOnlyVM = ExtensionsStoreViewModel(api: api)
         let renderHtml = ExtensionItem(id: "com.openclip.render-html", name: "Render HTML",
-                                       description: "", author: "openclip", icon: "", downloadCount: 100, downloadURL: "", version: "1.1.0")
+                                       description: "", author: "openclip", icon: "", downloadCount: 100, downloadURL: "", version: "1.0.0")
         let showcaseInitial = Task { await showcaseOnlyVM.resetAndFetch() }
         try await waitUntil { await api.hasPending(query: "", page: 1) }
         await api.release(query: "", page: 1, items: [featured, renderHtml], totalPages: 2)
