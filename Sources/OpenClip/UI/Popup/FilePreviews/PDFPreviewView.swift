@@ -9,6 +9,11 @@ struct PDFPreviewView: NSViewRepresentable {
         view.autoScales = true
         view.displayMode = .singlePageContinuous
         view.displayDirection = .vertical
+        // Match the crop box the card sizes against, and separate stacked pages so a white page
+        // doesn't blend into a light card surface.
+        view.displayBox = .cropBox
+        view.displaysPageBreaks = true
+        view.pageShadowsEnabled = true
         view.backgroundColor = .clear
         return view
     }

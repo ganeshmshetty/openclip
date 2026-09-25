@@ -528,4 +528,15 @@ final class FileOutputTests: XCTestCase {
         let userSized = ResultCardView.imageCardSize(imageSize: CGSize(width: 1080, height: 1920), userSize: customUser, isUserSized: true)
         XCTAssertEqual(userSized, customUser)
     }
+
+    /// Verifies PDF page sizing uses the crop box and swaps width/height for rotated pages.
+    func testPDFDisplayPageSizeHonorsRotation() {
+        let portrait = CGSize(width: 612, height: 792)
+        XCTAssertEqual(ResultCardView.displayPageSize(cropBox: portrait, rotation: 0), portrait)
+        XCTAssertEqual(ResultCardView.displayPageSize(cropBox: portrait, rotation: 180), portrait)
+
+        let rotated = CGSize(width: 792, height: 612)
+        XCTAssertEqual(ResultCardView.displayPageSize(cropBox: portrait, rotation: 90), rotated)
+        XCTAssertEqual(ResultCardView.displayPageSize(cropBox: portrait, rotation: 270), rotated)
+    }
 }
