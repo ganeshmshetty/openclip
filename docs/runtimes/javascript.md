@@ -149,6 +149,14 @@ for synchronous returns, via `.then`/catch for promises. A script with no `actio
 (top-level side effects only) still settles, so it never hangs. A rejected promise surfaces as
 `.toast(.error, message)`.
 
+Uncaught exceptions that escape a native-to-JS callback after the initial `evaluateScript` (for
+example a throw inside a `fetch` completion invoked via `openclip.__nativeFetch`) are captured by a
+per-evaluation `JSContext.exceptionHandler`. The handler assigns `context.exception` (preserving
+the synchronous exception check) and rejects the promise bridge so the runloop pump terminates
+promptly rather than waiting for the idle watchdog. Handled `try/catch` errors and ordinary
+returned-promise rejections are unchanged. Detached, never-awaited promise rejections are **not**
+detected by this handler.
+
 ### `fetch(url, options)`
 
 Async scripts get a global `fetch(url, options)` polyfill bridged to URLSession:
@@ -175,9 +183,11 @@ json(): Promise<any> }`. Network errors reject the promise. Requests use the inj
 Every run executes inside a `Task.detached` on a background thread — never the `MainActor`. All
 JavaScript VM access is confined to that single thread; URLSession completions hop back onto the
 thread's CFRunLoop via `CFRunLoopPerformBlock` + `CFRunLoopWakeUp`, and the host pumps the runloop
-until the promise settles. When the run carries a budget (`Request.timeout`), a watchdog
-(`TimeoutFlag`, mirroring the `ShellProcessRunner` pattern) throws `Script timed out after N
-seconds` once it elapses, and a JavaScriptCore VM execution limit interrupts the synchronous phase.
+until the promise settles. A per-evaluation exception handler rejects the promise bridge and exits
+the pump on the same path as a returned-promise rejection if an exception escapes a native-to-JS
+callback, so it does not wait for the idle watchdog. When the run carries a budget (`Request.timeout`),
+a watchdog (`TimeoutFlag`, mirroring the `ShellProcessRunner` pattern) throws `Script timed out after
+N seconds` once it elapses, and a JavaScriptCore VM execution limit interrupts the synchronous phase.
 Runs with no budget (the default for extension and custom actions) have no timer: they end when the
 promise settles or the caller cancels. Running async tasks can be cancelled immediately by clicking
 the loading toast, which cancels in-flight fetch requests. A fetch response that arrives after the
