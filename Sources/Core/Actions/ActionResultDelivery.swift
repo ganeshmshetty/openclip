@@ -15,8 +15,9 @@
 //     default "Copied" toast fires for any copy outcome (`.copy`, `.copyContent`, `.copyDefinition`).
 // Only paste outcomes are ever downgraded (`.paste`→`.copy`, `.pasteContent`→`.copyContent`); an
 // explicit copy stays a copy, and non-text results (openURL, notify, keyPress, ...) pass through
-// untouched. Pure Core — no AppKit, no UserDefaults; `canPaste` is the injected, already-unified
-// answer so this is unit-testable.
+// untouched. A top-level `.sequence` is resolved item by item; a declared secondary replaces the
+// whole sequence once. Pure Core — no AppKit, no UserDefaults; `canPaste` is the injected,
+// already-unified answer so this is unit-testable.
 import Foundation
 
 /// The user's chosen behavior when an action implicitly returns text (the General-tab setting,
@@ -89,6 +90,9 @@ public enum ActionResultDelivery {
     // MARK: - Decision pipeline
 
     /// Step 1 — Select: which result the delivery starts from.
+    ///
+    /// A declared secondary replaces the whole result once (including a top-level `.sequence`).
+    /// Per-item rules then recurse into sequences via `selectItem`.
     public static func select(
         raw: ActionResult,
         clickIntent: ClickIntent,
@@ -102,29 +106,45 @@ public enum ActionResultDelivery {
             return declared
         }
 
-        let effectiveMode: ActionResultDeliveryMode
+        let explicitMode: ActionResultDeliveryMode?
         if let preference {
             switch preference {
-            case .preview: effectiveMode = .preview
-            case .paste: effectiveMode = .paste
-            case .copy: effectiveMode = .copy
+            case .preview: explicitMode = .preview
+            case .paste: explicitMode = .paste
+            case .copy: explicitMode = .copy
             }
         } else if let recommendedResult {
-            effectiveMode = recommendedResult
+            explicitMode = recommendedResult
         } else if let outputKind {
             switch outputKind {
-            case .text: effectiveMode = .pasteOrCopy
-            case .file, .dynamic: effectiveMode = .preview
-            case .none: effectiveMode = .preview
+            case .text: explicitMode = .pasteOrCopy
+            case .file, .dynamic: explicitMode = .preview
+            case .none: explicitMode = .preview
             }
         } else {
-            if case .text = raw {
-                effectiveMode = .pasteOrCopy
-            } else if case .file = raw {
-                effectiveMode = .preview
-            } else {
-                effectiveMode = .preview
-            }
+            explicitMode = nil
+        }
+
+        return selectItem(raw, clickIntent: clickIntent, explicitMode: explicitMode)
+    }
+
+    /// Per-item Select rules: recurses into `.sequence`, infers the delivery mode from the item
+    /// when no override applies, and applies the Clipboard Invariant for secondary clicks. Has no
+    /// declared-secondary check — that replaces the whole result once, before this walk.
+    private static func selectItem(_ raw: ActionResult, clickIntent: ClickIntent, explicitMode: ActionResultDeliveryMode?) -> ActionResult {
+        if case .sequence(let items) = raw {
+            return .sequence(items.map { selectItem($0, clickIntent: clickIntent, explicitMode: explicitMode) })
+        }
+
+        let effectiveMode: ActionResultDeliveryMode
+        if let explicitMode {
+            effectiveMode = explicitMode
+        } else if case .text = raw {
+            effectiveMode = .pasteOrCopy
+        } else if case .file = raw {
+            effectiveMode = .preview
+        } else {
+            effectiveMode = .preview
         }
 
         if case .text(let text) = raw {
@@ -193,12 +213,15 @@ public enum ActionResultDelivery {
 
     /// Step 2 — Apply probe: a chosen `.paste`/`.pasteContent` is never delivered to a target that
     /// cannot paste. Single choke point for the paste→copy downgrade (plain and rich alike).
+    /// Recurses into `.sequence` so wrapped pastes are probed too.
     private static func applyProbe(to selected: ActionResult, canPaste: Bool) -> ActionResult {
         switch selected {
         case .paste(let text):
             return canPaste ? .paste(text) : .copy(text)
         case .pasteContent(let payload):
             return canPaste ? .pasteContent(payload) : .copyContent(payload)
+        case .sequence(let items):
+            return .sequence(items.map { applyProbe(to: $0, canPaste: canPaste) })
         default:
             // `.copy`, `.copyContent`, `.cut`, and all non-text results are never downgraded.
             return selected

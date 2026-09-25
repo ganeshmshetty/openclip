@@ -306,9 +306,9 @@ areas; stale debt notes are worse than none.
     time — if the user switched apps during a multi-second spinner, dismissal reactivates that
     app. The card's paste probe correctly targets the snapshotted app; only dismissal's
     reactivation is affected.
-  - **`.text` inside a `.sequence` is unhandled.** Runtimes emit `.text` only as a lone result
-    today, so a `.text` inside a sequence is defensive-only; if the runtime surface ever grows to
-    emit `.text` in sequences, the tree-walk needs explicit handling.
+  - **Sequences resolve item by item.** `ActionResultDelivery` selects and probes each item of a
+    `.sequence`. A declared secondary replaces the whole sequence once before that walk. The popup
+    runs each remaining item after the previous item is complete.
 - **HotkeyManager.executor pattern** (`HotkeyManager.swift:22`): a latent `Task { @MainActor in`
   inside the shortcut callback could be hardened to an explicit executor; optional.
 

@@ -19,6 +19,11 @@ final class ActionResultDeliveryTests: XCTestCase {
         case (.cut(let a), .cut(let b)): XCTAssertEqual(a, b, message, file: file, line: line)
         case (.openURL(let a), .openURL(let b)): XCTAssertEqual(a, b, message, file: file, line: line)
         case (.success, .success), (.none, .none): XCTAssertTrue(true, message, file: file, line: line)
+        case (.sequence(let a), .sequence(let b)):
+            XCTAssertEqual(a.count, b.count, message.isEmpty ? "sequence length" : message, file: file, line: line)
+            for (item, expectedItem) in zip(a, b) {
+                assertCase(item, expectedItem, message, file: file, line: line)
+            }
         default: XCTFail(message.isEmpty ? "unexpected result \(result)" : "\(message): unexpected result \(result)", file: file, line: line)
         }
     }
@@ -261,6 +266,39 @@ final class ActionResultDeliveryTests: XCTestCase {
     func testPreferenceIsNoOpForExplicitCopy() {
         let (r, _) = ActionResultDelivery.resolve(raw: .copy("a"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .preview)
         assertCase(r, .copy("a"))
+    }
+
+    // MARK: - Sequences
+
+    func testSequenceResolvesEachItem() {
+        let pasted = ActionResultDelivery.resolve(
+            raw: .sequence([.text("a"), .paste("b")]),
+            clickIntent: .primary,
+            canPaste: false,
+            delivery: .none,
+            preference: .paste
+        )
+        assertCase(pasted.result, .sequence([.copy("a"), .copy("b")]))
+        XCTAssertTrue(pasted.result.dismissesPopup)
+
+        let preview = ActionResultDelivery.resolve(
+            raw: .sequence([.text("a")]),
+            clickIntent: .primary,
+            canPaste: false,
+            delivery: .none,
+            preference: .preview
+        )
+        assertCase(preview.result, .sequence([.text("a")]))
+        XCTAssertFalse(preview.result.dismissesPopup)
+
+        let declared = ActionDelivery(secondary: .openURL(URL(string: "https://alt")!))
+        let replaced = ActionResultDelivery.resolve(
+            raw: .sequence([.paste("a"), .notify(title: "t", body: "b")]),
+            clickIntent: .secondary,
+            canPaste: true,
+            delivery: declared
+        )
+        assertCase(replaced.result, .openURL(URL(string: "https://alt")!))
     }
 
     // MARK: - RuleEngine propagates denyPaste
@@ -1155,6 +1193,94 @@ final class ActionResultDeliveryTests: XCTestCase {
                        "the script toast must win over the default Copied toast")
     }
 
+    @MainActor
+    func testSequenceItemsRunInOrderWhenPasteProbeSuspends() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: DelayedProbe(result: true, delayNanoseconds: 50_000_000),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+
+        controller.deliverResult(.sequence([.paste("a"), .copy("b")]))
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while handler.results.count < 2 && Date() < deadline {
+            try await Task.sleep(nanoseconds: 2_000_000)
+        }
+        XCTAssertEqual(handler.results.count, 2)
+        assertCase(handler.results[0], .paste("a"))
+        assertCase(handler.results[1], .copy("b"))
+    }
+
+    /// A declared secondary replaces a sequence once. Walking the leaves with the same
+    /// DeliveryContext would execute that secondary once per item.
+    @MainActor
+    func testDeclaredSecondaryOnSequenceExecutesOnce() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+
+        let url = URL(string: "https://alt")!
+        let stub = DeclaredDeliveryStub(
+            delivery: ActionDelivery(secondary: .openURL(url)),
+            performResult: .sequence([.paste("a"), .paste("b")])
+        )
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .openURL(url))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(handler.results.count, 1, "declared secondary must run once, not once per sequence leaf")
+    }
+
+    /// Same single-use rule on the loading settle path.
+    @MainActor
+    func testDeclaredSecondaryOnLoadingSequenceExecutesOnce() async throws {
+        let handler = RecordingHandler()
+        let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         toastController: toast)
+        defer { controller.hide(); toast.hide() }
+
+        let url = URL(string: "https://alt")!
+        let stub = DeclaredDeliveryStub(
+            delivery: ActionDelivery(secondary: .openURL(url)),
+            performResult: .sequence([.paste("a"), .paste("b")]),
+            showsLoading: true
+        )
+        controller.runLoadingAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .openURL(url))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(handler.results.count, 1, "declared secondary must run once on the loading sequence path")
+    }
+
+    /// A declared `.sequence` secondary (not produced by manifests today) must not recurse: the
+    /// nested walk clears the declaration and runs the declared items in order.
+    @MainActor
+    func testDeclaredSequenceSecondaryDoesNotRecurse() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+
+        let url = URL(string: "https://alt")!
+        let stub = DeclaredDeliveryStub(
+            delivery: ActionDelivery(secondary: .sequence([.copy("x"), .openURL(url)])),
+            performResult: .sequence([.paste("a")])
+        )
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .copy("x"))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(handler.results.count, 2, "a declared sequence secondary must run its items once")
+        assertCase(handler.results[1], .openURL(url))
+    }
+
     // MARK: - Declared .paste secondary probes even on a secondary click
 
     /// A declared `.paste` secondary is pasted on a secondary click: the probe must still run (the
@@ -1351,6 +1477,16 @@ private struct FixedProbe: PasteAvailabilityProbing {
     }
 }
 
+private struct DelayedProbe: PasteAvailabilityProbing {
+    let result: Bool?
+    let delayNanoseconds: UInt64
+
+    func canPaste(in app: NSRunningApplication?, policy: AppPolicyContext) async -> Bool? {
+        try? await Task.sleep(nanoseconds: delayNanoseconds)
+        return result
+    }
+}
+
 /// A `showsLoading` action whose perform resolves after a short delay to a description-free
 /// `.success` (e.g. Apple Music's empty-stdout AppleScript).
 private final class SlowStubAction: Action {
@@ -1420,14 +1556,16 @@ private final class DeclaredDeliveryStub: Action, @unchecked Sendable {
     let title = "Declared"
     let icon: ActionIcon = .symbol("arrow.turn.down.right")
     let recommendedResult: ActionResultDeliveryMode?
-    var chrome: ActionChrome { ActionChrome(source: .builtin, outputKind: .text, recommendedResult: recommendedResult) }
+    private let showsLoading: Bool
+    var chrome: ActionChrome { ActionChrome(source: .builtin, showsLoading: showsLoading, outputKind: .text, recommendedResult: recommendedResult) }
     var delivery: ActionDelivery? { declaredDelivery }
     private let declaredDelivery: ActionDelivery
     let performResult: ActionResult
-    init(delivery: ActionDelivery, performResult: ActionResult = .paste("hello"), recommendedResult: ActionResultDeliveryMode? = nil) {
+    init(delivery: ActionDelivery, performResult: ActionResult = .paste("hello"), recommendedResult: ActionResultDeliveryMode? = nil, showsLoading: Bool = false) {
         self.declaredDelivery = delivery
         self.performResult = performResult
         self.recommendedResult = recommendedResult
+        self.showsLoading = showsLoading
     }
     func isEnabled(for context: ActionContext) -> Bool { true }
     func matchInfo(for context: ActionContext) -> ActionMatchInfo? { nil }
