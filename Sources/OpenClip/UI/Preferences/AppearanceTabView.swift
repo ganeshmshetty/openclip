@@ -12,9 +12,8 @@ struct AppearanceTab: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // The preview is a fixed-size stage, so it sits above the cards
-                PopupPreview()
-
+                // No separate preview stage: each appearance choice is shown by its own live
+                // swatch, so the pickers are the preview.
                 PopupThemeSelector()
             }
             .padding(.horizontal, 24)

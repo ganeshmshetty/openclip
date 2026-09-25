@@ -58,7 +58,12 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
             window.setFrame(frame, display: true)
         }
 
-        AppActivationPolicy.enter()
+        // Pair each `enter()` with exactly one `leave()` in `windowWillClose`. Presenting an
+        // already-visible window must not increment the count again, or the app never returns
+        // to accessory mode and the Dock icon lingers until quit.
+        if !window.isVisible {
+            AppActivationPolicy.enter()
+        }
 
         if window.isMiniaturized {
             window.deminiaturize(nil)

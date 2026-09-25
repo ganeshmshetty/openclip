@@ -645,6 +645,34 @@
         }
       }
     },
+    "About OpenClip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于 OpenClip"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "關於 OpenClip"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À propos d'OpenClip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip について"
+          }
+        }
+      }
+    },
     "About the Actions list": {
       "localizations": {
         "zh-Hans": {
@@ -1989,34 +2017,6 @@
         }
       }
     },
-    "Apple Intelligence (On-Device)": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apple Intelligence（本机）"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apple Intelligence（裝置端）"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apple Intelligence (sur l’appareil)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apple Intelligence (オンデバイス)"
-          }
-        }
-      }
-    },
     "Apple Intelligence is available.": {
       "localizations": {
         "zh-Hans": {
@@ -2769,6 +2769,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Brave Search"
+          }
+        }
+      }
+    },
+    "Bring All to Front": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前置全部窗口"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將全部視窗移至最前"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout ramener au premier plan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてを手前に移動"
           }
         }
       }
@@ -3641,6 +3669,34 @@
         }
       }
     },
+    "Close Window": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭窗口"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "關閉視窗"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer la fenêtre"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウインドウを閉じる"
+          }
+        }
+      }
+    },
     "Close result card": {
       "localizations": {
         "zh-Hans": {
@@ -3861,6 +3917,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "カラーモード"
+          }
+        }
+      }
+    },
+    "Compact": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "紧凑"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緊湊"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compact"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コンパクト"
           }
         }
       }
@@ -5069,6 +5153,34 @@
         }
       }
     },
+    "Default": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Par défaut"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デフォルト"
+          }
+        }
+      }
+    },
     "Default Chatbot": {
       "localizations": {
         "zh-Hans": {
@@ -5541,6 +5653,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "このアプリで無効にする"
+          }
+        }
+      }
+    },
+    "Disabled": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已停用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已停用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無効"
           }
         }
       }
@@ -6269,6 +6409,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ecosia"
+          }
+        }
+      }
+    },
+    "Edit": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編輯"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Édition"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集"
           }
         }
       }
@@ -8093,6 +8261,90 @@
         }
       }
     },
+    "Hide OpenClip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏 OpenClip"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隱藏 OpenClip"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer OpenClip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip を非表示"
+          }
+        }
+      }
+    },
+    "Hide Others": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏其他"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隱藏其他"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer les autres"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ほかを非表示"
+          }
+        }
+      }
+    },
+    "Hide Secret": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏密码"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隱藏密碼"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer le secret"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シークレットを非表示"
+          }
+        }
+      }
+    },
     "Highlight any part of the text below to see the real action bar appear.": {
       "localizations": {
         "zh-Hans": {
@@ -8341,6 +8593,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アイコン: %@ — クリックして変更"
+          }
+        }
+      }
+    },
+    "Include ⌘, ⌥, or ⌃": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请包含 ⌘、⌥ 或 ⌃"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請包含 ⌘、⌥ 或 ⌃"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incluez ⌘, ⌥ ou ⌃"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘、⌥、⌃ のいずれかを含めてください"
           }
         }
       }
@@ -9437,6 +9717,34 @@
         }
       }
     },
+    "Maximum": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大"
+          }
+        }
+      }
+    },
     "Menu Bar Icon": {
       "localizations": {
         "zh-Hans": {
@@ -9461,6 +9769,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "メニューバーアイコン"
+          }
+        }
+      }
+    },
+    "Minimize": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最小化"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最小化"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réduire"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "しまう"
           }
         }
       }
@@ -9573,6 +9909,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "モデル「%@」は設定されたクラウドエンドポイントでサポートされていません。"
+          }
+        }
+      }
+    },
+    "Moderate": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "适中"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適中"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modéré"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準"
           }
         }
       }
@@ -11733,6 +12097,62 @@
         }
       }
     },
+    "Paste and Match Style": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴并匹配样式"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "貼上並符合樣式"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller et adapter le style"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ペーストしてスタイルを合わせる"
+          }
+        }
+      }
+    },
+    "Paste from Clipboard": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从剪贴板粘贴"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從剪貼簿貼上"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller depuis le presse-papiers"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリップボードからペースト"
+          }
+        }
+      }
+    },
     "Paste response over selection": {
       "localizations": {
         "zh-Hans": {
@@ -12489,6 +12909,34 @@
         }
       }
     },
+    "Preview truncated": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览已截断"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預覽已截斷"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperçu tronqué"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プレビューは省略されています"
+          }
+        }
+      }
+    },
     "Previous page": {
       "localizations": {
         "zh-Hans": {
@@ -12793,6 +13241,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "最近追加"
+          }
+        }
+      }
+    },
+    "Redo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重做"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重做"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rétablir"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "やり直す"
           }
         }
       }
@@ -13689,34 +14165,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "結果カードのサイズを変更"
-          }
-        }
-      }
-    },
-    "Resize search palette": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "调整搜索面板大小"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "調整搜尋面板大小"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Redimensionner la palette de recherche"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "検索パレットのサイズを変更"
           }
         }
       }
@@ -14925,6 +15373,34 @@
         }
       }
     },
+    "Select All": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全选"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全選"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout sélectionner"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてを選択"
+          }
+        }
+      }
+    },
     "Select Extension to Install": {
       "localizations": {
         "zh-Hans": {
@@ -15401,6 +15877,34 @@
         }
       }
     },
+    "Show All": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示全部"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示全部"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout afficher"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてを表示"
+          }
+        }
+      }
+    },
     "Show Icon": {
       "localizations": {
         "zh-Hans": {
@@ -15453,6 +15957,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "メニューバーにアイコンを表示"
+          }
+        }
+      }
+    },
+    "Show Secret": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示密码"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示密碼"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher le secret"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シークレットを表示"
           }
         }
       }
@@ -17417,6 +17949,34 @@
         }
       }
     },
+    "Undo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撤销"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "復原"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取り消す"
+          }
+        }
+      }
+    },
     "Ungroup": {
       "localizations": {
         "zh-Hans": {
@@ -18481,6 +19041,62 @@
         }
       }
     },
+    "Wide": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宽"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "寬"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Large"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワイド"
+          }
+        }
+      }
+    },
+    "Window": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "窗口"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "視窗"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fenêtre"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウインドウ"
+          }
+        }
+      }
+    },
     "Word Completion": {
       "localizations": {
         "zh-Hans": {
@@ -18533,6 +19149,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Yahoo! JAPAN"
+          }
+        }
+      }
+    },
+    "Zoom": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缩放"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縮放"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agrandir"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拡大/縮小"
           }
         }
       }

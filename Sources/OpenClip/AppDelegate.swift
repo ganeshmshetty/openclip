@@ -81,6 +81,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         // Initialize the status bar controller
         statusBarController = StatusBarController()
 
+        // Set up the application main menu (Edit commands for ⌘V, ⌘C, ⌘X, ⌘A, ⌘Z)
+        setupMainMenu()
+
         // Deep links can open Preferences (the `open-settings` command); the router is otherwise
         // self-contained. Configured before any `application(_:open:)` call can arrive.
         DeepLinkRouter.shared.configure { [weak self] in
@@ -288,6 +291,81 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             })
         coachMarkController = controller
         controller.show(anchorFrame: statusBarController?.statusItemButtonFrame)
+    }
+
+    @objc private func openPreferencesMenuItemAction() {
+        statusBarController?.showPreferences()
+    }
+
+    /// Sets up the standard macOS application main menu.
+    /// Essential for LSUIElement / agent apps because AppKit routes editing keyboard
+    /// shortcuts (⌘V for paste, ⌘C for copy, ⌘X for cut, ⌘A for select all, ⌘Z for undo,
+    /// ⌘W for close window) through the key equivalents in NSApp.mainMenu to the first responder.
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+
+        // 1. Application Menu
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+        let appMenu = NSMenu()
+        appMenuItem.submenu = appMenu
+        appMenu.addItem(withTitle: String(localized: "About OpenClip"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(NSMenuItem.separator())
+        let settingsItem = NSMenuItem(title: String(localized: "Settings…"), action: #selector(openPreferencesMenuItemAction), keyEquivalent: ",")
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
+        appMenu.addItem(NSMenuItem.separator())
+        let hideItem = NSMenuItem(title: String(localized: "Hide OpenClip"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(hideItem)
+        let hideOthersItem = NSMenuItem(title: String(localized: "Hide Others"), action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        hideOthersItem.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(hideOthersItem)
+        appMenu.addItem(withTitle: String(localized: "Show All"), action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(withTitle: String(localized: "Quit OpenClip"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        // 2. Edit Menu (Standard macOS editing shortcuts)
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: String(localized: "Edit"))
+        editMenuItem.submenu = editMenu
+
+        let undoItem = NSMenuItem(title: String(localized: "Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(undoItem)
+        let redoItem = NSMenuItem(title: String(localized: "Redo"), action: Selector(("redo:")), keyEquivalent: "Z")
+        redoItem.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(redoItem)
+        editMenu.addItem(NSMenuItem.separator())
+        let cutItem = NSMenuItem(title: String(localized: "Cut"), action: Selector(("cut:")), keyEquivalent: "x")
+        editMenu.addItem(cutItem)
+        let copyItem = NSMenuItem(title: String(localized: "Copy"), action: Selector(("copy:")), keyEquivalent: "c")
+        editMenu.addItem(copyItem)
+        let pasteItem = NSMenuItem(title: String(localized: "Paste"), action: Selector(("paste:")), keyEquivalent: "v")
+        editMenu.addItem(pasteItem)
+        let pasteMatchStyleItem = NSMenuItem(title: String(localized: "Paste and Match Style"), action: Selector(("pasteAsPlainText:")), keyEquivalent: "V")
+        pasteMatchStyleItem.keyEquivalentModifierMask = [.command, .option, .shift]
+        editMenu.addItem(pasteMatchStyleItem)
+        let deleteItem = NSMenuItem(title: String(localized: "Delete"), action: Selector(("delete:")), keyEquivalent: "")
+        editMenu.addItem(deleteItem)
+        let selectAllItem = NSMenuItem(title: String(localized: "Select All"), action: Selector(("selectAll:")), keyEquivalent: "a")
+        editMenu.addItem(selectAllItem)
+
+        // 3. Window Menu
+        let windowMenuItem = NSMenuItem()
+        mainMenu.addItem(windowMenuItem)
+        let windowMenu = NSMenu(title: String(localized: "Window"))
+        windowMenuItem.submenu = windowMenu
+        let closeItem = NSMenuItem(title: String(localized: "Close Window"), action: Selector(("performClose:")), keyEquivalent: "w")
+        windowMenu.addItem(closeItem)
+        let minimizeItem = NSMenuItem(title: String(localized: "Minimize"), action: Selector(("performMiniaturize:")), keyEquivalent: "m")
+        windowMenu.addItem(minimizeItem)
+        let zoomItem = NSMenuItem(title: String(localized: "Zoom"), action: Selector(("performZoom:")), keyEquivalent: "")
+        windowMenu.addItem(zoomItem)
+        windowMenu.addItem(NSMenuItem.separator())
+        let frontItem = NSMenuItem(title: String(localized: "Bring All to Front"), action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
+        windowMenu.addItem(frontItem)
+
+        NSApp.mainMenu = mainMenu
     }
 
     /// Starts the extensions-directory watcher so extension changes are hot-reloaded without a relaunch.

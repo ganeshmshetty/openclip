@@ -224,11 +224,13 @@ public struct ShortcutRecordingPopover: View {
                 return nil
             }
 
-            // Must include modifier unless it's a function key
+            // Must include a non-shift modifier unless it's a function key. Shift alone is not a
+            // valid hotkey modifier: registering ⇧A globally would stop the user from typing "A".
             let isFKey = isFunctionKey(keyCode: Int(event.keyCode))
-            guard !currentModifiers.isEmpty || isFKey else {
+            let hasNonShiftModifier = !currentModifiers.subtracting(.shift).isEmpty
+            guard hasNonShiftModifier || isFKey else {
                 withAnimation {
-                    self.errorMessage = String(localized: "Include ⌘, ⌥, ⌃, or ⇧")
+                    self.errorMessage = String(localized: "Include ⌘, ⌥, or ⌃")
                 }
                 return nil
             }

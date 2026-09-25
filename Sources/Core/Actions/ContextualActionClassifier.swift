@@ -52,24 +52,18 @@ public enum ContextualActionClassifier {
             break
         }
 
-        if let template = underlying as? URLTemplateAction {
-            if let pattern = template.regexPattern, !pattern.isEmpty {
-                return String(localized: "Matches pattern: \(pattern)")
-            }
-            return String(localized: "Web links and URLs")
+        // A URL-template action is contextual only when it declares a pattern. Without one it runs
+        // on any selection (e.g. "Search Google for {query}") and must not jump ahead of the
+        // user's saved action order just because URL templates default to a `.url` badge.
+        if let template = underlying as? URLTemplateAction,
+           let pattern = template.regexPattern, !pattern.isEmpty {
+            return String(localized: "Matches pattern: \(pattern)")
         }
 
-        if let custom = underlying as? CustomAction {
-            if case .openURL = custom.type {
-                if let pattern = custom.rules?.requirements?.regex ?? custom.rules?.legacyRegex, !pattern.isEmpty {
-                    return String(localized: "Matches pattern: \(pattern)")
-                }
-                return String(localized: "Web links and URLs")
-            }
-        }
-
-        if underlying.chrome.badge == .url {
-            return String(localized: "Web links and URLs")
+        if let custom = underlying as? CustomAction,
+           case .openURL = custom.type,
+           let pattern = custom.rules?.requirements?.regex ?? custom.rules?.legacyRegex, !pattern.isEmpty {
+            return String(localized: "Matches pattern: \(pattern)")
         }
 
         if let withRules = underlying as? any ActionWithRules,

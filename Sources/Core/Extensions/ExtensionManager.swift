@@ -291,7 +291,14 @@ public final class ExtensionManager: Sendable {
                         // (e.g. "com.openclip.applemusic.action.0" vs "com.openclip.applemusic"),
                         // so com.foo never matches com.foobar.
                         let actionIDPrefix = meta.identifier + "."
-                        if actionID == meta.identifier || actionID.hasPrefix(actionIDPrefix) {
+                        let matchesIdentifier = actionID == meta.identifier || actionID.hasPrefix(actionIDPrefix)
+                        // Also match a declared action id directly: a package duplicated before the
+                        // ids were namespaced carries an id with no package prefix, and would
+                        // otherwise be stranded on disk with no way to uninstall it.
+                        let matchesAction = !matchesIdentifier && meta.actions.indices.contains { index in
+                            ExtensionManager.uniformActionID(metadata: meta.actions[index], manifest: meta, index: index) == actionID
+                        }
+                        if matchesIdentifier || matchesAction {
                             matched = true
                             removedPackageID = meta.identifier
                             if let optionWriter {
@@ -420,7 +427,12 @@ public final class ExtensionManager: Sendable {
                                     let tail = oldID.split(separator: ".").last.map(String.init) ?? oldID
                                     updatedID = "\(newPackageID).\(tail)"
                                 } else {
-                                    updatedID = "\(oldID).copy.\(suffix)"
+                                    // Namespace the bare id under the new package identifier.
+                                    // `uniformActionID` keeps any id that already contains a dot
+                                    // as-is, so appending ".copy.<suffix>" made the id dotted and
+                                    // it escaped its package: the copy loaded, but its id had no
+                                    // package prefix, so `uninstallExtension` could never match it.
+                                    updatedID = "\(newPackageID).\(oldID)"
                                 }
                             } else {
                                 updatedID = nil

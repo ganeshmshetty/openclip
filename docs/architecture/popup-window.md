@@ -143,8 +143,8 @@ When an action produces a `.file(FileOutputPayload)` result (via `openclip.file(
 - **Resizable, and the size is remembered**: the card's right edge, bottom edge and bottom-right
   grip are `PopupResizeHandles` (`Sources/OpenClip/UI/Popup/PopupResizeHandles.swift`) — SwiftUI
   `DragGesture`s, for the same reason as *Draggable* below: the borderless panel has no AppKit
-  resize edges — that report `(PopupResizeEdge, ResultCardDragPhase)` to
-  `PopupWindowController.handleResize`, shared with the search palette. The controller computes
+   resize edges — that report `(PopupResizeEdge, ResultCardDragPhase)` to
+   `PopupWindowController.handleResize`. The controller computes
   the new size from the **absolute** cursor position against the anchor taken at `began`
   (`PopupResizeGeometry.size`), clamps it to `aiCardMinWidth`/`aiCardMinHeight` and to the screen
   (`PopupResizeGeometry.clamp`, the panel's top-left corner is the fixed point), publishes it as
@@ -311,30 +311,18 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
   shortcuts are registered as global Carbon hot keys via `PaletteRowShortcuts.swift`, activated
   strictly while the palette is visible and parked the moment it closes — alongside arrows, Return,
   hover, and click.
-- **Resizable, and the size is remembered**: the palette carries the same `PopupResizeHandles`
-  as the result card (right edge, bottom edge, corner grip) and goes through the same
-  `PopupWindowController.handleResize` / `PopupResizeGeometry` path, with its own floor
-  (`searchPaletteMinWidth` 240 / `searchPaletteMinHeight` 128) and its own keys
-  (`SettingKey.searchPaletteWidth`/`searchPaletteHeight`,
-  `Sources/OpenClip/Settings/SettingKey+SearchPalette.swift`). The live size is
-  `modeStore.searchPaletteSize`, rendered by `PopupSearchView` as `maxSize` — a **maximum**: the
-  palette is as tall as its current results need (`PopupSearchView.height(forRows:)`, floored at
-  `searchPaletteMinHeight`) and as wide as the default column or its widest row
-  (`naturalRowWidth(for:)`, measured once per result set), each capped by the remembered size, or
-  by the default `searchPanelContentWidth` × `defaultHeight` column when nothing is remembered.
-  That fit happens only on entry: once the user drags a handle (`modeStore.isSurfaceUserSized`)
-  the palette keeps the dragged size verbatim until it closes. Because the
-  height now follows the result count, the entry growth's bottom-edge pin is **one-shot**
+- **Content-sized, not resizable**: the palette has no resize handles. It is as tall as its
+  current results need (`PopupSearchView.height(forRows:)`, floored at `searchPaletteMinHeight`
+  276, capped at the default `defaultHeight` — `searchMaxRows` rows — beyond which the list
+  scrolls) and as wide as the default column or its widest row (`naturalRowWidth(for:)`, measured
+  once per result set), capped at the default `searchPanelContentWidth` column. Because the
+  height follows the result count, the entry growth's bottom-edge pin is **one-shot**
   (`PopupPanel.releasesBottomPinAfterGrowth`, armed by `enterSearch()` on a fresh entry only):
   later changes keep the field at the palette top fixed, a directly opened palette is never
   pinned, and `exitSearch()` puts the bottom edge back on the bar's original spot
-  (`preSearchFrame.minY`) before the collapse pins it. The size is restored on both entry paths —
-  `enterSearch()` (fresh entry only, not a scope hop; the palette is then placed with its
-  remembered width) and `show(for:initialMode: .search)` (before the view is built, so the first
-  frame is already right) — both of which also raise `PopupPanel.heightCap` to the screen height
-  and schedule `keepPanelOnScreen()` after the hosting view's growth; `exitSearch()` clears the
-  live size and restores the cap *after* its own frame restore, so a tall palette is not clamped
-  mid-collapse. `SearchPaletteResizeTests` pins all of this.
+  (`preSearchFrame.minY`) before the collapse pins it. Both entry paths raise
+  `PopupPanel.heightCap` to the screen height and schedule `keepPanelOnScreen()` after the
+  hosting view's growth; `exitSearch()` restores the cap after its own frame restore.
 - **Placement is the same for both entry points.** A palette opened directly by the hotkey
   (`show(for:initialMode:.search)`) goes through `PopupPositioner.calculateFrame` /
   `positionPanel` exactly like the bar the mouse opens: anchored on the selection, honoring the

@@ -48,6 +48,7 @@ struct DynamicOptionRowView: View {
     var missingOptionIDs: Set<String> = []
 
     @State private var storedValue: String
+    @State private var isSecretRevealed = false
 
     init(
         actionID: String,
@@ -93,6 +94,80 @@ struct DynamicOptionRowView: View {
         actionID == SearchAction().id && option.identifier == "url"
     }
 
+    private func pasteFromClipboard(isSecret: Bool) {
+        guard let clipboardText = NSPasteboard.general.string(forType: .string) else { return }
+        let textToPaste = isSecret ? clipboardText.trimmingCharacters(in: .whitespacesAndNewlines) : clipboardText
+        guard !textToPaste.isEmpty else { return }
+        storedValue = textToPaste
+        optionStore.setStringValue(textToPaste, actionID: actionID, option: option)
+    }
+
+    private func clearField() {
+        storedValue = ""
+        optionStore.setStringValue("", actionID: actionID, option: option)
+    }
+
+    @ViewBuilder
+    private func contextMenuContent(isSecret: Bool) -> some View {
+        Button(String(localized: "Paste")) {
+            pasteFromClipboard(isSecret: isSecret)
+        }
+        if !storedValue.isEmpty {
+            Button(String(localized: "Copy")) {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(storedValue, forType: .string)
+            }
+            Divider()
+            Button(String(localized: "Clear")) {
+                clearField()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var secretInputField: some View {
+        HStack(spacing: 5) {
+            Group {
+                if isSecretRevealed {
+                    TextField("", text: binding, prompt: Text(option.label))
+                } else {
+                    SecureField("", text: binding, prompt: Text(option.label))
+                }
+            }
+            .textFieldStyle(.roundedBorder)
+            .labelsHidden()
+            .frame(maxWidth: 200)
+            .missingFieldHighlight(isMissing)
+            .contextMenu {
+                contextMenuContent(isSecret: true)
+            }
+
+            Button {
+                isSecretRevealed.toggle()
+            } label: {
+                Image(systemName: isSecretRevealed ? "eye.slash" : "eye")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(isSecretRevealed ? String(localized: "Hide Secret") : String(localized: "Show Secret"))
+        }
+    }
+
+    @ViewBuilder
+    private func stringInputField(isSecret: Bool) -> some View {
+        TextField("", text: binding, prompt: Text(option.label))
+            .textFieldStyle(.roundedBorder)
+            .labelsHidden()
+            .frame(maxWidth: 200)
+            .missingFieldHighlight(isMissing)
+            .contextMenu {
+                contextMenuContent(isSecret: isSecret)
+            }
+    }
+
     private var standardRowBody: some View {
         HStack(spacing: 12) {
             HStack(spacing: 6) {
@@ -134,26 +209,14 @@ struct DynamicOptionRowView: View {
                     .labelsHidden()
                     .missingFieldHighlight(isMissing)
                 } else {
-                    TextField("", text: binding, prompt: Text(option.label))
-                        .textFieldStyle(.roundedBorder)
-                        .labelsHidden()
-                        .frame(maxWidth: 200)
-                        .missingFieldHighlight(isMissing)
+                    stringInputField(isSecret: false)
                 }
 
             case .secret:
-                SecureField("", text: binding, prompt: Text(option.label))
-                    .textFieldStyle(.roundedBorder)
-                    .labelsHidden()
-                    .frame(maxWidth: 200)
-                    .missingFieldHighlight(isMissing)
+                secretInputField
 
             case .string:
-                TextField("", text: binding, prompt: Text(option.label))
-                    .textFieldStyle(.roundedBorder)
-                    .labelsHidden()
-                    .frame(maxWidth: 200)
-                    .missingFieldHighlight(isMissing)
+                stringInputField(isSecret: false)
             }
         }
         .padding(.vertical, 2)
@@ -277,6 +340,25 @@ private struct SearchEngineURLOptionView: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
                     .missingFieldHighlight(isMissing)
+                    .contextMenu {
+                        Button(String(localized: "Paste")) {
+                            if let pasted = NSPasteboard.general.string(forType: .string) {
+                                customTemplate = pasted
+                                optionStore.setStringValue(pasted, actionID: actionID, option: option)
+                            }
+                        }
+                        if !customTemplate.isEmpty {
+                            Button(String(localized: "Copy")) {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(customTemplate, forType: .string)
+                            }
+                            Divider()
+                            Button(String(localized: "Clear")) {
+                                customTemplate = ""
+                                optionStore.setStringValue("", actionID: actionID, option: option)
+                            }
+                        }
+                    }
             }
         }
         .padding(.vertical, 2)

@@ -15,6 +15,7 @@
 // expanded `ScriptJSONOutput` DTO, and the shared JSON→ActionResult mapper. Pure Foundation — no
 // AppKit/SwiftUI.
 import Foundation
+import UniformTypeIdentifiers
 #if canImport(Darwin)
 import Darwin
 #endif
@@ -306,7 +307,20 @@ public enum ShellResultMapper {
         case "audio/mpeg", "audio/mp3": return "mp3"
         case "video/mp4": return "mp4"
         case "application/zip": return "zip"
-        default: return nil
+        case "text/markdown", "text/x-markdown": return "md"
+        case "text/csv": return "csv"
+        case "text/html": return "html"
+        case "text/xml", "application/xml": return "xml"
+        case "text/yaml", "application/yaml", "application/x-yaml": return "yaml"
+        case "application/rtf", "text/rtf": return "rtf"
+        case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return "docx"
+        case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": return "xlsx"
+        case "application/vnd.openxmlformats-officedocument.presentationml.presentation": return "pptx"
+        case "audio/wav", "audio/x-wav", "audio/wave": return "wav"
+        case "audio/mp4", "audio/x-m4a", "audio/m4a": return "m4a"
+        case "video/quicktime": return "mov"
+        case "video/webm": return "webm"
+        default: return UTType(mimeType: mime)?.preferredFilenameExtension
         }
     }
 
@@ -454,8 +468,9 @@ public enum ShellProcessRunner {
         public var environment: [String: String]
         /// Text written to the subprocess's stdin (then the pipe is closed). nil leaves stdin unseeded.
         public var stdinText: String?
-        /// Runtime budget before the watchdog kills the subprocess. Defaults to
-        /// `Constants.scriptTimeout` (60 s); tests override with a short value.
+        /// Runtime budget before the watchdog kills the subprocess. `nil` runs with no watchdog —
+        /// the subprocess lives until it finishes or the user cancels it; callers that want a
+        /// bound pass one explicitly (e.g. the inline-result evaluator's short budget).
         public var timeout: TimeInterval?
 
         public init(
@@ -635,17 +650,20 @@ public enum ShellProcessRunner {
                 // process and hard-kills it shortly after if the signal was ignored, then releases the
                 // pipes. A watchdog kill surfaces as a timeout error. Armed before the stdin write below
                 // so an oversized write that blocks the child not reading still gets killed on budget.
+                // With no explicit budget there is no watchdog: the subprocess runs until it exits or
+                // the caller cancels (loading tasks are cancelled by clicking the loading toast).
                 let timeoutFlag = TimeoutFlag()
-                let budget = invocation.timeout ?? Constants.scriptTimeout
-                let timer = DispatchSource.makeTimerSource(queue: .global())
-                timer.schedule(deadline: .now() + budget, leeway: .milliseconds(50))
-                timer.setEventHandler { [weak process] in
-                    guard let process, process.isRunning else { return }
-                    timeoutFlag.markTimedOut()
-                    terminateProcessGroup(process, fallbackDelay: 0.5)
+                if let budget = invocation.timeout {
+                    let timer = DispatchSource.makeTimerSource(queue: .global())
+                    timer.schedule(deadline: .now() + budget, leeway: .milliseconds(50))
+                    timer.setEventHandler { [weak process] in
+                        guard let process, process.isRunning else { return }
+                        timeoutFlag.markTimedOut()
+                        terminateProcessGroup(process, fallbackDelay: 0.5)
+                    }
+                    timer.resume()
+                    watchdog = timer
                 }
-                timer.resume()
-                watchdog = timer
 
                 // Seed stdin synchronously and close the write end, so a child script that reads stdin
                 // always sees EOF — it can never block forever waiting for input.
@@ -660,7 +678,7 @@ public enum ShellProcessRunner {
                     throw CancellationError()
                 }
 
-                if timeoutFlag.isTimedOut {
+                if timeoutFlag.isTimedOut, let budget = invocation.timeout {
                     throw NSError(domain: Constants.actionErrorDomain,
                                   code: Int(Constants.actionErrorCode) + 1,
                                   userInfo: [NSLocalizedDescriptionKey: "Script timed out after \(Int(budget)) seconds"])

@@ -264,6 +264,7 @@ public struct AICustomActionBuilderCard: View {
     @SwiftUI.State private var isEditingCode: Bool = false
     @SwiftUI.State private var codeDraft: String = ""
     @SwiftUI.State private var showSuccessBadge: Bool = false
+    @SwiftUI.State private var generationTask: Task<Void, Never>?
     @FocusState private var isPromptFocused: Bool
 
     public init() {}
@@ -438,6 +439,8 @@ public struct AICustomActionBuilderCard: View {
             Spacer()
 
             Button(String(localized: "Cancel")) {
+                generationTask?.cancel()
+                generationTask = nil
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     phase = .idle
                 }
@@ -698,15 +701,18 @@ public struct AICustomActionBuilderCard: View {
             phase = .generating(prompt: trimmed)
         }
 
-        Task {
+        generationTask?.cancel()
+        generationTask = Task {
             do {
                 let result = try await AICustomActionService.generate(userPrompt: trimmed)
+                guard !Task.isCancelled, phase == .generating(prompt: trimmed) else { return }
                 self.synthesis = result
                 self.codeDraft = result.scriptCode
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
                     phase = .result
                 }
             } catch {
+                guard !Task.isCancelled, phase == .generating(prompt: trimmed) else { return }
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     phase = .error(message: error.localizedDescription)
                 }
@@ -752,6 +758,16 @@ public struct AICustomActionBuilderCard: View {
 
         ActionCoordinator.shared.saveCustomAction(newAction)
         _ = try? CustomActionManifestWriter.write(action: newAction)
+
+        // Persist the chosen Behavior for this action id; without it Copy and Show save the same
+        // action (the manifest only carries `replaceSelection`) and the choice is lost.
+        let deliveryPreference: ResultDeliveryPreference?
+        switch currentSynthesis.delivery {
+        case .replace: deliveryPreference = nil
+        case .copy: deliveryPreference = .copy
+        case .preview: deliveryPreference = .preview
+        }
+        ActionCustomizationManager.shared.setDeliveryPreference(deliveryPreference, for: id)
 
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
             phase = .idle

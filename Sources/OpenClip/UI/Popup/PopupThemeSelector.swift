@@ -106,54 +106,37 @@ struct PopupThemeSelector: View {
         }
     }
 
-    private func widthLabel(for level: Int) -> String {
-        switch level {
-        case 1: return "Compact"
-        case 2: return "Moderate"
-        case 3: return "Default"
-        case 4: return "Wide"
-        case 5: return "Maximum"
-        default: return "Default"
-        }
-    }
-
     var body: some View {
         VStack(spacing: 20) {
             SettingsCard("Theme & Style") {
-                SettingsRow(
+                // The section's one and only preview: full width, above the controls, so it reads
+                // as the result of everything below it rather than a decoration beside a row.
+                PopupSwatch()
+                    .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
+                    .padding(.vertical, SettingsDesignTokens.sectionCardPaddingV)
+
+                SettingsDivider()
+
+                appearanceControlRow(
                     title: "Popup Theme",
-                    systemImage: "paintbrush.fill",
-                    iconTileTint: Color(red: 0.93, green: 0.28, blue: 0.60)
+                    info: "Classic is a solid, opaque card. Glass blurs and tints what sits behind the popup."
                 ) {
-                    segmentedPicker(
-                        selection: themeSelection,
-                        options: themeOptions,
-                        label: "Popup Theme",
-                        width: 170
-                    )
+                    segmentedPicker(selection: themeSelection, options: themeOptions, label: "Popup Theme", width: 200)
                 }
 
                 SettingsDivider()
 
-                SettingsRow(
+                appearanceControlRow(
                     title: "Color Mode",
-                    systemImage: "sun.max.fill",
-                    iconTileTint: Color(red: 0.96, green: 0.62, blue: 0.05)
+                    info: "Follow the system appearance, or pin the popup to light or dark regardless of the Mac."
                 ) {
-                    iconPicker(
-                        selection: $themeColor,
-                        options: appearanceOptions,
-                        label: "Color Mode",
-                        width: 170
-                    )
+                    iconPicker(selection: $themeColor, options: appearanceOptions, label: "Color Mode", width: 200)
                 }
             }
 
             SettingsCard("Position & Sizing") {
                 SettingsRow(
-                    title: "Horizontal Position",
-                    systemImage: "text.aligncenter",
-                    iconTileTint: Color(red: 0.05, green: 0.72, blue: 0.85)
+                    title: "Horizontal Position"
                 ) {
                     iconPicker(
                         selection: $popupAlignment,
@@ -166,9 +149,7 @@ struct PopupThemeSelector: View {
                 SettingsDivider()
 
                 SettingsRow(
-                    title: "Vertical Position",
-                    systemImage: "arrow.up.and.down",
-                    iconTileTint: Color(red: 0.20, green: 0.78, blue: 0.42)
+                    title: "Vertical Position"
                 ) {
                     segmentedPicker(
                         selection: $popupVerticalPosition,
@@ -181,9 +162,7 @@ struct PopupThemeSelector: View {
                 SettingsDivider()
 
                 SettingsRow(
-                    title: "Popup Scale",
-                    systemImage: "arrow.up.left.and.arrow.down.right",
-                    iconTileTint: Color(red: 0.98, green: 0.52, blue: 0.12)
+                    title: "Popup Scale"
                 ) {
                     stepSlider(
                         value: Binding(
@@ -195,29 +174,12 @@ struct PopupThemeSelector: View {
                     )
                 }
 
-                SettingsDivider()
-
-                SettingsRow(
-                    title: "Popup Width",
-                    systemImage: "arrow.left.and.right",
-                    iconTileTint: Color(red: 0.68, green: 0.35, blue: 0.98)
-                ) {
-                    stepSlider(
-                        value: Binding(
-                            get: { barWidthLevel },
-                            set: { barWidthLevel = $0 }
-                        ),
-                        accessibilityLabel: "Popup Width",
-                        labelText: widthLabel(for: barWidthLevel)
-                    )
-                }
             }
 
             SettingsCard("Behavior") {
                 SettingsRow(
                     title: "Contextual Actions",
-                    subtitle: "Show relevant actions first based on what you select.",
-                    systemImage: "lightbulb.fill"
+                    subtitle: "Show relevant actions first based on what you select."
                 ) {
                     HStack(spacing: 8) {
                         Button {
@@ -305,6 +267,25 @@ struct PopupThemeSelector: View {
         .accessibilityLabel(label)
     }
 
+    /// A settings row for the appearance controls: the shared label style (icon tile + title) with
+    /// an info button beside it, and the segmented control on the trailing edge. Mirrors
+    /// `SettingsRow`'s spacing and padding so the section keeps the app's row rhythm.
+    private func appearanceControlRow<Control: View>(
+        title: LocalizedStringKey,
+        info: LocalizedStringKey,
+        @ViewBuilder control: () -> Control
+    ) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            SettingsRowLabel(title: title)
+            SettingsInfoButton(title: title, info: info)
+            Spacer(minLength: 12)
+            control()
+        }
+        .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
+        .padding(.vertical, SettingsDesignTokens.sectionCardPaddingV)
+        .frame(minHeight: 34)
+    }
+
     private func stepSlider(
         value: Binding<Int>,
         accessibilityLabel: LocalizedStringKey,
@@ -330,5 +311,32 @@ struct PopupThemeSelector: View {
                 .frame(width: 52, alignment: .trailing)
         }
         .frame(width: 170, height: 24, alignment: .trailing)
+    }
+}
+
+/// A small info glyph that reveals an explanation in a popover, and shows the title as a native
+/// hover tooltip. Owns its own presentation state so a row does not have to.
+@MainActor
+private struct SettingsInfoButton: View {
+    let title: LocalizedStringKey
+    let info: LocalizedStringKey
+
+    @State private var isShowingInfo = false
+
+    var body: some View {
+        Image(systemName: "info.circle.fill")
+            .font(.system(size: 12))
+            .foregroundStyle(Color.secondary.opacity(0.7))
+            .contentShape(Circle())
+            .onTapGesture { isShowingInfo.toggle() }
+            .help(title)
+            .accessibilityLabel(title)
+            .popover(isPresented: $isShowingInfo, arrowEdge: .bottom) {
+                Text(info)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(width: 240, alignment: .leading)
+                    .padding(14)
+            }
     }
 }

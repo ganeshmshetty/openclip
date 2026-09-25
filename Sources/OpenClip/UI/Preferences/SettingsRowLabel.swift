@@ -73,26 +73,31 @@ struct SettingsDivider: View {
     }
 }
 
-/// The label portion of a row: colored icon tile, title, and optional subtitle.
+/// The label portion of a row: an icon tile (or a plain neutral glyph), title, optional subtitle.
 struct SettingsRowLabel: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?
     var subtitleText: Text?
     var systemImage: String?
     var iconTileTint: Color?
+    /// Renders the glyph as a plain, secondary-colored symbol instead of a colored tile. A neutral
+    /// anchor for control rows, where a saturated tile would just be decoration.
+    var plainIcon: Bool
 
     /// Creates a settings label with an optional localized subtitle.
     init(
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey? = nil,
         systemImage: String? = nil,
-        iconTileTint: Color? = nil
+        iconTileTint: Color? = nil,
+        plainIcon: Bool = false
     ) {
         self.title = title
         self.subtitle = subtitle
         self.subtitleText = nil
         self.systemImage = systemImage
         self.iconTileTint = iconTileTint
+        self.plainIcon = plainIcon
     }
 
     /// Creates a settings label with an optional prebuilt subtitle view.
@@ -100,20 +105,29 @@ struct SettingsRowLabel: View {
         title: LocalizedStringKey,
         subtitleText: Text?,
         systemImage: String? = nil,
-        iconTileTint: Color? = nil
+        iconTileTint: Color? = nil,
+        plainIcon: Bool = false
     ) {
         self.title = title
         self.subtitle = nil
         self.subtitleText = subtitleText
         self.systemImage = systemImage
         self.iconTileTint = iconTileTint
+        self.plainIcon = plainIcon
     }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             if let systemImage {
-                let tint = iconTileTint ?? SettingsDesignTokens.iconTileColor(forSystemImage: systemImage)
-                SettingsIconTile(systemImage: systemImage, tint: tint, size: 20)
+                if plainIcon {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(SettingsDesignTokens.secondaryText)
+                        .frame(width: 20, alignment: .center)
+                } else {
+                    let tint = iconTileTint ?? SettingsDesignTokens.iconTileColor(forSystemImage: systemImage)
+                    SettingsIconTile(systemImage: systemImage, tint: tint, size: 20)
+                }
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -142,6 +156,7 @@ struct SettingsRow<Trailing: View>: View {
     var subtitleText: Text?
     var systemImage: String?
     var iconTileTint: Color?
+    var plainIcon: Bool
     var showChevron: Bool
     @ViewBuilder var trailing: () -> Trailing
 
@@ -151,6 +166,7 @@ struct SettingsRow<Trailing: View>: View {
         subtitle: LocalizedStringKey? = nil,
         systemImage: String? = nil,
         iconTileTint: Color? = nil,
+        plainIcon: Bool = false,
         showChevron: Bool = false,
         @ViewBuilder trailing: @escaping () -> Trailing
     ) {
@@ -159,6 +175,7 @@ struct SettingsRow<Trailing: View>: View {
         self.subtitleText = nil
         self.systemImage = systemImage
         self.iconTileTint = iconTileTint
+        self.plainIcon = plainIcon
         self.showChevron = showChevron
         self.trailing = trailing
     }
@@ -169,6 +186,7 @@ struct SettingsRow<Trailing: View>: View {
         subtitleText: Text?,
         systemImage: String? = nil,
         iconTileTint: Color? = nil,
+        plainIcon: Bool = false,
         showChevron: Bool = false,
         @ViewBuilder trailing: @escaping () -> Trailing
     ) {
@@ -177,6 +195,7 @@ struct SettingsRow<Trailing: View>: View {
         self.subtitleText = subtitleText
         self.systemImage = systemImage
         self.iconTileTint = iconTileTint
+        self.plainIcon = plainIcon
         self.showChevron = showChevron
         self.trailing = trailing
     }
@@ -188,14 +207,16 @@ struct SettingsRow<Trailing: View>: View {
                     title: title,
                     subtitleText: subtitleText,
                     systemImage: systemImage,
-                    iconTileTint: iconTileTint
+                    iconTileTint: iconTileTint,
+                    plainIcon: plainIcon
                 )
             } else {
                 SettingsRowLabel(
                     title: title,
                     subtitle: subtitle,
                     systemImage: systemImage,
-                    iconTileTint: iconTileTint
+                    iconTileTint: iconTileTint,
+                    plainIcon: plainIcon
                 )
             }
             Spacer(minLength: 12)
@@ -218,6 +239,7 @@ struct SettingsToggleRow: View {
     var subtitle: LocalizedStringKey?
     var systemImage: String?
     var iconTileTint: Color?
+    var plainIcon: Bool
     @Binding var isOn: Bool
 
     init(
@@ -225,12 +247,14 @@ struct SettingsToggleRow: View {
         subtitle: LocalizedStringKey? = nil,
         systemImage: String? = nil,
         iconTileTint: Color? = nil,
+        plainIcon: Bool = false,
         isOn: Binding<Bool>
     ) {
         self.title = title
         self.subtitle = subtitle
         self.systemImage = systemImage
         self.iconTileTint = iconTileTint
+        self.plainIcon = plainIcon
         self._isOn = isOn
     }
 
@@ -239,7 +263,8 @@ struct SettingsToggleRow: View {
             title: title,
             subtitle: subtitle,
             systemImage: systemImage,
-            iconTileTint: iconTileTint
+            iconTileTint: iconTileTint,
+            plainIcon: plainIcon
         ) {
             Toggle("", isOn: $isOn)
                 .labelsHidden()

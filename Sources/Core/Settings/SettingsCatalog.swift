@@ -62,6 +62,7 @@ public enum SettingsCatalog {
             // Builtin action config
             SettingKey.calendarProvider.erased,
             SettingKey.searchURL.erased,
+            SettingKey.fileSaveLocation.erased,
 
             // Structured blobs
             SettingKey.actionCustomizations.erased,

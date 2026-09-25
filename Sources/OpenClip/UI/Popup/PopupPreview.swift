@@ -8,6 +8,7 @@
 // Preferences Appearance tab.
 import SwiftUI
 import AppKit
+import ImageIO
 import Core
 
 @MainActor
@@ -117,6 +118,21 @@ struct PopupPreview: View {
         .frame(width: 8, height: 20)
     }
 
+    /// Decodes the desktop wallpaper into a thumbnail sized for the preview (drawn at 156 pt with
+    /// a blur). Falls back to a full decode if thumbnail creation fails.
+    private nonisolated static func downscaledWallpaper(at url: URL) -> NSImage? {
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 1600
+        ]
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return NSImage(contentsOf: url)
+        }
+        return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+    }
+
     @ViewBuilder
     private var wallpaperBackground: some View {
         if let image = wallpaperImage {
@@ -193,12 +209,13 @@ struct PopupPreview: View {
                 .stroke(Color.primary.opacity(0.12), lineWidth: 1)
         )
         .task {
+            // NSScreen/NSWorkspace are main-actor AppKit API; resolve them here, then decode off
+            // the main thread. The preview draws the image at 156 pt with a blur, so a downscaled
+            // thumbnail is enough and avoids decoding a full-resolution wallpaper every time.
+            guard let screen = NSScreen.main ?? NSScreen.screens.first,
+                  let url = NSWorkspace.shared.desktopImageURL(for: screen) else { return }
             let image = await Task.detached(priority: .userInitiated) { () -> NSImage? in
-                guard let screen = NSScreen.main ?? NSScreen.screens.first,
-                      let url = NSWorkspace.shared.desktopImageURL(for: screen) else {
-                    return nil
-                }
-                return NSImage(contentsOf: url)
+                Self.downscaledWallpaper(at: url)
             }.value
             wallpaperImage = image
         }

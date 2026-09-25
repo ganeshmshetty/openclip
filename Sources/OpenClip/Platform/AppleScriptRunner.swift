@@ -6,9 +6,9 @@
 // answers over Apple Events and cannot be cancelled or timed out — a hung `tell application` would
 // permanently park a cooperative-pool thread (NSAppleScript is also not thread-safe across
 // instances). Running each script as an `/usr/bin/osascript` subprocess through the shared
-// ShellProcessRunner keeps the cooperative pool free and makes the evaluation killable: the
-// watchdog terminates the subprocess at `Constants.scriptTimeout`, so a stuck script can never
-// wedge a thread forever. See docs/runtimes/applescript.md.
+// ShellProcessRunner keeps the cooperative pool free and makes the evaluation killable: an
+// explicit `timeout` arms the watchdog, and without one the subprocess runs until it exits or the
+// caller cancels, so a stuck script never wedges a thread. See docs/runtimes/applescript.md.
 import Foundation
 import Core
 
@@ -21,7 +21,7 @@ public final class AppleScriptRunner: @unchecked Sendable {
 
     /// Runs `source` and returns its trimmed string result. Throws on non-zero exit (stderr text as
     /// the message, matching ShellProcessRunner's error policy) and on watchdog timeout. `timeout`
-    /// overrides the default `Constants.scriptTimeout` budget on the subprocess watchdog.
+    /// arms the subprocess watchdog; nil runs with none.
     public func run(_ source: String, timeout: TimeInterval? = nil) async throws -> String {
         let invocation = ShellProcessRunner.Invocation(
             executableURL: URL(fileURLWithPath: "/usr/bin/osascript"),

@@ -49,7 +49,6 @@ struct AboutTab: View {
 
                     SettingsToggleRow(
                         title: "Automatically Download Updates",
-                        systemImage: "arrow.down.circle",
                         isOn: $updateManager.automaticallyDownloadsUpdates
                     )
 
@@ -57,7 +56,6 @@ struct AboutTab: View {
 
                     SettingsToggleRow(
                         title: "Notify on Update",
-                        systemImage: "bell.badge",
                         isOn: $updateManager.notifyOnUpdate
                     )
 
@@ -65,8 +63,7 @@ struct AboutTab: View {
 
                     SettingsRow(
                         title: "Check for Updates",
-                        subtitle: updateChannelSubtitle ?? lastCheckedSubtitle,
-                        systemImage: "arrow.triangle.2.circlepath"
+                        subtitle: updateChannelSubtitle ?? lastCheckedSubtitle
                     ) {
                         HStack(spacing: 10) {
                             Picker("", selection: $updateManager.updateChannel) {
@@ -113,8 +110,7 @@ struct AboutTab: View {
                 SettingsCard("Diagnostics") {
                     SettingsRow(
                         title: "Logs",
-                        subtitle: "Attach these when reporting a problem.",
-                        systemImage: "doc.text"
+                        subtitle: "Attach these when reporting a problem."
                     ) {
                         HStack(spacing: 10) {
                             Button(isExporting ? String(localized: "Exporting…") : String(localized: "Export…")) {
@@ -202,8 +198,7 @@ struct AboutTab: View {
             title: updateManager.isUpdateStagedForQuitInstall
                 ? "Update Ready"
                 : "Update Available",
-            subtitle: LocalizedStringKey("Version \(newVersion)"),
-            systemImage: "sparkles"
+            subtitle: LocalizedStringKey("Version \(newVersion)")
         ) {
             HStack(spacing: 10) {
                 if #available(macOS 26.0, *) {

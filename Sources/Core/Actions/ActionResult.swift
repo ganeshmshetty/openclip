@@ -108,11 +108,7 @@ public struct FileOutputPayload: Sendable, Equatable {
     }
 
     public var isImage: Bool {
-        if mimeType?.lowercased().hasPrefix("image/") == true {
-            return true
-        }
-        let ext = fileExtension
-        return ["png", "jpg", "jpeg", "gif", "webp", "svg", "icns", "bmp", "tiff", "heic"].contains(ext)
+        kind == .image
     }
 }
 

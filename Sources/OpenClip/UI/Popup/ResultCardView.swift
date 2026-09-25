@@ -28,9 +28,21 @@
 // keeps the dragged size verbatim until it closes.
 import SwiftUI
 import AppKit
+import PDFKit
 import UniformTypeIdentifiers
 import Core
 import SDWebImageSVGCoder
+
+private struct FilePreviewMetadata {
+    var image: NSImage?
+    var icon: NSImage?
+    var sizeText = ""
+    var typeText = ""
+    var text: String?
+    var textFailed = false
+    var textTruncated = false
+    var pageSize: CGSize?
+}
 
 // MARK: - Card Drag
 
@@ -117,6 +129,10 @@ public struct ResultCardView: View {
     @State private var fileMetadataSize = ""
     @State private var fileMetadataType = ""
     @State private var hasAttemptedImageLoad = false
+    @State private var previewFileText: String?
+    @State private var previewFileTextFailed = false
+    @State private var previewFileTruncated = false
+    @State private var previewPDFPageSize: CGSize?
     /// The diff of `payload.original` → `payload.text`, recomputed only when the payload settles
     /// (never per body evaluation, and never mid-stream on a half-written response).\
     @State private var diffSegments: [TextDiffSegment] = []
@@ -632,17 +648,32 @@ public struct ResultCardView: View {
     /// than the maximum; once user-sized it is exactly the dragged size.
     private var dynamicCardWidth: CGFloat {
         if let file = payload.file {
-            if file.isImage {
+            switch effectiveFileKind(file) {
+            case .image:
                 return Self.imageCardSize(
                     imageSize: previewImage?.size,
                     userSize: maxSize,
                     isUserSized: isUserSized
                 ).width
+            case .pdf:
+                return Self.imageCardSize(
+                    imageSize: previewPDFPageSize,
+                    userSize: maxSize,
+                    isUserSized: isUserSized
+                ).width
+            case .text:
+                return Self.cardWidth(
+                    naturalTextWidth: fileTextNaturalWidth,
+                    showsFollowUp: showsFollowUp,
+                    isUserSized: isUserSized,
+                    userWidth: maxSize?.width
+                )
+            case .other:
+                if let userWidth = maxSize?.width {
+                    return max(userWidth, 340)
+                }
+                return 370.0
             }
-            if let userWidth = maxSize?.width {
-                return max(userWidth, 340)
-            }
-            return 370.0
         }
         let neededWidth = isUserSized ? naturalTextWidth : max(naturalTextWidth, naturalHeaderWidth)
         return Self.cardWidth(
@@ -651,6 +682,31 @@ public struct ResultCardView: View {
             isUserSized: isUserSized,
             userWidth: maxSize?.width
         )
+    }
+
+    private static let fileTextFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+
+    private var fileTextNaturalWidth: CGFloat {
+        let text = (previewFileText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return 0 }
+        let rect = (text as NSString).boundingRect(
+            with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: Self.fileTextFont]
+        )
+        return ceil(rect.width) + 2 * Self.horizontalTextInset + 1
+    }
+
+    private var fileTextMeasuredHeight: CGFloat {
+        let text = (previewFileText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return PopupMetrics.aiCardMinHeight }
+        let availableWidth = dynamicCardWidth - 2 * Self.horizontalTextInset
+        let rect = (text as NSString).boundingRect(
+            with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: Self.fileTextFont]
+        )
+        return ceil(rect.height) + Self.headerTotalHeight + Self.baseBottomInset + 16.0
     }
 
     static func bounded(_ value: CGFloat, min minimum: CGFloat, max maximum: CGFloat) -> CGFloat {
@@ -680,16 +736,31 @@ public struct ResultCardView: View {
     private var dynamicCardHeight: CGFloat {
         if isUserSized, let maxSize { return maxSize.height }
         if let file = payload.file {
-            if file.isImage {
+            switch effectiveFileKind(file) {
+            case .image:
                 return Self.imageCardSize(
                     imageSize: previewImage?.size,
                     userSize: maxSize,
                     isUserSized: isUserSized
                 ).height
+            case .pdf:
+                return Self.imageCardSize(
+                    imageSize: previewPDFPageSize,
+                    userSize: maxSize,
+                    isUserSized: isUserSized
+                ).height
+            case .text:
+                return Self.bounded(fileTextMeasuredHeight, min: PopupMetrics.aiCardMinHeight, max: maxCardHeight)
+            case .other:
+                return 340.0
             }
-            return 225.0
         }
         return Self.bounded(naturalContentHeight, min: PopupMetrics.aiCardMinHeight, max: maxCardHeight)
+    }
+
+    private func effectiveFileKind(_ file: FileOutputPayload) -> FileOutputKind {
+        if file.kind == .text, previewFileTextFailed { return .other }
+        return file.kind
     }
 
     // MARK: - Body
@@ -989,133 +1060,14 @@ public struct ResultCardView: View {
         .onHover { isSaveHovered = $0 }
     }
 
-    /// Renders the image preview or generic metadata card for a file result.
+    /// Renders the file result by kind: an inline image, an inline PDF, inline text, or the
+    /// Quick Look view with a caption. Falls back to the generic icon card when a preview can't
+    /// be produced, so a file result is never blank.
     @ViewBuilder
     private func filePreviewContent(_ file: FileOutputPayload) -> some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
-            if file.isImage && (previewImage != nil || !hasAttemptedImageLoad) {
-                if let nsImage = previewImage {
-                    VStack(spacing: 8) {
-                        let maxAllowedH = max(80, dynamicCardHeight - Self.headerTotalHeight - Self.baseBottomInset - 32)
-                        let maxAllowedW = max(100, dynamicCardWidth - 2 * Self.horizontalTextInset)
-                        let isSmall = nsImage.size.width <= 160 && nsImage.size.height <= 160
-
-                        if isSmall {
-                            let imgW = min(nsImage.size.width, maxAllowedW)
-                            let imgH = min(nsImage.size.height, maxAllowedH)
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.04))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                            .stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.07), lineWidth: 1)
-                                    )
-                                    .frame(width: max(imgW + 36, 110), height: max(imgH + 28, 86))
-
-                                Image(nsImage: nsImage)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: imgW, height: imgH)
-                            }
-                        } else {
-                            let imgMaxH = min(nsImage.size.height, maxAllowedH)
-                            let imgMaxW = min(nsImage.size.width, maxAllowedW)
-
-                            Image(nsImage: nsImage)
-                                .resizable()
-                                .scaledToFit()
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .stroke(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 1)
-                                )
-                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.12), radius: 6, x: 0, y: 3)
-                                .frame(maxWidth: imgMaxW, maxHeight: imgMaxH)
-                        }
-
-                        HStack(spacing: 6) {
-                            Text(file.displayName)
-                                .font(.system(size: 11.5, weight: .medium))
-                                .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-
-                            if !fileMetadataSize.isEmpty {
-                                Text("•")
-                                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.35))
-                                Text(fileMetadataSize)
-                                    .font(.system(size: 11, weight: .regular))
-                                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.65))
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(maxWidth: .infinity, maxHeight: 100)
-                }
-            } else {
-                VStack(spacing: 10) {
-                    if let icon = fileIconImage {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 54, height: 54)
-                            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.12), radius: 4, x: 0, y: 2)
-                    }
-
-                    VStack(spacing: 3) {
-                        Text(file.displayName)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-
-                        HStack(spacing: 5) {
-                            if !fileMetadataType.isEmpty {
-                                Text(fileMetadataType)
-                                    .font(.system(size: 11, weight: .regular))
-                                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.65))
-                            }
-
-                            if !fileMetadataSize.isEmpty {
-                                if !fileMetadataType.isEmpty {
-                                    Text("•")
-                                        .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.35))
-                                }
-                                Text(fileMetadataSize)
-                                    .font(.system(size: 11, weight: .regular))
-                                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.65))
-                            }
-                        }
-                    }
-
-                    Button {
-                        QuickLookPresenter.shared.toggle(url: file.url)
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "eye")
-                                .font(.system(size: 10.5, weight: .semibold))
-                            Text(String(localized: "Preview"))
-                                .font(.system(size: 11.5, weight: .medium))
-                            Text("␣")
-                                .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
-                        }
-                        .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(glassButtonBackground(isHovered: isQuickLookHovered))
-                        .contentShape(RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .help(String(localized: "Preview file with Quick Look (Space)"))
-                    .onHover { isQuickLookHovered = $0 }
-                }
-                .frame(maxWidth: .infinity)
-            }
+            filePreviewBody(file)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, Self.horizontalTextInset)
@@ -1131,43 +1083,269 @@ public struct ResultCardView: View {
         }
     }
 
+    @ViewBuilder
+    private func filePreviewBody(_ file: FileOutputPayload) -> some View {
+        switch effectiveFileKind(file) {
+        case .image:
+            imageFileBody(file)
+        case .pdf:
+            framedPreviewBody {
+                PDFPreviewView(url: file.url)
+            } caption: {
+                fileCaption(file)
+            }
+        case .text:
+            textFileBody(file)
+        case .other:
+            framedPreviewBody {
+                QuickLookPreviewView(url: file.url)
+            } caption: {
+                fileCaption(file)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func framedPreviewBody<Preview: View, Caption: View>(
+        @ViewBuilder preview: () -> Preview,
+        @ViewBuilder caption: () -> Caption
+    ) -> some View {
+        VStack(spacing: 8) {
+            preview()
+                .frame(maxWidth: .infinity)
+                .frame(height: max(140, dynamicCardHeight - Self.headerTotalHeight - Self.baseBottomInset - 52))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 1)
+                )
+            caption()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func imageFileBody(_ file: FileOutputPayload) -> some View {
+        if previewImage != nil || !hasAttemptedImageLoad {
+            if let nsImage = previewImage {
+                VStack(spacing: 8) {
+                    let maxAllowedH = max(80, dynamicCardHeight - Self.headerTotalHeight - Self.baseBottomInset - 32)
+                    let maxAllowedW = max(100, dynamicCardWidth - 2 * Self.horizontalTextInset)
+                    let isSmall = nsImage.size.width <= 160 && nsImage.size.height <= 160
+
+                    if isSmall {
+                        let imgW = min(nsImage.size.width, maxAllowedW)
+                        let imgH = min(nsImage.size.height, maxAllowedH)
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.04))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.07), lineWidth: 1)
+                                )
+                                .frame(width: max(imgW + 36, 110), height: max(imgH + 28, 86))
+
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: imgW, height: imgH)
+                        }
+                    } else {
+                        let imgMaxH = min(nsImage.size.height, maxAllowedH)
+                        let imgMaxW = min(nsImage.size.width, maxAllowedW)
+
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 1)
+                            )
+                            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.12), radius: 6, x: 0, y: 3)
+                            .frame(maxWidth: imgMaxW, maxHeight: imgMaxH)
+                    }
+
+                    fileCaption(file)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity, maxHeight: 100)
+            }
+        } else {
+            genericFileBody(file)
+        }
+    }
+
+    private func fileCaption(_ file: FileOutputPayload) -> some View {
+        HStack(spacing: 6) {
+            Text(file.displayName)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            if !fileMetadataSize.isEmpty {
+                Text("•")
+                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.35))
+                Text(fileMetadataSize)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.65))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func textFileBody(_ file: FileOutputPayload) -> some View {
+        if let text = previewFileText {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(text)
+                    .font(.system(size: 12, weight: .regular, design: .monospaced))
+                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                if previewFileTruncated {
+                    Text(String(localized: "Preview truncated"))
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                }
+            }
+        } else if previewFileTextFailed {
+            genericFileBody(file)
+        } else {
+            ProgressView()
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, maxHeight: 100)
+        }
+    }
+
+    @ViewBuilder
+    private func genericFileBody(_ file: FileOutputPayload) -> some View {
+        VStack(spacing: 10) {
+            if let icon = fileIconImage {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 54, height: 54)
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.12), radius: 4, x: 0, y: 2)
+            }
+
+            VStack(spacing: 3) {
+                Text(file.displayName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                HStack(spacing: 5) {
+                    if !fileMetadataType.isEmpty {
+                        Text(fileMetadataType)
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.65))
+                    }
+
+                    if !fileMetadataSize.isEmpty {
+                        if !fileMetadataType.isEmpty {
+                            Text("•")
+                                .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.35))
+                        }
+                        Text(fileMetadataSize)
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.65))
+                    }
+                }
+            }
+
+            Button {
+                QuickLookPresenter.shared.toggle(url: file.url)
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "eye")
+                        .font(.system(size: 10.5, weight: .semibold))
+                    Text(String(localized: "Preview"))
+                        .font(.system(size: 11.5, weight: .medium))
+                    Text("␣")
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                }
+                .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(glassButtonBackground(isHovered: isQuickLookHovered))
+                .contentShape(RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .help(String(localized: "Preview file with Quick Look (Space)"))
+            .onHover { isQuickLookHovered = $0 }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     /// Loads file preview data and metadata without blocking the result-card UI.
     private func loadFileMetadata(for file: FileOutputPayload) async {
         let url = file.url
-        let isImg = file.isImage
-        let (loadedPreview, loadedIcon, sizeStr, typeStr) = await Task.detached(priority: .userInitiated) { () -> (NSImage?, NSImage?, String, String) in
-            var preview: NSImage?
-            if isImg {
-                if let data = try? Data(contentsOf: url), !data.isEmpty {
-                    preview = NSImage(data: data) ?? SDImageSVGCoder.shared.decodedImage(with: data, options: nil)
+        let kind = file.kind
+        let metadata = await Task.detached(priority: .userInitiated) { () -> FilePreviewMetadata in
+            var result = FilePreviewMetadata()
+
+            if kind == .image, let data = try? Data(contentsOf: url), !data.isEmpty {
+                result.image = NSImage(data: data) ?? SDImageSVGCoder.shared.decodedImage(with: data, options: nil)
+            }
+
+            if kind == .pdf, let document = PDFDocument(url: url), let page = document.page(at: 0) {
+                result.pageSize = page.bounds(for: .mediaBox).size
+            }
+
+            if kind == .text {
+                let cap = 100_000
+                if let handle = try? FileHandle(forReadingFrom: url) {
+                    var data = (try? handle.read(upToCount: cap + 1)) ?? Data()
+                    try? handle.close()
+                    if data.count > cap {
+                        data = data.prefix(cap)
+                        result.textTruncated = true
+                    }
+                    if let decoded = String(data: data, encoding: .utf8) {
+                        result.text = decoded
+                    } else {
+                        result.textFailed = true
+                    }
+                } else {
+                    result.textFailed = true
                 }
             }
-            let icon = NSWorkspace.shared.icon(forFile: url.path)
 
-            var sizeText = ""
+            result.icon = NSWorkspace.shared.icon(forFile: url.path)
+
             if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
                let size = attrs[.size] as? Int64 {
                 let formatter = ByteCountFormatter()
                 formatter.allowedUnits = [.useAll]
                 formatter.countStyle = .file
-                sizeText = formatter.string(fromByteCount: size)
+                result.sizeText = formatter.string(fromByteCount: size)
             }
 
-            var typeText = ""
             if let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType {
-                typeText = type.localizedDescription ?? type.preferredFilenameExtension?.uppercased() ?? "File"
+                result.typeText = type.localizedDescription ?? type.preferredFilenameExtension?.uppercased() ?? "File"
             } else {
                 let ext = url.pathExtension.uppercased()
-                typeText = ext.isEmpty ? "File" : "\(ext) File"
+                result.typeText = ext.isEmpty ? "File" : "\(ext) File"
             }
 
-            return (preview, icon, sizeText, typeText)
+            return result
         }.value
 
-        self.previewImage = loadedPreview
-        self.fileIconImage = loadedIcon
-        self.fileMetadataSize = sizeStr
-        self.fileMetadataType = typeStr
+        self.previewImage = metadata.image
+        self.previewPDFPageSize = metadata.pageSize
+        self.previewFileText = metadata.text
+        self.previewFileTextFailed = metadata.textFailed
+        self.previewFileTruncated = metadata.textTruncated
+        self.fileIconImage = metadata.icon
+        self.fileMetadataSize = metadata.sizeText
+        self.fileMetadataType = metadata.typeText
         self.hasAttemptedImageLoad = true
     }
 

@@ -13,8 +13,6 @@ extension SettingsCatalog {
             SettingKey.showMenuBarIcon.erased,
             SettingKey.resultCardWidth.erased,
             SettingKey.resultCardHeight.erased,
-            SettingKey.searchPaletteWidth.erased,
-            SettingKey.searchPaletteHeight.erased,
 
             SettingKey.aiActiveProvider.erased,
             SettingKey.aiCloudService.erased,

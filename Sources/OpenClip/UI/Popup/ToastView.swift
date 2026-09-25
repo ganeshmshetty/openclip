@@ -10,6 +10,9 @@ struct ToastView: View {
     let feedback: StatusFeedback
     var onCancel: (() -> Void)? = nil
     var reservedWidth: CGFloat? = nil
+    /// Reports pointer enter/leave so the controller can hold the toast under the cursor and
+    /// restart its auto-dismissal once the cursor moves away.
+    var onHover: ((Bool) -> Void)? = nil
 
     @State private var isHovered = false
 
@@ -161,8 +164,8 @@ struct ToastView: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .onHover { hovering in
-            guard isInteractive else { return }
             isHovered = hovering
+            onHover?(hovering)
         }
         .onTapGesture {
             guard isInteractive else { return }

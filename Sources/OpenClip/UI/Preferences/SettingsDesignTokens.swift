@@ -13,13 +13,14 @@ public enum SettingsDesignTokens {
 
     // MARK: - Colors
 
-    /// Scrim overlay atop the behind-window Liquid Glass blur.
+    /// Scrim overlay atop the behind-window Liquid Glass blur. Kept light so more of the desktop
+    /// shows through; raise the alpha if text contrast over busy wallpapers gets uncomfortable.
     public static var windowScrim: Color {
         Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
             if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-                return NSColor(white: 0.0, alpha: 0.32)
+                return NSColor(white: 0.0, alpha: 0.20)
             } else {
-                return NSColor(white: 1.0, alpha: 0.36)
+                return NSColor(white: 1.0, alpha: 0.24)
             }
         }))
     }
@@ -90,13 +91,15 @@ public enum SettingsDesignTokens {
         }))
     }
 
-    /// The fill for the inset detail card (translucent smoked glass matching the sidebar with balanced contrast).
+    /// The fill for the inset detail card (translucent smoked glass matching the sidebar with
+    /// balanced contrast). Lowered so the detail pane reads a touch more translucent; raise the
+    /// alpha if text over the card needs more contrast.
     public static var detailCardBackground: Color {
         Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
             if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-                return NSColor(red: 0.086, green: 0.086, blue: 0.098, alpha: 0.52)
+                return NSColor(red: 0.086, green: 0.086, blue: 0.098, alpha: 0.42)
             } else {
-                return NSColor(white: 1.0, alpha: 0.60)
+                return NSColor(white: 1.0, alpha: 0.52)
             }
         }))
     }
@@ -112,13 +115,14 @@ public enum SettingsDesignTokens {
         }))
     }
 
-    /// The fill for individual section cards inside the detail pane (elevated glass with high contrast).
+    /// The fill for individual section cards inside the detail pane. Tuned to just above the
+    /// detail card's translucency so the cards read as glass against the window, not as opaque slabs.
     public static var sectionCardBackground: Color {
         Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
             if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-                return NSColor(red: 0.125, green: 0.125, blue: 0.141, alpha: 0.68)
+                return NSColor(red: 0.125, green: 0.125, blue: 0.141, alpha: 0.50)
             } else {
-                return NSColor(white: 0.97, alpha: 0.72)
+                return NSColor(white: 0.97, alpha: 0.62)
             }
         }))
     }

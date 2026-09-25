@@ -100,6 +100,17 @@ final class AIProviderTests: XCTestCase {
         XCTAssertTrue(CLIPreset.codex.defaultModels.contains("o3-mini"))
     }
 
+    func testCLIPresetsDisableThinkingWhereSupported() {
+        XCTAssertEqual(CLIPreset.claude.thinkingDisabledEnvironment["MAX_THINKING_TOKENS"], "0")
+        XCTAssertEqual(CLIPreset.codex.thinkingDisabledArguments, ["-c", "model_reasoning_effort=none"])
+        XCTAssertTrue(CLIPreset.claude.thinkingDisabledArguments.isEmpty)
+        XCTAssertTrue(CLIPreset.codex.thinkingDisabledEnvironment.isEmpty)
+        for preset in [CLIPreset.copilot, .custom] {
+            XCTAssertTrue(preset.thinkingDisabledEnvironment.isEmpty, preset.rawValue)
+            XCTAssertTrue(preset.thinkingDisabledArguments.isEmpty, preset.rawValue)
+        }
+    }
+
     func testEffectiveCLIModelResolution() {
         let manager = AIServiceManager.shared
         let previousCLIModel = manager.cliModel

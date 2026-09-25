@@ -2,10 +2,10 @@
 // OpenClip
 //
 // Implements action execution for AppleScript snippets and files. Scripts run as killable
-// `osascript` subprocesses via AppleScriptRunner (a bounded off-main strategy) so a hung
-// `tell application` cannot park a cooperative-pool thread; the watchdog reaps it at
-// Constants.scriptTimeout. Enablement and match resolution delegate to the shared ActionVisibility
-// evaluator when rules are attached.
+// `osascript` subprocesses via AppleScriptRunner (an off-main strategy) so a hung
+// `tell application` cannot park a cooperative-pool thread; they run with no timer and are
+// cancelled by the loading toast. Enablement and match resolution delegate to the shared
+// ActionVisibility evaluator when rules are attached.
 import Foundation
 import Core
 

@@ -813,6 +813,47 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertNil(toast.lastAnchorFrame, "no panel frame exists in a test session; must not invent a cursor anchor")
     }
 
+    /// An auto-dismissing toast holds while the pointer is on it. Dismissible toasts accept pointer
+    /// events (so hover can fire) rather than fully passing through; interactive/keep-visible toasts
+    /// keep their existing pass-through rules.
+    @MainActor
+    func testToastHoverSuspendsAutoDismissal() async throws {
+        let toast = ToastPanelController(autoDismissNanoseconds: 80_000_000)
+        toast.show(StatusFeedback(message: "hello", style: .info))
+        XCTAssertTrue(toast.isShowing)
+        XCTAssertTrue(toast.hasPendingDismissal, "a dismissible toast must schedule its dismissal")
+        XCTAssertFalse(toast.panelIgnoresMouseEvents, "a dismissible toast must accept pointer events to track hover")
+
+        toast.handleHover(true)
+        XCTAssertFalse(toast.hasPendingDismissal, "hovering must pause the pending dismissal")
+
+        try await Task.sleep(nanoseconds: 250_000_000)
+        XCTAssertTrue(toast.isShowing, "a hovered toast must stay past its auto-dismiss window")
+
+        // Its window elapsed while hovered, so leaving hides it at once rather than granting a fresh one.
+        toast.handleHover(false)
+        XCTAssertFalse(toast.isShowing, "a toast whose window elapsed must hide immediately on pointer exit")
+        XCTAssertFalse(toast.hasPendingDismissal)
+    }
+
+    /// Leaving before the window elapses keeps the toast up and it still auto-dismisses.
+    @MainActor
+    func testToastHoverResumesAndDismisses() async throws {
+        let toast = ToastPanelController(autoDismissNanoseconds: 120_000_000)
+        toast.show(StatusFeedback(message: "hello", style: .info))
+
+        toast.handleHover(true)
+        try await Task.sleep(nanoseconds: 40_000_000)
+        toast.handleHover(false)
+        XCTAssertTrue(toast.hasPendingDismissal, "leaving before the deadline must reschedule the dismissal")
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while toast.isShowing && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 2_000_000)
+        }
+        XCTAssertFalse(toast.isShowing, "the toast must still auto-dismiss after the cursor leaves")
+    }
+
     // MARK: - Loading (slow-action) early-close flow
 
     /// A `showsLoading` action closes the popup immediately, shows a spinner toast, and fades the

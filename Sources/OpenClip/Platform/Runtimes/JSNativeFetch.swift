@@ -82,11 +82,15 @@ enum JSNativeFetch {
         context.evaluateScript(fetchPolyfillScript)
     }
 
+    /// Effectively disables URLRequest's 60 s default: a fetch has no app-imposed deadline and is
+    /// left to finish, bounded only by clicking the loading toast (which cancels in-flight tasks).
+    private static let fetchTimeout: TimeInterval = 60 * 60 * 24 * 365
+
     /// Builds a URLRequest from `fetch(url, options)`: method (default GET),
     /// optional headers object, and an optional string body.
     static func makeURLRequest(url: URL, options: JSValue) -> URLRequest {
         var request = URLRequest(url: url)
-        request.timeoutInterval = Constants.scriptTimeout
+        request.timeoutInterval = fetchTimeout
 
         let methodValue = options.objectForKeyedSubscript("method")
         if let methodValue, !methodValue.isUndefined, !methodValue.isNull {

@@ -81,9 +81,12 @@ areas; stale debt notes are worse than none.
   and the unified paste availability. The flawed global settings (`primaryClickBehavior`/
   `secondaryClickBehavior`) are **fully removed**. The old `after` translator (the pre-refactor `after` orchestration step and its
   adapter) is **fully removed**. Synchronous JavaScript (including the top-level synchronous phase
-  of async actions) is bounded by JavaScriptCore's VM execution-time limit, so a timeout unwinds
-  `evaluateScript` and releases its sync-evaluation gate slot. Idle promise waiting is bounded by
-  the `TimeoutFlag` watchdog (60 s by default), and Swift task cancellation remains cooperative.
+  of async actions) is bounded by JavaScriptCore's VM execution-time limit **only when the run
+  carries a budget** (`Request.timeout`), so an explicit timeout unwinds `evaluateScript` and
+  releases its sync-evaluation gate slot. Idle promise waiting is bounded by the `TimeoutFlag`
+  watchdog under the same budget. Runs with no budget (the default for extension/custom actions)
+  have no timer and hold their gate slot until they settle or are cancelled; Swift task cancellation
+  remains cooperative.
   A fetch response that arrives after the evaluation ends is discarded (`FetchTaskBox.isEnded`);
   the host does not call the JavaScript VM for it (issue #40). Residual: retain cycles in
   `JSNativeFetch` (`nativeFetchBlock` → `contextBox`/`context`; `jsonBlock` → `JSContextBox`) and
@@ -170,6 +173,19 @@ areas; stale debt notes are worse than none.
   model are gone, and the inline status banner is gone too: every `StatusFeedback` renders as a
   floating toast (`ToastPanelController`) with no queue — a status shows over the card — and
   `showsLoading` actions (manifest `"loading"`) use the early-close spinner toast.
+- **File results preview inline by kind.** `FileOutputKind`
+  (`Core/Actions/FileOutputKind.swift`) classifies a `FileOutputPayload` into `image` / `pdf` / `text` /
+  `other` from its MIME type, falling back to `UTType` conformance on the filename extension, so
+  path-only results (no MIME) classify correctly; `isImage` is now `kind == .image`. `ResultCardView`
+  routes on the kind: images keep the aspect-fitted `NSImage`/SVG preview, PDFs embed `PDFKit`'s
+  `PDFView`, text-kind files load up to 100 KB and render inline monospace (an unreadable/binary file
+  downgrades to `other`), and everything else (audio/video/office/archives/unknown) embeds
+  `QLPreviewView` with a filename/size caption. The generic icon + metadata card (`NSWorkspace` icon)
+  stays the fallback for a failed image or binary-text load, so a file result is never blank. The
+  temporary-output filename map in `ShellProcessRunner.extensionForMimeType` gained the
+  generated-document/media MIME types (md, csv, html, xml, yaml, rtf, docx, xlsx, pptx, wav, m4a, mov,
+  webm) plus a `UTType` fallback instead of the old closed 11-entry list. Space still opens the Quick
+  Look panel for any file; ⌘S/⏎ save and ⌘C copies.
 - **`MathEvaluator` replaced crash-prone `NSExpression`.** `CalculateAction` used to run
   `NSExpression(format:)`, which throws an **uncaught Objective-C exception** on malformed selection
   text like `+` or `1+` (crash). The pure-Swift `MathEvaluator` (`Sources/Core/Actions/MathEvaluator.swift`)
@@ -186,12 +202,11 @@ areas; stale debt notes are worse than none.
   shared height cap for the popup panel — lifted per-session via `PopupPanel.heightCap` while the
   result card shows, since a user-resized card may be taller), the AI card bounds
   (`aiCardMinWidth` 220 / `aiCardIdealWidth` 320 / `aiCardMaxWidth` 360 / `aiCardMinHeight` 200 /
-  `aiCardMaxHeight` 280 — the max bounds only cap the content-driven default; the card's and the
-  palette's resize handles go up to the screen, see `PopupResizeGeometry`, with the palette's own
-  floor `searchPaletteMinWidth` 240 / `searchPaletteMinHeight` 128), plus placement/dismissal
-  distances. The remembered card and palette sizes are the popup preferences declared in the App
-  target (`SettingKey+ResultCard.swift`, `SettingKey+SearchPalette.swift`, next to
-  `SettingKey+MenuBar.swift`) because they are pure presentation. `Core/Selection/Constants.swift` keeps only
+  `aiCardMaxHeight` 280 — the max bounds only cap the content-driven default; the card's resize
+  handles go up to the screen, see `PopupResizeGeometry`) plus placement/dismissal
+  distances. The remembered card size is a popup preference declared in the App
+  target (`SettingKey+ResultCard.swift`, next to
+  `SettingKey+MenuBar.swift`) because it is pure presentation. `Core/Selection/Constants.swift` keeps only
   domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 
 ## AI Providers
@@ -343,8 +358,10 @@ areas; stale debt notes are worse than none.
   suite indefinitely (observed mid-suite in `ScriptActionTests.testScriptExecution`). The runner now
   uses a GCD timer watchdog + GCD `readabilityHandler` reads + synchronous stdin close. This claim
   covers only the pipe reads: `process.waitUntilExit()` still blocks its detached thread until the
-  child exits — bounded at `Constants.scriptTimeout`. At timeout the watchdog starts descendant
-  cleanup (the child, the process group when the child is the leader, and remaining descendants).
+  child exits — bounded only when the invocation carries an explicit `timeout`, which arms the
+  watchdog; with none (the default) it runs until the child exits or the caller cancels. At timeout
+  the watchdog starts descendant cleanup (the child, the process group when the child is the leader,
+  and remaining descendants).
   `waitUntilExit()` waits only for the direct child; descendant SIGKILL is scheduled asynchronously
   and may finish after the wait returns. Descendants come from a `proc_listchildpids` walk of the
   child's own subtree (not a scan of the whole process table), snapshotted with start times before

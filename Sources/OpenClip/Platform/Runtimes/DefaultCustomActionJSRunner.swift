@@ -26,7 +26,6 @@ public struct DefaultCustomActionJSRunner: CustomActionJSRunning {
             optionStore: SettingsActionOptionStore(),
             rules: ExtensionActionRules(),
             isAsync: isAsync,
-            timeout: Constants.scriptTimeout,
             packageDirectory: nil,
             entryDirectory: nil,
             pasteboardContent: OpenClipJSHost.PasteboardContent.read()

@@ -88,6 +88,26 @@ public enum CLIPreset: String, CaseIterable, Identifiable, Sendable {
             return "Specify any CLI command that accepts stdin or prompt arguments"
         }
     }
+
+    /// Environment variables that ask the CLI to skip its thinking pass, where the tool exposes a
+    /// documented switch. Claude Code turns thinking off with `MAX_THINKING_TOKENS=0`; Codex uses
+    /// its config override instead (see `thinkingDisabledArguments`). Copilot exposes no "off"
+    /// level and custom commands are opaque, so both are left untouched.
+    public var thinkingDisabledEnvironment: [String: String] {
+        switch self {
+        case .claude: return ["MAX_THINKING_TOKENS": "0"]
+        case .codex, .copilot, .custom: return [:]
+        }
+    }
+
+    /// Config-override flags that ask the CLI to skip its thinking pass. Codex accepts
+    /// `-c model_reasoning_effort=none`; the other tools are configured via environment instead.
+    public var thinkingDisabledArguments: [String] {
+        switch self {
+        case .codex: return ["-c", "model_reasoning_effort=none"]
+        case .claude, .copilot, .custom: return []
+        }
+    }
 }
 
 @MainActor
@@ -410,6 +430,10 @@ public final class CLIProvider: AIProvider {
         let currentPath = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
         env["PATH"] = (extraPaths + [currentPath]).joined(separator: ":")
 
+        for (key, value) in preset.thinkingDisabledEnvironment {
+            env[key] = value
+        }
+
         switch preset {
         case .claude:
             guard let binary = resolveBinaryPath(for: "claude") else {
@@ -431,7 +455,8 @@ public final class CLIProvider: AIProvider {
                 throw AIError.providerUnavailable("Codex CLI ('codex') not found. \(CLIPreset.codex.installationHint)")
             }
             var args = [
-                "exec",
+                "exec"
+            ] + preset.thinkingDisabledArguments + [
                 systemPrompt,
                 "--skip-git-repo-check",
                 "--ephemeral",

@@ -67,8 +67,9 @@ public enum PopupMetrics {
     /// Transparent ring (pt) around the toast bubble inside the panel frame: the controller centers
     /// the bubble in a window inflated by this amount so its SwiftUI drop shadow (radius 4, y 1)
     /// renders instead of being clipped at the window edge — worst at the rounded corners, where the
-    /// blur spreads diagonally. The whole toast panel ignores mouse events (it is purely a status
-    /// surface), so the ring can never swallow clicks.
+    /// blur spreads diagonally. `ToastContainerView` returns nil from hit-testing for this ring, so
+    /// even when the panel accepts pointer events (to hold the toast under the cursor) the ring
+    /// still lets clicks fall through to the app underneath.
     public static let toastShadowInset: CGFloat = 8.0
     public static let popupPadding: CGFloat = 8.0
     /// Gap between the prioritized contextual actions island and the standard actions island in the split popup bar.

@@ -73,17 +73,17 @@ public struct AIConfigureForm: View {
                         HStack(spacing: 8) {
                             Image(systemName: "applelogo")
                                 .font(.system(size: 14, weight: .medium))
-                            Text("Apple Intelligence (On-Device)")
+                            Text("Apple Intelligence")
                                 .font(.system(size: 13, weight: .medium))
-                        }
 
-                        HStack(spacing: 6) {
-                            Image(systemName: status.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                .foregroundColor(status.isAvailable ? .green : .orange)
-                            Text(AppleIntelligenceAvailability.statusLabel(for: status))
-                                .foregroundColor(status.isAvailable ? .secondary : .orange)
+                            HStack(spacing: 6) {
+                                Image(systemName: status.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                    .foregroundColor(status.isAvailable ? .green : .orange)
+                                Text(AppleIntelligenceAvailability.statusLabel(for: status))
+                                    .foregroundColor(status.isAvailable ? .secondary : .orange)
+                            }
+                            .font(.caption)
                         }
-                        .font(.caption)
 
                         if !status.isAvailable {
                             Text(AppleIntelligenceAvailability.unavailableExplanation(for: status))

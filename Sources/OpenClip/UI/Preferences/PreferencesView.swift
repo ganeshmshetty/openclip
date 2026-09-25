@@ -773,6 +773,13 @@ public struct PreferencesView: View {
             }
             .frame(width: 180, height: 28)
             .settingsGlassCapsule(interactive: false)
+            // The TextField only exists once this branch renders, so the expand button cannot
+            // focus it in the same transaction — take focus here instead.
+            .onAppear {
+                if isStoreSearchExpanded {
+                    isStoreSearchFocused = true
+                }
+            }
             .onChange(of: isStoreSearchFocused) { _, focused in
                 if !focused && storeViewModel.searchQuery.isEmpty {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
@@ -788,7 +795,6 @@ public struct PreferencesView: View {
             Button {
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
                     isStoreSearchExpanded = true
-                    isStoreSearchFocused = true
                 }
             } label: {
                 Image(systemName: "magnifyingglass")

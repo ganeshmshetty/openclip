@@ -37,8 +37,8 @@ public struct BrowserTabOpener {
         NSWorkspace.shared.open(url)
     }
 
-    /// Budget for the scripting attempt. Short and independent of `Constants.scriptTimeout`: opening
-    /// a tab is a quick ask, and a busy browser must never hold the action up.
+    /// Budget for the scripting attempt. Short deliberately: opening a tab is a quick ask, and a
+    /// busy browser must never hold the action up.
     static let appleScriptTimeout: TimeInterval = 5
 
     public func open(_ url: URL, inApp bundleID: String) async {

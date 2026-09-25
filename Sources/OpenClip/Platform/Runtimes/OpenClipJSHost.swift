@@ -16,9 +16,11 @@
 // get a `fetch(url, options)` polyfill bridged to URLSession (GET/POST with JSON bodies; responses
 // expose `{ status, ok, text(), json() }`) and a promise bridge: the wrapped entry point attaches
 // `.then`/catch handlers that settle a PromiseState, and the host pumps the thread's runloop until
-// the promise settles. A JavaScriptCore VM execution limit interrupts synchronous JavaScript, while
-// a TimeoutFlag watchdog bounds idle promise waiting; both throw after `Constants.scriptTimeout`.
-// Synchronous extensions keep the exact legacy wrapped-script shape and immediate-result behavior.
+// the promise settles. When the caller supplies a `Request.timeout` budget, a JavaScriptCore VM
+// execution limit interrupts synchronous JavaScript and a TimeoutFlag watchdog bounds idle promise
+// waiting; both throw once that budget elapses. With no budget (the default) the run has no timer
+// and ends only when the script settles or the caller cancels it. Synchronous extensions keep the
+// exact legacy wrapped-script shape and immediate-result behavior.
 import Foundation
 import JavaScriptCore
 import Core
@@ -96,7 +98,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         /// When true the host awaits the action's promise (and enables the fetch polyfill). When
         /// false, legacy synchronous evaluation is used.
         public var isAsync: Bool
-        /// Watchdog budget. Defaults to `Constants.scriptTimeout` when nil (test override).
+        /// Watchdog budget. `nil` (the default) runs with no timer — the script settles or the
+        /// caller cancels it; callers that want a bound pass one explicitly (tests use short ones).
         public var timeout: TimeInterval?
         /// Extension package directory. When non-nil the host enables the module bridge and wraps
         /// the script in module scaffolding; nil preserves the legacy single-file behavior.
@@ -259,8 +262,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let matchedText = request.context.match?.matchedText ?? text
         let captures = request.context.match?.captures ?? []
 
-        let timeoutSeconds = max(0.001, request.timeout ?? Constants.scriptTimeout)
         let timeoutFlag = TimeoutFlag()
+        // Only meaningful when a budget exists; `timeoutFlag` is only ever set inside that branch.
+        let timeoutSeconds = max(0.001, request.timeout ?? 0)
 
         guard let jsContext = JSContext() else {
             throw NSError(domain: Constants.actionErrorDomain,
@@ -268,22 +272,30 @@ public final class OpenClipJSHost: @unchecked Sendable {
                           userInfo: [NSLocalizedDescriptionKey: "Could not create JavaScript context"])
         }
 
-        // Install the VM limit before evaluating any script so runaway synchronous code is
-        // interrupted inside JavaScriptCore rather than observed only after evaluateScript returns.
-        let executionLimit = JSExecutionTimeLimit(
-            context: jsContext,
-            timeout: timeoutSeconds,
-            timeoutFlag: timeoutFlag
-        )
-        defer { executionLimit.clear() }
-
-        // The VM limit only runs while JavaScript is executing. This wall-clock watchdog separately
-        // bounds an async promise that is idle while the runloop waits for settlement.
-        let watchdog = Task.detached {
-            try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
-            timeoutFlag.markTimedOut()
+        // With an explicit budget, install the VM limit before evaluating any script so runaway
+        // synchronous code is interrupted inside JavaScriptCore rather than observed only after
+        // evaluateScript returns, and arm a wall-clock watchdog for an async promise that idles
+        // while the runloop waits for settlement. With no budget (the default) the run has no timer.
+        let executionLimit: JSExecutionTimeLimit?
+        let watchdog: Task<Void, Never>?
+        if request.timeout != nil {
+            executionLimit = JSExecutionTimeLimit(
+                context: jsContext,
+                timeout: timeoutSeconds,
+                timeoutFlag: timeoutFlag
+            )
+            watchdog = Task.detached {
+                try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
+                timeoutFlag.markTimedOut()
+            }
+        } else {
+            executionLimit = nil
+            watchdog = nil
         }
-        defer { watchdog.cancel() }
+        defer {
+            executionLimit?.clear()
+            watchdog?.cancel()
+        }
 
         let collected = CollectedBox()
         let effects = EffectsBox()
@@ -538,8 +550,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
                     }
                 }
             }
+            // Arrays, String wrappers and Dates are objects too; only plain objects stringify to
+            // "[object Object]" and are filtered out. File objects were handled above.
             let resolved = promiseState.resolvedValue.flatMap { (value: JSValue) -> String? in
-                if value.isObject { return nil }
                 let string = value.toString() ?? ""
                 return (string.isEmpty || string == "undefined" || string == "null" || string == "[object Object]") ? nil : string
             }
@@ -549,24 +562,23 @@ public final class OpenClipJSHost: @unchecked Sendable {
         // Sync path: a promise-like return cannot be awaited in legacy mode, so it is ignored
         // rather than pasted as "[object Promise]".
         if let result = jsResult, !isPromiseLike(result) {
-            if result.isObject {
-                if let typeVal = result.objectForKeyedSubscript("type"), typeVal.isString {
-                    let typeStr = (typeVal.toString() ?? "").lowercased()
-                    if typeStr == "file" || typeStr == "copyfile" || typeStr == "savefile" {
-                        if effects.value.isEmpty {
-                            if let payload = parseFilePayload(result, options: nil) {
-                                let fileAction = parseFileAction(result, options: nil)
-                                if typeStr == "copyfile" || fileAction == "copy" || fileAction == "copyfile" {
-                                    effects.value.append(.copyFile(payload.url))
-                                } else if typeStr == "savefile" || fileAction == "save" || fileAction == "savefile" {
-                                    effects.value.append(.saveFile(payload.url))
-                                } else {
-                                    effects.value.append(.file(payload))
-                                }
-                            } else {
-                                effects.value.append(.toast(StatusFeedback(message: String(localized: "File not found"), style: .error)))
-                            }
+            var fileType: String?
+            if result.isObject, let typeVal = result.objectForKeyedSubscript("type"), typeVal.isString {
+                fileType = (typeVal.toString() ?? "").lowercased()
+            }
+            if let typeStr = fileType, typeStr == "file" || typeStr == "copyfile" || typeStr == "savefile" {
+                if effects.value.isEmpty {
+                    if let payload = parseFilePayload(result, options: nil) {
+                        let fileAction = parseFileAction(result, options: nil)
+                        if typeStr == "copyfile" || fileAction == "copy" || fileAction == "copyfile" {
+                            effects.value.append(.copyFile(payload.url))
+                        } else if typeStr == "savefile" || fileAction == "save" || fileAction == "savefile" {
+                            effects.value.append(.saveFile(payload.url))
+                        } else {
+                            effects.value.append(.file(payload))
                         }
+                    } else {
+                        effects.value.append(.toast(StatusFeedback(message: String(localized: "File not found"), style: .error)))
                     }
                 }
             } else if let resultString = result.toString(), resultString != "undefined", resultString != "null", resultString != "[object Object]" {
@@ -1121,6 +1133,19 @@ public final class OpenClipJSHost: @unchecked Sendable {
         return nil
     }
 
+    /// Reads a payload's MIME type. `type` doubles as the file-object discriminator ("file",
+    /// "copyFile", "saveFile"), so it is only accepted as a MIME type when it looks like one
+    /// (`image/png`); otherwise `extensionForMimeType` would resolve "file" to `output-.bin`.
+    private static func mimeType(from value: JSValue) -> String? {
+        if let explicit = stringValue(value.objectForKeyedSubscript("mimeType")) {
+            return explicit
+        }
+        guard let type = stringValue(value.objectForKeyedSubscript("type")), type.contains("/") else {
+            return nil
+        }
+        return type
+    }
+
     /// Builds a file payload from JavaScript path or base64 data and optional metadata.
     private static func parseFilePayload(_ value: JSValue, options: JSValue?) -> FileOutputPayload? {
         var pathStr: String?
@@ -1134,7 +1159,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             pathStr = stringValue(value.objectForKeyedSubscript("path")) ?? stringValue(value.objectForKeyedSubscript("url"))
             dataStr = stringValue(value.objectForKeyedSubscript("data"))
             filename = stringValue(value.objectForKeyedSubscript("filename")) ?? stringValue(value.objectForKeyedSubscript("name"))
-            mimeType = stringValue(value.objectForKeyedSubscript("mimeType")) ?? stringValue(value.objectForKeyedSubscript("type"))
+            mimeType = Self.mimeType(from: value)
         }
 
         if let options, options.isObject {
@@ -1142,7 +1167,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
                 filename = stringValue(options.objectForKeyedSubscript("filename")) ?? stringValue(options.objectForKeyedSubscript("name"))
             }
             if mimeType == nil {
-                mimeType = stringValue(options.objectForKeyedSubscript("mimeType")) ?? stringValue(options.objectForKeyedSubscript("type"))
+                mimeType = Self.mimeType(from: options)
             }
         }
 

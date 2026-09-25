@@ -32,12 +32,6 @@ public final class PopupModeStore: ObservableObject {
     /// text needs up to this; `nil` means the default maximum. Cleared whenever the card leaves
     /// the screen, so every entry re-reads the preference.
     @Published public var resultCardSize: CGSize? = nil
-    /// The most room the search palette may take — the user's remembered size, restored from
-    /// preferences (`SettingKey.searchPaletteWidth` / `searchPaletteHeight`) when search mode is
-    /// entered and updated live while a resize handle is dragged. The palette renders at what its
-    /// results need up to this; `nil` means the default column. Cleared whenever the palette
-    /// closes, so every entry re-reads the preference.
-    @Published public var searchPaletteSize: CGSize? = nil
     /// True once the user has dragged a resize handle of the surface on screen. From then on the
     /// surface keeps the dragged size verbatim — any size they want, whatever its content does —
     /// for the rest of its session. Cleared when the surface closes, so the next one opens

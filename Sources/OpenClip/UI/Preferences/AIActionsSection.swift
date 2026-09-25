@@ -57,21 +57,8 @@ public struct AIActionsSection: View {
     @ViewBuilder
     private func row(_ preset: AIActionPreset) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            Toggle("", isOn: Binding(
-                get: { preset.isEnabled },
-                set: { newValue in
-                    var updated = preset
-                    updated.isEnabled = newValue
-                    aiManager.updatePreset(updated)
-                }
-            ))
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .accessibilityLabel(String(localized: "Enable \(preset.title)"))
-
-            // The rest of the row drills into the prompt: the row is the control, the way a
-            // System Settings list row is.
+            // The title drills into the prompt: the row is the control, the way a System
+            // Settings list row is. The enable switch sits after it, just before the chevron.
             Button {
                 router.push(.aiPreset(id: preset.id))
             } label: {
@@ -87,15 +74,36 @@ public struct AIActionsSection: View {
                     }
 
                     Spacer(minLength: 8)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.tertiary)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Edit Action Prompt")
+
+            Toggle("", isOn: Binding(
+                get: { preset.isEnabled },
+                set: { newValue in
+                    var updated = preset
+                    updated.isEnabled = newValue
+                    aiManager.updatePreset(updated)
+                }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .accessibilityLabel(String(localized: "Enable \(preset.title)"))
+
+            Button {
+                router.push(.aiPreset(id: preset.id))
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "Edit \(preset.title)"))
         }
         .padding(.vertical, 6)
     }

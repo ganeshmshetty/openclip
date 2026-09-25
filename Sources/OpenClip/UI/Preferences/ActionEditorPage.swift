@@ -375,6 +375,32 @@ public struct ActionEditorPage: View {
         .frame(width: size, height: size)
     }
 
+    /// The destructive Delete control shared by a custom action and an installed extension's
+    /// header row: a trash glyph in a red-tinted glass capsule, posting its own confirmation.
+    @ViewBuilder
+    private func deleteButton(_ action: @escaping () -> Void) -> some View {
+        if #available(macOS 26.0, *) {
+            Button(role: .destructive, action: action) {
+                Label(String(localized: "Delete"), systemImage: "trash")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(SettingsDesignTokens.glassButtonRed)
+                    .padding(.horizontal, 10)
+                    .frame(height: 24)
+            }
+            .buttonStyle(.plain)
+            .settingsGlassCapsule(tint: SettingsDesignTokens.glassButtonRed.opacity(0.14), interactive: true)
+            .contentShape(Capsule())
+        } else {
+            Button(role: .destructive, action: action) {
+                Label(String(localized: "Delete"), systemImage: "trash")
+            }
+            .buttonStyle(.bordered)
+            .tint(Color.red)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+        }
+    }
+
     @ViewBuilder
     private func extensionUpdateStatusView(for packageID: String) -> some View {
         if isUpdating {
@@ -534,30 +560,22 @@ public struct ActionEditorPage: View {
                         HStack(alignment: .center, spacing: 8) {
                             extensionUpdateStatusView(for: packageID)
 
-                            if #available(macOS 26.0, *) {
-                                Button(role: .destructive) {
-                                    showUninstallConfirmation = true
-                                } label: {
-                                    Label(String(localized: "Delete"), systemImage: "trash")
-                                        .font(.system(size: 11.5, weight: .medium))
-                                        .foregroundStyle(SettingsDesignTokens.glassButtonRed)
-                                        .padding(.horizontal, 10)
-                                        .frame(height: 24)
-                                }
-                                .buttonStyle(.plain)
-                                .settingsGlassCapsule(tint: SettingsDesignTokens.glassButtonRed.opacity(0.14), interactive: true)
-                                .contentShape(Capsule())
-                            } else {
-                                Button(role: .destructive) {
-                                    showUninstallConfirmation = true
-                                } label: {
-                                    Label(String(localized: "Delete"), systemImage: "trash")
-                                }
-                                .buttonStyle(.bordered)
-                                .tint(Color.red)
-                                .buttonBorderShape(.capsule)
-                                .controlSize(.small)
+                            deleteButton {
+                                showUninstallConfirmation = true
                             }
+                        }
+                        .fixedSize(horizontal: true, vertical: false)
+                    }
+                } else if isCustomAction {
+                    Divider()
+                        .opacity(0.3)
+                        .padding(.vertical, 10)
+
+                    HStack(alignment: .center) {
+                        Spacer(minLength: 12)
+
+                        deleteButton {
+                            confirmDelete()
                         }
                         .fixedSize(horizontal: true, vertical: false)
                     }
@@ -669,8 +687,7 @@ public struct ActionEditorPage: View {
                         if hasTriggers {
                             SettingsRow(
                                 title: "Keyboard Shortcut",
-                                subtitle: "Global hotkey to run this action directly.",
-                                systemImage: "keyboard"
+                                subtitle: "Global hotkey to run this action directly."
                             ) {
                                 Shortcut(for: .actionHotkey(action.id))
                             }
@@ -679,8 +696,7 @@ public struct ActionEditorPage: View {
 
                             SettingsRow(
                                 title: "Search Alias",
-                                subtitle: "Keyword to jump to this action in the search palette.",
-                                systemImage: "magnifyingglass"
+                                subtitle: "Keyword to jump to this action in the search palette."
                             ) {
                                 HStack(spacing: 8) {
                                     if let aliasError {
@@ -710,8 +726,7 @@ public struct ActionEditorPage: View {
                         if hasOutput {
                             SettingsRow(
                                 title: "When finished",
-                                subtitle: "Where to send the output of this action.",
-                                systemImage: "arrow.turn.down.right"
+                                subtitle: "Where to send the output of this action."
                             ) {
                                 Picker("", selection: $deliveryPrefString) {
                                     Text("Show in card").tag("preview")
@@ -860,23 +875,6 @@ public struct ActionEditorPage: View {
                         Spacer()
                     }
                     .padding(.horizontal, 4)
-                }
-
-                if isCustomAction {
-                    SettingsCard {
-                        Button(role: .destructive) {
-                            confirmDelete()
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text("Delete Action…")
-                                    .foregroundStyle(.red)
-                                Spacer()
-                            }
-                            .padding(.vertical, 8)
-                        }
-                        .buttonStyle(.plain)
-                    }
                 }
             }
             .padding(.horizontal, 24)

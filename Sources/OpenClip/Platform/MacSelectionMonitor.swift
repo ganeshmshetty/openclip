@@ -114,13 +114,20 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             ?? NSScreen.screens.first?.frame.height
             ?? 0
         let axPoint = CGPoint(x: point.x, y: primaryHeight - point.y)
+        // This runs on the main actor inside the hold task, so an unresponsive target app must not
+        // freeze the popup and event monitors. Cap every AX round-trip at `axReadTimeout` instead
+        // of letting it wait out the multi-second default messaging timeout.
+        let timeout = Float(Constants.axReadTimeout)
+        let systemWide = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemWide, timeout)
         var element: AXUIElement?
-        guard AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(), Float(axPoint.x), Float(axPoint.y), &element) == .success,
+        guard AXUIElementCopyElementAtPosition(systemWide, Float(axPoint.x), Float(axPoint.y), &element) == .success,
               let start = element else { return false }
 
         var current: AXUIElement? = start
         var depth = 0
         while let el = current, depth < 6 {
+            AXUIElementSetMessagingTimeout(el, timeout)
             var roleRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &roleRef) == .success,
                let role = roleRef as? String, editableTextRoles.contains(role) {

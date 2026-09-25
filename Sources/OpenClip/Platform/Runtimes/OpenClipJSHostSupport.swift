@@ -68,8 +68,9 @@ final class JSExecutionTimeLimit {
     }
 }
 
-/// Bounds the number of concurrent synchronous JS evaluations. The runtime execution limit makes
-/// each slot recoverable after timeout; the cap still protects against concurrent startup bursts.
+/// Bounds the number of concurrent synchronous JS evaluations. When a run carries a budget, the
+/// runtime execution limit makes its slot recoverable after timeout; the cap still protects against
+/// concurrent startup bursts. A run with no budget holds its slot until it settles.
 final class SyncEvaluationGate: @unchecked Sendable {
     private let lock = NSLock()
     let capacity: Int

@@ -403,6 +403,8 @@ struct SettingsSidebar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityValue(row.isDisabled ? Text("Disabled") : Text(""))
         .onHover { hovering in
             if hovering {
                 hoveredRowID = row.id
@@ -412,7 +414,6 @@ struct SettingsSidebar: View {
         }
         .opacity(row.isDisabled ? 0.45 : 1.0)
         .saturation(row.isDisabled ? 0.5 : 1.0)
-        .tag(row.page)
     }
 
     private func scrollSelectionIntoView(_ proxy: ScrollViewProxy, animated: Bool) {

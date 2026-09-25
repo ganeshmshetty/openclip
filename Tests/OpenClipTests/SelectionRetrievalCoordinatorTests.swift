@@ -689,10 +689,17 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
 
     // MARK: - Rich-content enrichment
 
-    func testTextOnlyWebAreaWinEnrichesFromPasteboardCapture() async {
+    func testTextOnlyWebAreaWinSkipsRichEnrichmentByDefault() async {
+        // Enrichment is opt-in (the shipping default skips the synthetic copy), so a successful
+        // AX read of a web area must not fire the capture.
+        final class Counter: @unchecked Sendable { var calls = 0 }
+        let counter = Counter()
         let coordinator = SelectionRetrievalCoordinator(
             inspect: { Self.webAreaTarget(selectedText: "plain selection") },
-            copyCapture: { _ in TextResult(text: "rich selection", html: "<b>rich</b> selection") }
+            copyCapture: { _ in
+                counter.calls += 1
+                return TextResult(text: "rich selection", html: "<b>rich</b> selection")
+            }
         )
         let policy = AppPolicyContext(retrievalMode: .axWebArea)
         let result = await coordinator.retrieve(
@@ -700,8 +707,9 @@ final class SelectionRetrievalCoordinatorTests: XCTestCase {
             policy: policy,
             cursor: .unknown
         )
-        XCTAssertEqual(result?.text, "rich selection")
-        XCTAssertEqual(result?.html, "<b>rich</b> selection")
+        XCTAssertEqual(result?.text, "plain selection")
+        XCTAssertNil(result?.html)
+        XCTAssertEqual(counter.calls, 0, "the default configuration must not post a synthetic copy")
     }
 
     func testNativeAppTextOnlyWinDoesNotFireCopyCapture() async throws {

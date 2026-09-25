@@ -6,11 +6,9 @@
 // below the field depending on popup position; up to 3 rows visible, scrollable beyond that.
 // Rows are chosen with the arrows + Return, the mouse, or ⌘1…⌘9 — the first nine rows carry a
 // shortcut (shown on the row) that runs them outright. The keys live on the focused field, so
-// they exist only while the palette is open. The palette's right edge, bottom edge and corner grip
-// are resize handles (`PopupResizeHandles`); the size they settle on is remembered and, passed
-// back in as `maxSize`, caps the palette on the next entry: a couple of results still get a short
-// palette, a long list grows up to the maximum and scrolls beyond it. Once the user has dragged a
-// handle (`isUserSized`), the palette keeps the dragged size verbatim until it closes.
+// they exist only while the palette is open. The palette is content-sized and not resizable: a
+// couple of results get a short palette, and a longer list grows to the default maximum and
+// scrolls beyond it.
 // A query that matches nothing is not a dead end: while AI is on, the empty state offers the
 // typed text as an AI instruction — "Ask AI" runs it once on the selection, "Save as AI tool"
 // keeps it as a custom AI preset (a searchable action from then on) and runs it. Recent
@@ -64,18 +62,6 @@ public struct PopupSearchView: View {
     /// Returns the click intent captured at mouse-down for the current click, so the palette's
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
-    /// The most room the palette may take — the user's remembered or in-progress resize. The
-    /// palette renders at what its results need up to this; `nil` caps at the default column
-    /// (`searchPanelContentWidth` wide, `searchMaxRows` rows tall).
-    public let maxSize: CGSize?
-    /// True once the user has dragged a resize handle of this palette: it then renders at
-    /// `maxSize` verbatim — the size they set, whatever the results need — instead of the
-    /// content-fitted size.
-    public let isUserSized: Bool
-    /// Reports a drag of one of the resize handles so the owner can resize the panel and remember
-    /// the size. `.began` is reported exactly once per drag.
-    public let onResize: @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void
-
     @State private var query = ""
     @State private var selectedIndex = 0
     @FocusState private var isFocused: Bool
@@ -128,20 +114,16 @@ public struct PopupSearchView: View {
 
     /// Height of the search palette card: what the current results need (field inset, rows,
     /// spacing, bottom padding), never shorter than `searchPaletteMinHeight` and never taller than
-    /// the maximum — the remembered size, or `defaultHeight` (`searchMaxRows` rows) — beyond which
-    /// the list scrolls. Once user-sized it is exactly the dragged size.
+    /// `defaultHeight` (`searchMaxRows` rows), beyond which the list scrolls.
     private var cardHeight: CGFloat {
-        if isUserSized, let maxSize { return maxSize.height }
-        return Self.bounded(naturalHeight, min: PopupMetrics.searchPaletteMinHeight, max: maxSize?.height ?? Self.defaultHeight)
+        Self.bounded(naturalHeight, min: PopupMetrics.searchPaletteMinHeight, max: Self.defaultHeight)
     }
 
     /// Width of the search palette card. The default column is the floor — a list has a design
-    /// width, and rows only widen it when a title needs the room — capped by the maximum (the
-    /// remembered width, or the default column). Once user-sized it is exactly the dragged size.
+    /// width, and rows only widen it when a title needs the room — capped at the default column.
     private var cardWidth: CGFloat {
-        if isUserSized, let maxSize { return maxSize.width }
         let needed = max(PopupMetrics.searchPanelContentWidth, naturalRowWidth)
-        return Self.bounded(needed, min: PopupMetrics.searchPaletteMinWidth, max: maxSize?.width ?? PopupMetrics.searchPanelContentWidth)
+        return Self.bounded(needed, min: PopupMetrics.searchPaletteMinWidth, max: PopupMetrics.searchPanelContentWidth)
     }
 
     /// The search header height and bottom footer height.
@@ -226,9 +208,6 @@ public struct PopupSearchView: View {
         modeStore: PopupModeStore = PopupModeStore(),
         scope: SearchScope? = nil,
         usageRecency: [String: Int] = [:],
-        maxSize: CGSize? = nil,
-        isUserSized: Bool = false,
-        onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in },
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onExit: @escaping @MainActor () -> Void,
         onExitScope: @escaping @MainActor () -> Void = {},
@@ -248,9 +227,6 @@ public struct PopupSearchView: View {
         self._modeStore = ObservedObject(wrappedValue: modeStore)
         self.scope = scope
         self.usageRecency = usageRecency
-        self.maxSize = maxSize
-        self.isUserSized = isUserSized
-        self.onResize = onResize
         self.onResult = onResult
         self.onExit = onExit
         self.onExitScope = onExitScope
@@ -280,15 +256,7 @@ public struct PopupSearchView: View {
     }
 
     public var body: some View {
-        ZStack(alignment: .top) {
-            resultsList
-
-            PopupResizeHandles(
-                tint: PopupThemeModel.restForeground(for: effectiveTheme),
-                accessibilityLabel: String(localized: "Resize search palette"),
-                onResize: onResize
-            )
-        }
+        resultsList
         .frame(width: cardWidth, height: cardHeight)
         .background(CommandDigitCatcher { row in runRow(at: row - 1) })
         .popupCardChrome(cornerRadius: PopupMetrics.searchCornerRadius, effectiveTheme: effectiveTheme, colorScheme: colorScheme)
@@ -1032,19 +1000,20 @@ public struct PopupSearchView: View {
             return
         }
 
-        // 1. If cursor is inside the search header (top area):
-        if point.y <= Self.searchHeaderHeight {
-            if let escFrame = hoverFrames[.esc], escFrame.contains(point) {
-                hoveredTarget = .esc
-            } else {
-                hoveredTarget = .searchBar
-            }
+        // Hit-test the registered frames rather than comparing against card-relative constants:
+        // the location is in full panel-content coordinates, which include the 28 pt shadow inset
+        // that `PopupMetrics.popupShadowInset` adds before the named hover space. Esc is checked
+        // first because its frame sits inside the search bar's.
+        if let escFrame = hoverFrames[.esc], escFrame.contains(point) {
+            hoveredTarget = .esc
+            return
+        }
+        if let header = hoverFrames[.searchBar], header.contains(point) {
+            hoveredTarget = .searchBar
             // NEVER select a list row when mouse is over the search bar
             return
         }
-
-        // 2. If cursor is inside the bottom dock:
-        if point.y >= (cardHeight - Self.footerHeight) {
+        if let dock = hoverFrames[.bottomDock], dock.contains(point) {
             hoveredTarget = .bottomDock
             // NEVER select a list row when mouse is over the bottom dock
             return

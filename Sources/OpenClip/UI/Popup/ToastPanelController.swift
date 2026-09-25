@@ -4,7 +4,8 @@
 // Owns the ToastPanel + its NSHostingView(ToastView) and the auto-dismiss timer. The single
 // status surface: replaces the removed inline banner. Info/error toasts auto-dismiss after
 // `autoDismissNanoseconds` unless `keepVisible`; loading and keep-visible toasts have no timer
-// and are cleared via swapTo/hide.
+// and are cleared via swapTo/hide. An auto-dismissing toast pauses its timer while the pointer
+// rests on it (it accepts mouse events to track hover) and restarts the full duration on leave.
 //
 // Toasts are linked to the popup that produced them: each show takes an anchor frame (the
 // popup's screen frame) and the bubble centers directly in-place over that frame, clamped
@@ -37,7 +38,14 @@ public final class ToastPanelController {
 
     private let panel: ToastPanel
     private let autoDismissNanoseconds: UInt64
+    /// Internal for tests: whether an auto-dismiss is currently pending (nil once it fires, is
+    /// cancelled by hover, or is cleared by `hide`).
+    var hasPendingDismissal: Bool { dismissTask != nil }
     private var dismissTask: Task<Void, Never>?
+    /// When a dismissible toast should disappear. Hovering pauses the countdown by cancelling the
+    /// task but leaving this in place, so leaving resumes whatever time was left (and hides at once
+    /// if the toast's time already ran out while the cursor rested on it).
+    private var dismissalDeadline: Date?
     private let hostingView: ToastHostingView
     /// The popup frame the toast should attach to; nil falls back to main-screen centering.
     private var _lastAnchorFrame: NSRect?
@@ -72,6 +80,10 @@ public final class ToastPanelController {
         if let anchorFrame { _lastAnchorFrame = anchorFrame }
 
         let isInteractive = feedback.isLoading && onCancel != nil
+        // A toast that owns a timer (not loading, not keepVisible) must accept pointer events so
+        // the cursor can hold it. Interactive loading toasts already accept events to cancel.
+        let isDismissible = !feedback.isLoading && !feedback.keepVisible
+        let hoverRelay: (Bool) -> Void = { [weak self] hovering in self?.handleHover(hovering) }
         let fit: CGSize
         if isInteractive {
             let scale = PopupMetrics.scaleMultiplier(for: DefaultSettingsStore.shared.get(SettingKey.popupScale))
@@ -81,7 +93,7 @@ public final class ToastPanelController {
             let cancelText = String(localized: "Cancel Task")
             let cancelTextWidth = (cancelText as NSString).size(withAttributes: [.font: font]).width
 
-            hostingView.rootView = ToastView(feedback: feedback, onCancel: onCancel)
+            hostingView.rootView = ToastView(feedback: feedback, onCancel: onCancel, onHover: hoverRelay)
             hostingView.layoutSubtreeIfNeeded()
             let baseFit = hostingView.fittingSize
 
@@ -89,10 +101,10 @@ public final class ToastPanelController {
             let targetWidth = baseFit.width + textDelta
             fit = CGSize(width: targetWidth, height: baseFit.height)
 
-            hostingView.rootView = ToastView(feedback: feedback, onCancel: onCancel, reservedWidth: targetWidth)
+            hostingView.rootView = ToastView(feedback: feedback, onCancel: onCancel, reservedWidth: targetWidth, onHover: hoverRelay)
             hostingView.layoutSubtreeIfNeeded()
         } else {
-            hostingView.rootView = ToastView(feedback: feedback)
+            hostingView.rootView = ToastView(feedback: feedback, onHover: hoverRelay)
             hostingView.layoutSubtreeIfNeeded()
             fit = hostingView.fittingSize
         }
@@ -106,7 +118,7 @@ public final class ToastPanelController {
                                           size: NSSize(width: fit.width + inset * 2,
                                                        height: fit.height + inset * 2))
         place(at: fit, inset: inset)
-        panel.ignoresMouseEvents = !isInteractive
+        panel.ignoresMouseEvents = !(isInteractive || isDismissible)
         _isShowing = true
         if NSClassFromString("XCTestCase") == nil {
             panel.orderFrontRegardless()
@@ -133,6 +145,7 @@ public final class ToastPanelController {
     public func hide() {
         dismissTask?.cancel()
         dismissTask = nil
+        dismissalDeadline = nil
         currentFeedback = nil
         isLoading = false
         _isShowing = false
@@ -141,11 +154,41 @@ public final class ToastPanelController {
         hostingView.rootView = ToastView(feedback: StatusFeedback(message: "", style: .info))
     }
 
+    /// Starts a fresh auto-dismiss window from `autoDismissNanoseconds`.
     private func startDismissal() {
+        dismissalDeadline = Date().addingTimeInterval(TimeInterval(autoDismissNanoseconds) / 1_000_000_000)
+        scheduleDismissal()
+    }
+
+    /// Schedules the hide for whatever remains until `dismissalDeadline`, or hides immediately when
+    /// that deadline has already passed (e.g. the cursor held the toast past its window).
+    private func scheduleDismissal() {
+        dismissTask?.cancel()
+        dismissTask = nil
+        guard let deadline = dismissalDeadline else { return }
+        let remaining = deadline.timeIntervalSinceNow
+        guard remaining > 0 else {
+            hide()
+            return
+        }
         dismissTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: autoDismissNanoseconds)
+            try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
             guard !Task.isCancelled else { return }
             self.hide()
+        }
+    }
+
+    /// Feeds the toast bubble's pointer hover state into dismissal scheduling: entering pauses the
+    /// countdown so the toast stays under the cursor, and leaving resumes the remaining time —
+    /// hiding at once if the toast's window already elapsed while hovered. A no-op for loading and
+    /// keep-visible toasts, which have no timer. Internal for tests.
+    func handleHover(_ hovering: Bool) {
+        guard _isShowing, !isLoading, currentFeedback?.keepVisible != true else { return }
+        if hovering {
+            dismissTask?.cancel()
+            dismissTask = nil
+        } else {
+            scheduleDismissal()
         }
     }
 

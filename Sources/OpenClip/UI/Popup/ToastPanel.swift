@@ -19,8 +19,9 @@ public final class ToastPanel: NSPanel {
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = false
-        // Defaults to passive pass-through. When showing interactive loading toasts,
-        // ToastPanelController sets ignoresMouseEvents = false so clicks can cancel the task.
+        // Defaults to passive pass-through. ToastPanelController sets ignoresMouseEvents = false
+        // for interactive loading toasts (clicks cancel the task) and for auto-dismissing toasts,
+        // so the cursor can hold the toast by hovering it.
         self.ignoresMouseEvents = true
         self.isMovable = false
         self.hidesOnDeactivate = false

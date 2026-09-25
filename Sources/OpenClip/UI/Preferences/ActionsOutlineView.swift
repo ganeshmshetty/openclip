@@ -1224,7 +1224,62 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             break
         }
 
+        // Selection-based Duplicate / Delete: a right-click inside a multi-row selection acts on
+        // every selected action, not just the one under the pointer. Custom groups are excluded —
+        // their own Configure/Ungroup items already cover them, and duplication targets actions.
+        let selectedNodes = selectedActionNodes(fallback: node).filter { !$0.isCustomGroup }
+        let duplicable = selectedNodes.compactMap(\.action).filter { ActionIdentity.canDuplicate($0) }
+        let deletable = selectedNodes.compactMap(\.action).filter { ActionDeletion.canDelete($0) }
+
+        if !duplicable.isEmpty || !deletable.isEmpty {
+            if !menu.items.isEmpty { menu.addItem(.separator()) }
+        }
+        if !duplicable.isEmpty {
+            let duplicateItem = NSMenuItem(title: String(localized: "Duplicate"), action: #selector(handleDuplicateActionsMenuItem(_:)), keyEquivalent: "d")
+            duplicateItem.target = self
+            duplicateItem.representedObject = duplicable.map(\.id)
+            menu.addItem(duplicateItem)
+        }
+        if !deletable.isEmpty {
+            let deleteItem = NSMenuItem(title: String(localized: "Delete"), action: #selector(handleDeleteActionsMenuItem(_:)), keyEquivalent: "")
+            deleteItem.target = self
+            deleteItem.representedObject = deletable.map(\.id)
+            menu.addItem(deleteItem)
+        }
+
         return menu
+    }
+
+    /// The nodes the context menu acts on: every selected row, or just `node` when nothing is
+    /// selected (a right-click selects the row under the pointer before the menu is built).
+    private func selectedActionNodes(fallback node: OutlineNode) -> [OutlineNode] {
+        guard let outlineView else { return [node] }
+        let nodes = outlineView.selectedRowIndexes.compactMap { outlineView.item(atRow: $0) as? OutlineNode }
+        return nodes.isEmpty ? [node] : nodes
+    }
+
+    @objc private func handleDuplicateActionsMenuItem(_ sender: NSMenuItem) {
+        guard let actionIDs = sender.representedObject as? [String] else { return }
+        Task { @MainActor in
+            for id in actionIDs {
+                _ = await ActionDuplicator.duplicate(actionID: id)
+            }
+        }
+    }
+
+    @objc private func handleDeleteActionsMenuItem(_ sender: NSMenuItem) {
+        guard let actionIDs = sender.representedObject as? [String], !actionIDs.isEmpty else { return }
+        SettingsRouter.shared.confirmDestructive(
+            title: String(localized: "Delete?"),
+            message: "",
+            confirmTitle: String(localized: "Delete")
+        ) {
+            Task { @MainActor in
+                for id in actionIDs {
+                    await ActionDeletion.delete(actionID: id)
+                }
+            }
+        }
     }
 
     @objc private func handleEditGroupMenuItem(_ sender: NSMenuItem) {

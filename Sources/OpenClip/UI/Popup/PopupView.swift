@@ -553,9 +553,6 @@ public struct PopupView: View {
             modeStore: modeStore,
             scope: modeStore.scope,
             usageRecency: ActionUsageStore.shared.recency,
-            maxSize: modeStore.searchPaletteSize,
-            isUserSized: modeStore.isSurfaceUserSized,
-            onResize: { edge, phase in onResize?(edge, phase) },
             onResult: onResult,
             onExit: onExitSearch,
             onExitScope: {

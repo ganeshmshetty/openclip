@@ -93,6 +93,27 @@ final class ActionDuplicationTests: XCTestCase {
         XCTAssertTrue(coordinator.customActions.isEmpty)
     }
 
+    /// The context menu's Delete item appears only for what can actually be removed: custom
+    /// actions, installed extensions, and groups. Built-ins and AI presets never qualify.
+    func testCanDeleteClassifiesActionSources() {
+        let custom = CustomAction(id: "custom.a", title: "A", iconName: "star", type: .openURL(urlTemplate: "https://example.com"))
+        XCTAssertTrue(ActionDeletion.canDelete(custom))
+
+        let extensionAction = URLTemplateAction(id: "com.example.ext", title: "Ext", icon: .symbol("link"), urlTemplate: "https://example.com")
+        XCTAssertTrue(ActionDeletion.canDelete(extensionAction))
+
+        XCTAssertFalse(ActionDeletion.canDelete(CopyAction()))
+
+        let group = CustomAction(
+            id: "custom.group",
+            title: "Group",
+            iconName: "folder",
+            type: .textSnippet(template: ""),
+            chrome: ActionChrome(badge: .none, rowStyle: .actionGroup, popupBehavior: .showSubActions, source: .custom)
+        )
+        XCTAssertTrue(ActionDeletion.canDelete(group))
+    }
+
     func testDuplicateExtensionPackage() async throws {
         let packageDir = tempExtensionsDir.appendingPathComponent("com.example.hello")
         try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
@@ -124,8 +145,49 @@ final class ActionDuplicationTests: XCTestCase {
         XCTAssertNotEqual(duplicatedActionID, originalActionID)
         XCTAssertEqual(manager.loadedActions.count, 2)
 
-        let duplicateAction = manager.loadedActions.first(where: { $0.id == duplicatedActionID })
-        XCTAssertNotNil(duplicateAction)
-        XCTAssertTrue(duplicateAction?.title.contains("Copy") ?? false)
+        let duplicateAction = try XCTUnwrap(manager.loadedActions.first(where: { $0.id == duplicatedActionID }))
+        XCTAssertTrue(duplicateAction.title.contains("Copy"))
+
+        // The copy's id must be namespaced under its new package identifier. Otherwise
+        // `uninstallExtension`, which matches a package by id prefix, can never find it.
+        let duplicatePackageID = try XCTUnwrap(ActionIdentity.extensionPackageID(of: duplicateAction))
+        XCTAssertNotEqual(duplicatePackageID, "com.example.hello")
+        XCTAssertTrue(
+            duplicatedActionID.hasPrefix(duplicatePackageID + "."),
+            "duplicated action id \(duplicatedActionID) must be namespaced under \(duplicatePackageID)"
+        )
+
+        try await manager.uninstallExtension(actionID: duplicatePackageID, targetDir: tempExtensionsDir)
+        let remainingPackageIDs = Set(manager.loadedActions.compactMap { ActionIdentity.extensionPackageID(of: $0) })
+        XCTAssertFalse(
+            remainingPackageIDs.contains(duplicatePackageID),
+            "uninstall must remove every action of the duplicated package"
+        )
+        XCTAssertTrue(remainingPackageIDs.contains("com.example.hello"))
+        XCTAssertEqual(manager.loadedActions.count, 1)
+    }
+
+    /// Regression: a package duplicated before ids were namespaced carries an action id with no
+    /// package prefix. Uninstall must still find it by its declared action id, or it is stranded.
+    func testUninstallMatchesLegacyUnprefixedActionID() async throws {
+        let packageDir = tempExtensionsDir.appendingPathComponent("com.example.legacy")
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+        let manifest = ExtensionMetadata(
+            identifier: "com.example.legacy",
+            name: "Legacy",
+            actions: [ExtensionActionMetadata(id: "evaluate.copy.abc123", title: "Legacy", icon: "star", url: "https://example.com", type: "url")]
+        )
+        try ExtensionManifestStore.writeManifest(manifest, to: packageDir.appendingPathComponent(Constants.manifestFileName))
+
+        let manager = ExtensionManager.shared
+        manager.settingsStore = settingsStore
+        manager.actionFactory = DefaultActionFactory(optionStore: SecretActionOptionStore())
+        await manager.loadExtensions(from: tempExtensionsDir)
+        let legacyID = try XCTUnwrap(manager.loadedActions.first?.id)
+        XCTAssertEqual(legacyID, "evaluate.copy.abc123")
+
+        try await manager.uninstallExtension(actionID: legacyID, targetDir: tempExtensionsDir)
+        XCTAssertTrue(manager.loadedActions.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: packageDir.path))
     }
 }

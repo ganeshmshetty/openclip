@@ -175,16 +175,23 @@ json(): Promise<any> }`. Network errors reject the promise. Requests use the inj
 Every run executes inside a `Task.detached` on a background thread — never the `MainActor`. All
 JavaScript VM access is confined to that single thread; URLSession completions hop back onto the
 thread's CFRunLoop via `CFRunLoopPerformBlock` + `CFRunLoopWakeUp`, and the host pumps the runloop
-until the promise settles. A watchdog (`TimeoutFlag`, mirroring the `ShellProcessRunner` pattern)
-throws `Script timed out after N seconds` after `Constants.scriptTimeout` (60 s; tests override via
-`Request.timeout`). Running async tasks can also be cancelled immediately by clicking the loading toast, which cancels in-flight fetch requests. A fetch response that arrives after the evaluation ends is discarded; the host does not call the JavaScript VM for it. This holds on every exit path (success, JS exception, promise rejection, timeout, cancellation, thrown error), not only timeout.
+until the promise settles. When the run carries a budget (`Request.timeout`), a watchdog
+(`TimeoutFlag`, mirroring the `ShellProcessRunner` pattern) throws `Script timed out after N
+seconds` once it elapses, and a JavaScriptCore VM execution limit interrupts the synchronous phase.
+Runs with no budget (the default for extension and custom actions) have no timer: they end when the
+promise settles or the caller cancels. Running async tasks can be cancelled immediately by clicking
+the loading toast, which cancels in-flight fetch requests. A fetch response that arrives after the
+evaluation ends is discarded; the host does not call the JavaScript VM for it. This holds on every
+exit path (success, JS exception, promise rejection, timeout, cancellation, thrown error), not only
+timeout.
 
-**Synchronous evaluations are capped.** A CPU-bound synchronous script cannot be interrupted
-(`JSVirtualMachine.invalidate` no longer exists), so a stuck sync script would permanently park a
-cooperative-pool thread. `OpenClipJSHost` refuses new synchronous evaluations (including the top-level
-synchronous evaluation phase of async scripts) once `Constants.maxConcurrentSyncScriptEvaluations` (4)
-are in flight — logging at `.error` and throwing — so thread accumulation stays bounded. (Once an async
-script enters its promise pump loop, the sync gate is released while the watchdog + pump loop bounds the async phase.)
+**Synchronous evaluations are capped.** A CPU-bound synchronous script cannot be interrupted when it
+runs without a budget (`JSVirtualMachine.invalidate` no longer exists), so a stuck sync script would
+permanently park a cooperative-pool thread. `OpenClipJSHost` refuses new synchronous evaluations
+(including the top-level synchronous evaluation phase of async scripts) once
+`Constants.maxConcurrentSyncScriptEvaluations` (4) are in flight — logging at `.error` and throwing —
+so thread accumulation stays bounded. (Once an async script enters its promise pump loop, the sync
+gate is released while the watchdog + pump loop bounds the async phase.)
 
 > **Compiler landmine:** inside the `Task.detached` closure, static members must be referenced by
 > the explicit type name (`OpenClipJSHost.execute(...)`), never `Self.execute(...)`. `Self.x` in a

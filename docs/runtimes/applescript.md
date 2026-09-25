@@ -11,7 +11,7 @@ Selection Context ---> AppleScriptAction.perform(_:)
                          |
                          v
               AppleScriptRunner (osascript subprocess)
-                         |   ShellProcessRunner.run (60s watchdog)
+                         |   ShellProcessRunner.run (watchdog only when a timeout is set)
                          v
   ActionResult (.text / .success / .failure)
 ```
@@ -25,7 +25,7 @@ Selection Context ---> AppleScriptAction.perform(_:)
   ```
 3. **Subprocess Execution**: The script runs as an `/usr/bin/osascript` subprocess through
     [`AppleScriptRunner`](../../Sources/OpenClip/Platform/AppleScriptRunner.swift), which delegates
-    to the shared `ShellProcessRunner` (the same 60 s watchdog used by shell actions, with instant cancellation support).
+    to the shared `ShellProcessRunner` (the same runner used by shell actions, with instant cancellation support).
 
 ### Why a subprocess (bounded off-main strategy)
 
@@ -33,9 +33,9 @@ In-process `NSAppleScript.executeAndReturnError()` blocks the calling thread unt
 application answers over Apple Events — it cannot be cancelled, has no timeout, and a hung
 `tell application` permanently parks a cooperative-pool thread. `NSAppleScript` is also not
 thread-safe across instances. Running each script as a killable subprocess keeps the
-cooperative-thread pool free: the watchdog terminates the subprocess at `Constants.scriptTimeout`,
-so a stuck script can never wedge a thread forever. Callers that need a tighter budget pass an
-explicit `timeout` that shortens the subprocess watchdog instead of racing a separate deadline.
+cooperative-thread pool free, and a stuck script never wedges a thread forever: callers that want a
+bound pass an explicit `timeout` that arms the subprocess watchdog, and without one the script runs
+until it exits or the user cancels the loading toast.
 
 `AppleScriptAction` and custom AppleScript actions route through the shared subprocess runner.
 The deadline-capped AX inspect in `SelectionRetrievalCoordinator` uses `OnceResume` to guarantee
@@ -77,4 +77,4 @@ return (upperText as text)
   preference (preview/paste/copy; a secondary click derives copy via delivery).
 - **No Return Value (empty)**: If the script executes without returning text, it returns `ActionResult.success`.
 - **Error Handling**: On a non-zero subprocess exit (the AppleScript error text goes to stderr), the runtime returns `ActionResult.failure(error)` with the error message.
-- **Timeout**: If the subprocess is still running after `Constants.scriptTimeout`, the watchdog terminates `osascript`, the process group when it is the leader, and remaining descendants. Execution surfaces as a timeout failure.
+- **Timeout**: Only when the invocation carries an explicit budget. Past it the watchdog terminates `osascript`, the process group when it is the leader, and remaining descendants. Execution surfaces as a timeout failure. With no budget (the default) there is no watchdog; the subprocess runs until it exits or the loading toast cancels it.

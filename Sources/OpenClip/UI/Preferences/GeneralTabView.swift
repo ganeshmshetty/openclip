@@ -37,6 +37,7 @@ struct GeneralTab: View {
                         title: "Appear Automatically",
                         subtitle: "Show the popup as soon as text is selected.",
                         systemImage: "cursorarrow",
+                        plainIcon: true,
                         isOn: $isAppEnabled
                     )
                     .onChange(of: isAppEnabled) { _, newValue in
@@ -53,6 +54,7 @@ struct GeneralTab: View {
                         title: "Hold Mouse to Trigger",
                         subtitle: "Press and hold without moving the mouse to summon the popup.",
                         systemImage: "hand.tap",
+                        plainIcon: true,
                         isOn: $isMouseHoldEnabled
                     )
                     .onChange(of: isMouseHoldEnabled) { _, newValue in
@@ -64,7 +66,8 @@ struct GeneralTab: View {
                     SettingsRow(
                         title: "Keyboard Shortcut",
                         subtitle: "Summon the popup for whatever is selected.",
-                        systemImage: "keyboard"
+                        systemImage: "keyboard",
+                        plainIcon: true
                     ) {
                         Shortcut(for: .togglePopup)
                     }
@@ -74,7 +77,8 @@ struct GeneralTab: View {
                     SettingsRow(
                         title: "Save Location",
                         subtitleText: saveLocationSubtitleText,
-                        systemImage: "folder"
+                        systemImage: "folder",
+                        plainIcon: true
                     ) {
                         HStack(spacing: 8) {
                             if !fileSaveLocation.isEmpty {
@@ -110,6 +114,7 @@ struct GeneralTab: View {
                     SettingsToggleRow(
                         title: "Show Menu Bar Icon",
                         systemImage: "menubar.rectangle",
+                        plainIcon: true,
                         isOn: $showMenuBarIcon
                     )
                     .onChange(of: showMenuBarIcon) { _, newValue in
@@ -125,6 +130,7 @@ struct GeneralTab: View {
                     SettingsToggleRow(
                         title: "Start at Login",
                         systemImage: "arrow.clockwise.circle",
+                        plainIcon: true,
                         isOn: $launchManager.isEnabled
                     )
 
@@ -133,7 +139,8 @@ struct GeneralTab: View {
                         SettingsRow(
                             title: "Approval Required",
                             subtitle: "Enable OpenClip under System Settings > General > Login Items & Extensions.",
-                            systemImage: "exclamationmark.triangle.fill"
+                            systemImage: "exclamationmark.triangle.fill",
+                            plainIcon: true
                         ) {
                             Button(String(localized: "Open Settings")) {
                                 launchManager.openLoginItemsSettings()
@@ -153,7 +160,8 @@ struct GeneralTab: View {
                     SettingsRow(
                         title: "Accessibility Access",
                         subtitle: "Required to read the selected text.",
-                        systemImage: "lock.shield"
+                        systemImage: "lock.shield",
+                        plainIcon: true
                     ) {
                         HStack(spacing: 8) {
                             Image(systemName: permissionManager.isAccessibilityGranted
