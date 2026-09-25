@@ -188,8 +188,13 @@ areas; stale debt notes are worse than none.
   stays the fallback for a failed image or binary-text load, so a file result is never blank. The
   temporary-output filename map in `ShellProcessRunner.extensionForMimeType` gained the
   generated-document/media MIME types (md, csv, html, xml, yaml, rtf, docx, xlsx, pptx, wav, m4a, mov,
-  webm) plus a `UTType` fallback instead of the old closed 11-entry list. Space still opens the Quick
-  Look panel for any file; ⌘S/⏎ save and ⌘C copies.
+  webm) plus a `UTType` fallback instead of the old closed 11-entry list. ⌘S/⏎ save and ⌘C copies;
+  Space no longer opens the Quick Look panel (the key is left to the focused preview) — the generic
+  fallback card keeps a click-only **Preview** button. Embedded `PDFView`/`QLPreviewView` previews
+  render outside the card's outer `ScrollView` so their own scrolling isn't shadowed, PDF card
+  sizing uses page 0's rotated crop box, and an unopenable PDF falls back to the generic card.
+  Drag-out is scoped to the filename caption for embedded previews (leaving PDF text selection the
+  page area) and stays whole-body for images and text files.
 - **`MathEvaluator` replaced crash-prone `NSExpression`.** `CalculateAction` used to run
   `NSExpression(format:)`, which throws an **uncaught Objective-C exception** on malformed selection
   text like `+` or `1+` (crash). The pure-Swift `MathEvaluator` (`Sources/Core/Actions/MathEvaluator.swift`)

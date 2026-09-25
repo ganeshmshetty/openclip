@@ -95,17 +95,20 @@ that replaced the former interactive canvas.
 
 ### File Output Results
 
-When an action produces a `.file(FileOutputPayload)` result (via `openclip.file()`, shell JSON, or plain-text file path detection), `PopupWindowController.showFileResultCard` switches the panel to `.content` mode with `filePayload` set:
+When an action produces a `.file(FileOutputPayload)` result (via `openclip.file()`, shell JSON, or plain-text file path detection), `PopupWindowController.showResultCard` switches the panel to `.content` mode with the payload set. `ResultCardView` routes on `FileOutputKind` (image / pdf / text / other):
 
 - **Card Layout & Previews**:
-  - **Image Files**: Image formats (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.icns`, `.bmp`, `.tiff`, `.heic` or MIME `image/*`) display an inline scaled preview. Vector SVGs are decoded and rendered natively via `SDWebImageSVGCoder`.
-  - **Non-Image Files**: Display the system file icon (`NSWorkspace.shared.icon(forFile:)`), filename, localized file type description, and formatted byte size.
-  - **Off-Main Processing**: Image rendering, file attributes, and MIME detection load asynchronously off the main thread to ensure smooth 60fps presentation.
-- **Drag-and-Drop**: The file preview/icon is directly draggable via `NSItemProvider(object: url as NSURL)`. Users can drag the file from the card straight into Finder folders, desktop, or other applications.
+  - **Image Files**: Image formats (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.icns`, `.bmp`, `.tiff`, `.heic` or MIME `image/*`) display an inline aspect-fitted preview. Vector SVGs are decoded and rendered natively via `SDWebImageSVGCoder`.
+  - **PDF Files**: An embedded `PDFKit` `PDFView` (`Sources/OpenClip/UI/Popup/FilePreviews/PDFPreviewView.swift`) in continuous vertical mode, auto-scaled to width and displaying the page crop box. Card dimensions follow page 0's rotated crop box; an unopenable document falls back to the generic card. The embedded view owns its scrolling and is not wrapped in the card's outer `ScrollView`.
+  - **Text Files**: Up to 100 KB render inline in a monospaced, selectable body with a "Preview truncated" note; unreadable/binary content downgrades to *other*.
+  - **Other Files**: An embedded `QLPreviewView` with the filename/size caption.
+  - **Fallback**: The generic card — system file icon (`NSWorkspace.shared.icon(forFile:)`), filename, localized file type, formatted size, and a **Preview** button that opens the Quick Look panel. Shown when an image/text/PDF preview can't be produced, so a file result is never blank.
+  - **Off-Main Processing**: Image rendering, PDF page-size probing, file attributes, and MIME detection load asynchronously off the main thread to ensure smooth 60fps presentation.
+- **Drag-and-Drop**: Image and text previews are draggable from the whole body; embedded PDF/Quick Look previews drag from the filename caption only, so a drag on the page stays with the preview's own gestures (e.g. PDF text selection). Dragging exports the file via `NSItemProvider`.
 - **Action Buttons & Keyboard Shortcuts**:
-  - **Open** (`Space`): Launches the file in its default system application via `NSWorkspace.shared.open(url)`.
-  - **Copy** (`⌘C`): Copies the file URL directly to the macOS clipboard pasteboard.
+  - **Copy File** (`⌘C`): Copies the file URL to the macOS clipboard pasteboard.
   - **Save** (`Return` / `⌘S`): Copies the file into the user-configured destination folder (`SettingKey.fileSaveLocation`, defaulting to `~/Downloads`). Duplicate filenames are safely suffixed (e.g. `filename (1).ext`), followed by a `"Saved to <Folder>"` confirmation toast.
+  - **Preview**: The fallback card's Preview button opens the Quick Look panel. Space is not bound to Quick Look — it is left to the focused preview.
   - Secondary clicks on the popup trigger action execute `.copyFile` directly.
 
 ### Text and Diff Results

@@ -42,6 +42,7 @@ private struct FilePreviewMetadata {
     var textFailed = false
     var textTruncated = false
     var pageSize: CGSize?
+    var pdfFailed = false
 }
 
 // MARK: - Card Drag
@@ -133,6 +134,7 @@ public struct ResultCardView: View {
     @State private var previewFileTextFailed = false
     @State private var previewFileTruncated = false
     @State private var previewPDFPageSize: CGSize?
+    @State private var previewPDFLoadFailed = false
     /// The diff of `payload.original` → `payload.text`, recomputed only when the payload settles
     /// (never per body evaluation, and never mid-stream on a half-written response).\
     @State private var diffSegments: [TextDiffSegment] = []
@@ -241,19 +243,6 @@ public struct ResultCardView: View {
             guard press.modifiers.contains(.command), payload.file != nil else { return .ignored }
             (onSave ?? onPaste)()
             return .handled
-        }
-        .onKeyPress(.space, phases: .down) { press in
-            if isFollowUpFocused && !followUp.isEmpty {
-                return .ignored
-            }
-            if let file = payload.file {
-                QuickLookPresenter.shared.toggle(url: file.url)
-                return .handled
-            } else if !payload.isError && !payload.text.isEmpty && !payload.isStreaming {
-                QuickLookPresenter.shared.previewText(payload.text, title: payload.title)
-                return .handled
-            }
-            return .ignored
         }
         .onKeyPress(keys: ["c"], phases: .down) { press in
             guard press.modifiers.contains(.command) else { return .ignored }
@@ -584,6 +573,13 @@ public struct ResultCardView: View {
         return ceil(rect.width) + baseChrome + controlsWidth
     }
 
+    /// The on-screen size of a PDF page: its crop box (what `PDFView` actually displays, which can
+    /// be smaller than the media box when trim/bleed marks are present), rotated into display space
+    /// so a page stored sideways isn't measured as portrait.
+    nonisolated static func displayPageSize(cropBox: CGSize, rotation: Int) -> CGSize {
+        rotation % 180 == 0 ? cropBox : CGSize(width: cropBox.height, height: cropBox.width)
+    }
+
     /// Content-driven sizing for image results: balances width and height based on the image's
     /// aspect ratio (so tall screenshots don't become thin slivers and wide banners don't letterbox).
     /// Once the user manually drags the resize handles, the dragged size is honored verbatim.
@@ -763,15 +759,31 @@ public struct ResultCardView: View {
         return file.kind
     }
 
+    /// True for previews backed by a native view that scrolls itself (`PDFView`, `QLPreviewView`).
+    /// These must not sit inside the card's outer `ScrollView`.
+    private func embedsScrollablePreview(_ file: FileOutputPayload) -> Bool {
+        let kind = effectiveFileKind(file)
+        return kind == .pdf || kind == .other
+    }
+
     // MARK: - Body
 
     @ViewBuilder
     private var cardContent: some View {
         Group {
             if let file = payload.file {
-                ScrollView {
+                // Embedded previews (PDFKit, Quick Look) own their scrolling, so they are rendered
+                // outside the card's outer ScrollView — nesting two scrollers left wheel/trackpad
+                // gestures ambiguous between the preview and the card. Text needs the outer scroll
+                // (a long file scrolls past the height cap) and an image is scaled to fit.
+                if embedsScrollablePreview(file) {
                     filePreviewContent(file)
                         .frame(maxWidth: .infinity)
+                } else {
+                    ScrollView {
+                        filePreviewContent(file)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
             } else {
                 ScrollView {
@@ -1074,10 +1086,6 @@ public struct ResultCardView: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
-        .draggable(file.url)
-        .onDrag {
-            NSItemProvider(contentsOf: file.url) ?? NSItemProvider()
-        }
         .task(id: file.url) {
             await loadFileMetadata(for: file)
         }
@@ -1088,19 +1096,30 @@ public struct ResultCardView: View {
         switch effectiveFileKind(file) {
         case .image:
             imageFileBody(file)
+                .fileExportDrag(file.url)
         case .pdf:
-            framedPreviewBody {
-                PDFPreviewView(url: file.url)
-            } caption: {
-                fileCaption(file)
+            if previewPDFLoadFailed {
+                genericFileBody(file)
+                    .fileExportDrag(file.url)
+            } else {
+                framedPreviewBody {
+                    PDFPreviewView(url: file.url)
+                } caption: {
+                    // Drag-out lives on the caption for embedded previews: a drag starting on the
+                    // page belongs to the preview's own gestures (e.g. PDF text selection).
+                    fileCaption(file)
+                        .fileExportDrag(file.url)
+                }
             }
         case .text:
             textFileBody(file)
+                .fileExportDrag(file.url)
         case .other:
             framedPreviewBody {
                 QuickLookPreviewView(url: file.url)
             } caption: {
                 fileCaption(file)
+                    .fileExportDrag(file.url)
             }
         }
     }
@@ -1113,7 +1132,10 @@ public struct ResultCardView: View {
         VStack(spacing: 8) {
             preview()
                 .frame(maxWidth: .infinity)
-                .frame(height: max(140, dynamicCardHeight - Self.headerTotalHeight - Self.baseBottomInset - 52))
+                // Embedded previews sit outside the card's ScrollView, so the preview yields height
+                // to the card instead of overflowing it (a floor of 140 — safe inside a scroller —
+                // would clip the caption at the minimum card size).
+                .frame(height: max(60, dynamicCardHeight - Self.headerTotalHeight - Self.baseBottomInset - 52))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -1267,9 +1289,6 @@ public struct ResultCardView: View {
                         .font(.system(size: 10.5, weight: .semibold))
                     Text(String(localized: "Preview"))
                         .font(.system(size: 11.5, weight: .medium))
-                    Text("␣")
-                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                        .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
                 }
                 .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
                 .padding(.horizontal, 10)
@@ -1278,7 +1297,7 @@ public struct ResultCardView: View {
                 .contentShape(RoundedRectangle(cornerRadius: Self.buttonCornerRadius, style: .continuous))
             }
             .buttonStyle(.plain)
-            .help(String(localized: "Preview file with Quick Look (Space)"))
+            .help(String(localized: "Preview file with Quick Look"))
             .onHover { isQuickLookHovered = $0 }
         }
         .frame(maxWidth: .infinity)
@@ -1295,8 +1314,15 @@ public struct ResultCardView: View {
                 result.image = NSImage(data: data) ?? SDImageSVGCoder.shared.decodedImage(with: data, options: nil)
             }
 
-            if kind == .pdf, let document = PDFDocument(url: url), let page = document.page(at: 0) {
-                result.pageSize = page.bounds(for: .mediaBox).size
+            if kind == .pdf {
+                if let document = PDFDocument(url: url), let page = document.page(at: 0) {
+                    result.pageSize = Self.displayPageSize(
+                        cropBox: page.bounds(for: .cropBox).size,
+                        rotation: page.rotation
+                    )
+                } else {
+                    result.pdfFailed = true
+                }
             }
 
             if kind == .text {
@@ -1340,6 +1366,7 @@ public struct ResultCardView: View {
 
         self.previewImage = metadata.image
         self.previewPDFPageSize = metadata.pageSize
+        self.previewPDFLoadFailed = metadata.pdfFailed
         self.previewFileText = metadata.text
         self.previewFileTextFailed = metadata.textFailed
         self.previewFileTruncated = metadata.textTruncated
@@ -1421,5 +1448,14 @@ public struct ResultCardView: View {
                 .onHover { isPasteHovered = $0 }
             }
         }
+    }
+}
+
+private extension View {
+    /// Makes a file preview a drag source for its underlying file.
+    func fileExportDrag(_ url: URL) -> some View {
+        self
+            .draggable(url)
+            .onDrag { NSItemProvider(contentsOf: url) ?? NSItemProvider() }
     }
 }
