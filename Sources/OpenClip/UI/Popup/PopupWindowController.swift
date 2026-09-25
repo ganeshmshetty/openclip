@@ -2060,6 +2060,27 @@ public class PopupWindowController {
         /// The selection context captured before any early-close (loading actions), used to re-show
         /// the popup as a preview card. nil when the popup never closed.
         let selection: SelectionContext?
+
+        /// A copy with the declared `secondary` cleared, preserving the per-click toasts and every
+        /// other input. Used only when a declared secondary is itself a `.sequence`: the nested walk
+        /// must not re-match the same declaration, which would otherwise recurse forever. Manifests
+        /// cannot declare a sequence secondary today, so this is a bounded-recursion guard.
+        func clearingDeclaredSecondary() -> DeliveryContext {
+            DeliveryContext(
+                policy: policy,
+                clickIntent: clickIntent,
+                delivery: delivery.map {
+                    ActionDelivery(secondary: nil, primaryToast: $0.primaryToast, secondaryToast: $0.secondaryToast)
+                },
+                application: application,
+                userOverride: userOverride,
+                recommendedResult: recommendedResult,
+                outputKind: outputKind,
+                actionTitle: actionTitle,
+                actionIcon: actionIcon,
+                selection: selection
+            )
+        }
     }
 
     /// Snapshots the delivery inputs from the current session state. Called on the main actor,
@@ -2143,6 +2164,16 @@ public class PopupWindowController {
         case .sequence(let items):
             // Declared secondary replaces the whole sequence once. Unwrapping first re-applies it per leaf.
             if delivery?.clickIntent == .secondary, let declared = delivery?.delivery?.secondary {
+                // A declared `.sequence` would re-match itself on every nested walk. Manifests can't
+                // declare one today; walk its items with the declaration cleared so it stays bounded.
+                if case .sequence(let declaredItems) = declared {
+                    let nestedDelivery = delivery?.clearingDeclaredSecondary()
+                    return Task { @MainActor in
+                        for item in declaredItems {
+                            await self.handleActionResult(item, delivery: nestedDelivery, suppressDeliveryToast: suppressDeliveryToast)?.value
+                        }
+                    }
+                }
                 return handleActionResult(declared, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
             }
             return Task { @MainActor in
@@ -2452,6 +2483,15 @@ public class PopupWindowController {
             presentConfiguration(for: request)
         case .sequence(let items):
             if delivery.clickIntent == .secondary, let declared = delivery.delivery?.secondary {
+                // Same bounded-recursion guard as handleActionResult: a declared `.sequence` (not
+                // produced by manifests today) is walked with the declaration cleared.
+                if case .sequence(let declaredItems) = declared {
+                    let nestedDelivery = delivery.clearingDeclaredSecondary()
+                    for item in declaredItems {
+                        await settleLoadingResult(item, delivery: nestedDelivery, suppressDeliveryToast: suppressDeliveryToast)
+                    }
+                    return
+                }
                 await settleLoadingResult(declared, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
                 return
             }

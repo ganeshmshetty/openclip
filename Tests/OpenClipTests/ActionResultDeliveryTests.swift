@@ -1258,6 +1258,29 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertEqual(handler.results.count, 1, "declared secondary must run once on the loading sequence path")
     }
 
+    /// A declared `.sequence` secondary (not produced by manifests today) must not recurse: the
+    /// nested walk clears the declaration and runs the declared items in order.
+    @MainActor
+    func testDeclaredSequenceSecondaryDoesNotRecurse() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+
+        let url = URL(string: "https://alt")!
+        let stub = DeclaredDeliveryStub(
+            delivery: ActionDelivery(secondary: .sequence([.copy("x"), .openURL(url)])),
+            performResult: .sequence([.paste("a")])
+        )
+        controller.runAction(stub, with: controllerCurrentContext(controller), isSecondaryClick: true)
+
+        assertCase(try await awaitDelivery(from: handler), .copy("x"))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(handler.results.count, 2, "a declared sequence secondary must run its items once")
+        assertCase(handler.results[1], .openURL(url))
+    }
+
     // MARK: - Declared .paste secondary probes even on a secondary click
 
     /// A declared `.paste` secondary is pasted on a secondary click: the probe must still run (the
