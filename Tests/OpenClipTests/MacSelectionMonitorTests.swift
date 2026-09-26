@@ -456,8 +456,10 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertNil(delivered, "Arrow cursor on non-text element must not fall back to clipboard on hold")
     }
 
+    /// The fallback decision is structural, not cursor-based: the press resolving to an editable
+    /// field is what permits the clipboard inheritance (the cursor class is irrelevant here).
     @MainActor
-    func testHoldWithBeamCursorFallsBackToClipboardWhenPasteAllowed() async throws {
+    func testHoldOverEditableFieldFallsBackToClipboardWhenPasteAllowed() async throws {
         let monitor = makeHoldMonitor()
         let point = CGPoint(x: 150, y: 150)
         monitor.frontmostAppProvider = { Self.runnerApp() }
@@ -491,6 +493,42 @@ final class MacSelectionMonitorTests: XCTestCase {
 
         XCTAssertEqual(delivered?.text, "text to paste")
         XCTAssertTrue(delivered?.isClipboardFallback == true)
+    }
+
+    /// Regression: browsers render an I-beam over *read-only* selectable text (articles, docs), so
+    /// the beam alone must never admit the clipboard fallback — a hold over a web page paragraph is
+    /// not an editable field. The structural check (`isPressOverEditableText`) is the only signal.
+    @MainActor
+    func testHoldWithBeamCursorOverReadOnlyTextDoesNotFallBackToClipboard() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 150, y: 150)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+        monitor.currentCursorProvider = { .beam }
+        // The press resolves to static, non-editable content (e.g. a read-only web paragraph).
+        monitor.isPressOverEditableText = { _ in false }
+        monitor.preparePasteProbe = { _, _ in Task { true } }
+
+        let gate = DispatchSemaphore(value: 0)
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            gate.wait()
+            return Self.fixtureTarget(role: "AXStaticText", selectedText: nil)
+        }, copyCapture: { _ in nil })
+
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        pasteboard.declareTypes([.string], owner: nil)
+        pasteboard.setString("clipboard text", forType: .string)
+        monitor.fallbackPasteboard = pasteboard
+
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+
+        monitor.handleMouseDown(at: point)
+        try await waitUntil { monitor.triggeredByHold }
+        gate.signal()
+        try await waitUntil { !monitor.triggeredByHold }
+
+        XCTAssertNil(delivered, "A beam over read-only text must not paste the clipboard")
     }
 
     @MainActor

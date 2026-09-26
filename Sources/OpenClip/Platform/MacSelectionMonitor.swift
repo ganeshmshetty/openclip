@@ -57,11 +57,12 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// Whether `point` sits on on-screen system chrome (the menu bar or Dock). Injectable so tests
     /// can exercise the gesture gating against a fixed geometry.
     internal var isSystemChromeAt: @MainActor (CGPoint) -> Bool = { MacSelectionMonitor.isSystemChromeLocation($0) }
-    /// Whether the element under `point` is, or sits inside, an editable text control. Anchors the
-    /// hold's clipboard fallback to the field actually under the finger, rather than whichever
-    /// element happens to be focused — a hold on a window background must not inherit the clipboard
-    /// just because a text field elsewhere is focused. Inert under XCTest; inject for tests.
-    internal var isPressOverEditableText: @MainActor (CGPoint) -> Bool = { MacSelectionMonitor.hitTestIsEditableText(at: $0) }
+    /// Whether the press at `point` is over editable text, decided structurally (AX hit-test plus
+    /// focused-element correlation), never by cursor shape. Anchors the hold's clipboard fallback
+    /// to the field actually under the finger, rather than whichever element happens to be focused —
+    /// a hold on a window background must not inherit the clipboard just because a text field
+    /// elsewhere is focused. Inert under XCTest; inject for tests.
+    internal var isPressOverEditableText: @MainActor (CGPoint) -> Bool = { MacSelectionMonitor.pressIsOverEditableText(at: $0) }
     /// Overlay gate: true when a *foreign* window (a screenshot/annotation tool's full-screen picker,
     /// a non-activating HUD) sits above the frontmost app at `point`. The automatic path stands down
     /// while one is up, because copy-based retrieval posts a real ⌘C that lands on that overlay's key
@@ -102,40 +103,129 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// Roles that mean "the pointer is over an editable text field" for the hold's paste fallback.
     private static let editableTextRoles: Set<String> = ["AXTextField", "AXTextArea", "AXSearchField", "AXComboBox"]
 
-    /// AX hit-test at `point` (Cocoa screen coordinates), walking a few ancestors for an editable
-    /// text-control role. A window background, toolbar, or static text resolves to something else,
-    /// so a hold there no longer inherits the clipboard from a focused field. Inert under XCTest so
-    /// tests drive the decision through the `isPressOverEditableText` seam. Best-effort: some web
-    /// editors (CodeMirror) do not resolve to a text control here, which is why the I-beam cursor
-    /// is checked alongside it.
-    internal static func hitTestIsEditableText(at point: CGPoint) -> Bool {
+    /// Structural "is the press over editable text" for the hold's paste fallback. Deliberately
+    /// NOT the cursor shape: browsers render an I-beam over *read-only* selectable text, so the
+    /// beam re-admitted the exact false positive the fallback exists to prevent (a hold over a
+    /// web article pasting the clipboard). Three structural signals, strongest first:
+    ///
+    /// 1. An AX hit-test at the press point resolves to an editable text control.
+    /// 2. The frontmost app's focused element is an editable text control whose frame covers the
+    ///    press point (with a small tolerance). Web code editors (CodeMirror, Monaco) focus a
+    ///    hidden textarea that is IME-anchored at the caret the press just placed, so the press
+    ///    lands on it even though the hit-test finds the content div above it.
+    /// 3. The hit element and the focused editable element both live inside an AXWebArea — the
+    ///    press is inside the same web editor surface that owns keyboard focus.
+    ///
+    /// Inert under XCTest so tests drive the decision through the `isPressOverEditableText` seam.
+    internal static func pressIsOverEditableText(at point: CGPoint) -> Bool {
         guard NSClassFromString("XCTestCase") == nil else { return false }
+        let axPoint = axPoint(fromCocoa: point)
+        let hit = elementAt(axPoint: axPoint)
+        if let hit, isOrContainsEditableTextControl(hit) {
+            return true
+        }
+        return focusedEditabilityCovers(axPoint: axPoint, hit: hit)
+    }
+
+    /// Signal 2 + 3: the focused element is an editable text control AND the press either lands
+    /// inside its (slightly expanded) frame or shares a web-area surface with it.
+    private static func focusedEditabilityCovers(axPoint: CGPoint, hit: AXUIElement?) -> Bool {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return false }
+        let timeout = Float(Constants.axReadTimeout)
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(appElement, timeout)
+        var focusedRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appElement, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
+              let focused = focusedRef else { return false }
+        // swiftlint:disable:next force_cast
+        let focusedElement = focused as! AXUIElement
+        AXUIElementSetMessagingTimeout(focusedElement, timeout)
+        guard isEditableTextControl(focusedElement) else { return false }
+
+        if let frame = axFrame(of: focusedElement),
+           frame.insetBy(dx: -12, dy: -12).contains(axPoint) {
+            return true
+        }
+        guard let hit else { return false }
+        return isInsideWebArea(hit) && isInsideWebArea(focusedElement)
+    }
+
+    /// Cocoa (bottom-left origin) → AX global (top-left origin) conversion about the primary display.
+    private static func axPoint(fromCocoa point: CGPoint) -> CGPoint {
         let primaryHeight = NSScreen.screens.first(where: { $0.frame.origin == .zero })?.frame.height
             ?? NSScreen.screens.first?.frame.height
             ?? 0
-        let axPoint = CGPoint(x: point.x, y: primaryHeight - point.y)
-        // This runs on the main actor inside the hold task, so an unresponsive target app must not
-        // freeze the popup and event monitors. Cap every AX round-trip at `axReadTimeout` instead
-        // of letting it wait out the multi-second default messaging timeout.
-        let timeout = Float(Constants.axReadTimeout)
-        let systemWide = AXUIElementCreateSystemWide()
-        AXUIElementSetMessagingTimeout(systemWide, timeout)
-        var element: AXUIElement?
-        guard AXUIElementCopyElementAtPosition(systemWide, Float(axPoint.x), Float(axPoint.y), &element) == .success,
-              let start = element else { return false }
+        return CGPoint(x: point.x, y: primaryHeight - point.y)
+    }
 
+    /// The AX element at an AX-coordinate point, with the messaging timeout capped so an
+    /// unresponsive target app cannot freeze the hold task or the event monitors.
+    private static func elementAt(axPoint: CGPoint) -> AXUIElement? {
+        let systemWide = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemWide, Float(Constants.axReadTimeout))
+        var element: AXUIElement?
+        guard AXUIElementCopyElementAtPosition(systemWide, Float(axPoint.x), Float(axPoint.y), &element) == .success else { return nil }
+        return element
+    }
+
+    /// Whether `element` or one of its near ancestors is an editable text control. A window
+    /// background, toolbar, or static text resolves to something else, so a hold there no longer
+    /// inherits the clipboard from a focused field.
+    private static func isOrContainsEditableTextControl(_ start: AXUIElement) -> Bool {
         var current: AXUIElement? = start
         var depth = 0
         while let el = current, depth < 6 {
-            AXUIElementSetMessagingTimeout(el, timeout)
+            if isEditableTextControl(el) { return true }
+            current = axParent(of: el)
+            depth += 1
+        }
+        return false
+    }
+
+    /// Editable iff the role is a text control or `AXSelectedTextRange` is settable (the definitive
+    /// caret/selection-writability signal for custom text controls).
+    private static func isEditableTextControl(_ element: AXUIElement) -> Bool {
+        AXUIElementSetMessagingTimeout(element, Float(Constants.axReadTimeout))
+        var roleRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef) == .success,
+           let role = roleRef as? String, editableTextRoles.contains(role) {
+            return true
+        }
+        var settable = DarwinBoolean(false)
+        if AXUIElementIsAttributeSettable(element, kAXSelectedTextRangeAttribute as CFString, &settable) == .success {
+            return settable.boolValue
+        }
+        return false
+    }
+
+    private static func axParent(of element: AXUIElement) -> AXUIElement? {
+        var parentRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXParentAttribute as CFString, &parentRef)
+        // swiftlint:disable:next force_cast
+        return parentRef.map { $0 as! AXUIElement }
+    }
+
+    private static func axFrame(of element: AXUIElement) -> CGRect? {
+        var frameRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, "AXFrame" as CFString, &frameRef) == .success,
+              let frameRef, CFGetTypeID(frameRef) == AXValueGetTypeID() else { return nil }
+        var frame = CGRect.zero
+        // swiftlint:disable:next force_cast
+        guard AXValueGetValue(frameRef as! AXValue, .cgRect, &frame) else { return nil }
+        return frame
+    }
+
+    /// Whether `element` is or descends from an AXWebArea (the web editor surface check).
+    private static func isInsideWebArea(_ element: AXUIElement) -> Bool {
+        var current: AXUIElement? = element
+        var depth = 0
+        while let el = current, depth < 10 {
             var roleRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &roleRef) == .success,
-               let role = roleRef as? String, editableTextRoles.contains(role) {
+               let role = roleRef as? String, role == "AXWebArea" {
                 return true
             }
-            var parentRef: CFTypeRef?
-            AXUIElementCopyAttributeValue(el, kAXParentAttribute as CFString, &parentRef)
-            current = parentRef.map { $0 as! AXUIElement }
+            current = axParent(of: el)
             depth += 1
         }
         return false
@@ -345,13 +435,13 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             let canPaste = await probeTask?.value
 
             // If no text was actively selected, only inherit clipboard content when the press is
-            // actually over editable text: either an I-beam sits at the press point, or an AX
-            // hit-test resolves it to a text control. Trusting the *focused* element instead let a
-            // hold on a window background / toolbar / static text paste the clipboard just because
-            // a field elsewhere was focused. The I-beam is kept because some web editors
-            // (CodeMirror) do not resolve to a text control through the hit-test.
+            // actually over editable text, decided structurally (see `pressIsOverEditableText`).
+            // Trusting the *focused* element instead let a hold on a window background / toolbar /
+            // static text paste the clipboard just because a field elsewhere was focused, and the
+            // earlier I-beam signal did the same over read-only web text — browsers show a beam
+            // over selectable text whether or not it is editable.
             if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let isEditableContext = cursor == .beam || isPressOverEditableText(point)
+                let isEditableContext = isPressOverEditableText(point)
                 if isEditableContext && canPaste != false,
                    let clipboard = fallbackPasteboard.string(forType: .string),
                    !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -478,7 +568,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             let result = await retriever.retrieve(
                 for: appIdentity,
                 policy: policy,
-                cursor: CursorClassifier.current.asCore,
+                cursor: self.currentCursorProvider(),
                 allowCopyFallback: allowCopyFallback
             )
             if Task.isCancelled { return }
