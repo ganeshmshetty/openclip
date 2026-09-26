@@ -1,13 +1,15 @@
 // DefineAction.swift
 // OpenClip
 //
-// Implements the dictionary lookup action for single selected words. By default it resolves the
-// definition in-process and returns it as text (rendered in the result card); an action option can
-// instead hand the word to the macOS Dictionary app via its `x-dictionary:` URL scheme.
+// Implements the dictionary lookup action for single selected words. A single display picker chooses
+// the outcome: resolve the definition in-process and return it as text (rendered in the result card,
+// default), show the system Look Up dictionary popover, or hand the word to the macOS Dictionary app
+// via its `x-dictionary:` URL scheme.
 import Foundation
 
 public struct DefineAction: ConfigurableAction {
-    public let id = "builtin.define"
+    public static let actionID = "builtin.define"
+    public let id = Self.actionID
     public var title: String { String(localized: "Define") }
     public let preferenceIconName = "character.book.closed"
     public let icon = ActionIcon.symbol("character.book.closed")
@@ -15,16 +17,31 @@ public struct DefineAction: ConfigurableAction {
         ActionChrome(outputKind: .text, recommendedResult: .preview)
     }
 
-    /// Option id for "open the word in Dictionary.app" instead of showing the definition card.
-    static let openInDictionaryOptionID = "openInDictionaryApp"
+    /// How a single selected word is presented when Define runs. A single user-visible picker keeps
+    /// the three mutually-exclusive outcomes explicit instead of a set of independent toggles.
+    public enum Display: String, CaseIterable, Sendable {
+        /// Resolve the definition in-process and render it in the result card (default).
+        case card
+        /// Show the system Look Up dictionary popover anchored to the popup.
+        case popover
+        /// Hand the word to the macOS Dictionary app.
+        case dictionary
+    }
+
+    /// Option id for the display picker.
+    static let displayOptionID = "definitionDisplay"
+    /// Legacy boolean option, superseded by `displayOptionID`; `true` meant "open in Dictionary.app".
+    /// Kept so existing installs migrate to `display = dictionary` instead of silently resetting.
+    static let legacyOpenInDictionaryOptionID = "openInDictionaryApp"
 
     public var actionOptions: [ExtensionOption] {
         [
             ExtensionOption(
-                identifier: Self.openInDictionaryOptionID,
-                label: String(localized: "Open in Dictionary app"),
-                type: .boolean,
-                defaultValue: "false"
+                identifier: Self.displayOptionID,
+                label: String(localized: "Definition display"),
+                type: .multiple,
+                defaultValue: Display.card.rawValue,
+                options: Display.allCases.map(\.rawValue)
             )
         ]
     }
@@ -40,13 +57,29 @@ public struct DefineAction: ConfigurableAction {
         self.settingsStore = settingsStore
     }
 
-    /// True when the user configured Define to hand the word to the macOS Dictionary app rather than
-    /// resolve a definition in-process.
-    private var opensInDictionaryApp: Bool {
-        let value = settingsStore.get(
-            SettingKey.actionOption(actionID: id, optionID: Self.openInDictionaryOptionID)
+    /// The configured presentation mode. Falls back to the legacy boolean for installs that set
+    /// `openInDictionaryApp` before the picker existed.
+    var display: Display {
+        let stored = settingsStore.get(
+            SettingKey.actionOption(actionID: id, optionID: Self.displayOptionID)
         )
-        return value.caseInsensitiveCompare("true") == .orderedSame
+        if let resolved = Display(rawValue: stored.lowercased()) { return resolved }
+        let legacy = settingsStore.get(
+            SettingKey.actionOption(actionID: id, optionID: Self.legacyOpenInDictionaryOptionID)
+        )
+        return legacy.caseInsensitiveCompare("true") == .orderedSame ? .dictionary : .card
+    }
+
+    /// One-time normalization run at launch: a legacy `openInDictionaryApp = true` becomes
+    /// `display = dictionary` so the picker matches the behaviour the install already had.
+    static func migrateLegacyDisplayOptionIfNeeded(settingsStore: any SettingsStore) {
+        let displayKey = SettingKey.actionOption(actionID: actionID, optionID: displayOptionID)
+        guard settingsStore.get(displayKey).isEmpty else { return }
+        let legacy = settingsStore.get(
+            SettingKey.actionOption(actionID: actionID, optionID: legacyOpenInDictionaryOptionID)
+        )
+        guard legacy.caseInsensitiveCompare("true") == .orderedSame else { return }
+        settingsStore.set(displayKey, value: Display.dictionary.rawValue)
     }
 
     @MainActor
@@ -73,9 +106,9 @@ public struct DefineAction: ConfigurableAction {
         guard !isURL && !hasMathSymbol else { return false }
 
         // Dictionary-app mode hands any single word to the app (which reports its own "no entry"),
-        // so it does not require an in-process definition — and skips the `DCSCopyTextDefinition`
-        // probe entirely.
-        if opensInDictionaryApp { return true }
+        // and popover mode asks the system dictionaries to render the entry; neither needs an
+        // in-process definition, so both skip the `DCSCopyTextDefinition` probe entirely.
+        if display != .card { return true }
 
         guard let definition = lookup(text), !definition.isEmpty else { return false }
         return true
@@ -119,13 +152,16 @@ public struct DefineAction: ConfigurableAction {
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if opensInDictionaryApp {
+        switch display {
+        case .dictionary:
             guard let url = Self.dictionaryURL(for: text) else { return .none }
             return .openURL(url)
+        case .popover:
+            return .showDefinition(text)
+        case .card:
+            guard let definition = lookup(text), !definition.isEmpty else { return .none }
+            return .text(definition)
         }
-
-        guard let definition = lookup(text), !definition.isEmpty else { return .none }
-        return .text(definition)
     }
 
     /// Builds a Dictionary.app lookup URL using the documented `x-dictionary:d:<key_text>`

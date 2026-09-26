@@ -12,6 +12,7 @@ public enum BuiltinRegistry {
         settingsStore: any SettingsStore = DefaultSettingsStore.shared,
         dictionaryLookup: @escaping @Sendable (String) -> String? = { _ in nil }
     ) -> [any Action] {
+        DefineAction.migrateLegacyDisplayOptionIfNeeded(settingsStore: settingsStore)
         let actions: [any Action] = [
             SearchAction(settingsStore: settingsStore),
             CopyAction(),

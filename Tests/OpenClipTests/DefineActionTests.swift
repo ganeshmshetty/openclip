@@ -114,16 +114,20 @@ final class DefineActionTests: XCTestCase {
         }
     }
 
+    private func context(for text: String) -> ActionContext {
+        let app = AppIdentity(NSRunningApplication.current)
+        return ActionContext(
+            selection: SelectionContext(text: text, sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+            modifiers: []
+        )
+    }
+
     @MainActor
     func testDefineActionOpensInDictionaryAppWhenConfigured() async throws {
         let store = MemorySettingsStore()
-        store.set(SettingKey.actionOption(actionID: "builtin.define", optionID: "openInDictionaryApp"), value: "true")
+        store.set(SettingKey.actionOption(actionID: DefineAction.actionID, optionID: "definitionDisplay"), value: "dictionary")
         let action = DefineAction(lookup: { _ in nil }, settingsStore: store)
-        let app = AppIdentity(NSRunningApplication.current)
-        let context = ActionContext(
-            selection: SelectionContext(text: "serendipity", sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
-            modifiers: []
-        )
+        let context = self.context(for: "serendipity")
 
         XCTAssertTrue(action.isEnabled(for: context), "Dictionary mode enables a single word even without an in-process definition")
 
@@ -133,5 +137,56 @@ final class DefineActionTests: XCTestCase {
         }
         XCTAssertEqual(url.scheme, "x-dictionary")
         XCTAssertTrue(url.absoluteString.contains("d:serendipity"))
+    }
+
+    @MainActor
+    func testDefineActionPopoverModeReturnsShowDefinition() async throws {
+        let store = MemorySettingsStore()
+        store.set(SettingKey.actionOption(actionID: DefineAction.actionID, optionID: "definitionDisplay"), value: "popover")
+        let action = DefineAction(lookup: { _ in nil }, settingsStore: store)
+        let context = self.context(for: "serendipity")
+
+        XCTAssertTrue(action.isEnabled(for: context), "Popover mode enables a single word without an in-process definition")
+
+        let result = try await action.perform(context)
+        guard case .showDefinition(let word) = result else {
+            return XCTFail("Expected a showDefinition result in popover mode, got \(result)")
+        }
+        XCTAssertEqual(word, "serendipity")
+    }
+
+    @MainActor
+    func testDefineActionDefaultsToCardMode() async throws {
+        let action = DefineAction(lookup: makeMockLookup(), settingsStore: makeStore())
+        XCTAssertEqual(action.display, .card)
+
+        let result = try await action.perform(context(for: "epiphany"))
+        guard case .text = result else {
+            return XCTFail("Expected a text result in the default card mode, got \(result)")
+        }
+    }
+
+    @MainActor
+    func testLegacyDictionaryOptionMigratesToPicker() async throws {
+        let store = MemorySettingsStore()
+        store.set(SettingKey.actionOption(actionID: DefineAction.actionID, optionID: "openInDictionaryApp"), value: "true")
+
+        DefineAction.migrateLegacyDisplayOptionIfNeeded(settingsStore: store)
+        let action = DefineAction(lookup: { _ in nil }, settingsStore: store)
+        XCTAssertEqual(action.display, .dictionary)
+
+        guard case .openURL = try await action.perform(context(for: "serendipity")) else {
+            return XCTFail("Expected legacy true to migrate to dictionary mode")
+        }
+    }
+
+    @MainActor
+    func testMigrationLeavesExplicitPickerUntouched() async throws {
+        let store = MemorySettingsStore()
+        store.set(SettingKey.actionOption(actionID: DefineAction.actionID, optionID: "definitionDisplay"), value: "popover")
+        store.set(SettingKey.actionOption(actionID: DefineAction.actionID, optionID: "openInDictionaryApp"), value: "true")
+
+        DefineAction.migrateLegacyDisplayOptionIfNeeded(settingsStore: store)
+        XCTAssertEqual(DefineAction(lookup: { _ in nil }, settingsStore: store).display, .popover)
     }
 }

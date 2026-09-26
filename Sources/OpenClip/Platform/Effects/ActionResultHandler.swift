@@ -196,6 +196,16 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
             }
 
+        case .showDefinition(let word):
+            // Ask the system dictionaries to render the standard Look Up popover, anchored to the
+            // popup panel's content view. No-op when there is no view to anchor to.
+            if let view {
+                view.showDefinition(
+                    for: NSAttributedString(string: word),
+                    at: NSPoint(x: view.bounds.midX, y: view.bounds.midY)
+                )
+            }
+
         case .shareService(let identifier, let text):
             guard let service = NSSharingService(named: NSSharingService.Name(identifier)) else {
                 Log.resultHandler.error("Sharing service not found: \(identifier, privacy: .public)")
