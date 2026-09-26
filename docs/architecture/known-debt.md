@@ -410,12 +410,15 @@ areas; stale debt notes are worse than none.
 - **Hold-trigger clipboard fallback is structurally gated, not cursor-gated.** The
   `MacSelectionMonitor` hold task inherits the clipboard only when the press point resolves to
   editable text via `pressIsOverEditableText` (and paste is not denied): an AX hit-test to a text
-  control, the focused editable element's frame covering the press (CodeMirror/Monaco's
-  caret-anchored hidden textarea), or the hit and focused elements sharing an AXWebArea. The
-  earlier I-beam-cursor signal was dropped: browsers render an I-beam over *read-only* selectable
-  text, so it re-admitted the fallback over web articles. Residual limit: a custom-drawn editor
-  that exposes no AX text control and no settable `AXSelectedTextRange` anywhere (rare outside
-  terminals, which are policy-excluded) will not fall back.
+  control, or the focused editable element's frame covering the press (CodeMirror/Monaco's
+  caret-anchored hidden textarea). The earlier I-beam-cursor signal was dropped — browsers render
+  an I-beam over *read-only* selectable text, so it re-admitted the fallback over web articles.
+  A "shared web area" widening was also rejected: it admitted any read-only page text while an
+  input elsewhere held focus, which is the leak the gate exists to prevent. Residual limit: a
+  custom-drawn editor exposing no AX text control at all (rare outside terminals, which are
+  policy-excluded) will not fall back. The whole probe shares one `axReadTimeout` budget — every
+  attribute read is capped and the ancestor walk stops at the same deadline, because it runs on
+  the main actor inside the hold task.
 
 
 ## Test Isolation

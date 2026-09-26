@@ -456,6 +456,91 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertNil(delivered, "Arrow cursor on non-text element must not fall back to clipboard on hold")
     }
 
+    // MARK: - Structural editability classification
+
+    /// The hit-test resolving to a text control is sufficient on its own.
+    func testHitTestTextControlClassifiesAsEditable() {
+        XCTAssertTrue(MacSelectionMonitor.pressIsOverEditableText(
+            hitIsEditableControl: true,
+            focusedIsEditableControl: false,
+            focusedFrame: nil,
+            pressAXPoint: CGPoint(x: 100, y: 100)
+        ))
+    }
+
+    /// Regression: a focused input elsewhere on the page must not admit a hold over read-only text.
+    /// The earlier "press and focused field share a web area" rule passed for any page text while
+    /// an input held focus, handing unrelated clipboard content to the popup as a selection.
+    func testFocusedFieldElsewhereDoesNotAdmitAReadOnlyPress() {
+        let focusedInputFrame = CGRect(x: 20, y: 20, width: 200, height: 24)   // a search box
+        let pressOverArticle = CGPoint(x: 600, y: 800)                          // page body text
+
+        XCTAssertFalse(MacSelectionMonitor.pressIsOverEditableText(
+            hitIsEditableControl: false,
+            focusedIsEditableControl: true,
+            focusedFrame: focusedInputFrame,
+            pressAXPoint: pressOverArticle
+        ))
+    }
+
+    /// A focused text control whose frame covers the press is editable — this is what carries web
+    /// code editors, whose hidden textarea is IME-anchored at the caret the press just placed.
+    func testFocusedFieldFrameCoveringThePressClassifiesAsEditable() {
+        let fieldFrame = CGRect(x: 100, y: 100, width: 300, height: 20)
+
+        XCTAssertTrue(MacSelectionMonitor.pressIsOverEditableText(
+            hitIsEditableControl: false,
+            focusedIsEditableControl: true,
+            focusedFrame: fieldFrame,
+            pressAXPoint: CGPoint(x: 150, y: 110)
+        ))
+        // Just outside the frame, beyond the tolerance: not the field.
+        XCTAssertFalse(MacSelectionMonitor.pressIsOverEditableText(
+            hitIsEditableControl: false,
+            focusedIsEditableControl: true,
+            focusedFrame: fieldFrame,
+            pressAXPoint: CGPoint(x: 150, y: 400)
+        ))
+    }
+
+    /// The tolerance absorbs an editor's caret/textarea offset without swallowing the rest of the
+    /// window: a press 8pt outside the field is still the field, one 40pt outside is not.
+    func testFocusedFrameToleranceIsBounded() {
+        let fieldFrame = CGRect(x: 100, y: 100, width: 300, height: 20)
+        let decide: (CGPoint) -> Bool = { point in
+            MacSelectionMonitor.pressIsOverEditableText(
+                hitIsEditableControl: false,
+                focusedIsEditableControl: true,
+                focusedFrame: fieldFrame,
+                pressAXPoint: point
+            )
+        }
+
+        XCTAssertTrue(decide(CGPoint(x: 250, y: 128)), "8pt outside the field is within tolerance")
+        XCTAssertFalse(decide(CGPoint(x: 250, y: 160)), "40pt outside the field is a different surface")
+    }
+
+    /// No focused field and no text control under the press — a window background, toolbar, or
+    /// static text — must never inherit the clipboard.
+    func testNoEditableSignalAnywhereClassifiesAsNotEditable() {
+        XCTAssertFalse(MacSelectionMonitor.pressIsOverEditableText(
+            hitIsEditableControl: false,
+            focusedIsEditableControl: false,
+            focusedFrame: nil,
+            pressAXPoint: CGPoint(x: 100, y: 100)
+        ))
+    }
+
+    /// A focused element whose frame cannot be read is not treated as covering the press.
+    func testMissingFocusedFrameDoesNotAdmitThePress() {
+        XCTAssertFalse(MacSelectionMonitor.pressIsOverEditableText(
+            hitIsEditableControl: false,
+            focusedIsEditableControl: true,
+            focusedFrame: nil,
+            pressAXPoint: CGPoint(x: 100, y: 100)
+        ))
+    }
+
     /// The fallback decision is structural, not cursor-based: the press resolving to an editable
     /// field is what permits the clipboard inheritance (the cursor class is irrelevant here).
     @MainActor
@@ -499,8 +584,7 @@ final class MacSelectionMonitorTests: XCTestCase {
     /// the beam alone must never admit the clipboard fallback — a hold over a web page paragraph is
     /// not an editable field. The structural check (`isPressOverEditableText`) is the only signal.
     @MainActor
-    func testHoldWithBeamCursorOverReadOnlyTextDoesNotFallBackToClipboard() async throws {
-        let monitor = makeHoldMonitor()
+    func testHoldWithBeamCursorOverReadOnlyTextDoesNotFallBackToClipboard() async throws {        let monitor = makeHoldMonitor()
         let point = CGPoint(x: 150, y: 150)
         monitor.frontmostAppProvider = { Self.runnerApp() }
         monitor.currentMouseLocation = { point }
