@@ -29,6 +29,11 @@ public indirect enum ActionResult: Sendable {
     case text(String)
     case showServices(String)
 
+    /// Show the system Look Up dictionary popover for `word`. Declared by Core; presented by the
+    /// effect door via `NSView.showDefinition(for:at:)` so Core stays AppKit-free. Pure presentation —
+    /// nothing is written to the pasteboard and the popup stays open so the popover keeps its anchor.
+    case showDefinition(String)
+
     /// Look up `word` in the system dictionaries headlessly (no app launch) and copy its definition
     /// to the pasteboard. Declared by Core; resolved by the effect door via DictionaryServices so
     /// Core and the JS host stay testable. Returned by `DefineAction` on a force-copy click (the
@@ -121,14 +126,28 @@ extension ActionResult {
         switch self {
         case .toast(let feedback):
             return !feedback.keepVisible
-        case .text, .file:
+        case .text, .file, .showDefinition:
             // Implicit returned text and file outputs are presentation results:
             // kept open for in-card preview; explicit actions (save, copy) or Esc dismiss.
+            // The Look Up popover is anchored to the popup panel, so it also stays open.
             return false
         case .sequence(let items):
             return !items.isEmpty && items.allSatisfy(\.dismissesPopup)
         default:
             return true // includes openConfiguration, copyFile, saveFile: hide bar, then execute
+        }
+    }
+
+    /// Whether this result hands the user a detached, interactive surface (the system Look Up
+    /// popover) that stays on screen while the popup remains open. A scroll over such a surface —
+    /// the definition itself scrolls — must not auto-dismiss the popup, or the surface anchored to
+    /// it goes down with it. Presentation results that render inside the popup (`.text`, `.file`)
+    /// don't need this: their `.content` mode already suspends scroll dismissal.
+    public var suspendsScrollDismissal: Bool {
+        switch self {
+        case .showDefinition: return true
+        case .sequence(let items): return items.contains(where: \.suspendsScrollDismissal)
+        default: return false
         }
     }
 

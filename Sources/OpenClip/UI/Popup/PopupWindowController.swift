@@ -152,6 +152,12 @@ public class PopupWindowController {
     /// from resting palms or finger-lift micro-scrolls.
     private var accumulatedScrollDelta: CGFloat = 0
 
+    /// True while a result has presented a detached interactive surface (see
+    /// `ActionResult.suspendsScrollDismissal`). Scroll/trackpad dismissal is suspended so
+    /// interacting with that surface doesn't tear down the popup. Re-evaluated per handled result
+    /// and cleared when the session ends or a new one starts.
+    private var isScrollDismissalSuspended = false
+
     public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
                  pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe(),
                  toastController: ToastPanelController = ToastPanelController(),
@@ -238,6 +244,7 @@ public class PopupWindowController {
         modeStore.isSurfaceUserSized = false
         preSearchFrame = nil
         openedDirectlyInSearch = (initialMode == .search)
+        isScrollDismissalSuspended = false
 
         let rawAlignment = settingsStore.get(SettingKey.popupAlignment)
         let alignment = PopupBarAlignment(rawValue: rawAlignment) ?? .left
@@ -1044,6 +1051,7 @@ public class PopupWindowController {
         pendingActionRecommendedResult = nil
         pendingActionOutputKind = nil
         accumulatedScrollDelta = 0
+        isScrollDismissalSuspended = false
         isRightClickInProgress = false
         modeStore.isProcessingAI = false
         modeStore.mode = .actions
@@ -1248,6 +1256,9 @@ public class PopupWindowController {
             // Search mode scrolls the results list (panel key); the AI result card is modal and
             // scrolls its own content, never dismisses.
             if modeStore.mode == .search || modeStore.mode == .content { break }
+            // A detached surface (e.g. the Look Up popover) scrolls its own content: a scroll
+            // there must not dismiss the popup it is anchored to.
+            if isScrollDismissalSuspended { break }
             // A 2-finger tap (trackpad right-click) generates a phantom scrollWheel with
             // .mayBegin/.cancelled phase and zero deltas before rightMouseDown arrives. Ignore
             // these so the right-click gesture is not killed by the scroll dismissal.
@@ -2183,6 +2194,9 @@ public class PopupWindowController {
                     )
                     return
                 }
+                // A detached-surface result (e.g. the Look Up popover) suspends scroll dismissal
+                // for the rest of the session; anything else leaves it off.
+                isScrollDismissalSuspended = resolved.result.suspendsScrollDismissal
                 try await resultHandler.handle(resolved.result, in: panel?.contentView)
                 let toastToShow: StatusFeedback? = {
                     if let toast = resolved.toast {

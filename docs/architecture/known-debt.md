@@ -177,6 +177,16 @@ areas; stale debt notes are worse than none.
   model are gone, and the inline status banner is gone too: every `StatusFeedback` renders as a
   floating toast (`ToastPanelController`) with no queue — a status shows over the card — and
   `showsLoading` actions (manifest `"loading"`) use the early-close spinner toast.
+- **Define has a single display picker; popover mode is a system Look Up popover, not inline
+  content.** `DefineAction` exposes one `definitionDisplay` picker (`card` default / `popover` /
+  `dictionary`), replacing the old `openInDictionaryApp` boolean; a legacy `true` migrates to
+  `dictionary` once at launch (`BuiltinRegistry.makeCoreBuiltins` →
+  `DefineAction.migrateLegacyDisplayOptionIfNeeded`). `card` resolves in-process and lands in the
+  result card like any text result; `dictionary` opens the `x-dictionary:` URL; `popover` returns the
+  presenter-owned `ActionResult.showDefinition(word)` case, handled at the effect door by
+  `NSView.showDefinition(for:at:)` anchored to the popup's content view. It has no card but is
+  kept-open (`dismissesPopup == false`) so the popover keeps its anchor. Caveat: `PopupPanel` is a
+  `.nonactivatingPanel`, so whether Look Up renders without an `NSApp.activate()` is unverified.
 - **File results preview inline by kind.** `FileOutputKind`
   (`Core/Actions/FileOutputKind.swift`) classifies a `FileOutputPayload` into `image` / `pdf` / `text` /
   `other` from its MIME type, falling back to `UTType` conformance on the filename extension, so

@@ -53,6 +53,14 @@ final class ActionResultDismissPolicyTests: XCTestCase {
         XCTAssertTrue(dismiss.dismissesPopup)
     }
 
+    func testSuspendsScrollDismissal() {
+        XCTAssertTrue(ActionResult.showDefinition("serendipity").suspendsScrollDismissal)
+        XCTAssertTrue(ActionResult.sequence([.copy("x"), .showDefinition("word")]).suspendsScrollDismissal)
+        XCTAssertFalse(ActionResult.text("x").suspendsScrollDismissal)
+        XCTAssertFalse(ActionResult.copy("x").suspendsScrollDismissal)
+        XCTAssertFalse(ActionResult.sequence([.copy("x"), .paste("y")]).suspendsScrollDismissal)
+    }
+
     func testContainsToast() {
         XCTAssertTrue(ActionResult.toast(.init(message: "t", style: .info)).containsToast)
         XCTAssertTrue(ActionResult.sequence([.copy("x"), .toast(.init(message: "t", style: .info))]).containsToast)

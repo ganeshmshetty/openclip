@@ -224,6 +224,9 @@ struct DynamicOptionRowView: View {
 
     static func choiceDisplayLabel(_ choice: String) -> String {
         switch choice.lowercased() {
+        case "card": return String(localized: "Return meaning")
+        case "popover": return String(localized: "Show Look Up popover")
+        case "dictionary": return String(localized: "Open in Dictionary app")
         case "native": return String(localized: "Native (Default .ics)")
         case "busycal": return "BusyCal"
         case "fantastical": return "Fantastical"
