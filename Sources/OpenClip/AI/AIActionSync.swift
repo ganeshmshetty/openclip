@@ -32,8 +32,11 @@ public final class AIActionSync {
                 self?.sync()
             }
         }
-        sync()
+        // Register the AI bar button before the first sync: sync() replaces the preset actions,
+        // which prunes the saved action order to registered IDs. Registering after it dropped the
+        // button's saved position, so it moved to the end of the bar on every launch.
         coordinator.register(action: AIToolsAction())
+        sync()
     }
 
     /// Reconciles the registered AI actions against the current preset list. Cheap when nothing
