@@ -652,6 +652,48 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertTrue(delivered?.isClipboardFallback == true)
     }
 
+    /// Regression: in Electron/Chromium/PWA apps (Discord, Chrome, Slack), the press hit-test
+    /// often resolves to AXGroup or AXDocumentArticle rather than a native AppKit text control,
+    /// causing `isPressOverEditableText` to return false. When the retriever confirms an editable
+    /// context (e.g. via selectedTextRange on the target) and the cursor is a text cursor (.beam),
+    /// the hold gesture must still fall back to the clipboard when paste is allowed.
+    @MainActor
+    func testHoldInWebOrElectronEditableContextFallsBackToClipboardEvenIfStructuralHitCheckFails() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 150, y: 150)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+        monitor.currentCursorProvider = { .beam }
+        // Structural check failed because hit element has role AXGroup
+        monitor.isPressOverEditableText = { _ in false }
+        monitor.preparePasteProbe = { _, _ in Task { true } }
+
+        let gate = DispatchSemaphore(value: 0)
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            gate.wait()
+            return AXElementInspector.Target(
+                role: "AXGroup",
+                selectedTextRange: CFRange(location: 0, length: 0) as AnyObject
+            )
+        }, copyCapture: { _ in nil })
+
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        pasteboard.declareTypes([.string], owner: nil)
+        pasteboard.setString("pasted in web editor", forType: .string)
+        monitor.fallbackPasteboard = pasteboard
+
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+
+        monitor.handleMouseDown(at: point)
+        try await waitUntil { monitor.triggeredByHold }
+        gate.signal()
+        try await waitUntil { delivered != nil }
+
+        XCTAssertEqual(delivered?.text, "pasted in web editor")
+        XCTAssertTrue(delivered?.isClipboardFallback == true)
+    }
+
 
     @MainActor
     func testHoldWithBeamCursorDoesNotFallBackToClipboardWhenPasteDenied() async throws {

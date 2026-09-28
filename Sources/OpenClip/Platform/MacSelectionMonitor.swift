@@ -222,7 +222,14 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         var roleRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef) == .success,
               let role = roleRef as? String else { return false }
-        return editableTextRoles.contains(role)
+        if editableTextRoles.contains(role) { return true }
+        if role != "AXWebArea" && role != "AXStaticText" && role != "AXHeading" {
+            var phRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element, "AXPlaceholderValue" as CFString, &phRef) == .success, phRef != nil {
+                return true
+            }
+        }
+        return false
     }
 
     private static func axParent(of element: AXUIElement) -> AXUIElement? {
@@ -454,7 +461,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // earlier I-beam signal did the same over read-only web text — browsers show a beam
             // over selectable text whether or not it is editable.
             if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let isEditableContext = isPressOverEditableText(point)
+                let isEditableContext = isPressOverEditableText(point) || (isEditable && cursor != .arrow)
                 if isEditableContext && canPaste != false,
                    let clipboard = fallbackPasteboard.string(forType: .string),
                    !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
