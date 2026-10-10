@@ -224,5 +224,57 @@ final class CalculateActionTests: XCTestCase {
         XCTAssertEqual(calculate.evaluateSynchronously("25 * 4"), "100")
         XCTAssertEqual(calculate.evaluateSynchronously("not math"), nil)
     }
+
+    // MARK: - Overflow & recursion hardening (issue #50)
+
+    /// Overflow to ±infinity or NaN must be rejected rather than returned, because the action
+    /// renders a non-finite value as "" and would then paste nothing over the selection. The
+    /// tokenizer has no exponent notation, so overflow is driven by huge digit literals.
+    func testMathEvaluatorRejectsNonFiniteResults() {
+        let huge = String(repeating: "9", count: 400)          // > Double.greatestFiniteMagnitude
+        let big = String(repeating: "9", count: 200)
+        XCTAssertNil(MathEvaluator.evaluate(huge))
+        XCTAssertNil(MathEvaluator.evaluate("\(huge) + 1"))
+        XCTAssertNil(MathEvaluator.evaluate("\(big) * \(big)"))
+
+        // A large-but-finite literal still evaluates.
+        let finite = String(repeating: "9", count: 300)
+        let value = MathEvaluator.evaluate(finite)
+        XCTAssertNotNil(value)
+        XCTAssertEqual(value?.isFinite, true)
+    }
+
+    /// Deeply nested parentheses or unary signs must return nil instead of exhausting the stack.
+    func testMathEvaluatorRejectsExcessiveNesting() {
+        let deepParens = String(repeating: "(", count: 500) + "1" + String(repeating: ")", count: 500)
+        XCTAssertNil(MathEvaluator.evaluate(deepParens))
+        let deepUnary = String(repeating: "-", count: 500) + "1"
+        XCTAssertNil(MathEvaluator.evaluate(deepUnary))
+        let deepPower = "2" + String(repeating: "^2", count: 500)
+        XCTAssertNil(MathEvaluator.evaluate(deepPower))
+        // A modest depth still works.
+        let okParens = String(repeating: "(", count: 20) + "1" + String(repeating: ")", count: 20)
+        XCTAssertEqual(MathEvaluator.evaluate(okParens) ?? .nan, 1)
+    }
+
+    @MainActor
+    func testCalculateActionRejectsOverflowInsteadOfReturningEmptyText() async throws {
+        let action = CalculateAction()
+        let app = AppIdentity(NSRunningApplication.current)
+        let huge = String(repeating: "9", count: 400)
+        let big = String(repeating: "9", count: 200)
+        for input in [huge, "\(huge) + 1", "\(big) * \(big)"] {
+            let context = ActionContext(
+                selection: SelectionContext(text: input, sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
+                modifiers: []
+            )
+            XCTAssertFalse(action.isEnabled(for: context), "\(input) must not be calculable")
+            XCTAssertNil(action.evaluateSynchronously(input), "\(input) must not produce a value")
+            let result = try await action.perform(context)
+            if case .text(let text) = result {
+                XCTFail("\(input) must not deliver text (got \(text)) — that deletes the selection")
+            }
+        }
+    }
 }
 

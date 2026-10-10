@@ -42,6 +42,10 @@ public struct CalculateAction: ConfigurableAction {
             return .none
         }
         let resultString = formatResult(result)
+        // `formatResult` renders a non-finite value as "", which would paste nothing and delete the
+        // selection. `MathEvaluator` now rejects non-finite results outright, but keep the guard so
+        // an empty render can never become `.text("")` (issue #50).
+        guard !resultString.isEmpty else { return .none }
         return .text(resultString)
     }
     
