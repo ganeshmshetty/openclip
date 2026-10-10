@@ -49,7 +49,7 @@ public final class CloudAPIProvider: AIProvider {
                         for try await chunk in self.streamAnthropic(systemPrompt: systemInstruction, userContent: userContent) {
                             continuation.yield(chunk)
                         }
-                        continuation.finish()
+                        AIRequestSupport.finishStream(continuation)
                     } catch {
                         continuation.finish(throwing: error)
                     }
@@ -60,7 +60,7 @@ public final class CloudAPIProvider: AIProvider {
                         for try await chunk in self.streamGemini(systemPrompt: systemInstruction, userContent: userContent) {
                             continuation.yield(chunk)
                         }
-                        continuation.finish()
+                        AIRequestSupport.finishStream(continuation)
                     } catch {
                         continuation.finish(throwing: error)
                     }
@@ -72,7 +72,7 @@ public final class CloudAPIProvider: AIProvider {
                         for try await chunk in self.streamOpenAICompatible(systemPrompt: systemInstruction, userContent: userContent, baseURL: baseURL) {
                             continuation.yield(chunk)
                         }
-                        continuation.finish()
+                        AIRequestSupport.finishStream(continuation)
                     } catch {
                         continuation.finish(throwing: error)
                     }
@@ -172,7 +172,7 @@ public final class CloudAPIProvider: AIProvider {
                             continuation.yield(content)
                         }
                     }
-                    continuation.finish()
+                    AIRequestSupport.finishStream(continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -249,7 +249,7 @@ public final class CloudAPIProvider: AIProvider {
                             continuation.yield(text)
                         }
                     }
-                    continuation.finish()
+                    AIRequestSupport.finishStream(continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -313,7 +313,7 @@ public final class CloudAPIProvider: AIProvider {
                             continuation.yield(text)
                         }
                     }
-                    continuation.finish()
+                    AIRequestSupport.finishStream(continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }

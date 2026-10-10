@@ -303,6 +303,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let collected = CollectedBox()
         let effects = EffectsBox()
         let promiseState = request.isAsync ? PromiseState() : nil
+        // The promise bridge retains settled JSValues, which retain the context. Drop them once the
+        // outcome has been read so the context can deallocate on this (the JS) thread (issue #47).
+        defer { promiseState?.clear() }
 
         // Per-evaluation exception handler, installed before any bridge script runs. JSContext does
         // not assign `context.exception` when a handler is present, so we assign it ourselves to
@@ -492,15 +495,22 @@ public final class OpenClipJSHost: @unchecked Sendable {
         installPasteboardBridge(in: jsContext)
         jsContext.evaluateScript("openclip.option = function(id) { return openclip.options[id]; }")
         jsContext.evaluateScript("openclip.i18n = function(dict) { if (!dict) return ''; var baseLang = (openclip.language || '').split('-')[0]; return dict[openclip.language] || dict[openclip.locale] || dict[baseLang] || dict['en'] || Object.values(dict)[0] || ''; }")
+        let asyncResolvers: FetchResolvers?
         if request.isAsync, let promiseState {
-            registerAsyncBridge(
+            asyncResolvers = registerAsyncBridge(
                 openclip: openclip,
                 context: jsContext,
                 promiseState: promiseState,
                 session: session,
                 fetchTasks: fetchTasks
             )
+        } else {
+            asyncResolvers = nil
         }
+        // A fetch cancelled or timed out (or completed after the run ended) skips the resolver's
+        // `take`, so drop any remaining resolve/reject pair here — on the JS thread — or its
+        // retained JSValues would keep the context alive (issue #47).
+        defer { asyncResolvers?.clearPending() }
 
         let wrappedScript: String
         if let packageDirectory = request.packageDirectory {
@@ -613,13 +623,14 @@ public final class OpenClipJSHost: @unchecked Sendable {
     /// shared URLSession-backed fetch bridge (`openclip.__nativeFetch` + the `openclip.fetch`
     /// polyfill) via `JSNativeFetch.installNativeFetch`. The global `openclip` object must already
     /// be installed in the context before this runs.
+    @discardableResult
     private static func registerAsyncBridge(
         openclip: JSValue,
         context: JSContext,
         promiseState: PromiseState,
         session: URLSession,
         fetchTasks: FetchTaskBox
-    ) {
+    ) -> FetchResolvers? {
         let resolveBlock: @convention(block) (JSValue) -> Void = { value in
             promiseState.resolve(value)
         }
@@ -629,7 +640,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(resolveBlock, forKeyedSubscript: "__resolve" as NSString)
         openclip.setObject(rejectBlock, forKeyedSubscript: "__reject" as NSString)
 
-        JSNativeFetch.installNativeFetch(in: context, session: session, fetchTasks: fetchTasks)
+        return JSNativeFetch.installNativeFetch(in: context, session: session, fetchTasks: fetchTasks)
     }
 
     /// True when a JS result is a promise-like (has a `then` function) that cannot be awaited in

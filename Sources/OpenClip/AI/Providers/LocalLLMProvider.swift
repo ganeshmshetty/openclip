@@ -130,7 +130,7 @@ public final class LocalLLMProvider: AIProvider {
                                         continuation.yield(content)
                                     }
                                 }
-                                continuation.finish()
+                                AIRequestSupport.finishStream(continuation)
                                 return
                             }
                         } catch {
@@ -201,7 +201,7 @@ public final class LocalLLMProvider: AIProvider {
                             }
                         }
                     }
-                    continuation.finish()
+                    AIRequestSupport.finishStream(continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }

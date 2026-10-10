@@ -27,12 +27,19 @@ final class MockURLProtocol: URLProtocol {
     /// Nonisolated global mutable state — `nonisolated(unsafe)` because it's only touched from the
     /// MainActor between tests (set + defer-nil around each request).
     nonisolated(unsafe) static var requestHandler: (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
+    /// When true, `startLoading` records the request but never responds, so a fetch stays pending
+    /// until its session is invalidated. Used to test cleanup of a fetch that never settles.
+    nonisolated(unsafe) static var hangs = false
     static let capturedRequests = LockedArray<URLRequest>()
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        if MockURLProtocol.hangs {
+            MockURLProtocol.capturedRequests.append(request)
+            return
+        }
         guard let handler = MockURLProtocol.requestHandler else {
             client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))
             return
@@ -923,6 +930,40 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(c.state, .canceling)
     }
 
+    /// The close handler runs exactly once when the evaluation ends, through either `finish()` or
+    /// `cancelAll()`, and never when the box is left open. This is how the fetch bridge invalidates
+    /// its per-evaluation URLSession (issue #46).
+    func testFetchTaskBoxCloseHandlerRunsOnce() {
+        let finished = FetchTaskBox()
+        let finishMarks = LockedArray<String>()
+        finished.setCloseHandler { finishMarks.append("close") }
+        finished.finish()
+        finished.finish()
+        finished.cancelAll()
+        XCTAssertEqual(finishMarks.values, ["close"])
+
+        let cancelled = FetchTaskBox()
+        let cancelMarks = LockedArray<String>()
+        cancelled.setCloseHandler { cancelMarks.append("close") }
+        cancelled.cancelAll()
+        XCTAssertEqual(cancelMarks.values, ["close"])
+
+        let open = FetchTaskBox()
+        let openMarks = LockedArray<String>()
+        open.setCloseHandler { openMarks.append("close") }
+        XCTAssertEqual(openMarks.values, [])
+    }
+
+    /// A handler registered after the box has already closed runs immediately, so a fetch bridge
+    /// that installs late can never drop the cleanup.
+    func testFetchTaskBoxCloseHandlerRegisteredAfterCloseRunsImmediately() {
+        let box = FetchTaskBox()
+        box.finish()
+        let marks = LockedArray<String>()
+        box.setCloseHandler { marks.append("close") }
+        XCTAssertEqual(marks.values, ["close"])
+    }
+
     /// `add(_:)` racing with `cancelAll()` must never let a task escape cancellation: tasks added
     /// before cancellation are cancelled by `cancelAll()`, tasks added after cancellation started are
     /// cancelled immediately by `add(_:)`.
@@ -1098,6 +1139,86 @@ final class OpenClipJSHostTests: XCTestCase {
             CFRunLoopRunInMode(.defaultMode, 0.01, false)
         }
         XCTAssertEqual(marks.values.filter { $0 == "live" }.count, 1)
+    }
+
+    /// The finished `JSContext` must deallocate — no block stored on the context, and no off-thread
+    /// closure, may retain it (issue #47). Covers both the response `json()` block and the native
+    /// fetch bridge, which previously captured `JSContext` strongly.
+    func testFetchBridgeDoesNotRetainContextAfterRun() {
+        XCTAssertTrue(Thread.isMainThread)
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("{\"a\":1}".utf8))
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        let collected = LockedArray<String>()
+        weak var weakContext: JSContext?
+        // JavaScriptCore hands out autoreleased JSValue/JSContext receipts; without a pool of our
+        // own the enclosing test pool would hold the context alive past the assertion and the test
+        // would prove nothing. Drain our pool, then assert on real retains only.
+        autoreleasepool {
+            var context: JSContext? = JSContext()
+            weakContext = context
+            context!.evaluateScript("var openclip = {};")
+            let box = FetchTaskBox()
+            JSNativeFetch.installNativeFetch(in: context!, session: session, fetchTasks: box)
+
+            let mark: @convention(block) () -> Void = { collected.append("done") }
+            context!.setObject(mark, forKeyedSubscript: "__mark" as NSString)
+            // Await a response, call json() (the previously cycling block), then settle.
+            context!.evaluateScript("openclip.fetch('https://example.com/x').then(function(r){ r.json(); __mark(); }, function(){ __mark(); });")
+
+            let deadline = Date().addingTimeInterval(2)
+            while !collected.values.contains("done") && Date() < deadline {
+                CFRunLoopRunInMode(.defaultMode, 0.01, false)
+            }
+            XCTAssertTrue(collected.values.contains("done"), "the mocked fetch must settle")
+            box.finish()
+            context = nil
+        }
+
+        XCTAssertEqual(collected.values, ["done"])
+        XCTAssertNil(weakContext, "the finished JSContext must deallocate (no retain cycle)")
+    }
+
+    /// A fetch that never settles (cancelled mid-flight) must not keep the `JSContext` alive: its
+    /// resolve/reject pair is dropped by `clearPending()` at the end of the run, which the host
+    /// calls in the same `defer`. Without that cleanup the pending entry's JSValues retain the
+    /// context forever (issue #47).
+    func testCancelledFetchDoesNotRetainContextAfterResolverCleanup() {
+        XCTAssertTrue(Thread.isMainThread)
+        MockURLProtocol.hangs = true
+        defer { MockURLProtocol.hangs = false }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        weak var weakContext: JSContext?
+        autoreleasepool {
+            var context: JSContext? = JSContext()
+            weakContext = context
+            context!.evaluateScript("var openclip = {};")
+            let box = FetchTaskBox()
+            let resolvers = JSNativeFetch.installNativeFetch(in: context!, session: session, fetchTasks: box)
+            XCTAssertNotNil(resolvers)
+
+            // Kick off a fetch that will hang, and let the task start.
+            context!.evaluateScript("openclip.fetch('https://example.com/hang').then(function(){}, function(){});")
+            for _ in 0..<20 { CFRunLoopRunInMode(.defaultMode, 0.01, false) }
+
+            box.finish()                 // invalidate the session, cancelling the pending task
+            resolvers?.clearPending()    // what OpenClipJSHost.evaluate does at run end
+            context = nil
+        }
+
+        for _ in 0..<50 { CFRunLoopRunInMode(.defaultMode, 0.01, false) }
+        XCTAssertNil(weakContext, "a cancelled fetch must not keep the JSContext alive")
     }
 
     // MARK: - Watchdog

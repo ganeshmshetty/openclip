@@ -119,16 +119,22 @@ areas; stale debt notes are worse than none.
   the host does not call the JavaScript VM for it (issue #40). Uncaught exceptions that escape
   native-to-JS callbacks after initial evaluation (issue #48) reject the promise bridge via a
   per-evaluation `exceptionHandler` and surface as `.toast(.error)` without waiting for the idle
-  watchdog. This does **not** detect detached unhandled promise rejections, and it does not change
-  the retain-cycle residual below. Residual: retain cycles in
-  `JSNativeFetch` (`nativeFetchBlock` → `contextBox`/`context`; `jsonBlock` → `JSContextBox`) and
-  `PromiseState` (`JSValue?` → `JSValue.context`) keep the finished `JSContext` alive — this is
-  **line-cited analysis, not empirically probed**. `PolicySession` does not invalidate its
-  `URLSession`. A guarded `CFRunLoopPerformBlock` can still sit on the shared run loop and hold
-  those references. Do not break a cycle unless the final release of `JSValue`/`JSContext` is
-  guaranteed to land on the JS thread; otherwise an off-thread release becomes a memory-safety
-  hazard.
-- **Custom Action Groups use canonical IDs with dynamic materialization and strict $\ge 2$ member invariant.**
+  watchdog. This does **not** detect detached unhandled promise rejections.
+  **JS bridge lifetime is JS-thread-owned (issues #46/#47).** `PolicySession` invalidates its
+  `URLSession` through `FetchTaskBox.setCloseHandler` when the run ends, instead of leaking one
+  session, delegate, and its worker threads/Mach ports per async action. No block stored on a
+  `JSValue` and no off-thread closure retains a `JSContext`/`JSValue`: `nativeFetchBlock` and
+  `fetchResponse`'s `json()` resolve the context via `JSContext.current()` (the URLSession
+  completion reaches it only through `WeakJSContextBox`), in-flight resolve/reject functions live in
+  a JS-thread-owned `FetchResolvers` registry the completion touches only through `WeakRef` (the
+  host calls `FetchResolvers.clearPending()` in the same run-end `defer`, so a fetch that never
+  settles is dropped too), and `PromiseState.clear()` drops the settled `JSValue`s when the run
+  ends. This keeps the final release
+  of every JavaScript reference on the JS thread, which the off-thread-release hazard requires.
+  `OpenClipJSHostTests.testFetchBridgeDoesNotRetainContextAfterRun` probes the finished `JSContext`
+  deallocating after a fetch that calls `json()` (autorelease pool drained, since JavaScriptCore
+  hands out autoreleased receipts).
+- **Custom Action Groups use canonical IDs with dynamic materialization and folder semantics.**
   User-defined action groups are defined via `ActionGroupDef` (`Sources/Core/Actions/ActionGroupDef.swift`),
   stored as JSON in `SettingKey.actionGroups`. Rather than rewriting action identifiers with virtual ID
   prefixes (e.g. `vgroup.<id>.<actionID>`), grouped actions retain their exact canonical IDs
@@ -136,9 +142,14 @@ areas; stale debt notes are worse than none.
   (`Sources/Core/Actions/CustomGroupAction.swift`, conforming to `Action` and `SubActionProviding`)
   group rows, injecting them contiguously before their member actions in `actions`, while `SettingKey.actionOrder`
   strictly stores real, canonical IDs (excluding synthetic group headers and grouped AI presets). `ActionCoordinator`
-  manages the full group lifecycle (`createGroup`, `updateGroup`, `ungroup`, `removeFromGroup`, `loadGroupDefs`,
-  `pruneOrphans`), automatically enforcing the strict $\ge 2$ member invariant: when members are uninstalled
-  or removed, any group dropping below 2 members is immediately dissolved. Availability resolution in
+  manages the group lifecycle (`createGroup`, `updateGroup`, `ungroup`, `removeFromGroup`, `loadGroupDefs`).
+  The enforced rule is **not** a hard ≥ 2: a group created or saved empty is kept (a folder to fill
+  later), while a group **emptied by a mutation** (`removeFromGroup`, moving its last member into
+  another group, deleting its last member action) is dissolved. Unresolved member IDs are filtered
+  when the group is materialized and on mutating saves, but an existing member that is merely
+  unregistered this session is retained so the group survives an extension reload; `loadGroupDefs`
+  never rewrites the saved configuration, and there is **no `pruneOrphans` boot pass** (an earlier
+  spec claimed one). Availability resolution in
   `ActionRegistry.availableActions(for:)` maps canonical IDs to owning custom groups to hide member actions
   when their parent group is disabled or filtered out.
 

@@ -26,7 +26,7 @@ flowchart TD
 2. **Catalog Storage**: Delegates raw action storage and sorting to `ActionRegistry`.
 3. **Policy Context**: App policies are resolved by the trigger sites (`RuleEngine.resolvePolicies`) and attached to the selection context; delivery re-reads them from the snapshot (paste-vs-copy).
 4. **Action Reordering**: Exposes reordering primitives (`moveActions(from:to:)`) that mutate user preferences stored via `SettingsStore`.
-5. **Custom Action Groups Lifecycle**: Manages user-defined group CRUD operations, orphan pruning, and synchronization with `ActionRegistry`.
+5. **Custom Action Groups Lifecycle**: Manages user-defined group CRUD operations and synchronization with `ActionRegistry`.
 
 ---
 
@@ -105,13 +105,30 @@ Custom action groups allow users to bundle multiple actions under a single expan
 - **`ActionGroupDef`** (`Sources/Core/Actions/ActionGroupDef.swift`): Pure Codable model representing the persistent definition (`id`, `title`, `iconName`, `memberActionIDs`), stored as JSON in `SettingKey.actionGroups`.
 - **`CustomGroupAction`** (`Sources/Core/Actions/CustomGroupAction.swift`): Pure domain action conforming to `Action` and `SubActionProviding`. It defines `popupBehavior = .showSubActions` and dynamically resolves its sub-actions from the catalog by matching canonical IDs in `memberActionIDs`.
 
-### Strict $\ge 2$ Member Invariant
+### Group Membership Rules
 
-Every custom action group must contain at least 2 distinct member actions. The invariant is strictly enforced:
-- Group creation (`createGroup`) rejects payloads with fewer than 2 valid IDs.
-- Group updates (`updateGroup`) dissolve the group (`ungroup`) if members fall below 2.
-- Member removal (`removeFromGroup` or extension unregistration cascade) automatically deletes the group if remaining members $< 2$.
-- Boot-time orphan pruning (`pruneOrphans`) drops nonexistent action IDs and discards any group with $< 2$ active members.
+A custom group is a **folder**, not a fixed-size set, so the enforced rule is *not* a hard minimum
+of two members. What is enforced is that a group **emptied by a mutation** is dissolved, while a
+group that is empty or single-member by intent is kept:
+
+- `createGroup` accepts zero or more eligible member IDs. A group created empty is kept on purpose —
+  it is a folder the user intends to fill later. Duplicate/blank/ineligible IDs are filtered, not
+  rejected.
+- `updateGroup` stores exactly what the editor saves, including an empty or single-member group.
+- A group **emptied by a mutation** — `removeFromGroup`, `addToGroup` moving its last member into
+  another group, or `deleteCustomAction` removing its last member — is dissolved.
+  `saveAndApplyGroupDefs(pruningEmptiedFrom:)` distinguishes a group that *had* members before the
+  mutation from one that was already empty, so only the former disappears.
+- Member IDs that no longer resolve to a registered action are filtered when the group is
+  materialized (`CustomGroupAction.subActions(in:)`) and on mutating saves, but an existing member
+  that is merely unregistered this session is **retained**, so the group survives an extension
+  reload and heals when the action returns. `loadGroupDefs` deliberately does not rewrite the saved
+  configuration on boot, and there is **no `pruneOrphans` pass**.
+
+Pinned by `ActionCoordinatorGroupTests` (`testGroupMembershipContractIsFolderRulesNotAMinimumOfTwo`,
+`testAGroupWithNoMembersIsKept`, `testCreateGroupWithSingleMember`,
+`testUpdateGroupKeepsGroupWithFewerThanTwoMembers`, `testRemovingTheLastMemberRemovesTheGroup`,
+`testUnregisterExtensionRetainsGroupMembershipInDefs`).
 
 ---
 
