@@ -49,6 +49,24 @@ final class RevealInFinderActionTests: XCTestCase {
         XCTAssertEqual(action.resolvePath(from: "file://\(existingFile)"), existingFile)
     }
     
+    func testEmbeddedLiteralFilenamesTakePrecedenceOverCleanedPaths() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let action = RevealInFinderAction()
+        for name in ["report", "report(1).pdf", "report.", "report,", "report)"] {
+            try Data().write(to: directory.appendingPathComponent(name))
+        }
+        for name in ["report(1).pdf", "report.", "report,", "report)"] {
+            let path = directory.appendingPathComponent(name).path
+            XCTAssertEqual(action.resolvePath(from: "See \(path)"), path)
+        }
+        let path = directory.appendingPathComponent("report(1).pdf").path
+        XCTAssertEqual(action.resolvePath(from: "See \(path)."), path)
+        let selection = SelectionContext(text: "See \(path)", cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        XCTAssertTrue(action.isEnabled(for: ActionContext(selection: selection, modifiers: [])))
+    }
+
     func testIsEnabledOnlyForExistingPaths() {
         let action = RevealInFinderAction()
         let currentDir = FileManager.default.currentDirectoryPath

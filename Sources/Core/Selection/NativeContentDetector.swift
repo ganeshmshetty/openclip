@@ -39,7 +39,14 @@ public enum NativeContentDetector {
                 return DetectedContent.AddressItem(text: String(text[range]), components: fields)
             }
         case .path:
-            result.paths = paths(in: text)
+            let rawPaths = rawPaths(in: text)
+            result.paths = rawPaths.compactMap { normalizedPath($0) }
+            result.pathCandidates = rawPaths.flatMap { raw -> [String] in
+                let exact = exactPath(raw)
+                let cleaned = normalizedPath(raw)
+                if exact == cleaned { return [exact].compactMap { $0 } }
+                return [exact, cleaned].compactMap { $0 }
+            }
         }
         return result
     }
@@ -170,15 +177,30 @@ public enum NativeContentDetector {
     }
 
     private static let pathPattern = try! NSRegularExpression(
-        pattern: #"["“'‘]((?:file://|~/|/)[^"”'’\n]+)["”'’]|(?<![\w:/])(?:file://|~/|/)(?:\\ |[^\s"'“”‘’<>()\[\]])+"#
+        pattern: #"["“'‘]((?:file://|~/|/)[^"”'’\n]+)["”'’]|(?<![\w:/])(?:file://|~/|/)(?:\\ |[^\s"'“”‘’<>])+"#
     )
 
     public static func paths(in text: String) -> [String] {
+        rawPaths(in: text).compactMap { normalizedPath($0) }
+    }
+
+    private static func rawPaths(in text: String) -> [String] {
         pathPattern.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap { match in
             let range = match.range(at: 1).location == NSNotFound ? match.range : match.range(at: 1)
             guard let swiftRange = Range(range, in: text) else { return nil }
-            return normalizedPath(String(text[swiftRange]))
+            return String(text[swiftRange])
         }
+    }
+
+    private static func exactPath(_ raw: String) -> String? {
+        var path = raw
+        if path.hasPrefix("file://") {
+            guard let url = URL(string: path), url.isFileURL else { return nil }
+            path = url.path
+        }
+        path = path.replacingOccurrences(of: "\\ ", with: " ")
+        guard path.hasPrefix("/") || path.hasPrefix("~/") else { return nil }
+        return (path as NSString).expandingTildeInPath
     }
 
     public static func normalizedPath(_ raw: String) -> String? {
