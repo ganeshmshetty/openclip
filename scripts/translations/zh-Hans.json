@@ -770,5 +770,6 @@
   "Rewrite in a professional, formal tone. Preserve meaning, intent, factual details, and language. Avoid inflated wording and unnecessary length. Return only the rewritten text.": "以专业、正式的语气改写。保留含义、意图、事实细节和语言。避免夸张措辞和不必要的篇幅。只返回改写后的文本。",
   "Correct identifiable syntax errors, bugs, and logic mistakes. Preserve the programming language, intended behavior, existing interfaces, and style. Make the smallest necessary changes and avoid unrelated refactoring. Return only the corrected code without markdown code fences or explanations. If a reliable fix requires essential missing context, briefly state what is needed instead of inventing code.": "纠正可识别的语法错误、程序缺陷和逻辑错误。保留编程语言、预期行为、现有接口和代码风格。仅做必要的最小修改，避免无关重构。只返回修正后的代码，不要 Markdown 代码块或解释。如果可靠的修复需要缺失的关键上下文，请简要说明需要哪些信息，而不要编造代码。",
   "Extension Updates": "扩展更新",
-  "Automatically Update Extensions": "自动更新扩展"
+  "Automatically Update Extensions": "自动更新扩展",
+  "Detected content: %@": "检测到的内容：%@"
 }

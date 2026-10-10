@@ -55,4 +55,12 @@ final class ContextualActionClassifierTests: XCTestCase {
         XCTAssertEqual(action.chrome.badge, .url)
         XCTAssertFalse(action.isContextual)
     }
+    func testNativeContentRequirementMakesScriptContextual() {
+        let action = CustomAction(id: "custom.script", title: "Links", iconName: "terminal",
+                                  type: .shellScript(script: "true", replaceSelection: false),
+                                  rules: ExtensionActionRules(requirements: ActionRequirements(content: [.url, .email])))
+        XCTAssertTrue(action.isContextual)
+        XCTAssertEqual(action.contextualTriggerDescription, "Detected content: url, email")
+    }
+
 }

@@ -52,6 +52,11 @@ public enum ContextualActionClassifier {
             break
         }
 
+        if let withRules = underlying as? any ActionWithRules,
+           let types = withRules.rules?.requirements?.content, !types.isEmpty {
+            return String(localized: "Detected content: \(types.map(\.rawValue).joined(separator: ", "))")
+        }
+
         // A URL-template action is contextual only when it declares a pattern. Without one it runs
         // on any selection (e.g. "Search Google for {query}") and must not jump ahead of the
         // user's saved action order just because URL templates default to a `.url` badge.

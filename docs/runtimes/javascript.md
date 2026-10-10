@@ -272,3 +272,7 @@ function action(selection) {
   });
 }
 ```
+
+## Native detected content (1.9.0)
+
+Declare `requirements.content` to receive native recognition results under `openclip.input.detected`: `urls`, `emails`, `dates`, `paths`, `phones`, and `addresses`. All are deeply frozen arrays; only requested types are populated. Native recognition scans the full original selection and shares its snapshot with contextual filtering. See [native content requirements](../developer-guide/native-content-requirements.md) for precise payload shapes and an Open Links example.

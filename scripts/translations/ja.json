@@ -770,5 +770,6 @@
   "Rewrite in a professional, formal tone. Preserve meaning, intent, factual details, and language. Avoid inflated wording and unnecessary length. Return only the rewritten text.": "専門的でフォーマルな語調に書き直してください。意味、意図、事実の詳細、言語を維持してください。大げさな表現や不要な長さを避けてください。書き直したテキストのみを返してください。",
   "Correct identifiable syntax errors, bugs, and logic mistakes. Preserve the programming language, intended behavior, existing interfaces, and style. Make the smallest necessary changes and avoid unrelated refactoring. Return only the corrected code without markdown code fences or explanations. If a reliable fix requires essential missing context, briefly state what is needed instead of inventing code.": "特定できる構文エラー、バグ、論理上の誤りを修正してください。プログラミング言語、意図された動作、既存のインターフェース、コードのスタイルを維持してください。必要最小限の変更にとどめ、無関係なリファクタリングを避けてください。Markdownのコードブロックや説明を付けず、修正したコードのみを返してください。確実な修正に不可欠な情報が不足している場合は、コードをでっち上げずに、必要な情報を簡潔に述べてください。",
   "Extension Updates": "拡張機能のアップデート",
-  "Automatically Update Extensions": "拡張機能を自動更新"
+  "Automatically Update Extensions": "拡張機能を自動更新",
+  "Detected content: %@": "検出された内容：%@"
 }

@@ -335,6 +335,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             rtf: request.context.selection.rtf,
             matchedText: matchedText,
             captures: captures,
+            detected: request.context.selection.detectedContent(for: request.rules.requirements?.content ?? []),
             sourceApp: request.context.selection.sourceApp,
             isSecondaryClick: request.context.isSecondaryClick,
             options: optionsDict,
@@ -492,6 +493,21 @@ public final class OpenClipJSHost: @unchecked Sendable {
         }
 
         jsContext.setObject(openclip, forKeyedSubscript: "openclip" as NSString)
+        // Detection is a snapshot owned by the host, including nested date/address objects.
+        jsContext.evaluateScript("""
+        (function() {
+            function freeze(value) {
+                if (value && typeof value === 'object') {
+                    Object.keys(value).forEach(function(key) { freeze(value[key]); });
+                    Object.freeze(value);
+                }
+            }
+            freeze(openclip.input.detected);
+            Object.defineProperty(openclip.input, 'detected', {
+                value: openclip.input.detected, writable: false, configurable: false, enumerable: true
+            });
+        })();
+        """)
         installPasteboardBridge(in: jsContext)
         jsContext.evaluateScript("openclip.option = function(id) { return openclip.options[id]; }")
         jsContext.evaluateScript("openclip.i18n = function(dict) { if (!dict) return ''; var baseLang = (openclip.language || '').split('-')[0]; return dict[openclip.language] || dict[openclip.locale] || dict[baseLang] || dict['en'] || Object.values(dict)[0] || ''; }")
@@ -950,6 +966,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
         // Deterministic resolution order: configuration > toast (coexisting with effects) > effects
         // (in call order, sequence when >1) > function string return (.text) > success.
         let effects = evaluation.effects
+        let sourceID = request.context.selection.sourceApp.bundleIdentifier
+        let browserID = request.rules.requirements?.content?.contains(.url) == true
+            && BrowserDetector.isBrowser(bundleIdentifier: sourceID) ? sourceID : nil
         let raw: ActionResult
         if let configuration = collected.configuration {
             raw = .openConfiguration(configuration)
@@ -958,12 +977,12 @@ public final class OpenClipJSHost: @unchecked Sendable {
                 raw = .toast(toast)
             } else {
                 let input = request.context.match?.matchedText ?? request.context.selection.text
-                let mapped = effects.map { effectResult($0, input: input) }
+                let mapped = effects.map { effectResult($0, input: input, browserBundleID: browserID) }
                 raw = .sequence([.toast(toast)] + mapped)
             }
         } else if !effects.isEmpty {
             let input = request.context.match?.matchedText ?? request.context.selection.text
-            let mapped = effects.map { effectResult($0, input: input) }
+            let mapped = effects.map { effectResult($0, input: input, browserBundleID: browserID) }
             raw = mapped.count == 1 ? mapped[0] : .sequence(mapped)
         } else if let returnValue = evaluation.asyncReturnValue ?? collected.returnValue {
             // Check if string return is a path to an existing regular file; otherwise .text(returnValue)
@@ -980,14 +999,18 @@ public final class OpenClipJSHost: @unchecked Sendable {
     }
 
     /// Converts a collected JavaScript bridge effect into a domain action result.
-    private static func effectResult(_ effect: Effect, input: String) -> ActionResult {
+    private static func effectResult(_ effect: Effect, input: String, browserBundleID: String?) -> ActionResult {
         switch effect {
         case .paste(let text): return .paste(text)
         case .copy(let text): return .copy(text)
         case .pasteContent(let payload): return .pasteContent(payload)
         case .copyContent(let payload): return .copyContent(payload)
         case .cut(let text): return .cut(text)
-        case .openURL(let url): return .openURL(url)
+        case .openURL(let url):
+            if let browserBundleID, ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+                return .openURLInApp(url: url, appBundleIdentifier: browserBundleID)
+            }
+            return .openURL(url)
         case .file(let payload): return .file(payload)
         case .copyFile(let url): return .copyFile(url)
         case .saveFile(let url): return .saveFile(url)
@@ -1061,6 +1084,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         rtf: String?,
         matchedText: String,
         captures: [String],
+        detected: DetectedContent,
         sourceApp: AppIdentity,
         isSecondaryClick: Bool,
         options: [String: Any],
@@ -1079,6 +1103,18 @@ public final class OpenClipJSHost: @unchecked Sendable {
         input.setObject(matchedText, forKeyedSubscript: "matchedText")
         input.setObject(captures, forKeyedSubscript: "captures")
         input.setObject(isSecondaryClick, forKeyedSubscript: "isSecondaryClick")
+        let dateFormatter = ISO8601DateFormatter()
+        let detectedValues: [String: Any] = [
+            "urls": detected.urls, "emails": detected.emails, "paths": detected.paths, "phones": detected.phones,
+            "dates": detected.dates.map { item -> [String: Any] in
+                var value: [String: Any] = ["text": item.text, "date": dateFormatter.string(from: item.date),
+                                            "duration": item.duration]
+                if let zone = item.timeZone { value["timeZone"] = zone }
+                return value
+            },
+            "addresses": detected.addresses.map { ["text": $0.text, "components": $0.components] as [String: Any] }
+        ]
+        input.setObject(detectedValues, forKeyedSubscript: "detected")
 
         app.setObject(sourceApp.bundleIdentifier ?? "", forKeyedSubscript: "bundleID")
         app.setObject(sourceApp.localizedName ?? "", forKeyedSubscript: "name")

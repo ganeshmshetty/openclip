@@ -3,7 +3,7 @@
 //
 // The shared visibility evaluator for extension actions. Pure: no UserDefaults, no AppKit, no
 // Keychain. Resolves declarative requirements in a fixed order (selection, app allow/deny,
-// regex/negated, computed expression gate) and, when enabled, builds the ActionMatchInfo that
+// native content, regex/negated) and, when enabled, builds the ActionMatchInfo that
 // perform-time placeholders and shell env vars consume.
 import Foundation
 
@@ -14,18 +14,12 @@ public enum ActionVisibility {
     /// 1. Input requirement: optional, nonblank text, live selection, or editable selection.
     /// 2. Required paste destination, when requested.
     /// 3. App allow/deny list vs `context.selection.sourceApp.bundleIdentifier`.
-    /// 4. Regex match / negated match; on success build `ActionMatchInfo`.
-    /// 5. Computed visibility via the `expression` DSL (`ValidateExpression`), evaluated with the
-    ///    regex pass's `ActionMatchInfo`; a runtime eval error disables (fail-closed).
-    ///
-    /// A malformed regex enables the action (defensive stance matching legacy URL behavior,
-    /// which returned `true` on a regex compile failure), so a bad manifest never hides an action;
-    /// the expression gate is skipped alongside it. The regex is the fast first pass, so a missing
-    /// or failed regex gate returns before the DSL expression ever evaluates.
+    /// 4. Native content: any requested type must have at least one detected item.
+    /// 5. Regex match / negated match, retaining capture groups for execution.
+    /// Legacy malformed regexes fail open only for the regex gate; content requirements still apply.
     public static func isEnabled(
         requirements: ActionRequirements?,
         legacyRegex: String?,
-        expression: ValidateExpression? = nil,
         context: ActionContext
     ) -> (enabled: Bool, match: ActionMatchInfo) {
         let text = context.selection.text
@@ -70,10 +64,18 @@ public enum ActionVisibility {
             }
         }
 
-        // 4. Regex match / negated match (unchanged). The regex is the fast first pass: a missing
-        //    or failed regex gate returns before the DSL expression ever evaluates.
+        // Detection is cached on the immutable selection snapshot and reused by execution.
+        let requested = requirements?.content ?? []
+        let detected = context.selection.detectedContent(for: requested)
+        let contentMatch = ActionMatchInfo(text: text, matchedText: text, captures: [],
+                                          sourceBundleID: sourceBundleID, detected: detected)
+        if requirements?.content != nil && !requested.contains(where: detected.hasItems) {
+            return (false, contentMatch)
+        }
+
+        // Legacy regex matching also supplies captures to the runtime.
         let pattern = requirements?.regex ?? legacyRegex
-        var matched = noMatch
+        var matched = contentMatch
         var regexEnabled: Bool? = nil
         if let pattern, !pattern.isEmpty {
             do {
@@ -92,33 +94,19 @@ public enum ActionVisibility {
                             }
                         }
                     }
-                    matched = ActionMatchInfo(text: text, matchedText: matchedText, captures: captures, sourceBundleID: sourceBundleID)
+                    matched = ActionMatchInfo(text: text, matchedText: matchedText, captures: captures, sourceBundleID: sourceBundleID, detected: detected)
                     regexEnabled = !(requirements?.regexNegated == true)
                 } else {
                     regexEnabled = requirements?.regexNegated == true
                 }
             } catch {
-                // Defensive: a malformed regex must not hide an action (legacy URL behavior). The
-                // expression gate is skipped alongside it, matching prior behavior.
+                // Preserve the legacy regex behavior after all other requirements have passed.
                 Log.coordinator.debug("Malformed enablement regex treated as non-matching: \(error.localizedDescription)")
-                return (true, noMatch)
+                return (true, contentMatch)
             }
         }
         if regexEnabled == false {
             return (false, matched)
-        }
-
-        // 5. Computed visibility via the expression DSL (pure Swift, parse-once-eval-many).
-        if let expression {
-            switch expression.evaluate(context, match: matched) {
-            case .success(true):
-                return (true, matched)
-            case .success(false):
-                return (false, matched)
-            case .failure(let error):
-                Log.js.error("Enablement expression evaluation failed: \(error)")
-                return (false, matched)
-            }
         }
 
         return (true, matched)

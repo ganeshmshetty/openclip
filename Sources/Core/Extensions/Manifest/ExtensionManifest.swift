@@ -490,9 +490,9 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         self.description = resolvedDesc?.resolve()
         self.author = try? container.decodeIfPresent(String.self, forKey: .author)
         // Support both "actions" (array) and "action" (singular object)
-        if let array = try? container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .actions) ?? container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .legacyActions) {
+        if let array = try container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .actions) ?? container.decodeIfPresent([ExtensionActionMetadata].self, forKey: .legacyActions) {
             self.actions = array
-        } else if let single = try? container.decodeIfPresent(ExtensionActionMetadata.self, forKey: .action) {
+        } else if let single = try container.decodeIfPresent(ExtensionActionMetadata.self, forKey: .action) {
             self.actions = [single]
         } else {
             self.actions = []

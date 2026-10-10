@@ -770,5 +770,6 @@
   "Rewrite in a professional, formal tone. Preserve meaning, intent, factual details, and language. Avoid inflated wording and unnecessary length. Return only the rewritten text.": "以專業、正式的語氣改寫。保留含義、意圖、事實細節和語言。避免誇大措辭和不必要的篇幅。只回傳改寫後的文字。",
   "Correct identifiable syntax errors, bugs, and logic mistakes. Preserve the programming language, intended behavior, existing interfaces, and style. Make the smallest necessary changes and avoid unrelated refactoring. Return only the corrected code without markdown code fences or explanations. If a reliable fix requires essential missing context, briefly state what is needed instead of inventing code.": "修正可識別的語法錯誤、程式缺陷和邏輯錯誤。保留程式語言、預期行為、現有介面和程式碼風格。僅做必要的最小修改，避免無關重構。只回傳修正後的程式碼，不要 Markdown 程式碼區塊或解釋。如果可靠的修復需要缺少的關鍵上下文，請簡要說明需要哪些資訊，而不要編造程式碼。",
   "Extension Updates": "擴充功能更新",
-  "Automatically Update Extensions": "自動更新擴充功能"
+  "Automatically Update Extensions": "自動更新擴充功能",
+  "Detected content: %@": "偵測到的內容：%@"
 }

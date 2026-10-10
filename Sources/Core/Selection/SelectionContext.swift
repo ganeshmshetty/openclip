@@ -34,6 +34,11 @@ public struct SelectionContext: Sendable {
     public let rtf: String?
     /// Raw pasteboard representations captured alongside the text, including app-private types.
     public let flavors: [RichPasteboardFlavor]
+    private let contentDetection: ContentDetectionCache
+
+    public func detectedContent(for types: [ContentType]) -> DetectedContent {
+        contentDetection.detect(types)
+    }
 
     public init(
         text: String,
@@ -47,6 +52,7 @@ public struct SelectionContext: Sendable {
         html: String? = nil,
         rtf: String? = nil,
         flavors: [RichPasteboardFlavor] = [],
+        contentDetection: ContentDetectionCache? = nil,
         selectionGeneration: UInt64? = nil,
         source: SelectionSource? = nil,
         isEditable: Bool? = nil,
@@ -69,6 +75,7 @@ public struct SelectionContext: Sendable {
         self.html = html
         self.rtf = rtf
         self.flavors = flavors
+        self.contentDetection = contentDetection ?? ContentDetectionCache(text: text)
     }
 
     public func with(cursorPosition: CGPoint) -> SelectionContext {
@@ -84,6 +91,7 @@ public struct SelectionContext: Sendable {
             html: html,
             rtf: rtf,
             flavors: flavors,
+            contentDetection: contentDetection,
             selectionGeneration: selectionGeneration,
             source: source,
             isEditable: isEditable,
@@ -105,6 +113,7 @@ public struct SelectionContext: Sendable {
             html: html,
             rtf: rtf,
             flavors: flavors,
+            contentDetection: contentDetection,
             selectionGeneration: selectionGeneration,
             source: source,
             isEditable: self.isEditable ?? isEditable,

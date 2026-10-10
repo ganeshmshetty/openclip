@@ -1729,4 +1729,118 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(payload.plainText, "Hello hello")
         XCTAssertEqual(payload.html, "<b>Hello</b> <i>hello</i>")
     }
+    func testDetectedLinksReachSyncAndAsyncScriptsInOrder() async throws {
+        let context = makeContext(selectedText: "😀 Read https://example.com, then https://github.com, repeat https://example.com.")
+        let rules = ExtensionActionRules(requirements: ActionRequirements(content: [.url]))
+        for isAsync in [false, true] {
+            let script = """
+            function action() {
+                for (const url of openclip.input.detected.urls) { openclip.openURL(url); }
+            }
+            """
+            let result = try await host.run(makeRequest(script: script, rules: rules, isAsync: isAsync, context: context))
+            guard case .sequence(let effects) = result else { return XCTFail("Expected a URL sequence, got \(result)") }
+            let urls = effects.compactMap { effect -> String? in
+                if case .openURL(let url) = effect { return url.absoluteString }
+                return nil
+            }
+            XCTAssertEqual(urls, context.selection.detectedContent(for: [.url]).urls)
+            XCTAssertEqual(urls, ["https://example.com", "https://github.com", "https://example.com"])
+        }
+    }
+
+    func testDetectedURLsPreserveSourceBrowserRouting() async throws {
+        let selection = SelectionContext(text: "Read https://example.com then https://github.com",
+                                         sourceApp: AppIdentity(bundleIdentifier: "com.apple.Safari", localizedName: "Safari"),
+                                         cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let result = try await host.run(makeRequest(
+            script: "function action(){ for (const url of openclip.input.detected.urls) openclip.openURL(url); }",
+            rules: ExtensionActionRules(requirements: ActionRequirements(content: [.url])),
+            context: ActionContext(selection: selection)))
+        guard case .sequence(let effects) = result else { return XCTFail("Expected a URL sequence") }
+        XCTAssertEqual(effects.count, 2)
+        for effect in effects {
+            guard case .openURLInApp(_, let bundleID) = effect else { return XCTFail("Expected source-browser routing") }
+            XCTAssertEqual(bundleID, "com.apple.Safari")
+        }
+    }
+
+    func testDetectedContentIsFrozenAndUnrequestedTypesStayEmpty() async throws {
+        let result = try await host.run(makeRequest(script: """
+            function action() {
+                const d = openclip.input.detected;
+                try { d.urls.push('https://injected.example'); } catch (_) {}
+                try { openclip.input.detected = {}; } catch (_) {}
+                return JSON.stringify({ urls: d.urls, emails: d.emails,
+                    frozen: Object.isFrozen(d) && Object.isFrozen(d.urls),
+                    unchanged: openclip.input.detected === d, text: openclip.input.text });
+            }
+            """, rules: ExtensionActionRules(requirements: ActionRequirements(content: [.url])),
+            context: makeContext(selectedText: "Contact user@example.com; see https://example.com.")))
+        guard case .text(let text) = result else { return XCTFail("Expected JSON text") }
+        let value = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
+        XCTAssertEqual(value["urls"] as? [String], ["https://example.com"])
+        XCTAssertEqual(value["emails"] as? [String], [])
+        XCTAssertEqual(value["frozen"] as? Bool, true)
+        XCTAssertEqual(value["unchanged"] as? Bool, true)
+        XCTAssertEqual(value["text"] as? String, "Contact user@example.com; see https://example.com.")
+    }
+
+    func testNoContentRequirementExposesEmptyDetectionArrays() async throws {
+        let result = try await host.run(makeRequest(script: """
+            function action() {
+                return String(Object.keys(openclip.input.detected).length === 6 &&
+                    Object.values(openclip.input.detected).every(function(items){ return items.length === 0; }));
+            }
+            """, context: makeContext(selectedText: "user@example.com https://example.com")))
+        guard case .text(let text) = result else { return XCTFail("Expected text") }
+        XCTAssertEqual(text, "true")
+    }
+
+    func testNativeDateAndAddressObjectsReachJavaScript() async throws {
+        let context = makeContext(selectedText: "Meet on December 12, 2030 at 10am at 1 Infinite Loop, Cupertino, CA 95014.")
+        let native = context.selection.detectedContent(for: [.date, .address])
+        XCTAssertFalse(native.dates.isEmpty)
+        XCTAssertFalse(native.addresses.isEmpty)
+        let result = try await host.run(makeRequest(script: "return JSON.stringify(openclip.input.detected);",
+            rules: ExtensionActionRules(requirements: ActionRequirements(content: [.date, .address])), context: context))
+        guard case .text(let text) = result else { return XCTFail("Expected JSON text") }
+        let value = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
+        let dates = try XCTUnwrap(value["dates"] as? [[String: Any]])
+        let addresses = try XCTUnwrap(value["addresses"] as? [[String: Any]])
+        XCTAssertEqual(dates.count, native.dates.count)
+        XCTAssertEqual(addresses.count, native.addresses.count)
+        let first = try XCTUnwrap(dates.first)
+        XCTAssertNotNil(ISO8601DateFormatter().date(from: try XCTUnwrap(first["date"] as? String)))
+        XCTAssertEqual(first["text"] as? String, native.dates.first?.text)
+        XCTAssertEqual(addresses.first?["components"] as? [String: String], native.addresses.first?.components)
+    }
+
+    func testModuleExtensionReceivesAllLinksDespiteRegexMatchingOnlyOne() async throws {
+        let original = makeContext(selectedText: "Read https://example.com then https://github.com and https://example.com.")
+        let rules = ExtensionActionRules(requirements: ActionRequirements(regex: "https://example\\.com", content: [.url]))
+        let visibility = await rules.resolveVisibility(for: original)
+        XCTAssertTrue(visibility.enabled)
+        XCTAssertEqual(visibility.match.matchedText, "https://example.com")
+        let context = ActionContext(selection: original.selection, match: visibility.match)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let script = """
+        module.exports = function() {
+            const urls = [...new Set(openclip.input.detected.urls)];
+            for (const url of urls) openclip.openURL(url);
+        };
+        """
+        let request = OpenClipJSHost.Request(actionID: "test.links", scriptCode: script, context: context,
+            options: [], optionStore: optionStore, rules: rules, packageDirectory: directory)
+        let result = try await host.run(request)
+        guard case .sequence(let effects) = result else { return XCTFail("Expected two distinct links") }
+        let urls = effects.compactMap { effect -> String? in
+            if case .openURL(let url) = effect { return url.absoluteString }
+            return nil
+        }
+        XCTAssertEqual(urls, ["https://example.com", "https://github.com"])
+    }
+
 }

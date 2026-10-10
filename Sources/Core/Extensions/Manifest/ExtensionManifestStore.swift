@@ -52,7 +52,14 @@ public enum ExtensionManifestStore {
     /// Decodes an `ExtensionMetadata` manifest from raw data, so a caller that already holds the
     /// bytes (e.g. the loader, which also fingerprints them) decodes exactly what it fingerprinted.
     public static func decodeManifest(from data: Data) throws -> ExtensionMetadata {
-        try JSONDecoder().decode(ExtensionMetadata.self, from: data)
+        do {
+            return try JSONDecoder().decode(ExtensionMetadata.self, from: data)
+        } catch DecodingError.dataCorrupted(let context) {
+            // Surface migration/requirement diagnostics in the loader's existing error log.
+            let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+            throw NSError(domain: "ExtensionManifest", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "\(path): \(context.debugDescription)"])
+        }
     }
 
     /// Encodes and atomically writes a manifest. The stable formatting (pretty-printed, sorted

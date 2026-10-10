@@ -17,11 +17,6 @@ private extension ActionContext {
 
 @MainActor
 final class ActionVisibilityTests: XCTestCase {
-    private func attemptParse(_ source: String) -> ValidateExpression {
-        // Test-only: source strings here are known-valid; parse failure would surface as a force-trap.
-        try! ValidateExpression.parse(source).get()
-    }
-
     // MARK: - App allow / deny lists
 
     func testAllowListEnablesWhenBundleIdentifierMatches() {
@@ -195,16 +190,6 @@ final class ActionVisibilityTests: XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(ActionRequirements.self, from: #"{"requiresSelection":true,"requires-selection":false}"#.data(using: .utf8)!))
     }
 
-    func testDecodedRequirementsExpressionSurvivesRoundTrip() throws {
-        let json = #"{"expression": "isEmail(text)"}"#.data(using: .utf8)!
-        let requirements = try JSONDecoder().decode(ActionRequirements.self, from: json)
-        XCTAssertEqual(requirements.expression, "isEmail(text)")
-
-        let data = try JSONEncoder().encode(requirements)
-        let roundTripped = try JSONDecoder().decode(ActionRequirements.self, from: data)
-        XCTAssertEqual(roundTripped.expression, "isEmail(text)")
-    }
-
     // MARK: - Regex match / negation
 
     func testRegexEnablesWhenMatches() {
@@ -365,87 +350,52 @@ final class ActionVisibilityTests: XCTestCase {
         }
     }
 
-    // MARK: - expression gate
-
-    func testExpressionGateDisablesWhenEvaluatesFalse() {
-        let requirements = ActionRequirements(expression: "isEmail(text)")
-        let context = ActionContext(selectedText: "not an email")
-        let result = ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: attemptParse("isEmail(text)"), context: context)
-        XCTAssertFalse(result.enabled)
-    }
-
-    func testExpressionGateEnablesWhenEvaluatesTrue() {
-        let requirements = ActionRequirements(expression: "isEmail(text)")
-        let context = ActionContext(selectedText: "a@b.com")
-        let result = ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: attemptParse("isEmail(text)"), context: context)
+    func testNativeContentMatchesEmbeddedURLsAndSharesExecutionData() {
+        let context = ActionContext(selectedText: "Read https://example.com, then https://github.com.")
+        let rules = ExtensionActionRules(requirements: ActionRequirements(content: [.url]))
+        let result = rules.resolveVisibility(for: context)
         XCTAssertTrue(result.enabled)
+        XCTAssertEqual(result.match.detected.urls, ["https://example.com", "https://github.com"])
+        XCTAssertEqual(result.match.detected, context.selection.detectedContent(for: [.url]))
     }
 
-    func testRegexAndExpressionBothMustPass() {
-        let requirements = ActionRequirements(regex: "^[a-z]+@", expression: "length(text) >= 8")
-        let expression = attemptParse("length(text) >= 8")
-
-        let bothPass = ActionContext(selectedText: "user@example.com")
-        XCTAssertTrue(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: expression, context: bothPass).enabled)
-
-        let regexPassesExpressionFails = ActionContext(selectedText: "a@b.co")
-        // regex ^[a-z]+@ matches, but length < 8
-        XCTAssertFalse(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: expression, context: regexPassesExpressionFails).enabled)
-
-        let regexFails = ActionContext(selectedText: "123@example.com")
-        // regex first pass fails -> disabled without evaluating the expression
-        XCTAssertFalse(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: expression, context: regexFails).enabled)
+    func testContentTypesAreAlternativesAndUnrequestedResultsStayEmpty() {
+        let context = ActionContext(selectedText: "Email user@example.com about https://github.com.")
+        let emailOnly = ActionVisibility.isEnabled(requirements: ActionRequirements(content: [.email]), legacyRegex: nil, context: context)
+        XCTAssertTrue(emailOnly.enabled)
+        XCTAssertEqual(emailOnly.match.detected.emails, ["user@example.com"])
+        XCTAssertTrue(emailOnly.match.detected.urls.isEmpty)
+        let alternatives = ExtensionActionRules(requirements: ActionRequirements(content: [.phone, .email]))
+        XCTAssertTrue(alternatives.resolveVisibility(for: context).enabled)
+        XCTAssertFalse(alternatives.resolveVisibility(for: ActionContext(selectedText: "ordinary text")).enabled)
+        XCTAssertFalse(alternatives.resolveVisibility(for: ActionContext(selectedText: "")).enabled)
     }
 
-    func testLegacyRegexWithExpressionGate() {
-        let context = ActionContext(selectedText: "hello world")
-        let expression = attemptParse("contains(text, \"world\")")
-        let passing = ActionVisibility.isEnabled(requirements: nil, legacyRegex: "^hello", expression: expression, context: context)
-        XCTAssertTrue(passing.enabled)
-        let failingExpr = attemptParse("contains(text, \"moon\")")
-        let failing = ActionVisibility.isEnabled(requirements: nil, legacyRegex: "^hello", expression: failingExpr, context: context)
-        XCTAssertFalse(failing.enabled)
+    func testContentAndExistingRequirementsMustAllPass() {
+        let requirements = ActionRequirements(regex: "^Read", apps: ["com.test.app"], content: [.url])
+        let matches = ActionContext(selectedText: "Read https://example.com")
+        XCTAssertTrue(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, context: matches).enabled)
+        XCTAssertFalse(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, context: ActionContext(selectedText: "Visit https://example.com")).enabled)
+        XCTAssertFalse(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, context: ActionContext(selectedText: "Read https://example.com", bundleID: "com.other.app")).enabled)
+        XCTAssertFalse(ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, context: ActionContext(selectedText: "Read ordinary text")).enabled)
+        let live = ActionRequirements(input: .liveSelection, content: [.url])
+        XCTAssertFalse(ActionVisibility.isEnabled(requirements: live, legacyRegex: nil, context: ActionContext(selectedText: "https://example.com", source: .clipboard)).enabled)
+        let paste = ActionRequirements(requiresPasteTarget: true, content: [.url])
+        XCTAssertFalse(ActionVisibility.isEnabled(requirements: paste, legacyRegex: nil, context: matches).enabled)
     }
 
-    func testExpressionRuntimeErrorDisables() {
-        let requirements = ActionRequirements(expression: "length(text) == \"x\"")
-        let context = ActionContext(selectedText: "hello")
-        let result = ActionVisibility.isEnabled(requirements: requirements, legacyRegex: nil, expression: attemptParse("length(text) == \"x\""), context: context)
-        XCTAssertFalse(result.enabled) // fail-closed on eval error
+    func testMalformedRegexCannotBypassContentRequirement() {
+        let rules = ExtensionActionRules(requirements: ActionRequirements(regex: "(", content: [.url]))
+        XCTAssertFalse(rules.resolveVisibility(for: ActionContext(selectedText: "ordinary text")).enabled)
+        XCTAssertTrue(rules.resolveVisibility(for: ActionContext(selectedText: "https://example.com")).enabled)
     }
 
-    func testExpressionWithoutRequirementsGatesAlone() {
-        let context = ActionContext(selectedText: "a@b.com")
-        let passing = ActionVisibility.isEnabled(requirements: nil, legacyRegex: nil, expression: attemptParse("isEmail(text)"), context: context)
-        XCTAssertTrue(passing.enabled)
-    }
-
-    func testResolveVisibilityCarriesCompiledExpression() {
-        let expression = try! ValidateExpression.parse("length(text) > 5").get()
-        let rules = ExtensionActionRules(
-            requirements: ActionRequirements(expression: "length(text) > 5"),
-            compiledExpression: expression
-        )
-        let short = ActionContext(selectedText: "hi")
-        let long = ActionContext(selectedText: "a longer selection")
-        XCTAssertFalse(rules.resolveVisibility(for: short).enabled)
-        XCTAssertTrue(rules.resolveVisibility(for: long).enabled)
-    }
-
-    func testResolveVisibilityWithoutExpressionDelegateToRegex() {
-        let rules = ExtensionActionRules(requirements: ActionRequirements(regex: "^[0-9]+$"))
-        XCTAssertTrue(rules.resolveVisibility(for: ActionContext(selectedText: "12345")).enabled)
-        XCTAssertFalse(rules.resolveVisibility(for: ActionContext(selectedText: "abc")).enabled)
-    }
-
-    func testRulesRoundTripDropsCompiledExpressionButKeepsSource() throws {
-        let rules = ExtensionActionRules(
-            requirements: ActionRequirements(expression: "isEmail(text)"),
-            compiledExpression: try! ValidateExpression.parse("isEmail(text)").get()
-        )
-        let data = try JSONEncoder().encode(rules)
-        let decoded = try JSONDecoder().decode(ExtensionActionRules.self, from: data)
-        XCTAssertEqual(decoded.requirements?.expression, "isEmail(text)")
-        XCTAssertNil(decoded.compiledExpression)
+    func testContentRulesRoundTripAndRejectInvalidOrRetiredRequirements() throws {
+        let rules = ExtensionActionRules(requirements: ActionRequirements(content: [.url, .email]))
+        let decoded = try JSONDecoder().decode(ExtensionActionRules.self, from: JSONEncoder().encode(rules))
+        XCTAssertEqual(decoded, rules)
+        for source in [#"{"content":[]}"#, #"{"content":["unknown"]}"#, #"{"content":"url"}"#, #"{"content":null}"#, #"{"expression":"isURL(text)"}"#] {
+            XCTAssertThrowsError(try JSONDecoder().decode(ActionRequirements.self, from: Data(source.utf8)))
+        }
     }
 }

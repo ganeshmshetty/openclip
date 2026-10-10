@@ -6189,6 +6189,34 @@
         }
       }
     },
+    "Detected content: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检测到的内容：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "偵測到的內容：%@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contenu détecté : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検出された内容：%@"
+          }
+        }
+      }
+    },
     "Disable in this app": {
       "localizations": {
         "zh-Hans": {

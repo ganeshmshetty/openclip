@@ -1,7 +1,7 @@
 // ActionWithRules.swift
 // OpenClip
 //
-// Protocol for actions that declare extension visibility rules (regex, app rules, expression gates).
+// Protocol for actions that declare extension visibility rules (native content, regex, and app rules).
 import Foundation
 
 public protocol ActionWithRules: Action {

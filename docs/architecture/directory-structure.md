@@ -63,12 +63,11 @@ Sources/
 │   │   ├── ExtensionsAPIClient.swift         # Remote store API client
 │   │   ├── ExtensionsModels.swift            # Store models & DTOs
 │   │   ├── Manifest/                         # Extension manifest structures
-│   │   │   ├── ActionRequirements.swift      # Requirements model (regex, apps, requiredOptions, expression)
+│   │   │   ├── ActionRequirements.swift      # Requirements model (regex, apps, requiredOptions, content)
 │   │   │   ├── ExtensionActionKind.swift     # Normalized extension kind enum
 │   │   │   ├── ExtensionManifest.swift       # Extension manifest decoder
 │   │   │   ├── ExtensionManifestStore.swift  # Manifest file locate/read/write (shared home)
-│   │   │   ├── ManifestValidation.swift      # Manifest validation pass + empty capability gate + fingerprint record
-│   │   │   └── ValidateExpression.swift      # Computed visibility expression DSL AST & evaluator
+│   │   │   └── ManifestValidation.swift      # Manifest validation pass + empty capability gate + fingerprint record
 │   │   ├── OpenClipSnippetParser.swift       # Standalone snippet header parser (nonisolated, pure text); body mode ends only at `#` header keys, `//` lines stay body
 │   │   ├── ScriptAction.swift                # Executable script action
 │   │   ├── ShellProcessRunner.swift          # Shared subprocess executor; an explicit timeout arms a GCD-timer watchdog that terminates the child (process group when the child is group leader, else snapshotted descendants), with no watchdog when no timeout is set + readabilityHandler reads (never blocks a thread); hosts TimeoutFlag/OnceGate; maps stdout JSON via ShellResultMapper

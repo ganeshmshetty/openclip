@@ -413,7 +413,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
     /// extension package, through a disabled group (whose members go with it), or, for an AI
     /// preset, through its toggle in AI settings — so the palette offers the same set the bar
     /// does, just flat and unpaginated. Actions that cannot run against this context drop too:
-    /// `isEnabled(for:)` failures (no selection, regex/app/expression gates), clipboard-fallback
+    /// `isEnabled(for:)` failures (no selection, content/regex/app gates), clipboard-fallback
     /// actions that require a live selection, and formatting actions under a deny-formatting app
     /// policy. Sub-actions appear individually, flat; group rows remain (their sub-actions are
     /// reachable directly from the palette). `chrome.launchesAI` launchers and the inline
