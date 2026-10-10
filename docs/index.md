@@ -57,7 +57,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Extending OpenClip Overview](developer-guide/overview.md) — Extension architecture and custom action integration.
 - [Extension Package Format](developer-guide/package-format.md) — `.openclipext` bundle structure, `manifest.json` schema, and options definitions.
 - [Standalone Snippet Parsing](developer-guide/snippets.md) — Pure header parsing via `OpenClipSnippetParser`.
-- [Integration & Automation API](developer-guide/integration-api.md) — The inbound `openclip://` contract: routes, curated settings, callbacks, and what is not yet exposed.
+- [Integration & Automation API](developer-guide/integration-api.md) — The inbound `openclip://` contract: install and command routes, and what is not yet exposed.
 - [Code Signing, Hardened Runtime & Notarization](developer-guide/signing-and-notarization.md) — Ad-hoc vs Developer ID builds, the entitlements OpenClip grants and refuses, the sign → notarize → staple pipeline, and the checks that gate a release.
 
 ### Action Execution Runtimes
