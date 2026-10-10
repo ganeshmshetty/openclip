@@ -31,15 +31,24 @@ public final class AIServiceManager: ObservableObject {
         get { settingsStore.get(.aiActiveProvider) }
         set { objectWillChange.send(); settingsStore.set(.aiActiveProvider, value: newValue) }
     }
+    /// Re-entrancy guard for `cloudAPIKey.didSet`. Reverting `cloudAPIKey = oldValue` after a
+    /// failed SecretStore write re-triggers the observer; if persisting the old value also fails,
+    /// the two assignments ping-pong and exhaust the stack (issue #42). While the guard is set we
+    /// skip the observer body entirely, so a failed write reverts in memory once and stops.
+    private var isRevertingCloudAPIKey = false
+
     // API key is stored in ~/.openclip/secrets.json via SecretStore.
     @Published public var cloudAPIKey: String {
         didSet {
+            guard !isRevertingCloudAPIKey else { return }
             if cloudAPIKey.isEmpty {
                 SecretStore.delete(account: Self.cloudAPIKeyAccount)
             } else {
                 let didStore = SecretStore.set(cloudAPIKey, account: Self.cloudAPIKeyAccount)
                 if !didStore {
                     Log.settings.error("Failed to persist cloud API key to SecretStore; reverting value.")
+                    isRevertingCloudAPIKey = true
+                    defer { isRevertingCloudAPIKey = false }
                     cloudAPIKey = oldValue
                 }
             }
