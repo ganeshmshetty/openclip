@@ -29,6 +29,10 @@ enum JSNativeFetch {
         // validated before URLSession follows it, while keeping the caller's configuration
         // (notably the MockURLProtocol classes used in tests).
         let policySession = PolicySession(from: session)
+        // URLSession retains its delegate until explicit invalidation. Tie the session to the
+        // evaluation so it is torn down — releasing the session, its delegate, worker threads, and
+        // Mach ports — when the run ends instead of leaking one per async action (issue #46).
+        fetchTasks.setCloseHandler { policySession.session.invalidateAndCancel() }
 
         let nativeFetchBlock: @convention(block) (String, JSValue, JSValue, JSValue) -> Void = { urlString, options, resolve, reject in
             guard let url = URL(string: urlString) else {
@@ -262,8 +266,9 @@ enum JSNativeFetch {
     }
 
     /// Holds a URLSession rebuilt from the injected session's configuration plus a
-    /// redirect-validating delegate. Captured by the fetch block so both live as long as the
-    /// context that installed the bridge.
+    /// redirect-validating delegate. Captured by the fetch block for the run's lifetime; the box's
+    /// close handler invalidates it when the evaluation ends, releasing the session, delegate,
+    /// worker threads, and Mach ports (issue #46).
     private final class PolicySession: @unchecked Sendable {
         let session: URLSession
         let delegate: JSNativeFetchRedirectDelegate

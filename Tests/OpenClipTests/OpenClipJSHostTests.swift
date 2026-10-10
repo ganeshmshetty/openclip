@@ -923,6 +923,40 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(c.state, .canceling)
     }
 
+    /// The close handler runs exactly once when the evaluation ends, through either `finish()` or
+    /// `cancelAll()`, and never when the box is left open. This is how the fetch bridge invalidates
+    /// its per-evaluation URLSession (issue #46).
+    func testFetchTaskBoxCloseHandlerRunsOnce() {
+        let finished = FetchTaskBox()
+        let finishMarks = LockedArray<String>()
+        finished.setCloseHandler { finishMarks.append("close") }
+        finished.finish()
+        finished.finish()
+        finished.cancelAll()
+        XCTAssertEqual(finishMarks.values, ["close"])
+
+        let cancelled = FetchTaskBox()
+        let cancelMarks = LockedArray<String>()
+        cancelled.setCloseHandler { cancelMarks.append("close") }
+        cancelled.cancelAll()
+        XCTAssertEqual(cancelMarks.values, ["close"])
+
+        let open = FetchTaskBox()
+        let openMarks = LockedArray<String>()
+        open.setCloseHandler { openMarks.append("close") }
+        XCTAssertEqual(openMarks.values, [])
+    }
+
+    /// A handler registered after the box has already closed runs immediately, so a fetch bridge
+    /// that installs late can never drop the cleanup.
+    func testFetchTaskBoxCloseHandlerRegisteredAfterCloseRunsImmediately() {
+        let box = FetchTaskBox()
+        box.finish()
+        let marks = LockedArray<String>()
+        box.setCloseHandler { marks.append("close") }
+        XCTAssertEqual(marks.values, ["close"])
+    }
+
     /// `add(_:)` racing with `cancelAll()` must never let a task escape cancellation: tasks added
     /// before cancellation are cancelled by `cancelAll()`, tasks added after cancellation started are
     /// cancelled immediately by `add(_:)`.

@@ -205,6 +205,8 @@ final class FetchTaskBox: @unchecked Sendable {
     private let lock = NSLock()
     private var tasks: [URLSessionDataTask] = []
     private var ended = false
+    private var closeHandler: (@Sendable () -> Void)?
+    private var didClose = false
 
     /// True after the evaluation ends. The fetch bridge reads this before it calls the JavaScript VM.
     var isEnded: Bool {
@@ -232,11 +234,29 @@ final class FetchTaskBox: @unchecked Sendable {
         tasks.removeAll(where: { $0.taskIdentifier == identifier })
     }
 
-    /// Marks the end of the evaluation. In-flight tasks continue, and their results are discarded.
+    /// Registers a one-shot cleanup that runs when the evaluation ends (`finish()` or
+    /// `cancelAll()`), on whichever thread ends it. The fetch bridge uses it to invalidate its
+    /// per-evaluation `URLSession`: Apple retains a session — and, with it, its delegate, worker
+    /// threads, and Mach ports — until explicit invalidation, so without this every async run
+    /// leaked one session for the life of the process (issue #46). If the box has already closed,
+    /// the handler runs immediately so a registration racing the end cannot be dropped.
+    func setCloseHandler(_ handler: @escaping @Sendable () -> Void) {
+        lock.lock()
+        if didClose {
+            lock.unlock()
+            handler()
+            return
+        }
+        closeHandler = handler
+        lock.unlock()
+    }
+
     func finish() {
         lock.lock()
-        defer { lock.unlock() }
         ended = true
+        let handler = takeCloseHandlerLocked()
+        lock.unlock()
+        handler?()
     }
 
     func cancelAll() {
@@ -244,9 +264,19 @@ final class FetchTaskBox: @unchecked Sendable {
         ended = true
         let currentTasks = tasks
         tasks.removeAll()
+        let handler = takeCloseHandlerLocked()
         lock.unlock()
         for task in currentTasks {
             task.cancel()
         }
+        handler?()
+    }
+
+    /// Consumes the close handler exactly once, so `finish()` and `cancelAll()` cannot both run it.
+    private func takeCloseHandlerLocked() -> (@Sendable () -> Void)? {
+        guard !didClose else { return nil }
+        didClose = true
+        defer { closeHandler = nil }
+        return closeHandler
     }
 }
