@@ -43,6 +43,30 @@ final class ActionCoordinatorGroupTests: XCTestCase {
         XCTAssertEqual(coordinator.actionGroupDefs.first?.title, "Single")
     }
 
+    /// Pins the intentional custom-group membership contract (issue #44): a group is a folder, so
+    /// the rule is "≥ 1, and only a group emptied by a mutation dissolves" — not a hard minimum of
+    /// two. An empty group and a single-member group are valid; losing a member to an uninstall
+    /// keeps the group so it heals when the action returns; only taking the last member out of a
+    /// group removes it.
+    func testGroupMembershipContractIsFolderRulesNotAMinimumOfTwo() {
+        let emptyID = coordinator.createGroup(title: "Empty", iconName: "folder", memberActionIDs: [])
+        let singleID = coordinator.createGroup(title: "Single", iconName: "folder", memberActionIDs: ["action.1"])
+        XCTAssertNotNil(emptyID)
+        XCTAssertNotNil(singleID)
+
+        // An uninstall does not dissolve the group; re-registering the action heals the membership.
+        coordinator.unregister(actionID: "action.1")
+        XCTAssertEqual(coordinator.actionGroupDefs.first(where: { $0.id == singleID })?.memberActionIDs, ["action.1"],
+                       "an unregistered member id is retained, not pruned")
+        coordinator.register(action: DummyAction(id: "action.1", title: "Action 1"))
+        XCTAssertEqual(coordinator.actionGroupDefs.first(where: { $0.id == singleID })?.memberActionIDs, ["action.1"])
+
+        // Only a group emptied by a mutation is dissolved; the intentionally empty folder stays.
+        coordinator.removeFromGroup(actionID: "action.1", groupID: singleID!)
+        XCTAssertNil(coordinator.actionGroupDefs.first(where: { $0.id == singleID }))
+        XCTAssertNotNil(coordinator.actionGroupDefs.first(where: { $0.id == emptyID }))
+    }
+
     func testCreateGroupDedupesAndFiltersEmptyActionIDs() {
         coordinator.createGroup(title: "Duplicates", iconName: "folder", memberActionIDs: ["action.1", "action.1", "", " "])
         XCTAssertEqual(coordinator.actionGroupDefs.count, 1)
