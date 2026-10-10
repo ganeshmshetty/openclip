@@ -126,8 +126,10 @@ areas; stale debt notes are worse than none.
   `JSValue` and no off-thread closure retains a `JSContext`/`JSValue`: `nativeFetchBlock` and
   `fetchResponse`'s `json()` resolve the context via `JSContext.current()` (the URLSession
   completion reaches it only through `WeakJSContextBox`), in-flight resolve/reject functions live in
-  a JS-thread-owned `FetchResolvers` registry the completion touches only through `WeakRef`, and
-  `PromiseState.clear()` drops the settled `JSValue`s when the run ends. This keeps the final release
+  a JS-thread-owned `FetchResolvers` registry the completion touches only through `WeakRef` (the
+  host calls `FetchResolvers.clearPending()` in the same run-end `defer`, so a fetch that never
+  settles is dropped too), and `PromiseState.clear()` drops the settled `JSValue`s when the run
+  ends. This keeps the final release
   of every JavaScript reference on the JS thread, which the off-thread-release hazard requires.
   `OpenClipJSHostTests.testFetchBridgeDoesNotRetainContextAfterRun` probes the finished `JSContext`
   deallocating after a fetch that calls `json()` (autorelease pool drained, since JavaScriptCore

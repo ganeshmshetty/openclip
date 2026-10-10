@@ -17,9 +17,10 @@ enum JSNativeFetch {
     /// before calling). All JS VM access stays on the thread that created the
     /// context: the URLSession completion only schedules work back onto that
     /// thread's CFRunLoop; the host's pump loop drains it.
-    static func installNativeFetch(in context: JSContext, session: URLSession, fetchTasks: FetchTaskBox) {
+    @discardableResult
+    static func installNativeFetch(in context: JSContext, session: URLSession, fetchTasks: FetchTaskBox) -> FetchResolvers? {
         guard let openclip = context.objectForKeyedSubscript("openclip" as NSString),
-              !openclip.isUndefined, !openclip.isNull, openclip.isObject else { return }
+              !openclip.isUndefined, !openclip.isNull, openclip.isObject else { return nil }
 
         // Weak, so the block stored on `openclip` — and therefore on the context itself — does not
         // retain the context (issue #47). Synchronous calls use JSContext.current() instead.
@@ -97,6 +98,9 @@ enum JSNativeFetch {
         }
         openclip.setObject(nativeFetchBlock, forKeyedSubscript: "__nativeFetch" as NSString)
         context.evaluateScript(fetchPolyfillScript)
+        // Handed back so the host can drop any still-pending resolve/reject pair at the end of the
+        // run, on the JS thread.
+        return resolvers
     }
 
     /// Effectively disables URLRequest's 60 s default: a fetch has no app-imposed deadline and is

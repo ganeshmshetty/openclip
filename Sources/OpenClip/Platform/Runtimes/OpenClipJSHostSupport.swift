@@ -145,6 +145,16 @@ final class FetchResolvers: @unchecked Sendable {
         defer { lock.unlock() }
         return entries.removeValue(forKey: identifier)
     }
+
+    /// Drops every pending pair, releasing the retained resolve/reject JSValues on the calling
+    /// thread. Called at the end of a run (on the JS thread) so a fetch that never settled —
+    /// cancelled, timed out, or completed after the run ended, all of which skip `take` — cannot
+    /// keep its JSContext alive through the registry (issue #47).
+    func clearPending() {
+        lock.lock()
+        entries.removeAll()
+        lock.unlock()
+    }
 }
 
 final class RunLoopBox: @unchecked Sendable {
