@@ -159,6 +159,18 @@ enum AIRequestSupport {
         prompt.contains(standalonePromptMarker)
     }
 
+    /// Terminates a provider stream with the correct outcome. A cancelled producing task must
+    /// surface as a thrown `CancellationError`, never a clean `finish()`: an `AsyncThrowingStream`
+    /// treats `finish()` as successful completion, so a cancellation that cracks mid-response would
+    /// otherwise hand a truncated answer to the consumer as if it were final (issue #43).
+    static func finishStream(_ continuation: AsyncThrowingStream<String, Error>.Continuation) {
+        if Task.isCancelled {
+            continuation.finish(throwing: CancellationError())
+        } else {
+            continuation.finish()
+        }
+    }
+
     static func validateInput(prompt: String, text: String) throws -> (prompt: String, text: String) {
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
