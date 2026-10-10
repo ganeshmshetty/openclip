@@ -233,6 +233,12 @@ final class CalculateActionTests: XCTestCase {
     func testMathEvaluatorRejectsNonFiniteResults() {
         let huge = String(repeating: "9", count: 400)          // > Double.greatestFiniteMagnitude
         let big = String(repeating: "9", count: 200)
+        // Short expressions exercise the operator guards (reachable from real selections); huge
+        // literals exercise the final finiteness guard. 10^308 is finite; doubling or multiplying
+        // it overflows.
+        XCTAssertNil(MathEvaluator.evaluate("10^200 * 10^200"))
+        XCTAssertNil(MathEvaluator.evaluate("10^308 + 10^308"))
+        XCTAssertNil(MathEvaluator.evaluate("10^308 * 10"))
         XCTAssertNil(MathEvaluator.evaluate(huge))
         XCTAssertNil(MathEvaluator.evaluate("\(huge) + 1"))
         XCTAssertNil(MathEvaluator.evaluate("\(big) * \(big)"))
@@ -261,9 +267,9 @@ final class CalculateActionTests: XCTestCase {
     func testCalculateActionRejectsOverflowInsteadOfReturningEmptyText() async throws {
         let action = CalculateAction()
         let app = AppIdentity(NSRunningApplication.current)
-        let huge = String(repeating: "9", count: 400)
-        let big = String(repeating: "9", count: 200)
-        for input in [huge, "\(huge) + 1", "\(big) * \(big)"] {
+        // Short enough to pass the action's 200-character gate, so the overflow path — not the
+        // length gate — is what disables it. 10^308 is finite; doubling or multiplying it overflows.
+        for input in ["10^200 * 10^200", "10^308 + 10^308", "10^308 * 10"] {
             let context = ActionContext(
                 selection: SelectionContext(text: input, sourceApp: app, cursorPosition: .zero, selectionBounds: nil, timestamp: Date(), appPolicy: .default),
                 modifiers: []
