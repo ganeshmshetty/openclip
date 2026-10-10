@@ -17,12 +17,12 @@ public struct RevealInFinderAction: ConfigurableAction {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        return resolvePath(from: context.selection.text, detected: context.selection.detectedContent(for: [.path]).paths) != nil
+        return resolvePath(from: context.selection.text, detected: context.selection.detectedContent(for: [.path]).pathCandidates) != nil
     }
     
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        guard let path = resolvePath(from: context.selection.text, detected: context.selection.detectedContent(for: [.path]).paths) else {
+        guard let path = resolvePath(from: context.selection.text, detected: context.selection.detectedContent(for: [.path]).pathCandidates) else {
             return .failure(NSError(
                 domain: Constants.actionErrorDomain,
                 code: Constants.actionErrorCode,
@@ -39,7 +39,7 @@ public struct RevealInFinderAction: ConfigurableAction {
     }
     
     public func resolvePath(from text: String) -> String? {
-        resolvePath(from: text, detected: NativeContentDetector.paths(in: text))
+        resolvePath(from: text, detected: NativeContentDetector.detect(text, type: .path).pathCandidates)
     }
 
     private func resolvePath(from text: String, detected: [String]) -> String? {

@@ -23,6 +23,8 @@ public struct DetectedContent: Sendable, Equatable {
     public var emails: [String] = []
     public var dates: [DateItem] = []
     public var paths: [String] = []
+    /// Exact lexical candidates followed by cleaned alternatives, for platform filesystem checks.
+    public var pathCandidates: [String] = []
     public var phones: [String] = []
     public var addresses: [AddressItem] = []
 
@@ -44,7 +46,9 @@ public struct DetectedContent: Sendable, Equatable {
         case .url: urls = other.urls
         case .email: emails = other.emails
         case .date: dates = other.dates
-        case .path: paths = other.paths
+        case .path:
+            paths = other.paths
+            pathCandidates = other.pathCandidates
         case .phone: phones = other.phones
         case .address: addresses = other.addresses
         }
