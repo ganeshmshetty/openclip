@@ -49,6 +49,37 @@ final class DefaultActionFactoryTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
     
+    @MainActor
+    func testFactoryPassesMergedScriptOptionsAndInjectedStore() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let script = directory.appendingPathComponent("test.sh")
+        try "#!/bin/sh\nprintf '%s|%s|%s' \"$OPENCLIP_OPTION_FORMAT\" \"$OPENCLIP_OPTION_ENABLED\" \"$OPENCLIP_OPTION_API_KEY\"".write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let metadata = ExtensionActionMetadata(id: "shell", script: "test.sh", type: "shell", options: [
+            ExtensionOptionMetadata(identifier: "format", label: "Format override", type: "string", defaultValue: "json"),
+            ExtensionOptionMetadata(identifier: "api-key", label: "Key", type: "secret")
+        ])
+        let manifest = ExtensionMetadata(identifier: "com.test.options", name: "Options", actions: [metadata], options: [
+            ExtensionOptionMetadata(identifier: "format", label: "Format", type: "string", defaultValue: "plain"),
+            ExtensionOptionMetadata(identifier: "enabled", label: "Enabled", type: "boolean", defaultValue: "true")
+        ])
+        let store = SettingsActionOptionStore(store: MemorySettingsStore())
+        let factory = DefaultActionFactory(optionStore: store)
+        let created = await factory.createAction(metadata: metadata, manifest: manifest, directoryURL: directory, index: 0)
+        let action = try XCTUnwrap(created as? ScriptAction)
+        XCTAssertEqual(action.actionOptions.map(\.identifier), ["format", "enabled", "api-key"])
+        XCTAssertEqual(action.actionOptions[0].defaultValue, "json")
+        store.setStringValue("injected-secret", actionID: action.id, option: action.actionOptions[2])
+        let selection = SelectionContext(text: "input", sourceApp: AppIdentity(bundleIdentifier: "test", localizedName: "Test"),
+                                         cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        guard case .text(let output) = try await action.perform(ActionContext(selection: selection)) else {
+            return XCTFail("Expected text")
+        }
+        XCTAssertEqual(output, "json|true|injected-secret")
+    }
+
     func testFactoryRoutesDefaultScriptToScriptAction() async {
         let factory = DefaultActionFactory()
         let actionMeta = ExtensionActionMetadata(title: "Shell Action", icon: "symbol:terminal", script: "test.sh", url: nil, regex: nil)

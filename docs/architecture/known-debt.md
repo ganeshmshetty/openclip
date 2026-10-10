@@ -77,7 +77,9 @@ areas; stale debt notes are worse than none.
 - **Dynamic action option keys** (`JavaScriptAction`, `AppleScriptAction`): the target pattern is
   `SettingKey<String>("action.<id>.option.<identifier>", defaultValue:)` via `SettingsStore`. The JS
   path already reads through the injected `optionStore` (`OpenClipJSHost` reads options read-only via
-  `ActionOptionReading`); `AppleScriptAction` does not consume options today.
+  `ActionOptionReading`). File-backed `ScriptAction` exposes merged manifest/action options and
+  resolves them through the factory-injected store on each invocation as `OPENCLIP_OPTION_*`
+  environment variables, including secrets; `AppleScriptAction` does not consume options today.
 
 ## Action Seams Already Implemented
 

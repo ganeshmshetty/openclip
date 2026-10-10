@@ -5,6 +5,7 @@
 // Enablement and match resolution delegate to the shared ActionVisibility evaluator when rules
 // are attached; perform exports the selection and match data to the subprocess via env vars
 // (OPENCLIP_TEXT, OPENCLIP_MATCHED, OPENCLIP_CAPTURE_N, OPENCLIP_BUNDLE_ID, OPENCLIP_ACTION_ID)
+// plus configured option values as OPENCLIP_OPTION_*
 // and runs it through the
 // shared ShellProcessRunner (one watchdog), then translates stdout JSON via ShellResultMapper and
 // returns the raw runtime result (secondary/delivery handling happens downstream).
@@ -15,15 +16,28 @@ public struct ScriptAction: ConfigurableAction, ActionWithRules {
     public let title: String
     public let icon: ActionIcon
     public let scriptURL: URL
+    public let actionOptions: [ExtensionOption]
+    private let optionStore: any ActionOptionReading
     public let rules: ExtensionActionRules?
     
     public let chrome: ActionChrome
     
-    public init(id: String, title: String, icon: ActionIcon, scriptURL: URL, chrome: ActionChrome? = nil, rules: ExtensionActionRules? = nil) {
+    public init(
+        id: String,
+        title: String,
+        icon: ActionIcon,
+        scriptURL: URL,
+        options: [ExtensionOption] = [],
+        optionStore: any ActionOptionReading = SettingsActionOptionStore(),
+        chrome: ActionChrome? = nil,
+        rules: ExtensionActionRules? = nil
+    ) {
         self.id = id
         self.title = title
         self.icon = icon
         self.scriptURL = scriptURL
+        self.actionOptions = options
+        self.optionStore = optionStore
         self.rules = rules
         self.chrome = chrome ?? ActionChrome(badge: .script, rowStyle: .standard, popupBehavior: .perform, source: .extensionPkg(packageID: id))
     }
@@ -78,6 +92,11 @@ public struct ScriptAction: ConfigurableAction, ActionWithRules {
         }
         env[Constants.envVarLocale] = Locale.current.identifier
         env[Constants.envVarLanguage] = Locale.current.language.languageCode?.identifier ?? "en"
+
+        for option in actionOptions {
+            let key = "OPENCLIP_OPTION_" + option.identifier.uppercased().replacingOccurrences(of: "-", with: "_")
+            env[key] = optionStore.stringValue(actionID: id, option: option)
+        }
 
         let output = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
             executableURL: scriptURL,

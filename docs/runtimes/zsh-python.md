@@ -41,9 +41,16 @@ Selection Context ---> Process Instance ---> Inject Environment & write stdin
 | `OPENCLIP_CAPTURE_N` | Regex capture group `N` (1-based), one per group. |
 | `OPENCLIP_BUNDLE_ID` | Bundle identifier of the frontmost/source app. |
 | `OPENCLIP_ACTION_ID` | The action's identifier. |
+| `OPENCLIP_OPTION_<IDENTIFIER>` | Resolved configuration option value; uppercase the identifier and replace hyphens with underscores. |
 
-The selected text is also written to the subprocess's `stdin`. Extension *options* are not injected
-as environment variables; read them from stdin or resolve them on the OpenClip side.
+The selected text is also written to the subprocess's `stdin`. File-backed shell/script actions
+expose manifest-level and per-action `options` in Preferences → Extensions → the action.
+Values are resolved for the action ID on every invocation through the injected option store,
+including secret options. Unset values use the declared default, or an empty string when absent.
+For example, `api-key` becomes `OPENCLIP_OPTION_API_KEY`; read it as
+`"$OPENCLIP_OPTION_API_KEY"` in shell or `os.environ["OPENCLIP_OPTION_API_KEY"]` in Python.
+Boolean values are strings (`"true"` / `"false"`). Choose identifiers whose normalized names are
+unique. Option values are passed as environment data, without shell interpolation.
 
 ## Output Processing: JSON vs Plain Text
 

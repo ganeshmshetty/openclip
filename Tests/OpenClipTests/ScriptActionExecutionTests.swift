@@ -16,6 +16,42 @@ private extension ActionContext {
 }
 
 final class ScriptActionExecutionTests: XCTestCase {
+    func testScriptOptionsResolveDefaultsSavedValuesAndUpdates() async throws {
+        let script = FileManager.default.temporaryDirectory.appendingPathComponent("options_\(UUID().uuidString).sh")
+        defer { try? FileManager.default.removeItem(at: script) }
+        try """
+        #!/bin/sh
+        printf '%s|%s|%s|%s|%s' "$OPENCLIP_OPTION_API_KEY" "$OPENCLIP_OPTION_ENABLED" "$OPENCLIP_OPTION_FORMAT" "${OPENCLIP_OPTION_EMPTY-unset}" "$OPENCLIP_OPTION_MESSAGE"
+        """.write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let options = [
+            ExtensionOption(identifier: "api-key", label: "Key", type: .secret),
+            ExtensionOption(identifier: "enabled", label: "Enabled", type: .boolean, defaultValue: "false"),
+            ExtensionOption(identifier: "format", label: "Format", type: .multiple, defaultValue: "plain", options: ["plain", "json"]),
+            ExtensionOption(identifier: "empty", label: "Empty", type: .string),
+            ExtensionOption(identifier: "message", label: "Message", type: .string)
+        ]
+        let store = SettingsActionOptionStore(store: MemorySettingsStore())
+        let id = "test.options"
+        let literal = "quotes \" ' $HOME $(exit 1); `exit 1`\nnext line"
+        store.setStringValue("secret-value", actionID: id, option: options[0])
+        store.setStringValue(literal, actionID: id, option: options[4])
+        store.setStringValue("other-action", actionID: "test.other", option: options[2])
+        let action = ScriptAction(id: id, title: "Options", icon: .symbol("terminal"), scriptURL: script,
+                                  options: options, optionStore: store)
+        let context = ActionContext(selectedText: "input")
+        guard case .text(let first) = try await action.perform(context) else {
+            return XCTFail("Expected text")
+        }
+        XCTAssertEqual(first, "secret-value|false|plain||" + literal)
+        store.setStringValue("true", actionID: id, option: options[1])
+        store.setStringValue("json", actionID: id, option: options[2])
+        guard case .text(let second) = try await action.perform(context) else {
+            return XCTFail("Expected text")
+        }
+        XCTAssertEqual(second, "secret-value|true|json||" + literal)
+    }
+
     func testScriptActionPlainStdoutReturnsTextResult() async throws {
         let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("echo_test_\(UUID().uuidString).sh")
         let scriptContent = """

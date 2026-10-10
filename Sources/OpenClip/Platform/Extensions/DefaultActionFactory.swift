@@ -488,6 +488,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
                 title: title,
                 icon: icon,
                 scriptURL: scriptURL,
+                options: options,
+                optionStore: optionStore,
                 chrome: extensionChrome,
                 rules: rules
             )
