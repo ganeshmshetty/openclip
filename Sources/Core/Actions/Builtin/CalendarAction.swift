@@ -32,13 +32,13 @@ public struct CalendarAction: ConfigurableAction {
     public func isEnabled(for context: ActionContext) -> Bool {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, text.count < 300 else { return false }
-        return detectDate(in: text) != nil
+        return !context.selection.detectedContent(for: [.date]).dates.isEmpty
     }
 
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let date = detectDate(in: text) else {
+        guard let date = context.selection.detectedContent(for: [.date]).dates.first?.date else {
             return .failure(NSError(domain: Constants.actionErrorDomain, code: Constants.actionErrorCode, userInfo: nil))
         }
         
@@ -88,13 +88,6 @@ public struct CalendarAction: ConfigurableAction {
             return legacy.lowercased()
         }
         return "native"
-    }
-
-    private static let dateDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
-
-    private func detectDate(in text: String) -> Date? {
-        let matches = Self.dateDetector?.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
-        return matches?.first?.date
     }
 
     private func makeNativeCalendarICSURL(title: String, startDate: Date) -> URL? {

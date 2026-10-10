@@ -17,16 +17,19 @@ public struct ActionMatchInfo: Sendable, Equatable {
     /// Regex capture groups 1...n (group 0 excluded).
     public let captures: [String]
     public let sourceBundleID: String?
+    public let detected: DetectedContent
 
     public init(
         text: String,
         matchedText: String,
         captures: [String],
-        sourceBundleID: String?
+        sourceBundleID: String?,
+        detected: DetectedContent = DetectedContent()
     ) {
         self.text = text
         self.matchedText = matchedText
         self.captures = captures
         self.sourceBundleID = sourceBundleID
+        self.detected = detected
     }
 }

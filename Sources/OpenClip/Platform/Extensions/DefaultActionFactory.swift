@@ -42,21 +42,6 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         )
     }
 
-    /// Compiles the manifest expression once. A parse failure is logged and dropped (fail-open).
-    private func compiledExpression(for metadata: ExtensionActionMetadata, actionID: String) -> ValidateExpression? {
-        guard let source = metadata.requirements?.expression,
-              !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return nil
-        }
-        switch ValidateExpression.parse(source) {
-        case .success(let expression):
-            return expression
-        case .failure(let error):
-            Log.js.error("Enablement expression parse failed for \(actionID, privacy: .public): \(error)")
-            return nil
-        }
-    }
-
     /// Merges action options onto manifest defaults by identifier, keeping manifest order; action-only options are appended.
     private func mergedOptions(
         manifestOptions: [ExtensionOptionMetadata]?,
@@ -112,8 +97,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         let groupID = ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
         let groupRules = ExtensionActionRules(
             requirements: metadata.requirements,
-            legacyRegex: metadata.regex,
-            compiledExpression: compiledExpression(for: metadata, actionID: groupID)
+            legacyRegex: metadata.regex
         )
         let groupChrome = ActionChrome(
             badge: .extensionPkg(manifest.name),
@@ -238,8 +222,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         // Declarative visibility rules shared by all extension actions.
         let rules = ExtensionActionRules(
             requirements: metadata.requirements,
-            legacyRegex: metadata.regex,
-            compiledExpression: compiledExpression(for: metadata, actionID: actionId)
+            legacyRegex: metadata.regex
         )
         
         let declaredOutput = metadata.output

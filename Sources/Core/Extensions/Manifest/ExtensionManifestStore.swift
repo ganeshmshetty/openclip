@@ -49,7 +49,14 @@ public enum ExtensionManifestStore {
 
     /// Decodes from bytes the caller already holds, so it decodes exactly what it fingerprinted.
     public static func decodeManifest(from data: Data) throws -> ExtensionMetadata {
-        try JSONDecoder().decode(ExtensionMetadata.self, from: data)
+        do {
+            return try JSONDecoder().decode(ExtensionMetadata.self, from: data)
+        } catch DecodingError.dataCorrupted(let context) {
+            // Surface migration/requirement diagnostics in the loader's existing error log.
+            let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+            throw NSError(domain: "ExtensionManifest", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "\(path): \(context.debugDescription)"])
+        }
     }
 
     /// Single stable format (pretty-printed, sorted keys) so every writer produces byte-identical packages.

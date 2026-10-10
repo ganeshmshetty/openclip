@@ -482,4 +482,17 @@ final class ManifestValidationTests: XCTestCase {
         XCTAssertEqual(value.count, 64, "fingerprint must be 64 hex chars", file: file, line: line)
         XCTAssertTrue(value.allSatisfy { $0.isHexDigit }, "fingerprint must be hex", file: file, line: line)
     }
+    func testRetiredExpressionProducesActionableManifestError() {
+        let json = #"{"identifier":"com.test.old","name":"Old","actions":[{"type":"js","scriptCode":"return 'test';","requirements":{"expression":"isURL(text)"}}]}"#
+        XCTAssertThrowsError(try ExtensionManifestStore.decodeManifest(from: Data(json.utf8))) { error in
+            XCTAssertTrue(error.localizedDescription.contains("requirements.expression has been retired"))
+            XCTAssertTrue(error.localizedDescription.contains("requirements.content"))
+        }
+    }
+
+    func testNativeContentRequirementsRejectUnknownTypesInNestedActions() {
+        let json = #"{"identifier":"com.test.bad","name":"Bad","actions":[{"type":"group","subActions":[{"type":"js","scriptCode":"return 'test';","requirements":{"content":["surprise"]}}]}]}"#
+        XCTAssertThrowsError(try ExtensionManifestStore.decodeManifest(from: Data(json.utf8)))
+    }
+
 }

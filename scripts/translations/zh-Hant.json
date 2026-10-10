@@ -820,5 +820,6 @@
   "Tick": "滴答",
   "Thock": "篤",
   "Bubble": "氣泡",
-  "Swoosh": "咻咻"
+  "Swoosh": "咻咻",
+  "Detected content: %@": "偵測到的內容：%@"
 }

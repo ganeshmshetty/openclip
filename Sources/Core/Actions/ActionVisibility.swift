@@ -5,12 +5,12 @@
 import Foundation
 
 public enum ActionVisibility {
-    /// Order: input, paste target, app allow/deny, regex, then the expression gate (fail-closed on eval error).
-    /// A malformed regex enables the action, so a bad manifest never hides one, and skips the expression gate.
+    /// Order: input, paste target, app allow/deny, native content, then regex. The match info built here
+    /// carries captures and detected content to execution. A malformed regex fails open for the regex
+    /// gate only; content requirements still apply.
     public static func isEnabled(
         requirements: ActionRequirements?,
         legacyRegex: String?,
-        expression: ValidateExpression? = nil,
         context: ActionContext
     ) -> (enabled: Bool, match: ActionMatchInfo) {
         let text = context.selection.text
@@ -53,9 +53,17 @@ public enum ActionVisibility {
             }
         }
 
-        // Regex is the fast first pass; a failed regex gate returns before the DSL expression evaluates.
+        // Detection is cached on the immutable selection snapshot and reused by execution.
+        let requested = requirements?.content ?? []
+        let detected = context.selection.detectedContent(for: requested)
+        let contentMatch = ActionMatchInfo(text: text, matchedText: text, captures: [],
+                                          sourceBundleID: sourceBundleID, detected: detected)
+        if requirements?.content != nil && !requested.contains(where: detected.hasItems) {
+            return (false, contentMatch)
+        }
+
         let pattern = requirements?.regex ?? legacyRegex
-        var matched = noMatch
+        var matched = contentMatch
         var regexEnabled: Bool? = nil
         if let pattern, !pattern.isEmpty {
             do {
@@ -74,7 +82,7 @@ public enum ActionVisibility {
                             }
                         }
                     }
-                    matched = ActionMatchInfo(text: text, matchedText: matchedText, captures: captures, sourceBundleID: sourceBundleID)
+                    matched = ActionMatchInfo(text: text, matchedText: matchedText, captures: captures, sourceBundleID: sourceBundleID, detected: detected)
                     regexEnabled = !(requirements?.regexNegated == true)
                 } else {
                     regexEnabled = requirements?.regexNegated == true
@@ -82,23 +90,11 @@ public enum ActionVisibility {
             } catch {
                 // Malformed regex must not hide an action (legacy URL behavior).
                 Log.coordinator.debug("Malformed enablement regex treated as non-matching: \(error.localizedDescription)")
-                return (true, noMatch)
+                return (true, contentMatch)
             }
         }
         if regexEnabled == false {
             return (false, matched)
-        }
-
-        if let expression {
-            switch expression.evaluate(context, match: matched) {
-            case .success(true):
-                return (true, matched)
-            case .success(false):
-                return (false, matched)
-            case .failure(let error):
-                Log.js.error("Enablement expression evaluation failed: \(error)")
-                return (false, matched)
-            }
         }
 
         return (true, matched)

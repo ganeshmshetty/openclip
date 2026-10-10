@@ -22,7 +22,7 @@ if [ "$TEST_ARG" = "--verbose" ] || [ "${2:-}" = "--verbose" ]; then
 fi
 
 CORE_TEST_FLAGS=(
-    -only-testing:OpenClipTests/ValidateExpressionTests
+    -only-testing:OpenClipTests/NativeContentDetectorTests
     -only-testing:OpenClipTests/SemanticVersionTests
     -only-testing:OpenClipTests/CalculateActionTests
     -only-testing:OpenClipTests/ManifestValidationTests

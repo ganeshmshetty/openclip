@@ -19,7 +19,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
     public var input: ActionInputRequirement
     public var requiresPasteTarget: Bool
     public var requiredOptions: [String]?
-    public var expression: String?
+    public var content: [ContentType]?
 
     /// Compatibility view for source callers. New manifests should use `input`.
     @available(*, deprecated, message: "Use input instead")
@@ -39,7 +39,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         requiresSelection: Bool? = nil,
         requiresPasteTarget: Bool = false,
         requiredOptions: [String]? = nil,
-        expression: String? = nil
+        content: [ContentType]? = nil
     ) {
         self.regex = regex
         self.regexNegated = regexNegated
@@ -48,7 +48,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         self.input = input ?? (requiresSelection == false ? .optional : .text)
         self.requiresPasteTarget = requiresPasteTarget
         self.requiredOptions = requiredOptions
-        self.expression = expression
+        self.content = content
     }
 
     public init(from decoder: Decoder) throws {
@@ -81,7 +81,15 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         self.requiresPasteTarget = pasteCamel ?? pasteDash ?? false
         self.requiredOptions = try container.decodeIfPresent([String].self, forKey: .requiredOptions)
             ?? container.decodeIfPresent([String].self, forKey: .requiredOptionsDash)
-        self.expression = try container.decodeIfPresent(String.self, forKey: .expression)
+        if container.contains(.expression) {
+            throw DecodingError.dataCorruptedError(forKey: .expression, in: container,
+                debugDescription: "requirements.expression has been retired. Use requirements.content for native detection or requirements.regex for custom patterns.")
+        }
+        self.content = try container.contains(.content) ? container.decode([ContentType].self, forKey: .content) : nil
+        if content?.isEmpty == true {
+            throw DecodingError.dataCorruptedError(forKey: .content, in: container,
+                debugDescription: "requirements.content must contain at least one of: url, email, date, path, phone, address.")
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -93,7 +101,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         try container.encode(input, forKey: .input)
         if requiresPasteTarget { try container.encode(true, forKey: .requiresPasteTarget) }
         try container.encodeIfPresent(requiredOptions, forKey: .requiredOptions)
-        try container.encodeIfPresent(expression, forKey: .expression)
+        try container.encodeIfPresent(content, forKey: .content)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -110,6 +118,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         case requiresPasteTargetDash = "requires-paste-target"
         case requiredOptions = "requiredOptions"
         case requiredOptionsDash = "required-options"
-        case expression
+        case expression // Decode-only: reject retired rules rather than silently dropping a gate.
+        case content
     }
 }
