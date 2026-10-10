@@ -303,6 +303,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
         let collected = CollectedBox()
         let effects = EffectsBox()
         let promiseState = request.isAsync ? PromiseState() : nil
+        // The promise bridge retains settled JSValues, which retain the context. Drop them once the
+        // outcome has been read so the context can deallocate on this (the JS) thread (issue #47).
+        defer { promiseState?.clear() }
 
         // Per-evaluation exception handler, installed before any bridge script runs. JSContext does
         // not assign `context.exception` when a handler is present, so we assign it ourselves to

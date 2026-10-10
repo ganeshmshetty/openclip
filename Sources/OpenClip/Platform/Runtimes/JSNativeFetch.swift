@@ -21,7 +21,12 @@ enum JSNativeFetch {
         guard let openclip = context.objectForKeyedSubscript("openclip" as NSString),
               !openclip.isUndefined, !openclip.isNull, openclip.isObject else { return }
 
-        let contextBox = JSContextBox(context)
+        // Weak, so the block stored on `openclip` — and therefore on the context itself — does not
+        // retain the context (issue #47). Synchronous calls use JSContext.current() instead.
+        let weakContextBox = WeakJSContextBox(context)
+        // resolve/reject live here, owned by this JS thread, instead of being captured by the
+        // off-thread URLSession completion. The completion reaches them only through a weak box.
+        let resolvers = FetchResolvers()
         // runLoopBox keeps CFRunLoopGetCurrent() out of the block's @Sendable
         // capture region (region-based isolation checker).
         let runLoopBox = RunLoopBox(CFRunLoopGetCurrent())
@@ -36,7 +41,8 @@ enum JSNativeFetch {
 
         let nativeFetchBlock: @convention(block) (String, JSValue, JSValue, JSValue) -> Void = { urlString, options, resolve, reject in
             guard let url = URL(string: urlString) else {
-                guard let err = JSNativeFetch.jsError("Invalid URL: \(urlString)", in: context) else { return }
+                guard let currentContext = JSContext.current(),
+                      let err = JSNativeFetch.jsError("Invalid URL: \(urlString)", in: currentContext) else { return }
                 reject.call(withArguments: [err])
                 return
             }
@@ -44,14 +50,17 @@ enum JSNativeFetch {
             // loopback with an unallowed/privileged port, or an RFC1918 / link-local / Unix-local host.
             // Redirects are validated by JSNativeFetchRedirectDelegate before they are followed.
             guard JSNativeFetch.isDestinationAllowed(url) else {
-                guard let err = JSNativeFetch.jsError("Destination not allowed: \(urlString)", in: context) else { return }
+                guard let currentContext = JSContext.current(),
+                      let err = JSNativeFetch.jsError("Destination not allowed: \(urlString)", in: currentContext) else { return }
                 reject.call(withArguments: [err])
                 return
             }
             let request = JSNativeFetch.makeURLRequest(url: url, options: options)
-            let resolveBox = JSValueBox(resolve)
-            let rejectBox = JSValueBox(reject)
             let taskID = TaskIdentifierBox()
+            // The completion runs on a URLSession worker thread, so it holds only Sendable scalars
+            // and weak boxes — never a strong JSValue/JSContext (issue #47). The JS references are
+            // looked up on the JS thread inside the runloop block.
+            let weakResolvers = WeakRef(resolvers)
             let task = policySession.session.dataTask(with: request) { data, response, error in
                 // Remove by the task's stable identifier (captured via the box) rather than reading a
                 // mutable `task` reference across threads.
@@ -65,21 +74,25 @@ enum JSNativeFetch {
                 CFRunLoopPerformBlock(runLoopBox.runLoop, CFRunLoopMode.defaultMode.rawValue) {
                     // The evaluation can end after the block goes into the queue.
                     // A later evaluation on this thread can run the block. Do not call the JavaScript VM.
-                    guard !fetchTasks.isEnded else { return }
+                    guard !fetchTasks.isEnded,
+                          let currentContext = weakContextBox.context,
+                          let pending = weakResolvers.value?.take(taskID.value) else { return }
                     if let errorMessage {
-                        if let err = JSNativeFetch.jsError(errorMessage, in: contextBox.context) {
-                            rejectBox.value.call(withArguments: [err])
+                        if let err = JSNativeFetch.jsError(errorMessage, in: currentContext) {
+                            pending.reject.call(withArguments: [err])
                         }
-                    } else if let resp = JSNativeFetch.fetchResponse(status: status, body: body, context: contextBox.context) {
-                        resolveBox.value.call(withArguments: [resp])
+                    } else if let resp = JSNativeFetch.fetchResponse(status: status, body: body, context: currentContext) {
+                        pending.resolve.call(withArguments: [resp])
                     }
                 }
                 CFRunLoopWakeUp(runLoopBox.runLoop)
             }
             // Track the task (and its identifier) before resuming, so even an immediately-failing
-            // task is registered for watchdog cancellation.
+            // task is registered for watchdog cancellation. Register the resolver first so an
+            // immediate completion can still find it.
             taskID.set(task.taskIdentifier)
             fetchTasks.add(task)
+            resolvers.register(task.taskIdentifier, resolve: resolve, reject: reject)
             task.resume()
         }
         openclip.setObject(nativeFetchBlock, forKeyedSubscript: "__nativeFetch" as NSString)
@@ -132,17 +145,19 @@ enum JSNativeFetch {
         let textBlock: @convention(block) () -> String = { body }
         response.setObject(textBlock, forKeyedSubscript: "text")
 
-        // The json block escapes into JS, so it captures the context through a
-        // Sendable box rather than the raw non-Sendable JSContext.
-        let contextBox = JSContextBox(context)
+        // `json()` is called synchronously from JS and the block lives on the response JSValue, so
+        // it must not capture its context: a block that does forms a retain cycle
+        // (context -> JSValue -> block -> context) that keeps the whole JSVirtualMachine alive
+        // (issue #47). JSContext.current() is the context that invoked the block.
         let jsonBlock: @convention(block) () -> Any = {
+            guard let currentContext = JSContext.current() else { return NSNull() }
             if let data = body.data(using: .utf8),
                let object = try? JSONSerialization.jsonObject(with: data) {
                 return object
             }
             Log.js.debug("response.json() received non-JSON body")
-            if let err = JSNativeFetch.jsError("Invalid JSON response", in: contextBox.context) {
-                contextBox.context.exception = err
+            if let err = JSNativeFetch.jsError("Invalid JSON response", in: currentContext) {
+                currentContext.exception = err
             }
             return NSNull()
         }

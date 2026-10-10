@@ -1134,6 +1134,51 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(marks.values.filter { $0 == "live" }.count, 1)
     }
 
+    /// The finished `JSContext` must deallocate — no block stored on the context, and no off-thread
+    /// closure, may retain it (issue #47). Covers both the response `json()` block and the native
+    /// fetch bridge, which previously captured `JSContext` strongly.
+    func testFetchBridgeDoesNotRetainContextAfterRun() {
+        XCTAssertTrue(Thread.isMainThread)
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("{\"a\":1}".utf8))
+        }
+        defer { MockURLProtocol.requestHandler = nil }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        let collected = LockedArray<String>()
+        weak var weakContext: JSContext?
+        // JavaScriptCore hands out autoreleased JSValue/JSContext receipts; without a pool of our
+        // own the enclosing test pool would hold the context alive past the assertion and the test
+        // would prove nothing. Drain our pool, then assert on real retains only.
+        autoreleasepool {
+            var context: JSContext? = JSContext()
+            weakContext = context
+            context!.evaluateScript("var openclip = {};")
+            let box = FetchTaskBox()
+            JSNativeFetch.installNativeFetch(in: context!, session: session, fetchTasks: box)
+
+            let mark: @convention(block) () -> Void = { collected.append("done") }
+            context!.setObject(mark, forKeyedSubscript: "__mark" as NSString)
+            // Await a response, call json() (the previously cycling block), then settle.
+            context!.evaluateScript("openclip.fetch('https://example.com/x').then(function(r){ r.json(); __mark(); }, function(){ __mark(); });")
+
+            let deadline = Date().addingTimeInterval(2)
+            while !collected.values.contains("done") && Date() < deadline {
+                CFRunLoopRunInMode(.defaultMode, 0.01, false)
+            }
+            XCTAssertTrue(collected.values.contains("done"), "the mocked fetch must settle")
+            box.finish()
+            context = nil
+        }
+
+        XCTAssertEqual(collected.values, ["done"])
+        XCTAssertNil(weakContext, "the finished JSContext must deallocate (no retain cycle)")
+    }
+
     // MARK: - Watchdog
 
     func testTimeoutThrowsForNeverSettlingPromise() async throws {

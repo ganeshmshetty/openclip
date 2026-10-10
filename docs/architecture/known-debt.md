@@ -119,15 +119,19 @@ areas; stale debt notes are worse than none.
   the host does not call the JavaScript VM for it (issue #40). Uncaught exceptions that escape
   native-to-JS callbacks after initial evaluation (issue #48) reject the promise bridge via a
   per-evaluation `exceptionHandler` and surface as `.toast(.error)` without waiting for the idle
-  watchdog. This does **not** detect detached unhandled promise rejections, and it does not change
-  the retain-cycle residual below. Residual: retain cycles in
-  `JSNativeFetch` (`nativeFetchBlock` → `contextBox`/`context`; `jsonBlock` → `JSContextBox`) and
-  `PromiseState` (`JSValue?` → `JSValue.context`) keep the finished `JSContext` alive — this is
-  **line-cited analysis, not empirically probed**. `PolicySession` does not invalidate its
-  `URLSession`. A guarded `CFRunLoopPerformBlock` can still sit on the shared run loop and hold
-  those references. Do not break a cycle unless the final release of `JSValue`/`JSContext` is
-  guaranteed to land on the JS thread; otherwise an off-thread release becomes a memory-safety
-  hazard.
+  watchdog. This does **not** detect detached unhandled promise rejections.
+  **JS bridge lifetime is JS-thread-owned (issues #46/#47).** `PolicySession` invalidates its
+  `URLSession` through `FetchTaskBox.setCloseHandler` when the run ends, instead of leaking one
+  session, delegate, and its worker threads/Mach ports per async action. No block stored on a
+  `JSValue` and no off-thread closure retains a `JSContext`/`JSValue`: `nativeFetchBlock` and
+  `fetchResponse`'s `json()` resolve the context via `JSContext.current()` (the URLSession
+  completion reaches it only through `WeakJSContextBox`), in-flight resolve/reject functions live in
+  a JS-thread-owned `FetchResolvers` registry the completion touches only through `WeakRef`, and
+  `PromiseState.clear()` drops the settled `JSValue`s when the run ends. This keeps the final release
+  of every JavaScript reference on the JS thread, which the off-thread-release hazard requires.
+  `OpenClipJSHostTests.testFetchBridgeDoesNotRetainContextAfterRun` probes the finished `JSContext`
+  deallocating after a fetch that calls `json()` (autorelease pool drained, since JavaScriptCore
+  hands out autoreleased receipts).
 - **Custom Action Groups use canonical IDs with dynamic materialization and strict $\ge 2$ member invariant.**
   User-defined action groups are defined via `ActionGroupDef` (`Sources/Core/Actions/ActionGroupDef.swift`),
   stored as JSON in `SettingKey.actionGroups`. Rather than rewriting action identifiers with virtual ID

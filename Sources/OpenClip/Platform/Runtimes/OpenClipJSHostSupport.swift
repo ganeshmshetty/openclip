@@ -101,19 +101,50 @@ final class SyncEvaluationGate: @unchecked Sendable {
     }
 }
 
-/// Boxes the JS context so the fetch completion handler can hand it back to the JS thread's
-/// runloop. The context is only ever *used* on the JS thread.
-final class JSContextBox: @unchecked Sendable {
-    let context: JSContext
+/// Boxes the JS context **weakly** so a URLSession completion handler — which runs on a worker
+/// thread — can hand the context back to the JS thread's runloop without strongly retaining it.
+/// Holding a strong `JSContext` (directly or through a JSValue) from an off-thread closure risks
+/// releasing the last JavaScript reference off the JS thread, which the memory-safety note in
+/// `docs/architecture/known-debt.md` forbids. The evaluation retains its own context for the whole
+/// run, so the weak reference is live exactly while the run is; afterwards the completion is
+/// discarded by `FetchTaskBox.isEnded` anyway.
+final class WeakJSContextBox: @unchecked Sendable {
+    weak var context: JSContext?
     init(_ context: JSContext) { self.context = context }
 }
 
-/// Boxes a JSValue so a `@Sendable` URLSession completion can hand it back to the JS thread's
-/// runloop without the compiler rejecting a non-Sendable capture. The value is only ever *used* on
-/// the JS thread (inside the CFRunLoopPerformBlock).
-final class JSValueBox: @unchecked Sendable {
-    let value: JSValue
-    init(_ value: JSValue) { self.value = value }
+/// Weak, Sendable handle to an arbitrary object, so an off-thread closure can reach a
+/// JS-thread-owned object without retaining it — and without the compiler rejecting the capture.
+/// Used by the fetch bridge so a URLSession completion (worker thread) can hand work to the JS
+/// thread's runloop while holding no strong JavaScript reference (issue #47).
+final class WeakRef<T: AnyObject>: @unchecked Sendable {
+    weak var value: T?
+    init(_ value: T) { self.value = value }
+}
+
+/// JS-thread-owned store of the resolve/reject functions for in-flight fetches, keyed by URL task
+/// identifier. The URLSession completion runs on a worker thread and must not hold JavaScript
+/// references — releasing the last one off the JS thread is the memory-safety hazard called out in
+/// `docs/architecture/known-debt.md` — so it looks the pair up here (through a `WeakRef`) inside the
+/// JS thread's runloop block. Entries are removed when settled, or released with this object at the
+/// end of the run, always on the JS thread.
+final class FetchResolvers: @unchecked Sendable {
+    private let lock = NSLock()
+    private var entries: [Int: (resolve: JSValue, reject: JSValue)] = [:]
+
+    func register(_ identifier: Int, resolve: JSValue, reject: JSValue) {
+        lock.lock()
+        entries[identifier] = (resolve, reject)
+        lock.unlock()
+    }
+
+    /// Removes and returns the resolve/reject pair for `identifier`, or nil if it was already
+    /// settled or removed.
+    func take(_ identifier: Int) -> (resolve: JSValue, reject: JSValue)? {
+        lock.lock()
+        defer { lock.unlock() }
+        return entries.removeValue(forKey: identifier)
+    }
 }
 
 final class RunLoopBox: @unchecked Sendable {
@@ -176,6 +207,17 @@ final class PromiseState: @unchecked Sendable {
         guard !_isSettled else { return }
         _rejectedValue = error
         _isSettled = true
+    }
+
+    /// Drops the settled JSValues once the evaluation has consumed the outcome. The resolve/reject
+    /// blocks stored on `openclip` still reference this object, and `openclip` is owned by the
+    /// context, so a retained JSValue would reach back to the context and keep the whole
+    /// JSVirtualMachine alive (issue #47). Clearing breaks that last edge.
+    func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        _resolvedValue = nil
+        _rejectedValue = nil
     }
 }
 
