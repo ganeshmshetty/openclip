@@ -185,6 +185,12 @@ JSON). The response is `{ status: number, ok: boolean, text(): Promise<string>,
 json(): Promise<any> }`. Network errors reject the promise. Requests use the injected URLSession
 (`URLSession.shared` in production; tests inject a URLProtocol-mocked ephemeral session).
 
+HTTP/HTTPS URLs opened by `openclip.openURL(url)` use the recognized source browser,
+just like Search, falling back to the default browser when the source is not recognized.
+This applies with or without `requirements.content`. Other URL schemes use their system
+handlers. Call `openclip.openURL` repeatedly to queue multiple links in call order; scripts
+choose whether to deduplicate.
+
 ### Execution model & watchdog
 
 Every run executes inside a `Task.detached` on a background thread — never the `MainActor`. All

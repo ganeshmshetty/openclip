@@ -1714,6 +1714,42 @@ final class OpenClipJSHostTests: XCTestCase {
         }
     }
 
+    func testOpenURLRoutingWithoutContentRequirements() async throws {
+        for sourceID in ["com.apple.Safari", "com.google.Chrome", "com.example.Editor", "com.example.UnknownBrowser"] {
+            for isAsync in [false, true] {
+                let selection = SelectionContext(text: "anything",
+                    sourceApp: AppIdentity(bundleIdentifier: sourceID, localizedName: "Source"),
+                    cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+                let result = try await host.run(makeRequest(script: """
+                    function action() {
+                        openclip.openURL('https://example.com');
+                        openclip.openURL('http://example.org');
+                        openclip.openURL('mailto:user@example.com');
+                        openclip.openURL('tel:+15551234567');
+                    }
+                    """, isAsync: isAsync, context: ActionContext(selection: selection)))
+                guard case .sequence(let effects) = result else { return XCTFail("Expected ordered effects") }
+                XCTAssertEqual(effects.count, 4)
+                for (index, expected) in ["https://example.com", "http://example.org"].enumerated() {
+                    if BrowserDetector.isBrowser(bundleIdentifier: sourceID) {
+                        guard case .openURLInApp(let url, let bundleID) = effects[index] else {
+                            return XCTFail("Expected source-browser routing without content requirements")
+                        }
+                        XCTAssertEqual(bundleID, sourceID)
+                        XCTAssertEqual(url.absoluteString, expected)
+                    } else {
+                        guard case .openURL(let url) = effects[index] else { return XCTFail("Expected default routing") }
+                        XCTAssertEqual(url.absoluteString, expected)
+                    }
+                }
+                for (index, expected) in ["mailto:user@example.com", "tel:+15551234567"].enumerated() {
+                    guard case .openURL(let url) = effects[index + 2] else { return XCTFail("Expected system handler") }
+                    XCTAssertEqual(url.absoluteString, expected)
+                }
+            }
+        }
+    }
+
     func testDetectedContentIsFrozenAndUnrequestedTypesStayEmpty() async throws {
         let result = try await host.run(makeRequest(script: """
             function action() {

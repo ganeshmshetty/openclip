@@ -153,15 +153,18 @@ final class BuiltinActionsTests: XCTestCase {
             XCTFail("Expected .openURL for embedded URL")
         }
 
-        // First of several links wins.
-        let multipleContext = createMockContext(with: "First https://first.com and second https://second.com")
+        // Each distinct link opens once, in first-occurrence order.
+        let multipleContext = createMockContext(with: "First https://first.com and second https://second.com then https://first.com")
         XCTAssertTrue(action.isEnabled(for: multipleContext))
         let multipleResult = try await action.perform(multipleContext)
-        if case .openURL(let url) = multipleResult {
-            XCTAssertEqual(url.absoluteString, "https://first.com")
-        } else {
-            XCTFail("Expected first URL to be extracted")
+        guard case .sequence(let effects) = multipleResult else {
+            return XCTFail("Expected all distinct URLs to be opened")
         }
+        XCTAssertEqual(effects.count, 2)
+        XCTAssertEqual(effects.compactMap { effect -> String? in
+            if case .openURL(let url) = effect { return url.absoluteString }
+            return nil
+        }, ["https://first.com", "https://second.com"])
 
         // Uppercase input is accepted.
         let bareContext = createMockContext(with: "HTTPS://APPLE.COM")
@@ -235,6 +238,22 @@ final class BuiltinActionsTests: XCTestCase {
         }
     }
     
+    @MainActor
+    func testMultipleOpenLinksUseSourceBrowserAndDeduplicate() async throws {
+        let selection = SelectionContext(
+            text: "https://first.com https://second.com https://first.com",
+            sourceApp: AppIdentity(bundleIdentifier: "com.apple.Safari", localizedName: "Safari"),
+            cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let result = try await OpenURLAction().perform(ActionContext(selection: selection))
+        guard case .sequence(let effects) = result else { return XCTFail("Expected multiple links") }
+        XCTAssertEqual(effects.count, 2)
+        for (index, expected) in ["https://first.com", "https://second.com"].enumerated() {
+            guard case .openURLInApp(let url, let bundleID) = effects[index] else { return XCTFail("Expected source browser") }
+            XCTAssertEqual(url.absoluteString, expected)
+            XCTAssertEqual(bundleID, "com.apple.Safari")
+        }
+    }
+
     @MainActor
     func testCutAction() async throws {
         let action = CutAction()

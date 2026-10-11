@@ -902,8 +902,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         // Resolution order: configuration > toast > effects > string return > success.
         let effects = evaluation.effects
         let sourceID = request.context.selection.sourceApp.bundleIdentifier
-        let browserID = request.rules.requirements?.content?.contains(.url) == true
-            && BrowserDetector.isBrowser(bundleIdentifier: sourceID) ? sourceID : nil
+        let browserID = BrowserDetector.isBrowser(bundleIdentifier: sourceID) ? sourceID : nil
         let raw: ActionResult
         if let configuration = collected.configuration {
             raw = .openConfiguration(configuration)

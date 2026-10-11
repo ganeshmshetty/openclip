@@ -822,6 +822,15 @@ Actual capacity depends on the popup display, scale, controls, and rendered acti
 
 ## Native content requirements (1.9.0 source)
 
-Extension requirements now declare `content: ["url", "email", "date", "path", "phone", "address"]` (any listed type). A lazy, lock-protected cache on each immutable `SelectionContext` supplies the same ordered recognition results to applicability and JS execution; cursor/editability copies retain the cache. URL/email scans share their native link results. Content requirements classify an action as contextual while preserving user exclusions and existing input/destination/app/regex gates. JS receives deeply frozen `openclip.input.detected` arrays, and URL-content effects preserve source-browser routing. Open Link, Add Event, and Reveal in Finder share the native detector; Finder existence checks remain platform-side and bounded, with cached exact lexical candidates checked before cleaned alternatives so literal filename punctuation survives.
+Extension requirements now declare `content: ["url", "email", "date", "path", "phone", "address"]` (any listed type). A lazy, lock-protected cache on each immutable `SelectionContext` supplies the same ordered recognition results to applicability and JS execution; cursor/editability copies retain the cache. URL/email scans share their native link results. Content requirements classify an action as contextual while preserving user exclusions and existing input/destination/app/regex gates. JS receives deeply frozen `openclip.input.detected` arrays, and all JS HTTP/HTTPS effects preserve source-browser routing independently of content requirements. Open Link, Add Event, and Reveal in Finder share the native detector; Finder existence checks remain platform-side and bounded, with cached exact lexical candidates checked before cleaned alternatives so literal filename punctuation survives.
 
 The former expression evaluator was retired. Manifests declaring `requirements.expression` fail decoding with an actionable migration diagnostic instead of dropping their gate. No catalog manifest used it in the implementation inventory. Path detection is lexical and does not guarantee existence; native date/phone/address recognition remains dependent on system formats. URL scanning now covers the complete selection rather than the old 2,000-character prefix. Very large selections may incur synchronous native detection latency once per requested type. Colors/JSON and arbitrary JS applicability callbacks are deferred. Packages using content requirements reserve the 1.9.0 compatibility floor and must wait for its release before store publication.
+
+## URL opening
+
+Builtin Open Link opens all distinct detected web URLs in first occurrence order. Like Search,
+it targets the recognized source browser, falling back to the system default otherwise. Every
+JavaScript `openclip.openURL` HTTP/HTTPS effect uses the same routing, regardless of content
+requirements; other schemes retain their system handlers. Effects run through the existing
+BrowserTabOpener front-window scripting and LaunchServices fallback. JavaScript owns its loop
+and deduplication when opening multiple URLs.

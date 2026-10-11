@@ -22,12 +22,19 @@ public struct OpenURLAction: ConfigurableAction {
     
     @MainActor
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        if let value = context.selection.detectedContent(for: [.url]).urls.first, let url = URL(string: value) {
+        var seen = Set<String>()
+        let urls = context.selection.detectedContent(for: [.url]).urls
+            .filter { seen.insert($0).inserted }
+            .compactMap { URL(string: $0) }
+        if !urls.isEmpty {
             let sourceBundleID = context.selection.sourceApp.bundleIdentifier
-            if BrowserDetector.isBrowser(bundleIdentifier: sourceBundleID), let sourceBundleID {
-                return .openURLInApp(url: url, appBundleIdentifier: sourceBundleID)
+            let results: [ActionResult] = urls.map { url in
+                if BrowserDetector.isBrowser(bundleIdentifier: sourceBundleID), let sourceBundleID {
+                    return .openURLInApp(url: url, appBundleIdentifier: sourceBundleID)
+                }
+                return .openURL(url)
             }
-            return .openURL(url)
+            return results.count == 1 ? results[0] : .sequence(results)
         }
         return .failure(NSError(
             domain: Constants.actionErrorDomain,

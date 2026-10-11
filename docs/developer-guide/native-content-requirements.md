@@ -29,7 +29,7 @@ Recognition scans the entire selection, including items embedded in prose. Resul
 
 Paths are recognized lexically, without filesystem probes. A path result does **not** promise that a file exists; the builtin Reveal in Finder action separately checks existence, keeping its bounded filesystem probes. Quote paths containing spaces when embedded in prose. Native date/phone/address recognition depends on the system detector's supported language and regional formats. Relative dates resolve when first detected for the snapshot.
 
-The builtin Open Link action uses the same URL detector and continues opening the first URL. Add Event uses the shared date detector and its existing first-date behavior. Reveal in Finder uses the shared path scanner and its existing existence checks.
+The builtin Open Link action uses the same URL detector and opens all distinct URLs in first occurrence order, using the same source-browser routing as Search. Add Event uses the shared date detector and its existing first-date behavior. Reveal in Finder uses the shared path scanner and its existing existence checks.
 
 ```javascript
 function action() {
@@ -38,7 +38,7 @@ function action() {
 }
 ```
 
-Each call appends an effect, executed in call order by the existing sequence mechanism. For extensions declaring URL content, HTTP/HTTPS effects use the source browser if it is recognized; otherwise they use the default browser. Other JS extensions retain their existing URL-opening behavior. Effects such as `mailto:` or `tel:` still use their registered system handler.
+Each call appends an effect, executed in call order by the existing sequence mechanism. For all JavaScript extensions, HTTP/HTTPS effects use the source browser if it is recognized; otherwise they use the default browser. Effects such as `mailto:` or `tel:` still use their registered system handler.
 
 The official Open Links package lives in the separate extension catalog at `raw/OpenLinks.openclipext`. It deduplicates normalized URLs and opens them in first occurrence order.
 
