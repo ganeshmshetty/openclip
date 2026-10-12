@@ -132,6 +132,10 @@ public enum ActionResultDelivery {
     /// when no override applies, and applies the Clipboard Invariant for secondary clicks. Has no
     /// declared-secondary check — that replaces the whole result once, before this walk.
     private static func selectItem(_ raw: ActionResult, clickIntent: ClickIntent, explicitMode: ActionResultDeliveryMode?) -> ActionResult {
+        if case .annotatedText(let text, _) = raw {
+            let selected = selectItem(.text(text), clickIntent: clickIntent, explicitMode: explicitMode)
+            return selected.textValue != nil ? raw : selected
+        }
         if case .sequence(let items) = raw {
             return .sequence(items.map { selectItem($0, clickIntent: clickIntent, explicitMode: explicitMode) })
         }

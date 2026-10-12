@@ -54,6 +54,15 @@ public final class PopupModeStore: ObservableObject {
     @Published public var activeSubGroupID: String? = nil
     /// Computed inline results for actions with `chrome.isInlineResult == true`, keyed by action ID.
     @Published public var inlineResults: [String: String] = [:]
+    var inlineOutputs: [String: ActionResult] = [:]
+    var inlineValidators: [String: @MainActor () -> Bool] = [:]
+
+    func inlineOutput(for actionID: String) -> ActionResult? {
+        if let validate = inlineValidators[actionID], !validate() {
+            return .toast(StatusFeedback(message: String(localized: "The conversion changed. Select the amount again."), style: .info, keepVisible: true))
+        }
+        return inlineOutputs[actionID] ?? inlineResults[actionID].map { .text($0) }
+    }
 
     public init() {}
 }
@@ -66,6 +75,7 @@ public final class PopupModeStore: ObservableObject {
 /// nothing to compare against.
 public struct ResultCardPayload: Sendable, Equatable {
     public let text: String
+    public let detail: String?
     public let isError: Bool
     public let title: String
     public let icon: ActionIcon?
@@ -80,8 +90,9 @@ public struct ResultCardPayload: Sendable, Equatable {
     public let file: FileOutputPayload?
 
     /// Creates the content presented by a result card, including an optional native file.
-    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true, file: FileOutputPayload? = nil) {
+    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true, file: FileOutputPayload? = nil, detail: String? = nil) {
         self.text = text
+        self.detail = detail
         self.isError = isError
         self.title = title
         self.icon = icon

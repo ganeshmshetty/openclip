@@ -968,8 +968,8 @@ public struct PopupView: View {
                         guard onWillPerformAction?(action, clickIntent) ?? true else { return }
                         onActionPerformed?(action.id)
                         if action.chrome.isInlineResult {
-                            if let resolved = modeStore.inlineResults[action.id] {
-                                onResult(.text(resolved))
+                            if let resolved = modeStore.inlineOutput(for: action.id) {
+                                onResult(resolved)
                                 return
                             } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
                                 Task {

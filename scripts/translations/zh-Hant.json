@@ -775,5 +775,19 @@
   "Decrease actions per page": "減少每頁動作數",
   "Increase actions per page": "增加每頁動作數",
   "View Update…": "查看更新…",
-  "Updates are disabled in development builds.": "開發版本中已停用更新。"
+  "Updates are disabled in development builds.": "開發版本中已停用更新。",
+  "Convert Currency": "貨幣換算",
+  "Amounts with currency codes or symbols": "含貨幣代碼或符號的金額",
+  "Target Currency": "目標貨幣",
+  "Currency for $": "$ 對應的貨幣",
+  "%@ → %@": "%@ → %@",
+  "Rate date: %@": "匯率日期：%@",
+  "Reference rates by Frankfurter. Bank fees are not included.": "參考匯率由 Frankfurter 提供，不含銀行手續費。",
+  "This rate is more than three days old.": "此匯率已超過三天。",
+  "Using saved rates. The latest update was unavailable.": "無法取得最新匯率，正在使用已儲存的匯率。",
+  "$ interpreted as %@": "$ 視為 %@",
+  "No recent exchange rate is available. Connect to the internet and try again.": "沒有可用的近期匯率。請連接網際網路後再試一次。",
+  "The conversion changed. Select the amount again.": "換算結果已變更。請重新選取金額。",
+  "Updating exchange rates…": "正在更新匯率…",
+  "Rate unavailable": "無可用匯率"
 }

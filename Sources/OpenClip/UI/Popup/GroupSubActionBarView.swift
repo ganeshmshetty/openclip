@@ -246,10 +246,10 @@ public struct GroupSubActionBarView: View {
                 return
             }
             // An already-computed inline result is delivered directly instead of re-running the action.
-            if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+            if action.chrome.isInlineResult, let resolved = modeStore.inlineOutput(for: action.id) {
                 guard onWillPerformAction(action, clickIntent) else { return }
                 onActionPerformed(action.id)
-                onResult(.text(resolved))
+                onResult(resolved)
                 return
             }
             // An in-flight inline evaluation (e.g. started before the popup re-opened) is joined

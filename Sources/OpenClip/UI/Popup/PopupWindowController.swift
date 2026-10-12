@@ -34,6 +34,7 @@ public class PopupWindowController {
     /// Popup display mode (actions bar ↔ search palette ↔ result card), observed by PopupView.
     public let modeStore = PopupModeStore()
     private var cancellables = Set<AnyCancellable>()
+    private var liveInlineSubscriptions = Set<AnyCancellable>()
 
     /// Records action usage for search recency ranking.
     private let usageStore = ActionUsageStore()
@@ -301,6 +302,9 @@ public class PopupWindowController {
         self.currentActions = activeActions
 
         modeStore.inlineResults.removeAll()
+        modeStore.inlineOutputs.removeAll()
+        modeStore.inlineValidators.removeAll()
+        liveInlineSubscriptions.removeAll()
         let catalog = ActionCoordinator.shared.searchCatalog(for: actionContext)
         var combinedActions = activeActions
         for item in catalog where !combinedActions.contains(where: { $0.id == item.id }) {
@@ -310,6 +314,10 @@ public class PopupWindowController {
         let textHash = context.text.hashValue
 
         for action in inlineActions {
+            if let live = ContextualActionClassifier.unwrap(action) as? any LiveInlineAction {
+                observeLiveInline(live, context: actionContext, session: aiSession)
+                continue
+            }
             if let prewarmed = evaluator.prewarmedResult(for: action, textHash: textHash) {
                 modeStore.inlineResults[action.id] = prewarmed
             } else if let syncResult = evaluator.evaluateSynchronous(action: action, context: actionContext) {
@@ -705,6 +713,38 @@ public class PopupWindowController {
         // Inline values were evaluated for the original selection. Clear them so the palette
         // cannot show a stale preview; running the action evaluates it against the active context.
         modeStore.inlineResults.removeAll()
+        modeStore.inlineOutputs.removeAll()
+        modeStore.inlineValidators.removeAll()
+        liveInlineSubscriptions.removeAll()
+        if let context = currentActionContext {
+            for action in ActionCoordinator.shared.searchCatalog(for: context) {
+                if let live = ContextualActionClassifier.unwrap(action) as? any LiveInlineAction {
+                    observeLiveInline(live, context: context, session: aiSessionID)
+                }
+            }
+        }
+    }
+
+    private func observeLiveInline(_ action: any LiveInlineAction, context: ActionContext, session: UUID) {
+        let update: @MainActor () -> Void = { [weak self] in
+            guard let self, self.aiSessionID == session else { return }
+            let preview = action.preview(for: context)
+            if let previous = preview {
+                self.modeStore.inlineValidators[action.id] = { [weak action] in
+                    guard let current = action?.preview(for: context) else { return false }
+                    return current.label == previous.label && current.result.textValue == previous.result.textValue
+                        && current.result.textDetail == previous.result.textDetail
+                }
+            } else {
+                self.modeStore.inlineValidators[action.id] = nil
+            }
+            self.modeStore.inlineOutputs[action.id] = preview?.result
+            self.modeStore.inlineResults[action.id] = preview?.label
+        }
+        update()
+        action.previewChanges.sink { update(); action.preparePreview(for: context) }
+            .store(in: &liveInlineSubscriptions)
+        action.preparePreview(for: context)
     }
 
     /// The hosting view grows the panel to the palette on its own, after the current run-loop turn
@@ -821,7 +861,8 @@ public class PopupWindowController {
         originalText: String? = nil,
         overrideOriginal: Bool = false,
         canFollowUp: Bool = true,
-        file: FileOutputPayload? = nil
+        file: FileOutputPayload? = nil,
+        detail: String? = nil
     ) {
         guard session == aiSessionID else { return }
         if toastController.isLoading {
@@ -838,7 +879,8 @@ public class PopupWindowController {
             isStreaming: isStreaming,
             original: original,
             canFollowUp: canFollowUp,
-            file: file
+            file: file,
+            detail: detail
         )
         if !isStreaming {
             // A settled card hands the keyboard to its instruction field so the next refinement
@@ -1197,6 +1239,7 @@ public class PopupWindowController {
         // End the session (cancel in-flight work) but keep the warm inline-result caches so the
         // next selection renders its preview immediately instead of re-evaluating from cold.
         InlineResultEvaluator.shared.endSession(aiSessionID)
+        liveInlineSubscriptions.removeAll()
         aiSessionID = UUID()
         refiningPrevious = nil
         cardConversation = nil
@@ -2466,7 +2509,7 @@ public class PopupWindowController {
             do {
                 let resolved = await resolveDelivery(effect, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
                 guard requiredPasteTargetIsActive(delivery) else { return }
-                if case .text(let text) = resolved.result {
+                if let text = resolved.result.textValue {
                     // Preview preference: render the returned text in the native AI result card
                     // without delivering any effect. The popup stays open (a top-level `.text` never
                     // dismisses via dismissesPopup); Esc collapses via exitContent. Probe paste
@@ -2477,7 +2520,7 @@ public class PopupWindowController {
                     if modeStore.canPaste == nil {
                         modeStore.canPaste = await pasteProbe.canPaste(in: delivery?.application, policy: delivery?.policy ?? .default) ?? false
                     }
-                    showResultCard(text: text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID, canFollowUp: false)
+                    showResultCard(text: text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID, overrideOriginal: resolved.result.textDetail != nil, canFollowUp: false, detail: resolved.result.textDetail)
                     return
                 }
                 if case .file(let filePayload) = resolved.result {
@@ -2595,8 +2638,7 @@ public class PopupWindowController {
     }
 
     private func isText(_ result: ActionResult) -> Bool {
-        guard case .text = result else { return false }
-        return true
+        result.textValue != nil
     }
 
     /// Dismissal for a top-level result: the popup stays open exactly when the actual *resolved*
@@ -2704,8 +2746,8 @@ public class PopupWindowController {
                     } else {
                         result = try await action.perform(performContext)
                     }
-                } else if action.chrome.isInlineResult, let cached = self.modeStore.inlineResults[action.id] {
-                    result = .text(cached)
+                } else if action.chrome.isInlineResult, let cached = self.modeStore.inlineOutput(for: action.id) {
+                    result = cached
                 } else {
                     result = try await action.perform(performContext)
                 }
@@ -2812,7 +2854,7 @@ public class PopupWindowController {
                     toastController.hide()
                     return
                 }
-                if case .text(let text) = resolved.result {
+                if let text = resolved.result.textValue {
                     // Preview preference on a loading action: the popup early-closed for the spinner,
                     // so hide the spinner and re-show the popup as a content-mode card, anchored to
                     // the original selection (captured before the early close). Re-probe so the card
@@ -2825,7 +2867,7 @@ public class PopupWindowController {
                             return
                         }
                         show(for: selection, pasteAvailable: canPaste)
-                        showResultCard(text: text, isError: false, title: effectiveDelivery.actionTitle ?? "Action", icon: effectiveDelivery.actionIcon, session: aiSessionID, canFollowUp: false)
+                        showResultCard(text: text, isError: false, title: effectiveDelivery.actionTitle ?? "Action", icon: effectiveDelivery.actionIcon, session: aiSessionID, overrideOriginal: resolved.result.textDetail != nil, canFollowUp: false, detail: resolved.result.textDetail)
                     }
                     return
                 }

@@ -775,5 +775,19 @@
   "Decrease actions per page": "1ページあたりのアクション数を減らす",
   "Increase actions per page": "1ページあたりのアクション数を増やす",
   "View Update…": "アップデートを表示…",
-  "Updates are disabled in development builds.": "開発ビルドではアップデートが無効になっています。"
+  "Updates are disabled in development builds.": "開発ビルドではアップデートが無効になっています。",
+  "Convert Currency": "通貨を換算",
+  "Amounts with currency codes or symbols": "通貨コードまたは通貨記号を含む金額",
+  "Target Currency": "換算先の通貨",
+  "Currency for $": "$に対応する通貨",
+  "%@ → %@": "%@ → %@",
+  "Rate date: %@": "レートの日付：%@",
+  "Reference rates by Frankfurter. Bank fees are not included.": "参考レートはFrankfurterが提供しています。銀行手数料は含まれません。",
+  "This rate is more than three days old.": "このレートは3日以上前のものです。",
+  "Using saved rates. The latest update was unavailable.": "最新のレートを取得できなかったため、保存済みのレートを使用しています。",
+  "$ interpreted as %@": "$を%@として換算",
+  "No recent exchange rate is available. Connect to the internet and try again.": "最近の為替レートがありません。インターネットに接続して、もう一度お試しください。",
+  "The conversion changed. Select the amount again.": "換算結果が変わりました。金額をもう一度選択してください。",
+  "Updating exchange rates…": "為替レートを更新中…",
+  "Rate unavailable": "レートを取得できません"
 }

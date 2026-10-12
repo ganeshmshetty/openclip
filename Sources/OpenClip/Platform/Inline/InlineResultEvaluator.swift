@@ -169,6 +169,7 @@ public final class InlineResultEvaluator {
         let text = context.selection.text
         let hash = text.hashValue
         for action in actions where action.chrome.isInlineResult {
+            if ContextualActionClassifier.unwrap(action) is any LiveInlineAction { continue }
             let key = memoKey(for: action, textHash: hash)
             if let memo = memoizedResults[key] {
                 prewarmedResults[action.id] = (result: memo, textHash: hash, fingerprint: key.fingerprint)
@@ -220,6 +221,7 @@ public final class InlineResultEvaluator {
     /// The action-aware overload is preferred: it also validates the action's input fingerprint
     /// (script + resolved options) so a warmed result is never served after the action changed.
     public func prewarmedResult(for action: any Action, textHash: Int) -> String? {
+        if ContextualActionClassifier.unwrap(action) is any LiveInlineAction { return nil }
         let key = memoKey(for: action, textHash: textHash)
         if let cached = prewarmedResults[action.id],
            cached.textHash == textHash,

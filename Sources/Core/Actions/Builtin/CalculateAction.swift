@@ -16,6 +16,7 @@ public struct CalculateAction: ConfigurableAction {
     public func evaluateSynchronously(_ text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty && trimmed.count <= 200,
+              CurrencyAmount.parse(trimmed) == nil,
               let sanitized = sanitize(trimmed),
               containsMathIntent(sanitized),
               let result = evaluateExpression(sanitized) else {
@@ -28,7 +29,7 @@ public struct CalculateAction: ConfigurableAction {
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
         let text = context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty && text.count <= 200 else { return false }
+        guard !text.isEmpty && text.count <= 200, CurrencyAmount.parse(text) == nil else { return false }
         
         guard let sanitized = sanitize(text), containsMathIntent(sanitized) else { return false }
         return evaluateExpression(sanitized) != nil

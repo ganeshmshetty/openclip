@@ -775,5 +775,19 @@
   "Decrease actions per page": "减少每页动作数",
   "Increase actions per page": "增加每页动作数",
   "View Update…": "查看更新…",
-  "Updates are disabled in development builds.": "开发版本中已禁用更新。"
+  "Updates are disabled in development builds.": "开发版本中已禁用更新。",
+  "Convert Currency": "货币换算",
+  "Amounts with currency codes or symbols": "带货币代码或符号的金额",
+  "Target Currency": "目标货币",
+  "Currency for $": "$ 对应的货币",
+  "%@ → %@": "%@ → %@",
+  "Rate date: %@": "汇率日期：%@",
+  "Reference rates by Frankfurter. Bank fees are not included.": "参考汇率由 Frankfurter 提供，不含银行手续费。",
+  "This rate is more than three days old.": "此汇率已超过三天。",
+  "Using saved rates. The latest update was unavailable.": "无法获取最新汇率，正在使用已保存的汇率。",
+  "$ interpreted as %@": "$ 按 %@ 处理",
+  "No recent exchange rate is available. Connect to the internet and try again.": "没有可用的近期汇率。请连接互联网后重试。",
+  "The conversion changed. Select the amount again.": "换算结果已更改。请重新选择金额。",
+  "Updating exchange rates…": "正在更新汇率…",
+  "Rate unavailable": "汇率不可用"
 }

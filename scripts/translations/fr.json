@@ -775,5 +775,19 @@
   "Decrease actions per page": "Réduire le nombre d’actions par page",
   "Increase actions per page": "Augmenter le nombre d’actions par page",
   "View Update…": "Voir la mise à jour…",
-  "Updates are disabled in development builds.": "Les mises à jour sont désactivées dans les versions de développement."
+  "Updates are disabled in development builds.": "Les mises à jour sont désactivées dans les versions de développement.",
+  "Convert Currency": "Convertir des devises",
+  "Amounts with currency codes or symbols": "Montants avec un code ou un symbole de devise",
+  "Target Currency": "Devise cible",
+  "Currency for $": "Devise associée à $",
+  "%@ → %@": "%@ → %@",
+  "Rate date: %@": "Date du taux : %@",
+  "Reference rates by Frankfurter. Bank fees are not included.": "Taux de référence fournis par Frankfurter. Frais bancaires non inclus.",
+  "This rate is more than three days old.": "Ce taux date de plus de trois jours.",
+  "Using saved rates. The latest update was unavailable.": "Les taux enregistrés sont utilisés. La dernière mise à jour était indisponible.",
+  "$ interpreted as %@": "$ interprété comme %@",
+  "No recent exchange rate is available. Connect to the internet and try again.": "Aucun taux de change récent n’est disponible. Connectez-vous à Internet et réessayez.",
+  "The conversion changed. Select the amount again.": "La conversion a changé. Sélectionnez à nouveau le montant.",
+  "Updating exchange rates…": "Mise à jour des taux de change…",
+  "Rate unavailable": "Taux indisponible"
 }

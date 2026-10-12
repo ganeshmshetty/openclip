@@ -964,8 +964,8 @@ public struct PopupSearchView: View {
         guard onWillPerformAction?(action, clickIntent) ?? true else { return }
         onActionPerformed?(action.id)
         if action.chrome.isInlineResult {
-            if let result = modeStore.inlineResults[action.id] {
-                onResult(.text(result))
+            if let result = modeStore.inlineOutput(for: action.id) {
+                onResult(result)
                 return
             } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
                 Task { @MainActor in

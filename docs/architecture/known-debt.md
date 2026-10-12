@@ -203,6 +203,16 @@ areas; stale debt notes are worse than none.
 
 ## Action-Search Palette & Popup Growth
 
+- **Time-dependent inline currency results are native.** `CurrencyConversionAction` registers
+  through the app composition path and implements `LiveInlineAction`. It bypasses the string-only
+  inline memo cache. Each popup observes rate/option changes and retains a typed preview plus a
+  click-time validator, so copy/paste uses the displayed quote or asks for a fresh selection.
+  `ActionResult.annotatedText` separates preview explanation from delivered text. Rates are
+  downloaded on demand from Frankfurter v2, cached on disk per target, refreshed after 24 hours,
+  and rejected after seven days using each observation date. Five-minute failure backoff and
+  request coalescing prevent per-selection traffic. No Apple private APIs or system rate-cache
+  scraping are used. The FX service has no uptime guarantee; the offline cache is the fallback.
+
 - **Action bar hover chrome** uses a rounded highlight in the system accent color softened 8% toward white, with no horizontal inset for interior text buttons and 2 scaled points for end text buttons; icon buttons retain 2 points for interiors and 3 for ends. All highlights are inset by 3 scaled points vertically, shared by the main and sub-action bars. Interior corners use a 7-point radius; outer edge corners use 10 points (both scaled). Foregrounds and full button hit areas stay unchanged; hovered buttons use a white foreground and the highlight snaps between them with no transition; search chrome is unchanged.
 
 - **AI presets can leave AI Tools.** `SettingKey.standaloneAIActionIDs` records presets dragged

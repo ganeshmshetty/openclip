@@ -74,10 +74,31 @@ or keyword.
 ## Built-in actions
 
 Search, Copy, Cut, Paste, Calculate, Define, Add Event, Open Link, Reveal in Finder and Word
-Completion each have a row in the sidebar's second group. The page opens with the same hero an
+Completion and Convert Currency each have a row in the sidebar's second group. The page opens with the same hero an
 extension's page does — the action's icon and name — then the name and icon shown in the popup
 bar, the alias and hotkey, and any options the action declares (Search's engine, for example).
 Its switch is in the toolbar. **Revert** discards unsaved edits; **Save Changes** applies them.
+
+### Currency conversion
+
+**Convert Currency** recognizes a selected amount such as `100 USD`, `$100`, `€50` or `١٠٠ ر.س`
+and shows the converted amount directly in the popup. Its settings choose the **Target Currency**
+(initially your region's currency) and which currency a bare `$` represents (initially USD).
+Ambiguous symbols such as `¥` need an ISO code. Number separators follow explicit Arabic
+separators or the selected text's punctuation, using your locale to resolve ambiguous three-digit
+fractions. A standalone amount is distinct from a calculation such as `$50 + $20`.
+
+Conversion runs locally using saved [Frankfurter daily reference rates](https://frankfurter.dev/).
+The first use needs internet. Later selections use the cache immediately, with a background
+update attempted at most once every 24 hours per target currency. Failed updates retry no sooner
+than five minutes later. The request contains the target currency, never the selected text or amount.
+Without a connection, saved rates remain usable for seven days from each rate's observation date.
+A clock marker flags rates older than three days or a failed update. An expired or missing rate
+shows **Rate unavailable** rather than a made-up conversion.
+
+Click the value to see its source and rate date. Right-click copies the converted amount and ISO
+currency code, without the approximation marker or explanatory details. Per-action copy/paste
+preferences still apply. Reference rates do not include bank fees.
 
 ## Custom Actions
 

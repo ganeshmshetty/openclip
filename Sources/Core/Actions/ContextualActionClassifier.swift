@@ -5,6 +5,10 @@
 // and resolves their human-readable trigger descriptions for Contextual Actions.
 import Foundation
 
+public protocol ContextualActionDescribing: Action {
+    var contextualDescription: String { get }
+}
+
 public enum ContextualActionClassifier {
     /// Unwraps any decorator actions (MenuDecoratedAction, KeywordDecoratedAction, DeliveryDecoratedAction)
     /// to get the underlying concrete Action instance.
@@ -36,6 +40,7 @@ public enum ContextualActionClassifier {
         }
 
         let underlying = unwrap(action)
+        if let described = underlying as? any ContextualActionDescribing { return described.contextualDescription }
 
         switch underlying.id.lowercased() {
         case "builtin.calculate":

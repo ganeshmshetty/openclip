@@ -509,7 +509,7 @@ public struct ResultCardView: View {
         if showsDiff, hasDiff {
             return diffSegments.map(\.text).joined()
         }
-        return payload.text
+        return payload.text + (payload.detail.map { "\n\n" + $0 } ?? "")
     }
 
     private static let horizontalTextInset: CGFloat = 16.0
@@ -813,11 +813,18 @@ public struct ResultCardView: View {
 
     @ViewBuilder
     private var bodyText: some View {
-        if showsDiff, hasDiff {
-            Text(diffAttributedText)
-        } else {
-            Text(payload.text)
-                .foregroundColor(payload.isError ? Color.red : (payload.isRefining ? Color.primary.opacity(0.55) : Color.primary))
+        VStack(alignment: .leading, spacing: 8) {
+            if showsDiff, hasDiff {
+                Text(diffAttributedText)
+            } else {
+                Text(payload.text)
+                    .foregroundColor(payload.isError ? Color.red : (payload.isRefining ? Color.primary.opacity(0.55) : Color.primary))
+            }
+            if let detail = payload.detail {
+                Text(detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

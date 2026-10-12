@@ -157,6 +157,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )
             ActionCoordinator.shared.register(action: OpenURLAction())
+            ActionCoordinator.shared.register(action: CurrencyConversionAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
             ActionCoordinator.shared.register(action: CompletionAction())
             ActionCoordinator.shared.register(action: AIToolsAction())
@@ -420,6 +421,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             )
             ActionCoordinator.shared.register(action: OpenURLAction())
             ActionCoordinator.shared.register(action: RevealInFinderAction())
+            ActionCoordinator.shared.register(action: CurrencyConversionAction())
             ActionCoordinator.shared.register(action: CompletionAction())
             if options.collectSeconds > 0 {
                 try? await Task.sleep(for: .seconds(options.collectSeconds))

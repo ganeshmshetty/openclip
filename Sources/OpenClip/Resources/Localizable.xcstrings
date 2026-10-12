@@ -29,6 +29,34 @@
         }
       }
     },
+    "$ interpreted as %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$ 按 %@ 处理"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$ 視為 %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$ interprété comme %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$を%@として換算"
+          }
+        }
+      }
+    },
     "%@ (Disabled)": {
       "localizations": {
         "zh-Hans": {
@@ -137,6 +165,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ をこの Mac から削除しました。"
+          }
+        }
+      }
+    },
+    "%@ → %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ → %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ → %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ → %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ → %@"
           }
         }
       }
@@ -1817,6 +1873,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "常に表示"
+          }
+        }
+      }
+    },
+    "Amounts with currency codes or symbols": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "带货币代码或符号的金额"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "含貨幣代碼或符號的金額"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Montants avec un code ou un symbole de devise"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通貨コードまたは通貨記号を含む金額"
           }
         }
       }
@@ -4649,6 +4733,34 @@
         }
       }
     },
+    "Convert Currency": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "货币换算"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "貨幣換算"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Convertir des devises"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通貨を換算"
+          }
+        }
+      }
+    },
     "Copied": {
       "localizations": {
         "zh-Hans": {
@@ -5233,6 +5345,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "URL テンプレート、スニペットのプレースホルダー、またはシェルスクリプトを使用して、独自のアクションを作成します。"
+          }
+        }
+      }
+    },
+    "Currency for $": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$ 对应的货币"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$ 對應的貨幣"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Devise associée à $"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$に対応する通貨"
           }
         }
       }
@@ -11593,6 +11733,34 @@
         }
       }
     },
+    "No recent exchange rate is available. Connect to the internet and try again.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可用的近期汇率。请连接互联网后重试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有可用的近期匯率。請連接網際網路後再試一次。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun taux de change récent n’est disponible. Connectez-vous à Internet et réessayez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近の為替レートがありません。インターネットに接続して、もう一度お試しください。"
+          }
+        }
+      }
+    },
     "No response generated": {
       "localizations": {
         "zh-Hans": {
@@ -14337,6 +14505,62 @@
         }
       }
     },
+    "Rate date: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率日期：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯率日期：%@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date du taux : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レートの日付：%@"
+          }
+        }
+      }
+    },
+    "Rate unavailable": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率不可用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無可用匯率"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taux indisponible"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レートを取得できません"
+          }
+        }
+      }
+    },
     "Recently Added": {
       "localizations": {
         "zh-Hans": {
@@ -14389,6 +14613,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "やり直す"
+          }
+        }
+      }
+    },
+    "Reference rates by Frankfurter. Bank fees are not included.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "参考汇率由 Frankfurter 提供，不含银行手续费。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "參考匯率由 Frankfurter 提供，不含銀行手續費。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taux de référence fournis par Frankfurter. Frais bancaires non inclus."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "参考レートはFrankfurterが提供しています。銀行手数料は含まれません。"
           }
         }
       }
@@ -18537,6 +18789,34 @@
         }
       }
     },
+    "Target Currency": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标货币"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目標貨幣"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Devise cible"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "換算先の通貨"
+          }
+        }
+      }
+    },
     "Target Language": {
       "localizations": {
         "zh-Hans": {
@@ -18785,6 +19065,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アクションはポップアップバーとパレットから削除されます。"
+          }
+        }
+      }
+    },
+    "The conversion changed. Select the amount again.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "换算结果已更改。请重新选择金额。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "換算結果已變更。請重新選取金額。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La conversion a changé. Sélectionnez à nouveau le montant."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "換算結果が変わりました。金額をもう一度選択してください。"
           }
         }
       }
@@ -19065,6 +19373,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "この拡張機能は外部で変更されました。オンに切り替えて検証し、再度有効にしてください。"
+          }
+        }
+      }
+    },
+    "This rate is more than three days old.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此汇率已超过三天。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此匯率已超過三天。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce taux date de plus de trois jours."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このレートは3日以上前のものです。"
           }
         }
       }
@@ -20441,6 +20777,34 @@
         }
       }
     },
+    "Updating exchange rates…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新汇率…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新匯率…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mise à jour des taux de change…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "為替レートを更新中…"
+          }
+        }
+      }
+    },
     "Updating…": {
       "localizations": {
         "zh-Hans": {
@@ -20633,6 +20997,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "バンドル ID を持たないアプリは process:<name> または path:<executable> で指定します。複数のアプリに一致させるには * を使います。"
+          }
+        }
+      }
+    },
+    "Using saved rates. The latest update was unavailable.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法获取最新汇率，正在使用已保存的汇率。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法取得最新匯率，正在使用已儲存的匯率。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les taux enregistrés sont utilisés. La dernière mise à jour était indisponible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最新のレートを取得できなかったため、保存済みのレートを使用しています。"
           }
         }
       }

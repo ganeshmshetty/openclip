@@ -27,6 +27,8 @@ public indirect enum ActionResult: Sendable {
     /// `secondary`) are never re-decided. Does not auto-dismiss the popup; the controller decides
     /// dismissal from the resolved outcome.
     case text(String)
+    /// Explanatory preview text is kept separate from the copy/paste value.
+    case annotatedText(text: String, detail: String)
     case showServices(String)
 
     /// Show the system Look Up dictionary popover for `word`. Declared by Core; presented by the
@@ -118,6 +120,17 @@ public struct FileOutputPayload: Sendable, Equatable {
 }
 
 extension ActionResult {
+    public var textValue: String? {
+        switch self {
+        case .text(let text), .annotatedText(let text, _): return text
+        default: return nil
+        }
+    }
+
+    public var textDetail: String? {
+        if case .annotatedText(_, let detail) = self { return detail }
+        return nil
+    }
     /// Whether the popup should hide after this top-level result is handled. Computed once on the
     /// top-level result (decision 8): a `.toast` dismisses the popup by default (`keepVisible` opts
     /// out), and a `.sequence` dismisses only when non-empty and every item dismisses. Everything
@@ -126,7 +139,7 @@ extension ActionResult {
         switch self {
         case .toast(let feedback):
             return !feedback.keepVisible
-        case .text, .file, .showDefinition:
+        case .text, .annotatedText, .file, .showDefinition:
             // Implicit returned text and file outputs are presentation results:
             // kept open for in-card preview; explicit actions (save, copy) or Esc dismiss.
             // The Look Up popover is anchored to the popup panel, so it also stays open.
@@ -156,7 +169,7 @@ extension ActionResult {
     public var containsToast: Bool {
         switch self {
         case .toast: return true
-        case .text, .file: return false
+        case .text, .annotatedText, .file: return false
         case .sequence(let items): return items.contains(where: \.containsToast)
         default: return false
         }
