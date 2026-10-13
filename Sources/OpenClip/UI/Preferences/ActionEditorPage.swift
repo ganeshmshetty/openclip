@@ -57,6 +57,7 @@ public struct ActionEditorPage: View {
     @State private var isPromptExpanded = false
     @State private var aiProviderOverride: String?
     @State private var aiModelOverride: String?
+    @State private var aiRequestsAdditionalInstruction = false
 
     // Manifest-backed state: the target action lives in an extension manifest package.
     @State private var manifestState: LocatedManifest?
@@ -736,15 +737,16 @@ public struct ActionEditorPage: View {
 
                 if isAIPreset {
                     let promptIsEmpty = aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    let showsPrompt = isPromptExpanded || promptIsEmpty
                     SettingsCard {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 0) {
                             Button {
                                 withAnimation(.easeInOut(duration: 0.2)) { isPromptExpanded.toggle() }
                             } label: {
                                 HStack(spacing: 8) {
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 10, weight: .bold))
-                                        .rotationEffect(.degrees(isPromptExpanded || promptIsEmpty ? 90 : 0))
+                                        .rotationEffect(.degrees(showsPrompt ? 90 : 0))
                                         .frame(width: 10)
                                     Text("Prompt Instruction")
                                         .font(.system(size: 13, weight: .medium))
@@ -754,26 +756,19 @@ public struct ActionEditorPage: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityValue(isPromptExpanded ? String(localized: "Expanded") : String(localized: "Collapsed"))
+                            .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
+                            .padding(.top, SettingsDesignTokens.sectionCardPaddingV)
+                            .padding(.bottom, showsPrompt ? 0 : SettingsDesignTokens.sectionCardPaddingV)
 
-                            if isPromptExpanded || promptIsEmpty {
-                                TextField("Prompt instruction...", text: $aiPrompt, axis: .vertical)
-                                    .lineLimit(4...12)
-                                    .textFieldStyle(.roundedBorder)
-                                    .accessibilityLabel(String(localized: "Prompt Instruction"))
-
-                                if promptIsEmpty {
-                                    Text("Prompt cannot be empty.")
-                                        .font(.caption)
-                                        .foregroundStyle(.red)
-                                }
-
-                                Text("The selected text is appended to the instruction when the action runs.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            if showsPrompt {
+                                AIPromptInstructionEditor(
+                                    prompt: $aiPrompt,
+                                    requestsAdditionalInstruction: $aiRequestsAdditionalInstruction,
+                                    placeholder: String(localized: "Prompt instruction..."),
+                                    showsEmptyPromptError: true
+                                )
                             }
                         }
-                        .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
-                        .padding(.vertical, SettingsDesignTokens.sectionCardPaddingV)
                     }
                 }
 
@@ -964,6 +959,10 @@ public struct ActionEditorPage: View {
             autoSave()
         }
         .onChange(of: displayMode) { _, _ in
+            guard isLoaded, !isDeleting else { return }
+            autoSave()
+        }
+        .onChange(of: aiRequestsAdditionalInstruction) { _, _ in
             guard isLoaded, !isDeleting else { return }
             autoSave()
         }
@@ -1272,6 +1271,7 @@ public struct ActionEditorPage: View {
             aiPrompt = aiPreset?.prompt ?? ""
             aiProviderOverride = aiPreset?.provider
             aiModelOverride = aiPreset?.model
+            aiRequestsAdditionalInstruction = aiPreset?.requestsAdditionalInstruction ?? false
             return
         }
 
@@ -1408,17 +1408,26 @@ public struct ActionEditorPage: View {
             return
         }
         if isAIPreset {
+            guard var preset = aiPreset else { return }
             let prompt = aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
             let model = aiModelOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
-            if var preset = aiPreset {
-                let promptChanged = !prompt.isEmpty && prompt != preset.prompt
-                let modelChanged = preset.provider != aiProviderOverride || preset.model != (model?.isEmpty == true ? nil : model)
-                if promptChanged || modelChanged {
-                    if promptChanged { preset.prompt = prompt }
-                    preset.provider = aiProviderOverride
-                    preset.model = model?.isEmpty == true ? nil : model
-                    AIServiceManager.shared.updatePreset(preset)
-                }
+            let resolvedModel = model?.isEmpty == true ? nil : model
+            var changed = false
+            if !prompt.isEmpty, prompt != preset.prompt {
+                preset.prompt = prompt
+                changed = true
+            }
+            if preset.provider != aiProviderOverride || preset.model != resolvedModel {
+                preset.provider = aiProviderOverride
+                preset.model = resolvedModel
+                changed = true
+            }
+            if aiRequestsAdditionalInstruction != preset.requestsAdditionalInstruction {
+                preset.requestsAdditionalInstruction = aiRequestsAdditionalInstruction
+                changed = true
+            }
+            if changed {
+                AIServiceManager.shared.updatePreset(preset)
             }
             return
         }

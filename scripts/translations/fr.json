@@ -850,5 +850,18 @@
   "Recognizing text…": "Reconnaissance du texte…",
   "This display is no longer available. Try again.": "Cet écran n’est plus disponible. Réessayez.",
   "Could not capture this area. Try again.": "Impossible de capturer cette zone. Réessayez.",
-  "Could not read text in this area.": "Impossible de lire le texte de cette zone."
+  "Could not read text in this area.": "Impossible de lire le texte de cette zone.",
+  "Additional Instruction": "Instruction supplémentaire",
+  "Ask for a one-time instruction each time this action runs.": "Demander une instruction ponctuelle à chaque exécution de cette action.",
+  "Turn on Additional Instruction to use {{additional_instruction}}. Until then it is left out when the action runs.": "Activez Instruction supplémentaire pour utiliser {{additional_instruction}}. D’ici là, la variable est ignorée lors de l’exécution.",
+  "Insert at Cursor": "Insérer au curseur",
+  "Drag the variable into the prompt or insert it at the cursor. When the action runs, the instruction you enter replaces it.": "Faites glisser la variable dans l’invite ou insérez-la au curseur. À l’exécution, l’instruction saisie la remplace.",
+  "The prompt has no {{additional_instruction}}. The instruction will be added at the end.": "L’invite ne contient pas {{additional_instruction}}. L’instruction sera ajoutée à la fin.",
+  "Drag into the prompt, or click to insert at the cursor": "Faites glisser dans l’invite, ou cliquez pour insérer au curseur",
+  "Additional instruction variable": "Variable d’instruction supplémentaire",
+  "Enter additional instructions...": "Saisissez des instructions supplémentaires...",
+  "Additional instruction": "Instruction supplémentaire",
+  "⌘⏎ to run · ⎋ to cancel": "⌘⏎ pour exécuter · ⎋ pour annuler",
+  "Cancel (⎋)": "Annuler (⎋)",
+  "Run with this instruction (⌘⏎)": "Exécuter avec cette instruction (⌘⏎)"
 }

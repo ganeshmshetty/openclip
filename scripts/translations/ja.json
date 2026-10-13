@@ -850,5 +850,18 @@
   "Recognizing text…": "テキストを認識中…",
   "This display is no longer available. Try again.": "このディスプレイは使用できなくなりました。もう一度お試しください。",
   "Could not capture this area. Try again.": "この領域をキャプチャできませんでした。もう一度お試しください。",
-  "Could not read text in this area.": "この領域のテキストを読み取れませんでした。"
+  "Could not read text in this area.": "この領域のテキストを読み取れませんでした。",
+  "Additional Instruction": "追加の指示",
+  "Ask for a one-time instruction each time this action runs.": "このアクションを実行するたびに、その回だけの指示を入力します。",
+  "Turn on Additional Instruction to use {{additional_instruction}}. Until then it is left out when the action runs.": "{{additional_instruction}} を使うには「追加の指示」をオンにしてください。それまでは実行時に省かれます。",
+  "Insert at Cursor": "カーソル位置に挿入",
+  "Drag the variable into the prompt or insert it at the cursor. When the action runs, the instruction you enter replaces it.": "変数をプロンプトにドラッグするか、カーソル位置に挿入します。実行時に、入力した指示がこの変数と置き換わります。",
+  "The prompt has no {{additional_instruction}}. The instruction will be added at the end.": "プロンプトに {{additional_instruction}} がありません。指示は末尾に追加されます。",
+  "Drag into the prompt, or click to insert at the cursor": "プロンプトにドラッグするか、クリックしてカーソル位置に挿入",
+  "Additional instruction variable": "追加の指示の変数",
+  "Enter additional instructions...": "追加の指示を入力…",
+  "Additional instruction": "追加の指示",
+  "⌘⏎ to run · ⎋ to cancel": "⌘⏎ で実行 · ⎋ でキャンセル",
+  "Cancel (⎋)": "キャンセル (⎋)",
+  "Run with this instruction (⌘⏎)": "この指示で実行 (⌘⏎)"
 }

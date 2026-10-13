@@ -82,6 +82,7 @@ struct AIPage: View {
 struct AIPresetDraft {
     var title = ""
     var prompt = ""
+    var requestsAdditionalInstruction = false
     var iconSymbol = Constants.defaultAIIconSymbol
     var displayMode = 1 // Text is the default, even after choosing an icon.
     var alias = ""
@@ -112,7 +113,11 @@ struct AIPresetDraft {
         savePreset: (AIActionPreset) -> Void
     ) -> AIActionPreset? {
         guard canCreate(using: bindings) else { return nil }
-        let preset = AIServiceManager.makeCustomPreset(title: title, prompt: prompt)
+        let preset = AIServiceManager.makeCustomPreset(
+            title: title,
+            prompt: prompt,
+            requestsAdditionalInstruction: requestsAdditionalInstruction
+        )
         let action = AIAction(presetID: preset.id, title: preset.title)
         switch bindings.setAlias(alias, for: action.id) {
         case .accepted, .cleared: break
@@ -190,17 +195,11 @@ struct AINewPresetPage: View {
                 }
 
                 SettingsCard("Prompt Instruction") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        TextField("e.g. Rewrite text using simple 5th-grade vocabulary", text: $draft.prompt, axis: .vertical)
-                            .lineLimit(4...12)
-                            .textFieldStyle(.roundedBorder)
-                            .accessibilityLabel(String(localized: "Prompt Instruction"))
-                        Text("The selected text is appended to the instruction when the action runs.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
-                    .padding(.vertical, SettingsDesignTokens.sectionCardPaddingV)
+                    AIPromptInstructionEditor(
+                        prompt: $draft.prompt,
+                        requestsAdditionalInstruction: $draft.requestsAdditionalInstruction,
+                        placeholder: String(localized: "e.g. Rewrite text using simple 5th-grade vocabulary")
+                    )
                 }
             }
         } footer: {
