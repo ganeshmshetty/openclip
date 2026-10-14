@@ -26,6 +26,13 @@ areas; stale debt notes are worse than none.
   applies to both stored and default presets. Translate still targets English. Fix Code requests minimal corrections preserving intended
   behavior and interfaces, returns raw corrected code, and permits a brief missing-context response
   when a reliable fix cannot be determined.
+- **Additional instruction.** `AIActionPreset.requestsAdditionalInstruction` decodes as `false`
+  when absent, so presets saved earlier load unchanged (no migration). The variable is the exact,
+  case-sensitive literal `{{additional_instruction}}` (`AIAdditionalInstruction.placeholder`); a
+  spaced or differently cased variant is ordinary prompt text. All saved-preset entry points meet in
+  `PopupWindowController.runSavedAIPreset`; unit tests drive that method and the submit/cancel
+  paths directly, while the SwiftUI/AppKit wiring of bar, sub-bar, palette and hotkey into it, and
+  the editor's drag-and-drop, are verified manually (no hosted UI tests).
 
 ## Manual Update Window Activation
 

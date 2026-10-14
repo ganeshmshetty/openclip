@@ -238,12 +238,13 @@ public final class AIServiceManager: ObservableObject {
     /// Builds a user-authored preset with a fresh `custom_` id — the same shape the "Add Custom AI
     /// Action" sheet writes, so it is deletable in AI → Actions like any other custom preset.
     /// Pure, so the id/title/prompt rules are testable without the `@AppStorage` singleton.
-    public static func makeCustomPreset(title: String, prompt: String) -> AIActionPreset {
+    public static func makeCustomPreset(title: String, prompt: String, requestsAdditionalInstruction: Bool = false) -> AIActionPreset {
         AIActionPreset(
             id: "custom_\(UUID().uuidString.prefix(8))",
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             prompt: prompt.trimmingCharacters(in: .whitespacesAndNewlines),
-            isEnabled: true
+            isEnabled: true,
+            requestsAdditionalInstruction: requestsAdditionalInstruction
         )
     }
 
@@ -301,9 +302,22 @@ public final class AIServiceManager: ObservableObject {
         presets = Self.defaultPresets
     }
 
-    /// Resolves the effective prompt for an AI preset.
-    public func promptForPreset(_ preset: AIActionPreset) -> String {
-        preset.prompt
+    /// Resolves the prompt sent for one run of an AI preset. A preset that asks for an additional
+    /// instruction gets `additionalInstruction` substituted for its placeholder; any other preset
+    /// runs its saved prompt unchanged (a stray, manually typed placeholder is stripped so it never
+    /// reaches the provider). The saved preset itself is never modified.
+    public func promptForPreset(_ preset: AIActionPreset, additionalInstruction: String? = nil) -> String {
+        Self.prompt(for: preset, additionalInstruction: additionalInstruction)
+    }
+
+    /// Pure resolution behind `promptForPreset`, testable without the singleton.
+    public static func prompt(for preset: AIActionPreset, additionalInstruction: String? = nil) -> String {
+        if preset.requestsAdditionalInstruction, let additionalInstruction {
+            return AIAdditionalInstruction.resolve(prompt: preset.prompt, with: additionalInstruction)
+        }
+        return AIAdditionalInstruction.containsPlaceholder(preset.prompt)
+            ? AIAdditionalInstruction.removingPlaceholder(from: preset.prompt)
+            : preset.prompt
     }
 
     private static let cloudAPIKeyAccount = "aiCloudAPIKey"
@@ -450,11 +464,31 @@ public struct AIActionPreset: Identifiable, Codable, Equatable, Sendable {
     public var title: String
     public var prompt: String
     public var isEnabled: Bool
+    /// When on, running the preset first asks for a one-time instruction that replaces
+    /// `{{additional_instruction}}` in `prompt` (see `AIAdditionalInstruction`). Off for every
+    /// preset saved before the option existed.
+    public var requestsAdditionalInstruction: Bool
 
-    public init(id: String, title: String, prompt: String, isEnabled: Bool = true) {
+    public init(id: String, title: String, prompt: String, isEnabled: Bool = true, requestsAdditionalInstruction: Bool = false) {
         self.id = id
         self.title = title
         self.prompt = prompt
         self.isEnabled = isEnabled
+        self.requestsAdditionalInstruction = requestsAdditionalInstruction
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, prompt, isEnabled, requestsAdditionalInstruction
+    }
+
+    /// Presets persisted before `requestsAdditionalInstruction` existed have no such key; they
+    /// decode with the option off rather than failing (which would drop the whole saved list).
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        prompt = try container.decode(String.self, forKey: .prompt)
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        requestsAdditionalInstruction = try container.decodeIfPresent(Bool.self, forKey: .requestsAdditionalInstruction) ?? false
     }
 }

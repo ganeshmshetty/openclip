@@ -149,6 +149,10 @@ public enum PopupMetrics {
     /// growing the panel without bound. Clamped so that the card plus popupShadowInset stays under
     /// `popupMaxHeight` (312 pt), avoiding window clipping.
     public static let aiCardBodyHeight: CGFloat = 170
+    /// The additional-instruction prompt shown before an AI preset that asks for one runs: a
+    /// fixed-width card whose multiline editor scrolls past `instructionEditorHeight`.
+    public static let instructionCardWidth: CGFloat = 340
+    public static let instructionEditorHeight: CGFloat = 92
     /// How long an info/error toast stays up before auto-dismissing (1.2 s — long enough to read
     /// "Copied"-style feedback). Loading toasts have no timer — they live until the action's
     /// result lands.

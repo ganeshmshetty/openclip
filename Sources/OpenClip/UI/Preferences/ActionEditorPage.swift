@@ -69,6 +69,7 @@ public struct ActionEditorPage: View {
     @State private var customJSIsAsync: Bool = false
     @State private var replaceSelection: Bool = true
     @State private var aiPrompt: String = ""
+    @State private var aiRequestsAdditionalInstruction = false
 
     // Manifest-backed state: the target action lives in an extension manifest package.
     @State private var manifestState: LocatedManifest?
@@ -754,24 +755,12 @@ public struct ActionEditorPage: View {
 
                 if isAIPreset {
                     SettingsCard("Prompt Instruction") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            TextField("Prompt instruction...", text: $aiPrompt, axis: .vertical)
-                                .lineLimit(4...12)
-                                .textFieldStyle(.roundedBorder)
-                                .accessibilityLabel(String(localized: "Prompt Instruction"))
-
-                            if aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                Text("Prompt cannot be empty.")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
-
-                            Text("The selected text is appended to the instruction when the action runs.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
-                        .padding(.vertical, SettingsDesignTokens.sectionCardPaddingV)
+                        AIPromptInstructionEditor(
+                            prompt: $aiPrompt,
+                            requestsAdditionalInstruction: $aiRequestsAdditionalInstruction,
+                            placeholder: String(localized: "Prompt instruction..."),
+                            showsEmptyPromptError: true
+                        )
                     }
                 }
 
@@ -949,6 +938,10 @@ public struct ActionEditorPage: View {
             autoSave()
         }
         .onChange(of: displayMode) { _, _ in
+            guard isLoaded, !isDeleting else { return }
+            autoSave()
+        }
+        .onChange(of: aiRequestsAdditionalInstruction) { _, _ in
             guard isLoaded, !isDeleting else { return }
             autoSave()
         }
@@ -1268,6 +1261,7 @@ public struct ActionEditorPage: View {
             logicEditable = false
             manifestMissing = false
             aiPrompt = aiPreset?.prompt ?? ""
+            aiRequestsAdditionalInstruction = aiPreset?.requestsAdditionalInstruction ?? false
             return
         }
 
@@ -1411,9 +1405,18 @@ public struct ActionEditorPage: View {
             return
         }
         if isAIPreset {
+            guard var preset = aiPreset else { return }
             let prompt = aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !prompt.isEmpty, var preset = aiPreset, prompt != preset.prompt {
+            var changed = false
+            if !prompt.isEmpty, prompt != preset.prompt {
                 preset.prompt = prompt
+                changed = true
+            }
+            if aiRequestsAdditionalInstruction != preset.requestsAdditionalInstruction {
+                preset.requestsAdditionalInstruction = aiRequestsAdditionalInstruction
+                changed = true
+            }
+            if changed {
                 AIServiceManager.shared.updatePreset(preset)
             }
             return

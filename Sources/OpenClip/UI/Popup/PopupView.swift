@@ -83,6 +83,11 @@ public struct PopupView: View {
     public let onFollowUp: (@MainActor (String) -> Void)?
     /// Cancels a follow-up in flight (Esc while the card refines), keeping the previous answer.
     public let onCancelFollowUp: (@MainActor () -> Void)?
+    /// Submits the additional instruction typed for `modeStore.instructionRequest`:
+    /// `(requestID, instruction)`. The controller resolves the preset's prompt and runs it.
+    public let onSubmitInstruction: (@MainActor (UUID, String) -> Void)?
+    /// Cancels the additional-instruction prompt without running anything.
+    public let onCancelInstruction: (@MainActor () -> Void)?
     /// Returns the click intent captured at mouse-down for the current click, so the left-click
     /// perform path can thread a force-copy click (⇧-click) into the action context.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
@@ -216,6 +221,8 @@ public struct PopupView: View {
         onSaveAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
         onFollowUp: (@MainActor (String) -> Void)? = nil,
         onCancelFollowUp: (@MainActor () -> Void)? = nil,
+        onSubmitInstruction: (@MainActor (UUID, String) -> Void)? = nil,
+        onCancelInstruction: (@MainActor () -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary },
         onShowTooltip: (@MainActor (String, CGRect, String, Bool) -> Void)? = nil,
         onHideTooltip: (@MainActor () -> Void)? = nil
@@ -261,6 +268,8 @@ public struct PopupView: View {
         self.onSaveAIPrompt = onSaveAIPrompt
         self.onFollowUp = onFollowUp
         self.onCancelFollowUp = onCancelFollowUp
+        self.onSubmitInstruction = onSubmitInstruction
+        self.onCancelInstruction = onCancelInstruction
         self.onClickIntent = onClickIntent
         self.onShowTooltip = onShowTooltip
         self.onHideTooltip = onHideTooltip
@@ -451,6 +460,8 @@ public struct PopupView: View {
     private var barContent: some View {
         if modeStore.mode == .content {
             resultCard
+        } else if modeStore.mode == .instruction {
+            instructionCard
         } else if modeStore.mode == .search {
             searchCard
         } else {
@@ -503,6 +514,24 @@ public struct PopupView: View {
         }
     }
 
+
+    /// The additional-instruction prompt (instruction mode): collects a one-time instruction for
+    /// an AI preset that asks for one, before anything is sent to the provider.
+    @ViewBuilder
+    private var instructionCard: some View {
+        if let request = modeStore.instructionRequest {
+            AdditionalInstructionCardView(
+                request: request,
+                onSubmit: { instruction in onSubmitInstruction?(request.id, instruction) },
+                onCancel: { onCancelInstruction?() },
+                onDrag: { phase in onCardDrag?(phase) }
+            )
+            // A new request (same preset run again) starts from an empty field.
+            .id(request.id)
+            .environment(\.colorScheme, effectiveColorScheme)
+            .environment(\.popupEffectiveTheme, effectiveTheme)
+        }
+    }
 
     @ViewBuilder
     private var mainBarStyled: some View {

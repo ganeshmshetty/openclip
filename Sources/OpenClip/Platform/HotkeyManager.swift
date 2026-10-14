@@ -112,10 +112,10 @@ public final class HotkeyManager {
             return
         }
         guard KeyboardShortcuts.isEnabled else { return }
-        // Popup already visible: if in search mode, the hotkey dismisses the popup (toggle off);
-        // if in actions bar mode, the hotkey transitions directly into search mode.
+        // Popup already visible: if in search mode (or the additional-instruction prompt), the
+        // hotkey dismisses the popup (toggle off); otherwise it transitions into search mode.
         if let popupController = self.popupController, popupController.isVisible {
-            if popupController.modeStore.mode == .search {
+            if popupController.modeStore.mode == .search || popupController.modeStore.mode == .instruction {
                 popupController.toggleMode()
             } else {
                 popupController.enterSearch()

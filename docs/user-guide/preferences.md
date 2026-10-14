@@ -169,7 +169,8 @@ and choose **Add to Group → AI Tools**. You can then drag more commands onto o
 Hovering over AI Tools opens its commands, and clicking opens their scoped search.
 
 Select a preset under **AI → AI Actions** to edit its icon, display name, **Icon/Text** mode,
-keyboard shortcut, search alias, and prompt. Changes save automatically. These settings follow
+keyboard shortcut, search alias, prompt, and whether it asks for an additional instruction when it
+runs (see below). Changes save automatically. These settings follow
 the preset whether it is inside AI Tools or on the main popup bar. **Add Custom AI Action** also
 offers these controls before creation, with **Show as → Text** selected by default. They are saved
 when you click **Add Action**, which opens the editor for the new preset. Cancelling discards the
@@ -207,6 +208,51 @@ matches no action is offered to AI instead of a "No matches" notice:
 
 The rows appear only while AI is switched on; the instruction is sent to whichever provider is
 configured above.
+
+### Ask for an additional instruction each time an AI action runs
+
+An AI action can ask you for a one-time instruction every time it runs — say, a Proofread that
+should *sometimes* use Austrian German spelling, or a Rewrite whose tone you pick per run — without
+editing the saved prompt.
+
+1. Open the action under **AI → AI Actions** (or create one with **Add Custom AI Action**).
+2. In the **Prompt Instruction** card, turn on **Additional Instruction**. The variable
+   `{{additional_instruction}}` is added at the end of the prompt (unless it is already there).
+3. Move the variable to where the instruction belongs. It is ordinary text: cut and paste it,
+   type it yourself, drag the `{{additional_instruction}}` chip below the editor to the exact spot,
+   or place the cursor and click **Insert at Cursor**. For example:
+
+   ```
+   Rewrite the following text professionally.
+
+   Additional requirements:
+   {{additional_instruction}}
+
+   Preserve the original meaning and language.
+   Return only the final text.
+   ```
+
+   Changes save automatically, like every other field on the page.
+
+When you run the action — from the popup bar, the AI Tools commands, the search palette or its
+keyboard shortcut — nothing is sent yet. The popup turns into a small card titled with the action's
+name and a text field for the instruction:
+
+- **⏎** starts a new line, **⌘⏎** (or **Run**) runs the action, **⎋** (or **Cancel**) closes the
+  card without running anything, copying anything, or touching your selection.
+- **Run** stays disabled until you type something other than spaces.
+
+Every `{{additional_instruction}}` in the prompt is replaced with what you typed, and the action
+runs on your selected text through the configured provider exactly as before — streaming result
+card, Copy, Paste and follow-ups included. The instruction is used for that run only; the saved
+prompt never changes, so the next run asks again. If the prompt no longer contains the variable,
+the instruction is added at the end of the prompt. Turning **Additional Instruction** off removes
+the variable from the prompt and the action runs immediately again; a `{{additional_instruction}}`
+left in a prompt while the option is off is dropped when the action runs.
+
+**How this differs from Ask AI:** Ask AI (in the search palette) runs a free-form instruction *in
+place of* a saved prompt. Additional Instruction keeps the saved prompt — your carefully worded
+rules, output format, and so on — and only fills in the part you want to vary per run.
 
 ### Refine an answer in the result card
 

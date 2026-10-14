@@ -8,11 +8,14 @@
 // then original order.
 import Foundation
 
-/// The popup's display mode. Search and content modes are UI states, never Actions in the registry.
+/// The popup's display mode. Search, content and instruction modes are UI states, never Actions
+/// in the registry. `instruction` is the prompt that collects a one-time additional instruction
+/// before an AI preset that asks for one runs.
 public enum PopupMode: Sendable, Equatable {
     case actions
     case search
     case content
+    case instruction
 }
 
 /// One searchable catalog entry. `title` is the display title, `keywords` adds searchable text

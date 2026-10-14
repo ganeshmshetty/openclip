@@ -13,6 +13,7 @@ The floating popup panel subsystem presents contextual actions near the user's c
 | │ └── NSHostingView(PopupView) |
 | │ ├── Action Buttons / Sub-menus |
 | │ ├── ResultCardView (native result card in .content mode) |
+| │ ├── AdditionalInstructionCardView (one-time AI instruction in .instruction mode) |
 | │ └── Status toast (floating `ToastPanelController`, outside the panel) |
 | └── Event Monitors (Global / Local NSEvent tracking) |
 +-----------------------------------------------------------------------------+
@@ -21,14 +22,14 @@ The floating popup panel subsystem presents contextual actions near the user's c
 ### 1. [`PopupPanel`](../../Sources/OpenClip/UI/Popup/PopupPanel.swift)
 - **Base Class**: `NSPanel`
 - **Window Style**: `.nonactivatingPanel`, `.borderless`
-- **Window Level**: `.popUpMenu` (sits above all normal, floating, and status-bar windows; only system menus and the screen saver stack higher). The panel is deliberately **never** the key window by default; making it key would steal keyboard focus from the active app and swallow keystrokes. There are two scoped exceptions — action-search mode and content (AI-card) mode: `PopupPanel.allowsKey` gates `canBecomeKey`/`canBecomeMain`, enabled by `PopupWindowController.enterSearch()` and `enterKeyMode()` (search and content both route through the same `enterKeyMode()`/`exitKeyMode()` primitives).
+- **Window Level**: `.popUpMenu` (sits above all normal, floating, and status-bar windows; only system menus and the screen saver stack higher). The panel is deliberately **never** the key window by default; making it key would steal keyboard focus from the active app and swallow keystrokes. There are three scoped exceptions — action-search mode, content (AI-card) mode and instruction mode: `PopupPanel.allowsKey` gates `canBecomeKey`/`canBecomeMain`, enabled by `PopupWindowController.enterSearch()` and `enterKeyMode()` (all three route through the same `enterKeyMode()`/`exitKeyMode()` primitives).
 - **Properties**: `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = false` (SwiftUI draws its own shadow; a panel shadow causes double artifacts). `pinBottomEdgeOnResize` (search/content mode only) re-anchors content-driven growth — see *Action-Search Palette & Panel Growth* below.
 - **Shadow inset**: `PopupView` keeps `PopupMetrics.popupShadowInset` (16pt) of SwiftUI padding around the bar and AI result card so the SwiftUI shadow renders *inside* the panel rather than being clipped at its edge. If a shadow looks cut off, increase the padding — never re-enable the panel shadow. That padding ring is fully transparent but still part of the window frame, which originally made shadow clicks do *nothing*: the panel was topmost at those pixels, the local event counted as "in the bar", and no app received the click. Two layers now handle it: (1) every click/right-click dismissal check uses `isOverPanelContent` (frame minus ring), so a press in the shadow always dismisses; (2) while the pointer hovers the ring, `updatePopupHover` sets `panel.ignoresMouseEvents = true`, so the click genuinely falls through to the app underneath and the global monitor observes it. The ignores-toggle requires global monitoring (Accessibility); without AX, layer 1 alone still guarantees dismissal, though the underlying app won't receive the swallowed ring click.
 
 ### 2. [`PopupWindowController`](../../Sources/OpenClip/UI/Popup/PopupWindowController.swift)
-- **Responsibility**: Controls window creation, display lifecycle, event monitoring, hover tracking, and the popup mode state machine (actions bar ↔ search palette ↔ content/AI-card).
+- **Responsibility**: Controls window creation, display lifecycle, event monitoring, hover tracking, and the popup mode state machine (actions bar ↔ search palette ↔ content/AI-card, plus the additional-instruction prompt).
 - **Event Handling**: Sets up local and global `NSEvent` monitors (`.leftMouseDown`, `.mouseMoved`, `.scrollWheel`, `.keyDown`). The local monitor sees mouse events over the panel; the global monitor sees events system-wide.
-- **Dismissal Threshold**: Automatically dismisses the popup if the cursor moves beyond `PopupMetrics.popupDismissalDistance` (suspended in search mode and while a content/AI-card is open). For the result card, un-dragged cards dismiss normally on outside click or app switch; if dragged by the user (`hasUserMovedCard`), `cardIsModal` pins the card against outside clicks and document scrolls until Copy, Paste, Close or Esc (switching active applications or spaces still dismisses).
+- **Dismissal Threshold**: Automatically dismisses the popup if the cursor moves beyond `PopupMetrics.popupDismissalDistance` (active only in actions mode: suspended in search mode, while the additional-instruction prompt is open, and while a content/AI-card is open). For the result card, un-dragged cards dismiss normally on outside click or app switch; if dragged by the user (`hasUserMovedCard`), `cardIsModal` pins the card against outside clicks and document scrolls until Copy, Paste, Close or Esc (switching active applications or spaces still dismisses).
 - **Keyboard Dismissal**: Requires Accessibility permission (the global monitor). In actions mode any key — including `Escape` — dismisses the popup; the global monitor is observation-only, so the keystroke still lands in the source app's document and the panel never needs to become key. In search mode the panel *is* key, so keys go to the search field (`Escape` clears a scoped query, then exits). In content mode the panel is *also* key: the AI result card owns all keys via SwiftUI `.onKeyPress`, `Escape` closes the card (`hide()`), and the controller monitor stays observation-only so it never double-fires Esc — bar the one case where the panel has lost key (the card outlives clicks into the source app document), where the monitor answers Esc itself.
 
 ---
@@ -264,7 +265,7 @@ already visible; the bar's command-glyph button enters search via `onEnterSearch
 ### Search Mode
 
 - **Mode state**: [`PopupModeStore`](../../Sources/OpenClip/UI/Popup/PopupModeStore.swift) holds
-  `mode` (`.actions`/`.search`/`.content`), `searchResultsAbove` (set from `cardAbove` in
+  `mode` (`.actions`/`.search`/`.content`/`.instruction`), `searchResultsAbove` (set from `cardAbove` in
   `show(for:)`), plus the content payload `resultCard` (which carries the `original` selection for
   the card's diff). Statuses live in the floating toast, not the
   store. `PopupView` branches on `modeStore.mode` in `unifiedHStack` and renders
@@ -395,3 +396,32 @@ The `NSHostingView` auto-resizes the panel **top-anchored** when its SwiftUI con
 
 Behavioral contract is pinned by `Tests/OpenClipTests/PopupPanelTests.swift` (top/bottom edge fixed
 on enter, bar returns to position on exit, panel key + field first-responder on re-entry).
+
+---
+
+## Additional-Instruction Prompt (`.instruction` mode)
+
+An AI preset with `AIActionPreset.requestsAdditionalInstruction` asks for a one-time instruction
+before anything is sent to the provider. Every saved-preset entry point — standalone bar buttons
+and palette rows (`PopupView.onRunAI`), the AI Tools sub-bar (`SubBarPanelController` `onRunAI`)
+and per-action hotkeys (`runBoundAction`) — calls `PopupWindowController.runSavedAIPreset(_:)`,
+which runs other presets exactly as before (`runAIPreset`) and routes these to
+`presentAdditionalInstruction(for:)`:
+
+- The bar, palette or card is replaced by `AdditionalInstructionCardView` (result-card chrome,
+  `PopupMetrics.instructionCardWidth`), `modeStore.instructionRequest` holds the preset snapshot
+  under a fresh request id, and the panel enters key mode. The panel is non-activating, so the
+  source app stays frontmost and keeps its selection; the run uses the selection already captured
+  in `currentActionContext` (including a palette's clipboard alternative).
+- The editor is the AppKit-backed `MultilineTextEditor`: ⏎ inserts a newline, ⌘⏎ submits, ⎋
+  cancels. Run is disabled for whitespace-only input and fires once per card.
+- `submitAdditionalInstruction(_:requestID:)` only accepts the current request and consumes it
+  before running, so a repeated submit, or one from a replaced or dismissed prompt, is dropped.
+  The prompt comes from `AIServiceManager.promptForPreset(_:additionalInstruction:)` →
+  `AIAdditionalInstruction.resolve` (every placeholder replaced; appended under a heading when the
+  placeholder is missing); the selection still goes to the provider separately. From there it is the
+  ordinary `runAIPreset` flow, so the `aiSessionID` stamp keeps a stale stream out of a newer session.
+- Cancel, Close and ⎋ call `cancelAdditionalInstruction()` → `hide()`: nothing is sent, pasted or
+  copied. Distance, scroll and keystroke dismissal are suspended as in content mode; an outside
+  click or app switch dismisses like an un-pinned card. The popup hotkey closes the prompt rather
+  than entering search.

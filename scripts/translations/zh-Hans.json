@@ -782,5 +782,18 @@
   "Copy to Clipboard Automatically": "自动复制到剪贴板",
   "The action popup still opens after capture.": "捕获后仍会打开操作弹窗。",
   "Text copied": "文本已复制",
-  "Text captured": "文本已捕获"
+  "Text captured": "文本已捕获",
+  "Additional Instruction": "附加指令",
+  "Ask for a one-time instruction each time this action runs.": "每次运行此操作时，询问一条仅用于本次的指令。",
+  "Turn on Additional Instruction to use {{additional_instruction}}. Until then it is left out when the action runs.": "打开“附加指令”才能使用 {{additional_instruction}}。在此之前，运行操作时会将其省略。",
+  "Insert at Cursor": "在光标处插入",
+  "Drag the variable into the prompt or insert it at the cursor. When the action runs, the instruction you enter replaces it.": "将变量拖入提示词，或在光标处插入。运行操作时，你输入的指令会替换它。",
+  "The prompt has no {{additional_instruction}}. The instruction will be added at the end.": "提示词中没有 {{additional_instruction}}。指令将添加到末尾。",
+  "Drag into the prompt, or click to insert at the cursor": "拖入提示词，或点按以在光标处插入",
+  "Additional instruction variable": "附加指令变量",
+  "Enter additional instructions...": "输入附加指令…",
+  "Additional instruction": "附加指令",
+  "⌘⏎ to run · ⎋ to cancel": "⌘⏎ 运行 · ⎋ 取消",
+  "Cancel (⎋)": "取消 (⎋)",
+  "Run with this instruction (⌘⏎)": "使用此指令运行 (⌘⏎)"
 }
