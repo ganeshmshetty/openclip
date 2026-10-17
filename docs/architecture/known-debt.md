@@ -369,6 +369,13 @@ areas; stale debt notes are worse than none.
   `ActionIcon` cases render through the shared `ActionIconView` (`Sources/OpenClip/UI/Icons/ActionIconView.swift`),
   including Iconify-format symbols (`prefix:name`). The popup bar keeps its own `iconView(for:)`
   (`PopupView.swift`) because text icons there need natural width + horizontal padding, not a fixed frame.
+- **Iconify SVGs load through `IconifySVGLoader`** (`IconPickerView.swift`): at most 6 requests at once,
+  an 8 s timeout, 3 attempts with 0.4 s / 0.8 s backoff on network errors, 408, 429 and 5xx, and a muted
+  `questionmark.square` instead of an endless placeholder (#156). Successes are cached for the session;
+  failures are skipped for 30 s, then refetched when the view reappears. There is no tap-to-retry, because
+  the tile sits inside the picker's selection button and the popup's action buttons. Search results drop the
+  multicolor sets in `IconifyFetchPolicy.multicolorPrefixes`, since the API returns them despite `palette=false`.
+  Fetches are one request per icon, not batched through `/{prefix}.json`.
 - **Popup sizing constants live in the App target.** `PopupMetrics`
   (`Sources/OpenClip/UI/Popup/PopupMetrics.swift`) holds the UI-only values — `searchMaxRows`
   (5), `searchResultRowHeight` (32), `searchPeekRowFraction` (0.5), `popupMaxHeight` (300, the

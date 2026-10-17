@@ -92,3 +92,45 @@ final class ActionIconResolveTests: XCTestCase {
         XCTAssertEqual(IconOpticalCategory.standard.opticalMultiplier, 1.0)
     }
 }
+
+final class IconifyFetchPolicyTests: XCTestCase {
+    func testStatusCodesSplitIntoSuccessRetryAndGiveUp() {
+        XCTAssertEqual(IconifyFetchPolicy.outcome(forStatusCode: 200), .success)
+        XCTAssertEqual(IconifyFetchPolicy.outcome(forStatusCode: 429), .retry)
+        XCTAssertEqual(IconifyFetchPolicy.outcome(forStatusCode: 503), .retry)
+        XCTAssertEqual(IconifyFetchPolicy.outcome(forStatusCode: 408), .retry)
+        XCTAssertEqual(IconifyFetchPolicy.outcome(forStatusCode: 404), .giveUp)
+        XCTAssertEqual(IconifyFetchPolicy.outcome(forStatusCode: 403), .giveUp)
+    }
+
+    func testBackoffDoublesAndFirstAttemptDoesNotWait() {
+        XCTAssertEqual(IconifyFetchPolicy.backoffNanoseconds(beforeAttempt: 0), 0)
+        XCTAssertEqual(IconifyFetchPolicy.backoffNanoseconds(beforeAttempt: 1), 400_000_000)
+        XCTAssertEqual(IconifyFetchPolicy.backoffNanoseconds(beforeAttempt: 2), 800_000_000)
+    }
+
+    func testFailuresExpireAfterCooldown() {
+        let failedAt = Date(timeIntervalSince1970: 1_000)
+        XCTAssertTrue(IconifyFetchPolicy.isCoolingDown(failedAt: failedAt, now: failedAt.addingTimeInterval(5)))
+        XCTAssertFalse(IconifyFetchPolicy.isCoolingDown(
+            failedAt: failedAt,
+            now: failedAt.addingTimeInterval(IconifyFetchPolicy.failureCooldown + 1)
+        ))
+    }
+
+    func testSVGURLRequiresPrefixAndName() {
+        XCTAssertEqual(IconifyFetchPolicy.svgURL(for: "mdi:boat")?.absoluteString, "https://api.iconify.design/mdi/boat.svg")
+        XCTAssertNil(IconifyFetchPolicy.svgURL(for: "boat"))
+        XCTAssertNil(IconifyFetchPolicy.svgURL(for: ":boat"))
+        XCTAssertNil(IconifyFetchPolicy.svgURL(for: "mdi:"))
+    }
+
+    func testMulticolorSetsAreFilteredButMonochromeSetsAreKept() {
+        XCTAssertTrue(IconifyFetchPolicy.isMulticolor(iconId: "selfhst:chatgpt"))
+        XCTAssertTrue(IconifyFetchPolicy.isMulticolor(iconId: "logos:claude"))
+        XCTAssertFalse(IconifyFetchPolicy.isMulticolor(iconId: "mdi:boat"))
+        XCTAssertFalse(IconifyFetchPolicy.isMulticolor(iconId: "devicon-plain:claude"))
+        XCTAssertFalse(IconifyFetchPolicy.isMulticolor(iconId: "selfhst"))
+    }
+}
+

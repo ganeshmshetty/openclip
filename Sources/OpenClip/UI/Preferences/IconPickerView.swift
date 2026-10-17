@@ -436,69 +436,160 @@ public struct AnyIconView: View {
 
 struct IconifySVGView: View {
     let iconId: String
-    @State private var image: NSImage? = nil
+
+    private enum LoadState {
+        case loading
+        case loaded(NSImage)
+        case failed
+    }
+    @State private var state: LoadState = .loading
 
     var body: some View {
         Group {
-            if let img = image {
+            switch state {
+            case .loaded(let img):
                 Image(nsImage: img)
                     .resizable()
                     .renderingMode(.template)
                     .scaledToFit()
-            } else {
+            case .loading:
                 Color.primary.opacity(0.1)
                     .overlay(ProgressView().controlSize(.mini))
+            case .failed:
+                // Never spin forever; the fetch is retried the next time the view appears.
+                Image(systemName: "questionmark.square")
+                    .resizable()
+                    .scaledToFit()
+                    .opacity(0.5)
             }
         }
         .task(id: iconId) {
-            if let box = await fetchSVGImage(iconId: iconId) {
-                image = box.image
+            if case .failed = state { state = .loading }
+            let box = await IconifySVGLoader.shared.image(for: iconId)
+            guard !Task.isCancelled else { return }
+            if let box {
+                state = .loaded(box.image)
+            } else {
+                state = .failed
             }
         }
     }
-
-    /// Fetches and decodes off the main actor so neither the network nor the SVG decode blocks the UI.
-    private nonisolated func fetchSVGImage(iconId: String) async -> IconImageBox? {
-        if let cached = await IconSVGCache.shared.get(iconId) { return cached }
-
-        let parts = iconId.split(separator: ":", maxSplits: 1)
-        guard parts.count == 2,
-              let url = URL(string: "https://api.iconify.design/\(parts[0])/\(parts[1]).svg") else {
-            return nil
-        }
-
-        let data: Data
-        do {
-            (data, _) = try await URLSession.shared.data(from: url)
-        } catch {
-            Log.icons.debug("Failed to download icon '\(iconId)': \(error.localizedDescription)")
-            return nil
-        }
-
-        guard let decoded = SDImageSVGCoder.shared.decodedImage(with: data, options: nil) else {
-            return nil
-        }
-
-        // Template image: rendered as a tintable vector mask.
-        decoded.isTemplate = true
-        let box = IconImageBox(image: decoded)
-        await IconSVGCache.shared.set(iconId, box: box)
-        return box
-    }
 }
 
-// MARK: - Icon Cache Actor
+// MARK: - Iconify SVG Loader
 
 /// `NSImage` is not Sendable; the box is fully decoded before it crosses to the main actor.
-fileprivate struct IconImageBox: @unchecked Sendable {
+struct IconImageBox: @unchecked Sendable {
     let image: NSImage
 }
 
-fileprivate actor IconSVGCache {
-    static let shared = IconSVGCache()
-    private var store: [String: IconImageBox] = [:]
-    func get(_ key: String) -> IconImageBox? { store[key] }
-    func set(_ key: String, box: IconImageBox) { store[key] = box }
+/// Loads Iconify SVGs with bounded concurrency, a per-request timeout, and retries with backoff.
+/// Successes are cached for the session; failures only for `IconifyFetchPolicy.failureCooldown`.
+actor IconifySVGLoader {
+    static let shared = IconifySVGLoader()
+
+    private enum Attempt {
+        case loaded(IconImageBox)
+        case retry
+        case giveUp
+    }
+
+    private var images: [String: IconImageBox] = [:]
+    private var failures: [String: Date] = [:]
+    private var inFlight: [String: Task<IconImageBox?, Never>] = [:]
+    private var activeRequests = 0
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func image(for iconId: String) async -> IconImageBox? {
+        if let cached = images[iconId] { return cached }
+        if let failedAt = failures[iconId],
+           IconifyFetchPolicy.isCoolingDown(failedAt: failedAt, now: Date()) {
+            return nil
+        }
+        if let running = inFlight[iconId] { return await running.value }
+        guard let url = IconifyFetchPolicy.svgURL(for: iconId) else { return nil }
+
+        // Unstructured so a grid cell scrolling away does not cancel a fetch other cells may be awaiting.
+        let task = Task { await self.load(iconId: iconId, url: url) }
+        inFlight[iconId] = task
+        let result = await task.value
+        inFlight[iconId] = nil
+        if let result {
+            images[iconId] = result
+            failures[iconId] = nil
+        } else {
+            failures[iconId] = Date()
+        }
+        return result
+    }
+
+    private func load(iconId: String, url: URL) async -> IconImageBox? {
+        for attempt in 0..<IconifyFetchPolicy.maxAttempts {
+            if attempt > 0 {
+                try? await Task.sleep(nanoseconds: IconifyFetchPolicy.backoffNanoseconds(beforeAttempt: attempt))
+            }
+            // The slot is held only for the request itself, never across a backoff sleep.
+            await acquireSlot()
+            let outcome = await fetchOnce(iconId: iconId, url: url)
+            releaseSlot()
+            switch outcome {
+            case .loaded(let box):
+                return box
+            case .retry:
+                continue
+            case .giveUp:
+                return nil
+            }
+        }
+        Log.icons.debug("Giving up on icon '\(iconId, privacy: .public)' after repeated failures")
+        return nil
+    }
+
+    private func fetchOnce(iconId: String, url: URL) async -> Attempt {
+        let request = URLRequest(url: url, timeoutInterval: IconifyFetchPolicy.requestTimeout)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            Log.icons.debug("Failed to download icon '\(iconId, privacy: .public)': \(error.localizedDescription, privacy: .public)")
+            return .retry
+        }
+        if let http = response as? HTTPURLResponse {
+            switch IconifyFetchPolicy.outcome(forStatusCode: http.statusCode) {
+            case .success:
+                break
+            case .retry:
+                return .retry
+            case .giveUp:
+                return .giveUp
+            }
+        }
+        guard let decoded = SDImageSVGCoder.shared.decodedImage(with: data, options: nil) else {
+            Log.icons.debug("Could not decode SVG for icon '\(iconId, privacy: .public)'")
+            return .giveUp
+        }
+        // Template image: rendered as a tintable vector mask.
+        decoded.isTemplate = true
+        return .loaded(IconImageBox(image: decoded))
+    }
+
+    private func acquireSlot() async {
+        if activeRequests < IconifyFetchPolicy.maxConcurrentRequests {
+            activeRequests += 1
+            return
+        }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    /// Hands a freed slot straight to the oldest waiter, so `activeRequests` stays at the cap while any wait.
+    private func releaseSlot() {
+        if waiters.isEmpty {
+            activeRequests -= 1
+        } else {
+            waiters.removeFirst().resume()
+        }
+    }
 }
 
 // MARK: - Minimalistic Popover Wrapper

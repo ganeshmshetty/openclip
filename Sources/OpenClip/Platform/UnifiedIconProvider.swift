@@ -125,10 +125,69 @@ public final class UnifiedIconProvider: ObservableObject, Sendable {
             Log.icons.warning("Iconify search for '\(query)' returned no usable results")
             return []
         }
-        return icons.map { iconId in
+        return icons.filter { !IconifyFetchPolicy.isMulticolor(iconId: $0) }.map { iconId in
             let parts = iconId.split(separator: ":", maxSplits: 1)
             let label = parts.count == 2 ? String(parts[1]).replacingOccurrences(of: "-", with: " ").capitalized : iconId
             return IconEntry(id: iconId, name: label, library: "Iconify")
         }
+    }
+}
+
+// MARK: - Iconify fetch policy
+
+/// Timeout, retry, and filtering rules for Iconify requests, kept pure so tests can pin them.
+enum IconifyFetchPolicy {
+    static let maxConcurrentRequests = 6
+    static let requestTimeout: TimeInterval = 8
+    static let maxAttempts = 3
+    /// A failed icon is not refetched inside this window, so a scrolling grid cannot hammer the API.
+    static let failureCooldown: TimeInterval = 30
+
+    /// Sets whose glyphs carry their own colors. The search API returns them despite `palette=false`,
+    /// and as template images they collapse into solid shapes.
+    static let multicolorPrefixes: Set<String> = [
+        "selfhst", "thesvg-color", "token-branded", "logos", "devicon", "material-icon-theme",
+        "vscode-icons", "skill-icons", "flat-color-icons", "twemoji", "openmoji", "noto",
+        "fluent-emoji", "fluent-emoji-flat", "emojione", "fxemoji", "streamline-emojis"
+    ]
+
+    enum StatusOutcome: Equatable {
+        case success
+        case retry
+        case giveUp
+    }
+
+    static func outcome(forStatusCode status: Int) -> StatusOutcome {
+        switch status {
+        case 200..<300:
+            return .success
+        case 408, 429, 500...599:
+            return .retry
+        default:
+            return .giveUp
+        }
+    }
+
+    /// Exponential backoff before a retry: 0.4 s, then 0.8 s. The first attempt never waits.
+    static func backoffNanoseconds(beforeAttempt attempt: Int) -> UInt64 {
+        guard attempt > 0 else { return 0 }
+        let base: UInt64 = 400_000_000
+        return base << UInt64(min(attempt - 1, 4))
+    }
+
+    static func isCoolingDown(failedAt: Date, now: Date) -> Bool {
+        now.timeIntervalSince(failedAt) < failureCooldown
+    }
+
+    static func svgURL(for iconId: String) -> URL? {
+        let parts = iconId.split(separator: ":", maxSplits: 1)
+        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+        return URL(string: "https://api.iconify.design/\(parts[0])/\(parts[1]).svg")
+    }
+
+    static func isMulticolor(iconId: String) -> Bool {
+        let parts = iconId.split(separator: ":", maxSplits: 1)
+        guard parts.count == 2 else { return false }
+        return multicolorPrefixes.contains(String(parts[0]))
     }
 }
