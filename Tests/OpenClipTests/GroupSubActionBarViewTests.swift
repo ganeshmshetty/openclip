@@ -42,19 +42,6 @@ final class GroupSubActionBarViewTests: XCTestCase {
     }
 
     @MainActor
-    func testTwoCharacterCJKTitlesRenderAsLabels() {
-        // #156: 2-character CJK titles used the glyph badge (13.95 pt semibold rounded) while
-        // 3+ character titles used the 15 pt regular label, so a group mixed two text sizes.
-        XCTAssertTrue(ActionTextIconStyle.isCompactGlyph("AB"))
-        XCTAssertTrue(ActionTextIconStyle.isCompactGlyph("#"))
-        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph(""))
-        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph("翻译"))
-        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph("コピ"))
-        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph("복사"))
-        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph("Copy"))
-    }
-
-    @MainActor
     func testCJKTextWidthIsNotUnderestimated() {
         let twoCJK = TestAction(id: "cjk2", title: "翻译", icon: .text("翻译"))
         let fourCJK = TestAction(id: "cjk4", title: "正式语气", icon: .text("正式语气"))
@@ -62,6 +49,14 @@ final class GroupSubActionBarViewTests: XCTestCase {
         XCTAssertGreaterThan(GroupSubActionBarView.estimatedButtonWidth(for: twoCJK), PopupMetrics.actionButtonWidth)
         XCTAssertGreaterThan(GroupSubActionBarView.estimatedButtonWidth(for: fourCJK),
                              GroupSubActionBarView.estimatedButtonWidth(for: fourLatin))
+    }
+
+    @MainActor
+    func testEmojiTextWidthIsNotUnderestimated() {
+        let emoji = TestAction(id: "emoji3", title: "x", icon: .text("👍👍👍"))
+        let latin = TestAction(id: "lat3", title: "x", icon: .text("abc"))
+        XCTAssertGreaterThan(GroupSubActionBarView.estimatedButtonWidth(for: emoji),
+                             GroupSubActionBarView.estimatedButtonWidth(for: latin))
     }
 
     @MainActor

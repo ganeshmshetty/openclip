@@ -172,6 +172,11 @@ enum ActionTextIconStyle {
         return !text.unicodeScalars.contains(where: isWide)
     }
 
+    /// Emoji are as wide as full-width characters in a label, but stay badges when there are one or two.
+    static func rendersFullWidth(_ character: Character) -> Bool {
+        character.unicodeScalars.contains { isWide($0) || $0.properties.isEmojiPresentation || $0.value == 0xFE0F }
+    }
+
     /// Full-width scripts render at roughly one em per character.
     static func isWide(_ scalar: Unicode.Scalar) -> Bool {
         if scalar.properties.isIdeographic { return true }

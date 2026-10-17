@@ -15,7 +15,7 @@ public enum PopupPageLayout {
 
     /// Per-character width estimate at the popup's 15 pt regular label font.
     private static let estimatedGlyphWidth: CGFloat = 9.0
-    /// CJK and other full-width characters are about one em wide at 15 pt.
+    /// CJK, emoji and other full-width characters are about one em wide at 15 pt.
     private static let estimatedWideGlyphWidth: CGFloat = 15.0
 
     /// Width of one action button. Inline-result actions size to their rendered preview text (capped), so pages
@@ -43,8 +43,7 @@ public enum PopupPageLayout {
     /// Estimated intrinsic width of a one-line label at the popup font, before any max-width clamp.
     private static func estimatedTextWidth(_ text: String, scale: CGFloat) -> CGFloat {
         let width = text.reduce(CGFloat(0)) { sum, character in
-            let isWide = character.unicodeScalars.contains(where: ActionTextIconStyle.isWide)
-            return sum + (isWide ? estimatedWideGlyphWidth : estimatedGlyphWidth)
+            sum + (ActionTextIconStyle.rendersFullWidth(character) ? estimatedWideGlyphWidth : estimatedGlyphWidth)
         }
         return width * scale
     }

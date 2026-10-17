@@ -464,7 +464,6 @@ struct IconifySVGView: View {
             }
         }
         .task(id: iconId) {
-            if case .failed = state { state = .loading }
             let box = await IconifySVGLoader.shared.image(for: iconId)
             guard !Task.isCancelled else { return }
             if let box {
@@ -487,6 +486,13 @@ struct IconImageBox: @unchecked Sendable {
 /// Successes are cached for the session; failures only for `IconifyFetchPolicy.failureCooldown`.
 actor IconifySVGLoader {
     static let shared = IconifySVGLoader()
+
+    typealias Fetch = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    private let fetch: Fetch
+
+    init(fetch: @escaping Fetch = { try await URLSession.shared.data(for: $0) }) {
+        self.fetch = fetch
+    }
 
     private enum Attempt {
         case loaded(IconImageBox)
@@ -550,10 +556,10 @@ actor IconifySVGLoader {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await fetch(request)
         } catch {
             Log.icons.debug("Failed to download icon '\(iconId, privacy: .public)': \(error.localizedDescription, privacy: .public)")
-            return .retry
+            return IconifyFetchPolicy.shouldRetry(urlErrorCode: (error as? URLError)?.code) ? .retry : .giveUp
         }
         if let http = response as? HTTPURLResponse {
             switch IconifyFetchPolicy.outcome(forStatusCode: http.statusCode) {

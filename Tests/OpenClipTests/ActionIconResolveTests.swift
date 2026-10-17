@@ -93,7 +93,47 @@ final class ActionIconResolveTests: XCTestCase {
     }
 }
 
+final class ActionTextIconStyleTests: XCTestCase {
+    func testTwoCharacterCJKTitlesRenderAsLabels() {
+        // #156: 2-character CJK titles used the glyph badge (13.95 pt semibold rounded) while
+        // 3+ character titles used the 15 pt regular label, so a group mixed two text sizes.
+        XCTAssertTrue(ActionTextIconStyle.isCompactGlyph("AB"))
+        XCTAssertTrue(ActionTextIconStyle.isCompactGlyph("#"))
+        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph(""))
+        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph("翻译"))
+        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph("コピ"))
+        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph("복사"))
+        XCTAssertFalse(ActionTextIconStyle.isCompactGlyph("Copy"))
+    }
+
+
+    func testEmojiStayBadgesButMeasureFullWidth() {
+        XCTAssertTrue(ActionTextIconStyle.isCompactGlyph("👍"))
+        XCTAssertTrue(ActionTextIconStyle.rendersFullWidth("👍"))
+        XCTAssertTrue(ActionTextIconStyle.rendersFullWidth("❤️"))
+        XCTAssertFalse(ActionTextIconStyle.rendersFullWidth("a"))
+    }
+}
+
 final class IconifyFetchPolicyTests: XCTestCase {
+    func testOnlyTransientNetworkErrorsAreRetried() {
+        XCTAssertTrue(IconifyFetchPolicy.shouldRetry(urlErrorCode: .timedOut))
+        XCTAssertTrue(IconifyFetchPolicy.shouldRetry(urlErrorCode: .networkConnectionLost))
+        XCTAssertFalse(IconifyFetchPolicy.shouldRetry(urlErrorCode: .notConnectedToInternet))
+        XCTAssertFalse(IconifyFetchPolicy.shouldRetry(urlErrorCode: .cancelled))
+        XCTAssertFalse(IconifyFetchPolicy.shouldRetry(urlErrorCode: .badURL))
+        XCTAssertFalse(IconifyFetchPolicy.shouldRetry(urlErrorCode: nil))
+    }
+
+    func testPaletteFlagsReadCollectionsResponse() {
+        let json = Data(#"{"mdi":{"palette":false},"logos":{"palette":true},"odd":{"name":"x"}}"#.utf8)
+        XCTAssertEqual(IconifyFetchPolicy.paletteFlags(fromCollectionsJSON: json), ["mdi": false, "logos": true])
+        XCTAssertEqual(IconifyFetchPolicy.paletteFlags(fromCollectionsJSON: Data("nope".utf8)), [:])
+        XCTAssertEqual(IconifyFetchPolicy.collectionsURL(for: ["b", "a"])?.absoluteString,
+                       "https://api.iconify.design/collections?prefixes=a,b")
+        XCTAssertNil(IconifyFetchPolicy.collectionsURL(for: []))
+    }
+
     func testStatusCodesSplitIntoSuccessRetryAndGiveUp() {
         XCTAssertEqual(IconifyFetchPolicy.outcome(forStatusCode: 200), .success)
         XCTAssertEqual(IconifyFetchPolicy.outcome(forStatusCode: 429), .retry)
@@ -134,3 +174,80 @@ final class IconifyFetchPolicyTests: XCTestCase {
     }
 }
 
+final class IconifyPaletteCatalogTests: XCTestCase {
+    func testAsksOncePerPrefixAndFallsBackToStaticListOffline() async {
+        let calls = LockedCounter()
+        let json = Data(#"{"mdi":{"palette":false},"fluent-color":{"palette":true}}"#.utf8)
+        let online = IconifyPaletteCatalog(fetch: { _ in calls.increment(); return json })
+        let first = await online.multicolorPrefixes(among: ["mdi", "fluent-color"])
+        let second = await online.multicolorPrefixes(among: ["mdi", "fluent-color"])
+        XCTAssertEqual(first, ["fluent-color"])
+        XCTAssertEqual(second, first)
+        XCTAssertEqual(calls.value, 1)
+
+        let offline = IconifyPaletteCatalog(fetch: { _ in nil })
+        let fallback = await offline.multicolorPrefixes(among: ["logos", "mdi"])
+        XCTAssertEqual(fallback, ["logos"])
+    }
+}
+
+final class IconifySVGLoaderTests: XCTestCase {
+    private static let svg = Data(#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>"#.utf8)
+
+    private static func ok(_ request: URLRequest) -> (Data, URLResponse) {
+        (Self.svg, HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+    }
+
+    func testConcurrentRequestsForOneIconShareOneFetch() async {
+        let calls = LockedCounter()
+        let loader = IconifySVGLoader(fetch: { request in
+            calls.increment()
+            try await Task.sleep(nanoseconds: 50_000_000)
+            return Self.ok(request)
+        })
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<5 { group.addTask { _ = await loader.image(for: "mdi:boat") } }
+        }
+        XCTAssertEqual(calls.value, 1)
+    }
+
+    func testNeverMoreThanTheCapInFlight() async {
+        let running = LockedCounter()
+        let loader = IconifySVGLoader(fetch: { request in
+            running.increment()
+            try await Task.sleep(nanoseconds: 30_000_000)
+            running.decrement()
+            return Self.ok(request)
+        })
+        await withTaskGroup(of: Void.self) { group in
+            for i in 0..<24 { group.addTask { _ = await loader.image(for: "mdi:icon-\(i)") } }
+        }
+        XCTAssertLessThanOrEqual(running.peak, IconifyFetchPolicy.maxConcurrentRequests)
+        XCTAssertGreaterThan(running.peak, 1)
+    }
+
+    func testPermanentFailureIsNotRetriedAndCoolsDown() async {
+        let calls = LockedCounter()
+        let loader = IconifySVGLoader(fetch: { request in
+            calls.increment()
+            return (Data(), HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!)
+        })
+        let first = await loader.image(for: "mdi:missing")
+        let second = await loader.image(for: "mdi:missing")
+        XCTAssertNil(first)
+        XCTAssertNil(second)
+        XCTAssertEqual(calls.value, 1)
+    }
+}
+
+final class LockedCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current = 0
+    private var maximum = 0
+    private var total = 0
+
+    func increment() { lock.withLock { current += 1; total += 1; maximum = max(maximum, current) } }
+    func decrement() { lock.withLock { current -= 1 } }
+    var value: Int { lock.withLock { total } }
+    var peak: Int { lock.withLock { maximum } }
+}
