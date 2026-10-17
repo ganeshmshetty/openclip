@@ -315,7 +315,7 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertEqual(results.map(\.id), ["action"])
         XCTAssertEqual(results[0].target, .page([.extensionPackage(id: "language-tools"), .action(id: "translate")]))
         XCTAssertEqual(generalControl.target, .generalControl(id: "general.accessibilityAccess"))
-        XCTAssertEqual(GeneralSearchTarget.all.count, 9)
+        XCTAssertEqual(GeneralSearchTarget.all.count, 11)
         XCTAssertEqual(Set(GeneralSearchTarget.all).count, GeneralSearchTarget.all.count)
     }
 

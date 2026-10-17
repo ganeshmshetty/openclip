@@ -121,7 +121,7 @@ Sources/
     │       ├── CLIProvider.swift             # Subprocess CLI runner (Claude Code, Codex CLI, GitHub Copilot)
     │       ├── CloudAPIProvider.swift        # OpenAI-compatible / Anthropic / Gemini / DeepSeek / Groq cloud chat
     │       ├── CloudAPIProviderDTOs.swift    # Codable chat request/response payloads for cloud APIs
-    │       └── LocalLLMProvider.swift        # Universal local LLM runner (LM Studio, Ollama, Jan, llama.cpp)
+    │       └── LocalLLMProvider.swift        # Universal local LLM runner (LM Studio, Ollama, Jan, llama.cpp, oMLX)
     ├── Notifications/
     │   └── Notification.Name+OpenClip.swift  # Internal notification names
     ├── Platform/                             # macOS Platform Services

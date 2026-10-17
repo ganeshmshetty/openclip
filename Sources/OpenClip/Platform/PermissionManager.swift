@@ -12,11 +12,14 @@ public final class PermissionManager: ObservableObject {
     public static let shared = PermissionManager()
 
     @Published public private(set) var isAccessibilityGranted: Bool = false
+    /// Screen Recording, needed only by Capture Text. Optional: the rest of the app works without it.
+    @Published public private(set) var isScreenRecordingGranted: Bool = false
 
     private var pollingTask: Task<Void, Never>?
 
     private init() {
         self.isAccessibilityGranted = Self.queryAX()
+        self.isScreenRecordingGranted = Self.queryScreenRecording()
     }
 
     // MARK: - Public API
@@ -41,6 +44,39 @@ public final class PermissionManager: ObservableObject {
         if isAccessibilityGranted != current {
             isAccessibilityGranted = current
             NotificationCenter.default.post(name: .openClipAccessibilityChanged, object: current)
+        }
+        let screenRecording = Self.queryScreenRecording()
+        if isScreenRecordingGranted != screenRecording {
+            isScreenRecordingGranted = screenRecording
+        }
+    }
+
+    /// Asks TCC to list OpenClip under Screen Recording, then opens the pane. macOS usually applies a
+    /// new grant only after the app restarts, so the row keeps showing "Required" until relaunch.
+    /// A rebuilt or updated copy with a new signature leaves a stale TCC entry that macOS lists as
+    /// off or hides entirely, so an ungranted request clears that entry first and re-registers.
+    public func requestScreenRecordingPermission() {
+        startMonitoring()
+        Task { @MainActor in
+            if !Self.queryScreenRecording() {
+                await Self.resetScreenRecordingEntry()
+                _ = CGRequestScreenCaptureAccess()
+            }
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    private static func resetScreenRecordingEntry() async {
+        do {
+            _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
+                executableURL: URL(fileURLWithPath: "/usr/bin/tccutil"),
+                arguments: ["reset", "ScreenCapture", Bundle.main.bundleIdentifier ?? "com.openclip.OpenClip"],
+                environment: [:]
+            ))
+        } catch {
+            Log.permissions.error("Failed to reset Screen Recording permission: \(error.localizedDescription)")
         }
     }
 
@@ -89,5 +125,9 @@ public final class PermissionManager: ObservableObject {
     /// Direct TCC query — bypasses any in-process caching.
     private static func queryAX() -> Bool {
         AXIsProcessTrustedWithOptions(nil)
+    }
+
+    private static func queryScreenRecording() -> Bool {
+        CGPreflightScreenCaptureAccess()
     }
 }

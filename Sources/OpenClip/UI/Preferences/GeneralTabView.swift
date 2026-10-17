@@ -17,6 +17,8 @@ struct GeneralTab: View {
     @State private var showMenuBarIcon: Bool
     @State private var isMouseHoldEnabled: Bool
     @Setting(SettingKey.captureTextAutoCopy) private var captureTextAutoCopy
+    @Setting(SettingKey.playCopySound) private var playCopySound
+    @Setting(SettingKey.copySoundName) private var copySoundName
     @State private var fileSaveLocation: String
     @ObservedObject private var launchManager = LaunchAtLoginManager.shared
     @ObservedObject private var permissionManager = PermissionManager.shared
@@ -39,7 +41,7 @@ struct GeneralTab: View {
                 SettingsCard("Selection & Mouse") {
                     SettingsToggleRow(
                         title: "Appear Automatically",
-                        subtitle: "Show the popup as soon as text is selected.",
+                        info: "Show the popup as soon as text is selected.",
                         systemImage: "cursorarrow",
                         plainIcon: true,
                         isOn: $isAppEnabled
@@ -55,7 +57,7 @@ struct GeneralTab: View {
 
                     SettingsToggleRow(
                         title: "Hold Mouse to Trigger",
-                        subtitle: "Press and hold without moving the mouse to summon the popup.",
+                        info: "Press and hold without moving the mouse to summon the popup.",
                         systemImage: "hand.tap",
                         plainIcon: true,
                         isOn: $isMouseHoldEnabled
@@ -73,7 +75,7 @@ struct GeneralTab: View {
                 SettingsCard("Shortcuts") {
                     SettingsRow(
                         title: "Command Palette",
-                        subtitle: "Open the search palette for selected text or clipboard.",
+                        info: "Open the search palette for selected text or clipboard.",
                         systemImage: "command",
                         plainIcon: true
                     ) {
@@ -87,7 +89,7 @@ struct GeneralTab: View {
                     VStack(alignment: .leading, spacing: 0) {
                         SettingsRow(
                             title: "Capture Text",
-                            subtitle: "Select a screen region to extract text.",
+                            info: "Select a screen region to extract text.",
                             systemImage: "viewfinder",
                             plainIcon: true
                         ) {
@@ -150,6 +152,36 @@ struct GeneralTab: View {
                 }
 
                 SettingsCard("App") {
+                    SettingsRow(
+                        title: "Play Sound on Copy",
+                        systemImage: "speaker.wave.2",
+                        plainIcon: true
+                    ) {
+                        HStack(spacing: 10) {
+                            Picker("Sound", selection: $copySoundName) {
+                                ForEach(CopySound.allCases) { sound in
+                                    Text(LocalizedStringKey(sound.title)).tag(sound.rawValue)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .fixedSize()
+                            .disabled(!playCopySound)
+                            .onChange(of: copySoundName) { _, newValue in
+                                CopySound(stored: newValue).play()
+                            }
+
+                            Toggle("", isOn: $playCopySound)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .accessibilityLabel("Play Sound on Copy")
+                        }
+                    }
+                    .id(GeneralSearchTarget.playCopySound)
+                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.playCopySound))
+
+                    SettingsDivider()
+
                     SettingsToggleRow(
                         title: "Show Menu Bar Icon",
                         systemImage: "menubar.rectangle",
@@ -181,7 +213,7 @@ struct GeneralTab: View {
                         SettingsDivider()
                         SettingsRow(
                             title: "Approval Required",
-                            subtitle: "Enable OpenClip under System Settings > General > Login Items & Extensions.",
+                            info: "Enable OpenClip under System Settings > General > Login Items & Extensions.",
                             systemImage: "exclamationmark.triangle.fill",
                             plainIcon: true
                         ) {
@@ -202,7 +234,7 @@ struct GeneralTab: View {
                 SettingsCard("Permissions") {
                     SettingsRow(
                         title: "Accessibility Access",
-                        subtitle: "Required to read the selected text.",
+                        info: "Required to read the selected text.",
                         systemImage: "lock.shield",
                         plainIcon: true
                     ) {
@@ -230,6 +262,39 @@ struct GeneralTab: View {
                     }
                     .id(GeneralSearchTarget.accessibilityAccess)
                     .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.accessibilityAccess))
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        title: "Screen Recording Access",
+                        info: "Required for Capture Text. Restart OpenClip after allowing it.",
+                        systemImage: "rectangle.dashed.badge.record",
+                        plainIcon: true
+                    ) {
+                        HStack(spacing: 8) {
+                            Image(systemName: permissionManager.isScreenRecordingGranted
+                                  ? "checkmark.circle.fill"
+                                  : "exclamationmark.triangle.fill")
+                                .font(.callout)
+                                .foregroundStyle(permissionManager.isScreenRecordingGranted ? Color.green : Color.orange)
+                                .accessibilityLabel(permissionManager.isScreenRecordingGranted
+                                                    ? String(localized: "Granted")
+                                                    : String(localized: "Access Required"))
+
+                            Button(String(localized: "Open Settings")) {
+                                permissionManager.requestScreenRecordingPermission()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(SettingsDesignTokens.primaryText)
+                            .padding(.horizontal, 10)
+                            .frame(height: 24)
+                            .settingsGlassCapsule()
+                            .contentShape(Capsule())
+                        }
+                    }
+                    .id(GeneralSearchTarget.screenRecordingAccess)
+                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.screenRecordingAccess))
                 }
                 }
                 .padding(.horizontal, 24)

@@ -28,7 +28,6 @@ public struct GroupSubActionBarView: View {
     @ObservedObject private var modeStore: PopupModeStore
 
     @Setting(SettingKey.popupPageSize) private var pageSize
-    @Setting(SettingKey.popupFitToWidth) private var fitToWidth
 
     @Namespace private var hoverHighlightNamespace
 
@@ -60,7 +59,6 @@ public struct GroupSubActionBarView: View {
         screenWidth: CGFloat? = nil
     ) {
         _pageSize = Setting(SettingKey.popupPageSize, store: settingsStore)
-        _fitToWidth = Setting(SettingKey.popupFitToWidth, store: settingsStore)
         self.subActions = subActions
         self._currentPage = currentPage
         self.hoverState = hoverState
@@ -139,7 +137,7 @@ public struct GroupSubActionBarView: View {
             leadingWidth: 0,
             trailingWidth: 0,
             maxBudget: maxSubBarBudget,
-            maxItemsPerPage: fitToWidth ? Int.max : max(2, min(24, pageSize)),
+            maxItemsPerPage: max(2, min(24, pageSize)),
             scale: scale,
             presenter: presenter
         )

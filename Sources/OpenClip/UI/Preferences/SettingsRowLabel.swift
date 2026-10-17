@@ -192,6 +192,8 @@ struct SettingsRowLabel: View {
 struct SettingsRow<Trailing: View>: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?
+    /// Explanation shown in the (i) popover next to the title instead of a line under it.
+    var info: LocalizedStringKey?
     var subtitleText: Text?
     var systemImage: String?
     var iconTileTint: Color?
@@ -203,6 +205,7 @@ struct SettingsRow<Trailing: View>: View {
     init(
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey? = nil,
+        info: LocalizedStringKey? = nil,
         systemImage: String? = nil,
         iconTileTint: Color? = nil,
         plainIcon: Bool = false,
@@ -212,6 +215,7 @@ struct SettingsRow<Trailing: View>: View {
     ) {
         self.title = title
         self.subtitle = subtitle
+        self.info = info
         self.subtitleText = nil
         self.systemImage = systemImage
         self.iconTileTint = iconTileTint
@@ -244,24 +248,29 @@ struct SettingsRow<Trailing: View>: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            if let subtitleText {
-                SettingsRowLabel(
-                    title: title,
-                    subtitleText: subtitleText,
-                    systemImage: systemImage,
-                    iconTileTint: iconTileTint,
-                    plainIcon: plainIcon,
-                    descriptionOnHover: descriptionOnHover
-                )
-            } else {
-                SettingsRowLabel(
-                    title: title,
-                    subtitle: subtitle,
-                    systemImage: systemImage,
-                    iconTileTint: iconTileTint,
-                    plainIcon: plainIcon,
-                    descriptionOnHover: descriptionOnHover
-                )
+            HStack(alignment: .center, spacing: 8) {
+                if let subtitleText {
+                    SettingsRowLabel(
+                        title: title,
+                        subtitleText: subtitleText,
+                        systemImage: systemImage,
+                        iconTileTint: iconTileTint,
+                        plainIcon: plainIcon,
+                        descriptionOnHover: descriptionOnHover
+                    )
+                } else {
+                    SettingsRowLabel(
+                        title: title,
+                        subtitle: subtitle,
+                        systemImage: systemImage,
+                        iconTileTint: iconTileTint,
+                        plainIcon: plainIcon,
+                        descriptionOnHover: descriptionOnHover
+                    )
+                }
+                if let info {
+                    SettingsInfoButton(title: title, info: info)
+                }
             }
             Spacer(minLength: 12)
             trailing()
@@ -281,6 +290,7 @@ struct SettingsRow<Trailing: View>: View {
 struct SettingsToggleRow: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?
+    var info: LocalizedStringKey?
     var systemImage: String?
     var iconTileTint: Color?
     var plainIcon: Bool
@@ -289,6 +299,7 @@ struct SettingsToggleRow: View {
     init(
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey? = nil,
+        info: LocalizedStringKey? = nil,
         systemImage: String? = nil,
         iconTileTint: Color? = nil,
         plainIcon: Bool = false,
@@ -296,6 +307,7 @@ struct SettingsToggleRow: View {
     ) {
         self.title = title
         self.subtitle = subtitle
+        self.info = info
         self.systemImage = systemImage
         self.iconTileTint = iconTileTint
         self.plainIcon = plainIcon
@@ -306,6 +318,7 @@ struct SettingsToggleRow: View {
         SettingsRow(
             title: title,
             subtitle: subtitle,
+            info: info,
             systemImage: systemImage,
             iconTileTint: iconTileTint,
             plainIcon: plainIcon

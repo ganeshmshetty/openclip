@@ -36,6 +36,8 @@ public enum SettingsCatalog {
             SettingKey.startAtLogin.erased,
             SettingKey.completionCopyToClipboard.erased,
             SettingKey.captureTextAutoCopy.erased,
+            SettingKey.playCopySound.erased,
+            SettingKey.copySoundName.erased,
 
             // Updates
             SettingKey.automaticallyChecksForUpdates.erased,
@@ -46,7 +48,6 @@ public enum SettingsCatalog {
             // Popup presentation
             SettingKey.showSearchAllActions.erased,
             SettingKey.popupPageSize.erased,
-            SettingKey.popupFitToWidth.erased,
             SettingKey.popupBarWidth.erased,
             SettingKey.popupScale.erased,
             SettingKey.popupTheme.erased,

@@ -841,6 +841,34 @@
         }
       }
     },
+    "Accessibility": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "辅助功能"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輔助使用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessibilité"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクセシビリティ"
+          }
+        }
+      }
+    },
     "Accessibility Access": {
       "localizations": {
         "zh-Hans": {
@@ -1793,6 +1821,34 @@
         }
       }
     },
+    "Allow": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允許"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可"
+          }
+        }
+      }
+    },
     "Allow Screen Recording for OpenClip in System Settings, then reopen OpenClip.": {
       "localizations": {
         "zh-Hans": {
@@ -1817,6 +1873,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "システム設定で OpenClip の画面収録を許可してから、OpenClip を再度開いてください。"
+          }
+        }
+      }
+    },
+    "Allow…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允許…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可…"
           }
         }
       }
@@ -3165,6 +3249,34 @@
         }
       }
     },
+    "Bubble": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "气泡"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "氣泡"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bulle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バブル"
+          }
+        }
+      }
+    },
     "Built-in": {
       "localizations": {
         "zh-Hans": {
@@ -3469,6 +3581,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキストキャプチャのショートカット"
+          }
+        }
+      }
+    },
+    "Capture text from your screen": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从屏幕捕获文本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從螢幕擷取文字"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capturer du texte à l’écran"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面からテキストをキャプチャ"
           }
         }
       }
@@ -4673,6 +4813,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "続ける"
+          }
+        }
+      }
+    },
+    "Continue without access": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不授权，继续"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不授權，繼續"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuer sans accès"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクセスなしで続ける"
           }
         }
       }
@@ -7757,6 +7925,34 @@
         }
       }
     },
+    "Everything stays on your Mac.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一切都保留在你的 Mac 上。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一切都保留在你的 Mac 上。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout reste sur votre Mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてMac上で完結します。"
+          }
+        }
+      }
+    },
     "Example: com.apple.Terminal": {
       "localizations": {
         "zh-Hans": {
@@ -8457,34 +8653,6 @@
         }
       }
     },
-    "Fit to width": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "适应宽度"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配合寬度"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Adapter à la largeur"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "幅に合わせる"
-          }
-        }
-      }
-    },
     "Fix Code": {
       "localizations": {
         "zh-Hans": {
@@ -9041,6 +9209,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Google Gemini"
+          }
+        }
+      }
+    },
+    "Grant": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授权"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授權"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可する"
           }
         }
       }
@@ -10501,6 +10697,34 @@
         }
       }
     },
+    "Loading extensions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载扩展"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在載入擴充功能"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargement des extensions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拡張機能を読み込み中"
+          }
+        }
+      }
+    },
     "Local": {
       "localizations": {
         "zh-Hans": {
@@ -11393,6 +11617,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "次のページ"
+          }
+        }
+      }
+    },
+    "Nice, that's it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "很好，就是这样。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "很好，就是這樣。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bravo, c’est tout."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "できました。"
           }
         }
       }
@@ -13245,6 +13497,34 @@
         }
       }
     },
+    "Optional": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可选"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Facultatif"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任意"
+          }
+        }
+      }
+    },
     "Output": {
       "localizations": {
         "zh-Hans": {
@@ -13801,6 +14081,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "海賊言葉"
+          }
+        }
+      }
+    },
+    "Play Sound on Copy": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制时播放提示音"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製時播放提示音"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jouer un son lors de la copie"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピー時にサウンドを再生"
           }
         }
       }
@@ -14501,6 +14809,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenClipを終了"
+          }
+        }
+      }
+    },
+    "Read the text you select": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读取你选中的文本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讀取你選取的文字"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lire le texte que vous sélectionnez"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択したテキストを読み取る"
           }
         }
       }
@@ -15289,6 +15625,34 @@
         }
       }
     },
+    "Required for Capture Text. Restart OpenClip after allowing it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“捕获文本”需要此权限。允许后请重新启动 OpenClip。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「擷取文字」需要此權限。允許後請重新啟動 OpenClip。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requis pour la capture de texte. Redémarrez OpenClip après l’autorisation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "テキストキャプチャに必要です。許可後は OpenClip を再起動してください。"
+          }
+        }
+      }
+    },
     "Required option not set.": {
       "localizations": {
         "zh-Hans": {
@@ -15509,6 +15873,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "取得"
+          }
+        }
+      }
+    },
+    "Restart OpenClip to finish": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新启动 OpenClip 以完成"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新啟動 OpenClip 以完成"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redémarrez OpenClip pour terminer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip を再起動して完了"
           }
         }
       }
@@ -16265,6 +16657,90 @@
           "stringUnit": {
             "state": "translated",
             "value": "AIツールとして保存済み · 置換中…"
+          }
+        }
+      }
+    },
+    "Screen Recording": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屏幕录制"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "螢幕錄製"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrement d’écran"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面収録"
+          }
+        }
+      }
+    },
+    "Screen Recording (optional, for Capture Text)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屏幕录制（可选，用于捕获文本）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "螢幕錄製（選用，用於擷取文字）"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrement d’écran (facultatif, pour la capture de texte)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面収録（任意、テキストキャプチャ用）"
+          }
+        }
+      }
+    },
+    "Screen Recording Access": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屏幕录制权限"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "螢幕錄製權限"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accès à l’enregistrement d’écran"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面収録へのアクセス"
           }
         }
       }
@@ -17137,6 +17613,34 @@
         }
       }
     },
+    "Select any text below.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选中下方任意文本。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選取下方任意文字。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez un texte ci-dessous."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下のテキストを選択してください。"
+          }
+        }
+      }
+    },
     "Select any text to see OpenClip": {
       "localizations": {
         "zh-Hans": {
@@ -17161,6 +17665,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキストを選択するとOpenClipが表示されます"
+          }
+        }
+      }
+    },
+    "Select text anywhere to get instant actions.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在任何位置选中文本，即可获得即时操作。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在任何位置選取文字，即可取得即時動作。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez du texte n’importe où pour obtenir des actions instantanées."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "どこでもテキストを選択すると、すぐにアクションを実行できます。"
           }
         }
       }
@@ -18817,6 +19349,34 @@
         }
       }
     },
+    "Swoosh": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "嗖嗖"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "咻咻"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swoosh"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スウッ"
+          }
+        }
+      }
+    },
     "Synthesizing action…": {
       "localizations": {
         "zh-Hans": {
@@ -19121,6 +19681,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキスト文字「%@」 — クリックしてアイコンに置き換え"
+          }
+        }
+      }
+    },
+    "Text stays on your Mac unless you use cloud AI.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "除非使用云端 AI，文本不会离开你的 Mac。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "除非使用雲端 AI，文字不會離開你的 Mac。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le texte reste sur votre Mac, sauf si vous utilisez l’IA cloud."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クラウドAIを使わない限り、テキストはMacから出ません。"
           }
         }
       }
@@ -19629,6 +20217,62 @@
         }
       }
     },
+    "Thock": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "笃"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "篤"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toc"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トン"
+          }
+        }
+      }
+    },
+    "Tick": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "滴答"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "滴答"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tic"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カチッ"
+          }
+        }
+      }
+    },
     "Title": {
       "localizations": {
         "zh-Hans": {
@@ -19993,6 +20637,34 @@
         }
       }
     },
+    "Try it": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "试一试"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "試一試"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Essayez"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "試してみる"
+          }
+        }
+      }
+    },
     "Turn an action off to hide it from the popup bar. Open one to change its name, icon, shortcut and options.": {
       "localizations": {
         "zh-Hans": {
@@ -20129,6 +20801,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アクションをオフにするとポップアップバーから隠れます。開くと名前、アイコン、ショートカット、オプションを変更できます。"
+          }
+        }
+      }
+    },
+    "Two quick permissions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "两项快速授权"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "兩項快速授權"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deux autorisations rapides"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2つの簡単な許可"
           }
         }
       }

@@ -68,13 +68,8 @@ public struct MacSecondaryButtonStyle: ButtonStyle {
             .foregroundColor(.primary.opacity(0.85))
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.75)
-            )
-            .shadow(color: Color.black.opacity(configuration.isPressed ? 0.01 : 0.04), radius: 1.5, x: 0, y: 1)
+            .settingsGlassCapsule()
+            .contentShape(Capsule())
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
@@ -91,6 +86,7 @@ public struct OnboardingView: View {
     @State private var slideEdge: Edge = .trailing
     @State private var hasDetectedSelection = false
     @State private var isSkipHovered = false
+    @State private var didRequestScreenRecording = false
 
     public init(onComplete: @escaping @MainActor () -> Void) {
         self.onComplete = onComplete
@@ -106,8 +102,6 @@ public struct OnboardingView: View {
 
             // ── Center Content Area ────────────────────────────────────
             VStack {
-                Spacer(minLength: 0)
-
                 Group {
                     switch step {
                     case .welcome: welcomeStep
@@ -117,6 +111,7 @@ public struct OnboardingView: View {
                     }
                 }
                 .transition(.push(from: slideEdge))
+                .padding(.top, 8)
 
                 Spacer(minLength: 0)
             }
@@ -128,8 +123,15 @@ public struct OnboardingView: View {
                 .padding(.bottom, 20)
                 .padding(.top, 12)
         }
-        .frame(width: 520, height: 420)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(width: 520, height: 470)
+        .background {
+            // Same translucent surface as the Settings window.
+            ZStack {
+                VisualEffectView(material: .sidebar, blendingMode: .behindWindow, state: .active)
+                SettingsDesignTokens.windowScrim
+            }
+            .ignoresSafeArea()
+        }
         .onAppear { permissionManager.startMonitoring() }
         .onDisappear { permissionManager.stopMonitoring() }
     }
@@ -138,10 +140,6 @@ public struct OnboardingView: View {
 
     private var topBar: some View {
         HStack(alignment: .center, spacing: 12) {
-            Text("Step \(step.rawValue + 1) of \(OnboardingStep.allCases.count)")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.secondary)
-
             Spacer()
 
             // Compact Apple-style Progress Track
@@ -163,7 +161,7 @@ public struct OnboardingView: View {
             }
             .frame(width: 72, height: 8)
 
-            if step != .done {
+            if step != .done && step != .permission {
                 Button {
                     completeOnboarding()
                 } label: {
@@ -210,13 +208,21 @@ public struct OnboardingView: View {
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Text(step == .done ? String(localized: "Get Started") : String(localized: "Continue"))
+                    Text(continueTitle)
                     Image(systemName: step == .done ? "arrow.right.circle.fill" : "chevron.right")
                         .font(.system(size: 9.5, weight: .bold))
                 }
             }
             .buttonStyle(MacPrimaryButtonStyle())
             .keyboardShortcut(.defaultAction)
+        }
+    }
+
+    private var continueTitle: String {
+        switch step {
+        case .done: return String(localized: "Get Started")
+        case .permission where !permissionManager.isAccessibilityGranted: return String(localized: "Continue without access")
+        default: return String(localized: "Continue")
         }
     }
 
@@ -229,25 +235,37 @@ public struct OnboardingView: View {
         onComplete()
     }
 
+    /// The shared page header. Every step uses it so the icon, title and subtitle sit at the same
+    /// place and size on every page.
+    private func stepHero(icon: Image, title: LocalizedStringKey, subtitle: LocalizedStringKey? = nil) -> some View {
+        VStack(spacing: 6) {
+            icon
+                .renderingMode(.template)
+                .symbolRenderingMode(.hierarchical)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 42, height: 42)
+                .foregroundStyle(Color.accentColor)
+                .padding(.bottom, 2)
+
+            Text(title)
+                .font(.title2.weight(.bold))
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(minHeight: 40, alignment: .top)
+            }
+        }
+    }
+
     // MARK: - Screen 1: Welcome & Value Concept
 
     private var welcomeStep: some View {
         VStack(spacing: 16) {
-            // Hero
-            VStack(spacing: 6) {
-                Image(systemName: "cursorarrow.rays")
-                    .symbolRenderingMode(.hierarchical)
-                    .font(.system(size: 42))
-                    .foregroundStyle(Color.accentColor)
-
-                Text("Welcome to OpenClip")
-                    .font(.title2.weight(.bold))
-
-                Text("Turn selected text in any app into instant contextual actions.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+            stepHero(icon: Image(systemName: "cursorarrow.rays"), title: "Welcome to OpenClip", subtitle: "Select text anywhere to get instant actions.")
 
             // Realistic Selection & Floating Action Bar Mock
             VStack(spacing: 10) {
@@ -279,7 +297,7 @@ public struct OnboardingView: View {
                     .padding(.vertical, 6)
                     .background(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color(nsColor: .windowBackgroundColor))
+                            .fill(SettingsDesignTokens.sectionCardBackground)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -311,17 +329,12 @@ public struct OnboardingView: View {
                 .frame(maxWidth: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor))
+                        .fill(SettingsDesignTokens.sectionCardBackground)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                        .strokeBorder(SettingsDesignTokens.sectionCardBorder, lineWidth: 1)
                 )
-
-                Text("Calculates math, translates languages, speaks text & runs extensions.")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
             }
         }
     }
@@ -346,96 +359,119 @@ public struct OnboardingView: View {
     // MARK: - Screen 2: Permission & Privacy
 
     private var permissionStep: some View {
-        VStack(spacing: 16) {
-            // Hero
-            VStack(spacing: 6) {
-                Image(systemName: permissionManager.isAccessibilityGranted ? "checkmark.shield.fill" : "hand.raised.square.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .font(.system(size: 42))
-                    .foregroundStyle(permissionManager.isAccessibilityGranted ? Color.green : Color.accentColor)
+        VStack(spacing: 18) {
+            stepHero(icon: Image(systemName: "hand.raised.fill"), title: "Two quick permissions", subtitle: "Everything stays on your Mac.")
+            VStack(spacing: 10) {
+                permissionRow(
+                    icon: "hand.raised.fill",
+                    title: "Accessibility",
+                    reason: "Read the text you select",
+                    tag: "Required",
+                    isGranted: permissionManager.isAccessibilityGranted,
+                    isProminent: true,
+                    buttonTitle: "Grant"
+                ) { permissionManager.requestAccessibilityPermission() }
 
-                Text("Accessibility Access")
-                    .font(.title2.weight(.bold))
+                permissionRow(
+                    icon: "rectangle.dashed.badge.record",
+                    title: "Screen Recording",
+                    reason: "Capture text from your screen",
+                    tag: "Optional",
+                    isGranted: permissionManager.isScreenRecordingGranted,
+                    isProminent: false,
+                    buttonTitle: "Allow"
+                ) {
+                    didRequestScreenRecording = true
+                    permissionManager.requestScreenRecordingPermission()
+                }
 
-                Text("So OpenClip can see what you've selected — text stays local by default unless you invoke cloud AI or browser actions.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            // System Settings style Privacy Card
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "lock.shield.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .font(.system(size: 22))
-                    .foregroundColor(.green)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("100% Private & On-Device")
-                        .font(.headline)
-
-                    Text("Highlighted text stays on your Mac by default. OpenClip never collects background data, and only transmits text when you explicitly invoke cloud AI or browser actions.")
+                if didRequestScreenRecording && !permissionManager.isScreenRecordingGranted {
+                    Text("Restart OpenClip to finish")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-            )
 
-            // Permission Action
-            if permissionManager.isAccessibilityGranted {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("Accessibility Permission Granted")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.green)
-                }
-                .padding(.vertical, 4)
-            } else {
-                Button("Grant Access in System Settings…") {
-                    permissionManager.requestAccessibilityPermission()
-                }
-                .buttonStyle(MacPrimaryButtonStyle())
+            HStack(spacing: 5) {
+                Image(systemName: "lock.fill")
+                Text("Text stays on your Mac unless you use cloud AI.")
             }
+            .font(.system(size: 11.5))
+            .foregroundColor(.secondary)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: permissionManager.isAccessibilityGranted)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: permissionManager.isScreenRecordingGranted)
+    }
+
+    /// One permission, one row. Both permissions share this layout; `isProminent` only changes how
+    /// loudly the action button asks, so the optional one reads as quieter, not as a footnote.
+    private func permissionRow(icon: String, title: LocalizedStringKey, reason: LocalizedStringKey,
+                               tag: LocalizedStringKey, isGranted: Bool, isProminent: Bool,
+                               buttonTitle: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .symbolRenderingMode(.hierarchical)
+                .font(.system(size: 18))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 36, height: 36)
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.14))
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(title).font(.system(size: 13.5, weight: .semibold))
+                    Text(tag)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1.5)
+                        .background(Capsule().fill(Color.primary.opacity(0.08)))
+                }
+                Text(reason)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            if isGranted {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(.green)
+            } else {
+                Button(action: action) {
+                    Text(buttonTitle)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 14)
+                        .frame(height: 26)
+                        .settingsGlassCapsule(tint: isProminent ? Color.accentColor : nil)
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(SettingsDesignTokens.sectionCardBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(SettingsDesignTokens.sectionCardBorder, lineWidth: 1)
+        )
     }
 
     // MARK: - Screen 3: Extensions (Curated Defaults)
 
     private var extensionsStep: some View {
         VStack(spacing: 12) {
-            // Hero
-            VStack(spacing: 4) {
-                Image(systemName: "puzzlepiece.extension.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .font(.system(size: 38))
-                    .foregroundStyle(Color.accentColor)
-
-                Text("Essential Extensions")
-                    .font(.title2.weight(.bold))
-
-                Text("Install top extensions for instant translations, counts & speech.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+            stepHero(icon: Image(systemName: "puzzlepiece.extension.fill"), title: "Essential Extensions")
 
             RecommendedExtensionsView()
-
-            Text("Browse 100+ extensions in Menu Bar → Preferences")
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
     }
 
@@ -443,71 +479,38 @@ public struct OnboardingView: View {
 
     private var doneStep: some View {
         VStack(spacing: 14) {
-            // Hero
-            VStack(spacing: 4) {
-                Image(systemName: "sparkles")
-                    .symbolRenderingMode(.hierarchical)
-                    .font(.system(size: 38))
-                    .foregroundStyle(Color.green)
+            stepHero(icon: Image("MenuBarIcon"), title: "Try it", subtitle: "Select any text below.")
 
-                Text("Try It Right Now")
-                    .font(.title2.weight(.bold))
-
-                Text("Highlight any part of the text below to see the real action bar appear.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            // Live Interactive Sandbox Container with distinct "Live" border and cursor
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 4) {
-                    Image(systemName: "hand.tap.fill")
-                        .font(.system(size: 11))
-                        .foregroundColor(.accentColor)
-                    Text("Interactive Playground — select text:")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.secondary)
-                }
-
-                SandboxTextView(
-                    text: "Our team sync is Friday at 2:30pm — project budget is 1250 + 340. Check https://getopenclip.app for details.",
-                    onSelection: {
-                        if !hasDetectedSelection {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                hasDetectedSelection = true
-                            }
+            // One bordered box, large enough to select from comfortably.
+            SandboxTextView(
+                text: "Our team sync is Friday at 2:30pm — project budget is 1250 + 340. Check https://getopenclip.app for details.",
+                fontSize: 16,
+                onSelection: {
+                    if !hasDetectedSelection {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            hasDetectedSelection = true
                         }
                     }
-                )
-                .frame(height: 56)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(nsColor: .textBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(hasDetectedSelection ? Color.green.opacity(0.5) : Color.accentColor.opacity(0.35), lineWidth: 1.5)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            }
-            .padding(10)
+                }
+            )
+            .frame(height: 150)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(SettingsDesignTokens.sectionCardBackground)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(hasDetectedSelection ? Color.green.opacity(0.5) : Color.accentColor.opacity(0.35), lineWidth: 1.5)
             )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             // Selection Feedback or Shortcut hint
             if hasDetectedSelection {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                    Text("OpenClip detected selection! The action bar is active.")
-                        .font(.caption.weight(.medium))
+                    Text("Nice, that's it.")
+                        .font(.callout.weight(.medium))
                         .foregroundColor(.green)
                 }
                 .transition(.scale.combined(with: .opacity))
@@ -517,7 +520,7 @@ public struct OnboardingView: View {
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                     Text("Press ⌥⌘C anytime to open OpenClip manually.")
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundColor(.secondary)
                 }
             }

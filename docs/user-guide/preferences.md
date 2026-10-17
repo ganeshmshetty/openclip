@@ -224,6 +224,5 @@ AI settings are managed through `AIServiceManager` and isolated to ensure securi
 ## Actions per page
 
 In Appearance, use the minus/plus stepper to choose 2–24 actions per page (default 6).
-Enable **Fit to width** to let the popup fill the available width instead. This applies to
-the main bar and group bars; turning it off restores your saved count. Wide actions and
-smaller displays may still cause pagination before the chosen count is reached.
+This applies to the main bar and group bars. Wide actions and smaller displays may still
+cause pagination before the chosen count is reached.

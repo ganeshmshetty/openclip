@@ -404,9 +404,11 @@ public struct PreferencesView: View {
             (GeneralSearchTarget.captureText, "Capture Text"),
             (GeneralSearchTarget.captureTextAutoCopy, "Copy to Clipboard Automatically"),
             (GeneralSearchTarget.saveLocation, "Save Location"),
+            (GeneralSearchTarget.playCopySound, "Play Sound on Copy"),
             (GeneralSearchTarget.showMenuBarIcon, "Show Menu Bar Icon"),
             (GeneralSearchTarget.startAtLogin, "Start at Login"),
-            (GeneralSearchTarget.accessibilityAccess, "Accessibility Access")
+            (GeneralSearchTarget.accessibilityAccess, "Accessibility Access"),
+            (GeneralSearchTarget.screenRecordingAccess, "Screen Recording Access")
         ]
         entries.append(contentsOf: generalControls.map { control in
             .generalControl(

@@ -104,6 +104,8 @@ public extension SettingKey where Value == Bool {
     /// Once dismissed by any path, the post-onboarding coach-mark never shows again.
     static var hasDismissedPostOnboardingCoachMark: SettingKey<Bool> { SettingKey<Bool>("hasDismissedPostOnboardingCoachMark", defaultValue: false) }
     static var startAtLogin: SettingKey<Bool> { SettingKey<Bool>("startAtLogin", defaultValue: false) }
+    /// Plays a short system sound when an action copies to the clipboard.
+    static var playCopySound: SettingKey<Bool> { SettingKey<Bool>("playCopySound", defaultValue: false) }
     static var captureTextAutoCopy: SettingKey<Bool> { SettingKey<Bool>("captureTextAutoCopy", defaultValue: true) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
     /// True once the one-time migration (auto-trust existing installs) has run.
@@ -112,12 +114,11 @@ public extension SettingKey where Value == Bool {
     static var automaticallyDownloadsUpdates: SettingKey<Bool> { SettingKey<Bool>("automaticallyDownloadsUpdates", defaultValue: false) }
     static var automaticallyUpdatesExtensions: SettingKey<Bool> { SettingKey<Bool>("extension.automaticallyUpdates", defaultValue: true) }
     static var notifyOnUpdate: SettingKey<Bool> { SettingKey<Bool>("notifyOnUpdate", defaultValue: true) }
-    static var popupFitToWidth: SettingKey<Bool> { SettingKey<Bool>("popupFitToWidth", defaultValue: false) }
     static var contextualActionsEnabled: SettingKey<Bool> { SettingKey<Bool>("contextualActionsEnabled", defaultValue: true) }
 }
 
 public extension SettingKey where Value == Int {
-    /// Target number of actions displayed per page in the popup bar (2...24, default 6; ignored when popupFitToWidth is enabled).
+    /// Target number of actions displayed per page in the popup bar (2...24, default 6).
     static var popupPageSize: SettingKey<Int> { SettingKey<Int>("popupPageSize", defaultValue: 6) }
     /// Maximum width budget level for the popup bar from 1 to 5 (3 = Standard / Default ~540pt).
     static var popupBarWidth: SettingKey<Int> { SettingKey<Int>("popupBarWidth", defaultValue: 3) }
@@ -139,6 +140,8 @@ public extension SettingKey where Value == Data? {
 }
 
 public extension SettingKey where Value == String {
+    /// Which copy sound plays (a `CopySound` raw value); unknown values fall back to the default.
+    static var copySoundName: SettingKey<String> { SettingKey<String>("copySoundName", defaultValue: "swoosh") }
     static var lastAppUpdateNotificationIdentifier: SettingKey<String> { SettingKey<String>("lastAppUpdateNotificationIdentifier", defaultValue: "") }
     static var lastAnnouncedAppUpdateVersion: SettingKey<String> { SettingKey<String>("lastAnnouncedAppUpdateVersion", defaultValue: "") }
     /// Which side of the main bar the contextual actions island sits on; see `ContextualPillPosition`.

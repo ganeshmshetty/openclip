@@ -91,6 +91,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     private let targetActiveChecker: TargetActiveChecker
     private let frontmostPID: @MainActor () -> pid_t?
     private let copyOverlayPresent: @MainActor () -> Bool
+    private let copySoundPlayer: @MainActor (CopySound) -> Void
 
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
                 keyboardPoster: KeyboardEventPosting = SessionEventTapPoster(),
@@ -114,6 +115,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         self.copyOverlayPresent = {
             CopyTriggerGate.isForeignOverlayPresent(at: NSEvent.mouseLocation, intent: .explicitUserCopy)
         }
+        self.copySoundPlayer = { $0.play() }
     }
 
     public init(settingsStore: SettingsStore = DefaultSettingsStore.shared,
@@ -131,7 +133,8 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 frontmostPID: @escaping @MainActor () -> pid_t? = { NSWorkspace.shared.frontmostApplication?.processIdentifier },
                 copyOverlayPresent: @escaping @MainActor () -> Bool = {
                     CopyTriggerGate.isForeignOverlayPresent(at: NSEvent.mouseLocation, intent: .explicitUserCopy)
-                }) {
+                },
+                copySoundPlayer: @escaping @MainActor (CopySound) -> Void = { $0.play() }) {
         self.settingsStore = settingsStore
         self.keyboardPoster = keyboardPoster
         self.pasteboard = pasteboard
@@ -144,6 +147,13 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         self.targetActiveChecker = targetActiveChecker
         self.frontmostPID = frontmostPID
         self.copyOverlayPresent = copyOverlayPresent
+        self.copySoundPlayer = copySoundPlayer
+    }
+
+    /// Plays the copy sound when the user enabled it. Call only after the clipboard write succeeded.
+    private func playCopySoundIfEnabled() {
+        guard settingsStore.get(.playCopySound) else { return }
+        copySoundPlayer(CopySound(stored: settingsStore.get(.copySoundName)))
     }
 
 
@@ -185,6 +195,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         guard isCurrent() else { return false }
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+        playCopySoundIfEnabled()
         return true
     }
 
@@ -206,6 +217,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 throw NSError(domain: Constants.actionErrorDomain, code: Int(Constants.actionErrorCode),
                               userInfo: [NSLocalizedDescriptionKey: message])
             }
+            playCopySoundIfEnabled()
         case .copy(let text):
             try await copyText(text)
 
@@ -215,6 +227,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             let pasteboard = self.pasteboard
             pasteboard.clearContents()
             writePayload(payload, to: pasteboard)
+            playCopySoundIfEnabled()
 
         case .copyDefinition(let word):
             guard let definition = dictionaryLookup(word), !definition.isEmpty else {
@@ -229,6 +242,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             let pasteboard = self.pasteboard
             pasteboard.clearContents()
             pasteboard.setString(definition, forType: .string)
+            playCopySoundIfEnabled()
 
         case .cut(let text):
             let clipboardSession = try await OpenSelection.ClipboardCoordinator.shared.acquireSession(priority: .userAction, pasteboard: self.pasteboard)

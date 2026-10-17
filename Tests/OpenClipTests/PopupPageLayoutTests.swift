@@ -197,7 +197,7 @@ final class PopupPageLayoutTests: XCTestCase {
         XCTAssertEqual(flat, actions.map(\.id))
     }
 
-    func testFitToWidthExceedsTwelveAndStillPaginatesAtDifferentScales() {
+    func testUnlimitedItemsPerPageExceedsTwelveAndStillPaginatesAtDifferentScales() {
         let actions = (0..<26).map {
             StubAction(id: "act.\($0)", title: "Action \($0)", icon: .symbol("star"))
         }

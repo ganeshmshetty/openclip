@@ -19,6 +19,24 @@ final class ActionResultHandlerTests: XCTestCase {
         override var bundleIdentifier: String? { "md.obsidian" }
     }
 
+    func testCopyPlaysSoundOnlyWhenEnabled() async throws {
+        let board = NSPasteboard(name: .init("OpenClipCopySound-\(UUID().uuidString)"))
+        defer { board.releaseGlobally() }
+        let store = MemorySettingsStore()
+        var played: [CopySound] = []
+        let handler = DefaultActionResultHandler(
+            settingsStore: store, keyboardPoster: RecordingPoster(), pasteboard: board,
+            copySoundPlayer: { played.append($0) }
+        )
+        try await handler.handle(.copy("one"), in: nil)
+        XCTAssertTrue(played.isEmpty, "Sound is off by default")
+        store.set(.playCopySound, value: true)
+        store.set(.copySoundName, value: "thock")
+        try await handler.handle(.copy("two"), in: nil)
+        XCTAssertEqual(played, [.thock])
+        XCTAssertEqual(board.string(forType: .string), "two")
+    }
+
     func testCapturePickerRefusalIsNotReportedAsChangedSource() async throws {
         let board = NSPasteboard(name: .init("OpenClipNativeCopy-\(UUID().uuidString)"))
         defer { board.releaseGlobally() }

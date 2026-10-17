@@ -11,6 +11,7 @@ public enum LocalLLMPreset: String, CaseIterable, Identifiable, Sendable {
     case ollama = "ollama"
     case jan = "jan"
     case llamacpp = "llamacpp"
+    case omlx = "omlx"
     case custom = "custom"
 
     public var id: String { rawValue }
@@ -21,6 +22,7 @@ public enum LocalLLMPreset: String, CaseIterable, Identifiable, Sendable {
         case .ollama: return "Ollama"
         case .jan: return "Jan"
         case .llamacpp: return "llama.cpp / LocalAI"
+        case .omlx: return "oMLX"
         case .custom: return "Custom Local Server"
         }
     }
@@ -31,6 +33,7 @@ public enum LocalLLMPreset: String, CaseIterable, Identifiable, Sendable {
         case .ollama: return "http://localhost:11434/v1"
         case .jan: return "http://localhost:1337/v1"
         case .llamacpp: return "http://localhost:8080/v1"
+        case .omlx: return "http://127.0.0.1:8000/v1"
         case .custom: return "http://localhost:1234/v1"
         }
     }
@@ -41,6 +44,7 @@ public enum LocalLLMPreset: String, CaseIterable, Identifiable, Sendable {
         case .ollama: return ["llama3.2", "llama3.1", "qwen2.5", "mistral", "deepseek-r1"]
         case .jan: return ["default"]
         case .llamacpp: return ["default"]
+        case .omlx: return ["default"]
         case .custom: return ["default"]
         }
     }
@@ -51,6 +55,7 @@ public enum LocalLLMPreset: String, CaseIterable, Identifiable, Sendable {
         case .ollama: return "llama3.2"
         case .jan: return "mistral"
         case .llamacpp: return "default"
+        case .omlx: return "default"
         case .custom: return "default"
         }
     }

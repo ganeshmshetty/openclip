@@ -17,7 +17,7 @@ public final class OnboardingWindowController: NSWindowController {
 
     public convenience init(onComplete: @escaping @MainActor () -> Void) {
         let window = KeyableWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 470),
             styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -26,6 +26,9 @@ public final class OnboardingWindowController: NSWindowController {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
+        // Translucent like the Settings window: the SwiftUI root supplies the frosted surface.
+        window.isOpaque = false
+        window.backgroundColor = .clear
         window.isReleasedWhenClosed = false
         window.center()
 
@@ -38,6 +41,8 @@ public final class OnboardingWindowController: NSWindowController {
 
         let hosting = NSHostingView(rootView: view)
         hosting.translatesAutoresizingMaskIntoConstraints = false
+        hosting.wantsLayer = true
+        hosting.layer?.backgroundColor = NSColor.clear.cgColor
         window.contentView = hosting
     }
 

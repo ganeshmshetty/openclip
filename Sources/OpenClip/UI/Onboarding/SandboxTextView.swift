@@ -11,6 +11,7 @@ import Core
 @MainActor
 struct SandboxTextView: NSViewRepresentable {
     let text: String
+    var fontSize: CGFloat = 13
     var onSelection: (() -> Void)? = nil
 
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -70,10 +71,15 @@ struct SandboxTextView: NSViewRepresentable {
         textView.isEditable = false
         textView.isSelectable = true
         textView.isRichText = false
-        textView.font = .systemFont(ofSize: 13, weight: .regular)
+        textView.font = .systemFont(ofSize: fontSize, weight: .regular)
         textView.textColor = .labelColor
+        // Hint what to try: the sum is tinted, so selecting it shows the math action.
+        if let hint = textView.string.range(of: "1250 + 340"), let storage = textView.textStorage {
+            storage.addAttribute(.backgroundColor, value: NSColor.controlAccentColor.withAlphaComponent(0.25),
+                                 range: NSRange(hint, in: textView.string))
+        }
         textView.backgroundColor = .clear
-        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.textContainerInset = NSSize(width: fontSize > 14 ? 14 : 8, height: fontSize > 14 ? 14 : 8)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.textContainer?.widthTracksTextView = true

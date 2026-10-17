@@ -28,6 +28,7 @@
 		09A58930CFE1B6C771AAF8D4 /* MacSelectionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6129D3E6F351430FA57265B6 /* MacSelectionMonitor.swift */; };
 		0ABD4746A74B3657C3550DCE /* PopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F42C959E23FBB018FD815BBD /* PopupView.swift */; };
 		0AC19FB1B891B14A5D9D2ABD /* AppIdentifying+NSRunningApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD2E8E311CD870FA0E955A9 /* AppIdentifying+NSRunningApplication.swift */; };
+		0B22ECBA391ABA9524583CF1 /* CopySoundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6539346031BCAD0ED7AC2E8 /* CopySoundTests.swift */; };
 		0C858BC901D1378787CFCA42 /* AppLaunchClassifierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7F93A0807221276A6B0310 /* AppLaunchClassifierTests.swift */; };
 		0D2A9ED17EFBDC8259536BBC /* PopupSwatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008D32978D99AC38A9BFE8F1 /* PopupSwatch.swift */; };
 		0DB40D898F2B38135F0E61F5 /* SettingsSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AAACCF97417074C7D92379 /* SettingsSnapshotTests.swift */; };
@@ -210,6 +211,7 @@
 		811D5963BD80628028652B4E /* GroupSubActionBarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F22A90B773C83E7891252D3F /* GroupSubActionBarViewTests.swift */; };
 		81DE7F9D785C381BD5BC32E7 /* SettingsRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB51CCF85D073D65583B8B60 /* SettingsRouterTests.swift */; };
 		8338B9836EE4705E1F77FABF /* ExtensionInstallPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B089BADD4537CE2BF5489A37 /* ExtensionInstallPanel.swift */; };
+		839C2279D011BBA668BB615F /* CopySound.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21FC46A5019B087F3C2F8C24 /* CopySound.swift */; };
 		840EBC7CFB3BC038347B9D7B /* ExtensionOutputContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2F75856E239C65CF4300FA /* ExtensionOutputContract.swift */; };
 		84E4BB6969912DE94A5736AA /* NewCustomActionPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43164B559184ADE5F08C1FDD /* NewCustomActionPage.swift */; };
 		84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */; };
@@ -522,6 +524,7 @@
 		20C4D27D498FCD6DFC9A9AB5 /* SettingsNavigationStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNavigationStack.swift; sourceTree = "<group>"; };
 		21BC5F36101A0DE0E8903EDD /* ActionChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionChromeTests.swift; sourceTree = "<group>"; };
 		21E17C75D960E9971F612C38 /* PasteRequiringAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteRequiringAction.swift; sourceTree = "<group>"; };
+		21FC46A5019B087F3C2F8C24 /* CopySound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySound.swift; sourceTree = "<group>"; };
 		250FCC2706D32E4D7564603C /* DeepLinkRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkRouter.swift; sourceTree = "<group>"; };
 		2572DD3317F7F2F6366D6FBF /* AXTextControlStrategyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXTextControlStrategyTests.swift; sourceTree = "<group>"; };
 		2582277236A4342581920E66 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -799,6 +802,7 @@
 		C5F2AB8A6E0D1E5BC1ECFA6A /* IntegrationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationSettings.swift; sourceTree = "<group>"; };
 		C5FC00AC73CC488DBF7F7240 /* SearchAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchAction.swift; sourceTree = "<group>"; };
 		C612A5C65039CA80623072E4 /* ShortcutAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutAction.swift; sourceTree = "<group>"; };
+		C6539346031BCAD0ED7AC2E8 /* CopySoundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySoundTests.swift; sourceTree = "<group>"; };
 		C68D58BC0D8D00D9FAA3D89D /* SelectionEditabilityProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionEditabilityProbe.swift; sourceTree = "<group>"; };
 		C6F584784E24FFA93A450F02 /* ExtensionsDirectoryWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsDirectoryWatcher.swift; sourceTree = "<group>"; };
 		C7120E3AB179F3323102391D /* TooltipPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TooltipPanelController.swift; sourceTree = "<group>"; };
@@ -1542,6 +1546,7 @@
 				0CF97DDF5B196383416AB162 /* CompletionActionTests.swift */,
 				896D4183D6755AC6E9642EF5 /* ContextualActionClassifierTests.swift */,
 				9ACC606EEF879A9BCA003756 /* ContextualFilteringTests.swift */,
+				C6539346031BCAD0ED7AC2E8 /* CopySoundTests.swift */,
 				AB4D31C4F3399F8C4AE9BF7A /* CursorClassifierTests.swift */,
 				9206ED1D9BA1DDBC6B15C384 /* CustomActionManifestWriterTests.swift */,
 				F5039B99D3EACB1E2BF272D2 /* CustomIconManagerTests.swift */,
@@ -1642,6 +1647,7 @@
 			isa = PBXGroup;
 			children = (
 				E7D67EF0F01017315F0E775B /* ActionResultHandler.swift */,
+				21FC46A5019B087F3C2F8C24 /* CopySound.swift */,
 			);
 			path = Effects;
 			sourceTree = "<group>";
@@ -1824,6 +1830,7 @@
 				6715AE5F11FE111A1668090C /* CompletionActionTests.swift in Sources */,
 				1F034256ED4AEE153E2E33B4 /* ContextualActionClassifierTests.swift in Sources */,
 				C1E4029C7E5627815F845383 /* ContextualFilteringTests.swift in Sources */,
+				0B22ECBA391ABA9524583CF1 /* CopySoundTests.swift in Sources */,
 				7603337EB25026D9115894F3 /* CursorClassifierTests.swift in Sources */,
 				D7E40768967837E0BB3D1F89 /* CustomActionManifestWriterTests.swift in Sources */,
 				E6F19F69F4A7600DE3C664AA /* CustomIconManagerTests.swift in Sources */,
@@ -2077,6 +2084,7 @@
 				B9AF5DDB7DFBC46EE834CAF8 /* CoachMarkController.swift in Sources */,
 				3165370D30624071D8F6E1A4 /* CompletionAction.swift in Sources */,
 				C082BB82834FE847B280FFB3 /* ContextualActionsPopoverView.swift in Sources */,
+				839C2279D011BBA668BB615F /* CopySound.swift in Sources */,
 				29DC7732228424F98AEF1665 /* CustomActionManifestWriter.swift in Sources */,
 				47D1787CD704B626CE4DAFF1 /* CustomActionsPage.swift in Sources */,
 				AF9B768B692236362C2F52AC /* CustomIconManager.swift in Sources */,

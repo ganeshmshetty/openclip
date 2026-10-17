@@ -16,7 +16,6 @@ struct PopupThemeSelector: View {
     @Setting(SettingKey.popupThemeColor) private var themeColor
     @Setting(SettingKey.popupScale) private var popupScale
     @Setting(SettingKey.popupPageSize) private var pageSize
-    @Setting(SettingKey.popupFitToWidth) private var fitToWidth
     @Setting(SettingKey.showSearchAllActions) private var showSearchAllActions
     @Setting(SettingKey.popupAlignment) private var popupAlignment
     @Setting(SettingKey.popupVerticalPosition) private var popupVerticalPosition
@@ -75,7 +74,6 @@ struct PopupThemeSelector: View {
         themeColor == SettingKey.popupThemeColor.defaultValue &&
         popupScale == SettingKey.popupScale.defaultValue &&
         pageSize == SettingKey.popupPageSize.defaultValue &&
-        fitToWidth == SettingKey.popupFitToWidth.defaultValue &&
         showSearchAllActions == SettingKey.showSearchAllActions.defaultValue &&
         popupAlignment == SettingKey.popupAlignment.defaultValue &&
         popupVerticalPosition == SettingKey.popupVerticalPosition.defaultValue &&
@@ -89,7 +87,6 @@ struct PopupThemeSelector: View {
         themeColor = SettingKey.popupThemeColor.defaultValue
         popupScale = SettingKey.popupScale.defaultValue
         pageSize = SettingKey.popupPageSize.defaultValue
-        fitToWidth = SettingKey.popupFitToWidth.defaultValue
         showSearchAllActions = SettingKey.showSearchAllActions.defaultValue
         popupAlignment = SettingKey.popupAlignment.defaultValue
         popupVerticalPosition = SettingKey.popupVerticalPosition.defaultValue
@@ -186,17 +183,8 @@ struct PopupThemeSelector: View {
 
                 SettingsDivider()
 
-                SettingsRow(title: "Fit to width") {
-                    Toggle("Fit to width", isOn: $fitToWidth)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
-
-                if !fitToWidth {
-                    SettingsDivider()
-                    SettingsRow(title: "Actions Per Page") {
-                        pageSizeStepper
-                    }
+                SettingsRow(title: "Actions Per Page") {
+                    pageSizeStepper
                 }
 
             }
@@ -413,7 +401,7 @@ struct PopupThemeSelector: View {
 /// A small info glyph that reveals an explanation in a popover, and shows the title as a native
 /// hover tooltip. Owns its own presentation state so a row does not have to.
 @MainActor
-private struct SettingsInfoButton: View {
+struct SettingsInfoButton: View {
     let title: LocalizedStringKey
     let info: LocalizedStringKey
 

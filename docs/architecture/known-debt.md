@@ -805,8 +805,7 @@ independently of the global hover index, including when the contextual island is
 
 ## Actions per page ([#148](https://github.com/ganeshmshetty/openclip/issues/148))
 
-Appearance uses a Liquid Glass count stepper (2–24) with native press-and-hold repetition
-and a separate Fit to width toggle.
-Fit to width defaults off and preserves the saved manual count (default 6); both main and
-group bars pass an unlimited count to the existing width-budget layout when enabled.
+Appearance uses a Liquid Glass count stepper (2–24, default 6) with native press-and-hold
+repetition. The former Fit to width toggle (`popupFitToWidth`) was removed; a stale stored value
+is simply ignored.
 Actual capacity depends on the popup display, scale, controls, and rendered action widths.

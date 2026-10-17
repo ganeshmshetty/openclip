@@ -81,7 +81,6 @@ public struct PopupView: View {
     @Setting(SettingKey.popupThemeColor) private var themeColor
     @Setting(SettingKey.popupScale) private var popupScale
     @Setting(SettingKey.popupPageSize) private var pageSize
-    @Setting(SettingKey.popupFitToWidth) private var fitToWidth
     @Setting(SettingKey.showSearchAllActions) private var showSearchAllActions
     @Setting(SettingKey.contextualActionsEnabled) private var contextualActionsEnabled
     @Setting(SettingKey.disabledContextualActionIDs) private var disabledContextualIDs
@@ -193,7 +192,6 @@ public struct PopupView: View {
         _themeColor = Setting(SettingKey.popupThemeColor, store: settingsStore)
         _popupScale = Setting(SettingKey.popupScale, store: settingsStore)
         _pageSize = Setting(SettingKey.popupPageSize, store: settingsStore)
-        _fitToWidth = Setting(SettingKey.popupFitToWidth, store: settingsStore)
         _showSearchAllActions = Setting(SettingKey.showSearchAllActions, store: settingsStore)
         _contextualActionsEnabled = Setting(SettingKey.contextualActionsEnabled, store: settingsStore)
         _disabledContextualIDs = Setting(SettingKey.disabledContextualActionIDs, store: settingsStore)
@@ -318,7 +316,7 @@ public struct PopupView: View {
             trailingWidth: trailingWidth,
             // The contextual island has its own width and does not consume main-bar slots.
             maxBudget: maxBarBudget,
-            maxItemsPerPage: fitToWidth ? Int.max : max(2, min(24, pageSize)),
+            maxItemsPerPage: max(2, min(24, pageSize)),
             scale: scale,
             presenter: presenter
         )

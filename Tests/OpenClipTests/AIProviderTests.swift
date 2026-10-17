@@ -63,6 +63,13 @@ final class AIProviderTests: XCTestCase {
         }
     }
 
+    func testOMLXPresetUsesLoopbackOpenAICompatibleEndpoint() {
+        XCTAssertEqual(LocalLLMPreset(rawValue: "omlx"), .omlx)
+        XCTAssertEqual(LocalLLMPreset.omlx.displayName, "oMLX")
+        XCTAssertEqual(LocalLLMPreset.omlx.defaultBaseURL, "http://127.0.0.1:8000/v1")
+        XCTAssertEqual(LocalLLMPreset.omlx.primaryModel, "default")
+    }
+
     func testLocalLLMKeepsThinkingByDefault() {
         XCTAssertFalse(LocalLLMProvider(baseURL: "http://localhost:1234/v1", model: "default").disableThinking)
         XCTAssertTrue(LocalLLMProvider(baseURL: "http://localhost:11434/v1", model: "qwen3.5:4b", disableThinking: true).disableThinking)

@@ -50,7 +50,8 @@ final class CaptureTextController {
             return
         }
         guard HotkeyManager.triggerAllowed(frontmost: sourceApp) else { return }
-        guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
+        guard CGPreflightScreenCaptureAccess() else {
+            PermissionManager.shared.requestScreenRecordingPermission()
             showFailure(String(localized: "Allow Screen Recording for OpenClip in System Settings, then reopen OpenClip."))
             return
         }

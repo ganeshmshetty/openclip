@@ -42,11 +42,7 @@ public struct RecommendedExtensionsView: View {
     public var body: some View {
         Group {
             if viewModel.isLoading && recommended.isEmpty {
-                VStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                .frame(maxWidth: .infinity, minHeight: 100)
+                ExtensionsSkeletonList()
             } else if recommended.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "wifi.slash")
@@ -191,11 +187,66 @@ private struct RecommendedExtensionRow: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
+                .fill(SettingsDesignTokens.sectionCardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                .strokeBorder(SettingsDesignTokens.sectionCardBorder, lineWidth: 1)
+        )
+    }
+}
+
+
+// MARK: - Loading skeleton
+
+/// Placeholder rows shown while the catalog loads: same size and spacing as the real rows, with a
+/// soft highlight sweeping across, so the list doesn't jump when the content arrives.
+private struct ExtensionsSkeletonList: View {
+    @State private var sweep = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(0..<4, id: \.self) { _ in skeletonRow }
+        }
+        .overlay {
+            GeometryReader { geo in
+                LinearGradient(
+                    colors: [.clear, Color.white.opacity(0.14), .clear],
+                    startPoint: .leading, endPoint: .trailing
+                )
+                .frame(width: geo.size.width * 0.4)
+                .offset(x: sweep ? geo.size.width : -geo.size.width * 0.4)
+            }
+            .allowsHitTesting(false)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onAppear {
+            withAnimation(.linear(duration: 1.3).repeatForever(autoreverses: false)) { sweep = true }
+        }
+        .accessibilityLabel(String(localized: "Loading extensions"))
+    }
+
+    private var skeletonRow: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.primary.opacity(0.10))
+                .frame(width: 28, height: 28)
+            VStack(alignment: .leading, spacing: 6) {
+                Capsule().fill(Color.primary.opacity(0.12)).frame(width: 110, height: 9)
+                Capsule().fill(Color.primary.opacity(0.07)).frame(width: 190, height: 7)
+            }
+            Spacer(minLength: 8)
+            Capsule().fill(Color.primary.opacity(0.10)).frame(width: 56, height: 20)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(SettingsDesignTokens.sectionCardBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(SettingsDesignTokens.sectionCardBorder, lineWidth: 1)
         )
     }
 }
