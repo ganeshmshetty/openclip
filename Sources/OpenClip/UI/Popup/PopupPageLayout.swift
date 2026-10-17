@@ -15,6 +15,8 @@ public enum PopupPageLayout {
 
     /// Per-character width estimate at the popup's 15 pt regular label font.
     private static let estimatedGlyphWidth: CGFloat = 9.0
+    /// CJK and other full-width characters are about one em wide at 15 pt.
+    private static let estimatedWideGlyphWidth: CGFloat = 15.0
 
     /// Width of one action button. Inline-result actions size to their rendered preview text (capped), so pages
     /// never overflow once previews land; before a result lands the button packs at icon width.
@@ -31,7 +33,7 @@ public enum PopupPageLayout {
             return max(PopupMetrics.actionButtonWidth * scale, padded)
         }
         let icon = action.displayIcon(using: presenter)
-        if case .text(let text) = icon, text.count > 2 {
+        if case .text(let text) = icon, !text.isEmpty, !ActionTextIconStyle.isCompactGlyph(text) {
             let estimated = estimatedTextWidth(text, scale: scale) + 25.0 * scale
             return max(PopupMetrics.actionButtonWidth * scale, min(144.0 * scale, estimated))
         }
@@ -40,7 +42,11 @@ public enum PopupPageLayout {
 
     /// Estimated intrinsic width of a one-line label at the popup font, before any max-width clamp.
     private static func estimatedTextWidth(_ text: String, scale: CGFloat) -> CGFloat {
-        CGFloat(text.count) * estimatedGlyphWidth * scale
+        let width = text.reduce(CGFloat(0)) { sum, character in
+            let isWide = character.unicodeScalars.contains(where: ActionTextIconStyle.isWide)
+            return sum + (isWide ? estimatedWideGlyphWidth : estimatedGlyphWidth)
+        }
+        return width * scale
     }
 
     /// Computes width-budgeted pages. Passing `inlineResults` sizes inline buttons at their rendered width.

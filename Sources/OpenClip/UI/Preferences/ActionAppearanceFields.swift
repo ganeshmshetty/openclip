@@ -66,7 +66,7 @@ struct ActionAppearanceFields: View {
 
     @ViewBuilder
     private var heroIconView: some View {
-        if case .text(let text) = previewIcon, text.count > 2 {
+        if case .text(let text) = previewIcon, !text.isEmpty, !ActionTextIconStyle.isCompactGlyph(text) {
             Text(text)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .lineLimit(1)

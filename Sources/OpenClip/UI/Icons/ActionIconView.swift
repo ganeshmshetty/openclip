@@ -162,6 +162,34 @@ public enum IconOpticalCategory: Sendable {
     }
 }
 
+/// How a `.text` icon renders: a compact glyph badge ("Aa", "#", an emoji) or a regular 15 pt label.
+/// One rule shared by the bar, the sub-bar, the width estimator and the preferences preview (#156).
+enum ActionTextIconStyle {
+    /// Two Latin-ish characters read as a glyph; two CJK characters are a word ("翻译", "粘贴") and must
+    /// render like every other text label, or a group mixing 2- and 3-character titles looks uneven.
+    static func isCompactGlyph(_ text: String) -> Bool {
+        guard !text.isEmpty, text.count <= 2 else { return false }
+        return !text.unicodeScalars.contains(where: isWide)
+    }
+
+    /// Full-width scripts render at roughly one em per character.
+    static func isWide(_ scalar: Unicode.Scalar) -> Bool {
+        if scalar.properties.isIdeographic { return true }
+        switch scalar.value {
+        case 0x1100...0x11FF,   // Hangul Jamo
+             0x3000...0x30FF,   // CJK punctuation, Hiragana, Katakana
+             0x3130...0x318F,   // Hangul compatibility Jamo
+             0x31F0...0x31FF,   // Katakana phonetic extensions
+             0xAC00...0xD7AF,   // Hangul syllables
+             0xFF00...0xFF60,   // Fullwidth forms
+             0xFFE0...0xFFE6:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 public struct ActionIconView: View {
     public let icon: ActionIcon
     public let size: CGFloat
@@ -203,7 +231,7 @@ public struct ActionIconView: View {
                         .imageScale(.medium)
                 }
             case .text(let text):
-                if text.count <= 2 {
+                if ActionTextIconStyle.isCompactGlyph(text) {
                     Text(text)
                         .font(.system(size: targetDimension * 0.90, weight: .semibold, design: .rounded))
                         .lineLimit(1)
