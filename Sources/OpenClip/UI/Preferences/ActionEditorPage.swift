@@ -54,6 +54,7 @@ public struct ActionEditorPage: View {
     @State private var customJSIsAsync: Bool = false
     @State private var replaceSelection: Bool = true
     @State private var aiPrompt: String = ""
+    @State private var isPromptExpanded = false
     @State private var aiProviderOverride: String?
     @State private var aiModelOverride: String?
 
@@ -734,22 +735,42 @@ public struct ActionEditorPage: View {
                 }
 
                 if isAIPreset {
-                    SettingsCard("Prompt Instruction") {
+                    let promptIsEmpty = aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    SettingsCard {
                         VStack(alignment: .leading, spacing: 8) {
-                            TextField("Prompt instruction...", text: $aiPrompt, axis: .vertical)
-                                .lineLimit(4...12)
-                                .textFieldStyle(.roundedBorder)
-                                .accessibilityLabel(String(localized: "Prompt Instruction"))
-
-                            if aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                Text("Prompt cannot be empty.")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) { isPromptExpanded.toggle() }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .rotationEffect(.degrees(isPromptExpanded || promptIsEmpty ? 90 : 0))
+                                        .frame(width: 10)
+                                    Text("Prompt Instruction")
+                                        .font(.system(size: 13, weight: .medium))
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityValue(isPromptExpanded ? String(localized: "Expanded") : String(localized: "Collapsed"))
 
-                            Text("The selected text is appended to the instruction when the action runs.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            if isPromptExpanded || promptIsEmpty {
+                                TextField("Prompt instruction...", text: $aiPrompt, axis: .vertical)
+                                    .lineLimit(4...12)
+                                    .textFieldStyle(.roundedBorder)
+                                    .accessibilityLabel(String(localized: "Prompt Instruction"))
+
+                                if promptIsEmpty {
+                                    Text("Prompt cannot be empty.")
+                                        .font(.caption)
+                                        .foregroundStyle(.red)
+                                }
+
+                                Text("The selected text is appended to the instruction when the action runs.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
                         .padding(.vertical, SettingsDesignTokens.sectionCardPaddingV)

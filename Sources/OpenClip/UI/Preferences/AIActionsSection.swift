@@ -69,15 +69,8 @@ public struct AIActionsSection: View {
                 HStack(spacing: 8) {
                     ActionIconView(icon: presentation.icon, size: 16)
                         .frame(width: 22, height: 22)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(presentation.title)
-                            .font(.system(size: 13, weight: .medium))
-                        Text(preset.prompt)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
+                    Text(presentation.title)
+                        .font(.system(size: 13, weight: .medium))
 
                     Spacer(minLength: 8)
                 }
