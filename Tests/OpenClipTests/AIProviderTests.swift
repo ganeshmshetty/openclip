@@ -70,6 +70,34 @@ final class AIProviderTests: XCTestCase {
         XCTAssertEqual(LocalLLMPreset.omlx.primaryModel, "default")
     }
 
+    func testPresetProviderAndModelOverrides() {
+        let manager = AIServiceManager.shared
+        let saved = manager.presets
+        let previousProvider = manager.activeProviderRaw
+        defer { manager.presets = saved; manager.activeProviderRaw = previousProvider }
+        manager.activeProviderRaw = "cli"
+        manager.presets = [
+            AIActionPreset(id: "plain", title: "Plain", prompt: "p"),
+            AIActionPreset(id: "local", title: "Local", prompt: "p", provider: "local", model: "medgemma"),
+            AIActionPreset(id: "modelOnly", title: "Model", prompt: "p", model: "sonnet"),
+            AIActionPreset(id: "bogus", title: "Bogus", prompt: "p", provider: "nope")
+        ]
+        XCTAssertEqual(manager.provider(forPresetID: nil).type, .cli)
+        XCTAssertEqual(manager.provider(forPresetID: "plain").type, .cli)
+        XCTAssertEqual(manager.provider(forPresetID: "bogus").type, .cli)
+        XCTAssertEqual(manager.provider(forPresetID: "modelOnly").type, .cli)
+        let local = manager.provider(forPresetID: "local") as? LocalLLMProvider
+        XCTAssertNotNil(local)
+        XCTAssertEqual(local?.model, "medgemma")
+    }
+
+    func testPresetsWithoutOverridesStillDecode() throws {
+        let old = Data(#"[{"id":"x","title":"X","prompt":"p","isEnabled":true}]"#.utf8)
+        let decoded = try JSONDecoder().decode([AIActionPreset].self, from: old)
+        XCTAssertNil(decoded[0].provider)
+        XCTAssertNil(decoded[0].model)
+    }
+
     func testLocalLLMKeepsThinkingByDefault() {
         XCTAssertFalse(LocalLLMProvider(baseURL: "http://localhost:1234/v1", model: "default").disableThinking)
         XCTAssertTrue(LocalLLMProvider(baseURL: "http://localhost:11434/v1", model: "qwen3.5:4b", disableThinking: true).disableThinking)

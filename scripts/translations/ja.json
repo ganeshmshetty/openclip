@@ -825,5 +825,10 @@
   "Thock": "トン",
   "Bubble": "バブル",
   "Swoosh": "スウッ",
-  "Detected content: %@": "検出された内容：%@"
+  "Detected content: %@": "検出された内容：%@",
+  "Provider": "プロバイダ",
+  "Custom…": "カスタム…",
+  "Model identifier": "モデル識別子",
+  "Run this action on a different provider than the one chosen in AI settings. Keys and endpoints still come from AI settings.": "この操作を、AI設定で選んだものとは別のプロバイダで実行します。キーとエンドポイントはAI設定のものを使います。",
+  "This model is not in the provider's current list. It may have been retired.": "このモデルはプロバイダの現在の一覧にありません。提供終了の可能性があります。"
 }

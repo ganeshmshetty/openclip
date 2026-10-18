@@ -21,7 +21,7 @@ public final class CloudAPIProvider: AIProvider {
         self.customGuidelines = customGuidelines
         self.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.model = trimmedModel.isEmpty ? (serviceProvider.defaultModels.first ?? "gpt-4o-mini") : trimmedModel
+        self.model = trimmedModel.isEmpty ? (serviceProvider.defaultModels.first ?? "gpt-5-mini") : trimmedModel
         self.serviceProvider = serviceProvider
         self.customBaseURL = customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -330,7 +330,7 @@ public final class CloudAPIProvider: AIProvider {
 
     public static func fetchAvailableModels(apiKey: String, provider: CloudServiceProvider, customBaseURL: String = "") async throws -> [String] {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedKey.isEmpty else {
+        guard !trimmedKey.isEmpty || provider == .openrouter else {
             throw AIError.missingAPIKey
         }
 
@@ -352,7 +352,9 @@ public final class CloudAPIProvider: AIProvider {
             throw AIError.invalidURL(endpoint)
         }
         var request = URLRequest(url: url, timeoutInterval: 10)
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -362,22 +364,15 @@ public final class CloudAPIProvider: AIProvider {
         struct ModelListResponse: Decodable {
             struct ModelItem: Decodable {
                 let id: String
+                let created: Int?
             }
             let data: [ModelItem]?
         }
 
         let decoded = try JSONDecoder().decode(ModelListResponse.self, from: data)
-        let modelIds = (decoded.data ?? []).map { $0.id }
-        
-        if provider == .openai {
-            let filtered = modelIds.filter { id in
-                let l = id.lowercased()
-                return l.contains("gpt") || l.contains("o1") || l.contains("o3") || l.contains("chat")
-            }.sorted()
-            return filtered.isEmpty ? modelIds.sorted() : filtered
-        } else {
-            return modelIds.sorted()
-        }
+        let entries = (decoded.data ?? []).map { CloudModelEntry(id: $0.id, created: $0.created) }
+        let chat = entries.filter { CloudModelCatalog.isChatModel($0.id) }
+        return CloudModelCatalog.ordered(chat.isEmpty ? entries : chat)
     }
 
     private static func fetchAnthropicModels(apiKey: String, baseURL: String) async throws -> [String] {
@@ -402,8 +397,9 @@ public final class CloudAPIProvider: AIProvider {
             let data: [ModelItem]?
         }
 
+        // Anthropic already returns newest first, so the order is kept.
         let decoded = try JSONDecoder().decode(AnthropicModelListResponse.self, from: data)
-        return (decoded.data ?? []).map { $0.id }.sorted()
+        return (decoded.data ?? []).map { $0.id }
     }
 
     private static func fetchGeminiModels(apiKey: String, baseURL: String) async throws -> [String] {
@@ -423,15 +419,18 @@ public final class CloudAPIProvider: AIProvider {
         struct GeminiModelListResponse: Decodable {
             struct ModelItem: Decodable {
                 let name: String
+                let supportedGenerationMethods: [String]?
             }
             let models: [ModelItem]?
         }
 
         let decoded = try JSONDecoder().decode(GeminiModelListResponse.self, from: data)
-        let ids = (decoded.models ?? []).map { item in
-            item.name.replacingOccurrences(of: "models/", with: "")
-        }.filter { $0.contains("gemini") }.sorted()
+        let entries = (decoded.models ?? [])
+            .filter { $0.supportedGenerationMethods?.contains("generateContent") ?? true }
+            .map { CloudModelEntry(id: $0.name.replacingOccurrences(of: "models/", with: ""), created: nil) }
+            .filter { $0.id.contains("gemini") && CloudModelCatalog.isChatModel($0.id) }
 
-        return ids.isEmpty ? ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"] : ids
+        let ids = CloudModelCatalog.ordered(entries)
+        return ids.isEmpty ? CloudServiceProvider.google.defaultModels : ids
     }
 }

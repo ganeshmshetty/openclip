@@ -54,6 +54,8 @@ public struct ActionEditorPage: View {
     @State private var customJSIsAsync: Bool = false
     @State private var replaceSelection: Bool = true
     @State private var aiPrompt: String = ""
+    @State private var aiProviderOverride: String?
+    @State private var aiModelOverride: String?
 
     // Manifest-backed state: the target action lives in an extension manifest package.
     @State private var manifestState: LocatedManifest?
@@ -754,6 +756,10 @@ public struct ActionEditorPage: View {
                     }
                 }
 
+                if isAIPreset {
+                    AIPresetModelSection(provider: $aiProviderOverride, model: $aiModelOverride)
+                }
+
                 if !action.actionOptions.isEmpty {
                     SettingsCard("Options") {
                         VStack(spacing: 0) {
@@ -915,6 +921,16 @@ public struct ActionEditorPage: View {
             autoSave()
         }
         .task(id: aliasText) {
+            guard isLoaded, !isDeleting else { return }
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled, !isDeleting else { return }
+            autoSave()
+        }
+        .onChange(of: aiProviderOverride) { _, _ in
+            guard isLoaded, !isDeleting else { return }
+            autoSave()
+        }
+        .task(id: aiModelOverride) {
             guard isLoaded, !isDeleting else { return }
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled, !isDeleting else { return }
@@ -1233,6 +1249,8 @@ public struct ActionEditorPage: View {
             logicEditable = false
             manifestMissing = false
             aiPrompt = aiPreset?.prompt ?? ""
+            aiProviderOverride = aiPreset?.provider
+            aiModelOverride = aiPreset?.model
             return
         }
 
@@ -1370,9 +1388,16 @@ public struct ActionEditorPage: View {
         }
         if isAIPreset {
             let prompt = aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !prompt.isEmpty, var preset = aiPreset, prompt != preset.prompt {
-                preset.prompt = prompt
-                AIServiceManager.shared.updatePreset(preset)
+            let model = aiModelOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if var preset = aiPreset {
+                let promptChanged = !prompt.isEmpty && prompt != preset.prompt
+                let modelChanged = preset.provider != aiProviderOverride || preset.model != (model?.isEmpty == true ? nil : model)
+                if promptChanged || modelChanged {
+                    if promptChanged { preset.prompt = prompt }
+                    preset.provider = aiProviderOverride
+                    preset.model = model?.isEmpty == true ? nil : model
+                    AIServiceManager.shared.updatePreset(preset)
+                }
             }
             return
         }

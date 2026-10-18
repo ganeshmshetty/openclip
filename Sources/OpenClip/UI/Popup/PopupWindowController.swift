@@ -110,6 +110,7 @@ public class PopupWindowController {
 
     /// Live AI stream for the session, cancelled directly by hide() rather than via SwiftUI teardown, which can race AppKit's hide().
     var activeStreamingTask: Task<Void, Never>?
+    private var activeAIPresetID: String?
 
     /// Active loading action task reference so clicking the loading toast can cancel in-flight execution.
     var activeLoadingTask: Task<Void, Never>?
@@ -353,7 +354,7 @@ public class PopupWindowController {
             onRunAI: { [weak self] actionID in
                 guard let self, let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
                 let prompt = AIServiceManager.shared.promptForPreset(preset)
-                self.runAIPreset(prompt: prompt, title: preset.title)
+                self.runAIPreset(prompt: prompt, title: preset.title, presetID: preset.id)
             },
             onRunAIPrompt: { [weak self] instruction, replace, includeContext in
                 self?.runAIPrompt(instruction, replace: replace, includeContext: includeContext)
@@ -1612,7 +1613,7 @@ public class PopupWindowController {
                 self.modeStore.isSubBarActive = false
                 self.modeStore.activeSubGroupID = nil
                 let prompt = AIServiceManager.shared.promptForPreset(preset)
-                self.runAIPreset(prompt: prompt, title: preset.title)
+                self.runAIPreset(prompt: prompt, title: preset.title, presetID: preset.id)
             },
             onRunLoadingAction: { [weak self] action, clickIntent in
                 guard let self, let context = self.currentActionContext else { return }
@@ -1732,7 +1733,7 @@ public class PopupWindowController {
                 }
             }
             do {
-                let provider = AIServiceManager.shared.currentProvider
+                let provider = AIServiceManager.shared.provider(forPresetID: self.activeAIPresetID)
                 var accumulated = ""
                 for try await chunk in provider.processStream(prompt: prompt, text: selectionText) {
                     guard !Task.isCancelled, session == self.aiSessionID else {
@@ -1830,7 +1831,7 @@ public class PopupWindowController {
                 return self.refiningPrevious != nil
             }
             do {
-                let provider = AIServiceManager.shared.currentProvider
+                let provider = AIServiceManager.shared.provider(forPresetID: self.activeAIPresetID)
                 var accumulated = ""
                 var activeTitle = title
                 for try await chunk in provider.processStream(prompt: followUpTask, text: sourceText) {
@@ -1920,7 +1921,8 @@ public class PopupWindowController {
         return nil
     }
 
-    func runAIPreset(prompt: String, title: String, loadingMessage: String? = nil, inputText: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
+    func runAIPreset(prompt: String, title: String, presetID: String? = nil, loadingMessage: String? = nil, inputText: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
+        activeAIPresetID = presetID
         guard let context = currentActionContext else {
             Log.ai.error("Cannot run AI preset: currentActionContext is nil")
             return
@@ -1955,7 +1957,7 @@ public class PopupWindowController {
             var activeTitle = title
 
             do {
-                let provider = AIServiceManager.shared.currentProvider
+                let provider = AIServiceManager.shared.provider(forPresetID: self.activeAIPresetID)
 
                 var accumulated = ""
 
@@ -2373,7 +2375,7 @@ public class PopupWindowController {
         }
         if ActionIdentity.isAIPreset(action) {
             guard let preset = AIServiceManager.shared.preset(forActionID: action.id) else { return }
-            runAIPreset(prompt: AIServiceManager.shared.promptForPreset(preset), title: preset.title)
+            runAIPreset(prompt: AIServiceManager.shared.promptForPreset(preset), title: preset.title, presetID: preset.id)
             return
         }
         runAction(action, with: context, isSecondaryClick: false)

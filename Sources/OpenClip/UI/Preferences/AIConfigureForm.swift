@@ -240,7 +240,9 @@ public struct AIConfigureForm: View {
                         }
                     }
                     .onChange(of: aiManager.cloudServiceProvider) { _ in
-                        fetchCloudModels()
+                        fetchedCloudModels = []
+                        cloudFetchError = nil
+                        refreshCloudModelsIfStale()
                     }
 
                     if aiManager.cloudServiceProvider == .custom {
@@ -285,11 +287,17 @@ public struct AIConfigureForm: View {
                         }
                         .buttonStyle(.borderless)
                         .help("Fetch available models live from API")
-                        .disabled(aiManager.cloudAPIKey.isEmpty || isFetchingCloudModels)
+                        .disabled(!canFetchCloudModels || isFetchingCloudModels)
+                    }
+
+                    if isCloudModelUnlisted {
+                        Text("This model is not in the provider's current list. It may have been retired.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
                     }
 
                     if aiManager.cloudModel == "custom" {
-                        TextField("Custom Model Identifier", text: $aiManager.cloudCustomModel, prompt: Text("e.g. gpt-4o-2024-08-06 or claude-3-5-sonnet-latest"))
+                        TextField("Custom Model Identifier", text: $aiManager.cloudCustomModel, prompt: Text("e.g. gpt-5-mini or claude-sonnet-5-5"))
                             .textFieldStyle(.roundedBorder)
                     }
 
@@ -308,8 +316,8 @@ public struct AIConfigureForm: View {
                 fetchCLIModels()
             } else if aiManager.activeProviderType == .local {
                 fetchLocalModels()
-            } else if aiManager.activeProviderType == .cloud && !aiManager.cloudAPIKey.isEmpty {
-                fetchCloudModels()
+            } else if aiManager.activeProviderType == .cloud {
+                refreshCloudModelsIfStale()
             }
         }
         .onDisappear {
@@ -322,10 +330,20 @@ public struct AIConfigureForm: View {
                 fetchCLIModels()
             } else if newRaw == AIProviderType.local.rawValue {
                 fetchLocalModels()
-            } else if newRaw == AIProviderType.cloud.rawValue && !aiManager.cloudAPIKey.isEmpty {
-                fetchCloudModels()
+            } else if newRaw == AIProviderType.cloud.rawValue {
+                refreshCloudModelsIfStale()
             }
         }
+    }
+
+    private var canFetchCloudModels: Bool {
+        !aiManager.cloudAPIKey.isEmpty || aiManager.cloudServiceProvider == .openrouter
+    }
+
+    private func refreshCloudModelsIfStale() {
+        guard canFetchCloudModels else { return }
+        if let cached = CloudModelCatalog.cached(for: aiManager.cloudServiceProvider), CloudModelCatalog.isFresh(cached) { return }
+        fetchCloudModels()
     }
 
     /// Inline auth help that expands its own row rather than opening a popover.
@@ -401,23 +419,19 @@ public struct AIConfigureForm: View {
     }
 
     private var resolvedCloudModels: [String] {
-        if fetchedCloudModels.isEmpty {
-            let primary = aiManager.cloudServiceProvider.primaryModel
-            var list = ["default"]
-            if primary != "default" {
-                list.append(primary)
-            }
-            if !aiManager.cloudModel.isEmpty && aiManager.cloudModel != "custom" && !list.contains(aiManager.cloudModel) {
-                list.append(aiManager.cloudModel)
-            }
-            return list
-        } else {
-            var list = ["default"]
-            for m in fetchedCloudModels where m != "default" {
-                list.append(m)
-            }
-            return list
-        }
+        let provider = aiManager.cloudServiceProvider
+        return ["default"] + CloudModelCatalog.choices(
+            live: fetchedCloudModels,
+            cached: CloudModelCatalog.cached(for: provider),
+            provider: provider,
+            current: aiManager.cloudModel
+        )
+    }
+
+    private var isCloudModelUnlisted: Bool {
+        let model = aiManager.cloudModel
+        guard !fetchedCloudModels.isEmpty, model != "default", model != "custom" else { return false }
+        return !fetchedCloudModels.contains(model)
     }
 
     private func modelDisplayName(_ model: String) -> String {
@@ -489,9 +503,7 @@ public struct AIConfigureForm: View {
                     }
                     self.fetchedCloudModels = models
                     self.isFetchingCloudModels = false
-                    if let first = models.first, !models.contains(aiManager.cloudModel), aiManager.cloudModel != "default", aiManager.cloudModel != "custom" {
-                        aiManager.cloudModel = first
-                    }
+                    CloudModelCatalog.save(models, for: targetProvider)
                 }
             } catch {
                 await MainActor.run {

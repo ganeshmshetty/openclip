@@ -5881,6 +5881,34 @@
         }
       }
     },
+    "Custom…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自訂…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personnalisé…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタム…"
+          }
+        }
+      }
+    },
     "Cut": {
       "localizations": {
         "zh-Hans": {
@@ -11173,6 +11201,34 @@
         }
       }
     },
+    "Model identifier": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型标识符"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型識別碼"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Identifiant du modèle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデル識別子"
+          }
+        }
+      }
+    },
     "Model still downloading": {
       "localizations": {
         "zh-Hans": {
@@ -14785,6 +14841,34 @@
         }
       }
     },
+    "Provider": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供方"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供者"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fournisseur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダ"
+          }
+        }
+      }
+    },
     "Provider Settings": {
       "localizations": {
         "zh-Hans": {
@@ -16517,6 +16601,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "選択したテキストを AI で処理します。"
+          }
+        }
+      }
+    },
+    "Run this action on a different provider than the one chosen in AI settings. Keys and endpoints still come from AI settings.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让此操作使用与 AI 设置中不同的提供方。密钥和端点仍取自 AI 设置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讓此動作使用與 AI 設定中不同的提供者。金鑰與端點仍取自 AI 設定。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exécute cette action avec un autre fournisseur que celui choisi dans les réglages IA. Les clés et points de terminaison restent ceux des réglages IA."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この操作を、AI設定で選んだものとは別のプロバイダで実行します。キーとエンドポイントはAI設定のものを使います。"
           }
         }
       }
@@ -20353,6 +20465,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "この拡張機能は外部で変更されました。オンに切り替えて検証し、再度有効にしてください。"
+          }
+        }
+      }
+    },
+    "This model is not in the provider's current list. It may have been retired.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此模型不在提供方当前的列表中，可能已停用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此模型不在提供者目前的清單中，可能已停用。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce modèle ne figure pas dans la liste actuelle du fournisseur. Il a peut-être été retiré."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このモデルはプロバイダの現在の一覧にありません。提供終了の可能性があります。"
           }
         }
       }

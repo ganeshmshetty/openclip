@@ -23,7 +23,7 @@ extension SettingKey where Value == String {
     }
 
     static var aiCloudModel: SettingKey<String> {
-        SettingKey<String>("aiCloudModel", defaultValue: "gpt-4o-mini")
+        SettingKey<String>("aiCloudModel", defaultValue: "gpt-5-mini")
     }
 
     static var aiCloudCustomModel: SettingKey<String> {
@@ -64,6 +64,10 @@ extension SettingKey where Value == String {
 
     static var aiCLICustomAuthCommand: SettingKey<String> {
         SettingKey<String>("aiCLICustomAuthCommand", defaultValue: "")
+    }
+
+    static var aiCloudModelCache: SettingKey<String> {
+        SettingKey<String>("aiCloudModelCache", defaultValue: "")
     }
 
     static var aiActionPresetsJSON: SettingKey<String> {

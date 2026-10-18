@@ -593,11 +593,11 @@ public struct PopupView: View {
         } else {
             if modeStore.mode == .search { onExitSearch() }
             guard let preset = aiManager.preset(forActionID: actionID) else { return }
-            runAIPreset(prompt: aiManager.promptForPreset(preset), title: preset.title)
+            runAIPreset(prompt: aiManager.promptForPreset(preset), title: preset.title, presetID: preset.id)
         }
     }
 
-    private func runAIPreset(prompt: String, title: String, onGeneratedTitle: ((String) -> Void)? = nil) {
+    private func runAIPreset(prompt: String, title: String, presetID: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
         cancelAITask()
 
         let selectionText = context.selection.text
@@ -614,7 +614,7 @@ public struct PopupView: View {
             }
 
             do {
-                let provider = aiManager.currentProvider
+                let provider = aiManager.provider(forPresetID: presetID)
 
                 var accumulated = ""
                 var hasYielded = false

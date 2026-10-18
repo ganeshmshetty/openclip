@@ -362,20 +362,36 @@ public final class AIServiceManager: ObservableObject {
     public var providerOverride: (any AIProvider)? = nil
 
     public var currentProvider: any AIProvider {
+        provider(forPresetID: nil)
+    }
+
+    /// The provider for one action: its own provider and model when the preset sets them, otherwise
+    /// the global choice. Connection details (keys, URLs, CLI tool) always come from AI settings.
+    public func provider(forPresetID presetID: String?) -> any AIProvider {
         if let providerOverride {
             return providerOverride
         }
+        let preset = presetID.flatMap { id in presets.first { $0.id == id } }
+        let type = Self.resolvedProviderType(override: preset?.provider, fallback: activeProviderType)
+        let model = preset?.model?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
         let guidelines = effectiveCustomSystemPrompt
-        switch activeProviderType {
+        switch type {
         case .apple:
             return AppleIntelligenceProvider(customGuidelines: guidelines)
         case .local:
-            return LocalLLMProvider(baseURL: localURL, model: effectiveLocalModel, disableThinking: localPreset.disablesThinking, customGuidelines: guidelines)
+            return LocalLLMProvider(baseURL: localURL, model: model ?? effectiveLocalModel, disableThinking: localPreset.disablesThinking, customGuidelines: guidelines)
         case .cli:
-            return CLIProvider(preset: cliPreset, customCommand: cliCustomCommand, modelOverride: effectiveCLIModel, customGuidelines: guidelines)
+            return CLIProvider(preset: cliPreset, customCommand: cliCustomCommand, modelOverride: model ?? effectiveCLIModel, customGuidelines: guidelines)
         case .cloud:
-            return CloudAPIProvider(apiKey: cloudAPIKey, model: effectiveCloudModel, serviceProvider: cloudServiceProvider, customBaseURL: cloudCustomURL, customGuidelines: guidelines)
+            return CloudAPIProvider(apiKey: cloudAPIKey, model: model ?? effectiveCloudModel, serviceProvider: cloudServiceProvider, customBaseURL: cloudCustomURL, customGuidelines: guidelines)
         }
+    }
+
+    /// An unknown override, or Apple Intelligence where it is unsupported, falls back to the global provider.
+    static func resolvedProviderType(override: String?, fallback: AIProviderType) -> AIProviderType {
+        guard let override, let type = AIProviderType(rawValue: override),
+              AIProviderType.supportedCases.contains(type) else { return fallback }
+        return type
     }
 }
 
@@ -404,24 +420,24 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
 
     public var primaryModel: String {
         switch self {
-        case .openai: return "gpt-4o-mini"
-        case .anthropic: return "claude-3-7-sonnet-latest"
-        case .google: return "gemini-2.0-flash"
+        case .openai: return "gpt-5-mini"
+        case .anthropic: return "claude-sonnet-5-5"
+        case .google: return "gemini-flash-latest"
         case .deepseek: return "deepseek-chat"
         case .groq: return "llama-3.3-70b-versatile"
-        case .openrouter: return "openai/gpt-4o-mini"
+        case .openrouter: return "openrouter/auto"
         case .custom: return "default"
         }
     }
 
     public var defaultModels: [String] {
         switch self {
-        case .openai: return ["gpt-4o-mini", "gpt-4o", "o3-mini", "o1", "gpt-4-turbo"]
-        case .anthropic: return ["claude-3-7-sonnet-latest", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"]
-        case .google: return ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+        case .openai: return ["gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-4.1"]
+        case .anthropic: return ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"]
+        case .google: return ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-pro-latest"]
         case .deepseek: return ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]
-        case .groq: return ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "deepseek-r1-distill-llama-70b"]
-        case .openrouter: return ["openai/gpt-4o-mini", "anthropic/claude-3.7-sonnet", "deepseek/deepseek-r1", "google/gemini-2.0-flash-001"]
+        case .groq: return ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+        case .openrouter: return ["openrouter/auto"]
         case .custom: return ["default"]
         }
     }
@@ -444,11 +460,21 @@ public struct AIActionPreset: Identifiable, Codable, Equatable, Sendable {
     public var title: String
     public var prompt: String
     public var isEnabled: Bool
+    /// `AIProviderType` raw value to run this action on; nil uses the provider chosen in AI settings.
+    public var provider: String?
+    /// Model for the chosen provider (or the global one when `provider` is nil); blank uses that provider's model from AI settings.
+    public var model: String?
 
-    public init(id: String, title: String, prompt: String, isEnabled: Bool = true) {
+    public init(id: String, title: String, prompt: String, isEnabled: Bool = true, provider: String? = nil, model: String? = nil) {
         self.id = id
         self.title = title
         self.prompt = prompt
         self.isEnabled = isEnabled
+        self.provider = provider
+        self.model = model
     }
+}
+
+private extension String {
+    var nonEmpty: String? { isEmpty ? nil : self }
 }
