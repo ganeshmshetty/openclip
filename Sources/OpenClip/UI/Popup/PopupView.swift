@@ -67,6 +67,8 @@ public struct PopupView: View {
     public let onFollowUp: (@MainActor (String) -> Void)?
     /// Cancels a follow-up in flight (Esc while the card refines), keeping the previous answer.
     public let onCancelFollowUp: (@MainActor () -> Void)?
+    /// Steps the card to an earlier (-1) or later (+1) result of the session.
+    public let onStepVersion: (@MainActor (Int) -> Void)?
     /// Click intent captured at mouse-down, so ⇧-click can force copy.
     public let onClickIntent: @MainActor () -> ActionResultDelivery.ClickIntent
     /// Shows the hover tooltip in the controller's screen-space window, placed via TooltipPlacer so it escapes panel clipping.
@@ -184,6 +186,7 @@ public struct PopupView: View {
         onSaveAIPrompt: (@MainActor (String, Bool) -> Void)? = nil,
         onFollowUp: (@MainActor (String) -> Void)? = nil,
         onCancelFollowUp: (@MainActor () -> Void)? = nil,
+        onStepVersion: (@MainActor (Int) -> Void)? = nil,
         onClickIntent: @escaping @MainActor () -> ActionResultDelivery.ClickIntent = { .primary },
         onShowTooltip: (@MainActor (String, CGRect, String, Bool) -> Void)? = nil,
         onHideTooltip: (@MainActor () -> Void)? = nil
@@ -228,6 +231,7 @@ public struct PopupView: View {
         self.onSaveAIPrompt = onSaveAIPrompt
         self.onFollowUp = onFollowUp
         self.onCancelFollowUp = onCancelFollowUp
+        self.onStepVersion = onStepVersion
         self.onClickIntent = onClickIntent
         self.onShowTooltip = onShowTooltip
         self.onHideTooltip = onHideTooltip
@@ -447,7 +451,8 @@ public struct PopupView: View {
                 onResize: { edge, phase in onResize?(edge, phase) },
                 onPin: { onPinCard?() },
                 onFollowUp: onFollowUp.map { run in { instruction in run(instruction) } },
-                onCancelFollowUp: onCancelFollowUp
+                onCancelFollowUp: onCancelFollowUp,
+                onStepVersion: onStepVersion
             )
             .environment(\.colorScheme, effectiveColorScheme)
             .environment(\.popupEffectiveTheme, effectiveTheme)

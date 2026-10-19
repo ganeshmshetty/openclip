@@ -82,7 +82,13 @@ struct GeminiChatRequest: Encodable, Sendable {
         let text: String
     }
     struct Content: Encodable, Sendable {
+        let role: String?
         let parts: [Part]
+
+        init(role: String? = nil, parts: [Part]) {
+            self.role = role
+            self.parts = parts
+        }
     }
     struct SystemInstruction: Encodable, Sendable {
         let parts: [Part]

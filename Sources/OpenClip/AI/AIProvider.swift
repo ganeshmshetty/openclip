@@ -80,9 +80,16 @@ public protocol AIProvider {
     var type: AIProviderType { get }
     func process(prompt: String, text: String) async throws -> String
     func processStream(prompt: String, text: String) -> AsyncThrowingStream<String, Error>
+    /// Applies a follow-up `instruction` to the session's latest result. `currentText` is what the card shows.
+    func processStream(refining conversation: AIConversation, instruction: String, currentText: String) -> AsyncThrowingStream<String, Error>
 }
 
 extension AIProvider {
+    /// Providers without native multi-turn support fold the history into the task text.
+    public func processStream(refining conversation: AIConversation, instruction: String, currentText: String) -> AsyncThrowingStream<String, Error> {
+        processStream(prompt: conversation.followUpTask(current: instruction), text: currentText)
+    }
+
     public func process(prompt: String, text: String) async throws -> String {
         var accumulated = ""
         for try await chunk in processStream(prompt: prompt, text: text) {
@@ -144,6 +151,15 @@ enum AIRequestSupport {
             return "\(custom)\(taskSection)\n\nRules:\n" + numbered([inputRule] + outputRules)
         }
         return "\(defaultRole)\(taskSection)\n\nRules:\n" + numbered(defaultBehaviorRules + [inputRule] + outputRules)
+    }
+
+    /// System text for follow-ups sent as chat turns: the action's task plus the rules for continuing a session.
+    static func followUpSystemPrompt(for task: String, structuredResult: Bool = false, customGuidelines: String? = nil) -> String {
+        systemPrompt(for: task, hasInputText: true, structuredResult: structuredResult, customGuidelines: customGuidelines) + "\n\n" + """
+            This is an ongoing session. The first user message holds the source text and each assistant message is the result so far. \
+            Every later user message is a follow-up instruction: apply it to your most recent result and reply with the complete revised result \
+            in the same output format. Leave everything the instruction does not mention unchanged, and do not redo earlier steps.
+            """
     }
 
     private static func numbered(_ rules: [String]) -> String {

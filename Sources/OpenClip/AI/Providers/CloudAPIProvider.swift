@@ -27,30 +27,37 @@ public final class CloudAPIProvider: AIProvider {
     }
 
     public func processStream(prompt: String, text: String) -> AsyncThrowingStream<String, Error> {
-        AsyncThrowingStream { continuation in
-            let validated: (prompt: String, text: String)
-            do {
-                validated = try AIRequestSupport.validateInput(prompt: prompt, text: text)
-            } catch {
-                continuation.finish(throwing: error)
-                return
-            }
+        let validated: (prompt: String, text: String)
+        do {
+            validated = try AIRequestSupport.validateInput(prompt: prompt, text: text)
+        } catch {
+            return AsyncThrowingStream { $0.finish(throwing: error) }
+        }
+        let systemInstruction = AIRequestSupport.systemPrompt(for: validated.prompt, hasInputText: !validated.text.isEmpty, customGuidelines: customGuidelines)
+        let userContent = AIRequestSupport.userContent(for: validated.text, fallbackPrompt: validated.prompt)
+        return stream(systemPrompt: systemInstruction, messages: [.init(role: .user, content: userContent)])
+    }
 
+    public func processStream(refining conversation: AIConversation, instruction: String, currentText: String) -> AsyncThrowingStream<String, Error> {
+        guard let request = conversation.followUpRequest(instruction: instruction, customGuidelines: customGuidelines) else {
+            return processStream(prompt: conversation.followUpTask(current: instruction), text: currentText)
+        }
+        return stream(systemPrompt: request.system, messages: request.messages)
+    }
+
+    private func stream(systemPrompt systemInstruction: String, messages: [AIChatMessage]) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
             guard !apiKey.isEmpty else {
                 continuation.finish(throwing: AIError.missingAPIKey)
                 return
             }
-
-            let hasInputText = !validated.text.isEmpty
-            let systemInstruction = AIRequestSupport.systemPrompt(for: validated.prompt, hasInputText: hasInputText, customGuidelines: customGuidelines)
-            let userContent = AIRequestSupport.userContent(for: validated.text, fallbackPrompt: validated.prompt)
 
             let streamTask: Task<Void, Never>
             switch serviceProvider {
             case .anthropic:
                 streamTask = Task {
                     do {
-                        for try await chunk in self.streamAnthropic(systemPrompt: systemInstruction, userContent: userContent) {
+                        for try await chunk in self.streamAnthropic(systemPrompt: systemInstruction, messages: messages) {
                             continuation.yield(chunk)
                         }
                         AIRequestSupport.finishStream(continuation)
@@ -61,7 +68,7 @@ public final class CloudAPIProvider: AIProvider {
             case .google:
                 streamTask = Task {
                     do {
-                        for try await chunk in self.streamGemini(systemPrompt: systemInstruction, userContent: userContent) {
+                        for try await chunk in self.streamGemini(systemPrompt: systemInstruction, messages: messages) {
                             continuation.yield(chunk)
                         }
                         AIRequestSupport.finishStream(continuation)
@@ -73,7 +80,7 @@ public final class CloudAPIProvider: AIProvider {
                 let baseURL = effectiveBaseURL
                 streamTask = Task {
                     do {
-                        for try await chunk in self.streamOpenAICompatible(systemPrompt: systemInstruction, userContent: userContent, baseURL: baseURL) {
+                        for try await chunk in self.streamOpenAICompatible(systemPrompt: systemInstruction, messages: messages, baseURL: baseURL) {
                             continuation.yield(chunk)
                         }
                         AIRequestSupport.finishStream(continuation)
@@ -110,7 +117,7 @@ public final class CloudAPIProvider: AIProvider {
 
     // MARK: - OpenAI-compatible chat completions
 
-    private func streamOpenAICompatible(systemPrompt: String, userContent: String, baseURL: String) -> AsyncThrowingStream<String, Error> {
+    private func streamOpenAICompatible(systemPrompt: String, messages: [AIChatMessage], baseURL: String) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -129,10 +136,8 @@ public final class CloudAPIProvider: AIProvider {
                     let systemRole = isOpenAIReasoningModel(model) ? "developer" : "system"
                     let body = OpenAIChatRequest(
                         model: model,
-                        messages: [
-                            .init(role: systemRole, content: systemPrompt),
-                            .init(role: "user", content: userContent)
-                        ],
+                        messages: [.init(role: systemRole, content: systemPrompt)]
+                            + messages.map { .init(role: $0.role.rawValue, content: $0.content) },
                         stream: true
                     )
                     request.httpBody = try JSONEncoder().encode(body)
@@ -189,7 +194,7 @@ public final class CloudAPIProvider: AIProvider {
 
     // MARK: - Anthropic Messages API
 
-    private func streamAnthropic(systemPrompt: String, userContent: String) -> AsyncThrowingStream<String, Error> {
+    private func streamAnthropic(systemPrompt: String, messages: [AIChatMessage]) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -210,7 +215,7 @@ public final class CloudAPIProvider: AIProvider {
                         model: model,
                         maxTokens: 4096,
                         system: systemPrompt,
-                        messages: [.init(role: "user", content: userContent)],
+                        messages: messages.map { .init(role: $0.role.rawValue, content: $0.content) },
                         stream: true
                     )
                     request.httpBody = try JSONEncoder().encode(body)
@@ -266,7 +271,7 @@ public final class CloudAPIProvider: AIProvider {
 
     // MARK: - Google Gemini API
 
-    private func streamGemini(systemPrompt: String, userContent: String) -> AsyncThrowingStream<String, Error> {
+    private func streamGemini(systemPrompt: String, messages: [AIChatMessage]) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -285,7 +290,7 @@ public final class CloudAPIProvider: AIProvider {
 
                     let body = GeminiChatRequest(
                         systemInstruction: .init(parts: [.init(text: systemPrompt)]),
-                        contents: [.init(parts: [.init(text: userContent)])]
+                        contents: messages.map { .init(role: $0.role == .assistant ? "model" : "user", parts: [.init(text: $0.content)]) }
                     )
                     request.httpBody = try JSONEncoder().encode(body)
 

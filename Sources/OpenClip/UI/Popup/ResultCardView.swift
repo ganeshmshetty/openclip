@@ -64,6 +64,8 @@ public struct ResultCardView: View {
     public let onFollowUp: (@MainActor (String) -> Void)?
     /// Cancels a follow-up in flight (Esc while refining). nil means Esc always dismisses.
     public let onCancelFollowUp: (@MainActor () -> Void)?
+    /// Steps to an earlier (-1) or later (+1) result. nil hides the switcher.
+    public let onStepVersion: (@MainActor (Int) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.popupEffectiveTheme) private var environmentEffectiveTheme
@@ -124,7 +126,8 @@ public struct ResultCardView: View {
         onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in },
         onPin: @escaping @MainActor () -> Void = {},
         onFollowUp: (@MainActor (String) -> Void)? = nil,
-        onCancelFollowUp: (@MainActor () -> Void)? = nil
+        onCancelFollowUp: (@MainActor () -> Void)? = nil,
+        onStepVersion: (@MainActor (Int) -> Void)? = nil
     ) {
         self.payload = payload
         self.canPaste = canPaste
@@ -141,6 +144,7 @@ public struct ResultCardView: View {
         self.onPin = onPin
         self.onFollowUp = onFollowUp
         self.onCancelFollowUp = onCancelFollowUp
+        self.onStepVersion = onStepVersion
     }
 
     /// Esc while a follow-up streams cancels it and keeps the card; otherwise it dismisses.
@@ -197,6 +201,11 @@ public struct ResultCardView: View {
         .onKeyPress(keys: ["d"], phases: .down) { press in
             guard press.modifiers.contains(.command), hasDiff, payload.file == nil else { return .ignored }
             toggleDiff()
+            return .handled
+        }
+        .onKeyPress(keys: ["z"], phases: .down) { press in
+            guard press.modifiers.contains(.command), showsVersionSwitcher else { return .ignored }
+            onStepVersion?(press.modifiers.contains(.shift) ? 1 : -1)
             return .handled
         }
         .onKeyPress(keys: ["s"], phases: .down) { press in
@@ -773,6 +782,10 @@ public struct ResultCardView: View {
                     .frame(maxWidth: isTypingFollowUp ? .infinity : Self.followUpMaxWidthCollapsed, alignment: .leading)
             }
 
+            if showsVersionSwitcher, !isTypingFollowUp {
+                versionSwitcher
+            }
+
             Spacer(minLength: 0)
 
             if !isTypingFollowUp {
@@ -798,6 +811,34 @@ public struct ResultCardView: View {
     /// Copy / Paste (or Dismiss) are offered only once the card's text has settled.
     static func showsResultButtons(isStreaming: Bool) -> Bool {
         !isStreaming
+    }
+
+    private var showsVersionSwitcher: Bool {
+        onStepVersion != nil && showsFollowUp && !payload.isStreaming && payload.versionCount > 1
+    }
+
+    private var versionSwitcher: some View {
+        let tint = PopupThemeModel.restForeground(for: effectiveTheme)
+        return HStack(spacing: 2) {
+            Button { onStepVersion?(-1) } label: {
+                Image(systemName: "chevron.left").font(.system(size: 10, weight: .semibold))
+            }
+            .disabled(payload.versionIndex <= 1)
+            .help(String(localized: "Previous result (⌘Z)"))
+            .accessibilityLabel(String(localized: "Previous result"))
+
+            Text("\(payload.versionIndex)/\(payload.versionCount)")
+                .font(.system(size: 11, weight: .medium).monospacedDigit())
+
+            Button { onStepVersion?(1) } label: {
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+            }
+            .disabled(payload.versionIndex >= payload.versionCount)
+            .help(String(localized: "Next result (⇧⌘Z)"))
+            .accessibilityLabel(String(localized: "Next result"))
+        }
+        .buttonStyle(.plain)
+        .foregroundColor(tint.opacity(0.65))
     }
 
     private var followUpField: some View {

@@ -88,13 +88,28 @@ public final class LocalLLMProvider: AIProvider {
     }
 
     public func processStream(prompt: String, text: String) -> AsyncThrowingStream<String, Error> {
+        let validated: (prompt: String, text: String)
+        do {
+            validated = try AIRequestSupport.validateInput(prompt: prompt, text: text)
+        } catch {
+            return AsyncThrowingStream { $0.finish(throwing: error) }
+        }
+        let systemInstruction = AIRequestSupport.systemPrompt(for: validated.prompt, hasInputText: !validated.text.isEmpty, customGuidelines: customGuidelines)
+        let userContent = AIRequestSupport.userContent(for: validated.text, fallbackPrompt: validated.prompt)
+        return stream(systemInstruction: systemInstruction, messages: [.init(role: .user, content: userContent)])
+    }
+
+    public func processStream(refining conversation: AIConversation, instruction: String, currentText: String) -> AsyncThrowingStream<String, Error> {
+        guard let request = conversation.followUpRequest(instruction: instruction, customGuidelines: customGuidelines) else {
+            return processStream(prompt: conversation.followUpTask(current: instruction), text: currentText)
+        }
+        return stream(systemInstruction: request.system, messages: request.messages)
+    }
+
+    private func stream(systemInstruction: String, messages: [AIChatMessage]) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let validated = try AIRequestSupport.validateInput(prompt: prompt, text: text)
-                    let hasInputText = !validated.text.isEmpty
-                    let systemInstruction = AIRequestSupport.systemPrompt(for: validated.prompt, hasInputText: hasInputText, customGuidelines: self.customGuidelines)
-                    let userContent = AIRequestSupport.userContent(for: validated.text, fallbackPrompt: validated.prompt)
 
                     // 1. Try standard OpenAI-compatible /chat/completions endpoint
                     let chatURL = Self.resolveChatCompletionsURL(baseURL: baseURL)
@@ -106,10 +121,8 @@ public final class LocalLLMProvider: AIProvider {
 
                             let body = OpenAIChatRequest(
                                 model: model,
-                                messages: [
-                                    .init(role: "system", content: systemInstruction),
-                                    .init(role: "user", content: userContent)
-                                ],
+                                messages: [.init(role: "system", content: systemInstruction)]
+                                    + messages.map { .init(role: $0.role.rawValue, content: $0.content) },
                                 stream: true,
                                 reasoningEffort: disableThinking ? "none" : nil
                             )
@@ -156,7 +169,7 @@ public final class LocalLLMProvider: AIProvider {
                         return
                     }
 
-                    let fullPrompt = "\(systemInstruction)\n\n\(userContent)"
+                    let fullPrompt = ([systemInstruction] + messages.map(\.content)).joined(separator: "\n\n")
                     var request = URLRequest(url: ollamaURL, timeoutInterval: AIRequestSupport.timeoutInterval)
                     request.httpMethod = "POST"
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -830,5 +830,9 @@
   "Custom…": "自訂…",
   "Model identifier": "模型識別碼",
   "Run this action on a different provider than the one chosen in AI settings. Keys and endpoints still come from AI settings.": "讓此動作使用與 AI 設定中不同的提供者。金鑰與端點仍取自 AI 設定。",
-  "This model is not in the provider's current list. It may have been retired.": "此模型不在提供者目前的清單中，可能已停用。"
+  "This model is not in the provider's current list. It may have been retired.": "此模型不在提供者目前的清單中，可能已停用。",
+  "Previous result (⌘Z)": "上一個結果 (⌘Z)",
+  "Previous result": "上一個結果",
+  "Next result (⇧⌘Z)": "下一個結果 (⇧⌘Z)",
+  "Next result": "下一個結果"
 }

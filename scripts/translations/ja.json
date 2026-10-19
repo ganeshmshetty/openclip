@@ -830,5 +830,9 @@
   "Custom…": "カスタム…",
   "Model identifier": "モデル識別子",
   "Run this action on a different provider than the one chosen in AI settings. Keys and endpoints still come from AI settings.": "この操作を、AI設定で選んだものとは別のプロバイダで実行します。キーとエンドポイントはAI設定のものを使います。",
-  "This model is not in the provider's current list. It may have been retired.": "このモデルはプロバイダの現在の一覧にありません。提供終了の可能性があります。"
+  "This model is not in the provider's current list. It may have been retired.": "このモデルはプロバイダの現在の一覧にありません。提供終了の可能性があります。",
+  "Previous result (⌘Z)": "前の結果 (⌘Z)",
+  "Previous result": "前の結果",
+  "Next result (⇧⌘Z)": "次の結果 (⇧⌘Z)",
+  "Next result": "次の結果"
 }

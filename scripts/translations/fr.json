@@ -830,5 +830,9 @@
   "Custom…": "Personnalisé…",
   "Model identifier": "Identifiant du modèle",
   "Run this action on a different provider than the one chosen in AI settings. Keys and endpoints still come from AI settings.": "Exécute cette action avec un autre fournisseur que celui choisi dans les réglages IA. Les clés et points de terminaison restent ceux des réglages IA.",
-  "This model is not in the provider's current list. It may have been retired.": "Ce modèle ne figure pas dans la liste actuelle du fournisseur. Il a peut-être été retiré."
+  "This model is not in the provider's current list. It may have been retired.": "Ce modèle ne figure pas dans la liste actuelle du fournisseur. Il a peut-être été retiré.",
+  "Previous result (⌘Z)": "Résultat précédent (⌘Z)",
+  "Previous result": "Résultat précédent",
+  "Next result (⇧⌘Z)": "Résultat suivant (⇧⌘Z)",
+  "Next result": "Résultat suivant"
 }

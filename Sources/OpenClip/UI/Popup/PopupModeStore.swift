@@ -53,9 +53,12 @@ public struct ResultCardPayload: Sendable, Equatable {
     /// True for AI results that support follow-up refinement.
     public let canFollowUp: Bool
     public let file: FileOutputPayload?
+    /// Position among the session's results (1-based) and how many exist, for the undo/redo switcher.
+    public let versionIndex: Int
+    public let versionCount: Int
 
     /// Builds the card content, including an optional native file.
-    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true, file: FileOutputPayload? = nil) {
+    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true, file: FileOutputPayload? = nil, versionIndex: Int = 1, versionCount: Int = 1) {
         self.text = text
         self.isError = isError
         self.title = title
@@ -65,6 +68,8 @@ public struct ResultCardPayload: Sendable, Equatable {
         self.isRefining = isRefining
         self.canFollowUp = canFollowUp
         self.file = file
+        self.versionIndex = versionIndex
+        self.versionCount = versionCount
     }
 }
 
