@@ -307,6 +307,7 @@ public final class AIServiceManager: ObservableObject {
     private static let cloudAPIKeyAccount = "aiCloudAPIKey"
 
     private init() {
+        Self.importSiblingBuildSettings(into: settingsStore)
         if let stored = SecretStore.get(account: Self.cloudAPIKeyAccount) {
             self.cloudAPIKey = stored
         } else if let legacy = UserDefaults.standard.string(forKey: "aiCloudAPIKey"), !legacy.isEmpty {
@@ -328,6 +329,30 @@ public final class AIServiceManager: ObservableObject {
            let legacyModel = defaults.string(forKey: "aiOllamaModel"), !legacyModel.isEmpty {
             localModel = legacyModel
         }
+    }
+
+    /// The Dev and release builds keep separate preferences domains but share the API key file, so a build that was
+    /// never configured would show a key with no provider. It adopts the other build's AI settings once.
+    static func importSiblingBuildSettings(into store: SettingsStore, bundleID: String? = Bundle.main.bundleIdentifier) {
+        guard let bundleID, let sibling = siblingBundleID(of: bundleID),
+              let defaults = UserDefaults(suiteName: sibling) else { return }
+        importAISettings(into: store, from: DefaultSettingsStore(userDefaults: defaults))
+    }
+
+    static func siblingBundleID(of bundleID: String) -> String? {
+        guard bundleID.hasPrefix("com.openclip.OpenClip") else { return nil }
+        return bundleID.hasSuffix(".dev") ? String(bundleID.dropLast(4)) : bundleID + ".dev"
+    }
+
+    /// Copies the AI settings from `source` when `store` has never had a provider chosen and `source` has.
+    @discardableResult
+    static func importAISettings(into store: SettingsStore, from source: SettingsStore) -> Bool {
+        let name = SettingKey.aiActiveProvider.name
+        guard store.rawObject(forKey: name) == nil, source.rawObject(forKey: name) != nil else { return false }
+        let snapshot = SettingsSnapshotter.capture(store: source, keys: SettingsCatalog.aiKeys, appVersion: "")
+        let result = SettingsSnapshotter.apply(snapshot, to: store, keys: SettingsCatalog.aiKeys)
+        Log.settings.notice("Adopted \(result.applied) AI settings from the other OpenClip build")
+        return result.applied > 0
     }
 
     public var activeProviderType: AIProviderType {

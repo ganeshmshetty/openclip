@@ -1686,17 +1686,19 @@ public class PopupWindowController {
             Log.ai.notice("Saved a palette prompt as AI tool \(preset.id, privacy: .public)")
         }
 
-        let taskPrompt = PaletteAIPrompt.saveToolTaskPrompt(for: prompt)
-        let onTitle: (String) -> Void = { cleanTitle in
+        // A reused tool already has its name; only a newly saved one asks the model for a title.
+        let taskPrompt = existing == nil ? PaletteAIPrompt.saveToolTaskPrompt(for: prompt) : prompt
+        let onTitle: ((String) -> Void)? = existing == nil ? { cleanTitle in
             let trimmed = cleanTitle.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty, trimmed != preset.title else { return }
             preset.title = trimmed
             manager.updatePreset(preset)
-        }
+        } : nil
 
         if replace {
             runAIPromptReplacing(
                 prompt: taskPrompt,
+                presetID: preset.id,
                 loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Replacing…") : nil,
                 onGeneratedTitle: onTitle
             )
@@ -1704,6 +1706,7 @@ public class PopupWindowController {
             runAIPreset(
                 prompt: taskPrompt,
                 title: preset.title,
+                presetID: preset.id,
                 loadingMessage: existing == nil ? String(localized: "Saved as AI tool · Generating…") : nil,
                 onGeneratedTitle: onTitle
             )
@@ -1712,11 +1715,12 @@ public class PopupWindowController {
 
     /// Runs `prompt` on the selection and pastes the answer over it, with no card. Copies instead when the target can't paste
     /// or the frontmost app changed.
-    func runAIPromptReplacing(prompt: String, loadingMessage: String? = nil, inputText: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
+    func runAIPromptReplacing(prompt: String, presetID: String? = nil, loadingMessage: String? = nil, inputText: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
         guard let context = currentActionContext else {
             Log.ai.error("Cannot replace with AI: currentActionContext is nil")
             return
         }
+        activeAIPresetID = presetID
         activeStreamingTask?.cancel()
         activeStreamingTask = nil
 

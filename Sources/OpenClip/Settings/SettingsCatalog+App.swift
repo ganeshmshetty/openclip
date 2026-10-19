@@ -15,8 +15,13 @@ extension SettingsCatalog {
             SettingKey.preferencesInstalledSectionExpanded.erased,
             SettingKey.preferencesSystemPromptExpanded.erased,
             SettingKey.resultCardWidth.erased,
-            SettingKey.resultCardHeight.erased,
+            SettingKey.resultCardHeight.erased
+        ] + aiKeys
+    }
 
+    /// Provider, model and action settings: the connection choices carried between the Dev and release builds.
+    static var aiKeys: [AnySettingKey] {
+        [
             SettingKey.aiActiveProvider.erased,
             SettingKey.aiCloudService.erased,
             SettingKey.aiCloudCustomURL.erased,
