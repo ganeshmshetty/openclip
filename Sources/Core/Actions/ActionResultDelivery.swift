@@ -3,7 +3,7 @@
 //
 // Pure decision for how a text or file result is delivered (paste vs copy) and which toast shows.
 // Pipeline: Select (declared secondary, else user preference / recommendation / output-kind default,
-// then the clipboard invariant on secondary clicks) -> Probe (paste downgraded to copy when the
+// then the clipboard invariant on secondary clicks, except a user "Show in card" preference keeps text in the card) -> Probe (paste downgraded to copy when the
 // target can't paste) -> Toast. Only paste outcomes are downgraded; non-text results pass through.
 // Core stays free of AppKit and UserDefaults; `canPaste` is injected so this is unit-testable.
 import Foundation
@@ -85,13 +85,23 @@ public enum ActionResultDelivery {
             explicitMode = nil
         }
 
-        return selectItem(raw, clickIntent: clickIntent, explicitMode: explicitMode)
+        // A user who chose "Show in card" wants the card on every click: text results stay previews on
+        // secondary clicks instead of falling back to copy. Recommendations and output-kind defaults don't count.
+        let userChosePreview = preference == .preview
+        return selectItem(raw, clickIntent: clickIntent, explicitMode: explicitMode, previewOnSecondary: userChosePreview)
     }
 
     /// Per-item select rules; recurses into `.sequence`. The declared secondary is handled before this walk.
-    private static func selectItem(_ raw: ActionResult, clickIntent: ClickIntent, explicitMode: ActionResultDeliveryMode?) -> ActionResult {
+    private static func selectItem(
+        _ raw: ActionResult,
+        clickIntent: ClickIntent,
+        explicitMode: ActionResultDeliveryMode?,
+        previewOnSecondary: Bool = false
+    ) -> ActionResult {
         if case .sequence(let items) = raw {
-            return .sequence(items.map { selectItem($0, clickIntent: clickIntent, explicitMode: explicitMode) })
+            return .sequence(items.map {
+                selectItem($0, clickIntent: clickIntent, explicitMode: explicitMode, previewOnSecondary: previewOnSecondary)
+            })
         }
 
         let effectiveMode: ActionResultDeliveryMode
@@ -119,6 +129,9 @@ public enum ActionResultDelivery {
                 }
             } else {
                 switch effectiveMode {
+                case .preview where previewOnSecondary:
+                    // User chose "Show in card": the secondary click shows the card too.
+                    return raw
                 case .paste, .pasteOrCopy, .preview, .open, .save:
                     return .copy(text)
                 case .copy:

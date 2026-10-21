@@ -96,7 +96,7 @@ You can change the title and icon of any action without editing code or manifest
 When an action produces text, such as a transformation, a dictionary definition, or a calculation:
 
 - **When finished** is set per action, on each action's settings page: **Show in card**, **Paste**, or **Copy**. By default each action uses the delivery mode its author recommends, for example **Show in card** for Define, or **Paste or Copy** for text actions that use the standard default.
-- **Secondary click** (right-click or ⇧-click) follows the **Clipboard Invariant**. It copies the result to the clipboard, or shows it in a card if the primary action was a copy, so you can copy output without changing the default paste behavior. Secondary outcomes an action declares explicitly still take priority.
+- **Secondary click** (right-click or ⇧-click) follows the **Clipboard Invariant**. It copies the result to the clipboard, or shows it in a card if the primary action was a copy, so you can copy output without changing the default paste behavior. Secondary outcomes an action declares explicitly still take priority. If you set an action to **Show in card**, secondary clicks on its text results show the card as well.
 
 ## Popup appearance and theme
 

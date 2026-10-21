@@ -127,7 +127,7 @@ OpenClip uses an author output contract (`output` and `result`) for extensions:
 - **`output` (`text` | `file` | `none` | `dynamic`)**: Declares what type of output the action produces. Non-output actions (`url`, `keyPress`, `shortcut`, `service`) default to `none`.
 - **`result` (`preview` | `paste` | `copy` | `paste-or-copy` | `open` | `save`)**: Declares the author's recommended default outcome. Text actions default to `paste-or-copy`; file actions default to `preview`.
 - **User Customization**: Users can override the delivery mode per-action in Settings (`Show in card`, `Paste`, `Copy`).
-- **Clipboard Invariant**: Secondary click (right-click or ⇧-click) always copies the result to the clipboard (or displays a preview card if the primary click was copy), unless the action explicitly declares a custom `secondary` outcome.
+- **Clipboard Invariant**: Secondary click (right-click or ⇧-click) always copies the result to the clipboard (or displays a preview card if the primary click was copy), unless the action explicitly declares a custom `secondary` outcome. If the user set the action to **Show in card**, a secondary click on a text result shows the card too.
 
 ### Native file output results
 

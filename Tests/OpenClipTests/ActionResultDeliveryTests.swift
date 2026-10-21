@@ -264,6 +264,27 @@ final class ActionResultDeliveryTests: XCTestCase {
         assertCase(r, .copy("hello"))
     }
 
+    func testTextWithPreviewPreferenceSecondaryStaysInCard() {
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, canPaste: true, delivery: .none, preference: .preview)
+        assertCase(r, .text("hello"), "Show in card applies to secondary clicks too")
+        XCTAssertNil(toast)
+    }
+
+    func testRecommendedPreviewSecondaryStillCopies() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, canPaste: true, delivery: .none, recommendedResult: .preview)
+        assertCase(r, .copy("hello"), "only the user's own Show in card choice overrides the clipboard invariant")
+    }
+
+    func testPastePreferenceSecondaryStillCopies() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, canPaste: true, delivery: .none, preference: .paste)
+        assertCase(r, .copy("hello"))
+    }
+
+    func testPreviewPreferenceSecondaryExplicitPasteStillCopies() {
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: .none, preference: .preview)
+        assertCase(r, .copy("a"))
+    }
+
     func testDeclaredSecondaryWinsOverTextPreference() {
         let d = ActionDelivery(secondary: .openURL(URL(string: "https://alt")!))
         let (r, _) = ActionResultDelivery.resolve(raw: .text("a"), clickIntent: .secondary, canPaste: true, delivery: d, preference: .preview)
