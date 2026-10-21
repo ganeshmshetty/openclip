@@ -65,7 +65,7 @@ return (upperText as text)
 
 - **String Return Value**: If the script returns a non-empty string value, `AppleScriptAction`
   returns `ActionResult.text(str)` for implicitly returned text, delivered per the user's per-click
-  preference (preview/paste/copy; a secondary click derives copy via delivery).
+  preference (preview/paste/copy; a secondary click copies, unless the user set Show in card).
 - **No Return Value (empty)**: If the script executes without returning text, it returns `ActionResult.success`.
 - **Error Handling**: On a non-zero subprocess exit (the AppleScript error text goes to stderr), the runtime returns `ActionResult.failure(error)` with the error message.
 - **Timeout**: Only when the invocation carries an explicit budget. Past it the watchdog terminates `osascript`, the process group when it is the leader, and remaining descendants. Execution surfaces as a timeout failure. With no budget (the default) there is no watchdog; the subprocess runs until it exits or the loading toast cancels it.

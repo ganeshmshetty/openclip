@@ -148,7 +148,8 @@ areas; stale debt notes are worse than none.
   `.text` and the paste-vs-copy/preview delivery decision (Select → Probe → Toast) is applied
   downstream from the action's author-declared output contract (`output` and `result` in manifest /
   `ActionChrome`), optional user per-action delivery override (`ActionCustomizationManager`),
-  the universal secondary-click Clipboard Invariant (secondary click copies; or previews if primary is copy),
+  the universal secondary-click Clipboard Invariant (secondary click copies; or previews if primary is copy;
+  a user "Show in card" preference keeps a text result in the card on secondary click too),
   and the unified paste availability. The flawed global settings (`primaryClickBehavior`/
   `secondaryClickBehavior`) are fully removed. The old `after` translator (the pre-refactor `after` orchestration step and its
   adapter) is fully removed. Synchronous JavaScript (including the top-level synchronous phase

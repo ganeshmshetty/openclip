@@ -3,8 +3,9 @@
 //
 // Pure decision for how a text or file result is delivered (paste vs copy) and which toast shows.
 // Pipeline: Select (declared secondary, else user preference / recommendation / output-kind default,
-// then the clipboard invariant on secondary clicks, except a user "Show in card" preference keeps text in the card) -> Probe (paste downgraded to copy when the
-// target can't paste) -> Toast. Only paste outcomes are downgraded; non-text results pass through.
+// then the clipboard invariant on secondary clicks, except a user "Show in card" preference keeps
+// text in the card) -> Probe (paste downgraded to copy when the target can't paste) -> Toast.
+// Only paste outcomes are downgraded; non-text results pass through.
 // Core stays free of AppKit and UserDefaults; `canPaste` is injected so this is unit-testable.
 import Foundation
 
@@ -18,7 +19,7 @@ public enum ResultDeliveryPreference: String, CaseIterable, Sendable, Equatable,
 public enum ActionResultDelivery {
     public enum ClickIntent: Sendable, Equatable {
         case primary
-        /// Right-click or ⇧-click. Secondary clicks copy (clipboard invariant).
+        /// Right-click or ⇧-click. Copies, unless the primary outcome was already a copy or the user chose Show in card.
         case secondary
     }
 
