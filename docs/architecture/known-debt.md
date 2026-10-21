@@ -729,6 +729,14 @@ lines by height interleaved multi-column text.
   paths use the same target-transition handler, so duplicate entries and stale local exits cannot
   restart dwell or cancel a different group's timer. Pointer-distance dismissal in fullscreen remains dependent on monitor
   delivery and is not supplied by this tracking-area path.
+- Tooltip and sub-bar windows follow the toast Space recovery. Both panels include
+  `canJoinAllApplications`. Each show schedules one 150 ms check; a reused window that is
+  invisible or off the active Space is replaced once, keeping its content view and frame,
+  without activating OpenClip. Hide and a newer show cancel the check. Tooltip measurement
+  falls back to the measured text size when the hosting view reports a zero `fittingSize`,
+  so one miss cannot suppress later hovers. A fade-out completion orders out only the panel
+  it animated, and a show from a hidden panel commits alpha in a zero-duration transaction
+  before ordering front.
 - Automatic reads are tied to the selection source process. The monitor uses the activated app
   from the workspace notification and cancels pending reads and clears the cached selection on a
   switch away from the source. Queued notifications for apps no longer frontmost, activation of

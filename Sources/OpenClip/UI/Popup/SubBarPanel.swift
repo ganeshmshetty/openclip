@@ -8,7 +8,7 @@ import SwiftUI
 import Core
 
 @MainActor
-public final class SubBarPanel: NSPanel {
+public class SubBarPanel: NSPanel {
     /// Controls how horizontal width changes anchor the sub-bar window (e.g. .right for pagination).
     public var horizontalAnchor: PopupPanel.HorizontalAnchor = .none
 
@@ -20,7 +20,8 @@ public final class SubBarPanel: NSPanel {
             defer: false
         )
         self.level = .popUpMenu
-        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        // Match the popup and toast: eligible for another application's fullscreen Space.
+        self.collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = false

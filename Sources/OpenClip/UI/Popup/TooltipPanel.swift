@@ -10,7 +10,7 @@ import SwiftUI
 import Core
 
 @MainActor
-public final class TooltipPanel: NSPanel {
+public class TooltipPanel: NSPanel {
     /// Sits above the popup/sub-bar panels (both `.popUpMenu`) so the tooltip is never occluded
     /// by the surfaces it is annotating or avoiding.
     public static let windowLevel = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.popUpMenuWindow)) + 1)
@@ -23,7 +23,8 @@ public final class TooltipPanel: NSPanel {
             defer: false
         )
         self.level = Self.windowLevel
-        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        // Match the popup and toast: eligible for another application's fullscreen Space.
+        self.collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = false   // SwiftUI draws its own shadow inside the inset ring

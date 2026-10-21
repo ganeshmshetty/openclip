@@ -10,7 +10,7 @@ import Core
 
 @MainActor
 public final class SubBarPanelController {
-    public let panel: SubBarPanel
+    public private(set) var panel: SubBarPanel
     private var hostingView: NSHostingView<AnyView>?
     private var graceTask: Task<Void, Never>?
     private var dwellTask: Task<Void, Never>?
@@ -26,6 +26,10 @@ public final class SubBarPanelController {
     public let tooltipController: TooltipPanelController
     /// Main bar's screen frame for the current show; sub-bar tooltips avoid it.
     private var mainBarScreenFrame: NSRect?
+    /// Invalidates a Space check when the sub-bar hides or shows again.
+    private(set) var spacePresentationID = UUID()
+    private var spaceRecoveryTask: Task<Void, Never>?
+    private var didAttemptSpaceRecovery = false
 
     public init(panel: SubBarPanel = SubBarPanel(),
                 tooltipController: TooltipPanelController = .shared) {
@@ -64,6 +68,11 @@ public final class SubBarPanelController {
             hide()
             return false
         }
+
+        spaceRecoveryTask?.cancel()
+        spacePresentationID = UUID()
+        didAttemptSpaceRecovery = false
+        let spaceAttempt = spacePresentationID
 
         let state = ActiveSubGroupState(
             groupID: groupAction.id,
@@ -160,7 +169,44 @@ public final class SubBarPanelController {
         )
         panel.setFrame(NSRect(x: clampedX, y: placement.y, width: panelWidth, height: panelHeight), display: true)
         panel.orderFront(nil)
+        scheduleSpaceRecovery(for: spaceAttempt)
         return placement.isAbove
+    }
+
+    private func scheduleSpaceRecovery(for id: UUID) {
+        guard NSClassFromString("XCTestCase") == nil else { return }
+        spaceRecoveryTask?.cancel()
+        spaceRecoveryTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .milliseconds(150)) }
+            catch { return }
+            self?.recoverSubBarSpaceIfNeeded(for: id)
+        }
+    }
+
+    /// A reused window can keep stale Space membership; swap in a fresh panel once, keeping content and frame.
+    @discardableResult
+    func recoverSubBarSpaceIfNeeded(for id: UUID, makePanel: () -> SubBarPanel = { SubBarPanel() }) -> Bool {
+        guard spacePresentationID == id, activeState != nil, !didAttemptSpaceRecovery,
+              !panel.isKeyWindow, !panel.isVisible || !panel.isOnActiveSpace else { return false }
+        didAttemptSpaceRecovery = true
+        Log.presentation.notice("Recovering sub-bar window visible=\(panel.isVisible, privacy: .public) activeSpace=\(panel.isOnActiveSpace, privacy: .public)")
+        let frame = panel.frame
+        let content = panel.contentView
+        let anchor = panel.horizontalAnchor
+        let appearance = panel.appearance
+        let replacement = makePanel()
+        replacement.horizontalAnchor = anchor
+        replacement.appearance = appearance
+        // Click-through is momentary hover state. A fresh window accepts clicks, like a new show.
+        replacement.ignoresMouseEvents = false
+        panel.orderOut(nil)
+        panel.contentView = nil
+        panel = replacement
+        replacement.contentView = content
+        replacement.setFrame(frame, display: false)
+        content?.updateTrackingAreas()
+        replacement.orderFront(nil)
+        return true
     }
 
     /// Places the child row outside the parent surface, flipping when the preferred side cannot fit.
@@ -271,6 +317,9 @@ public final class SubBarPanelController {
         dwellTask?.cancel()
         dwellTask = nil
         cancelGrace()
+        spaceRecoveryTask?.cancel()
+        spaceRecoveryTask = nil
+        spacePresentationID = UUID()
         guard isShowing || activeState != nil else { return }
         activeState = nil
         mainBarScreenFrame = nil
