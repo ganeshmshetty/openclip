@@ -6,7 +6,7 @@ All notable user-facing changes to OpenClip.
 
 ## Unreleased
 
-- Clicking the AI Tools icon now opens its AI actions in your Actions order instead of the search popup ([#175](https://github.com/ganeshmshetty/openclip/issues/175)).
+- AI Tools now shows your arranged actions on hover and in its search, including presets you moved in, moved out or reordered on the Actions page ([#175](https://github.com/ganeshmshetty/openclip/issues/175)).
 
 ---
 

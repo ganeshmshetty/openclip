@@ -55,15 +55,6 @@ final class AIToolsActionSubActionTests: XCTestCase {
         XCTAssertTrue(subActions.isEmpty)
     }
 
-    /// Clicking AI Tools opens the same sub-bar as hovering (#175), which resolves its children via
-    /// SubActionResolver in catalog order, i.e. the order arranged in Preferences.
-    func testSubBarChildrenKeepCatalogOrder() {
-        let tools = AIToolsAction(settingsStore: MemorySettingsStore())
-        let catalog = [FakeAIAction(id: "ai.preset.3"), FakeAIAction(id: "ai.preset.1"), FakeAIAction(id: "ai.preset.2")]
-        let ids = SubActionResolver().subActions(of: tools, in: catalog).map(\.id)
-        XCTAssertEqual(ids, ["ai.preset.3", "ai.preset.1", "ai.preset.2"])
-    }
-
     private var context: ActionContext {
         ActionContext(selection: SelectionContext(
             text: "Example", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
@@ -114,6 +105,66 @@ final class AIToolsActionSubActionTests: XCTestCase {
         XCTAssertEqual(registry.searchCatalog(for: context).map(\.id), ["ai.preset.2"])
         toggle.wrappedValue = true
         XCTAssertEqual(tools.subActions(in: registry.availableActions(for: context)).map(\.id), ["ai.preset.1"])
+    }
+
+    // MARK: - #175: sub-bar and scoped palette follow the Actions page arrangement
+
+    private func makeAIGroup(_ presetIDs: [String]) -> (MemorySettingsStore, ActionRegistry, ActionCoordinator, AIToolsAction) {
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+        let coordinator = ActionCoordinator(registry: registry, settingsStore: store)
+        let tools = AIToolsAction(settingsStore: store)
+        registry.register(builtIns: [tools] + presetIDs.map { FakeAIAction(id: $0) })
+        return (store, registry, coordinator, tools)
+    }
+
+    /// Children as the hover sub-bar resolves them (bar catalog) and as the click palette does (search catalog).
+    private func subBarAndPaletteIDs(_ tools: AIToolsAction, _ registry: ActionRegistry) -> (subBar: [String], palette: [String]) {
+        let resolver = SubActionResolver()
+        return (
+            resolver.subActions(of: tools, in: registry.availableActions(for: context)).map(\.id),
+            resolver.subActions(of: tools, in: registry.searchCatalog(for: context)).map(\.id)
+        )
+    }
+
+    func testReorderedPresetsShowInArrangedOrderOnSubBarAndPalette() {
+        let (_, registry, coordinator, tools) = makeAIGroup(["ai.preset.1", "ai.preset.2", "ai.preset.3"])
+        coordinator.setExtensionGroupMemberOrder(groupID: tools.id, memberIDs: ["ai.preset.3", "ai.preset.1", "ai.preset.2"])
+        let ids = subBarAndPaletteIDs(tools, registry)
+        XCTAssertEqual(ids.subBar, ["ai.preset.3", "ai.preset.1", "ai.preset.2"])
+        XCTAssertEqual(ids.palette, ["ai.preset.3", "ai.preset.1", "ai.preset.2"])
+    }
+
+    func testArrangedOrderWinsOverCatalogOrder() {
+        let store = MemorySettingsStore()
+        let tools = AIToolsAction(settingsStore: store)
+        store.set(.extensionGroupMemberOrder, value: [tools.id: ["ai.preset.2", "ai.preset.1"]])
+        let catalog = [FakeAIAction(id: "ai.preset.1"), FakeAIAction(id: "ai.preset.3"), FakeAIAction(id: "ai.preset.2")]
+        // Unarranged presets keep their catalog position after the arranged ones.
+        XCTAssertEqual(tools.subActions(in: catalog).map(\.id), ["ai.preset.2", "ai.preset.1", "ai.preset.3"])
+    }
+
+    func testMovedOutPresetLeavesSubBarAndPalette() {
+        let (_, registry, coordinator, tools) = makeAIGroup(["ai.preset.1", "ai.preset.2", "ai.preset.3"])
+        coordinator.setExtensionGroupMemberOrder(groupID: tools.id, memberIDs: ["ai.preset.3", "ai.preset.2", "ai.preset.1"])
+        coordinator.setAIActionPlacement(actionIDs: ["ai.preset.2"], standalone: true)
+        let ids = subBarAndPaletteIDs(tools, registry)
+        XCTAssertEqual(ids.subBar, ["ai.preset.3", "ai.preset.1"])
+        XCTAssertEqual(ids.palette, ["ai.preset.3", "ai.preset.1"])
+    }
+
+    func testMovedInPresetShowsAtItsArrangedSpotEvenWithStaleTopLevelOrder() {
+        let (store, registry, coordinator, tools) = makeAIGroup(["ai.preset.1", "ai.preset.2", "ai.preset.3"])
+        coordinator.setAIActionPlacement(actionIDs: ["ai.preset.3"], standalone: true)
+        // Simulate a leftover top-level slot from when the preset was standalone.
+        store.set(.actionOrder, value: ["ai.preset.3", tools.id])
+        store.set(.standaloneAIActionIDs, value: [])
+        coordinator.setExtensionGroupMemberOrder(groupID: tools.id, memberIDs: ["ai.preset.1", "ai.preset.3", "ai.preset.2"])
+        let ids = subBarAndPaletteIDs(tools, registry)
+        XCTAssertEqual(ids.subBar, ["ai.preset.1", "ai.preset.3", "ai.preset.2"])
+        XCTAssertEqual(ids.palette, ["ai.preset.1", "ai.preset.3", "ai.preset.2"])
+        // The in-group preset sorts with its launcher, not at its old top-level slot.
+        XCTAssertEqual(registry.actions.map(\.id), [tools.id, "ai.preset.1", "ai.preset.3", "ai.preset.2"])
     }
 
     func testGroupDisappearsWhenAllRemainingPresetsAreDisabled() {

@@ -139,7 +139,7 @@ AI settings are managed by `AIServiceManager` and kept isolated for security and
 
 To put a preset you use often directly on the popup bar, open **Actions**, expand **AI Tools**, and drag the preset between the top-level actions. Its position is saved. To return it to the group, drop it onto the **AI Tools** row. Presets moved out of the group still appear in the full search palette, and their enable switches, aliases, and hotkeys keep working.
 
-The switch next to **AI Tools** in **Actions** hides the group and its remaining commands. It doesn't turn off AI or any presets on the main bar. To move every command out of the group, right-click it and choose **Ungroup**, or use **Remove from Group** on a single command. An empty group disappears from the Actions list and the popup. To bring it back, right-click a standalone AI command and choose **Add to Group > AI Tools**, then drag more commands onto or inside the group. Hovering over or clicking AI Tools opens its commands in the order you arranged them.
+The switch next to **AI Tools** in **Actions** hides the group and its remaining commands. It doesn't turn off AI or any presets on the main bar. To move every command out of the group, right-click it and choose **Ungroup**, or use **Remove from Group** on a single command. An empty group disappears from the Actions list and the popup. To bring it back, right-click a standalone AI command and choose **Add to Group > AI Tools**, then drag more commands onto or inside the group. Hovering over AI Tools opens its commands, and clicking opens their scoped search.
 
 ### Editing a preset
 

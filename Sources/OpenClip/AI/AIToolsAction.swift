@@ -35,12 +35,24 @@ public struct AIToolsAction: Action, SubActionProviding {
         .success
     }
 
-    // The AI Tools launcher's sub-actions are the registered AI presets (chrome source `.ai`).
+    // The AI Tools launcher's sub-actions are the registered AI presets (chrome source `.ai`) that the
+    // user hasn't moved out, in the order arranged on the Actions page (#175). Ordering by the stored
+    // member list, not by catalog position, keeps the hover sub-bar and the click palette in sync with
+    // Preferences even when a surface reorders its catalog (e.g. contextual matches first).
     @MainActor
     public func subActions(in catalog: [any Action]) -> [any Action] {
         let standaloneIDs = settingsStore.get(.standaloneAIActionIDs)
-        return catalog.filter { action in
+        let members = catalog.filter { action in
             ActionIdentity.isAIPreset(action) && !standaloneIDs.contains(action.id)
         }
+        let arranged = settingsStore.get(.extensionGroupMemberOrder)[id] ?? []
+        guard !arranged.isEmpty else { return members }
+        let rank = Dictionary(arranged.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        return members.enumerated()
+            .sorted { lhs, rhs in
+                let l = rank[lhs.element.id] ?? Int.max, r = rank[rhs.element.id] ?? Int.max
+                return l != r ? l < r : lhs.offset < rhs.offset
+            }
+            .map(\.element)
     }
 }

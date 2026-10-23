@@ -125,7 +125,7 @@ The ⌥⌘C hotkey toggles the popup through a mode state machine: actions bar �
 
 Opening a group or AI bar row and reaching the palette from the hotkey are the same surface, differing only in `modeStore.scope`:
 
-- **Entering scoped**: a bar click on a group row (`.openSubActions`) calls `PopupWindowController.enterScopedSearch(for:)` (`PopupWindowController.swift:158`). That resolves the parent's children via the Core `SubActionResolver` over `searchCatalog` and calls `enterSearch(with: SearchScope(parent:children:))`. `modeStore.scope` (added Task 5) carries the parent plus pre-resolved children. The AI Tools launcher (`chrome.launchesAI`) doesn't enter scoped search on click; it calls `onRequestSubBarToggle`, opening the same sub-bar as the hover dwell.
+- **Entering scoped**: a bar click on a group row (`.openSubActions`) or the AI Tools launcher (`chrome.launchesAI`) calls `PopupWindowController.enterScopedSearch(for:)` (`PopupWindowController.swift:158`). That resolves the parent's children via the Core `SubActionResolver` over `searchCatalog` and calls `enterSearch(with: SearchScope(parent:children:))`. `modeStore.scope` (added Task 5) carries the parent plus pre-resolved children.
 - **Membership is protocol-driven**: `GroupAction` and `AIToolsAction` conform to `SubActionProviding` (Core, `SubAction.swift`). Resolution is id-prefix or `.ai` driven, never `switch action.id`.
 - **Scoped view behavior**: `PopupSearchView` matches and search-catalogs only `scope.children` (`PopupSearchView.swift:49`), swaps the field's leading icon to the parent's, and the placeholder reads "Search within <parent.title>". Esc (`onExitScope`) drops the scope. The leading icon and placeholder come from `actionIcon(parent)` and `parent.displayTitle`.
 
