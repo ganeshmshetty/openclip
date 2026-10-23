@@ -49,10 +49,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
             for child in resolver.subActions(of: parent, in: registeredActions) {
                 guard child.id != parent.id, parents[child.id] == nil else { continue }
                 if ActionIdentity.isAIPreset(child), standaloneAIIDs.contains(child.id) { continue }
-                // An in-group AI preset always follows its launcher, even if a stale top-level
-                // `action.order` entry survives from when it was standalone (#175).
-                let isGroupedAIPreset = ActionIdentity.isAIPreset(child) && parent.chrome.launchesAI
-                if !(parent is GroupAction), !isGroupedAIPreset, explicitlyOrderedIDs[child.id] != nil {
+                if !(parent is GroupAction), explicitlyOrderedIDs[child.id] != nil {
                     continue
                 }
                 parents[child.id] = parent.id

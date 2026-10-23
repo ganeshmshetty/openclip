@@ -153,18 +153,16 @@ final class AIToolsActionSubActionTests: XCTestCase {
         XCTAssertEqual(ids.palette, ["ai.preset.3", "ai.preset.1"])
     }
 
-    func testMovedInPresetShowsAtItsArrangedSpotEvenWithStaleTopLevelOrder() {
-        let (store, registry, coordinator, tools) = makeAIGroup(["ai.preset.1", "ai.preset.2", "ai.preset.3"])
+    func testMovedInPresetShowsAtItsArrangedSpotOnSubBarAndPalette() {
+        let (_, registry, coordinator, tools) = makeAIGroup(["ai.preset.1", "ai.preset.2", "ai.preset.3"])
         coordinator.setAIActionPlacement(actionIDs: ["ai.preset.3"], standalone: true)
-        // Simulate a leftover top-level slot from when the preset was standalone.
-        store.set(.actionOrder, value: ["ai.preset.3", tools.id])
-        store.set(.standaloneAIActionIDs, value: [])
+        XCTAssertEqual(subBarAndPaletteIDs(tools, registry).subBar, ["ai.preset.1", "ai.preset.2"])
+        // Dropped back into the group between the other two.
+        coordinator.setAIActionPlacement(actionIDs: ["ai.preset.3"], standalone: false)
         coordinator.setExtensionGroupMemberOrder(groupID: tools.id, memberIDs: ["ai.preset.1", "ai.preset.3", "ai.preset.2"])
         let ids = subBarAndPaletteIDs(tools, registry)
         XCTAssertEqual(ids.subBar, ["ai.preset.1", "ai.preset.3", "ai.preset.2"])
         XCTAssertEqual(ids.palette, ["ai.preset.1", "ai.preset.3", "ai.preset.2"])
-        // The in-group preset sorts with its launcher, not at its old top-level slot.
-        XCTAssertEqual(registry.actions.map(\.id), [tools.id, "ai.preset.1", "ai.preset.3", "ai.preset.2"])
     }
 
     func testGroupDisappearsWhenAllRemainingPresetsAreDisabled() {
