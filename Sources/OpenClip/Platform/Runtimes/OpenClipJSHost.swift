@@ -940,7 +940,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         case .copyContent(let payload): return .copyContent(payload)
         case .cut(let text): return .cut(text)
         case .openURL(let url):
-            if let browserBundleID, ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+            if let browserBundleID = BrowserDetector.browserToOpen(url, sourceBundleIdentifier: browserBundleID) {
                 return .openURLInApp(url: url, appBundleIdentifier: browserBundleID)
             }
             return .openURL(url)

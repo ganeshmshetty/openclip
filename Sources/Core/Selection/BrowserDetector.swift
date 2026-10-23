@@ -67,4 +67,16 @@ public enum BrowserDetector: Sendable {
         }
         return knownBrowserBundleIDs.contains(bundleIdentifier)
     }
+
+    /// Returns the browser to open `url` in, or `nil` when it should go through
+    /// the system. Only http(s) links go to the source browser; custom schemes
+    /// (e.g. `scratchpad:`, `goodlinks://`) would otherwise trigger the browser's
+    /// "allow this website to open…" prompt.
+    public static func browserToOpen(_ url: URL, sourceBundleIdentifier: String?) -> String? {
+        guard let sourceBundleIdentifier, isBrowser(bundleIdentifier: sourceBundleIdentifier),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            return nil
+        }
+        return sourceBundleIdentifier
+    }
 }

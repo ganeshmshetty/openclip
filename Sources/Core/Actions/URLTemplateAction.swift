@@ -73,8 +73,8 @@ public struct URLTemplateAction: ConfigurableAction, ActionWithRules, Sendable {
         
         if let url = URL(string: urlString) {
             let sourceBundleID = context.selection.sourceApp.bundleIdentifier
-            if BrowserDetector.isBrowser(bundleIdentifier: sourceBundleID), let sourceBundleID {
-                return .openURLInApp(url: url, appBundleIdentifier: sourceBundleID)
+            if let browserID = BrowserDetector.browserToOpen(url, sourceBundleIdentifier: sourceBundleID) {
+                return .openURLInApp(url: url, appBundleIdentifier: browserID)
             }
             return .openURL(url)
         }
