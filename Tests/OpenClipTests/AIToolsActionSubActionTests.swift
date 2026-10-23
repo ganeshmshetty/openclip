@@ -55,6 +55,15 @@ final class AIToolsActionSubActionTests: XCTestCase {
         XCTAssertTrue(subActions.isEmpty)
     }
 
+    /// Clicking AI Tools opens the same sub-bar as hovering (#175), which resolves its children via
+    /// SubActionResolver in catalog order, i.e. the order arranged in Preferences.
+    func testSubBarChildrenKeepCatalogOrder() {
+        let tools = AIToolsAction(settingsStore: MemorySettingsStore())
+        let catalog = [FakeAIAction(id: "ai.preset.3"), FakeAIAction(id: "ai.preset.1"), FakeAIAction(id: "ai.preset.2")]
+        let ids = SubActionResolver().subActions(of: tools, in: catalog).map(\.id)
+        XCTAssertEqual(ids, ["ai.preset.3", "ai.preset.1", "ai.preset.2"])
+    }
+
     private var context: ActionContext {
         ActionContext(selection: SelectionContext(
             text: "Example", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),

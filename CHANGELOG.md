@@ -4,6 +4,12 @@ All notable user-facing changes to OpenClip.
 
 ---
 
+## Unreleased
+
+- Clicking the AI Tools icon now opens its AI actions in your Actions order instead of the search popup ([#175](https://github.com/ganeshmshetty/openclip/issues/175)).
+
+---
+
 ## v1.9.0 - 2026-10-20
 
 - **Action sounds**: play a sound when any action finishes. Choose Click, Drop, Tink, Pop or your own file, and silence individual actions.

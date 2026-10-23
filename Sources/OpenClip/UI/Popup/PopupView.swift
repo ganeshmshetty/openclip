@@ -890,12 +890,12 @@ public struct PopupView: View {
                 }
             case .perform:
                 if action.chrome.launchesAI {
-                    // AI Tools launcher opens scoped search palette on click; sub-bar opens on hover dwell
+                    // AI Tools launcher opens its sub-bar (Preferences order) on click, same as hover dwell (#175)
                     Button {
                         guard action.isEnabled(for: context) else { return }
                         onCancelSubBarDwell?()
-                        let frame = hoverFrames[.action(index)]
-                        onEnteredScopedSearch?(action, frame)
+                        let frame = hoverFrames[.action(index)] ?? .zero
+                        onRequestSubBarToggle?(action, index, frame)
                     } label: {
                         labelView
                     }
