@@ -32,6 +32,13 @@ areas; stale debt notes are worse than none.
   `AICustomSystemPromptTests`). `AIServiceManager.currentProvider` passes the value into every
   provider's `customGuidelines`. CLI providers send it as part of the prompt argument, beneath the
   tool's own agent instructions.
+- **Additional instruction.** `AIActionPreset.requestsAdditionalInstruction` decodes as `false`
+  when absent, so presets saved earlier load unchanged (no migration). The variable is the exact,
+  case-sensitive literal `{{additional_instruction}}` (`AIAdditionalInstruction.placeholder`); a
+  spaced or differently cased variant is ordinary prompt text. All saved-preset entry points meet in
+  `PopupWindowController.runSavedAIPreset`; unit tests drive that method and the submit/cancel
+  paths directly, while the SwiftUI/AppKit wiring of bar, sub-bar, palette and hotkey into it, and
+  the editor's drag-and-drop, are verified manually (no hosted UI tests).
 
 ## Manual update window activation
 

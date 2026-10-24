@@ -143,7 +143,7 @@ The switch next to **AI Tools** in **Actions** hides the group and its remaining
 
 ### Editing a preset
 
-Select a preset under **AI > AI Actions** to edit its icon, display name, **Icon/Text** mode, keyboard shortcut, search alias, and prompt. Changes save automatically and apply whether the preset is inside AI Tools or on the main bar.
+Select a preset under **AI > AI Actions** to edit its icon, display name, **Icon/Text** mode, keyboard shortcut, search alias, prompt, and whether it asks for an additional instruction when it runs (see below). Changes save automatically and apply whether the preset is inside AI Tools or on the main bar.
 
 **Add Custom AI Action** offers the same controls before you create the preset, with **Show as > Text** selected by default. They're saved when you click **Add Action**, which opens the editor for the new preset. Cancelling discards the draft, including its shortcut and alias.
 
@@ -165,6 +165,35 @@ You execute a user-defined action in OpenClip. Follow the task below.
 ```
 
 The CLI providers (Claude Code, Codex, Copilot) add their own agent instructions, and OpenClip's system prompt reaches the model as part of the request, not as a real system message. Your rules still apply, but the model may follow them less strictly than with Apple Intelligence, local models, or the cloud APIs.
+
+### Asking for an additional instruction each time an AI action runs
+
+An AI action can ask you for a one-time instruction every time it runs, without editing the saved prompt. A Reply to Email action, for example, can ask what to say this time ("Friday at 17:00 works, suggest my office"), or a Rewrite action can ask for the tone.
+
+1. Open the action under **AI > AI Actions**, or create one with **Add Custom AI Action**.
+2. Expand the **Prompt Instruction** card and turn on **Additional Instruction**. The variable `{{additional_instruction}}` is added at the end of the prompt, unless it's already there.
+3. Move the variable to where the instruction belongs. It's ordinary text, so you can cut and paste it or type it yourself. You can also drag the `{{additional_instruction}}` chip below the editor to the exact spot, or place the cursor and click **Insert at Cursor**. For example:
+
+   ```
+   Rewrite the following text professionally.
+
+   Additional requirements:
+   {{additional_instruction}}
+
+   Preserve the original meaning and language.
+   Return only the final text.
+   ```
+
+   Changes save automatically, like every other field on the page.
+
+When you run the action from the popup bar, the AI Tools commands, the search palette, or its keyboard shortcut, nothing is sent yet. The popup turns into a small card with the action's name and a text field for the instruction:
+
+- **⏎** starts a new line, and **⌘⏎** (or **Run**) runs the action. **⎋** (or **Cancel**) closes the card without running or copying anything, and leaves your selection alone.
+- **Run** stays disabled until you type something other than spaces.
+
+Every `{{additional_instruction}}` in the prompt is replaced with what you typed, and the action runs on your selected text with its usual provider and model, including the streaming result card, Copy, Paste, and follow-ups. The instruction applies to that run only. The saved prompt never changes, so the next run asks again. If the prompt no longer contains the variable, the instruction is added at the end. Turning **Additional Instruction** off removes the variable from the prompt, and the action runs immediately again. A `{{additional_instruction}}` left in a prompt while the option is off is dropped when the action runs.
+
+Ask AI (below) runs a free-form instruction in place of a saved prompt. Additional Instruction keeps the saved prompt, with its wording, rules, and output format, and only fills in the part you want to change per run.
 
 ### Ask AI from the search palette
 
