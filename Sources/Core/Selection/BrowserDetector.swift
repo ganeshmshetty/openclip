@@ -22,6 +22,8 @@ public enum BrowserDetector: Sendable {
         "com.brave.Browser.beta",
         "com.brave.Browser.nightly",
         "com.brave.Browser.dev",
+        "com.brave.Browser.origin",
+        "com.brave.Browser.origin.beta",
 
         "company.thebrowser.Browser",
         "company.thebrowser.dia",

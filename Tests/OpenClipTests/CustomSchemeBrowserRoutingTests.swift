@@ -24,6 +24,12 @@ final class CustomSchemeBrowserRoutingTests: XCTestCase {
         XCTAssertNil(BrowserDetector.browserToOpen(URL(string: "https://example.com")!, sourceBundleIdentifier: nil))
     }
 
+    func testBraveOriginIsRecognizedAsBrowser() {
+        XCTAssertTrue(BrowserDetector.isBrowser(bundleIdentifier: "com.brave.Browser.origin"))
+        XCTAssertTrue(BrowserDetector.isBrowser(bundleIdentifier: "com.brave.Browser.origin.beta"))
+        XCTAssertEqual(BrowserDetector.browserToOpen(URL(string: "https://example.com")!, sourceBundleIdentifier: "com.brave.Browser.origin"), "com.brave.Browser.origin")
+    }
+
     @MainActor
     func testURLTemplateCustomSchemeFromBrowserOpensViaSystem() async throws {
         let action = URLTemplateAction(id: "test.scratchpad", title: "Scratchpad", icon: .symbol("note"), urlTemplate: "scratchpad:append?text={text}&hide")

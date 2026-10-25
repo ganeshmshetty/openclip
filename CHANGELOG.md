@@ -4,6 +4,13 @@ All notable user-facing changes to OpenClip.
 
 ---
 
+## Unreleased
+
+### Fixes & Stability
+- **Brave Origin support**: Search and URL actions now open in Brave Origin (and Origin Beta) when that's where you selected the text, instead of your default browser ([#180](https://github.com/ganeshmshetty/openclip/issues/180)).
+
+---
+
 ## v1.9.1 - 2026-10-24
 
 ### Fixes & Stability
